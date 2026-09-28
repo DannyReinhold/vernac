@@ -22,8 +22,15 @@ topLevelDefinition
 // ==========================================
 // 1. Value Objects
 // ==========================================
+// ==========================================
+// 1. Value Objects
+// ==========================================
 valueDefinition
-    : 'value' name=identifier '(' parameterList? ')' ( 'validates' validationBlock )? ( ';' | blockBody? )
+    : 'value' name=identifier '(' parameterList? ')'
+      ( 'validates' validationBlock )?
+      ( blockBody )?
+      ( 'collection' collectionName=identifier? ( '{' methodDefinition* '}' )? )?
+      ';'?
     ;
 
 validationBlock
@@ -81,12 +88,23 @@ eventDefinition
     ;
 
 annotation
-    : '@' name=identifier ( '(' annotationArgument? ')' )?
+    : '@' name=identifier ( '(' annotationArgumentList? ')' )?
     ;
 
-annotationArgument
+annotationArgumentList
+    : annotationPair (',' annotationPair)*
+    | annotationValue
+    ;
+
+annotationPair
+    : key=identifier '=' value=annotationValue
+    ;
+
+annotationValue
     : identifier
     | STRING_LITERAL
+    | INT_LITERAL
+    | BOOLEAN_LITERAL
     ;
 
 // ==========================================
@@ -102,7 +120,11 @@ serviceMember
     ;
 
 externalSchemaDefinition
-    : 'external' 'schema' name=identifier '{' ( identifier ':' type ';' )* '}'
+    : 'external' 'schema' name=identifier '{' schemaField* '}'
+    ;
+
+schemaField
+    : name=identifier ':' type ';'
     ;
 
 serviceMethodDefinition
@@ -145,7 +167,7 @@ parameter
     ;
 
 type
-    : rawType=identifier ('<' typeArguments '>')? (isOptional='?')?
+    : rawType=identifier ('<' typeArguments '>')? isOptional='?'?
     ;
 
 typeArguments
@@ -161,7 +183,12 @@ blockBody
     ;
 
 rawJavaBlock
-    : ( ~[{}] | '{' rawJavaBlock '}' )*
+    : rawJavaToken*
+    ;
+
+rawJavaToken
+    : '{' rawJavaBlock '}'
+    | ~('{' | '}')
     ;
 
 expression
@@ -184,7 +211,7 @@ argumentList
     : expression (',' expression)*
     ;
 
-// Kontextuelle Keywords als Identifier erlauben
+// Erlaubt es, Schlüsselwörter der Sprache auch als Feld-/Variablennamen zu verwenden
 identifier
     : IDENTIFIER
     | 'value'
@@ -195,9 +222,13 @@ identifier
     | 'invariant'
     | 'id'
     | 'mapping'
+    | 'external'
+    | 'schema'
     ;
 
+// ==========================================
 // Lexer-Tokens
+// ==========================================
 IDENTIFIER      : [a-zA-Z_][a-zA-Z0-9_]* ;
 STRING_LITERAL  : '"' (~["\\\r\n] | '\\' .)* '"' ;
 INT_LITERAL     : [0-9]+ ;
@@ -207,3 +238,7 @@ BOOLEAN_LITERAL : 'true' | 'false' ;
 WS            : [ \t\r\n]+ -> skip ;
 LINE_COMMENT  : '//' ~[\r\n]* -> skip ;
 BLOCK_COMMENT : '/*' .*? '*/' -> skip ;
+
+// Fallback: Erfasst alle sonstigen ASCII/Unicode-Sonderzeichen (wie &, |, #, %, ^),
+// die in Java-Methodenrümpfen vorkommen könnten. Verhindert Lexer-Abstürze.
+ANY_CHAR      : . ;
