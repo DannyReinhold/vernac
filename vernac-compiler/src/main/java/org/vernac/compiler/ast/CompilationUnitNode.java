@@ -38,4 +38,10 @@ public record CompilationUnitNode(
                 .toList();
     }
 
+    public List<EntityNode> entities() {
+        return definitions.stream()
+                .filter(EntityNode.class::isInstance)
+                .map(EntityNode.class::cast)
+                .toList();
+    }
 }

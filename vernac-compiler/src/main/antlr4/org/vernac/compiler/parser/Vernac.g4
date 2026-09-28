@@ -55,16 +55,10 @@ idDefinition
     ;
 
 entityDefinition
-    : 'entity' name=identifier '{' entityMember* '}'
-    ;
-
-entityMember
-    : fieldDeclaration
-    | methodDefinition
-    ;
-
-fieldDeclaration
-    : ( 'id:' | name=identifier ':' ) type ('=' defaultValue=expression)? ';'
+    : 'entity' name=identifier '[' idDefinition ']' '(' parameterList? ')'
+      ( 'validates' validationBlock )?
+      ( blockBody )?
+      ';'?
     ;
 
 invariantDefinition

@@ -30,6 +30,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     private TopLevelDefinition toTopLevelDefinition(VernacParser.TopLevelDeclarationContext ctx) {
         if (ctx.valueDefinition() != null) return visitValueDefinition(ctx.valueDefinition());
         if (ctx.aggregateDefinition() != null) return visitAggregateDefinition(ctx.aggregateDefinition());
+        if (ctx.entityDefinition() != null) return visitEntityDefinition(ctx.entityDefinition());
         if (ctx.eventDefinition() != null) return visitEventDefinition(ctx.eventDefinition());
         if (ctx.serviceDefinition() != null) return visitServiceDefinition(ctx.serviceDefinition());
         return null;
@@ -96,6 +97,37 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 .orElse(Collections.emptyList());
 
         return new AggregateNode(toLocation(ctx), name, idDef, fields, validations, methods);
+    }
+
+    @Override
+    public EntityNode visitEntityDefinition(VernacParser.EntityDefinitionContext ctx) {
+        String name = ctx.name.getText();
+
+        VernacParser.IdDefinitionContext idCtx = ctx.idDefinition();
+        TypeNode idType = toTypeNode(idCtx.idType);
+        String idFieldName = idCtx.name != null ? idCtx.name.getText() : "id";
+        IdDefinitionNode idDef = new IdDefinitionNode(toLocation(idCtx), idType, idFieldName);
+
+        List<FieldNode> fields = Optional.ofNullable(ctx.parameterList())
+                .map(this::extractParameters)
+                .orElse(Collections.emptyList());
+
+        List<ValidationRuleNode> validations = new ArrayList<>();
+        if (ctx.validationBlock() != null) {
+            for (VernacParser.ValidationStatementContext valCtx : ctx.validationBlock().validationStatement()) {
+                String condition = valCtx.condition.getText();
+                String message = valCtx.message != null ? unquote(valCtx.message.getText()) : "";
+                validations.add(new ValidationRuleNode(toLocation(valCtx), condition, message));
+            }
+        }
+
+        List<MethodNode> methods = Optional.ofNullable(ctx.blockBody())
+                .map(body -> body.methodDefinition().stream()
+                        .map(this::toMethodNode)
+                        .toList())
+                .orElse(Collections.emptyList());
+
+        return new EntityNode(toLocation(ctx), name, idDef, fields, validations, methods);
     }
 
     private MethodNode toMethodNode(VernacParser.MethodDefinitionContext ctx) {

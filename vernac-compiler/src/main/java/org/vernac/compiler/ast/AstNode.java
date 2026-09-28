@@ -5,7 +5,6 @@ public sealed interface AstNode permits
         TopLevelDefinition,
         CollectionDefinitionNode,
         IdDefinitionNode,
-        EntityNode,
         FieldNode,
         TypeNode,
         ValidationRuleNode,
