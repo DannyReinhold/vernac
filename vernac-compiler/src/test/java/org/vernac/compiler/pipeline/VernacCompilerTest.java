@@ -22,6 +22,7 @@ class VernacCompilerTest {
                 package com.example.domain;
                 
                 value ProjectId(UUID value);
+                value TaskId(UUID value);
                 value ProjectName(String value) validates {
                     require(value.length() <= 50, "Name too long");
                 };
@@ -48,9 +49,10 @@ class VernacCompilerTest {
                 .map(f -> f.typeSpec.name)
                 .toList();
 
-        // 3 Value Objects + 1 Event + 1 Aggregate + 1 Entity = 6 Klassen
+        // 4 Value Objects + 1 Event + 1 Aggregate + 1 Entity = 7 Klassen
         assertThat(generatedTypeNames).containsExactlyInAnyOrder(
                 "ProjectId",
+                "TaskId",
                 "ProjectName",
                 "Money",
                 "ProjectCreated",

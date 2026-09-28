@@ -2,6 +2,9 @@ package org.vernac.compiler.pipeline;
 
 import com.squareup.javapoet.JavaFile;
 import org.antlr.v4.runtime.*;
+import org.vernac.compiler.analyzer.CompilerDiagnostic;
+import org.vernac.compiler.analyzer.SemanticAnalyzer;
+import org.vernac.compiler.analyzer.SemanticValidationException;
 import org.vernac.compiler.ast.*;
 import org.vernac.compiler.generator.AggregateGenerator;
 import org.vernac.compiler.generator.EntityGenerator;
@@ -18,6 +21,7 @@ import java.util.List;
 
 public class VernacCompiler {
 
+    private final SemanticAnalyzer semanticAnalyzer = new SemanticAnalyzer();
     private final ValueObjectGenerator valueObjectGenerator = new ValueObjectGenerator();
     private final EventGenerator eventGenerator = new EventGenerator();
     private final AggregateGenerator aggregateGenerator = new AggregateGenerator();
@@ -30,11 +34,21 @@ public class VernacCompiler {
 
     public VernacCompilationResult compileSource(String source) {
         CompilationUnitNode unit = parse(source);
-        String packageName = unit.packageName().orElse("generated.domain");
 
+        // Semantische Analyse vor der Codegenerierung
+        List<CompilerDiagnostic> diagnostics = semanticAnalyzer.analyze(unit);
+        List<CompilerDiagnostic> errors = diagnostics.stream()
+                .filter(d -> d.severity() == CompilerDiagnostic.Severity.ERROR)
+                .toList();
+
+        if (!errors.isEmpty()) {
+            throw new SemanticValidationException(errors);
+        }
+
+        String packageName = unit.packageName().orElse("generated.domain");
+        List<String> imports = unit.imports();
         List<JavaFile> generatedFiles = new ArrayList<>();
 
-        List<String> imports = unit.imports();
         for (TopLevelDefinition definition : unit.definitions()) {
             if (definition instanceof ValueObjectNode vo) {
                 generatedFiles.add(valueObjectGenerator.generate(vo, packageName, imports));
@@ -64,14 +78,7 @@ public class VernacCompiler {
 
     private static class DescriptiveErrorListener extends BaseErrorListener {
         @Override
-        public void syntaxError(
-                Recognizer<?, ?> recognizer,
-                Object offendingSymbol,
-                int line,
-                int charPositionInLine,
-                String msg,
-                RecognitionException e
-        ) {
+        public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line, int charPositionInLine, String msg, RecognitionException e) {
             throw new IllegalArgumentException("Syntax error at line " + line + ":" + (charPositionInLine + 1) + " - " + msg, e);
         }
     }
