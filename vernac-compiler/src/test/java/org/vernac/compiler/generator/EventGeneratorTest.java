@@ -11,6 +11,8 @@ import org.vernac.compiler.ast.EventNode;
 import org.vernac.compiler.parser.VernacLexer;
 import org.vernac.compiler.parser.VernacParser;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class EventGeneratorTest {
@@ -35,7 +37,7 @@ class EventGeneratorTest {
 
         CompilationUnitNode cu = parse(src);
         EventNode node = cu.events().getFirst();
-        JavaFile file = generator.generate(node, "com.example.domain");
+        JavaFile file = generator.generate(node, "com.example.domain", List.of());
         String code = file.toString();
         String normalizedCode = code.replaceAll("\\s+", " ");
 

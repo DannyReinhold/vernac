@@ -11,6 +11,8 @@ import org.vernac.compiler.ast.CompilationUnitNode;
 import org.vernac.compiler.parser.VernacLexer;
 import org.vernac.compiler.parser.VernacParser;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AggregateGeneratorTest {
@@ -40,7 +42,7 @@ class AggregateGeneratorTest {
 
         CompilationUnitNode cu = parse(src);
         AggregateNode node = cu.aggregates().getFirst();
-        JavaFile file = generator.generate(node, "com.example.domain");
+        JavaFile file = generator.generate(node, "com.example.domain", List.of());
         String code = file.toString();
         String normalizedCode = code.replaceAll("\\s+", " ");
 

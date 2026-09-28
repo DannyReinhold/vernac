@@ -3,6 +3,7 @@ package org.vernac.compiler.generator;
 import com.squareup.javapoet.*;
 import org.jspecify.annotations.Nullable;
 import org.vernac.compiler.ast.FieldNode;
+import org.vernac.compiler.ast.MethodNode;
 import org.vernac.compiler.ast.ValidationRuleNode;
 import org.vernac.compiler.ast.ValueObjectNode;
 import org.vernac.runtime.DomainValidationException;
@@ -17,7 +18,7 @@ public class ValueObjectGenerator {
     private static final ClassName VALIDATION_EXCEPTION = ClassName.get(DomainValidationException.class);
     private static final ClassName NULLABLE_ANNOTATION = ClassName.get(Nullable.class);
 
-    public JavaFile generate(ValueObjectNode node, String packageName) {
+    public JavaFile generate(ValueObjectNode node, String packageName, List<String> explicitImports) {
         String className = node.name();
         TypeSpec.Builder classBuilder = TypeSpec.classBuilder(className)
                 .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
@@ -26,7 +27,7 @@ public class ValueObjectGenerator {
 
         // 1. Felder
         for (FieldNode field : node.fields()) {
-            TypeName fieldType = TypeResolver.resolve(field.type(), packageName);
+            TypeName fieldType = TypeResolver.resolve(field.type(), packageName, explicitImports);
             FieldSpec.Builder fieldBuilder = FieldSpec.builder(fieldType, field.name(), Modifier.PRIVATE, Modifier.FINAL);
             if (field.type().isOptional()) {
                 fieldBuilder.addAnnotation(NULLABLE_ANNOTATION);
@@ -65,6 +66,10 @@ public class ValueObjectGenerator {
         classBuilder.addMethod(buildHashCode(node));
         classBuilder.addMethod(buildToString(node, className));
 
+        // 8. Benutzerdefinierte Domain-Methoden (z. B. add, multiply)
+        for (MethodNode method : node.methods()) {
+            classBuilder.addMethod(buildCustomMethod(method, packageName, explicitImports));
+        }
         return JavaFile.builder(packageName, classBuilder.build())
                 .skipJavaLangImports(true)
                 .indent("    ")
@@ -280,12 +285,28 @@ public class ValueObjectGenerator {
         List<String> fieldFormats = new ArrayList<>();
         List<String> fieldVars = new ArrayList<>();
         for (FieldNode field : node.fields()) {
-            fieldFormats.add(field.name() + "='\" + this." + field.name() + " + '\"'");
+            fieldFormats.add("\"" + field.name() + "='\" + this." + field.name() + " + \"'\"");
         }
 
         String returnExpr = "\"" + className + "[\" + " + String.join(" + \", \" + ", fieldFormats) + " + \"]\"";
         toString.addStatement("return " + returnExpr);
         return toString.build();
+    }
+
+    private MethodSpec buildCustomMethod(MethodNode method, String packageName, List<String> explicitImports) {
+        TypeName returnType = TypeResolver.resolve(method.returnType(), packageName, explicitImports);
+
+        MethodSpec.Builder builder = MethodSpec.methodBuilder(method.name())
+                .addModifiers(Modifier.PUBLIC)
+                .returns(returnType);
+
+        for (FieldNode param : method.parameters()) {
+            TypeName paramType = TypeResolver.resolve(param.type(), packageName, explicitImports);
+            builder.addParameter(paramType, param.name());
+        }
+
+        builder.addCode(method.bodyCode() + "\n");
+        return builder.build();
     }
 
     private boolean isCollectionType(String typeName) {

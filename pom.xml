@@ -16,6 +16,8 @@
     <modules>
         <module>vernac-runtime</module>
         <module>vernac-compiler</module>
+        <module>vernac-maven-plugin</module>
+        <module>vernac-example</module>
     </modules>
 
     <properties>

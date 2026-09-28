@@ -20,11 +20,11 @@ public class AggregateGenerator {
     private static final ClassName DOMAIN_EVENT_INTERFACE = ClassName.get(DomainEvent.class);
     private static final ClassName NULLABLE_ANNOTATION = ClassName.get(Nullable.class);
 
-    public JavaFile generate(AggregateNode node, String packageName) {
+    public JavaFile generate(AggregateNode node, String packageName, List<String> imports) {
         String className = node.name();
         ClassName selfType = ClassName.get(packageName, className);
 
-        TypeName idType = TypeResolver.resolve(node.idDefinition().type(), packageName);
+        TypeName idType = TypeResolver.resolve(node.idDefinition().type(), packageName, imports);
         String idFieldName = node.idDefinition().fieldName();
 
         ParameterizedTypeName aggregateRootType = ParameterizedTypeName.get(AGGREGATE_ROOT_INTERFACE, idType);

@@ -11,6 +11,8 @@ import org.vernac.compiler.ast.ValueObjectNode;
 import org.vernac.compiler.parser.VernacLexer;
 import org.vernac.compiler.parser.VernacParser;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ValueObjectGeneratorTest {
@@ -33,7 +35,7 @@ class ValueObjectGeneratorTest {
 
         CompilationUnitNode cu = parse(src);
         ValueObjectNode node = cu.valueObjects().getFirst();
-        JavaFile file = generator.generate(node, "com.example.domain");
+        JavaFile file = generator.generate(node, "com.example.domain", List.of());
         String code = file.toString();
 
         assertThat(code)
@@ -61,7 +63,7 @@ class ValueObjectGeneratorTest {
 
         CompilationUnitNode cu = parse(src);
         ValueObjectNode node = cu.valueObjects().getFirst();
-        JavaFile file = generator.generate(node, "com.example.domain");
+        JavaFile file = generator.generate(node, "com.example.domain", List.of());
         String code = file.toString();
 
         assertThat(code)

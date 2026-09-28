@@ -8,10 +8,7 @@ public record ValueObjectNode(
         String name,
         List<FieldNode> fields,
         List<ValidationRuleNode> validations,
+        List<MethodNode> methods,
         Optional<CollectionDefinitionNode> collection
 ) implements TopLevelDefinition {
-
-    public ValueObjectNode(SourceLocation location, String name, List<FieldNode> fields, List<ValidationRuleNode> validations) {
-        this(location, name, fields, validations, Optional.empty());
-    }
 }

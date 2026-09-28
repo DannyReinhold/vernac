@@ -18,7 +18,7 @@ public class EventGenerator {
     private static final ClassName DOMAIN_EVENT_INTERFACE = ClassName.get(DomainEvent.class);
     private static final ClassName NULLABLE_ANNOTATION = ClassName.get(Nullable.class);
 
-    public JavaFile generate(EventNode node, String packageName) {
+    public JavaFile generate(EventNode node, String packageName, List<String> imports) {
         String className = node.name();
         ClassName selfType = ClassName.get(packageName, className);
         String eventTypeConstant = toUpperSnakeCase(className);

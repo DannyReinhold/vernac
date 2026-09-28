@@ -11,6 +11,8 @@ import org.vernac.compiler.ast.EntityNode;
 import org.vernac.compiler.parser.VernacLexer;
 import org.vernac.compiler.parser.VernacParser;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class EntityGeneratorTest {
@@ -40,7 +42,7 @@ class EntityGeneratorTest {
 
         CompilationUnitNode cu = parse(src);
         EntityNode node = cu.entities().getFirst();
-        JavaFile file = generator.generate(node, "com.example.domain");
+        JavaFile file = generator.generate(node, "com.example.domain", List.of());
         String code = file.toString();
         String normalizedCode = code.replaceAll("\\s+", " ");
 

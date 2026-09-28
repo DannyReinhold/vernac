@@ -17,11 +17,11 @@ public class EntityGenerator {
     private static final ClassName ENTITY_INTERFACE = ClassName.get(Entity.class);
     private static final ClassName NULLABLE_ANNOTATION = ClassName.get(Nullable.class);
 
-    public JavaFile generate(EntityNode node, String packageName) {
+    public JavaFile generate(EntityNode node, String packageName, List<String> imports) {
         String className = node.name();
         ClassName selfType = ClassName.get(packageName, className);
 
-        TypeName idType = TypeResolver.resolve(node.idDefinition().type(), packageName);
+        TypeName idType = TypeResolver.resolve(node.idDefinition().type(), packageName, imports);
         String idFieldName = node.idDefinition().fieldName();
 
         ParameterizedTypeName entityInterfaceType = ParameterizedTypeName.get(ENTITY_INTERFACE, idType);

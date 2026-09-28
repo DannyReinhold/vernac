@@ -52,16 +52,25 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             }
         }
 
+        // Methoden aus dem Hauptblock auslesen (blockBody oder direkt methodDefinition)
+        List<MethodNode> methods = Optional.ofNullable(ctx.blockBody())
+                .map(body -> body.methodDefinition().stream()
+                        .map(this::toMethodNode)
+                        .toList())
+                .orElseGet(() -> {
+                    // Fallback, falls die Grammatik methodDefinition direkt auf valueDefinition definiert
+                    return ctx.methodDefinition() != null
+                            ? ctx.methodDefinition().stream().map(this::toMethodNode).toList()
+                            : Collections.emptyList();
+                });
+
         Optional<CollectionDefinitionNode> collection = Optional.empty();
         if (ctx.getText().contains("collection")) {
             Optional<String> collectionName = Optional.ofNullable(ctx.collectionName).map(ParserRuleContext::getText);
-            List<MethodNode> methods = ctx.methodDefinition().stream()
-                    .map(this::toMethodNode)
-                    .toList();
             collection = Optional.of(new CollectionDefinitionNode(toLocation(ctx), collectionName, methods));
         }
 
-        return new ValueObjectNode(toLocation(ctx), name, fields, validations, collection);
+        return new ValueObjectNode(toLocation(ctx), name, fields, validations, methods, collection);
     }
 
     @Override
@@ -137,9 +146,34 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         List<FieldNode> parameters = Optional.ofNullable(ctx.parameterList())
                 .map(this::extractParameters)
                 .orElse(Collections.emptyList());
-        String body = ctx.rawJavaBlock().getText().trim();
+
+        // Body mit exakten Original-Whitespaces auslesen:
+        String body = extractRawSource(ctx.rawJavaBlock());
 
         return new MethodNode(toLocation(ctx), access, returnType, name, parameters, body);
+    }
+
+    private String extractRawSource(ParserRuleContext ctx) {
+        if (ctx == null || ctx.getStart() == null || ctx.getStop() == null) {
+            return "";
+        }
+        int startIndex = ctx.getStart().getStartIndex();
+        int stopIndex = ctx.getStop().getStopIndex();
+
+        // Holt den exakten Ausschnitt aus dem ursprünglichen CharStream
+        var charStream = ctx.getStart().getInputStream();
+        if (charStream == null || startIndex > stopIndex) {
+            return ctx.getText();
+        }
+
+        String fullBlock = charStream.getText(org.antlr.v4.runtime.misc.Interval.of(startIndex, stopIndex)).trim();
+
+        // Wenn der rawJavaBlock die äußeren geschweiften Klammern { ... } mitgematcht hat:
+        if (fullBlock.startsWith("{") && fullBlock.endsWith("}")) {
+            fullBlock = fullBlock.substring(1, fullBlock.length() - 1).trim();
+        }
+
+        return fullBlock;
     }
 
     @Override

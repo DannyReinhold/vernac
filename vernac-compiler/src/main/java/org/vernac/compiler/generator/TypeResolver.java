@@ -7,57 +7,96 @@ import org.vernac.compiler.ast.TypeNode;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.time.*;
+import java.util.*;
 
 public final class TypeResolver {
 
-    private static final Map<String, Class<?>> BUILTIN_TYPES = Map.ofEntries(
-            Map.entry("String", String.class),
-            Map.entry("Boolean", Boolean.class),
-            Map.entry("Integer", Integer.class),
-            Map.entry("Long", Long.class),
-            Map.entry("Double", Double.class),
-            Map.entry("BigDecimal", BigDecimal.class),
-            Map.entry("BigInteger", BigInteger.class),
-            Map.entry("UUID", UUID.class),
-            Map.entry("LocalDate", LocalDate.class),
-            Map.entry("LocalDateTime", LocalDateTime.class),
-            Map.entry("Instant", Instant.class),
-            Map.entry("List", List.class),
-            Map.entry("Set", Set.class),
-            Map.entry("Map", Map.class)
+    private static final Map<String, TypeName> PRIMITIVES = Map.of(
+            "int", TypeName.INT,
+            "long", TypeName.LONG,
+            "double", TypeName.DOUBLE,
+            "float", TypeName.FLOAT,
+            "boolean", TypeName.BOOLEAN,
+            "byte", TypeName.BYTE,
+            "short", TypeName.SHORT,
+            "char", TypeName.CHAR,
+            "void", TypeName.VOID
+    );
+
+    private static final Map<String, ClassName> KNOWN_JDK_TYPES = Map.ofEntries(
+            Map.entry("String", ClassName.get(String.class)),
+            Map.entry("Boolean", ClassName.get(Boolean.class)),
+            Map.entry("Integer", ClassName.get(Integer.class)),
+            Map.entry("Long", ClassName.get(Long.class)),
+            Map.entry("Double", ClassName.get(Double.class)),
+            Map.entry("Float", ClassName.get(Float.class)),
+            Map.entry("BigDecimal", ClassName.get(BigDecimal.class)),
+            Map.entry("BigInteger", ClassName.get(BigInteger.class)),
+            Map.entry("UUID", ClassName.get(UUID.class)),
+            Map.entry("Currency", ClassName.get(Currency.class)),
+            Map.entry("Instant", ClassName.get(Instant.class)),
+            Map.entry("LocalDate", ClassName.get(LocalDate.class)),
+            Map.entry("LocalDateTime", ClassName.get(LocalDateTime.class)),
+            Map.entry("LocalTime", ClassName.get(LocalTime.class)),
+            Map.entry("ZonedDateTime", ClassName.get(ZonedDateTime.class)),
+            Map.entry("Duration", ClassName.get(Duration.class)),
+            Map.entry("List", ClassName.get(List.class)),
+            Map.entry("Set", ClassName.get(Set.class)),
+            Map.entry("Map", ClassName.get(Map.class)),
+            Map.entry("Optional", ClassName.get(Optional.class))
     );
 
     private TypeResolver() {
     }
 
     public static TypeName resolve(TypeNode typeNode, String defaultPackage) {
+        return resolve(typeNode, defaultPackage, Collections.emptyList());
+    }
+
+    public static TypeName resolve(TypeNode typeNode, String defaultPackage, List<String> explicitImports) {
         String name = typeNode.name();
 
-        TypeName rawType;
-        if (BUILTIN_TYPES.containsKey(name)) {
-            rawType = ClassName.get(BUILTIN_TYPES.get(name));
-        } else if (name.contains(".")) {
-            int lastDot = name.lastIndexOf('.');
-            rawType = ClassName.get(name.substring(0, lastDot), name.substring(lastDot + 1));
-        } else {
-            rawType = ClassName.get(defaultPackage, name);
+        if (PRIMITIVES.containsKey(name)) {
+            return PRIMITIVES.get(name);
         }
 
-        if (typeNode.typeArguments().isEmpty()) {
-            return rawType;
+        TypeName baseType = null;
+
+        // 1. Höchste Priorität: Expliziter Import aus der DSL (z. B. import com.foo.Currency;)
+        for (String imp : explicitImports) {
+            if (!imp.endsWith(".*")) {
+                int lastDot = imp.lastIndexOf('.');
+                if (lastDot >= 0 && imp.substring(lastDot + 1).equals(name)) {
+                    baseType = ClassName.bestGuess(imp);
+                    break;
+                }
+            }
         }
 
-        TypeName[] typeArgs = typeNode.typeArguments().stream()
-                .map(arg -> resolve(arg, defaultPackage))
-                .toArray(TypeName[]::new);
+        // 2. Zweite Priorität: Bereits voll qualifizierter Typname (z. B. com.foo.MyType)
+        if (baseType == null && name.contains(".")) {
+            baseType = ClassName.bestGuess(name);
+        }
 
-        return ParameterizedTypeName.get((ClassName) rawType, typeArgs);
+        // 3. Dritte Priorität: Standard JDK-Mapping (gewinnt nur, wenn nicht per Import überschrieben)
+        if (baseType == null && KNOWN_JDK_TYPES.containsKey(name)) {
+            baseType = KNOWN_JDK_TYPES.get(name);
+        }
+
+        // 4. Fallback: Typ liegt im selben Package wie die DSL-Datei
+        if (baseType == null) {
+            baseType = ClassName.get(defaultPackage, name);
+        }
+
+        // Generics rekursiv auflösen
+        if (!typeNode.typeArguments().isEmpty()) {
+            TypeName[] argTypes = typeNode.typeArguments().stream()
+                    .map(arg -> resolve(arg, defaultPackage, explicitImports))
+                    .toArray(TypeName[]::new);
+            return ParameterizedTypeName.get((ClassName) baseType, argTypes);
+        }
+
+        return baseType;
     }
 }
