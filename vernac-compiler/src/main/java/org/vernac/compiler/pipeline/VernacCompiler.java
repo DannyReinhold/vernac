@@ -6,10 +6,7 @@ import org.vernac.compiler.analyzer.CompilerDiagnostic;
 import org.vernac.compiler.analyzer.SemanticAnalyzer;
 import org.vernac.compiler.analyzer.SemanticValidationException;
 import org.vernac.compiler.ast.*;
-import org.vernac.compiler.generator.AggregateGenerator;
-import org.vernac.compiler.generator.EntityGenerator;
-import org.vernac.compiler.generator.EventGenerator;
-import org.vernac.compiler.generator.ValueObjectGenerator;
+import org.vernac.compiler.generator.*;
 import org.vernac.compiler.parser.VernacLexer;
 import org.vernac.compiler.parser.VernacParser;
 
@@ -17,7 +14,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class VernacCompiler {
 
@@ -26,6 +25,7 @@ public class VernacCompiler {
     private final EventGenerator eventGenerator = new EventGenerator();
     private final AggregateGenerator aggregateGenerator = new AggregateGenerator();
     private final EntityGenerator entityGenerator = new EntityGenerator();
+    private final RepositoryGenerator repositoryGenerator = new RepositoryGenerator();
 
     public VernacCompilationResult compile(Path vernacFile) throws IOException {
         String source = Files.readString(vernacFile);
@@ -49,6 +49,18 @@ public class VernacCompiler {
         List<String> imports = unit.imports();
         List<JavaFile> generatedFiles = new ArrayList<>();
 
+        // Lookup-Maps für Typ-Beziehungen aufbauen
+        Map<String, AggregateNode> aggregates = new HashMap<>();
+        Map<String, EntityNode> entities = new HashMap<>();
+        Map<String, ValueObjectNode> valueObjects = new HashMap<>();
+
+        for (TopLevelDefinition def : unit.definitions()) {
+            if (def instanceof AggregateNode agg) aggregates.put(agg.name(), agg);
+            else if (def instanceof EntityNode entity) entities.put(entity.name(), entity);
+            else if (def instanceof ValueObjectNode vo) valueObjects.put(vo.name(), vo);
+        }
+
+        // Bestehende Generierungsschleife
         for (TopLevelDefinition definition : unit.definitions()) {
             if (definition instanceof ValueObjectNode vo) {
                 generatedFiles.add(valueObjectGenerator.generate(vo, packageName, imports));
@@ -58,6 +70,11 @@ public class VernacCompiler {
                 generatedFiles.add(aggregateGenerator.generate(agg, packageName, imports));
             } else if (definition instanceof EntityNode entity) {
                 generatedFiles.add(entityGenerator.generate(entity, packageName, imports));
+            } else if (definition instanceof RepositoryNode repo) {
+                AggregateNode targetAgg = aggregates.get(repo.aggregateName());
+                generatedFiles.addAll(repositoryGenerator.generate(
+                        repo, targetAgg, entities, valueObjects, packageName, imports
+                ));
             }
         }
 

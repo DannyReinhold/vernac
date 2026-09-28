@@ -19,6 +19,7 @@ topLevelDeclaration
     | entityDefinition
     | serviceDefinition
     | externalSchemaDefinition
+    | repositoryDefinition
     ;
 
 // ==========================================
@@ -149,6 +150,33 @@ targetPath
     ;
 
 // ==========================================
+// 5. Repositories
+// ==========================================
+repositoryDefinition
+    : 'repository' name=identifier 'for' aggregateName=identifier '{'
+        repositoryMember*
+      '}' ';'?
+    ;
+
+repositoryMember
+    : tableDeclaration
+    | repositoryFindMethod
+    | repositoryCustomMethod
+    ;
+
+tableDeclaration
+    : 'table' ':' tableName=STRING_LITERAL ';'
+    ;
+
+repositoryFindMethod
+    : 'find' returnType=type name=identifier '(' parameterList? ')' ';'
+    ;
+
+repositoryCustomMethod
+    : 'custom' returnType=type name=identifier '(' parameterList? ')' ';'
+    ;
+
+// ==========================================
 // Gemeinsame Regeln & Ausdrücke
 // ==========================================
 parameterList
@@ -216,6 +244,11 @@ identifier
     | 'mapping'
     | 'external'
     | 'schema'
+    | 'repository'
+    | 'for'
+    | 'table'
+    | 'find'
+    | 'custom'
     ;
 
 // ==========================================

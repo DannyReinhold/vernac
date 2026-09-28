@@ -33,6 +33,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         if (ctx.entityDefinition() != null) return visitEntityDefinition(ctx.entityDefinition());
         if (ctx.eventDefinition() != null) return visitEventDefinition(ctx.eventDefinition());
         if (ctx.serviceDefinition() != null) return visitServiceDefinition(ctx.serviceDefinition());
+        if (ctx.repositoryDefinition() != null) return visitRepositoryDefinition(ctx.repositoryDefinition());
         return null;
     }
 
@@ -106,6 +107,40 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 .orElse(Collections.emptyList());
 
         return new AggregateNode(toLocation(ctx), name, idDef, fields, validations, methods);
+    }
+
+    @Override
+    public TopLevelDefinition visitRepositoryDefinition(VernacParser.RepositoryDefinitionContext ctx) {
+        String name = ctx.name.getText();
+        String aggregateName = ctx.aggregateName.getText();
+        Optional<String> tableName = Optional.empty();
+        List<RepositoryMethodNode> methods = new ArrayList<>();
+
+        for (VernacParser.RepositoryMemberContext member : ctx.repositoryMember()) {
+            if (member.tableDeclaration() != null) {
+                tableName = Optional.of(unquote(member.tableDeclaration().tableName.getText()));
+            } else if (member.repositoryFindMethod() != null) {
+                VernacParser.RepositoryFindMethodContext findCtx = member.repositoryFindMethod();
+                methods.add(new RepositoryMethodNode(
+                        toLocation(findCtx),
+                        toTypeNode(findCtx.returnType),
+                        findCtx.name.getText(),
+                        Optional.ofNullable(findCtx.parameterList()).map(this::extractParameters).orElse(Collections.emptyList()),
+                        false
+                ));
+            } else if (member.repositoryCustomMethod() != null) {
+                VernacParser.RepositoryCustomMethodContext customCtx = member.repositoryCustomMethod();
+                methods.add(new RepositoryMethodNode(
+                        toLocation(customCtx),
+                        toTypeNode(customCtx.returnType),
+                        customCtx.name.getText(),
+                        Optional.ofNullable(customCtx.parameterList()).map(this::extractParameters).orElse(Collections.emptyList()),
+                        true
+                ));
+            }
+        }
+
+        return new RepositoryNode(toLocation(ctx), name, aggregateName, tableName, methods);
     }
 
     @Override

@@ -57,6 +57,8 @@ public class SemanticAnalyzer {
                 validateEntity(entity, availableSymbols, unit.imports(), diagnostics);
             } else if (def instanceof EventNode event) {
                 validateEvent(event, availableSymbols, unit.imports(), diagnostics);
+            } else if (def instanceof RepositoryNode repo) {
+                validateRepository(repo, unit, availableSymbols, diagnostics);
             }
         }
 
@@ -132,6 +134,42 @@ public class SemanticAnalyzer {
         }
     }
 
+
+    private void validateRepository(
+            RepositoryNode repo,
+            CompilationUnitNode unit,
+            Set<String> availableSymbols,
+            List<CompilerDiagnostic> diagnostics
+    ) {
+        // 1. Prüfen, ob das genannte Aggregate existiert
+        boolean aggregateExists = unit.definitions().stream()
+                .anyMatch(d -> d instanceof AggregateNode agg && agg.name().equals(repo.aggregateName()));
+
+        if (!aggregateExists) {
+            diagnostics.add(CompilerDiagnostic.error(
+                    repo.location(),
+                    "Repository '" + repo.name() + "' references unknown aggregate '" + repo.aggregateName() + "'"
+            ));
+        }
+
+        // 2. Doppelte oder reservierte Methodennamen (byId, save, delete)
+        Set<String> methodNames = new HashSet<>(Set.of("byId", "save", "delete"));
+        for (RepositoryMethodNode method : repo.methods()) {
+            if (!methodNames.add(method.name())) {
+                diagnostics.add(CompilerDiagnostic.error(
+                        method.location(),
+                        "Duplicate or reserved repository method '" + method.name() + "' in '" + repo.name() + "'"
+                ));
+            }
+
+            // 3. Typ-Auflösung für Rückgabewert und Parameter
+            validateTypeResolvable(method.returnType(), availableSymbols, unit.imports(), diagnostics);
+            for (FieldNode param : method.parameters()) {
+                validateTypeResolvable(param.type(), availableSymbols, unit.imports(), diagnostics);
+            }
+        }
+    }
+
     private void checkDuplicateFields(List<FieldNode> fields, String parentName, List<CompilerDiagnostic> diagnostics) {
         Set<String> seen = new HashSet<>();
         for (FieldNode field : fields) {
@@ -168,6 +206,7 @@ public class SemanticAnalyzer {
         if (def instanceof EntityNode entity) return entity.name();
         if (def instanceof EventNode event) return event.name();
         if (def instanceof ServiceNode service) return service.name();
+        if (def instanceof RepositoryNode repo) return repo.name();
         throw new IllegalArgumentException("Unknown definition: " + def);
     }
 }

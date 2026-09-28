@@ -5,5 +5,6 @@ public sealed interface TopLevelDefinition extends AstNode permits
         AggregateNode,
         EntityNode,
         EventNode,
-        ServiceNode {
+        ServiceNode,
+        RepositoryNode {
 }

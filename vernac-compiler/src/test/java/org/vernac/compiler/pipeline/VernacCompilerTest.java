@@ -65,6 +65,7 @@ class VernacCompilerTest {
 
         Path packageDir = tempDir.resolve("com/example/domain");
         assertThat(Files.exists(packageDir.resolve("ProjectId.java"))).isTrue();
+        assertThat(Files.exists(packageDir.resolve("TaskId.java"))).isTrue();
         assertThat(Files.exists(packageDir.resolve("ProjectName.java"))).isTrue();
         assertThat(Files.exists(packageDir.resolve("Money.java"))).isTrue();
         assertThat(Files.exists(packageDir.resolve("ProjectCreated.java"))).isTrue();
