@@ -19,7 +19,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 .map(i -> i.qualifiedName().getText() + (i.getText().contains(".*") ? ".*" : ""))
                 .toList();
 
-        List<TopLevelDefinition> definitions = ctx.topLevelDefinition().stream()
+        List<TopLevelDefinition> definitions = ctx.topLevelDeclaration().stream()
                 .map(this::toTopLevelDefinition)
                 .filter(Objects::nonNull)
                 .toList();
@@ -27,12 +27,11 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         return new CompilationUnitNode(toLocation(ctx), packageName, imports, definitions);
     }
 
-    private TopLevelDefinition toTopLevelDefinition(VernacParser.TopLevelDefinitionContext ctx) {
-        if (ctx.valueDefinition() != null) return (ValueObjectNode) visitValueDefinition(ctx.valueDefinition());
-        if (ctx.aggregateDefinition() != null)
-            return (AggregateNode) visitAggregateDefinition(ctx.aggregateDefinition());
-        if (ctx.eventDefinition() != null) return (EventNode) visitEventDefinition(ctx.eventDefinition());
-        if (ctx.serviceDefinition() != null) return (ServiceNode) visitServiceDefinition(ctx.serviceDefinition());
+    private TopLevelDefinition toTopLevelDefinition(VernacParser.TopLevelDeclarationContext ctx) {
+        if (ctx.valueDefinition() != null) return visitValueDefinition(ctx.valueDefinition());
+        if (ctx.aggregateDefinition() != null) return visitAggregateDefinition(ctx.aggregateDefinition());
+        if (ctx.eventDefinition() != null) return visitEventDefinition(ctx.eventDefinition());
+        if (ctx.serviceDefinition() != null) return visitServiceDefinition(ctx.serviceDefinition());
         return null;
     }
 
@@ -67,50 +66,36 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     @Override
     public AggregateNode visitAggregateDefinition(VernacParser.AggregateDefinitionContext ctx) {
         String name = ctx.name.getText();
-        List<FieldNode> fields = new ArrayList<>();
-        List<InvariantNode> invariants = new ArrayList<>();
-        List<EntityNode> entities = new ArrayList<>();
-        List<MethodNode> methods = new ArrayList<>();
 
-        for (VernacParser.AggregateMemberContext member : ctx.aggregateMember()) {
-            if (member.fieldDeclaration() != null) {
-                fields.add(toFieldNode(member.fieldDeclaration()));
-            } else if (member.invariantDefinition() != null) {
-                var inv = member.invariantDefinition();
-                invariants.add(new InvariantNode(toLocation(inv), inv.name.getText(), inv.rawJavaBlock().getText().trim()));
-            } else if (member.entityDefinition() != null) {
-                entities.add(toEntityNode(member.entityDefinition()));
-            } else if (member.methodDefinition() != null) {
-                methods.add(toMethodNode(member.methodDefinition()));
+        // 1. Id Definition parsen
+        VernacParser.IdDefinitionContext idCtx = ctx.idDefinition();
+        TypeNode idType = toTypeNode(idCtx.idType);
+        String idFieldName = idCtx.name != null ? idCtx.name.getText() : "id";
+        IdDefinitionNode idDef = new IdDefinitionNode(toLocation(idCtx), idType, idFieldName);
+
+        // 2. Parameter-Felder parsen
+        List<FieldNode> fields = Optional.ofNullable(ctx.parameterList())
+                .map(this::extractParameters)
+                .orElse(Collections.emptyList());
+
+        // 3. Validierungsregeln parsen
+        List<ValidationRuleNode> validations = new ArrayList<>();
+        if (ctx.validationBlock() != null) {
+            for (VernacParser.ValidationStatementContext valCtx : ctx.validationBlock().validationStatement()) {
+                String condition = valCtx.condition.getText();
+                String message = valCtx.message != null ? unquote(valCtx.message.getText()) : "";
+                validations.add(new ValidationRuleNode(toLocation(valCtx), condition, message));
             }
         }
 
-        return new AggregateNode(toLocation(ctx), name, fields, invariants, entities, methods);
-    }
+        // 4. Methoden parsen
+        List<MethodNode> methods = Optional.ofNullable(ctx.blockBody())
+                .map(body -> body.methodDefinition().stream()
+                        .map(this::toMethodNode)
+                        .toList())
+                .orElse(Collections.emptyList());
 
-    private EntityNode toEntityNode(VernacParser.EntityDefinitionContext ctx) {
-        String name = ctx.name.getText();
-        List<FieldNode> fields = new ArrayList<>();
-        List<MethodNode> methods = new ArrayList<>();
-
-        for (VernacParser.EntityMemberContext member : ctx.entityMember()) {
-            if (member.fieldDeclaration() != null) {
-                fields.add(toFieldNode(member.fieldDeclaration()));
-            } else if (member.methodDefinition() != null) {
-                methods.add(toMethodNode(member.methodDefinition()));
-            }
-        }
-
-        return new EntityNode(toLocation(ctx), name, fields, methods);
-    }
-
-    private FieldNode toFieldNode(VernacParser.FieldDeclarationContext ctx) {
-        boolean isId = ctx.getText().startsWith("id:");
-        String name = isId ? "id" : ctx.name.getText();
-        TypeNode type = toTypeNode(ctx.type());
-        Optional<String> defaultValue = Optional.ofNullable(ctx.defaultValue).map(ParserRuleContext::getText);
-
-        return new FieldNode(toLocation(ctx), type, name, isId, defaultValue);
+        return new AggregateNode(toLocation(ctx), name, idDef, fields, validations, methods);
     }
 
     private MethodNode toMethodNode(VernacParser.MethodDefinitionContext ctx) {
@@ -204,11 +189,12 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     }
 
     private List<FieldNode> extractParameters(VernacParser.ParameterListContext ctx) {
-        return ctx.parameter().stream().map(p -> {
-            TypeNode type = toTypeNode(p.type());
-            String name = p.name.getText();
-            return new FieldNode(toLocation(p), type, name, false, Optional.empty());
-        }).toList();
+        return ctx.parameter().stream()
+                .map(p -> {
+                    boolean isMut = p.isMut != null;
+                    return new FieldNode(toLocation(p), toTypeNode(p.paramType), p.name.getText(), isMut);
+                })
+                .toList();
     }
 
     private TypeNode toTypeNode(VernacParser.TypeContext ctx) {

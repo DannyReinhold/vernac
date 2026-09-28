@@ -18,6 +18,54 @@ class AstBuilderVisitorTest {
         return new AstBuilderVisitor().visitCompilationUnit(parser.compilationUnit());
     }
 
+    @Test
+    @DisplayName("Parst Aggregate mit Standard-Id, Custom-Id-Name und mut-Feldern")
+    void shouldParseAggregateWithIdAndMutableFields() {
+        String src = """
+                package com.example.domain;
+                
+                aggregate Project[ProjectId](ProjectName name, mut Money budget) validates {
+                    require(budget.amount().compareTo(BigDecimal.ZERO) >= 0, "Budget cannot be negative");
+                } {
+                    public void assignBudget(Money newBudget) {
+                        setBudget(newBudget);
+                    }
+                };
+                
+                aggregate Task[TaskId theTaskId](String title);
+                """;
+
+        CompilationUnitNode cu = parse(src);
+        assertThat(cu.aggregates()).hasSize(2);
+
+        // Erstes Aggregat: Standard ID-Name "id"
+        AggregateNode project = cu.aggregates().getFirst();
+        assertThat(project.name()).isEqualTo("Project");
+        assertThat(project.idDefinition().type().name()).isEqualTo("ProjectId");
+        assertThat(project.idDefinition().fieldName()).isEqualTo("id");
+        assertThat(project.fields()).hasSize(2);
+
+        FieldNode nameField = project.fields().get(0);
+        assertThat(nameField.name()).isEqualTo("name");
+        assertThat(nameField.isMutable()).isFalse();
+
+        FieldNode budgetField = project.fields().get(1);
+        assertThat(budgetField.name()).isEqualTo("budget");
+        assertThat(budgetField.isMutable()).isTrue();
+
+        assertThat(project.validations()).hasSize(1);
+        assertThat(project.validations().getFirst().condition()).isEqualTo("budget.amount().compareTo(BigDecimal.ZERO)>=0");
+        assertThat(project.methods()).hasSize(1);
+        assertThat(project.methods().getFirst().name()).isEqualTo("assignBudget");
+
+        // Zweites Aggregat: Custom ID-Name "theTaskId"
+        AggregateNode task = cu.aggregates().get(1);
+        assertThat(task.name()).isEqualTo("Task");
+        assertThat(task.idDefinition().type().name()).isEqualTo("TaskId");
+        assertThat(task.idDefinition().fieldName()).isEqualTo("theTaskId");
+        assertThat(task.fields().getFirst().isMutable()).isFalse();
+    }
+
     @Nested
     @DisplayName("1. Value Objects")
     class ValueObjectTests {
@@ -80,36 +128,19 @@ class AstBuilderVisitorTest {
     class AggregateTests {
 
         @Test
-        void shouldParseAggregateWithInvariantsAndChildEntity() {
+        @DisplayName("Parst Aggregate mit Id-Header, mut-Feldern, Validierungen und Methoden")
+        void shouldParseAggregateWithIdAndMethods() {
             String src = """
-                    aggregate Project {
-                        id: ProjectId;
-                        title: NonEmptyString;
-                        budget: Money?;
-                        tasks: List<Task>;
+                    package com.example.domain;
                     
-                        invariant MaxTasksForDraft {
-                            if (status == ProjectStatus.DRAFT) {
-                                require(tasks.size() <= 3, "Draft max 3 tasks");
-                            }
-                        }
-                    
-                        entity Task {
-                            id: TaskId;
-                            title: NonEmptyString;
-                            isCompleted: Boolean = false;
-                    
-                            internal void markDone() {
-                                this.isCompleted = true;
-                            }
-                        }
-                    
-                        public TaskId addTask(NonEmptyString title) {
-                            TaskId newId = new TaskId(UUID.randomUUID());
-                            this.tasks.add(new Task(newId, title, false));
+                    aggregate Project[ProjectId](ProjectName title, Money? budget, mut Tasks tasks) validates {
+                        require(tasks.size() <= 100, "Max 100 tasks allowed");
+                    } {
+                        public TaskId addTask(TaskTitle title) {
+                            TaskId newId = TaskId.create();
                             return newId;
                         }
-                    }
+                    };
                     """;
 
             CompilationUnitNode cu = parse(src);
@@ -117,31 +148,38 @@ class AstBuilderVisitorTest {
 
             AggregateNode agg = cu.aggregates().getFirst();
             assertThat(agg.name()).isEqualTo("Project");
-            assertThat(agg.fields()).hasSize(4);
 
-            // Optional type check
-            FieldNode budgetField = agg.fields().get(2);
+            // Id Definition prüfen
+            assertThat(agg.idDefinition().type().name()).isEqualTo("ProjectId");
+            assertThat(agg.idDefinition().fieldName()).isEqualTo("id");
+
+            // Felder prüfen
+            assertThat(agg.fields()).hasSize(3);
+
+            FieldNode titleField = agg.fields().get(0);
+            assertThat(titleField.name()).isEqualTo("title");
+            assertThat(titleField.isMutable()).isFalse();
+
+            FieldNode budgetField = agg.fields().get(1);
             assertThat(budgetField.name()).isEqualTo("budget");
             assertThat(budgetField.type().isOptional()).isTrue();
+            assertThat(budgetField.isMutable()).isFalse();
 
-            // Invariant check
-            assertThat(agg.invariants()).hasSize(1);
-            assertThat(agg.invariants().getFirst().name()).isEqualTo("MaxTasksForDraft");
+            FieldNode tasksField = agg.fields().get(2);
+            assertThat(tasksField.name()).isEqualTo("tasks");
+            assertThat(tasksField.isMutable()).isTrue();
 
-            // Child entity check
-            assertThat(agg.entities()).hasSize(1);
-            EntityNode task = agg.entities().getFirst();
-            assertThat(task.name()).isEqualTo("Task");
-            assertThat(task.fields()).hasSize(3);
-            assertThat(task.fields().get(2).defaultValue()).contains("false");
-            assertThat(task.methods()).hasSize(1);
-            assertThat(task.methods().getFirst().accessModifier()).isEqualTo("internal");
+            // Validierungs-Check
+            assertThat(agg.validations()).hasSize(1);
+            assertThat(agg.validations().getFirst().condition()).isEqualTo("tasks.size()<=100");
+            assertThat(agg.validations().getFirst().message()).isEqualTo("Max 100 tasks allowed");
 
-            // Aggregate root method check
+            // Methoden-Check
             assertThat(agg.methods()).hasSize(1);
             MethodNode method = agg.methods().getFirst();
             assertThat(method.name()).isEqualTo("addTask");
             assertThat(method.parameters()).hasSize(1);
+            assertThat(method.parameters().getFirst().name()).isEqualTo("title");
         }
     }
 

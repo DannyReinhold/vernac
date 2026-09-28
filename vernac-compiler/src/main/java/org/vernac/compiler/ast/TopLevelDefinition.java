@@ -4,4 +4,5 @@ public sealed interface TopLevelDefinition extends AstNode permits
         ValueObjectNode,
         AggregateNode,
         EventNode,
-        ServiceNode {}
+        ServiceNode {
+}

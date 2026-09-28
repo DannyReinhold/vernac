@@ -4,6 +4,7 @@ public sealed interface AstNode permits
         CompilationUnitNode,
         TopLevelDefinition,
         CollectionDefinitionNode,
+        IdDefinitionNode,
         EntityNode,
         FieldNode,
         TypeNode,

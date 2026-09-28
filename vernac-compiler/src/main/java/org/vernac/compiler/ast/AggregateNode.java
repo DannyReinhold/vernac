@@ -5,8 +5,9 @@ import java.util.List;
 public record AggregateNode(
         SourceLocation location,
         String name,
+        IdDefinitionNode idDefinition,
         List<FieldNode> fields,
-        List<InvariantNode> invariants,
-        List<EntityNode> entities,
+        List<ValidationRuleNode> validations,
         List<MethodNode> methods
-) implements TopLevelDefinition {}
+) implements TopLevelDefinition {
+}

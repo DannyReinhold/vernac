@@ -1,7 +1,7 @@
 grammar Vernac;
 
 compilationUnit
-    : packageDeclaration? importDeclaration* topLevelDefinition* EOF
+    : packageDeclaration? importDeclaration* topLevelDeclaration* EOF
     ;
 
 packageDeclaration
@@ -12,16 +12,15 @@ importDeclaration
     : 'import' qualifiedName ('.' '*')? ';'
     ;
 
-topLevelDefinition
+topLevelDeclaration
     : valueDefinition
-    | aggregateDefinition
     | eventDefinition
+    | aggregateDefinition
+    | entityDefinition
     | serviceDefinition
+    | externalSchemaDefinition
     ;
 
-// ==========================================
-// 1. Value Objects
-// ==========================================
 // ==========================================
 // 1. Value Objects
 // ==========================================
@@ -45,14 +44,14 @@ validationStatement
 // 2. Aggregates & Entities
 // ==========================================
 aggregateDefinition
-    : 'aggregate' name=identifier '{' aggregateMember* '}'
+    : 'aggregate' name=identifier '[' idDefinition ']' '(' parameterList? ')'
+      ( 'validates' validationBlock )?
+      ( blockBody )?
+      ';'?
     ;
 
-aggregateMember
-    : fieldDeclaration
-    | invariantDefinition
-    | entityDefinition
-    | methodDefinition
+idDefinition
+    : idType=type (name=identifier)?
     ;
 
 entityDefinition
@@ -163,7 +162,7 @@ parameterList
     ;
 
 parameter
-    : ( '@' identifier ( '(' STRING_LITERAL ')' )? )? type name=identifier
+    : ( '@' identifier ( '(' STRING_LITERAL ')' )? )* (isMut='mut')? paramType=type name=identifier
     ;
 
 type
@@ -195,6 +194,7 @@ expression
     : expression ( '&&' | '||' | '==' | '!=' | '<=' | '>=' | '<' | '>' ) expression
     | expression ( '+' | '-' | '*' | '/' ) expression
     | '!' expression
+    | expression '.' identifier ( '(' argumentList? ')' )?   // Chaining: .amount(), .compareTo(...), .ZERO
     | primaryExpression
     ;
 
@@ -206,12 +206,10 @@ primaryExpression
     | BOOLEAN_LITERAL
     | '(' expression ')'
     ;
-
 argumentList
     : expression (',' expression)*
     ;
 
-// Erlaubt es, Schlüsselwörter der Sprache auch als Feld-/Variablennamen zu verwenden
 identifier
     : IDENTIFIER
     | 'value'
@@ -239,6 +237,4 @@ WS            : [ \t\r\n]+ -> skip ;
 LINE_COMMENT  : '//' ~[\r\n]* -> skip ;
 BLOCK_COMMENT : '/*' .*? '*/' -> skip ;
 
-// Fallback: Erfasst alle sonstigen ASCII/Unicode-Sonderzeichen (wie &, |, #, %, ^),
-// die in Java-Methodenrümpfen vorkommen könnten. Verhindert Lexer-Abstürze.
 ANY_CHAR      : . ;
