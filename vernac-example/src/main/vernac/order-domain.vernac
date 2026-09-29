@@ -2,47 +2,57 @@ package org.vernac.example.domain;
 
 import java.math.BigDecimal;
 import java.util.Currency;
+import java.util.UUID;
+import java.util.List;
+import java.util.ArrayList;
 
 value OrderId(UUID value);
 value CustomerId(UUID value);
 value ItemSku(String value) validates {
-    require(value.matches("[A-Z0-9-]+"), "SKU must be uppercase alphanumeric");
+    require(value != null && value.matches("^[A-Z0-9-]+$"), "SKU must be uppercase alphanumeric");
 };
 
 value Money(BigDecimal amount, Currency currency) validates {
-    require(amount.compareTo(BigDecimal.ZERO) >= 0, "Amount must not be negative");
+    require(amount.compareTo(BigDecimal.ZERO) >= 0, "Amount cannot be negative");
 } {
     public Money add(Money other) {
-        if (!this.currency.equals(other.currency())) {
-            throw new IllegalArgumentException("Currencies must match");
+        if (!this.currency.equals(other.currency)) {
+            throw new IllegalStateException("Both Money objects must have the same currency!");
         }
-        return Money.of(this.amount.add(other.amount()), this.currency);
+        return Money.of(this.amount.add(other.amount), this.currency);
     }
 
     public Money multiply(int factor) {
-        return Money.of(this.amount.multiply(BigDecimal.valueOf(factor)), this.currency);
+        if (factor < 0) {
+            throw new IllegalArgumentException("Factor cannot be negative");
+        }
+        return Money.of(this.amount.multiply(java.math.BigDecimal.valueOf(factor)), this.currency);
     }
 };
 
-@Dispatch(mode = "OUTBOX")
 event OrderPlaced(OrderId orderId, CustomerId customerId, Money totalAmount);
 
 entity OrderLine[UUID](ItemSku sku, Money unitPrice, mut int quantity) validates {
     require(quantity > 0, "Quantity must be greater than zero");
 } {
-    public void increaseQuantity(int additionalQuantity) {
-        if (additionalQuantity <= 0) {
-            throw new IllegalArgumentException("Additional quantity must be positive");
-        }
-        setQuantity(this.quantity + additionalQuantity);
-    }
-
     public Money calculateSubtotal() {
         return this.unitPrice.multiply(this.quantity);
     }
+
+    public void increaseQuantity(int delta) {
+        if (delta <= 0) {
+            throw new IllegalArgumentException("Delta must be positive");
+        }
+        setQuantity(this.quantity + delta);
+    }
 };
 
-aggregate Order[OrderId](CustomerId customer, mut Money total, mut String status) validates {
+aggregate Order[OrderId](
+    CustomerId customer,
+    mut Money total,
+    mut String status,
+    List<OrderLine> lines
+) validates {
     require(status != null && !status.isBlank(), "Status cannot be empty");
 } {
     public void completeOrder() {
@@ -50,6 +60,15 @@ aggregate Order[OrderId](CustomerId customer, mut Money total, mut String status
             throw new IllegalStateException("Order is already paid");
         }
         setStatus("PAID");
-        registerEvent(OrderPlaced.create(id(), this.customer, this.total));
+        registerEvent(OrderPlaced.create(this.id, this.customer, this.total));
     }
+
+    public void addLine(OrderLine line) {
+        this.lines.add(line);
+    }
+};
+
+repository OrderRepository for Order {
+    table: "orders";
+    find List<Order> findByStatus(String status);
 };

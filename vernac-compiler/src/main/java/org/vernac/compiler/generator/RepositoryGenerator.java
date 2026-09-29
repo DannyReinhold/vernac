@@ -42,7 +42,7 @@ public class RepositoryGenerator {
         String customInterfaceName = repo.name() + "Custom";
         ClassName customType = ClassName.get(packageName, customInterfaceName);
 
-        // 1. Custom-Fragment Interface
+        // 1. Custom-Fragment Interface (falls custom Methoden deklariert)
         if (repo.hasCustomMethods()) {
             TypeSpec.Builder customSpec = TypeSpec.interfaceBuilder(customInterfaceName)
                     .addModifiers(Modifier.PUBLIC);
@@ -143,7 +143,7 @@ public class RepositoryGenerator {
         jdbcClass.addMethod(buildDeleteMethod(agg, aggType, tableName));
         jdbcClass.addMethod(buildMapRowMethod(agg, aggType, valueObjects, entities, packageName, explicitImports));
 
-        // Child Entities (z. B. List<OrderLine>) synchronisieren und nachladen
+        // Child Entities (z. B. List<OrderLine>) synchronisieren, nachladen und Param-Builder registrieren
         for (FieldNode field : agg.fields()) {
             if (field.type().name().equals("List") && !field.type().typeArguments().isEmpty()) {
                 TypeNode elemType = field.type().typeArguments().getFirst();
@@ -151,6 +151,7 @@ public class RepositoryGenerator {
                     EntityNode childEntity = entities.get(elemType.name());
                     jdbcClass.addMethod(buildFetchChildEntitiesMethod(agg, childEntity, field.name(), valueObjects, packageName, explicitImports));
                     jdbcClass.addMethod(buildSyncChildEntitiesMethod(agg, childEntity, field.name(), valueObjects, packageName, explicitImports));
+                    jdbcClass.addMethod(buildEntityParamSourceMethod(agg, childEntity, valueObjects, packageName, explicitImports));
                 }
             }
         }
@@ -224,7 +225,7 @@ public class RepositoryGenerator {
             }
         }
 
-        mb.addStatement("return aggregate.reconstituteWithVersion(nextVersion)");
+        mb.addStatement("return aggregate.withVersion(nextVersion)");
         return mb.build();
     }
 
@@ -267,7 +268,7 @@ public class RepositoryGenerator {
             }
         }
 
-        mb.addStatement("return aggregate.reconstituteWithVersion(nextVersion)");
+        mb.addStatement("return aggregate.withVersion(nextVersion)");
         return mb.build();
     }
 
@@ -298,9 +299,9 @@ public class RepositoryGenerator {
                 .addParameter(ResultSet.class, "rs")
                 .addException(SQLException.class);
 
-        // ID extrahieren
+        // ID extrahieren mit .of(...)
         TypeName idBaseType = TypeResolver.resolve(agg.idDefinition().type(), packageName, explicitImports);
-        mb.addStatement("$T id = new $T(rs.getObject(\"id\", $T.class))", idBaseType, idBaseType, UUID.class);
+        mb.addStatement("$T id = $T.of(rs.getObject(\"id\", $T.class))", idBaseType, idBaseType, UUID.class);
 
         // Felder extrahieren
         List<String> reconstituteArgs = new ArrayList<>();
@@ -329,6 +330,41 @@ public class RepositoryGenerator {
         return mb.build();
     }
 
+    private MethodSpec buildEntityParamSourceMethod(
+            AggregateNode agg,
+            EntityNode entity,
+            Map<String, ValueObjectNode> valueObjects,
+            String packageName,
+            List<String> explicitImports
+    ) {
+        String methodName = "build" + entity.name() + "ParamSource";
+        TypeName aggIdType = TypeResolver.resolve(agg.idDefinition().type(), packageName, explicitImports);
+        ClassName entityType = ClassName.get(packageName, entity.name());
+
+        String entityIdTypeName = entity.idDefinition().type().name();
+        String aggIdTypeName = agg.idDefinition().type().name();
+
+        String parentIdExtract = extractIdValue("aggregateId", aggIdTypeName, valueObjects);
+        String entityIdExtract = extractIdValue("item.id()", entityIdTypeName, valueObjects);
+
+        MethodSpec.Builder mb = MethodSpec.methodBuilder(methodName)
+                .addModifiers(Modifier.PRIVATE)
+                .returns(MAP_PARAM_SOURCE)
+                .addParameter(aggIdType, "aggregateId")
+                .addParameter(entityType, "item");
+
+        mb.addStatement("$T params = new $T()", MAP_PARAM_SOURCE, MAP_PARAM_SOURCE);
+        mb.addStatement("params.addValue(\"id\", $L)", entityIdExtract);
+        mb.addStatement("params.addValue(\"parentId\", $L)", parentIdExtract);
+
+        for (FieldNode f : entity.fields()) {
+            bindFieldParameters(mb, f, "item." + f.name() + "()", new ArrayList<>(), new ArrayList<>(), valueObjects);
+        }
+
+        mb.addStatement("return params");
+        return mb.build();
+    }
+
     private MethodSpec buildFetchChildEntitiesMethod(
             AggregateNode agg,
             EntityNode entity,
@@ -354,9 +390,13 @@ public class RepositoryGenerator {
         mb.beginControlFlow("return this.jdbcTemplate.query(sql, $T.of(\"parentId\", aggregateId.value()), (rs, rowNum) ->", Map.class);
 
         List<String> entityArgs = new ArrayList<>();
-        // ID des Entity
         TypeName entityIdType = TypeResolver.resolve(entity.idDefinition().type(), packageName, explicitImports);
-        mb.addStatement("$T id = new $T(rs.getObject(\"id\", $T.class))", entityIdType, entityIdType, UUID.class);
+
+        if (valueObjects.containsKey(entity.idDefinition().type().name())) {
+            mb.addStatement("$T id = $T.of(rs.getObject(\"id\", $T.class))", entityIdType, entityIdType, UUID.class);
+        } else {
+            mb.addStatement("$T id = rs.getObject(\"id\", $T.class)", entityIdType, UUID.class);
+        }
         entityArgs.add("id");
 
         for (FieldNode f : entity.fields()) {
@@ -365,7 +405,7 @@ public class RepositoryGenerator {
             entityArgs.add(varName);
         }
 
-        mb.addStatement("return $T.reconstitute($L)", entityType, String.join(", ", entityArgs));
+        mb.addStatement("return $T.create($L)", entityType, String.join(", ", entityArgs));
         mb.endControlFlow(")");
 
         return mb.build();
@@ -382,10 +422,17 @@ public class RepositoryGenerator {
         String methodName = "sync" + capitalize(fieldName);
         String childTable = toSnakeCase(entity.name()) + "s";
         String parentFkColumn = toSnakeCase(agg.name()) + "_id";
+        String paramMethodName = "build" + entity.name() + "ParamSource";
 
         TypeName aggIdType = TypeResolver.resolve(agg.idDefinition().type(), packageName, explicitImports);
         ClassName entityType = ClassName.get(packageName, entity.name());
         TypeName listType = ParameterizedTypeName.get(ClassName.get(List.class), entityType);
+
+        String entityIdTypeName = entity.idDefinition().type().name();
+        String aggIdTypeName = agg.idDefinition().type().name();
+
+        String parentIdExtract = extractIdValue("aggregateId", aggIdTypeName, valueObjects);
+        String entityIdExtract = extractIdValue("i.id()", entityIdTypeName, valueObjects);
 
         MethodSpec.Builder mb = MethodSpec.methodBuilder(methodName)
                 .addModifiers(Modifier.PRIVATE)
@@ -393,15 +440,15 @@ public class RepositoryGenerator {
                 .addParameter(listType, "items");
 
         mb.addStatement("String selectExistingSql = \"SELECT id FROM $L WHERE $L = :parentId\"", childTable, parentFkColumn);
-        mb.addStatement("$T<$T> existingIds = new $T<>(this.jdbcTemplate.query(selectExistingSql, $T.of(\"parentId\", aggregateId.value()), (rs, rowNum) -> rs.getObject(\"id\", $T.class)))",
-                Set.class, Object.class, HashSet.class, Map.class, Object.class);
+        mb.addStatement("$T<$T> existingIds = new $T<>(this.jdbcTemplate.query(selectExistingSql, $T.of(\"parentId\", $L), (rs, rowNum) -> rs.getObject(\"id\", $T.class)))",
+                Set.class, Object.class, HashSet.class, Map.class, parentIdExtract, Object.class);
 
-        mb.addStatement("$T<$T> incomingIds = items.stream().map(i -> i.id().value()).collect($T.toSet())",
-                Set.class, Object.class, java.util.stream.Collectors.class);
+        mb.addStatement("$T<$T> incomingIds = items.stream().map(i -> (Object) $L).collect($T.toSet())",
+                Set.class, Object.class, entityIdExtract, java.util.stream.Collectors.class);
 
         mb.addStatement("$T<$T> toDelete = existingIds.stream().filter(id -> !incomingIds.contains(id)).toList()", List.class, Object.class);
-        mb.addStatement("$T<$T> toInsert = items.stream().filter(i -> !existingIds.contains(i.id().value())).toList()", List.class, entityType);
-        mb.addStatement("$T<$T> toUpdate = items.stream().filter(i -> existingIds.contains(i.id().value())).toList()", List.class, entityType);
+        mb.addStatement("$T<$T> toInsert = items.stream().filter(i -> !existingIds.contains($L)).toList()", List.class, entityType, entityIdExtract);
+        mb.addStatement("$T<$T> toUpdate = items.stream().filter(i -> existingIds.contains($L)).toList()", List.class, entityType, entityIdExtract);
 
         mb.beginControlFlow("if (!toDelete.isEmpty())")
                 .addStatement("this.jdbcTemplate.update(\"DELETE FROM $L WHERE id IN (:ids)\", $T.of(\"ids\", toDelete))", childTable, Map.class)
@@ -431,8 +478,8 @@ public class RepositoryGenerator {
         }
 
         mb.addStatement("String insertSql = \"INSERT INTO $L ($L) VALUES ($L)\"", childTable, String.join(", ", insertCols), String.join(", ", insertVals));
-        mb.addStatement("$T[] batchParams = toInsert.stream().map(i -> buildEntityParamSource(aggregateId, i)).toArray($T[]::new)",
-                MAP_PARAM_SOURCE, MAP_PARAM_SOURCE);
+        mb.addStatement("$T[] batchParams = toInsert.stream().map(i -> $L(aggregateId, i)).toArray($T[]::new)",
+                MAP_PARAM_SOURCE, paramMethodName, MAP_PARAM_SOURCE);
         mb.addStatement("this.jdbcTemplate.batchUpdate(insertSql, batchParams)");
         mb.endControlFlow();
 
@@ -455,8 +502,8 @@ public class RepositoryGenerator {
         }
 
         mb.addStatement("String updateSql = \"UPDATE $L SET $L WHERE id = :id AND $L = :parentId\"", childTable, String.join(", ", updateSets), parentFkColumn);
-        mb.addStatement("$T[] batchParams = toUpdate.stream().map(i -> buildEntityParamSource(aggregateId, i)).toArray($T[]::new)",
-                MAP_PARAM_SOURCE, MAP_PARAM_SOURCE);
+        mb.addStatement("$T[] batchParams = toUpdate.stream().map(i -> $L(aggregateId, i)).toArray($T[]::new)",
+                MAP_PARAM_SOURCE, paramMethodName, MAP_PARAM_SOURCE);
         mb.addStatement("this.jdbcTemplate.batchUpdate(updateSql, batchParams)");
         mb.endControlFlow();
 
@@ -475,12 +522,10 @@ public class RepositoryGenerator {
         if (valueObjects.containsKey(typeName)) {
             ValueObjectNode vo = valueObjects.get(typeName);
             if (vo.fields().size() == 1) {
-                // Wrapper VO (z. B. CustomerId)
                 cols.add(toSnakeCase(f.name()));
                 vals.add(":" + f.name());
                 mb.addStatement("params.addValue(\"$L\", $L != null ? $L.value() : null)", f.name(), getterPath, getterPath);
             } else {
-                // Multi-Value VO (z. B. Money)
                 for (FieldNode vof : vo.fields()) {
                     String col = toSnakeCase(f.name()) + "_" + toSnakeCase(vof.name());
                     String param = f.name() + capitalize(vof.name());
@@ -490,7 +535,6 @@ public class RepositoryGenerator {
                 }
             }
         } else {
-            // Skalarer Typ
             cols.add(toSnakeCase(f.name()));
             vals.add(":" + f.name());
             mb.addStatement("params.addValue(\"$L\", $L)", f.name(), getterPath);
@@ -514,10 +558,9 @@ public class RepositoryGenerator {
                 FieldNode inner = vo.fields().getFirst();
                 TypeName innerType = TypeResolver.resolve(inner.type(), packageName, explicitImports);
                 String col = toSnakeCase(f.name());
-                mb.addStatement("$T $L = rs.getObject(\"$L\") != null ? new $T(rs.getObject(\"$L\", $T.class)) : null",
+                mb.addStatement("$T $L = rs.getObject(\"$L\") != null ? $T.of(rs.getObject(\"$L\", $T.class)) : null",
                         targetType, varName, col, targetType, col, innerType);
             } else {
-                // Multi-value VO: Rekonstruiere aus den Präfix-Spalten
                 List<String> ctorArgs = new ArrayList<>();
                 for (FieldNode vof : vo.fields()) {
                     String subCol = toSnakeCase(f.name()) + "_" + toSnakeCase(vof.name());
@@ -526,7 +569,7 @@ public class RepositoryGenerator {
                     mb.addStatement("$T $L = rs.getObject(\"$L\", $T.class)", subType, subVar, subCol, subType);
                     ctorArgs.add(subVar);
                 }
-                mb.addStatement("$T $L = new $T($L)", targetType, varName, targetType, String.join(", ", ctorArgs));
+                mb.addStatement("$T $L = $T.of($L)", targetType, varName, targetType, String.join(", ", ctorArgs));
             }
         } else {
             String col = toSnakeCase(f.name());
@@ -570,5 +613,12 @@ public class RepositoryGenerator {
         }
 
         return mb.build();
+    }
+
+    private String extractIdValue(String accessor, String typeName, Map<String, ValueObjectNode> valueObjects) {
+        if (valueObjects.containsKey(typeName)) {
+            return accessor + ".value()";
+        }
+        return accessor;
     }
 }

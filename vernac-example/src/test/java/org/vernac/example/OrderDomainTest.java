@@ -7,6 +7,7 @@ import org.vernac.runtime.DomainEvent;
 import org.vernac.runtime.DomainValidationException;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Currency;
 import java.util.List;
 import java.util.UUID;
@@ -57,7 +58,7 @@ class OrderDomainTest {
         CustomerId customerId = CustomerId.of(UUID.randomUUID());
         Money total = Money.of(new BigDecimal("148.50"), EUR);
 
-        Order order = Order.create(orderId, customerId, total, "PENDING");
+        Order order = Order.create(orderId, customerId, total, "PENDING", new ArrayList<>());
         assertThat(order.status()).isEqualTo("PENDING");
 
         // Event-Puffer muss anfangs leer sein

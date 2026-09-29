@@ -18,6 +18,7 @@
         <module>vernac-compiler</module>
         <module>vernac-maven-plugin</module>
         <module>vernac-example</module>
+        <module>vernac-lsp</module>
     </modules>
 
     <properties>

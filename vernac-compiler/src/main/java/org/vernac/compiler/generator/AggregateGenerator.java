@@ -74,6 +74,7 @@ public class AggregateGenerator {
 
         // 7. reconstitute(...) Factory
         classBuilder.addMethod(buildReconstituteFactory(node, packageName, selfType, idType, idFieldName));
+        classBuilder.addMethod(buildWithVersionMethod(node, selfType, idFieldName));
 
         // 8. Event Management
         classBuilder.addMethod(buildRegisterEventMethod());
@@ -349,6 +350,26 @@ public class AggregateGenerator {
                 .addStatement("$T that = ($T) o", selfType, selfType)
                 .addStatement("return $T.equals(this.$N, that.$N)", Objects.class, idFieldName, idFieldName)
                 .build();
+    }
+
+    private MethodSpec buildWithVersionMethod(AggregateNode agg, ClassName selfType, String idFieldName) {
+        MethodSpec.Builder mb = MethodSpec.methodBuilder("withVersion")
+                .addModifiers(Modifier.PUBLIC)
+                .returns(selfType)
+                .addParameter(TypeName.LONG, "newVersion");
+
+        List<String> args = new ArrayList<>();
+        args.add("this." + idFieldName);
+        for (FieldNode f : agg.fields()) {
+            args.add("this." + f.name());
+        }
+        args.add("this.createdAt");
+        args.add("this.updatedAt");
+        args.add("newVersion");
+        args.add("false"); // validate = false (Zustand ist bereits valide)
+
+        mb.addStatement("return new $T($L)", selfType, String.join(", ", args));
+        return mb.build();
     }
 
     private MethodSpec buildHashCode(String idFieldName) {
