@@ -5,6 +5,8 @@ import org.eclipse.lsp4j.*;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.TextDocumentService;
+import org.vernac.compiler.ast.AstBuilderVisitor;
+import org.vernac.compiler.ast.CompilationUnitNode;
 import org.vernac.compiler.parser.VernacLexer;
 import org.vernac.compiler.parser.VernacParser;
 
@@ -77,7 +79,7 @@ public class VernacTextDocumentService implements TextDocumentService {
     }
 
     // ==========================================
-    // 1. Syntax-Validierung
+    // 1. Validierung (Syntax & Semantik)
     // ==========================================
 
     private void validateDocument(String uri, String content) {
@@ -103,9 +105,24 @@ public class VernacTextDocumentService implements TextDocumentService {
             }
         });
 
+        VernacParser.CompilationUnitContext tree = null;
         try {
-            parser.compilationUnit();
+            tree = parser.compilationUnit();
         } catch (Exception ignored) {
+        }
+
+        // Semantische Validierung via AST nur ausführen, wenn keine reinen Syntax-Fehler vorliegen
+        if (diagnostics.isEmpty() && tree != null) {
+            try {
+                AstBuilderVisitor astBuilder = new AstBuilderVisitor();
+                CompilationUnitNode ast = astBuilder.visitCompilationUnit(tree);
+                if (ast != null) {
+                    VernacSemanticValidator semanticValidator = new VernacSemanticValidator();
+                    diagnostics.addAll(semanticValidator.validate(ast));
+                }
+            } catch (Exception ignored) {
+                // Fängt Übergangszustände beim Tippen im Editor ab
+            }
         }
 
         if (client != null) {
@@ -160,7 +177,7 @@ public class VernacTextDocumentService implements TextDocumentService {
                 .thenComparingInt(t -> t.startChar)
                 .thenComparingInt(t -> -t.length));
 
-        // Duplikate & Überlappungen filtern (LSP4IJ wirft sonst die Daten weg!)
+        // Duplikate & Überlappungen filtern
         List<RawToken> nonOverlapping = new ArrayList<>();
         int curLine = -1;
         int curEndChar = -1;
@@ -189,7 +206,7 @@ public class VernacTextDocumentService implements TextDocumentService {
             data.add(deltaChar);
             data.add(t.length);
             data.add(t.tokenType);
-            data.add(0); // Modifiers
+            data.add(0);
 
             prevLine = t.line;
             prevChar = t.startChar;
@@ -274,8 +291,8 @@ public class VernacTextDocumentService implements TextDocumentService {
         // Kontext B: Typ-Position (nach '[', '<', ':', 'mut', 'find', 'custom' oder in Parameterliste)
         if (isTypeExpected(prefix)) {
             Set<String> seenTypes = new HashSet<>();
-            addModelDeclaredTypes(items, content, seenTypes); // Eigene Typen priorisieren
-            addStandardTypeCompletions(items, seenTypes);     // JDK-Typen nur ergänzen
+            addModelDeclaredTypes(items, content, seenTypes);
+            addStandardTypeCompletions(items, seenTypes);
             return CompletableFuture.completedFuture(Either.forLeft(items));
         }
 
@@ -411,6 +428,11 @@ public class VernacTextDocumentService implements TextDocumentService {
         list.add(item);
     }
 
+    @Override
+    public CompletableFuture<CompletionItem> resolveCompletionItem(CompletionItem unresolved) {
+        return CompletableFuture.completedFuture(unresolved);
+    }
+
     // ==========================================
     // 4. Hover
     // ==========================================
@@ -495,15 +517,8 @@ public class VernacTextDocumentService implements TextDocumentService {
     }
 
     // ==========================================
-    // Interne Datenstrukturen
+    // Interne Hilfsstrukturen
     // ==========================================
-
-    @Override
-    public CompletableFuture<CompletionItem> resolveCompletionItem(CompletionItem unresolved) {
-        // Falls keine zusätzliche Dokumentation nachgeladen werden muss,
-        // geben wir das Item einfach direkt zurück.
-        return CompletableFuture.completedFuture(unresolved);
-    }
 
     private static class RawToken {
         final int line;
