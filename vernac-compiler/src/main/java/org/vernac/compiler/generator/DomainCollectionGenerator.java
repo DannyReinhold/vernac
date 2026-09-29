@@ -13,12 +13,13 @@ import java.util.stream.Stream;
 
 public class DomainCollectionGenerator {
 
-    public JavaFile generate(ValueObjectNode node, String packageName) {
+    public JavaFile generate(ValueObjectNode node, String basePackage) {
+        String targetPackage = PackageResolver.resolveDomainPackage(basePackage, node.customPackage());
         String itemClassName = node.name();
         String collectionClassName = determineCollectionClassName(node);
 
-        ClassName itemType = ClassName.get(packageName, itemClassName);
-        ClassName selfType = ClassName.get(packageName, collectionClassName);
+        ClassName itemType = ClassName.get(targetPackage, itemClassName);
+        ClassName selfType = ClassName.get(targetPackage, collectionClassName);
 
         TypeName listOfItems = ParameterizedTypeName.get(ClassName.get(List.class), itemType);
         TypeName collectionOfItems = ParameterizedTypeName.get(ClassName.get(Collection.class), itemType);
@@ -134,7 +135,7 @@ public class DomainCollectionGenerator {
         // 7. Custom Methoden aus dem DSL-Block
         if (node.collection().isPresent()) {
             for (MethodNode customMethod : node.collection().get().customMethods()) {
-                classBuilder.addMethod(buildCustomMethod(customMethod, packageName));
+                classBuilder.addMethod(buildCustomMethod(customMethod, targetPackage));
             }
         }
 
@@ -164,20 +165,20 @@ public class DomainCollectionGenerator {
                 .addStatement("return $S + this.items.toString()", collectionClassName)
                 .build());
 
-        return JavaFile.builder(packageName, classBuilder.build())
+        return JavaFile.builder(targetPackage, classBuilder.build())
                 .skipJavaLangImports(true)
                 .indent("    ")
                 .build();
     }
 
-    private MethodSpec buildCustomMethod(MethodNode method, String packageName) {
-        TypeName returnType = TypeResolver.resolve(method.returnType(), packageName);
+    private MethodSpec buildCustomMethod(MethodNode method, String targetPackage) {
+        TypeName returnType = TypeResolver.resolve(method.returnType(), targetPackage);
         MethodSpec.Builder builder = MethodSpec.methodBuilder(method.name())
                 .addModifiers(Modifier.PUBLIC)
                 .returns(returnType);
 
         for (FieldNode param : method.parameters()) {
-            TypeName paramType = TypeResolver.resolve(param.type(), packageName);
+            TypeName paramType = TypeResolver.resolve(param.type(), targetPackage);
             builder.addParameter(paramType, param.name());
         }
 

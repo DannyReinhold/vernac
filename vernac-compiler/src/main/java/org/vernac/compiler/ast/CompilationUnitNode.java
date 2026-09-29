@@ -24,10 +24,24 @@ public record CompilationUnitNode(
                 .toList();
     }
 
+    public List<EntityNode> entities() {
+        return definitions.stream()
+                .filter(EntityNode.class::isInstance)
+                .map(EntityNode.class::cast)
+                .toList();
+    }
+
     public List<EventNode> events() {
         return definitions.stream()
                 .filter(EventNode.class::isInstance)
                 .map(EventNode.class::cast)
+                .toList();
+    }
+
+    public List<RepositoryNode> repositories() {
+        return definitions.stream()
+                .filter(RepositoryNode.class::isInstance)
+                .map(RepositoryNode.class::cast)
                 .toList();
     }
 
@@ -38,10 +52,10 @@ public record CompilationUnitNode(
                 .toList();
     }
 
-    public List<EntityNode> entities() {
+    public List<ExternalSchemaNode> externalSchemas() {
         return definitions.stream()
-                .filter(EntityNode.class::isInstance)
-                .map(EntityNode.class::cast)
+                .filter(ExternalSchemaNode.class::isInstance)
+                .map(ExternalSchemaNode.class::cast)
                 .toList();
     }
 }

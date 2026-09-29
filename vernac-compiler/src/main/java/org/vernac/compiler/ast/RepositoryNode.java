@@ -7,6 +7,7 @@ public record RepositoryNode(
         SourceLocation location,
         String name,
         String aggregateName,
+        Optional<String> customPackage,
         Optional<String> tableName,
         List<RepositoryMethodNode> methods
 ) implements TopLevelDefinition {

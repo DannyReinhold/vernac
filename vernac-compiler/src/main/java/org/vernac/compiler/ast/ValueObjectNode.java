@@ -9,6 +9,7 @@ public record ValueObjectNode(
         List<FieldNode> fields,
         List<ValidationRuleNode> validations,
         List<MethodNode> methods,
-        Optional<CollectionDefinitionNode> collection
+        Optional<CollectionDefinitionNode> collection,
+        Optional<String> customPackage
 ) implements TopLevelDefinition {
 }

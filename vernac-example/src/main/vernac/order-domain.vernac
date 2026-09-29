@@ -1,4 +1,4 @@
-package org.vernac.example.domain;
+package org.vernac.example;
 
 import java.math.BigDecimal;
 import java.util.Currency;
@@ -66,7 +66,7 @@ aggregate Order[OrderId](
         if ("PAID".equals(this.status)) {
             throw new IllegalStateException("Order is already paid");
         }
-        setStatus("PAID");
+        status("PAID");
         registerEvent(OrderPlaced.create(this.id, this.customer, this.total));
     }
 

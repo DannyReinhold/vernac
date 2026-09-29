@@ -10,7 +10,6 @@ public sealed interface AstNode permits
         ValidationRuleNode,
         InvariantNode,
         MethodNode,
-        AnnotationNode,
         ExternalSchemaNode,
         ServiceMethodNode,
         MappingStatementNode {

@@ -1,0 +1,18 @@
+package org.vernac.example.project;
+
+// domain objects will be created in <package>.domain
+
+value ProjectId(UUID);
+value ProjectName(String) validates {
+  require(value != null && !value.isEmpty(), "Project Name must be specified!");
+}
+
+aggregate Project[ProjectId](ProjectName) {
+}
+
+// Repository interface will be created in <package>.domain
+// Repository implementation will be created in <package>.adapter.db (or similar)
+repository for Project {
+}
+
+

@@ -30,6 +30,12 @@ public class SemanticAnalyzer {
             if (!declaredTypes.add(name)) {
                 diagnostics.add(CompilerDiagnostic.error(def.location(), "Duplicate type declaration '" + name + "'"));
             }
+
+            // WICHTIG: Generierte Collections (z. B. 'Tasks' aus 'value Task(...) collection Tasks') als Typ registrieren
+            if (def instanceof ValueObjectNode vo && vo.collection().isPresent()) {
+                String collName = vo.collection().get().customName().orElse(vo.name() + "s");
+                declaredTypes.add(collName);
+            }
         }
 
         // 2. Verfügbare Typ-Symbole für Auflösungsprüfung
@@ -124,7 +130,7 @@ public class SemanticAnalyzer {
             if (field.isMutable()) {
                 diagnostics.add(CompilerDiagnostic.error(
                         field.location(),
-                        "Domain Event '" + event.name() + "' cannot have mutable field '" + field.name() + "'. Events must represent past facts and be immutable."
+                        "Domain Event '" + event.name() + "' cannot have mutable field '" + field.name() + "'. Events must represent past facts and be strictly immutable."
                 ));
             }
         }
@@ -134,14 +140,13 @@ public class SemanticAnalyzer {
         }
     }
 
-
     private void validateRepository(
             RepositoryNode repo,
             CompilationUnitNode unit,
             Set<String> availableSymbols,
             List<CompilerDiagnostic> diagnostics
     ) {
-        // 1. Prüfen, ob das genannte Aggregate existiert
+        // 1. Prüfen, ob das genannte Aggregate existiert[cite: 8]
         boolean aggregateExists = unit.definitions().stream()
                 .anyMatch(d -> d instanceof AggregateNode agg && agg.name().equals(repo.aggregateName()));
 
@@ -152,7 +157,7 @@ public class SemanticAnalyzer {
             ));
         }
 
-        // 2. Doppelte oder reservierte Methodennamen (byId, save, delete)
+        // 2. Doppelte oder reservierte Methodennamen (byId, save, delete)[cite: 8]
         Set<String> methodNames = new HashSet<>(Set.of("byId", "save", "delete"));
         for (RepositoryMethodNode method : repo.methods()) {
             if (!methodNames.add(method.name())) {
@@ -162,7 +167,7 @@ public class SemanticAnalyzer {
                 ));
             }
 
-            // 3. Typ-Auflösung für Rückgabewert und Parameter
+            // 3. Typ-Auflösung für Rückgabewert und Parameter[cite: 8]
             validateTypeResolvable(method.returnType(), availableSymbols, unit.imports(), diagnostics);
             for (FieldNode param : method.parameters()) {
                 validateTypeResolvable(param.type(), availableSymbols, unit.imports(), diagnostics);

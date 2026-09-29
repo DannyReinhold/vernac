@@ -5,7 +5,7 @@ import java.util.List;
 public record ServiceNode(
         SourceLocation location,
         String name,
-        List<AnnotationNode> annotations,
         List<ExternalSchemaNode> schemas,
         List<ServiceMethodNode> methods
-) implements TopLevelDefinition {}
+) implements TopLevelDefinition {
+}

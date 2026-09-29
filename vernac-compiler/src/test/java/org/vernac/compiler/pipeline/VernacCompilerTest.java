@@ -16,26 +16,25 @@ class VernacCompilerTest {
     private final VernacCompiler compiler = new VernacCompiler();
 
     @Test
-    @DisplayName("Kompiliert eine vollständige Domain-Spezifikation mit Value Objects, Events, Aggregates und Entities")
+    @DisplayName("Kompiliert eine vollständige Domain-Spezifikation mit abgeleiteten Namen, Lifecycle-Settern und Outbox-Event")
     void shouldCompileCompleteDomainSpecification(@TempDir Path tempDir) throws IOException {
         String dsl = """
-                package com.example.domain;
+                package com.example;
                 
-                value ProjectId(UUID value);
-                value TaskId(UUID value);
+                value ProjectId(UUID);
+                value TaskId(UUID);
                 value ProjectName(String value) validates {
                     require(value.length() <= 50, "Name too long");
                 };
                 value Money(BigDecimal amount, Currency currency);
                 
-                @Dispatch(mode = "OUTBOX")
-                event ProjectCreated(ProjectId projectId, ProjectName name);
+                outbox event ProjectCreated(ProjectId projectId, ProjectName name);
                 
                 aggregate Project[ProjectId](ProjectName name, mut Money budget) validates {
                     require(budget.amount().compareTo(BigDecimal.ZERO) >= 0, "Budget cannot be negative");
                 } {
                     public void assignBudget(Money newBudget) {
-                        setBudget(newBudget);
+                        budget(newBudget);
                     }
                 };
                 
@@ -44,7 +43,7 @@ class VernacCompilerTest {
 
         VernacCompilationResult result = compiler.compileSource(dsl);
 
-        assertThat(result.packageName()).isEqualTo("com.example.domain");
+        assertThat(result.packageName()).isEqualTo("com.example");
         List<String> generatedTypeNames = result.generatedFiles().stream()
                 .map(f -> f.typeSpec.name)
                 .toList();

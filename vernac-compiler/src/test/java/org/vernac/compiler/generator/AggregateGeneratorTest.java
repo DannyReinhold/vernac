@@ -35,7 +35,7 @@ class AggregateGeneratorTest {
                     require(budget.amount().compareTo(BigDecimal.ZERO) >= 0, "Budget cannot be negative");
                 } {
                     public void assignBudget(Money newBudget) {
-                        setBudget(newBudget);
+                        budget(newBudget);
                     }
                 };
                 """;
@@ -55,8 +55,9 @@ class AggregateGeneratorTest {
                 .contains("private final ProjectId id;")
                 .contains("private final ProjectName name;")
                 .contains("private Money budget;")
-                .contains("private void setBudget(Money budget)")
-                .contains("validate();")
+                .contains("protected void markAsUpdated()")
+                .contains("public void budget(Money budget)")
+                .contains("markAsUpdated();")
                 .contains("public void assignBudget(Money newBudget)")
                 .contains("public ProjectId id()")
                 .contains("public Instant createdAt()")

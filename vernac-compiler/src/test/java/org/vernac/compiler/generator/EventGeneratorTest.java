@@ -26,13 +26,12 @@ class EventGeneratorTest {
     }
 
     @Test
-    @DisplayName("Generiert Domain Event mit create(), of(), @Dispatch, Konstante und Getter-Zugriff in toString()")
+    @DisplayName("Generiert Domain Event mit create(), of(), DispatchMode, Konstante und Getter-Zugriff")
     void shouldGenerateDomainEventWithCreateAndDispatch() {
         String src = """
                 package com.example.domain;
                 
-                @Dispatch(Outbox)
-                event ProjectBudgetExceeded(ProjectId projectId, Money currentCost, String? reason);
+                outbox event ProjectBudgetExceeded(ProjectId projectId, Money currentCost, String? reason);
                 """;
 
         CompilationUnitNode cu = parse(src);
@@ -42,7 +41,6 @@ class EventGeneratorTest {
         String normalizedCode = code.replaceAll("\\s+", " ");
 
         assertThat(code)
-                .contains("@Dispatch(DispatchMode.OUTBOX)")
                 .contains("public final class ProjectBudgetExceeded implements DomainEvent")
                 .contains("public static final String EVENT_TYPE = \"PROJECT_BUDGET_EXCEEDED\";")
                 .contains("private final UUID eventId;")
@@ -57,7 +55,6 @@ class EventGeneratorTest {
                 .contains("return Objects.equals(this.eventId, that.eventId);")
                 .contains("reason=\" + this.reason().orElse(null)");
 
-        // Umbruch-unabhängige Prüfung für lange Methodensignaturen
         assertThat(normalizedCode)
                 .contains("public static ProjectBudgetExceeded create(ProjectId projectId, Money currentCost, @Nullable String reason)")
                 .contains("public static ProjectBudgetExceeded create(ProjectId projectId, Money currentCost)")

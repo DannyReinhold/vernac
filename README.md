@@ -1,80 +1,80 @@
-## Current Status & Implemented Features
+# Vernac
 
-Vernac currently provides a working end-to-end compilation pipeline from DSL source code down to idiomatic Java domain
-models using JavaPoet and ANTLR4.
+> **Pragmatic, Tactical Domain-Driven Design for Java.**  
+> Compile expressive domain models into pure, encapsulated Java classes—bypassing JPA pitfalls, enforcing invariants,
+> and delivering first-class IDE tooling via LSP.
 
-### 1. Implemented DDD Building Blocks
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
+[![Java Version](https://img.shields.io/badge/Java-21%2B%20%7C%2025-blue.svg)]()
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-* **Value Objects (`value`)**:
-    * Immutable classes with private constructors and static `of(...)` factories.
-    * Validation rules via `validates { require(...); }`.
-    * Support for First-Class Domain Collections (`collection Tasks { ... }`).
-    * Record-style accessors and defensive copying.
+Most Java architectures stumble when translating DDD to code: JPA entities leak ORM proxies into business logic, anemic
+data holders replace encapsulated aggregates, and database rehydration triggers domain invariants by accident.
 
-* **Domain Events (`event`)**:
-    * Guaranteed non-null payload fields, auto-generated `eventId` (`UUID`), and `occurredOn` (`Instant`).
-    * Technical factories (`of(...)`) for deserialization and business factories (`create(...)`).
-    * `@Dispatch(mode = "MEMORY" | "OUTBOX")` metadata support for message-routing strategies.
+**Vernac solves this at the language level.** You model your Ubiquitous Language in clean `.vernac` files. The compiler
+outputs battle-tested, rich domain classes and persistence code tailored strictly to tactical DDD principles.
 
-* **Aggregate Roots (`aggregate`)**:
-    * Explicit identity definition syntax: `aggregate Name[IdType optionalIdName](...)`.
-    * Implements `AggregateRoot<ID>` interface with technical metadata (`createdAt`, `updatedAt`, `version`).
-    * Identity-only `equals()` and `hashCode()` semantics based solely on the aggregate ID.
-    * Internal event collection via `registerEvent(...)` and consumption via `pullDomainEvents()`.
-    * Dual-factory lifecycle: `create(...)` for new instances (with validation) and `reconstitute(...)` for
-      repository/database hydration (bypassing validation and event dispatch).
-    * Immutability by default; mutable attributes marked via `mut` generate private, validating setters for controlled
-      state mutation.
+---
 
-* **Entities (`entity`)**:
-    * Unified identity syntax: `entity Name[IdType](...)`.
-    * Implements `Entity<ID>` with strict ID-based equality.
-    * Encapsulated internal mutation via `mut` and custom domain methods.
+## Why Vernac?
 
-### 2. Architecture & Modules
+* **No Anemic Models, No Records**: Aggregates and Entities are generated as fully encapsulated classes with explicit
+  mutators, invariant guarantees, and hidden internal state.
+* **Separation of Creation & Rehydration**:
+    - `create(...)`: Validates business invariants, initializes lifecycle state, and records domain events.
+    - `reconstitute(...)`: Restores state directly from persistence without re-triggering creation rules or publishing
+      spurious events.
+* **JPA-Free Persistence**: Repositories generate explicit, predictable SQL/JDBC mapping with strict aggregate
+  transaction boundaries. No lazy loading surprises, no detached entity gymnastics, no dirty-checking leaks.
+* **Optimistic Locking Built-In**: Every aggregate handles version tracking natively for conflict-free concurrent
+  modifications.
+* **Native Anti-Corruption Layer (ACL)**: Define `service` contracts with `external schema` and bi-directional `mapping`
+  to insulate your core domain from upstream API changes.
+* **First-Class IDE Experience**: Backed by a full Language Server Protocol (LSP) implementation supporting real-time
+  semantic diagnostics, grammar-aware completion, type navigation, and hover documentation in IntelliJ IDEA.
 
-* **`vernac-runtime`**:
-    * Lightweight marker interfaces (`AggregateRoot<ID>`, `Entity<ID>`, `DomainEvent`).
-    * Runtime base exceptions (`DomainValidationException`).
-    * Dispatch annotations (`@Dispatch`).
-* **`vernac-compiler`**:
-    * Complete ANTLR4 grammar (`Vernac.g4`) handling chained expressions and custom method bodies.
-    * Strongly-typed AST with sealed interfaces (`AstNode`, `TopLevelDefinition`).
-    * Specialized JavaPoet generators: `ValueObjectGenerator`, `EventGenerator`, `AggregateGenerator`,
-      `EntityGenerator`.
-    * Central `VernacCompiler` pipeline supporting in-memory compilation and filesystem output
-      (`VernacCompilationResult`).
+---
 
-### 3. Verification
+## At a Glance
 
-* Comprehensive test suite covering:
-    * Parser and AST visitor semantics.
-    * Generator outputs for all DDD artifacts.
-    * End-to-end file generation test compiling a multi-model `.vernac` specification into disk-ready Java files.
+```vernac
+package com.example.shop;
 
-### 4. Maven
+value OrderId(UUID value);
+value CustomerId(UUID value);
+value Money(BigDecimal amount, String currency);
 
-You can add the vernac-maven-plugin to your maven build pipeline to automatically compile `.vernac` files into Java
-classes during the build process. This plugin leverages the `vernac-compiler` module to perform the compilation and
-generates the necessary Java files in the specified output directory.
+/**
+ * Core order aggregate handling checkout state and payment.
+ */
+aggregate Order[OrderId id](
+    CustomerId buyerId,
+    Money total,
+    mut OrderStatus status
+) validates {
+    require(total.amount().compareTo(BigDecimal.ZERO) >= 0, "Total cannot be negative");
+} {
+    public void markPaid() {
+        if (this.status == OrderStatus.PAID) {
+            throw new IllegalStateException("Order is already paid");
+        }
+        this.status = OrderStatus.PAID;
+    }
+}
 
-Simply add the plugin to your `pom.xml` file:
+repository OrderRepository for Order {
+    table: "customer_orders";
+    find Order findByBuyerId(CustomerId buyerId);
+};
 
-```
-<build>
-    <plugins>
-        <plugin>
-            <groupId>org.vernac</groupId>
-            <artifactId>vernac-maven-plugin</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
-            <executions>
-                <execution>
-                    <goals>
-                        <goal>compile</goal>
-                    </goals>
-                </execution>
-            </executions>
-        </plugin>
-    </plugins>
-</build>
-```
+service PaymentGateway {
+    external schema RemoteChargeRequest {
+        charge_id: String;
+        amount_cents: Long;
+    }
+
+    @Post("/v1/charges")
+    ChargeResult charge(Money amount) mapping {
+        amount.amount() -> amount_cents;
+    };
+}

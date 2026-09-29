@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.vernac.compiler.parser.VernacLexer;
 import org.vernac.compiler.parser.VernacParser;
+import org.vernac.runtime.DispatchMode;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -19,16 +20,16 @@ class AstBuilderVisitorTest {
     }
 
     @Test
-    @DisplayName("Parst Aggregate mit Standard-Id, Custom-Id-Name und mut-Feldern")
+    @DisplayName("Parst Aggregate mit Standard-Id, abgeleiteten Feldnamen und explizitem Namen")
     void shouldParseAggregateWithIdAndMutableFields() {
         String src = """
                 package com.example.domain;
                 
-                aggregate Project[ProjectId](ProjectName name, mut Money budget) validates {
+                aggregate Project[ProjectId](ProjectName, mut Money budget) validates {
                     require(budget.amount().compareTo(BigDecimal.ZERO) >= 0, "Budget cannot be negative");
                 } {
                     public void assignBudget(Money newBudget) {
-                        setBudget(newBudget);
+                        budget(newBudget);
                     }
                 };
                 
@@ -38,7 +39,7 @@ class AstBuilderVisitorTest {
         CompilationUnitNode cu = parse(src);
         assertThat(cu.aggregates()).hasSize(2);
 
-        // Erstes Aggregat: Standard ID-Name "id"
+        // Erstes Aggregat: Standard ID-Name "id" und abgeleiteter Feldname "projectName"
         AggregateNode project = cu.aggregates().getFirst();
         assertThat(project.name()).isEqualTo("Project");
         assertThat(project.idDefinition().type().name()).isEqualTo("ProjectId");
@@ -46,7 +47,7 @@ class AstBuilderVisitorTest {
         assertThat(project.fields()).hasSize(2);
 
         FieldNode nameField = project.fields().get(0);
-        assertThat(nameField.name()).isEqualTo("name");
+        assertThat(nameField.name()).isEqualTo("projectName");
         assertThat(nameField.isMutable()).isFalse();
 
         FieldNode budgetField = project.fields().get(1);
@@ -69,6 +70,40 @@ class AstBuilderVisitorTest {
     @Nested
     @DisplayName("1. Value Objects")
     class ValueObjectTests {
+
+        @Test
+        @DisplayName("Leitet bei Single Value Objects den Feldnamen 'value' automatisch ab")
+        void shouldDeriveDefaultValueFieldNameForSingleParam() {
+            String src = """
+                    package com.example.domain;
+                    value ProjectId(UUID);
+                    """;
+
+            CompilationUnitNode cu = parse(src);
+            assertThat(cu.valueObjects()).hasSize(1);
+
+            ValueObjectNode vo = cu.valueObjects().getFirst();
+            assertThat(vo.name()).isEqualTo("ProjectId");
+            assertThat(vo.fields()).hasSize(1);
+            assertThat(vo.fields().getFirst().name()).isEqualTo("value");
+            assertThat(vo.fields().getFirst().type().name()).isEqualTo("UUID");
+        }
+
+        @Test
+        @DisplayName("Unterstützt package-Override im Value Object Block")
+        void shouldParseValueObjectWithPackageOverride() {
+            String src = """
+                    package com.example.domain;
+                    value SharedId(UUID) {
+                        package com.example.shared.kernel;
+                    }
+                    """;
+
+            CompilationUnitNode cu = parse(src);
+            ValueObjectNode vo = cu.valueObjects().getFirst();
+            assertThat(vo.customPackage()).contains("com.example.shared.kernel");
+            assertThat(vo.fields().getFirst().name()).isEqualTo("value");
+        }
 
         @Test
         void shouldParseValueObjectWithValidation() {
@@ -148,12 +183,9 @@ class AstBuilderVisitorTest {
 
             AggregateNode agg = cu.aggregates().getFirst();
             assertThat(agg.name()).isEqualTo("Project");
-
-            // Id Definition prüfen
             assertThat(agg.idDefinition().type().name()).isEqualTo("ProjectId");
             assertThat(agg.idDefinition().fieldName()).isEqualTo("id");
 
-            // Felder prüfen
             assertThat(agg.fields()).hasSize(3);
 
             FieldNode titleField = agg.fields().get(0);
@@ -169,12 +201,10 @@ class AstBuilderVisitorTest {
             assertThat(tasksField.name()).isEqualTo("tasks");
             assertThat(tasksField.isMutable()).isTrue();
 
-            // Validierungs-Check
             assertThat(agg.validations()).hasSize(1);
             assertThat(agg.validations().getFirst().condition()).isEqualTo("tasks.size()<=100");
             assertThat(agg.validations().getFirst().message()).isEqualTo("Max 100 tasks allowed");
 
-            // Methoden-Check
             assertThat(agg.methods()).hasSize(1);
             MethodNode method = agg.methods().getFirst();
             assertThat(method.name()).isEqualTo("addTask");
@@ -188,86 +218,117 @@ class AstBuilderVisitorTest {
     class EventTests {
 
         @Test
-        void shouldParseAnnotatedDomainEvents() {
+        @DisplayName("Parst outbox, memory und unpräfigierte Events mit DispatchMode")
+        void shouldParseEventsWithDispatchKind() {
             String src = """
-                    @Dispatch(Outbox)
-                    event ProjectBudgetExceeded(ProjectId projectId, Money currentCost, Money budget);
+                    package com.example.domain;
                     
+                    outbox event ProjectBudgetExceeded(ProjectId projectId, Money currentCost, Money budget);
+                    memory event ProjectValidated(ProjectId projectId);
                     event TaskCompleted(ProjectId projectId, TaskId taskId);
                     """;
 
             CompilationUnitNode cu = parse(src);
-            assertThat(cu.events()).hasSize(2);
+            assertThat(cu.events()).hasSize(3);
 
-            EventNode outboxEvent = cu.events().getFirst();
+            EventNode outboxEvent = cu.events().get(0);
             assertThat(outboxEvent.name()).isEqualTo("ProjectBudgetExceeded");
-            assertThat(outboxEvent.annotations()).hasSize(1);
-            assertThat(outboxEvent.annotations().getFirst().name()).isEqualTo("Dispatch");
-            assertThat(outboxEvent.annotations().getFirst().singleValue()).contains("Outbox");
+            assertThat(outboxEvent.dispatchMode()).isEqualTo(DispatchMode.OUTBOX);
             assertThat(outboxEvent.fields()).hasSize(3);
+
+            EventNode memoryEvent = cu.events().get(1);
+            assertThat(memoryEvent.name()).isEqualTo("ProjectValidated");
+            assertThat(memoryEvent.dispatchMode()).isEqualTo(DispatchMode.MEMORY);
+
+            EventNode defaultEvent = cu.events().get(2);
+            assertThat(defaultEvent.name()).isEqualTo("TaskCompleted");
+            assertThat(defaultEvent.dispatchMode()).isEqualTo(DispatchMode.OUTBOX);
         }
+    }
 
-        @Nested
-        @DisplayName("4. Services (ACL Ports & Mappings)")
-        class ServiceTests {
+    @Nested
+    @DisplayName("4. Repositories")
+    class RepositoryTests {
 
-            @Test
-            void shouldParseServiceWithExternalSchemaAndMapping() {
-                String src = """
-                        @HttpService(baseUrl = "${calendar.service.url}")
-                        service HolidayCalendarService {
-                        
-                            external schema HolidayResponseItem {
-                                date: LocalDate;
-                                name: String;
-                            }
-                        
-                            @Get("/api/v1/holidays/{country}/{year}")
-                            HolidayCalendar loadCalendar(CountryCode country, Year year) throws ServiceUnavailableException mapping {
-                                response.body[*].date -> HolidayCalendar.holidays;
-                                country -> HolidayCalendar.country;
-                                year -> HolidayCalendar.year;
-                            }
+        @Test
+        @DisplayName("Leitet Standard-Namen ab und liest package-Override aus")
+        void shouldParseRepositoryWithDefaultNameAndCustomPackage() {
+            String src = """
+                    package com.example.domain;
+                    
+                    repository for Project {
+                        package com.example.infrastructure.own;
+                        table: "projects";
+                        find List<Project> findByName(ProjectName name);
+                    }
+                    """;
+
+            CompilationUnitNode cu = parse(src);
+            assertThat(cu.repositories()).hasSize(1);
+
+            RepositoryNode repo = cu.repositories().getFirst();
+            assertThat(repo.name()).isEqualTo("ProjectRepository");
+            assertThat(repo.aggregateName()).isEqualTo("Project");
+            assertThat(repo.customPackage()).contains("com.example.infrastructure.own");
+            assertThat(repo.tableName()).contains("projects");
+            assertThat(repo.findMethods()).hasSize(1);
+            assertThat(repo.findMethods().getFirst().name()).isEqualTo("findByName");
+        }
+    }
+
+    @Nested
+    @DisplayName("5. Services (ACL Ports & Mappings)")
+    class ServiceTests {
+
+        @Test
+        void shouldParseServiceWithExternalSchemaAndMapping() {
+            String src = """
+                    package com.example.domain;
+                    
+                    service HolidayCalendarService {
+                    
+                        external schema HolidayResponseItem {
+                            date: LocalDate;
+                            name: String;
                         }
-                        """;
+                    
+                        @Get("/api/v1/holidays/{country}/{year}")
+                        HolidayCalendar loadCalendar(CountryCode country, Year year) throws ServiceUnavailableException mapping {
+                            response.body[*].date -> HolidayCalendar.holidays;
+                            country -> HolidayCalendar.country;
+                            year -> HolidayCalendar.year;
+                        }
+                    }
+                    """;
 
-                CompilationUnitNode cu = parse(src);
-                assertThat(cu.services()).hasSize(1);
+            CompilationUnitNode cu = parse(src);
+            assertThat(cu.services()).hasSize(1);
 
-                ServiceNode svc = cu.services().getFirst();
-                assertThat(svc.name()).isEqualTo("HolidayCalendarService");
+            ServiceNode svc = cu.services().getFirst();
+            assertThat(svc.name()).isEqualTo("HolidayCalendarService");
 
-                // Annotation prüfen (baseUrl = "...")
-                assertThat(svc.annotations()).hasSize(1);
-                AnnotationNode annotation = svc.annotations().getFirst();
-                assertThat(annotation.name()).isEqualTo("HttpService");
-                assertThat(annotation.attributes()).containsEntry("baseUrl", "${calendar.service.url}");
+            assertThat(svc.schemas()).hasSize(1);
+            ExternalSchemaNode schema = svc.schemas().getFirst();
+            assertThat(schema.name()).isEqualTo("HolidayResponseItem");
+            assertThat(schema.fields()).containsKeys("date", "name");
+            assertThat(schema.fields().get("date").name()).isEqualTo("LocalDate");
+            assertThat(schema.fields().get("name").name()).isEqualTo("String");
 
-                // Schema prüfen
-                assertThat(svc.schemas()).hasSize(1);
-                ExternalSchemaNode schema = svc.schemas().getFirst();
-                assertThat(schema.name()).isEqualTo("HolidayResponseItem");
-                assertThat(schema.fields()).containsKeys("date", "name");
-                assertThat(schema.fields().get("date").name()).isEqualTo("LocalDate");
-                assertThat(schema.fields().get("name").name()).isEqualTo("String");
+            assertThat(svc.methods()).hasSize(1);
+            ServiceMethodNode method = svc.methods().getFirst();
+            assertThat(method.httpMethod()).isEqualTo("Get");
+            assertThat(method.endpointPath()).isEqualTo("/api/v1/holidays/{country}/{year}");
+            assertThat(method.returnType().name()).isEqualTo("HolidayCalendar");
+            assertThat(method.parameters()).hasSize(2);
+            assertThat(method.thrownExceptions()).contains("ServiceUnavailableException");
 
-                // Servicemethode & Mappings prüfen
-                assertThat(svc.methods()).hasSize(1);
-                ServiceMethodNode method = svc.methods().getFirst();
-                assertThat(method.httpMethod()).isEqualTo("Get");
-                assertThat(method.endpointPath()).isEqualTo("/api/v1/holidays/{country}/{year}");
-                assertThat(method.returnType().name()).isEqualTo("HolidayCalendar");
-                assertThat(method.parameters()).hasSize(2);
-                assertThat(method.thrownExceptions()).contains("ServiceUnavailableException");
-
-                assertThat(method.mappings()).hasSize(3);
-                assertThat(method.mappings().get(0).sourceExpression()).isEqualTo("response.body[*].date");
-                assertThat(method.mappings().get(0).targetField()).isEqualTo("HolidayCalendar.holidays");
-                assertThat(method.mappings().get(1).sourceExpression()).isEqualTo("country");
-                assertThat(method.mappings().get(1).targetField()).isEqualTo("HolidayCalendar.country");
-                assertThat(method.mappings().get(2).sourceExpression()).isEqualTo("year");
-                assertThat(method.mappings().get(2).targetField()).isEqualTo("HolidayCalendar.year");
-            }
+            assertThat(method.mappings()).hasSize(3);
+            assertThat(method.mappings().get(0).sourceExpression()).isEqualTo("response.body[*].date");
+            assertThat(method.mappings().get(0).targetField()).isEqualTo("HolidayCalendar.holidays");
+            assertThat(method.mappings().get(1).sourceExpression()).isEqualTo("country");
+            assertThat(method.mappings().get(1).targetField()).isEqualTo("HolidayCalendar.country");
+            assertThat(method.mappings().get(2).sourceExpression()).isEqualTo("year");
+            assertThat(method.mappings().get(2).targetField()).isEqualTo("HolidayCalendar.year");
         }
     }
 }

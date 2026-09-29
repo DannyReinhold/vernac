@@ -39,7 +39,7 @@ class VernacCompileMojoTest {
 
         mojo.execute();
 
-        Path packageDir = outDir.resolve("com/example/demo");
+        Path packageDir = outDir.resolve("com/example/demo/domain");
         assertThat(Files.exists(packageDir.resolve("OrderId.java"))).isTrue();
         assertThat(Files.exists(packageDir.resolve("OrderCreated.java"))).isTrue();
         assertThat(Files.exists(packageDir.resolve("Order.java"))).isTrue();

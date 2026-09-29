@@ -26,11 +26,20 @@ topLevelDeclaration
 // 1. Value Objects
 // ==========================================
 valueDefinition
-    : 'value' name=identifier '(' parameterList? ')'
+    : 'value' name=typeName '(' parameterList? ')'
       ( 'validates' validationBlock )?
-      ( blockBody )?
-      ( 'collection' collectionName=identifier? ( '{' methodDefinition* '}' )? )?
+      ( '{' valueMember* '}' )?
+      ( collectionDefinition )?
       ';'?
+    ;
+
+valueMember
+    : packageDeclarationStatement
+    | methodDefinition
+    ;
+
+collectionDefinition
+    : 'collection' collectionName=typeName? ( '{' methodDefinition* '}' )?
     ;
 
 validationBlock
@@ -42,32 +51,60 @@ validationStatement
     ;
 
 // ==========================================
-// 2. Aggregates & Entities
+// 2. Events (outbox | memory | default)
+// ==========================================
+eventDefinition
+    : (dispatchKind=eventDispatchKind)? 'event' name=typeName '(' parameterList? ')'
+      ( '{' eventMember* '}' )?
+      ';'?
+    ;
+
+eventDispatchKind
+    : 'outbox'
+    | 'memory'
+    ;
+
+eventMember
+    : packageDeclarationStatement
+    ;
+
+// ==========================================
+// 3. Aggregates & Entities
 // ==========================================
 aggregateDefinition
-    : 'aggregate' name=identifier '[' idDefinition ']' '(' parameterList? ')'
+    : 'aggregate' name=typeName '[' idDefinition ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
-      ( blockBody )?
+      ( '{' aggregateMember* '}' )?
       ';'?
+    ;
+
+aggregateMember
+    : packageDeclarationStatement
+    | methodDefinition
     ;
 
 idDefinition
-    : idType=type (name=identifier)?
+    : idType=type (name=variableName)?
     ;
 
 entityDefinition
-    : 'entity' name=identifier '[' idDefinition ']' '(' parameterList? ')'
+    : 'entity' name=typeName '[' idDefinition ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
-      ( blockBody )?
+      ( '{' entityMember* '}' )?
       ';'?
     ;
 
+entityMember
+    : packageDeclarationStatement
+    | methodDefinition
+    ;
+
 invariantDefinition
-    : 'invariant' name=identifier '{' rawJavaBlock '}'
+    : 'invariant' name=IDENTIFIER '{' rawJavaBlock '}'
     ;
 
 methodDefinition
-    : accessModifier? returnType=type name=identifier '(' parameterList? ')' '{' rawJavaBlock '}'
+    : accessModifier? returnType=type name=methodName '(' parameterList? ')' '{' rawJavaBlock '}'
     ;
 
 accessModifier
@@ -75,37 +112,10 @@ accessModifier
     ;
 
 // ==========================================
-// 3. Events
-// ==========================================
-eventDefinition
-    : annotation* 'event' name=identifier '(' parameterList? ')' ';'
-    ;
-
-annotation
-    : '@' name=identifier ( '(' annotationArgumentList? ')' )?
-    ;
-
-annotationArgumentList
-    : annotationPair (',' annotationPair)*
-    | annotationValue
-    ;
-
-annotationPair
-    : key=identifier '=' value=annotationValue
-    ;
-
-annotationValue
-    : identifier
-    | STRING_LITERAL
-    | INT_LITERAL
-    | BOOLEAN_LITERAL
-    ;
-
-// ==========================================
 // 4. Services (ACL Ports & Mapping)
 // ==========================================
 serviceDefinition
-    : annotation* 'service' name=identifier '{' serviceMember* '}'
+    : 'service' name=typeName '{' serviceMember* '}'
     ;
 
 serviceMember
@@ -114,15 +124,15 @@ serviceMember
     ;
 
 externalSchemaDefinition
-    : 'external' 'schema' name=identifier '{' schemaField* '}'
+    : 'external' 'schema' name=typeName '{' schemaField* '}'
     ;
 
 schemaField
-    : name=identifier ':' type ';'
+    : name=variableName ':' type ';'
     ;
 
 serviceMethodDefinition
-    : httpAnnotation returnType=type name=identifier '(' parameterList? ')' throwsClause? ( mappingBlock | ';' )
+    : httpAnnotation returnType=type name=methodName '(' parameterList? ')' throwsClause? ( mappingBlock | ';' )
     ;
 
 httpAnnotation
@@ -142,26 +152,31 @@ mappingStatement
     ;
 
 sourcePath
-    : identifier ( '.' identifier | '[' ( '*' | INT_LITERAL ) ']' )* ( ':' type )?
+    : variableName ( '.' variableName | '[' ( '*' | INT_LITERAL ) ']' )* ( ':' type )?
     ;
 
 targetPath
-    : identifier ( '.' identifier )*
+    : variableName ( '.' variableName )*
     ;
 
 // ==========================================
 // 5. Repositories
 // ==========================================
 repositoryDefinition
-    : 'repository' name=identifier 'for' aggregateName=identifier '{'
+    : 'repository' (name=typeName)? 'for' aggregateName=typeName '{'
         repositoryMember*
       '}' ';'?
     ;
 
 repositoryMember
-    : tableDeclaration
+    : packageDeclarationStatement
+    | tableDeclaration
     | repositoryFindMethod
     | repositoryCustomMethod
+    ;
+
+packageDeclarationStatement
+    : 'package' qualifiedName ';'
     ;
 
 tableDeclaration
@@ -169,11 +184,11 @@ tableDeclaration
     ;
 
 repositoryFindMethod
-    : 'find' returnType=type name=identifier '(' parameterList? ')' ';'
+    : 'find' returnType=type name=methodName '(' parameterList? ')' ';'
     ;
 
 repositoryCustomMethod
-    : 'custom' returnType=type name=identifier '(' parameterList? ')' ';'
+    : 'custom' returnType=type name=methodName '(' parameterList? ')' ';'
     ;
 
 // ==========================================
@@ -184,23 +199,20 @@ parameterList
     ;
 
 parameter
-    : ( '@' identifier ( '(' STRING_LITERAL ')' )? )* (isMut='mut')? paramType=type name=identifier
+    : ( '@' typeName ( '(' STRING_LITERAL ')' )? )* (isMut='mut')? paramType=type (name=variableName)?
     ;
 
 type
-    : rawType=identifier ('<' typeArguments '>')? isOptional='?'?
+    : rawType=qualifiedName ('<' typeArguments '>')? isOptional='?'?
     ;
 
 typeArguments
     : type (',' type)*
     ;
 
+// Package- und Import-Pfade dürfen nur aus echten Identifiern bestehen
 qualifiedName
-    : identifier ('.' identifier)*
-    ;
-
-blockBody
-    : '{' methodDefinition* '}'
+    : IDENTIFIER ('.' IDENTIFIER)*
     ;
 
 rawJavaBlock
@@ -216,39 +228,38 @@ expression
     : expression ( '&&' | '||' | '==' | '!=' | '<=' | '>=' | '<' | '>' ) expression
     | expression ( '+' | '-' | '*' | '/' ) expression
     | '!' expression
-    | expression '.' identifier ( '(' argumentList? ')' )?   // Chaining: .amount(), .compareTo(...), .ZERO
+    | expression '.' variableName ( '(' argumentList? ')' )?
     | primaryExpression
     ;
 
 primaryExpression
-    : qualifiedName ( '(' argumentList? ')' )?
+    : variableName ( '(' argumentList? ')' )?
     | STRING_LITERAL
     | INT_LITERAL
     | DECIMAL_LITERAL
     | BOOLEAN_LITERAL
     | '(' expression ')'
     ;
+
 argumentList
     : expression (',' expression)*
     ;
 
-identifier
+// ==========================================
+// Spezifische Namens-Kategorien
+// ==========================================
+typeName
+    : IDENTIFIER
+    ;
+
+methodName
+    : IDENTIFIER
+    ;
+
+variableName
     : IDENTIFIER
     | 'value'
-    | 'aggregate'
-    | 'entity'
-    | 'event'
-    | 'service'
-    | 'invariant'
     | 'id'
-    | 'mapping'
-    | 'external'
-    | 'schema'
-    | 'repository'
-    | 'for'
-    | 'table'
-    | 'find'
-    | 'custom'
     ;
 
 // ==========================================

@@ -17,11 +17,12 @@ public class EntityGenerator {
     private static final ClassName ENTITY_INTERFACE = ClassName.get(Entity.class);
     private static final ClassName NULLABLE_ANNOTATION = ClassName.get(Nullable.class);
 
-    public JavaFile generate(EntityNode node, String packageName, List<String> imports) {
+    public JavaFile generate(EntityNode node, String basePackage, List<String> imports) {
+        String targetPackage = PackageResolver.resolveDomainPackage(basePackage, node.customPackage());
         String className = node.name();
-        ClassName selfType = ClassName.get(packageName, className);
+        ClassName selfType = ClassName.get(targetPackage, className);
 
-        TypeName idType = TypeResolver.resolve(node.idDefinition().type(), packageName, imports);
+        TypeName idType = TypeResolver.resolve(node.idDefinition().type(), targetPackage, imports);
         String idFieldName = node.idDefinition().fieldName();
 
         ParameterizedTypeName entityInterfaceType = ParameterizedTypeName.get(ENTITY_INTERFACE, idType);
@@ -36,7 +37,7 @@ public class EntityGenerator {
 
         // 2. Nutzlast-Felder
         for (FieldNode field : node.fields()) {
-            TypeName fieldType = TypeResolver.resolve(field.type(), packageName);
+            TypeName fieldType = TypeResolver.resolve(field.type(), targetPackage);
             List<Modifier> modifiers = new ArrayList<>();
             modifiers.add(Modifier.PRIVATE);
             if (!field.isMutable()) {
@@ -51,27 +52,27 @@ public class EntityGenerator {
         }
 
         // 3. Privater Konstruktor
-        classBuilder.addMethod(buildPrivateConstructor(node, packageName, idType, idFieldName));
+        classBuilder.addMethod(buildPrivateConstructor(node, targetPackage, idType, idFieldName));
 
         // 4. Validierungsmethode
         classBuilder.addMethod(buildValidateMethod(node));
 
         // 5. create(...) Factory
-        classBuilder.addMethod(buildCreateFactory(node, packageName, selfType, idType, idFieldName));
+        classBuilder.addMethod(buildCreateFactory(node, targetPackage, selfType, idType, idFieldName));
 
         // 6. reconstitute(...) Factory
-        classBuilder.addMethod(buildReconstituteFactory(node, packageName, selfType, idType, idFieldName));
+        classBuilder.addMethod(buildReconstituteFactory(node, targetPackage, selfType, idType, idFieldName));
 
         // 7. Private Setter für mut-Felder
         for (FieldNode field : node.fields()) {
             if (field.isMutable()) {
-                classBuilder.addMethod(buildPrivateSetter(field, packageName));
+                classBuilder.addMethod(buildPrivateSetter(field, targetPackage));
             }
         }
 
         // 8. Eigene Methoden aus DSL
         for (MethodNode method : node.methods()) {
-            classBuilder.addMethod(buildCustomMethod(method, packageName));
+            classBuilder.addMethod(buildCustomMethod(method, targetPackage));
         }
 
         // 9. Getter
@@ -81,7 +82,7 @@ public class EntityGenerator {
         }
 
         for (FieldNode field : node.fields()) {
-            classBuilder.addMethod(buildFieldGetter(field, packageName));
+            classBuilder.addMethod(buildFieldGetter(field, targetPackage));
         }
 
         // 10. equals, hashCode (auf ID-Basis) & toString
@@ -89,7 +90,7 @@ public class EntityGenerator {
         classBuilder.addMethod(buildHashCode(idFieldName));
         classBuilder.addMethod(buildToString(className, idFieldName));
 
-        return JavaFile.builder(packageName, classBuilder.build())
+        return JavaFile.builder(targetPackage, classBuilder.build())
                 .skipJavaLangImports(true)
                 .indent("    ")
                 .build();
@@ -141,7 +142,7 @@ public class EntityGenerator {
         return validate.build();
     }
 
-    private MethodSpec buildCreateFactory(EntityNode node, String packageName, ClassName selfType, TypeName idType, String idFieldName) {
+    private MethodSpec buildCreateFactory(EntityNode node, String targetPackage, ClassName selfType, TypeName idType, String idFieldName) {
         MethodSpec.Builder create = MethodSpec.methodBuilder("create")
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .returns(selfType)
@@ -151,7 +152,7 @@ public class EntityGenerator {
         passArgs.add(idFieldName);
 
         for (FieldNode field : node.fields()) {
-            TypeName type = TypeResolver.resolve(field.type(), packageName);
+            TypeName type = TypeResolver.resolve(field.type(), targetPackage);
             ParameterSpec.Builder param = ParameterSpec.builder(type, field.name());
             if (field.type().isOptional()) {
                 param.addAnnotation(NULLABLE_ANNOTATION);
@@ -165,7 +166,7 @@ public class EntityGenerator {
         return create.build();
     }
 
-    private MethodSpec buildReconstituteFactory(EntityNode node, String packageName, ClassName selfType, TypeName idType, String idFieldName) {
+    private MethodSpec buildReconstituteFactory(EntityNode node, String targetPackage, ClassName selfType, TypeName idType, String idFieldName) {
         MethodSpec.Builder reconstitute = MethodSpec.methodBuilder("reconstitute")
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .returns(selfType)
@@ -175,7 +176,7 @@ public class EntityGenerator {
         passArgs.add(idFieldName);
 
         for (FieldNode field : node.fields()) {
-            TypeName type = TypeResolver.resolve(field.type(), packageName);
+            TypeName type = TypeResolver.resolve(field.type(), targetPackage);
             ParameterSpec.Builder param = ParameterSpec.builder(type, field.name());
             if (field.type().isOptional()) {
                 param.addAnnotation(NULLABLE_ANNOTATION);
@@ -189,9 +190,9 @@ public class EntityGenerator {
         return reconstitute.build();
     }
 
-    private MethodSpec buildPrivateSetter(FieldNode field, String packageName) {
+    private MethodSpec buildPrivateSetter(FieldNode field, String targetPackage) {
         String capitalized = field.name().substring(0, 1).toUpperCase(Locale.ROOT) + field.name().substring(1);
-        TypeName type = TypeResolver.resolve(field.type(), packageName);
+        TypeName type = TypeResolver.resolve(field.type(), targetPackage);
 
         MethodSpec.Builder setter = MethodSpec.methodBuilder("set" + capitalized)
                 .addModifiers(Modifier.PRIVATE);
@@ -210,14 +211,14 @@ public class EntityGenerator {
         return setter.build();
     }
 
-    private MethodSpec buildCustomMethod(MethodNode method, String packageName) {
-        TypeName returnType = TypeResolver.resolve(method.returnType(), packageName);
+    private MethodSpec buildCustomMethod(MethodNode method, String targetPackage) {
+        TypeName returnType = TypeResolver.resolve(method.returnType(), targetPackage);
         MethodSpec.Builder builder = MethodSpec.methodBuilder(method.name())
                 .addModifiers(Modifier.PUBLIC)
                 .returns(returnType);
 
         for (FieldNode param : method.parameters()) {
-            TypeName paramType = TypeResolver.resolve(param.type(), packageName);
+            TypeName paramType = TypeResolver.resolve(param.type(), targetPackage);
             builder.addParameter(paramType, param.name());
         }
 
@@ -242,8 +243,8 @@ public class EntityGenerator {
                 .build();
     }
 
-    private MethodSpec buildFieldGetter(FieldNode field, String packageName) {
-        TypeName baseType = TypeResolver.resolve(field.type(), packageName);
+    private MethodSpec buildFieldGetter(FieldNode field, String targetPackage) {
+        TypeName baseType = TypeResolver.resolve(field.type(), targetPackage);
         MethodSpec.Builder getter = MethodSpec.methodBuilder(field.name())
                 .addModifiers(Modifier.PUBLIC);
 
