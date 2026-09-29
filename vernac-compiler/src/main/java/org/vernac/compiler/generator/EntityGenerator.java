@@ -6,6 +6,7 @@ import org.vernac.compiler.ast.EntityNode;
 import org.vernac.compiler.ast.FieldNode;
 import org.vernac.compiler.ast.MethodNode;
 import org.vernac.compiler.ast.ValidationRuleNode;
+import org.vernac.compiler.util.TypeUtils;
 import org.vernac.runtime.DomainValidationException;
 import org.vernac.runtime.Entity;
 
@@ -117,6 +118,8 @@ public class EntityGenerator {
         for (FieldNode field : node.fields()) {
             if (field.type().isOptional()) {
                 constructor.addStatement("this.$N = $N", field.name(), field.name());
+            } else if (TypeUtils.isPrimitive(field.type().name())) {
+                constructor.addStatement("this.$N = $N", field.name(), field.name());
             } else {
                 constructor.addStatement("this.$N = $T.requireNonNull($N, $S)", field.name(), Objects.class, field.name(), field.name() + " must not be null");
             }
@@ -200,6 +203,9 @@ public class EntityGenerator {
         ParameterSpec.Builder param = ParameterSpec.builder(type, field.name());
         if (field.type().isOptional()) {
             param.addAnnotation(NULLABLE_ANNOTATION);
+            setter.addParameter(param.build());
+            setter.addStatement("this.$N = $N", field.name(), field.name());
+        } else if (TypeUtils.isPrimitive(field.type().name())) {
             setter.addParameter(param.build());
             setter.addStatement("this.$N = $N", field.name(), field.name());
         } else {

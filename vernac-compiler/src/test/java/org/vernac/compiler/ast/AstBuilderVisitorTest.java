@@ -331,4 +331,66 @@ class AstBuilderVisitorTest {
             assertThat(method.mappings().get(2).targetField()).isEqualTo("HolidayCalendar.year");
         }
     }
+
+    @Nested
+    @DisplayName("6. Edge Cases & Contextual Keywords")
+    class EdgeCaseTests {
+
+        @Test
+        @DisplayName("Erlaubt 'value' und 'id' in Feldnamen und Parametern, aber nicht als Methodenname")
+        void shouldAllowValueAndIdAsVariableNames() {
+            String src = """
+                    package com.example.domain;
+                    
+                    value CustomType(String value, UUID id) validates {
+                        require(value != null && id != null, "value and id missing");
+                    } {
+                        public String combine(String id) {
+                            return this.value + id;
+                        }
+                    };
+                    """;
+
+            CompilationUnitNode cu = parse(src);
+            ValueObjectNode vo = cu.valueObjects().getFirst();
+
+            // Felder prüfen
+            assertThat(vo.fields()).hasSize(2);
+            assertThat(vo.fields().get(0).name()).isEqualTo("value");
+            assertThat(vo.fields().get(1).name()).isEqualTo("id");
+
+            // Methoden prüfen
+            assertThat(vo.methods()).hasSize(1);
+            assertThat(vo.methods().getFirst().name()).isEqualTo("combine");
+            assertThat(vo.methods().getFirst().parameters().getFirst().name()).isEqualTo("id");
+
+            // Expression prüfen
+            assertThat(vo.validations().getFirst().condition()).isEqualTo("value!=null&&id!=null");
+        }
+    }
+
+    @Nested
+    @DisplayName("7. Primitive Types Fallbacks")
+    class PrimitiveFallbackTests {
+
+        @Test
+        @DisplayName("Leitet sichere Feldnamen für primitive Typen ab, um Keyword-Kollisionen zu vermeiden")
+        void shouldDeriveSafeFieldNamesForPrimitives() {
+            String src = """
+                    package com.example.domain;
+                    
+                    value Metrics(int, boolean, long, double, byte);
+                    """;
+
+            CompilationUnitNode cu = parse(src);
+            ValueObjectNode vo = cu.valueObjects().getFirst();
+
+            assertThat(vo.fields()).hasSize(5);
+            assertThat(vo.fields().get(0).name()).isEqualTo("intValue");
+            assertThat(vo.fields().get(1).name()).isEqualTo("booleanValue");
+            assertThat(vo.fields().get(2).name()).isEqualTo("longValue");
+            assertThat(vo.fields().get(3).name()).isEqualTo("doubleValue");
+            assertThat(vo.fields().get(4).name()).isEqualTo("byteValue");
+        }
+    }
 }

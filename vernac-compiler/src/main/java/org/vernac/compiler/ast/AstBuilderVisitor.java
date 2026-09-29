@@ -4,6 +4,7 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
 import org.vernac.compiler.parser.VernacBaseVisitor;
 import org.vernac.compiler.parser.VernacParser;
+import org.vernac.compiler.util.TypeUtils;
 import org.vernac.runtime.DispatchMode;
 
 import java.util.*;
@@ -332,6 +333,11 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
 
     private String deriveFieldName(String typeName) {
         if (typeName == null || typeName.isEmpty()) return "value";
+
+        if (TypeUtils.isPrimitive(typeName)) {
+            return typeName + "Value";
+        }
+
         if (typeName.length() > 1 && Character.isUpperCase(typeName.charAt(0)) && Character.isUpperCase(typeName.charAt(1))) {
             return typeName.toLowerCase(Locale.ROOT);
         }

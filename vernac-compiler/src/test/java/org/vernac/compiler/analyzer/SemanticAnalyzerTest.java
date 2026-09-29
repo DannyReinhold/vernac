@@ -71,4 +71,87 @@ class SemanticAnalyzerTest {
                     assertThat(sve.diagnostics()).hasSize(2);
                 });
     }
+
+    @Test
+    @DisplayName("Meldet Fehler, wenn ein Repository für ein Value Object statt für ein Aggregate deklariert wird")
+    void shouldRejectRepositoryForNonAggregate() {
+        String dsl = """
+                package com.example.domain;
+                value OrderId(UUID);
+                value OrderData(String payload);
+                
+                repository for OrderData {
+                    table: "order_data";
+                };
+                """;
+
+        assertThatThrownBy(() -> compiler.compileSource(dsl))
+                .isInstanceOf(SemanticValidationException.class)
+                .hasMessageContaining("Repository target 'OrderData' must be an existing aggregate root");
+    }
+
+    @Test
+    @DisplayName("Verhindert mut-Felder in Events, da Events immutable Fakten sind")
+    void shouldRejectMutableFieldsInEvents() {
+        String dsl = """
+                package com.example.domain;
+                event SomethingHappened(mut String status);
+                """;
+
+        assertThatThrownBy(() -> compiler.compileSource(dsl))
+                .isInstanceOf(SemanticValidationException.class)
+                .hasMessageContaining("Domain Event 'SomethingHappened' cannot have mutable field 'status'");
+    }
+
+    @Test
+    @DisplayName("Verhindert Java-Keywords in Package-Namen")
+    void shouldRejectJavaKeywordsInPackageName() {
+        String dsl = """
+                package com.example.int.domain;
+                value ProjectId(UUID);
+                """;
+
+        assertThatThrownBy(() -> compiler.compileSource(dsl))
+                .isInstanceOf(SemanticValidationException.class)
+                .hasMessageContaining("Java keyword 'int' cannot be used in package name 'com.example.int.domain'");
+    }
+
+    @Test
+    @DisplayName("Verhindert Java-Keywords als Typ-Namen")
+    void shouldRejectJavaKeywordsAsTypeName() {
+        String dsl = """
+                package com.example.domain;
+                value class(String payload);
+                """;
+
+        assertThatThrownBy(() -> compiler.compileSource(dsl))
+                .isInstanceOf(SemanticValidationException.class)
+                .hasMessageContaining("Java keyword 'class' cannot be used as type name");
+    }
+
+    @Test
+    @DisplayName("Verhindert Java-Keywords als Feld- oder Parameter-Namen")
+    void shouldRejectJavaKeywordsAsFieldNames() {
+        String dsl = """
+                package com.example.domain;
+                aggregate Project[ProjectId](ProjectName name, int int);
+                """;
+
+        assertThatThrownBy(() -> compiler.compileSource(dsl))
+                .isInstanceOf(SemanticValidationException.class)
+                .hasMessageContaining("Java keyword 'int' cannot be used as field name");
+    }
+
+    @Test
+    @DisplayName("Verhindert optionale primitive Typen und schlägt Wrapper-Typ vor")
+    void shouldRejectOptionalPrimitives() {
+        String dsl = """
+                package com.example.domain;
+                value Money(int? amount);
+                """;
+
+        assertThatThrownBy(() -> compiler.compileSource(dsl))
+                .isInstanceOf(SemanticValidationException.class)
+                .hasMessageContaining("Primitive type 'int' cannot be optional. Use the wrapper type 'Integer?' instead.");
+    }
 }

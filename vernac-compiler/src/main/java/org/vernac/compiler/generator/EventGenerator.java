@@ -4,6 +4,7 @@ import com.squareup.javapoet.*;
 import org.jspecify.annotations.Nullable;
 import org.vernac.compiler.ast.EventNode;
 import org.vernac.compiler.ast.FieldNode;
+import org.vernac.compiler.util.TypeUtils;
 import org.vernac.runtime.DomainEvent;
 
 import javax.lang.model.element.Modifier;
@@ -111,8 +112,12 @@ public class EventGenerator {
                 constructor.addStatement("this.$N = $N", field.name(), field.name());
             } else {
                 constructor.addParameter(param.build());
-                constructor.addStatement("this.$N = $T.requireNonNull($N, $S)",
-                        field.name(), Objects.class, field.name(), field.name() + " must not be null");
+                if (TypeUtils.isPrimitive(field.type().name())) {
+                    constructor.addStatement("this.$N = $N", field.name(), field.name());
+                } else {
+                    constructor.addStatement("this.$N = $T.requireNonNull($N, $S)",
+                            field.name(), Objects.class, field.name(), field.name() + " must not be null");
+                }
             }
         }
 
@@ -122,7 +127,6 @@ public class EventGenerator {
     private List<MethodSpec> buildCreateFactories(EventNode node, String targetPackage, ClassName selfType) {
         List<MethodSpec> factories = new ArrayList<>();
 
-        // 1. create(...) mit allen Parametern
         MethodSpec.Builder fullCreate = MethodSpec.methodBuilder("create")
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .returns(selfType);
@@ -144,7 +148,6 @@ public class EventGenerator {
         fullCreate.addStatement("return new $T(" + String.join(", ", passArgs) + ")", selfType, UUID.class, Instant.class);
         factories.add(fullCreate.build());
 
-        // 2. create(...) Komfort-Factory ohne optionale Parameter
         boolean hasOptional = node.fields().stream().anyMatch(f -> f.type().isOptional());
         boolean hasRequired = node.fields().stream().anyMatch(f -> !f.type().isOptional());
         if (hasOptional && hasRequired) {

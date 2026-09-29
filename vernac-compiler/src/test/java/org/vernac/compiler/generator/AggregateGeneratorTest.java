@@ -74,4 +74,55 @@ class AggregateGeneratorTest {
                 .contains("public static Project create(ProjectId id, ProjectName name, Money budget)")
                 .contains("public static Project reconstitute(ProjectId id, ProjectName name, Money budget, Instant createdAt, Instant updatedAt, long version)");
     }
+
+    @Test
+    @DisplayName("Übernimmt Java-Block mit Event-Emitting (registerEvent) fehlerfrei")
+    void shouldGenerateAggregateWithEventEmitting() {
+        String src = """
+                package com.example.domain;
+                
+                aggregate Project[ProjectId](ProjectName name) {
+                    public void rename(ProjectName newName) {
+                        this.name = newName;
+                        registerEvent(ProjectRenamed.create(this.id, newName));
+                    }
+                };
+                """;
+
+        CompilationUnitNode cu = parse(src);
+        AggregateNode node = cu.aggregates().getFirst();
+        JavaFile file = generator.generate(node, "com.example.domain", List.of());
+        String code = file.toString().replaceAll("\\s+", " ");
+
+        assertThat(code)
+                .contains("public void rename(ProjectName newName)")
+                .contains("this.name = newName;")
+                .contains("registerEvent(ProjectRenamed.create(this.id, newName));");
+    }
+
+    @Test
+    @DisplayName("Nutzt konsistent explizite und abgeleitete Feldnamen inkl. Mutatoren durch alle Methoden")
+    void shouldGenerateAggregateWithExplicitAndDerivedNames() {
+        String src = """
+                package.example.domain;
+                aggregate Customer[CustomerId](String, mut String customAlias);
+                """;
+
+        CompilationUnitNode cu = parse(src);
+        AggregateNode node = cu.aggregates().getFirst();
+        JavaFile file = generator.generate(node, "com.example.domain", java.util.List.of());
+        String code = file.toString().replaceAll("\\s+", " ");
+
+        // Default 'string' und custom 'customAlias'
+        assertThat(code)
+                .contains("private final String string;")
+                .contains("private String customAlias;")
+                .contains("private Customer(CustomerId id, String string, String customAlias, Instant createdAt, Instant updatedAt, long version, boolean validate)")
+                .contains("public static Customer create(CustomerId id, String string, String customAlias)")
+                .contains("public static Customer reconstitute(CustomerId id, String string, String customAlias, Instant createdAt, Instant updatedAt, long version)")
+                .contains("public void customAlias(String customAlias) {")
+                .contains("this.customAlias = customAlias;")
+                .contains("public String string() { return this.string; }")
+                .contains("public String customAlias() { return this.customAlias; }");
+    }
 }

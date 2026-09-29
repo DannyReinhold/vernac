@@ -69,6 +69,41 @@ class RepositoryGeneratorTest {
                 .contains("throw new OptimisticLockingFailureException");
     }
 
+    @Test
+    @DisplayName("Generiert 1:N Entity-Mapping Methoden (sync und fetch) in JDBC Repositories")
+    void shouldGenerateJdbcRepositoryWithOneToManyEntityMapping() {
+        String dsl = """
+                package com.example.domain;
+                
+                value ProjectId(UUID value);
+                value TaskId(UUID value);
+                
+                entity Task[TaskId](String title);
+                aggregate Project[ProjectId](String name, mut List<Task> tasks);
+                
+                repository for Project {
+                    table: "projects";
+                };
+                """;
+
+        VernacCompilationResult result = compiler.compileSource(dsl);
+
+        JavaFile jdbcRepo = result.generatedFiles().stream()
+                .filter(f -> f.typeSpec.name.equals("JdbcProjectRepository"))
+                .findFirst().orElseThrow();
+
+        String code = jdbcRepo.toString().replaceAll("\\s+", " ");
+
+        // Prüft, ob die Sub-Methoden für die Liste generiert wurden
+        assertThat(code)
+                .contains("private List<Task> fetchTasks(ProjectId aggregateId)")
+                .contains("private void syncTasks(ProjectId aggregateId, List<Task> items)")
+                .contains("private MapSqlParameterSource buildTaskParamSource(ProjectId aggregateId, Task item)");
+
+        // Prüft, ob der Haupt-Mapper die Unterabfrage aufruft
+        assertThat(code).contains("fetchTasks(id)");
+    }
+
     private String normalize(String source) {
         return source.replaceAll("\\s+", " ")
                 .replace("( ", "(")

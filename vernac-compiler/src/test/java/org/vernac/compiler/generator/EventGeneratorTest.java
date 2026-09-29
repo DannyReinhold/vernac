@@ -61,4 +61,26 @@ class EventGeneratorTest {
                 .contains("return create(projectId, currentCost, null);")
                 .contains("public static ProjectBudgetExceeded of(UUID eventId, Instant occurredOn, ProjectId projectId, Money currentCost, @Nullable String reason)");
     }
+
+    @Test
+    @DisplayName("Nutzt explizite und abgeleitete Feldnamen im generierten Event durchgängig")
+    void shouldGenerateEventWithExplicitAndDerivedNames() {
+        String src = """
+                package com.example.domain;
+                event CustomerRelocated(CustomerId, String newAddress);
+                """;
+
+        CompilationUnitNode cu = parse(src);
+        EventNode node = cu.events().getFirst();
+        JavaFile file = generator.generate(node, "com.example.domain", java.util.List.of());
+        String code = file.toString().replaceAll("\\s+", " ");
+
+        assertThat(code)
+                .contains("private final CustomerId customerId;")
+                .contains("private final String newAddress;")
+                .contains("public static CustomerRelocated create(CustomerId customerId, String newAddress)")
+                .contains("public static CustomerRelocated of(UUID eventId, Instant occurredOn, CustomerId customerId, String newAddress)")
+                .contains("public CustomerId customerId()")
+                .contains("public String newAddress()");
+    }
 }

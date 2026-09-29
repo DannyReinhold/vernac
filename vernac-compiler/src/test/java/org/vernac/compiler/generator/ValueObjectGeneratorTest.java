@@ -78,4 +78,50 @@ class ValueObjectGeneratorTest {
                 .contains("public static Money of(BigDecimal amount)")
                 .contains("public static Money of(BigDecimal amount, @Nullable String comment)");
     }
+
+    @Test
+    @DisplayName("Generiert konsistent explizite Feldnamen (Felder, Konstruktor, Getter, Factories)")
+    void shouldGenerateCodeWithExplicitFieldNames() {
+        String src = """
+                package com.example.domain;
+                value UserEmail(String emailAddress, boolean isVerified);
+                """;
+
+        CompilationUnitNode cu = parse(src);
+        ValueObjectNode node = cu.valueObjects().getFirst();
+        JavaFile file = generator.generate(node, "com.example.domain", java.util.List.of());
+        String code = file.toString().replaceAll("\\s+", " ");
+
+        assertThat(code)
+                .contains("private final String emailAddress;")
+                .contains("private final boolean isVerified;")
+                .contains("private UserEmail(String emailAddress, boolean isVerified)")
+                .contains("this.emailAddress = Objects.requireNonNull(emailAddress, \"emailAddress must not be null\")")
+                .contains("public static UserEmail of(String emailAddress, boolean isVerified)")
+                .contains("public String emailAddress() { return this.emailAddress; }")
+                .contains("public boolean isVerified() { return this.isVerified; }");
+    }
+
+    @Test
+    @DisplayName("Leitet Namen aus Typen ab, wenn mehrere Felder ohne Namen angegeben sind")
+    void shouldDeriveFieldNamesFromTypes() {
+        String src = """
+                package com.example.domain;
+                value Document(String, UUID);
+                """;
+
+        CompilationUnitNode cu = parse(src);
+        ValueObjectNode node = cu.valueObjects().getFirst();
+        JavaFile file = generator.generate(node, "com.example.domain", java.util.List.of());
+        String code = file.toString().replaceAll("\\s+", " ");
+
+        // String -> string, UUID -> uuid
+        assertThat(code)
+                .contains("private final String string;")
+                .contains("private final UUID uuid;")
+                .contains("private Document(String string, UUID uuid)")
+                .contains("public static Document of(String string, UUID uuid)")
+                .contains("public String string()")
+                .contains("public UUID uuid()");
+    }
 }

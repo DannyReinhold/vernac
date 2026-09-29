@@ -6,6 +6,7 @@ import org.vernac.compiler.ast.AggregateNode;
 import org.vernac.compiler.ast.FieldNode;
 import org.vernac.compiler.ast.MethodNode;
 import org.vernac.compiler.ast.ValidationRuleNode;
+import org.vernac.compiler.util.TypeUtils;
 import org.vernac.runtime.AggregateRoot;
 import org.vernac.runtime.DomainEvent;
 import org.vernac.runtime.DomainValidationException;
@@ -169,6 +170,8 @@ public class AggregateGenerator {
         for (FieldNode field : node.fields()) {
             if (field.type().isOptional()) {
                 constructor.addStatement("this.$N = $N", field.name(), field.name());
+            } else if (TypeUtils.isPrimitive(field.type().name())) {
+                constructor.addStatement("this.$N = $N", field.name(), field.name());
             } else {
                 constructor.addStatement("this.$N = $T.requireNonNull($N, $S)", field.name(), Objects.class, field.name(), field.name() + " must not be null");
             }
@@ -298,6 +301,12 @@ public class AggregateGenerator {
             param.addAnnotation(NULLABLE_ANNOTATION);
             setter.addParameter(param.build());
             setter.beginControlFlow("if ($T.equals(this.$N, $N))", Objects.class, field.name(), field.name());
+            setter.addStatement("return");
+            setter.endControlFlow();
+            setter.addStatement("this.$N = $N", field.name(), field.name());
+        } else if (TypeUtils.isPrimitive(field.type().name())) {
+            setter.addParameter(param.build());
+            setter.beginControlFlow("if (this.$N == $N)", field.name(), field.name());
             setter.addStatement("return");
             setter.endControlFlow();
             setter.addStatement("this.$N = $N", field.name(), field.name());

@@ -7,7 +7,7 @@ value ProjectName(String) validates {
   require(value != null && !value.isEmpty(), "Project Name must be specified!");
 }
 
-aggregate Project[ProjectId](ProjectName) {
+aggregate Project[ProjectId](ProjectName, int) {
 }
 
 // Repository interface will be created in <package>.domain

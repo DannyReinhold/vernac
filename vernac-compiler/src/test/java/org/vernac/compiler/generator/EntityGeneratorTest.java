@@ -65,4 +65,38 @@ class EntityGeneratorTest {
                 .contains("public static Task create(TaskId id, TaskTitle title, TaskStatus status)")
                 .contains("public static Task reconstitute(TaskId id, TaskTitle title, TaskStatus status)");
     }
+
+    @Test
+    @DisplayName("Nutzt konsistent explizite und abgeleitete Feldnamen im generierten Entity durch alle Methoden")
+    void shouldGenerateEntityWithExplicitAndDerivedNames() {
+        String src = """
+                package com.example.domain;
+                entity OrderItem[ItemId](String, mut int explicitQuantity);
+                """;
+
+        CompilationUnitNode cu = parse(src);
+        EntityNode node = cu.entities().getFirst();
+        JavaFile file = generator.generate(node, "com.example.domain", java.util.List.of());
+        String code = file.toString().replaceAll("\\s+", " ");
+
+        // Prüft, ob Default-Name ('string') und Custom-Name ('explicitQuantity') korrekt deklariert werden
+        assertThat(code)
+                .contains("private final String string;")
+                .contains("private int explicitQuantity;");
+
+        // Prüft die Signaturen der Factory-Methoden
+        assertThat(code)
+                .contains("public static OrderItem create(ItemId id, String string, int explicitQuantity)")
+                .contains("public static OrderItem reconstitute(ItemId id, String string, int explicitQuantity)");
+
+        // Prüft die internen Mutatoren (Setter) für mut-Felder
+        assertThat(code)
+                .contains("private void setExplicitQuantity(int explicitQuantity)")
+                .contains("this.explicitQuantity = explicitQuantity;");
+
+        // Prüft die öffentlichen Getter
+        assertThat(code)
+                .contains("public String string()")
+                .contains("public int explicitQuantity()");
+    }
 }
