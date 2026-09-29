@@ -31,6 +31,7 @@ public class VernacLanguageServer implements LanguageServer, LanguageClientAware
         capabilities.setTextDocumentSync(TextDocumentSyncKind.Full);
         capabilities.setCompletionProvider(new CompletionOptions(true, List.of(".", ":", "[")));
         capabilities.setHoverProvider(true);
+        capabilities.setDefinitionProvider(true);
 
         // Semantic Tokens (Syntax Highlighting)
         SemanticTokensLegend legend = new SemanticTokensLegend(TOKEN_TYPES, TOKEN_MODIFIERS);

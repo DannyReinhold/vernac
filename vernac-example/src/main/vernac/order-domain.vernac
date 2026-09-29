@@ -35,6 +35,7 @@ event OrderPlaced(OrderId orderId, CustomerId customerId, Money totalAmount);
 entity OrderLine[UUID](ItemSku sku, Money unitPrice, mut int quantity) validates {
     require(quantity > 0, "Quantity must be greater than zero");
 } {
+
     public Money calculateSubtotal() {
         return this.unitPrice.multiply(this.quantity);
     }
