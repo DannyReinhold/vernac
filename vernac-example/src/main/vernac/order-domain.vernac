@@ -6,12 +6,18 @@ import java.util.UUID;
 import java.util.List;
 import java.util.ArrayList;
 
+// A simple value object
 value OrderId(UUID value);
 value CustomerId(UUID value);
+
+// A value object with invariants
 value ItemSku(String value) validates {
     require(value != null && value.matches("^[A-Z0-9-]+$"), "SKU must be uppercase alphanumeric");
 };
 
+/*
+ * The Money value object contains two fields, an invariant and some java business methods
+ */
 value Money(BigDecimal amount, Currency currency) validates {
     require(amount.compareTo(BigDecimal.ZERO) >= 0, "Amount cannot be negative");
 } {

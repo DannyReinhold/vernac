@@ -261,7 +261,7 @@ DECIMAL_LITERAL : [0-9]+ '.' [0-9]+ ;
 BOOLEAN_LITERAL : 'true' | 'false' ;
 
 WS            : [ \t\r\n]+ -> skip ;
-LINE_COMMENT  : '//' ~[\r\n]* -> skip ;
-BLOCK_COMMENT : '/*' .*? '*/' -> skip ;
+LINE_COMMENT  : '//' ~[\r\n]* -> channel(HIDDEN) ;
+BLOCK_COMMENT : '/*' .*? '*/' -> channel(HIDDEN) ;
 
 ANY_CHAR      : . ;
