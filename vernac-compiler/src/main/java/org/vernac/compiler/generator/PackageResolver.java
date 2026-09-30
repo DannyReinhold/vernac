@@ -33,4 +33,18 @@ public final class PackageResolver {
             return basePackage + ".adapter.db";
         });
     }
+
+    /**
+     * Ermittelt das Package für Outbound Adapter (REST, Custom Delegates, DTOs).
+     *
+     * @param basePackage          Das Basis-Package der Compilation Unit
+     * @param portName             Der Name des Ports, für den der Adapter generiert wird
+     * @param customAdapterPackage Optionaler Package-Override direkt aus dem adapter-Block
+     */
+    public static String resolveOutboundAdapterPackage(String basePackage, String portName, Optional<String> customAdapterPackage) {
+        return customAdapterPackage.orElseGet(() -> {
+            String base = (basePackage == null || basePackage.isBlank()) ? "" : basePackage + ".";
+            return base + "infrastructure.outbound." + portName.toLowerCase();
+        });
+    }
 }

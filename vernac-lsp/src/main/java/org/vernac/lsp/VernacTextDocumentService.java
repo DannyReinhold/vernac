@@ -22,7 +22,8 @@ public class VernacTextDocumentService implements TextDocumentService {
             "package", "import", "as",
             "aggregate", "value", "entity", "event", "service", "external", "schema",
             "repository", "for", "table", "find", "custom", "validates", "require",
-            "mut", "invariant", "mapping"
+            "mut", "invariant", "mapping",
+            "port", "adapter", "rest", "on", "throw", "throws"
     );
 
     private static final Set<String> JAVA_KEYWORDS = Set.of(
@@ -416,7 +417,7 @@ public class VernacTextDocumentService implements TextDocumentService {
         addKeywordCompletion(items, "value", "value ${1:Name}(${2:Type} value);");
         addKeywordCompletion(items, "entity", "entity ${1:Name}[${2:IdType} id](\n    $0\n);");
         addKeywordCompletion(items, "event", "event ${1:Name}(${2:Type} value);");
-        addKeywordCompletion(items, "service", "service ${1:Name} {\n    $0\n}");
+        addKeywordCompletion(items, "port", "port ${1:Name} {\n    $0\n}");
         addKeywordCompletion(items, "repository", "repository ${1:Name} for ${2:Aggregate} {\n    table: \"${3:table_name}\";\n    $0\n};");
     }
 

@@ -45,17 +45,10 @@ public record CompilationUnitNode(
                 .toList();
     }
 
-    public List<ServiceNode> services() {
+    public List<PortNode> ports() {
         return definitions.stream()
-                .filter(ServiceNode.class::isInstance)
-                .map(ServiceNode.class::cast)
-                .toList();
-    }
-
-    public List<ExternalSchemaNode> externalSchemas() {
-        return definitions.stream()
-                .filter(ExternalSchemaNode.class::isInstance)
-                .map(ExternalSchemaNode.class::cast)
+                .filter(PortNode.class::isInstance)
+                .map(PortNode.class::cast)
                 .toList();
     }
 }

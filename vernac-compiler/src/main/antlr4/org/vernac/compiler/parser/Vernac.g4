@@ -17,8 +17,7 @@ topLevelDeclaration
     | eventDefinition
     | aggregateDefinition
     | entityDefinition
-    | serviceDefinition
-    | externalSchemaDefinition
+    | portDefinition
     | repositoryDefinition
     ;
 
@@ -112,35 +111,68 @@ accessModifier
     ;
 
 // ==========================================
-// 4. Services (ACL Ports & Mapping)
+// 4. Ports (Outbound Adapters & Mapping)
 // ==========================================
-serviceDefinition
-    : 'service' name=typeName '{' serviceMember* '}'
+portDefinition
+    : 'port' name=typeName '{' portMember* '}'
     ;
 
-serviceMember
-    : externalSchemaDefinition
-    | serviceMethodDefinition
+portMember
+    : schemaDefinition
+    | portMethodDefinition
     ;
 
-externalSchemaDefinition
-    : 'external' 'schema' name=typeName '{' schemaField* '}'
+schemaDefinition
+    : 'schema' name=typeName '{' schemaField* '}'
     ;
 
 schemaField
-    : name=variableName ':' type ';'
+    : fieldType=type name=variableName ';'
     ;
 
-serviceMethodDefinition
-    : httpAnnotation returnType=type name=methodName '(' parameterList? ')' throwsClause? ( mappingBlock | ';' )
-    ;
-
-httpAnnotation
-    : '@' ( 'Get' | 'Post' | 'Put' | 'Delete' | 'Operation' ) '(' STRING_LITERAL ')'
+portMethodDefinition
+    : returnType=type name=methodName '(' parameterList? ')' throwsClause? '{'
+        adapterDefinition
+        mappingBlock?
+      '}'
     ;
 
 throwsClause
     : 'throws' qualifiedName (',' qualifiedName)*
+    ;
+
+adapterDefinition
+    : adapterCustom
+    | adapterRest
+    ;
+
+adapterRest
+    : 'adapter' 'rest' '{' packageDeclarationStatement? restConfig* restErrorRule* '}'
+    ;
+
+adapterCustom
+    : 'adapter' 'custom' delegateName=qualifiedName ';'                             // Variante 1: Nur Delegate
+    | 'adapter' 'custom' '{' packageDeclarationStatement? rawJavaBlock '}'          // Variante 2: Inline Java-Code
+    | 'adapter' 'custom' delegateName=qualifiedName '{' packageDeclarationStatement? '}' ';'?   // Variante 3: Delegate mit Package-Override
+    ;
+
+restConfig
+    : httpMethod STRING_LITERAL ';'
+    | variableName ':' STRING_LITERAL ';'
+    ;
+
+httpMethod
+    : 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
+    ;
+
+restErrorRule
+    : 'on' statusCode ( 'return' expression | 'throw' type ) ';'
+    ;
+
+statusCode
+    : INT_LITERAL
+    | INT_LITERAL '..' INT_LITERAL
+    | STATUS_FAMILY
     ;
 
 mappingBlock
@@ -274,5 +306,7 @@ BOOLEAN_LITERAL : 'true' | 'false' ;
 WS            : [ \t\r\n]+ -> skip ;
 LINE_COMMENT  : '//' ~[\r\n]* -> channel(HIDDEN) ;
 BLOCK_COMMENT : '/*' .*? '*/' -> channel(HIDDEN) ;
+
+STATUS_FAMILY   : [1-5] [xX] [xX] ;
 
 ANY_CHAR      : . ;

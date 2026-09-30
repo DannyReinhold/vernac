@@ -1,6 +1,7 @@
 package org.vernac.compiler.ast;
 
 import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.RuleContext;
 import org.antlr.v4.runtime.Token;
 import org.vernac.compiler.parser.VernacBaseVisitor;
 import org.vernac.compiler.parser.VernacParser;
@@ -34,7 +35,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         if (ctx.aggregateDefinition() != null) return visitAggregateDefinition(ctx.aggregateDefinition());
         if (ctx.entityDefinition() != null) return visitEntityDefinition(ctx.entityDefinition());
         if (ctx.eventDefinition() != null) return visitEventDefinition(ctx.eventDefinition());
-        if (ctx.serviceDefinition() != null) return visitServiceDefinition(ctx.serviceDefinition());
+        if (ctx.portDefinition() != null) return visitPortDefinition(ctx.portDefinition());
         if (ctx.repositoryDefinition() != null) return visitRepositoryDefinition(ctx.repositoryDefinition());
         return null;
     }
@@ -228,51 +229,170 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     }
 
     @Override
-    public ServiceNode visitServiceDefinition(VernacParser.ServiceDefinitionContext ctx) {
+    public PortNode visitPortDefinition(VernacParser.PortDefinitionContext ctx) {
         String name = ctx.name.getText();
-        List<ExternalSchemaNode> schemas = new ArrayList<>();
-        List<ServiceMethodNode> methods = new ArrayList<>();
+        List<SchemaNode> schemas = new ArrayList<>();
+        List<PortMethodNode> methods = new ArrayList<>();
 
-        for (VernacParser.ServiceMemberContext member : ctx.serviceMember()) {
-            if (member.externalSchemaDefinition() != null) {
-                var sCtx = member.externalSchemaDefinition();
-                Map<String, TypeNode> schemaFields = new LinkedHashMap<>();
-                for (var fCtx : sCtx.schemaField()) {
-                    schemaFields.put(fCtx.name.getText(), toTypeNode(fCtx.type()));
-                }
-                schemas.add(new ExternalSchemaNode(toLocation(sCtx), sCtx.name.getText(), schemaFields));
-            } else if (member.serviceMethodDefinition() != null) {
-                methods.add(toServiceMethodNode(member.serviceMethodDefinition()));
+        for (VernacParser.PortMemberContext memberCtx : ctx.portMember()) {
+            if (memberCtx.schemaDefinition() != null) {
+                schemas.add((SchemaNode) visit(memberCtx.schemaDefinition()));
+            } else if (memberCtx.portMethodDefinition() != null) {
+                methods.add((PortMethodNode) visit(memberCtx.portMethodDefinition()));
             }
         }
-
-        return new ServiceNode(toLocation(ctx), name, schemas, methods);
+        return new PortNode(name, Optional.empty(), schemas, methods, locationOf(ctx));
     }
 
-    private ServiceMethodNode toServiceMethodNode(VernacParser.ServiceMethodDefinitionContext ctx) {
-        String fullHttp = ctx.httpAnnotation().getText();
-        int firstParen = fullHttp.indexOf('(');
-        String httpMethod = fullHttp.substring(1, firstParen);
-        String path = unquote(ctx.httpAnnotation().STRING_LITERAL().getText());
-
-        TypeNode returnType = toTypeNode(ctx.returnType);
+    @Override
+    public SchemaNode visitSchemaDefinition(VernacParser.SchemaDefinitionContext ctx) {
         String name = ctx.name.getText();
-        List<FieldNode> params = Optional.ofNullable(ctx.parameterList())
-                .map(p -> extractParameters(p, false))
-                .orElse(Collections.emptyList());
+        List<FieldNode> fields = ctx.schemaField().stream()
+                .map(f -> (FieldNode) visit(f))
+                .toList();
+        return new SchemaNode(name, fields, locationOf(ctx));
+    }
 
-        List<String> thrown = Optional.ofNullable(ctx.throwsClause())
-                .map(t -> t.qualifiedName().stream().map(ParserRuleContext::getText).toList())
-                .orElse(Collections.emptyList());
-
-        List<MappingStatementNode> mappings = new ArrayList<>();
-        if (ctx.mappingBlock() != null) {
-            for (var mCtx : ctx.mappingBlock().mappingStatement()) {
-                mappings.add(new MappingStatementNode(toLocation(mCtx), mCtx.sourcePath().getText(), mCtx.targetPath().getText()));
-            }
+    @Override
+    public FieldNode visitSchemaField(VernacParser.SchemaFieldContext ctx) {
+        // 1. Prüfen, ob der Parser das Feld überhaupt erkannt hat
+        if (ctx.fieldType == null) {
+            throw new IllegalStateException("Parser-Fehler: 'fieldType' ist null. Hast du die ANTLR-Klassen neu generiert (mvn clean compile)? Gelesener Text: " + ctx.getText());
         }
 
-        return new ServiceMethodNode(toLocation(ctx), httpMethod, path, returnType, name, params, thrown, mappings);
+        // 2. TypeNode über den Visitor auflösen
+        TypeNode type = (TypeNode) visit(ctx.fieldType);
+
+        // 3. Prüfen, ob der Visitor den Typ verarbeiten konnte
+        if (type == null) {
+            throw new IllegalStateException("Visitor-Fehler: visit(ctx.fieldType) hat null zurückgegeben für den Text: " + ctx.fieldType.getText());
+        }
+
+        String name = ctx.name.getText();
+        return new FieldNode(locationOf(ctx), type, name, false);
+    }
+
+    @Override
+    public TypeNode visitType(VernacParser.TypeContext ctx) {
+        // 1. Den Haupt-Typnamen auslesen (z.B. "Optional" oder "LocalDate")
+        String name = ctx.rawType.getText();
+
+        // 2. Generics / Typ-Argumente verarbeiten (z.B. "<HolidayCalendar>")
+        List<TypeNode> typeArgs = new java.util.ArrayList<>();
+        if (ctx.typeArguments() != null) {
+            typeArgs = ctx.typeArguments().type().stream()
+                    .map(t -> (TypeNode) visit(t))
+                    .toList();
+        }
+
+        // 3. Optional-Flag setzen, falls ein '?' vorhanden ist
+        boolean isOptional = ctx.isOptional != null;
+
+        // 4. Den korrekten Konstruktor exakt nach deiner Definition aufrufen
+        return new TypeNode(locationOf(ctx), name, typeArgs, isOptional);
+    }
+
+    @Override
+    public RestAdapterNode visitAdapterRest(VernacParser.AdapterRestContext ctx) {
+        Optional<String> customPkg = ctx.packageDeclarationStatement() != null
+                ? Optional.of(ctx.packageDeclarationStatement().qualifiedName().getText())
+                : Optional.empty();
+
+        List<RestConfigNode> configs = ctx.restConfig().stream()
+                .map(c -> (RestConfigNode) visit(c))
+                .toList();
+
+        List<RestErrorRuleNode> errorRules = ctx.restErrorRule().stream()
+                .map(e -> (RestErrorRuleNode) visit(e))
+                .toList();
+
+        // 4 Parameter: customPkg an erster Stelle übergeben!
+        return new RestAdapterNode(customPkg, configs, errorRules, locationOf(ctx));
+    }
+
+    @Override
+    public CustomAdapterNode visitAdapterCustom(VernacParser.AdapterCustomContext ctx) {
+        Optional<String> customPkg = ctx.packageDeclarationStatement() != null
+                ? Optional.of(ctx.packageDeclarationStatement().qualifiedName().getText())
+                : Optional.empty();
+
+        Optional<String> delegateName = ctx.delegateName != null
+                ? Optional.of(ctx.delegateName.getText())
+                : Optional.empty();
+
+        Optional<String> inlineCode = ctx.rawJavaBlock() != null
+                ? Optional.of(extractRawSource(ctx.rawJavaBlock()))
+                : Optional.empty();
+
+        // 4 Parameter: customPkg ebenfalls an erster Stelle!
+        return new CustomAdapterNode(customPkg, delegateName, inlineCode, locationOf(ctx));
+    }
+
+    @Override
+    public PortMethodNode visitPortMethodDefinition(VernacParser.PortMethodDefinitionContext ctx) {
+        TypeNode returnType = (TypeNode) visit(ctx.type());
+        String name = ctx.methodName().getText();
+
+        // Korrekt: extractParameters statt dem nicht existierenden visitParameterList
+        List<FieldNode> parameters = ctx.parameterList() != null
+                ? extractParameters(ctx.parameterList(), false)
+                : List.of();
+
+        List<String> thrownExceptions = ctx.throwsClause() != null
+                ? ctx.throwsClause().qualifiedName().stream().map(RuleContext::getText).toList()
+                : List.of();
+
+        AdapterNode adapter = (AdapterNode) visit(ctx.adapterDefinition());
+        Optional<MappingBlockNode> mapping = ctx.mappingBlock() != null
+                ? Optional.of((MappingBlockNode) visit(ctx.mappingBlock()))
+                : Optional.empty();
+
+        return new PortMethodNode(name, returnType, parameters, thrownExceptions, adapter, mapping, locationOf(ctx));
+    }
+
+    @Override
+    public RestConfigNode visitRestConfig(VernacParser.RestConfigContext ctx) {
+        String key = ctx.httpMethod() != null ? ctx.httpMethod().getText() : ctx.variableName().getText();
+        String value = ctx.STRING_LITERAL().getText();
+
+        // Quotes sicher entfernen, ohne externe Hilfsmethode
+        if (value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
+            value = value.substring(1, value.length() - 1);
+        }
+
+        return new RestConfigNode(key, value, locationOf(ctx));
+    }
+
+    @Override
+    public RestErrorRuleNode visitRestErrorRule(VernacParser.RestErrorRuleContext ctx) {
+        String statusCode = ctx.statusCode().getText();
+
+        Optional<String> returnExpr = ctx.expression() != null
+                ? Optional.of(ctx.expression().getText())
+                : Optional.empty();
+
+        Optional<String> throwType = ctx.type() != null
+                ? Optional.of(ctx.type().getText())
+                : Optional.empty();
+
+        return new RestErrorRuleNode(statusCode, returnExpr, throwType, locationOf(ctx));
+    }
+
+    @Override
+    public MappingBlockNode visitMappingBlock(VernacParser.MappingBlockContext ctx) {
+        List<MappingStatementNode> statements = ctx.mappingStatement().stream()
+                .map(s -> (MappingStatementNode) visit(s))
+                .toList();
+        return new MappingBlockNode(statements, locationOf(ctx));
+    }
+
+    @Override
+    public MappingStatementNode visitMappingStatement(VernacParser.MappingStatementContext ctx) {
+        String direction = ctx.getChild(1).getText(); // Holt '->' oder '<-'
+        String sourcePath = ctx.sourcePath().getText();
+        String targetPath = ctx.targetPath().getText();
+
+        return new MappingStatementNode(sourcePath, targetPath, direction, locationOf(ctx));
     }
 
     private MethodNode toMethodNode(VernacParser.MethodDefinitionContext ctx) {
@@ -367,5 +487,15 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             return text.substring(1, text.length() - 1);
         }
         return text;
+    }
+
+    private SourceLocation locationOf(org.antlr.v4.runtime.ParserRuleContext ctx) {
+        if (ctx == null || ctx.getStart() == null) {
+            return new SourceLocation(0, 0); // Sicherer Fallback
+        }
+        return new SourceLocation(
+                ctx.getStart().getLine(),
+                ctx.getStart().getCharPositionInLine()
+        );
     }
 }

@@ -1,6 +1,7 @@
 package org.vernac.compiler.analyzer;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.vernac.compiler.pipeline.VernacCompiler;
 
@@ -153,5 +154,180 @@ class SemanticAnalyzerTest {
         assertThatThrownBy(() -> compiler.compileSource(dsl))
                 .isInstanceOf(SemanticValidationException.class)
                 .hasMessageContaining("Primitive type 'int' cannot be optional. Use the wrapper type 'Integer?' instead.");
+    }
+
+    @Nested
+    @DisplayName("Port & Adapter Analysen")
+    class PortAndAdapterTests {
+
+        @Test
+        @DisplayName("Verhindert ungültige HTTP-Statuscodes im REST Adapter")
+        void shouldRejectInvalidHttpStatusCodes() {
+            String dsl = """
+                    package com.example.domain;
+                    port MyPort {
+                        Optional<String> fetch() {
+                            adapter rest {
+                                on 999 return Optional.empty();
+                                on 404 return Optional.empty();
+                                on 600 return Optional.empty();
+                            }
+                        }
+                    }
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .satisfies(e -> {
+                        SemanticValidationException sve = (SemanticValidationException) e;
+                        assertThat(sve.diagnostics()).hasSize(2);
+                        assertThat(sve.diagnostics().get(0).message()).contains("Invalid HTTP status code or family '999'");
+                        assertThat(sve.diagnostics().get(1).message()).contains("Invalid HTTP status code or family '600'");
+                    });
+        }
+
+        @Test
+        @DisplayName("Verhindert 'return empty', wenn die Methode kein Optional zurückgibt")
+        void shouldRejectReturnEmptyForNonOptionalMethod() {
+            String dsl = """
+                    package com.example.domain;
+                    port MyPort {
+                        String fetch() {
+                            adapter rest {
+                                on 404 return empty;
+                            }
+                        }
+                    }
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Cannot 'return empty' on status '404' because method 'fetch' does not return an Optional");
+        }
+
+        @Test
+        @DisplayName("Verhindert das Werfen von Exceptions, die nicht in der throws-Klausel stehen")
+        void shouldRejectUndeclaredExceptions() {
+            String dsl = """
+                    package com.example.domain;
+                    port MyPort {
+                        String fetch() throws NetworkException {
+                            adapter rest {
+                                on 5xx throw ServerException;
+                            }
+                        }
+                    }
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Thrown exception 'ServerException' on status '5xx' is not declared in method signature's throws clause");
+        }
+
+        @Test
+        @DisplayName("Verhindert Mappings auf nicht-existierende Felder im Schema")
+        void shouldRejectMappingToUnknownSchemaField() {
+            String dsl = """
+                    package com.example.domain;
+                    port MyPort {
+                        schema MyDto {
+                            String validName;
+                        }
+                        String fetch() {
+                            adapter rest {}
+                            mapping {
+                                domainValue -> MyDto.invalidName;
+                            }
+                        }
+                    }
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Field 'invalidName' does not exist in schema 'MyDto'");
+        }
+
+        @Test
+        @DisplayName("Verhindert Mappings auf nicht-existierende Felder in der Domäne")
+        void shouldRejectMappingToUnknownDomainField() {
+            String dsl = """
+                    package com.example.domain;
+                    value Profile(String validName);
+                    
+                    port MyPort {
+                        Profile fetch() {
+                            adapter rest {}
+                            mapping {
+                                response.body -> Profile.invalidName;
+                            }
+                        }
+                    }
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Field 'invalidName' does not exist in domain type 'Profile'");
+        }
+
+        @Test
+        @DisplayName("Verhindert doppelte Schema-Namen in einem Port")
+        void shouldRejectDuplicateSchemaNames() {
+            String dsl = """
+                    package com.example.domain;
+                    port MyPort {
+                        schema MyDto {
+                            String id;
+                        }
+                        schema MyDto {
+                            String name;
+                        }
+                        String fetch() {
+                            adapter rest {}
+                        }
+                    }
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Duplicate schema name 'MyDto' in port 'MyPort'");
+        }
+
+        @Test
+        @DisplayName("Verhindert Java-Keywords im benutzerdefinierten Adapter-Package")
+        void shouldRejectJavaKeywordsInAdapterPackage() {
+            String dsl = """
+                    package com.example.domain;
+                    port MyPort {
+                        String fetch() {
+                            adapter rest {
+                                package com.example.int.myadapter;
+                            }
+                        }
+                    }
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Java keyword 'int' cannot be used in package name 'com.example.int.myadapter'");
+        }
+
+        @Test
+        @DisplayName("Verhindert Vernac-Keywords im benutzerdefinierten Adapter-Package")
+        void shouldRejectVernacKeywordsInAdapterPackage() {
+            String dsl = """
+                    package com.example.domain;
+                    port MyPort {
+                        String fetch() {
+                            adapter rest {
+                                package com.example.infra.adapter;
+                            }
+                        }
+                    }
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Syntax error at line 5:38 - mismatched input '.' expecting ';'");
+        }
     }
 }

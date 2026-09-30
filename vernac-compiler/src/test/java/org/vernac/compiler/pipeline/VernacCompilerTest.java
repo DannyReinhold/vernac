@@ -16,8 +16,8 @@ class VernacCompilerTest {
     private final VernacCompiler compiler = new VernacCompiler();
 
     @Test
-    @DisplayName("Kompiliert eine vollständige Domain-Spezifikation mit abgeleiteten Namen, Lifecycle-Settern und Outbox-Event")
-    void shouldCompileCompleteDomainSpecification(@TempDir Path tempDir) throws IOException {
+    @DisplayName("Kompiliert eine vollständige Domain- und Port-Spezifikation inklusive Dateisystem-Export")
+    void shouldCompileCompleteDomainAndPortSpecification(@TempDir Path tempDir) throws IOException {
         String dsl = """
                 package com.example;
                 
@@ -39,6 +39,18 @@ class VernacCompilerTest {
                 };
                 
                 entity Task[TaskId](String title, mut Boolean completed);
+                
+                port ProjectExternalService {
+                    schema ExternalProjectDto {
+                        String title;
+                    }
+                    Optional<String> fetchExternalData() {
+                        adapter rest {
+                            GET "/external/data";
+                            on 404 return Optional.empty();
+                        }
+                    }
+                }
                 """;
 
         VernacCompilationResult result = compiler.compileSource(dsl);
@@ -48,27 +60,30 @@ class VernacCompilerTest {
                 .map(f -> f.typeSpec.name)
                 .toList();
 
-        // 4 Value Objects + 1 Event + 1 Aggregate + 1 Entity = 7 Klassen
-        assertThat(generatedTypeNames).containsExactlyInAnyOrder(
+        // 4 Value Objects + 1 Event + 1 Aggregate + 1 Entity + 1 Port + 1 Schema + 1 Adapter = 10 Klassen
+        assertThat(generatedTypeNames).contains(
                 "ProjectId",
                 "TaskId",
                 "ProjectName",
                 "Money",
                 "ProjectCreated",
                 "Project",
-                "Task"
+                "Task",
+                "ProjectExternalService",
+                "ExternalProjectDto",
+                "RestProjectExternalServiceFetchExternalDataAdapter"
         );
 
-        // Teste das Schreiben auf das Dateisystem
+        // Teste das Schreiben auf das Dateisystem (Domänen- und Infrastruktur-Packages)
         result.writeTo(tempDir);
 
-        Path packageDir = tempDir.resolve("com/example/domain");
-        assertThat(Files.exists(packageDir.resolve("ProjectId.java"))).isTrue();
-        assertThat(Files.exists(packageDir.resolve("TaskId.java"))).isTrue();
-        assertThat(Files.exists(packageDir.resolve("ProjectName.java"))).isTrue();
-        assertThat(Files.exists(packageDir.resolve("Money.java"))).isTrue();
-        assertThat(Files.exists(packageDir.resolve("ProjectCreated.java"))).isTrue();
-        assertThat(Files.exists(packageDir.resolve("Project.java"))).isTrue();
-        assertThat(Files.exists(packageDir.resolve("Task.java"))).isTrue();
+        Path domainDir = tempDir.resolve("com/example/domain");
+        assertThat(Files.exists(domainDir.resolve("ProjectId.java"))).isTrue();
+        assertThat(Files.exists(domainDir.resolve("Project.java"))).isTrue();
+        assertThat(Files.exists(domainDir.resolve("ProjectExternalService.java"))).isTrue();
+
+        Path outboundDir = tempDir.resolve("com/example/infrastructure/outbound/projectexternalservice");
+        assertThat(Files.exists(outboundDir.resolve("ExternalProjectDto.java"))).isTrue();
+        assertThat(Files.exists(outboundDir.resolve("RestProjectExternalServiceFetchExternalDataAdapter.java"))).isTrue();
     }
 }

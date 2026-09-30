@@ -1,7 +1,9 @@
 package org.vernac.compiler.ast;
 
 public record MappingStatementNode(
-        SourceLocation location,
-        String sourceExpression,
-        String targetField
-) implements AstNode {}
+        String sourcePath,
+        String targetPath,
+        String direction, // "->" oder "<-"
+        SourceLocation location
+) implements AstNode {
+}

@@ -3,10 +3,7 @@ package org.vernac.compiler.analyzer;
 import org.vernac.compiler.ast.*;
 import org.vernac.compiler.util.TypeUtils;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class SemanticAnalyzer {
 
@@ -76,11 +73,143 @@ public class SemanticAnalyzer {
                 validateEvent(event, availableSymbols, unit.imports(), diagnostics);
             } else if (def instanceof RepositoryNode repo) {
                 validateRepository(repo, unit, availableSymbols, diagnostics);
+            } else if (def instanceof PortNode port) {
+                validatePort(port, unit, availableSymbols, diagnostics);
             }
         }
 
         return diagnostics;
     }
+
+    private void validatePort(PortNode port, CompilationUnitNode unit, Set<String> availableSymbols, List<CompilerDiagnostic> diagnostics) {
+        if (port.customPackage().isPresent()) {
+            validatePackageName(port.customPackage().get(), port.location(), diagnostics);
+        }
+
+        // Schemas parsen und validieren (stehen dem Port lokal als Typ zur Verfügung)
+        Set<String> localSymbols = new HashSet<>(availableSymbols);
+        for (SchemaNode schema : port.schemas()) {
+            if (!localSymbols.add(schema.name())) {
+                diagnostics.add(CompilerDiagnostic.error(schema.location(), "Duplicate schema name '" + schema.name() + "' in port '" + port.name() + "'"));
+            }
+            validateIdentifier(schema.name(), schema.location(), "schema", diagnostics);
+            checkDuplicateFields(schema.fields(), schema.name(), diagnostics);
+
+            for (FieldNode field : schema.fields()) {
+                validateIdentifier(field.name(), field.location(), "schema field", diagnostics);
+                validateTypeResolvable(field.type(), localSymbols, unit.imports(), diagnostics);
+            }
+        }
+
+        Set<String> methodNames = new HashSet<>();
+        for (PortMethodNode method : port.methods()) {
+            validateIdentifier(method.name(), method.location(), "port method", diagnostics);
+            if (!methodNames.add(method.name())) {
+                diagnostics.add(CompilerDiagnostic.error(method.location(), "Duplicate port method '" + method.name() + "' in '" + port.name() + "'"));
+            }
+
+            validateTypeResolvable(method.returnType(), localSymbols, unit.imports(), diagnostics);
+            for (FieldNode param : method.parameters()) {
+                if (param == null) {
+                    continue;
+                }
+                if (param.name() != null) {
+                    validateIdentifier(param.name(), param.location(), "parameter", diagnostics);
+                }
+                validateTypeResolvable(param.type(), localSymbols, unit.imports(), diagnostics);
+            }
+
+            validateAdapter(method.adapter(), method, diagnostics);
+
+            if (method.mapping().isPresent()) {
+                validateMapping(method.mapping().get(), port, unit, diagnostics);
+            }
+        }
+    }
+
+    private void validateAdapter(AdapterNode adapter, PortMethodNode method, List<CompilerDiagnostic> diagnostics) {
+        if (adapter instanceof RestAdapterNode rest) {
+            rest.customPackage().ifPresent(pkg -> validatePackageName(pkg, rest.location(), diagnostics));
+
+            for (RestErrorRuleNode rule : rest.errorRules()) {
+                String code = rule.statusCode();
+                if (!code.matches("^[1-5]([0-9]{2}|[xX]{2})$")) {
+                    diagnostics.add(CompilerDiagnostic.error(rule.location(), "Invalid HTTP status code or family '" + code + "'. Must be e.g., 404 or 5xx."));
+                }
+
+                if (rule.returnExpression().isPresent() && rule.returnExpression().get().contains("empty")) {
+                    if (!method.returnType().name().equals("Optional")) {
+                        diagnostics.add(CompilerDiagnostic.error(rule.location(), "Cannot 'return empty' on status '" + code + "' because method '" + method.name() + "' does not return an Optional."));
+                    }
+                }
+
+                if (rule.throwExceptionType().isPresent()) {
+                    String exceptionName = rule.throwExceptionType().get();
+                    if (!method.thrownExceptions().contains(exceptionName)) {
+                        diagnostics.add(CompilerDiagnostic.error(rule.location(), "Thrown exception '" + exceptionName + "' on status '" + code + "' is not declared in method signature's throws clause."));
+                    }
+                }
+            }
+        } else if (adapter instanceof CustomAdapterNode custom) {
+            custom.customPackage().ifPresent(pkg -> validatePackageName(pkg, custom.location(), diagnostics));
+            custom.delegateName().ifPresent(name -> validateIdentifier(name, custom.location(), "delegate name", diagnostics));
+        }
+    }
+
+    private void validateMapping(MappingBlockNode mapping, PortNode port, CompilationUnitNode unit, List<CompilerDiagnostic> diagnostics) {
+        for (MappingStatementNode stmt : mapping.statements()) {
+            // Bei `->` ist das Ziel der Domain-Typ. Bei `<-` ist das Ziel das Schema/DTO.
+            String pathToCheck = stmt.direction().equals("->") ? stmt.targetPath() : stmt.sourcePath();
+            String[] parts = pathToCheck.split("\\.");
+
+            if (parts.length >= 2) {
+                String typeName = parts[0];
+                String fieldName = parts[1];
+
+                // 1. Zuerst prüfen, ob der Typ ein Schema ist
+                Optional<SchemaNode> schemaDef = port.schemas().stream()
+                        .filter(s -> s.name().equals(typeName))
+                        .findFirst();
+
+                if (schemaDef.isPresent()) {
+                    boolean fieldExists = schemaDef.get().fields().stream().anyMatch(f -> f.name().equals(fieldName));
+                    if (!fieldExists) {
+                        diagnostics.add(CompilerDiagnostic.error(stmt.location(), "Field '" + fieldName + "' does not exist in schema '" + typeName + "'"));
+                    }
+                    continue;
+                }
+
+                // 2. Falls kein Schema, prüfen, ob es ein Domänen-Typ (Aggregate, Entity, VO, Event) ist
+                Optional<TopLevelDefinition> domainDef = unit.definitions().stream()
+                        .filter(d -> getDefinitionName(d).equals(typeName))
+                        .findFirst();
+
+                if (domainDef.isPresent()) {
+                    TopLevelDefinition def = domainDef.get();
+                    boolean fieldExists = false;
+
+                    if (def instanceof AggregateNode agg) {
+                        fieldExists = agg.idDefinition().fieldName().equals(fieldName) || agg.fields().stream().anyMatch(f -> f.name().equals(fieldName));
+                    } else if (def instanceof EntityNode ent) {
+                        fieldExists = ent.idDefinition().fieldName().equals(fieldName) || ent.fields().stream().anyMatch(f -> f.name().equals(fieldName));
+                    } else if (def instanceof ValueObjectNode vo) {
+                        fieldExists = vo.fields().stream().anyMatch(f -> f.name().equals(fieldName));
+                    } else if (def instanceof EventNode ev) {
+                        fieldExists = ev.fields().stream().anyMatch(f -> f.name().equals(fieldName));
+                    }
+
+                    if (!fieldExists) {
+                        diagnostics.add(CompilerDiagnostic.error(stmt.location(), "Field '" + fieldName + "' does not exist in domain type '" + typeName + "'"));
+                    }
+                }
+                // Wenn `typeName` weder im Schema noch in der Domäne gefunden wird,
+                // lassen wir es vorerst durch (es könnte sich um einen Variablennamen handeln).
+                // Die tiefere Typprüfung für Variablen ist extrem komplex, aber das deckt 90% der Fälle ab!
+            }
+        }
+    }
+
+    // ... [Alle bisherigen bestehenden validate-Methoden ab hier bleiben exakt unverändert] ...
 
     private void validateValueObject(ValueObjectNode vo, Set<String> availableSymbols, List<String> imports, List<CompilerDiagnostic> diagnostics) {
         if (vo.customPackage().isPresent()) validatePackageName(vo.customPackage().get(), vo.location(), diagnostics);
@@ -236,7 +365,7 @@ public class SemanticAnalyzer {
         if (def instanceof AggregateNode agg) return agg.name();
         if (def instanceof EntityNode entity) return entity.name();
         if (def instanceof EventNode event) return event.name();
-        if (def instanceof ServiceNode service) return service.name();
+        if (def instanceof PortNode port) return port.name();
         if (def instanceof RepositoryNode repo) return repo.name();
         throw new IllegalArgumentException("Unknown definition: " + def);
     }

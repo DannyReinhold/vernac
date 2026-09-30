@@ -10,8 +10,13 @@ public sealed interface AstNode permits
         ValidationRuleNode,
         InvariantNode,
         MethodNode,
-        ExternalSchemaNode,
-        ServiceMethodNode,
+        SchemaNode,
+        PortMethodNode,
+        AdapterNode,
+        RestConfigNode,
+        RestErrorRuleNode,
+        MappingBlockNode,
         MappingStatementNode {
+
     SourceLocation location();
 }

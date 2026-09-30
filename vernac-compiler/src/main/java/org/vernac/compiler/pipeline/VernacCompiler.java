@@ -26,6 +26,7 @@ public class VernacCompiler {
     private final AggregateGenerator aggregateGenerator = new AggregateGenerator();
     private final EntityGenerator entityGenerator = new EntityGenerator();
     private final RepositoryGenerator repositoryGenerator = new RepositoryGenerator();
+    private final PortGenerator portGenerator = new PortGenerator();
 
     public VernacCompilationResult compile(Path vernacFile) throws IOException {
         String source = Files.readString(vernacFile);
@@ -75,6 +76,8 @@ public class VernacCompiler {
                 generatedFiles.addAll(repositoryGenerator.generate(
                         repo, targetAgg, entities, valueObjects, packageName, imports
                 ));
+            } else if (definition instanceof PortNode port) {
+                generatedFiles.addAll(portGenerator.generate(port, packageName, imports));
             }
         }
 

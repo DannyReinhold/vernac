@@ -15,4 +15,9 @@ aggregate Project[ProjectId](ProjectName, int) {
 repository for Project {
 }
 
+port ProjectNumberFetcher {
+
+}
+
+
 
