@@ -25,7 +25,7 @@ class VernacCompileMojoTest {
         String sampleDsl = """
                 package com.example.demo;
                 
-                value OrderId(UUID value);
+                id OrderId;
                 event OrderCreated(OrderId id);
                 aggregate Order[OrderId](mut String status);
                 """;

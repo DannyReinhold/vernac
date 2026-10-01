@@ -31,6 +31,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     }
 
     private TopLevelDefinition toTopLevelDefinition(VernacParser.TopLevelDeclarationContext ctx) {
+        if (ctx.idDeclaration() != null) return visitIdDeclaration(ctx.idDeclaration());
         if (ctx.valueDefinition() != null) return visitValueDefinition(ctx.valueDefinition());
         if (ctx.aggregateDefinition() != null) return visitAggregateDefinition(ctx.aggregateDefinition());
         if (ctx.entityDefinition() != null) return visitEntityDefinition(ctx.entityDefinition());
@@ -38,6 +39,22 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         if (ctx.portDefinition() != null) return visitPortDefinition(ctx.portDefinition());
         if (ctx.repositoryDefinition() != null) return visitRepositoryDefinition(ctx.repositoryDefinition());
         return null;
+    }
+
+    @Override
+    public IdDeclarationNode visitIdDeclaration(VernacParser.IdDeclarationContext ctx) {
+        String name = ctx.name.getText();
+        Optional<String> customPackage = Optional.empty();
+
+        if (ctx.idMember() != null) {
+            for (VernacParser.IdMemberContext member : ctx.idMember()) {
+                if (member.packageDeclarationStatement() != null) {
+                    customPackage = Optional.of(member.packageDeclarationStatement().qualifiedName().getText());
+                }
+            }
+        }
+
+        return new IdDeclarationNode(toLocation(ctx), name, customPackage);
     }
 
     @Override
@@ -90,10 +107,9 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     public AggregateNode visitAggregateDefinition(VernacParser.AggregateDefinitionContext ctx) {
         String name = ctx.name.getText();
 
-        VernacParser.IdDefinitionContext idCtx = ctx.idDefinition();
-        TypeNode idType = toTypeNode(idCtx.idType);
-        String idFieldName = idCtx.name != null ? idCtx.name.getText() : "id";
-        IdDefinitionNode idDef = new IdDefinitionNode(toLocation(idCtx), idType, idFieldName);
+        VernacParser.IdReferenceContext idCtx = ctx.idReference();
+        TypeNode idType = new TypeNode(toLocation(idCtx), idCtx.idType.getText(), Collections.emptyList(), false);
+        IdReferenceNode idDef = new IdReferenceNode(toLocation(idCtx), idType);
 
         List<FieldNode> fields = Optional.ofNullable(ctx.parameterList())
                 .map(p -> extractParameters(p, false))
@@ -128,10 +144,9 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     public EntityNode visitEntityDefinition(VernacParser.EntityDefinitionContext ctx) {
         String name = ctx.name.getText();
 
-        VernacParser.IdDefinitionContext idCtx = ctx.idDefinition();
-        TypeNode idType = toTypeNode(idCtx.idType);
-        String idFieldName = idCtx.name != null ? idCtx.name.getText() : "id";
-        IdDefinitionNode idDef = new IdDefinitionNode(toLocation(idCtx), idType, idFieldName);
+        VernacParser.IdReferenceContext idCtx = ctx.idReference();
+        TypeNode idType = new TypeNode(toLocation(idCtx), idCtx.idType.getText(), Collections.emptyList(), false);
+        IdReferenceNode idDef = new IdReferenceNode(toLocation(idCtx), idType);
 
         List<FieldNode> fields = Optional.ofNullable(ctx.parameterList())
                 .map(p -> extractParameters(p, false))

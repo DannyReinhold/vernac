@@ -22,8 +22,8 @@ class RepositoryGeneratorTest {
                 
                 import java.math.BigDecimal;
                 
-                value OrderId(UUID value);
-                value CustomerId(UUID value);
+                id OrderId;
+                id CustomerId;
                 
                 aggregate Order[OrderId](CustomerId customer, mut String status);
                 
@@ -75,8 +75,8 @@ class RepositoryGeneratorTest {
         String dsl = """
                 package com.example.domain;
                 
-                value ProjectId(UUID value);
-                value TaskId(UUID value);
+                id ProjectId;
+                id TaskId;
                 
                 entity Task[TaskId](String title);
                 aggregate Project[ProjectId](String name, mut List<Task> tasks);
@@ -110,7 +110,7 @@ class RepositoryGeneratorTest {
                 
                 import java.math.BigDecimal;
                 
-                value AccountId(UUID value);
+                id AccountId;
                 value Currency(String isoCode);
                 value Money(BigDecimal amount, Currency currency);
                 
@@ -143,7 +143,7 @@ class RepositoryGeneratorTest {
         String dsl = """
                 package com.example.domain;
                 
-                value StorageId(UUID value);
+                id StorageId;
                 value WattHours(int value);
                 value BatterySoc(int percent);
                 
@@ -174,8 +174,8 @@ class RepositoryGeneratorTest {
         String dsl = """
                 package com.example.domain;
                 
-                value ProjectId(UUID value);
-                value TaskId(UUID value);
+                id ProjectId;
+                id TaskId;
                 value TaskDuration(int hours);
                 
                 entity Task[TaskId](String title, TaskDuration duration);

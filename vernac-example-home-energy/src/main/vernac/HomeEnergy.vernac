@@ -3,9 +3,7 @@ package org.vernac.example.home.energy;
 import java.math.BigDecimal;
 
 // --- Value Objects ---
-value StorageId(String) validates {
-    require(value != null && !value.isBlank(), "StorageId must not be blank");
-}
+id StorageId
 
 value WattHours(int) validates {
     require(value >= 0, "WattHours cannot be negative");
@@ -15,7 +13,7 @@ value BatterySoc(int percent) validates {
     require(percent >= 0 && percent <= 100, "SOC must be between 0 and 100");
 }
 
-value AcId(String);
+id AcId;
 value AcStatus(String mode);
 
 // --- Entities ---

@@ -90,11 +90,8 @@ public class EntityGenerator {
             classBuilder.addMethod(buildCustomMethod(method, targetPackage));
         }
 
-        // 10. Getter
+        // 10. Getter0
         classBuilder.addMethod(buildIdGetter(idType, idFieldName));
-        if (!"id".equals(idFieldName)) {
-            classBuilder.addMethod(buildCustomIdAliasGetter(idType, idFieldName));
-        }
 
         for (FieldNode field : node.fields()) {
             classBuilder.addMethod(buildFieldGetter(field, targetPackage));
@@ -255,13 +252,6 @@ public class EntityGenerator {
                 .build();
     }
 
-    private MethodSpec buildCustomIdAliasGetter(TypeName idType, String idFieldName) {
-        return MethodSpec.methodBuilder(idFieldName)
-                .addModifiers(Modifier.PUBLIC)
-                .returns(idType)
-                .addStatement("return this.$N", idFieldName)
-                .build();
-    }
 
     private MethodSpec buildFieldGetter(FieldNode field, String targetPackage) {
         TypeName baseType = TypeResolver.resolve(field.type(), targetPackage);

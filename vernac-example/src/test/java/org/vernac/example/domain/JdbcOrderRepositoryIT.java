@@ -76,8 +76,8 @@ class JdbcOrderRepositoryIT {
         CustomerId customerId = CustomerId.of(UUID.randomUUID());
         Currency eur = Currency.getInstance("EUR");
 
-        OrderLine line1 = OrderLine.create(UUID.randomUUID(), ItemSku.of("SKU-1"), Money.of(new BigDecimal("19.99"), eur), 2);
-        OrderLine line2 = OrderLine.create(UUID.randomUUID(), ItemSku.of("SKU-2"), Money.of(new BigDecimal("49.00"), eur), 1);
+        OrderLine line1 = OrderLine.create(OrderLineId.create(), ItemSku.of("SKU-1"), Money.of(new BigDecimal("19.99"), eur), 2);
+        OrderLine line2 = OrderLine.create(OrderLineId.create(), ItemSku.of("SKU-2"), Money.of(new BigDecimal("49.00"), eur), 1);
 
         Order initialOrder = Order.create(
                 orderId,
@@ -113,8 +113,8 @@ class JdbcOrderRepositoryIT {
         CustomerId customerId = CustomerId.of(UUID.randomUUID());
         Currency eur = Currency.getInstance("EUR");
 
-        UUID line1Id = UUID.randomUUID();
-        UUID line2Id = UUID.randomUUID();
+        OrderLineId line1Id = OrderLineId.create();
+        OrderLineId line2Id = OrderLineId.create();
         OrderLine line1 = OrderLine.create(line1Id, ItemSku.of("SKU-A"), Money.of(new BigDecimal("10.00"), eur), 1);
         OrderLine line2 = OrderLine.create(line2Id, ItemSku.of("SKU-B"), Money.of(new BigDecimal("20.00"), eur), 1);
 
@@ -132,7 +132,7 @@ class JdbcOrderRepositoryIT {
         // line1 Menge geändert (Update)
         // line2 entfernt (Delete)
         // line3 hinzugefügt (Insert)
-        UUID line3Id = UUID.randomUUID();
+        OrderLineId line3Id = OrderLineId.create();
         OrderLine line3 = OrderLine.create(line3Id, ItemSku.of("SKU-C"), Money.of(new BigDecimal("15.00"), eur), 3);
         OrderLine line1Modified = OrderLine.create(line1Id, ItemSku.of("SKU-A"), Money.of(new BigDecimal("10.00"), eur), 5);
 
@@ -159,7 +159,7 @@ class JdbcOrderRepositoryIT {
         Order reloaded = txTemplate.execute(status -> repository.byId(orderId));
         assertThat(reloaded.lines()).hasSize(2);
 
-        Map<UUID, OrderLine> linesById = new HashMap<>();
+        Map<OrderLineId, OrderLine> linesById = new HashMap<>();
         reloaded.lines().forEach(l -> linesById.put(l.id(), l));
 
         assertThat(linesById.containsKey(line2Id)).as("Line 2 muss gelöscht worden sein").isFalse();

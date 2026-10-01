@@ -21,6 +21,7 @@ import java.util.Map;
 public class VernacCompiler {
 
     private final SemanticAnalyzer semanticAnalyzer = new SemanticAnalyzer();
+    private final IdGenerator idGenerator = new IdGenerator();
     private final ValueObjectGenerator valueObjectGenerator = new ValueObjectGenerator();
     private final EventGenerator eventGenerator = new EventGenerator();
     private final AggregateGenerator aggregateGenerator = new AggregateGenerator();
@@ -63,7 +64,9 @@ public class VernacCompiler {
 
         // Bestehende Generierungsschleife
         for (TopLevelDefinition definition : unit.definitions()) {
-            if (definition instanceof ValueObjectNode vo) {
+            if (definition instanceof IdDeclarationNode idDef) {
+                generatedFiles.add(idGenerator.generate(idDef, packageName));
+            } else if (definition instanceof ValueObjectNode vo) {
                 generatedFiles.add(valueObjectGenerator.generate(vo, packageName, imports));
             } else if (definition instanceof EventNode event) {
                 generatedFiles.add(eventGenerator.generate(event, packageName, imports));

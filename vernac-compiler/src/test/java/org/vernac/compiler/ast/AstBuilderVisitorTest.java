@@ -20,7 +20,7 @@ class AstBuilderVisitorTest {
     }
 
     @Test
-    @DisplayName("Parst Aggregate mit Standard-Id, abgeleiteten Feldnamen und explizitem Namen")
+    @DisplayName("Parst Aggregate mit Standard-Id und abgeleiteten sowie expliziten Feldnamen")
     void shouldParseAggregateWithIdAndMutableFields() {
         String src = """
                 package com.example.domain;
@@ -33,7 +33,7 @@ class AstBuilderVisitorTest {
                     }
                 };
                 
-                aggregate Task[TaskId theTaskId](String title);
+                aggregate Task[TaskId](String title);
                 """;
 
         CompilationUnitNode cu = parse(src);
@@ -59,12 +59,38 @@ class AstBuilderVisitorTest {
         assertThat(project.methods()).hasSize(1);
         assertThat(project.methods().getFirst().name()).isEqualTo("assignBudget");
 
-        // Zweites Aggregat: Custom ID-Name "theTaskId"
+        // Zweites Aggregat: deterministischer ID-Name "id"
         AggregateNode task = cu.aggregates().get(1);
         assertThat(task.name()).isEqualTo("Task");
         assertThat(task.idDefinition().type().name()).isEqualTo("TaskId");
-        assertThat(task.idDefinition().fieldName()).isEqualTo("theTaskId");
+        assertThat(task.idDefinition().fieldName()).isEqualTo("id");
         assertThat(task.fields().getFirst().isMutable()).isFalse();
+    }
+
+    @Nested
+    @DisplayName("0. Identifier Types")
+    class IdentifierTests {
+
+        @Test
+        @DisplayName("Parst 'id <Name>;' als IdDeclarationNode")
+        void shouldParseIdDeclarations() {
+            String src = """
+                    package com.example.domain;
+                    
+                    id ProjectId;
+                    id TaskId;
+                    """;
+
+            CompilationUnitNode cu = parse(src);
+            var idDeclarations = cu.definitions().stream()
+                    .filter(d -> d instanceof IdDeclarationNode)
+                    .map(d -> (IdDeclarationNode) d)
+                    .toList();
+
+            assertThat(idDeclarations).hasSize(2);
+            assertThat(idDeclarations.get(0).name()).isEqualTo("ProjectId");
+            assertThat(idDeclarations.get(1).name()).isEqualTo("TaskId");
+        }
     }
 
     @Nested
@@ -210,6 +236,28 @@ class AstBuilderVisitorTest {
             assertThat(method.name()).isEqualTo("addTask");
             assertThat(method.parameters()).hasSize(1);
             assertThat(method.parameters().getFirst().name()).isEqualTo("title");
+        }
+
+        @Test
+        @DisplayName("Parst Entity mit Id-Header und Feldern")
+        void shouldParseEntityWithId() {
+            String src = """
+                    package com.example.domain;
+                    
+                    entity Task[TaskId](String title, mut int status);
+                    """;
+
+            CompilationUnitNode cu = parse(src);
+            assertThat(cu.entities()).hasSize(1);
+
+            EntityNode entity = cu.entities().getFirst();
+            assertThat(entity.name()).isEqualTo("Task");
+            assertThat(entity.idDefinition().type().name()).isEqualTo("TaskId");
+            assertThat(entity.idDefinition().fieldName()).isEqualTo("id");
+            assertThat(entity.fields()).hasSize(2);
+            assertThat(entity.fields().get(0).name()).isEqualTo("title");
+            assertThat(entity.fields().get(1).name()).isEqualTo("status");
+            assertThat(entity.fields().get(1).isMutable()).isTrue();
         }
     }
 

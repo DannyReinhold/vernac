@@ -21,8 +21,11 @@ class VernacCompilerTest {
         String dsl = """
                 package com.example;
                 
-                value ProjectId(UUID);
-                value TaskId(UUID);
+                import java.math.BigDecimal;
+                import java.util.Currency;
+                
+                id ProjectId;
+                id TaskId;
                 value ProjectName(String value) validates {
                     require(value.length() <= 50, "Name too long");
                 };

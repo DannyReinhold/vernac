@@ -36,7 +36,7 @@ class OrderDomainTest {
     @Test
     @DisplayName("Entity kapselt interne Mutationen und Berechnungen")
     void testEntityLifecycle() {
-        UUID lineId = UUID.randomUUID();
+        OrderLineId lineId = OrderLineId.create();
         ItemSku sku = ItemSku.of("BOOK-VERNAC-01");
         Money unitPrice = Money.of(new BigDecimal("49.50"), EUR);
 

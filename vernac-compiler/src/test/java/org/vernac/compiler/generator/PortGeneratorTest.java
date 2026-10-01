@@ -158,10 +158,10 @@ class PortGeneratorTest {
         String dsl = """
                 package com.example;
                 
-                value ProjectId(String value);
+                id ProjectId;
                 value ProjectName(String value);
                 
-                entity Project [ProjectId id] (ProjectName name);
+                entity Project [ProjectId] (ProjectName name);
                 
                 port ExternalProjectService {
                     schema ExternalProjectDto {

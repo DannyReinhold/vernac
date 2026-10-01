@@ -6,7 +6,7 @@ import java.util.Optional;
 public record AggregateNode(
         SourceLocation location,
         String name,
-        IdDefinitionNode idDefinition,
+        IdReferenceNode idDefinition,
         List<FieldNode> fields,
         List<ValidationRuleNode> validations,
         List<MethodNode> methods,

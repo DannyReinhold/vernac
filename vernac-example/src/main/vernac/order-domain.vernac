@@ -7,8 +7,8 @@ import java.util.List;
 import java.util.ArrayList;
 
 // A simple value object
-value OrderId(UUID value);
-value CustomerId(UUID value);
+id OrderId;
+id CustomerId;
 
 // A value object with invariants
 value ItemSku(String value) validates {
@@ -38,7 +38,9 @@ value Money(BigDecimal amount, Currency currency) validates {
 
 event OrderPlaced(OrderId orderId, CustomerId customerId, Money totalAmount);
 
-entity OrderLine[UUID](ItemSku sku, Money unitPrice, mut int quantity) validates {
+id OrderLineId;
+
+entity OrderLine[OrderLineId](ItemSku sku, Money unitPrice, mut int quantity) validates {
     require(quantity > 0, "Quantity must be greater than zero");
 } {
 

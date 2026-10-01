@@ -78,7 +78,7 @@ class SemanticAnalyzerTest {
     void shouldRejectRepositoryForNonAggregate() {
         String dsl = """
                 package com.example.domain;
-                value OrderId(UUID);
+                id OrderId;
                 value OrderData(String payload);
                 
                 repository for OrderData {
@@ -109,7 +109,7 @@ class SemanticAnalyzerTest {
     void shouldRejectJavaKeywordsInPackageName() {
         String dsl = """
                 package com.example.int.domain;
-                value ProjectId(UUID);
+                id ProjectId;
                 """;
 
         assertThatThrownBy(() -> compiler.compileSource(dsl))
@@ -135,6 +135,8 @@ class SemanticAnalyzerTest {
     void shouldRejectJavaKeywordsAsFieldNames() {
         String dsl = """
                 package com.example.domain;
+                id ProjectId;
+                value ProjectName(String value);
                 aggregate Project[ProjectId](ProjectName name, int int);
                 """;
 
@@ -154,6 +156,78 @@ class SemanticAnalyzerTest {
         assertThatThrownBy(() -> compiler.compileSource(dsl))
                 .isInstanceOf(SemanticValidationException.class)
                 .hasMessageContaining("Primitive type 'int' cannot be optional. Use the wrapper type 'Integer?' instead.");
+    }
+
+    @Nested
+    @DisplayName("Identifier & First-Class ID Validierungen")
+    class IdentifierAndIdTests {
+
+        @Test
+        @DisplayName("Verhindert Aggregate mit nicht per 'id' deklarierten ID-Typen")
+        void shouldRejectAggregateWithUndeclaredIdType() {
+            String dsl = """
+                    package com.example.domain;
+                    aggregate Project[ProjectId](String name);
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Aggregate 'Project' references ID type 'ProjectId' which is not declared with 'id ProjectId;'");
+        }
+
+        @Test
+        @DisplayName("Verhindert, dass normale Value Objects als ID im Aggregate-Kopf verwendet werden")
+        void shouldRejectValueObjectAsAggregateId() {
+            String dsl = """
+                    package com.example.domain;
+                    value ProjectId(UUID value);
+                    aggregate Project[ProjectId](String name);
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Aggregate 'Project' references ID type 'ProjectId' which is not declared with 'id ProjectId;'");
+        }
+
+        @Test
+        @DisplayName("Verhindert, dass rohe Typen wie UUID direkt als ID verwendet werden")
+        void shouldRejectRawUuidAsAggregateId() {
+            String dsl = """
+                    package com.example.domain;
+                    aggregate Project[UUID](String name);
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Aggregate 'Project' references ID type 'UUID' which is not declared with 'id UUID;'");
+        }
+
+        @Test
+        @DisplayName("Verhindert Entity mit nicht deklariertem ID-Typ")
+        void shouldRejectEntityWithUndeclaredIdType() {
+            String dsl = """
+                    package com.example.domain;
+                    entity Task[TaskId](String title);
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Entity 'Task' references ID type 'TaskId' which is not declared with 'id TaskId;'");
+        }
+
+        @Test
+        @DisplayName("Verhindert doppelt deklarierte IDs")
+        void shouldRejectDuplicateIdDeclarations() {
+            String dsl = """
+                    package com.example.domain;
+                    id ProjectId;
+                    id ProjectId;
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Duplicate type declaration 'ProjectId'");
+        }
     }
 
     @Nested

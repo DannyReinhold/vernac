@@ -2,7 +2,7 @@ package org.vernac.example.project;
 
 // domain objects will be created in <package>.domain
 
-value ProjectId(UUID);
+id ProjectId;
 value ProjectName(String) validates {
   require(value != null && !value.isEmpty(), "Project Name must be specified!");
 }

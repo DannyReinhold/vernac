@@ -13,12 +13,24 @@ importDeclaration
     ;
 
 topLevelDeclaration
-    : valueDefinition
+    : idDeclaration
+    | valueDefinition
     | eventDefinition
     | aggregateDefinition
     | entityDefinition
     | portDefinition
     | repositoryDefinition
+    ;
+
+// ==========================================
+// 0. Identifier Types
+// ==========================================
+idDeclaration
+    : 'id' name=typeName ( '{' idMember*'}' )? ';'?
+    ;
+
+idMember
+    : packageDeclarationStatement
     ;
 
 // ==========================================
@@ -71,7 +83,7 @@ eventMember
 // 3. Aggregates & Entities
 // ==========================================
 aggregateDefinition
-    : 'aggregate' name=typeName '[' idDefinition ']' '(' parameterList? ')'
+    : 'aggregate' name=typeName '[' idReference ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
       ( '{' aggregateMember* '}' )?
       ';'?
@@ -82,12 +94,12 @@ aggregateMember
     | methodDefinition
     ;
 
-idDefinition
-    : idType=type (name=variableName)?
+idReference
+    : idType=type
     ;
 
 entityDefinition
-    : 'entity' name=typeName '[' idDefinition ']' '(' parameterList? ')'
+    : 'entity' name=typeName '[' idReference ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
       ( '{' entityMember* '}' )?
       ';'?

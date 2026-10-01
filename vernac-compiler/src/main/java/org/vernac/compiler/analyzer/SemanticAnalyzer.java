@@ -62,13 +62,21 @@ public class SemanticAnalyzer {
             }
         }
 
+        Set<String> declaredIds = new HashSet<>();
         for (TopLevelDefinition def : unit.definitions()) {
-            if (def instanceof ValueObjectNode vo) {
+            if (def instanceof IdDeclarationNode idDef) {
+                declaredIds.add(idDef.name());
+            }
+        }
+        for (TopLevelDefinition def : unit.definitions()) {
+            if (def instanceof IdDeclarationNode idDef) {
+                validateIdDeclaration(idDef, diagnostics);
+            } else if (def instanceof ValueObjectNode vo) {
                 validateValueObject(vo, availableSymbols, unit.imports(), diagnostics);
             } else if (def instanceof AggregateNode agg) {
-                validateAggregate(agg, availableSymbols, unit.imports(), diagnostics);
+                validateAggregate(agg, declaredIds, availableSymbols, unit.imports(), diagnostics);
             } else if (def instanceof EntityNode entity) {
-                validateEntity(entity, availableSymbols, unit.imports(), diagnostics);
+                validateEntity(entity, declaredIds, availableSymbols, unit.imports(), diagnostics);
             } else if (def instanceof EventNode event) {
                 validateEvent(event, availableSymbols, unit.imports(), diagnostics);
             } else if (def instanceof RepositoryNode repo) {
@@ -79,6 +87,12 @@ public class SemanticAnalyzer {
         }
 
         return diagnostics;
+    }
+
+    private void validateIdDeclaration(IdDeclarationNode idDef, List<CompilerDiagnostic> diagnostics) {
+        if (idDef.customPackage().isPresent()) {
+            validatePackageName(idDef.customPackage().get(), idDef.location(), diagnostics);
+        }
     }
 
     private void validatePort(PortNode port, CompilationUnitNode unit, Set<String> availableSymbols, List<CompilerDiagnostic> diagnostics) {
@@ -229,9 +243,23 @@ public class SemanticAnalyzer {
         }
     }
 
-    private void validateAggregate(AggregateNode agg, Set<String> availableSymbols, List<String> imports, List<CompilerDiagnostic> diagnostics) {
+    private void validateAggregate(
+            AggregateNode agg,
+            Set<String> declaredIds,
+            Set<String> availableSymbols,
+            List<String> imports,
+            List<CompilerDiagnostic> diagnostics
+    ) {
         if (agg.customPackage().isPresent())
             validatePackageName(agg.customPackage().get(), agg.location(), diagnostics);
+
+        String idTypeName = agg.idDefinition().type().name();
+        if (!declaredIds.contains(idTypeName)) {
+            diagnostics.add(CompilerDiagnostic.error(
+                    agg.idDefinition().location(),
+                    "Aggregate '" + agg.name() + "' references ID type '" + idTypeName + "' which is not declared with 'id " + idTypeName + ";'."
+            ));
+        }
 
         validateTypeResolvable(agg.idDefinition().type(), availableSymbols, imports, diagnostics);
         validateIdentifier(agg.idDefinition().fieldName(), agg.idDefinition().location(), "id field", diagnostics);
@@ -253,9 +281,23 @@ public class SemanticAnalyzer {
         }
     }
 
-    private void validateEntity(EntityNode entity, Set<String> availableSymbols, List<String> imports, List<CompilerDiagnostic> diagnostics) {
+    private void validateEntity(
+            EntityNode entity,
+            Set<String> declaredIds,
+            Set<String> availableSymbols,
+            List<String> imports,
+            List<CompilerDiagnostic> diagnostics
+    ) {
         if (entity.customPackage().isPresent())
             validatePackageName(entity.customPackage().get(), entity.location(), diagnostics);
+
+        String idTypeName = entity.idDefinition().type().name();
+        if (!declaredIds.contains(idTypeName)) {
+            diagnostics.add(CompilerDiagnostic.error(
+                    entity.idDefinition().location(),
+                    "Entity '" + entity.name() + "' references ID type '" + idTypeName + "' which is not declared with 'id " + idTypeName + ";'."
+            ));
+        }
 
         validateTypeResolvable(entity.idDefinition().type(), availableSymbols, imports, diagnostics);
         validateIdentifier(entity.idDefinition().fieldName(), entity.idDefinition().location(), "id field", diagnostics);
@@ -361,6 +403,7 @@ public class SemanticAnalyzer {
     }
 
     private String getDefinitionName(TopLevelDefinition def) {
+        if (def instanceof IdDeclarationNode idDef) return idDef.name();
         if (def instanceof ValueObjectNode vo) return vo.name();
         if (def instanceof AggregateNode agg) return agg.name();
         if (def instanceof EntityNode entity) return entity.name();

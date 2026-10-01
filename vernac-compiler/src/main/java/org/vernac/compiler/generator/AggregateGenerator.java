@@ -120,9 +120,6 @@ public class AggregateGenerator {
 
         // 12. Getter für Metadaten & Id
         classBuilder.addMethod(buildIdGetter(idType, idFieldName));
-        if (!"id".equals(idFieldName)) {
-            classBuilder.addMethod(buildCustomIdAliasGetter(idType, idFieldName));
-        }
 
         classBuilder.addMethod(MethodSpec.methodBuilder("createdAt")
                 .addModifiers(Modifier.PUBLIC)
@@ -360,15 +357,7 @@ public class AggregateGenerator {
                 .addStatement("return this.$N", idFieldName)
                 .build();
     }
-
-    private MethodSpec buildCustomIdAliasGetter(TypeName idType, String idFieldName) {
-        return MethodSpec.methodBuilder(idFieldName)
-                .addModifiers(Modifier.PUBLIC)
-                .returns(idType)
-                .addStatement("return this.$N", idFieldName)
-                .build();
-    }
-
+    
     private MethodSpec buildFieldGetter(FieldNode field, String targetPackage) {
         TypeName baseType = TypeResolver.resolve(field.type(), targetPackage);
         MethodSpec.Builder getter = MethodSpec.methodBuilder(field.name())
