@@ -17,3 +17,8 @@ spring:
 
 server:
   port: ${PORT:8080}
+
+vernac:
+  outbound:
+    solar-forecast-provider:
+      base-url: http://localhost:${server.port:8080}

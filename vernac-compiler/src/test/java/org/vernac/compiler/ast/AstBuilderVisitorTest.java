@@ -306,7 +306,6 @@ class AstBuilderVisitorTest {
                     
                     repository for Project {
                         package com.example.infrastructure.own;
-                        table: "projects";
                         find List<Project> findByName(ProjectName name);
                     }
                     """;
@@ -318,7 +317,6 @@ class AstBuilderVisitorTest {
             assertThat(repo.name()).isEqualTo("ProjectRepository");
             assertThat(repo.aggregateName()).isEqualTo("Project");
             assertThat(repo.customPackage()).contains("com.example.infrastructure.own");
-            assertThat(repo.tableName()).contains("projects");
             assertThat(repo.findMethods()).hasSize(1);
             assertThat(repo.findMethods().getFirst().name()).isEqualTo("findByName");
         }

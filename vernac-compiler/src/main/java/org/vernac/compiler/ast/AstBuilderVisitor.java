@@ -183,14 +183,11 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         String name = ctx.name != null ? ctx.name.getText() : aggregateName + "Repository";
 
         Optional<String> customPackage = Optional.empty();
-        Optional<String> tableName = Optional.empty();
         List<RepositoryMethodNode> methods = new ArrayList<>();
 
         for (VernacParser.RepositoryMemberContext member : ctx.repositoryMember()) {
             if (member.packageDeclarationStatement() != null) {
                 customPackage = Optional.of(member.packageDeclarationStatement().qualifiedName().getText());
-            } else if (member.tableDeclaration() != null) {
-                tableName = Optional.of(unquote(member.tableDeclaration().tableName.getText()));
             } else if (member.repositoryFindMethod() != null) {
                 VernacParser.RepositoryFindMethodContext findCtx = member.repositoryFindMethod();
                 methods.add(new RepositoryMethodNode(
@@ -212,7 +209,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             }
         }
 
-        return new RepositoryNode(toLocation(ctx), name, aggregateName, customPackage, tableName, methods);
+        return new RepositoryNode(toLocation(ctx), name, aggregateName, customPackage, methods);
     }
 
     @Override

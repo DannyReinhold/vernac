@@ -29,8 +29,8 @@ public class AggregateGenerator {
 
         ParameterizedTypeName aggregateRootType = ParameterizedTypeName.get(AGGREGATE_ROOT_INTERFACE, idType);
 
-        String tableName = PostgresSchemaUtils.toSnakeCase(className);
-        String idColName = PostgresSchemaUtils.toSnakeCase(idFieldName);
+        String tableName = PostgresSchemaUtils.resolveTableName(className);
+        String idColName = PostgresSchemaUtils.resolveColumnName(idFieldName);
         String ddl = PostgresSchemaUtils.generateAggregateDdl(tableName, idColName, node.fields(), valueObjects, targetPackage);
 
         TypeSpec.Builder classBuilder = TypeSpec.classBuilder(className)
@@ -357,7 +357,7 @@ public class AggregateGenerator {
                 .addStatement("return this.$N", idFieldName)
                 .build();
     }
-    
+
     private MethodSpec buildFieldGetter(FieldNode field, String targetPackage) {
         TypeName baseType = TypeResolver.resolve(field.type(), targetPackage);
         MethodSpec.Builder getter = MethodSpec.methodBuilder(field.name())

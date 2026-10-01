@@ -60,8 +60,9 @@ class PortGeneratorTest {
                 .findFirst().orElseThrow();
 
         assertThat(schemaDto.toString())
-                .contains("public final class HolidayResponseDto")
-                .contains("private final LocalDate date;")
+                .contains("public class HolidayResponseDto")
+                .contains("public HolidayResponseDto()")
+                .contains("private LocalDate date;")
                 .contains("public LocalDate date()");
 
         JavaFile restAdapter = result.generatedFiles().stream()
@@ -70,7 +71,10 @@ class PortGeneratorTest {
 
         assertThat(restAdapter.toString())
                 .contains("@Component")
-                .contains("public class RestHolidayCalendarProviderFetchAdapter implements HolidayCalendarProvider");
+                .contains("public class RestHolidayCalendarProviderFetchAdapter implements HolidayCalendarProvider")
+                .contains("@Value(\"${vernac.outbound.holiday-calendar-provider.base-url:http://localhost:8080}\")")
+                .contains("public RestHolidayCalendarProviderFetchAdapter(RestClient.Builder restClientBuilder,")
+                .contains("this.restClient = Objects.requireNonNull(restClientBuilder, \"restClientBuilder must not be null\").baseUrl(baseUrl).build();");
     }
 
     @Test

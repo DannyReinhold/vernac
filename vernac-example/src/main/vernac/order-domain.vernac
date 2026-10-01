@@ -78,6 +78,5 @@ aggregate Order[OrderId](
 };
 
 repository OrderRepository for Order {
-    table: "orders";
     find List<Order> findByStatus(String status);
 };

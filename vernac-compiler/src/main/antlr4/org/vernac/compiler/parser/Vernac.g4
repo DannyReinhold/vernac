@@ -214,17 +214,12 @@ repositoryDefinition
 
 repositoryMember
     : packageDeclarationStatement
-    | tableDeclaration
     | repositoryFindMethod
     | repositoryCustomMethod
     ;
 
 packageDeclarationStatement
     : 'package' qualifiedName ';'
-    ;
-
-tableDeclaration
-    : 'table' ':' tableName=STRING_LITERAL ';'
     ;
 
 repositoryFindMethod

@@ -9,9 +9,11 @@ import java.util.*;
 public class PortGenerator {
 
     private static final ClassName REST_CLIENT = ClassName.get("org.springframework.web.client", "RestClient");
+    private static final ClassName REST_CLIENT_BUILDER = ClassName.get("org.springframework.web.client", "RestClient", "Builder");
     private static final ClassName COMPONENT = ClassName.get("org.springframework.stereotype", "Component");
     private static final ClassName MEDIA_TYPE = ClassName.get("org.springframework.http", "MediaType");
     private static final ClassName HTTP_STATUS = ClassName.get("org.springframework.http", "HttpStatusCode");
+    private static final ClassName VALUE_ANNOTATION = ClassName.get("org.springframework.beans.factory.annotation", "Value");
 
     private static String capitalize(String str) {
         if (str == null || str.isEmpty()) return str;
@@ -57,13 +59,19 @@ public class PortGenerator {
 
         files.add(JavaFile.builder(domainPackage, portInterface.build()).skipJavaLangImports(true).build());
 
-        // 2. Schemas einmalig pro Port generieren (Infrastruktur-Ring)
+// 2. Schemas einmalig pro Port generieren (Infrastruktur-Ring)
         String defaultAdapterPackage = PackageResolver.resolveOutboundAdapterPackage(basePackage, port.name(), Optional.empty());
         for (SchemaNode schema : port.schemas()) {
             TypeSpec.Builder schemaClass = TypeSpec.classBuilder(schema.name())
-                    .addModifiers(Modifier.PUBLIC, Modifier.FINAL);
+                    .addModifiers(Modifier.PUBLIC);
 
-            MethodSpec.Builder ctor = MethodSpec.constructorBuilder()
+            // Default-No-Args-Konstruktor für Jackson
+            schemaClass.addMethod(MethodSpec.constructorBuilder()
+                    .addModifiers(Modifier.PUBLIC)
+                    .build());
+
+            // All-Args-Konstruktor
+            MethodSpec.Builder allArgsCtor = MethodSpec.constructorBuilder()
                     .addModifiers(Modifier.PUBLIC);
 
             for (FieldNode field : schema.fields()) {
@@ -71,22 +79,32 @@ public class PortGenerator {
                 TypeName fieldType = TypeResolver.resolve(field.type(), defaultAdapterPackage, explicitImports);
                 String fieldName = field.name() != null ? field.name() : "field";
 
-                schemaClass.addField(FieldSpec.builder(fieldType, fieldName, Modifier.PRIVATE, Modifier.FINAL).build());
-                ctor.addParameter(fieldType, fieldName);
-                ctor.addStatement("this.$N = $N", fieldName, fieldName);
+                // Non-final für Reflection-Deserialisierung
+                schemaClass.addField(FieldSpec.builder(fieldType, fieldName, Modifier.PRIVATE).build());
 
+                allArgsCtor.addParameter(fieldType, fieldName);
+                allArgsCtor.addStatement("this.$N = $N", fieldName, fieldName);
+
+                // Getter
                 MethodSpec getter = MethodSpec.methodBuilder(fieldName)
                         .addModifiers(Modifier.PUBLIC)
                         .returns(fieldType)
                         .addStatement("return this.$N", fieldName)
                         .build();
                 schemaClass.addMethod(getter);
+
+                // Setter (optional, hilft Reflection-Librarys)
+                MethodSpec setter = MethodSpec.methodBuilder(fieldName)
+                        .addModifiers(Modifier.PUBLIC)
+                        .addParameter(fieldType, fieldName)
+                        .addStatement("this.$N = $N", fieldName, fieldName)
+                        .build();
+                schemaClass.addMethod(setter);
             }
 
-            schemaClass.addMethod(ctor.build());
+            schemaClass.addMethod(allArgsCtor.build());
             files.add(JavaFile.builder(defaultAdapterPackage, schemaClass.build()).skipJavaLangImports(true).build());
         }
-
         // 3. Adapter pro Methode generieren
         for (PortMethodNode method : port.methods()) {
             AdapterNode adapter = method.adapter();
@@ -124,9 +142,31 @@ public class PortGenerator {
         // 1. RestClient per Konstruktor injizieren
         adapterClass.addField(REST_CLIENT, "restClient", Modifier.PRIVATE, Modifier.FINAL);
 
-        MethodSpec.Builder ctor = MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC);
-        ctor.addParameter(REST_CLIENT, "restClient");
-        ctor.addStatement("this.restClient = $T.requireNonNull(restClient, \"restClient must not be null\")", Objects.class);
+        // Ermittle Property-Key (entweder explizit konfiguriert oder Konvention: vernac.outbound.<port-name>.base-url)
+        String customProperty = restAdapter.configs().stream()
+                .filter(c -> c.key().equals("baseUrlProperty") || c.key().equals("base-url-property"))
+                .map(RestConfigNode::value)
+                .findFirst()
+                .orElse(null);
+
+        String propertyKey = (customProperty != null)
+                ? customProperty
+                : "vernac.outbound." + PropertyUtils.resolvePropertyName(port.name()) + ".base-url";
+        String valueAnnotationExpression = "${" + propertyKey + ":http://localhost:8080}";
+
+        ParameterSpec baseUrlParam = ParameterSpec.builder(String.class, "baseUrl")
+                .addAnnotation(AnnotationSpec.builder(VALUE_ANNOTATION)
+                        .addMember("value", "$S", valueAnnotationExpression)
+                        .build())
+                .build();
+
+        MethodSpec.Builder ctor = MethodSpec.constructorBuilder()
+                .addModifiers(Modifier.PUBLIC)
+                .addParameter(REST_CLIENT_BUILDER, "restClientBuilder")
+                .addParameter(baseUrlParam)
+                .addStatement("this.restClient = $T.requireNonNull(restClientBuilder, $S).baseUrl(baseUrl).build()",
+                        Objects.class, "restClientBuilder must not be null");
+
         adapterClass.addMethod(ctor.build());
 
         // 2. Methodensignatur aufbauen

@@ -93,7 +93,7 @@ public class RepositoryGenerator {
 
         // 3. JDBC-Implementierung
         String jdbcClassName = "Jdbc" + repo.name();
-        String tableName = repo.tableName().orElse(PostgresSchemaUtils.toSnakeCase(agg.name()) + "s");
+        String tableName = PostgresSchemaUtils.resolveTableName(agg.name());
 
         TypeSpec.Builder jdbcClass = TypeSpec.classBuilder(jdbcClassName)
                 .addModifiers(Modifier.PUBLIC)
@@ -317,7 +317,7 @@ public class RepositoryGenerator {
                 String childMethod = "fetch" + PostgresSchemaUtils.capitalize(f.name()) + "(id)";
                 reconstituteArgs.add(childMethod);
             } else {
-                readAndReconstruct(mb, f.type(), PostgresSchemaUtils.toSnakeCase(f.name()), f.name(), valueObjects, targetPackage, explicitImports);
+                readAndReconstruct(mb, f.type(), PostgresSchemaUtils.resolveColumnName(f.name()), f.name(), valueObjects, targetPackage, explicitImports);
                 reconstituteArgs.add(f.name());
             }
         }
@@ -365,7 +365,7 @@ public class RepositoryGenerator {
                 // Multi-Value Object: Rekursives Auslesen aller inneren Attribute
                 List<String> ctorArgs = new ArrayList<>();
                 for (FieldNode inner : vo.fields()) {
-                    String subCol = colPrefix + "_" + PostgresSchemaUtils.toSnakeCase(inner.name());
+                    String subCol = colPrefix + "_" + PostgresSchemaUtils.resolveColumnName(inner.name());
                     String subVar = targetVar + "_" + inner.name();
                     readAndReconstruct(mb, inner.type(), subCol, subVar, valueObjects, targetPackage, explicitImports);
                     ctorArgs.add(subVar);
@@ -419,8 +419,8 @@ public class RepositoryGenerator {
             List<String> explicitImports
     ) {
         String methodName = "fetch" + PostgresSchemaUtils.capitalize(fieldName);
-        String childTable = PostgresSchemaUtils.toSnakeCase(entity.name()) + "s";
-        String parentFkColumn = PostgresSchemaUtils.toSnakeCase(agg.name()) + "_id";
+        String childTable = PostgresSchemaUtils.resolveTableName(entity.name());
+        String parentFkColumn = PostgresSchemaUtils.resolveForeignKeyColumn(agg.name());
 
         TypeName aggIdType = TypeResolver.resolve(agg.idDefinition().type(), targetPackage, explicitImports);
         ClassName entityType = ClassName.get(targetPackage, entity.name());
@@ -441,7 +441,7 @@ public class RepositoryGenerator {
         entityArgs.add("id");
 
         for (FieldNode f : entity.fields()) {
-            readAndReconstruct(mb, f.type(), PostgresSchemaUtils.toSnakeCase(f.name()), f.name(), valueObjects, targetPackage, explicitImports);
+            readAndReconstruct(mb, f.type(), PostgresSchemaUtils.resolveColumnName(f.name()), f.name(), valueObjects, targetPackage, explicitImports);
             entityArgs.add(f.name());
         }
 
@@ -460,8 +460,8 @@ public class RepositoryGenerator {
             List<String> explicitImports
     ) {
         String methodName = "sync" + PostgresSchemaUtils.capitalize(fieldName);
-        String childTable = PostgresSchemaUtils.toSnakeCase(entity.name()) + "s";
-        String parentFkColumn = PostgresSchemaUtils.toSnakeCase(agg.name()) + "_id";
+        String childTable = PostgresSchemaUtils.resolveTableName(entity.name());
+        String parentFkColumn = PostgresSchemaUtils.resolveForeignKeyColumn(agg.name());
         String paramMethodName = "build" + entity.name() + "ParamSource";
 
         TypeName aggIdType = TypeResolver.resolve(agg.idDefinition().type(), targetPackage, explicitImports);
@@ -546,7 +546,7 @@ public class RepositoryGenerator {
             mb.addParameter(pType, p.name());
 
             if (i > 0) whereClause.append(" AND ");
-            whereClause.append(PostgresSchemaUtils.toSnakeCase(p.name())).append(" = :").append(p.name());
+            whereClause.append(PostgresSchemaUtils.resolveColumnName(p.name())).append(" = :").append(p.name());
             mb.addStatement("params.addValue(\"$L\", $L)", p.name(), p.name());
         }
 

@@ -43,7 +43,12 @@ public class SemanticAnalyzer {
             if (def instanceof ValueObjectNode vo && vo.collection().isPresent()) {
                 String collName = vo.collection().get().customName().orElse(vo.name() + "s");
                 validateIdentifier(collName, vo.collection().get().location(), "collection type", diagnostics);
-                declaredTypes.add(collName);
+                if (!declaredTypes.add(collName)) {
+                    diagnostics.add(CompilerDiagnostic.error(
+                            vo.collection().get().location(),
+                            "Collection type name '" + collName + "' conflicts with an existing type declaration."
+                    ));
+                }
             }
         }
 
@@ -62,6 +67,11 @@ public class SemanticAnalyzer {
             }
         }
 
+        Set<String> declaredAggregates = unit.definitions().stream()
+                .filter(d -> d instanceof AggregateNode)
+                .map(this::getDefinitionName)
+                .collect(java.util.stream.Collectors.toSet());
+
         Set<String> declaredIds = new HashSet<>();
         for (TopLevelDefinition def : unit.definitions()) {
             if (def instanceof IdDeclarationNode idDef) {
@@ -74,9 +84,9 @@ public class SemanticAnalyzer {
             } else if (def instanceof ValueObjectNode vo) {
                 validateValueObject(vo, availableSymbols, unit.imports(), diagnostics);
             } else if (def instanceof AggregateNode agg) {
-                validateAggregate(agg, declaredIds, availableSymbols, unit.imports(), diagnostics);
+                validateAggregate(agg, declaredIds, declaredAggregates, availableSymbols, unit.imports(), diagnostics);
             } else if (def instanceof EntityNode entity) {
-                validateEntity(entity, declaredIds, availableSymbols, unit.imports(), diagnostics);
+                validateEntity(entity, declaredIds, declaredAggregates, availableSymbols, unit.imports(), diagnostics);
             } else if (def instanceof EventNode event) {
                 validateEvent(event, availableSymbols, unit.imports(), diagnostics);
             } else if (def instanceof RepositoryNode repo) {
@@ -246,6 +256,7 @@ public class SemanticAnalyzer {
     private void validateAggregate(
             AggregateNode agg,
             Set<String> declaredIds,
+            Set<String> declaredAggregates,
             Set<String> availableSymbols,
             List<String> imports,
             List<CompilerDiagnostic> diagnostics
@@ -273,6 +284,7 @@ public class SemanticAnalyzer {
         for (FieldNode field : agg.fields()) {
             validateIdentifier(field.name(), field.location(), "field", diagnostics);
             validateTypeResolvable(field.type(), availableSymbols, imports, diagnostics);
+            checkNoDirectAggregateReference(field, agg.name(), declaredAggregates, diagnostics);
         }
         for (MethodNode method : agg.methods()) {
             validateIdentifier(method.name(), method.location(), "method", diagnostics);
@@ -284,6 +296,7 @@ public class SemanticAnalyzer {
     private void validateEntity(
             EntityNode entity,
             Set<String> declaredIds,
+            Set<String> declaredAggregates,
             Set<String> availableSymbols,
             List<String> imports,
             List<CompilerDiagnostic> diagnostics
@@ -311,11 +324,34 @@ public class SemanticAnalyzer {
         for (FieldNode field : entity.fields()) {
             validateIdentifier(field.name(), field.location(), "field", diagnostics);
             validateTypeResolvable(field.type(), availableSymbols, imports, diagnostics);
+            checkNoDirectAggregateReference(field, entity.name(), declaredAggregates, diagnostics);
         }
         for (MethodNode method : entity.methods()) {
             validateIdentifier(method.name(), method.location(), "method", diagnostics);
             for (FieldNode p : method.parameters())
                 validateIdentifier(p.name(), p.location(), "parameter", diagnostics);
+        }
+    }
+
+    private void checkNoDirectAggregateReference(
+            FieldNode field,
+            String parentTypeName,
+            Set<String> declaredAggregates,
+            List<CompilerDiagnostic> diagnostics
+    ) {
+        String typeToCheck = field.type().name();
+        if (field.type().name().equals("List") || field.type().name().equals("Set")) {
+            if (!field.type().typeArguments().isEmpty()) {
+                typeToCheck = field.type().typeArguments().getFirst().name();
+            }
+        }
+
+        if (declaredAggregates.contains(typeToCheck)) {
+            diagnostics.add(CompilerDiagnostic.error(
+                    field.location(),
+                    "Direct reference to aggregate root '" + typeToCheck + "' inside '" + parentTypeName +
+                            "' is forbidden. Reference external aggregates by their ID type instead."
+            ));
         }
     }
 
@@ -349,6 +385,10 @@ public class SemanticAnalyzer {
             validateIdentifier(method.name(), method.location(), "repository method", diagnostics);
             if (!methodNames.add(method.name())) {
                 diagnostics.add(CompilerDiagnostic.error(method.location(), "Duplicate or reserved repository method '" + method.name() + "' in '" + repo.name() + "'"));
+            }
+            if (method.name().equals("findById") || method.name().equals("getById")) {
+                diagnostics.add(CompilerDiagnostic.warning(method.location(),
+                        "Method '" + method.name() + "' is redundant. The repository automatically provides 'byId(id)'."));
             }
 
             validateTypeResolvable(method.returnType(), availableSymbols, unit.imports(), diagnostics);

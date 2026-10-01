@@ -25,8 +25,8 @@ public class EntityGenerator {
 
         ParameterizedTypeName entityInterfaceType = ParameterizedTypeName.get(ENTITY_INTERFACE, idType);
 
-        String tableName = PostgresSchemaUtils.toSnakeCase(className);
-        String idColName = PostgresSchemaUtils.toSnakeCase(idFieldName);
+        String tableName = PostgresSchemaUtils.resolveTableName(className);
+        String idColName = PostgresSchemaUtils.resolveColumnName(idFieldName);
         String ddl = PostgresSchemaUtils.generateEntityDdl(tableName, idColName, node.fields(), valueObjects, targetPackage);
 
         TypeSpec.Builder classBuilder = TypeSpec.classBuilder(className)

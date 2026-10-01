@@ -82,7 +82,6 @@ class SemanticAnalyzerTest {
                 value OrderData(String payload);
                 
                 repository for OrderData {
-                    table: "order_data";
                 };
                 """;
 

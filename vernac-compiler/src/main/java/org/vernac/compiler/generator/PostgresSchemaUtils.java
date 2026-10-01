@@ -82,7 +82,7 @@ public final class PostgresSchemaUtils {
             String targetPackage
     ) {
         return flattenRecursive(
-                toSnakeCase(field.name()),
+                resolveColumnName(field.name()),
                 field.name(),
                 baseAccessor + "." + field.name() + "()",
                 field.type(),
@@ -116,7 +116,7 @@ public final class PostgresSchemaUtils {
             } else {
                 // Multi Value Object: Präfix_Feldname
                 for (FieldNode inner : vo.fields()) {
-                    String subCol = colPrefix + "_" + toSnakeCase(inner.name());
+                    String subCol = colPrefix + "_" + resolveColumnName(inner.name());
                     String subParam = paramPrefix + capitalize(inner.name());
                     String innerAccessor = accessorPath + "." + inner.name() + "()";
                     result.addAll(flattenRecursive(subCol, subParam, innerAccessor, inner.type(), effectivelyOptional, valueObjects, targetPackage));
@@ -172,5 +172,25 @@ public final class PostgresSchemaUtils {
 
         sb.append("\n);");
         return sb.toString();
+    }
+
+    public static String resolveTableName(String typeName) {
+        return toSnakeCase(typeName);
+    }
+
+    /**
+     * Ermittelt den einheitlichen Spaltennamen für ein Feld.
+     * Konvention: Strikter Spaltenname in snake_case.
+     */
+    public static String resolveColumnName(String fieldName) {
+        return toSnakeCase(fieldName);
+    }
+
+    /**
+     * Ermittelt den Namen der Fremdschlüssel-Spalte, die auf ein Aggregat verweist.
+     * Konvention: <aggregate_singular_snake_case>_id (z. B. "energy_storage_id").
+     */
+    public static String resolveForeignKeyColumn(String aggregateName) {
+        return toSnakeCase(aggregateName) + "_id";
     }
 }

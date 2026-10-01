@@ -28,7 +28,6 @@ class RepositoryGeneratorTest {
                 aggregate Order[OrderId](CustomerId customer, mut String status);
                 
                 repository OrderRepository for Order {
-                    table: "orders";
                     find List<Order> findByStatus(String status);
                     custom List<Order> findTopOrders(BigDecimal threshold);
                 };
@@ -82,7 +81,6 @@ class RepositoryGeneratorTest {
                 aggregate Project[ProjectId](String name, mut List<Task> tasks);
                 
                 repository for Project {
-                    table: "projects";
                 };
                 """;
 
@@ -117,7 +115,6 @@ class RepositoryGeneratorTest {
                 aggregate Account[AccountId](String owner, mut Money balance);
                 
                 repository for Account {
-                    table: "accounts";
                 };
                 """;
 
@@ -130,7 +127,7 @@ class RepositoryGeneratorTest {
         String code = jdbcRepo.toString().replaceAll("\\s+", " ");
 
         assertThat(code)
-                .contains("INSERT INTO accounts (id, created_at, updated_at, version, owner, balance_amount, balance_currency) VALUES (:id, :createdAt, :updatedAt, :version, :owner, :balanceAmount, :balanceCurrency)")
+                .contains("INSERT INTO account (id, created_at, updated_at, version, owner, balance_amount, balance_currency) VALUES (:id, :createdAt, :updatedAt, :version, :owner, :balanceAmount, :balanceCurrency)")
                 .contains("params.addValue(\"balanceAmount\", aggregate.balance().amount())")
                 .contains("params.addValue(\"balanceCurrency\", aggregate.balance().currency().isoCode())")
                 .contains("balance_amount = :balanceAmount")
@@ -150,7 +147,6 @@ class RepositoryGeneratorTest {
                 aggregate EnergyStorage[StorageId](WattHours capacity, BatterySoc currentSoc);
                 
                 repository for EnergyStorage {
-                    table: "energy_storages";
                 };
                 """;
 
@@ -182,7 +178,6 @@ class RepositoryGeneratorTest {
                 aggregate Project[ProjectId](String name, mut List<Task> tasks);
                 
                 repository for Project {
-                    table: "projects";
                 };
                 """;
 
@@ -196,7 +191,7 @@ class RepositoryGeneratorTest {
 
         assertThat(code)
                 .contains("params.addValue(\"duration\", item.duration().hours())")
-                .contains("INSERT INTO tasks (id, project_id, title, duration) VALUES (:id, :parentId, :title, :duration)")
+                .contains("INSERT INTO task (id, project_id, title, duration) VALUES (:id, :parentId, :title, :duration)")
                 .contains("TaskDuration duration = TaskDuration.of(rs.getObject(\"duration\", java.lang.Integer.class));");
     }
 
