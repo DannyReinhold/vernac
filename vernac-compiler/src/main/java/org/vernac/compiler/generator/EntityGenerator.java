@@ -2,10 +2,7 @@ package org.vernac.compiler.generator;
 
 import com.squareup.javapoet.*;
 import org.jspecify.annotations.Nullable;
-import org.vernac.compiler.ast.EntityNode;
-import org.vernac.compiler.ast.FieldNode;
-import org.vernac.compiler.ast.MethodNode;
-import org.vernac.compiler.ast.ValidationRuleNode;
+import org.vernac.compiler.ast.*;
 import org.vernac.compiler.util.TypeUtils;
 import org.vernac.runtime.DomainValidationException;
 import org.vernac.runtime.Entity;

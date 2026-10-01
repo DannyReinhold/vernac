@@ -94,14 +94,110 @@ class RepositoryGeneratorTest {
 
         String code = jdbcRepo.toString().replaceAll("\\s+", " ");
 
-        // Prüft, ob die Sub-Methoden für die Liste generiert wurden
         assertThat(code)
                 .contains("private List<Task> fetchTasks(ProjectId aggregateId)")
                 .contains("private void syncTasks(ProjectId aggregateId, List<Task> items)")
                 .contains("private MapSqlParameterSource buildTaskParamSource(ProjectId aggregateId, Task item)");
 
-        // Prüft, ob der Haupt-Mapper die Unterabfrage aufruft
         assertThat(code).contains("fetchTasks(id)");
+    }
+
+    @Test
+    @DisplayName("Flacht Multi-Value-Objects und geschachtelte Value-Objects in SQL und Parametern rekursiv ab")
+    void shouldFlattenNestedValueObjectsInSqlStatementsAndParams() {
+        String dsl = """
+                package com.example.domain;
+                
+                import java.math.BigDecimal;
+                
+                value AccountId(UUID value);
+                value Currency(String isoCode);
+                value Money(BigDecimal amount, Currency currency);
+                
+                aggregate Account[AccountId](String owner, mut Money balance);
+                
+                repository for Account {
+                    table: "accounts";
+                };
+                """;
+
+        VernacCompilationResult result = compiler.compileSource(dsl);
+
+        JavaFile jdbcRepo = result.generatedFiles().stream()
+                .filter(f -> f.typeSpec.name.equals("JdbcAccountRepository"))
+                .findFirst().orElseThrow();
+
+        String code = jdbcRepo.toString().replaceAll("\\s+", " ");
+
+        assertThat(code)
+                .contains("INSERT INTO accounts (id, created_at, updated_at, version, owner, balance_amount, balance_currency) VALUES (:id, :createdAt, :updatedAt, :version, :owner, :balanceAmount, :balanceCurrency)")
+                .contains("params.addValue(\"balanceAmount\", aggregate.balance().amount())")
+                .contains("params.addValue(\"balanceCurrency\", aggregate.balance().currency().isoCode())")
+                .contains("balance_amount = :balanceAmount")
+                .contains("balance_currency = :balanceCurrency");
+    }
+
+    @Test
+    @DisplayName("Liest primitive Attribute in Value Objects mit Boxed Types (Integer.class) und rekonstruiert verschachtelte VOs im RowMapper")
+    void shouldMapRowUsingBoxedTypesAndReconstructValueObjects() {
+        String dsl = """
+                package com.example.domain;
+                
+                value StorageId(UUID value);
+                value WattHours(int value);
+                value BatterySoc(int percent);
+                
+                aggregate EnergyStorage[StorageId](WattHours capacity, BatterySoc currentSoc);
+                
+                repository for EnergyStorage {
+                    table: "energy_storages";
+                };
+                """;
+
+        VernacCompilationResult result = compiler.compileSource(dsl);
+
+        JavaFile jdbcRepo = result.generatedFiles().stream()
+                .filter(f -> f.typeSpec.name.equals("JdbcEnergyStorageRepository"))
+                .findFirst().orElseThrow();
+
+        String code = jdbcRepo.toString().replaceAll("\\s+", " ");
+
+        assertThat(code)
+                .contains("WattHours capacity = WattHours.of(rs.getObject(\"capacity\", java.lang.Integer.class));")
+                .contains("BatterySoc currentSoc = BatterySoc.of(rs.getObject(\"current_soc\", java.lang.Integer.class));")
+                .contains("return EnergyStorage.reconstitute(id, capacity, currentSoc, createdAt, updatedAt, version);");
+    }
+
+    @Test
+    @DisplayName("Flacht Value Objects auch in 1:N Child-Entity Sync-Statements sauber ab")
+    void shouldFlattenValueObjectsInChildEntitySync() {
+        String dsl = """
+                package com.example.domain;
+                
+                value ProjectId(UUID value);
+                value TaskId(UUID value);
+                value TaskDuration(int hours);
+                
+                entity Task[TaskId](String title, TaskDuration duration);
+                aggregate Project[ProjectId](String name, mut List<Task> tasks);
+                
+                repository for Project {
+                    table: "projects";
+                };
+                """;
+
+        VernacCompilationResult result = compiler.compileSource(dsl);
+
+        JavaFile jdbcRepo = result.generatedFiles().stream()
+                .filter(f -> f.typeSpec.name.equals("JdbcProjectRepository"))
+                .findFirst().orElseThrow();
+
+        String code = jdbcRepo.toString().replaceAll("\\s+", " ");
+
+        assertThat(code)
+                .contains("params.addValue(\"duration\", item.duration().hours())")
+                .contains("INSERT INTO tasks (id, project_id, title, duration) VALUES (:id, :parentId, :title, :duration)")
+                .contains("TaskDuration duration = TaskDuration.of(rs.getObject(\"duration\", java.lang.Integer.class));");
     }
 
     private String normalize(String source) {

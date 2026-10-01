@@ -5,13 +5,13 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.vernac.compiler.ast.AggregateNode;
-import org.vernac.compiler.ast.AstBuilderVisitor;
-import org.vernac.compiler.ast.CompilationUnitNode;
+import org.vernac.compiler.ast.*;
 import org.vernac.compiler.parser.VernacLexer;
 import org.vernac.compiler.parser.VernacParser;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -23,6 +23,16 @@ class AggregateGeneratorTest {
         VernacLexer lexer = new VernacLexer(CharStreams.fromString(source));
         VernacParser parser = new VernacParser(new CommonTokenStream(lexer));
         return new AstBuilderVisitor().visitCompilationUnit(parser.compilationUnit());
+    }
+
+    private Map<String, ValueObjectNode> extractValueObjects(CompilationUnitNode cu) {
+        Map<String, ValueObjectNode> map = new HashMap<>();
+        for (TopLevelDefinition def : cu.definitions()) {
+            if (def instanceof ValueObjectNode vo) {
+                map.put(vo.name(), vo);
+            }
+        }
+        return map;
     }
 
     @Test
@@ -42,7 +52,7 @@ class AggregateGeneratorTest {
 
         CompilationUnitNode cu = parse(src);
         AggregateNode node = cu.aggregates().getFirst();
-        JavaFile file = generator.generate(node, "com.example.domain", List.of());
+        JavaFile file = generator.generate(node, Map.of(), "com.example.domain", List.of());
         String code = file.toString();
         String normalizedCode = code.replaceAll("\\s+", " ");
 
@@ -91,7 +101,7 @@ class AggregateGeneratorTest {
 
         CompilationUnitNode cu = parse(src);
         AggregateNode node = cu.aggregates().getFirst();
-        JavaFile file = generator.generate(node, "com.example.domain", List.of());
+        JavaFile file = generator.generate(node, Map.of(), "com.example.domain", List.of());
         String code = file.toString().replaceAll("\\s+", " ");
 
         assertThat(code)
@@ -104,16 +114,15 @@ class AggregateGeneratorTest {
     @DisplayName("Nutzt konsistent explizite und abgeleitete Feldnamen inkl. Mutatoren durch alle Methoden")
     void shouldGenerateAggregateWithExplicitAndDerivedNames() {
         String src = """
-                package.example.domain;
+                package com.example.domain;
                 aggregate Customer[CustomerId](String, mut String customAlias);
                 """;
 
         CompilationUnitNode cu = parse(src);
         AggregateNode node = cu.aggregates().getFirst();
-        JavaFile file = generator.generate(node, "com.example.domain", java.util.List.of());
+        JavaFile file = generator.generate(node, Map.of(), "com.example.domain", List.of());
         String code = file.toString().replaceAll("\\s+", " ");
 
-        // Default 'string' und custom 'customAlias'
         assertThat(code)
                 .contains("private final String string;")
                 .contains("private String customAlias;")
@@ -124,5 +133,38 @@ class AggregateGeneratorTest {
                 .contains("this.customAlias = customAlias;")
                 .contains("public String string() { return this.string; }")
                 .contains("public String customAlias() { return this.customAlias; }");
+    }
+
+    @Test
+    @DisplayName("Erzeugt TABLE_NAME und SCHEMA_DDL mit korrektem Value-Object-Flattening")
+    void shouldGenerateSchemaConstantsWithFlattenedColumns() {
+        String src = """
+                package com.example.domain;
+                
+                value ProjectName(String value);
+                value Currency(String code);
+                value Money(BigDecimal amount, Currency currency);
+                
+                aggregate Project[ProjectId](ProjectName name, Money budget);
+                """;
+
+        CompilationUnitNode cu = parse(src);
+        Map<String, ValueObjectNode> valueObjects = extractValueObjects(cu);
+        AggregateNode node = cu.aggregates().getFirst();
+
+        JavaFile file = generator.generate(node, valueObjects, "com.example.domain", List.of());
+        String code = file.toString();
+
+        assertThat(code)
+                .contains("public static final String TABLE_NAME = \"project\";")
+                .contains("public static final String SCHEMA_DDL =")
+                .contains("CREATE TABLE IF NOT EXISTS project (")
+                .contains("id UUID PRIMARY KEY")
+                .contains("name VARCHAR(255) NOT NULL")
+                .contains("budget_amount NUMERIC(19, 4) NOT NULL")
+                .contains("budget_currency VARCHAR(255) NOT NULL")
+                .contains("created_at TIMESTAMPTZ NOT NULL")
+                .contains("updated_at TIMESTAMPTZ NOT NULL")
+                .contains("version BIGINT NOT NULL DEFAULT 0");
     }
 }

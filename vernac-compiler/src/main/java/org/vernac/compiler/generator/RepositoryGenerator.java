@@ -1,8 +1,7 @@
 package org.vernac.compiler.generator;
 
 import com.squareup.javapoet.*;
-import org.vernac.compiler.ast.FieldNode;
-import org.vernac.compiler.ast.TypeNode;
+import org.vernac.compiler.ast.*;
 
 import javax.lang.model.element.Modifier;
 import java.sql.ResultSet;
