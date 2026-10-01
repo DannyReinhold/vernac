@@ -94,7 +94,8 @@ public class PortGenerator {
                 schemaClass.addMethod(getter);
 
                 // Setter (optional, hilft Reflection-Librarys)
-                MethodSpec setter = MethodSpec.methodBuilder(fieldName)
+                String setterName = "set" + capitalize(fieldName);
+                MethodSpec setter = MethodSpec.methodBuilder(setterName)
                         .addModifiers(Modifier.PUBLIC)
                         .addParameter(fieldType, fieldName)
                         .addStatement("this.$N = $N", fieldName, fieldName)
