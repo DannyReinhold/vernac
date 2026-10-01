@@ -19,11 +19,12 @@
         <module>vernac-maven-plugin</module>
         <module>vernac-example</module>
         <module>vernac-lsp</module>
+        <module>vernac-example-home-energy</module>
     </modules>
 
     <properties>
-        <java.version>25</java.version>
-        <maven.compiler.release>25</maven.compiler.release>
+        <java.version>21</java.version>
+        <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- Zentrale Tool- und Dependency-Versionen -->
@@ -79,6 +80,9 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>3.13.0</version>
+                    <configuration>
+                        <release>21</release>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.antlr</groupId>
@@ -88,6 +92,17 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.5.2</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>3.4.2</version>
+                </plugin>
+                <!-- Failsafe für Integrationstests (oft von Spring Boot getriggert) -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
                     <version>3.5.2</version>
                 </plugin>
             </plugins>

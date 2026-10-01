@@ -3,18 +3,19 @@
          xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-
     <parent>
         <groupId>org.vernac</groupId>
         <artifactId>vernac</artifactId>
         <version>0.1.0-SNAPSHOT</version>
     </parent>
-    <artifactId>vernac-example</artifactId>
-    <name>Vernac :: Example</name>
+
+    <artifactId>vernac-example-home-energy</artifactId>
 
     <properties>
         <spring-boot.version>3.4.2</spring-boot.version>
     </properties>
+
+    <!-- Importiert die Spring Boot Versionen, da wir das Vernac-Root als Parent haben -->
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -28,52 +29,53 @@
     </dependencyManagement>
 
     <dependencies>
-        <!-- Laufzeit-Typen für generierten Code -->
+        <!-- Vernac Laufzeit-Abhängigkeiten -->
         <dependency>
             <groupId>org.vernac</groupId>
             <artifactId>vernac-runtime</artifactId>
             <version>${project.version}</version>
         </dependency>
 
-        <!-- Spring Boot Web (enthält RestClient, DispatcherServlet, Jackson etc.) -->
+        <!-- Web & Frontend (Thymeleaf) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
 
-        <!-- Spring Boot JDBC & Transactions -->
+        <!-- Datenbank & JDBC -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-jdbc</artifactId>
         </dependency>
-
-        <!-- PostgreSQL & HikariCP (wird von Boot automatisch gemanagt) -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Test Dependencies -->
+        <!-- Automatisiertes Starten von Docker-Containern (z.B. Postgres) zur Laufzeit -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-docker-compose</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>postgresql</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <!-- Vernac Compiler Plugin (Muss vor dem Java-Compiler laufen) -->
             <plugin>
                 <groupId>org.vernac</groupId>
                 <artifactId>vernac-maven-plugin</artifactId>
@@ -86,18 +88,16 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <!-- Baut das ausführbare Fat-JAR -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>${spring-boot.version}</version>
                 <executions>
                     <execution>
                         <goals>
-                            <goal>integration-test</goal>
-                            <goal>verify</goal>
+                            <goal>repackage</goal>
                         </goals>
                     </execution>
                 </executions>

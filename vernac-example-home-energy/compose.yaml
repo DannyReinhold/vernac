@@ -1,0 +1,9 @@
+services:
+  postgres:
+    image: 'postgres:16-alpine'
+    environment:
+      - 'POSTGRES_DB=home_energy'
+      - 'POSTGRES_USER=vernac'
+      - 'POSTGRES_PASSWORD=secret'
+    ports:
+      - '5432'

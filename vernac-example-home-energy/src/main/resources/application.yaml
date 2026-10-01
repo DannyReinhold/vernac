@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: home-energy-optimizer
+  datasource:
+    # Prod-Defaults (werden über ENV überschrieben)
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+
+  docker:
+    compose:
+      file: ${DOCKER_COMPOSE_FILE:vernac-example-home-energy/compose.yaml}
+
+  sql:
+    init:
+      mode: always
+
+server:
+  port: ${PORT:8080}

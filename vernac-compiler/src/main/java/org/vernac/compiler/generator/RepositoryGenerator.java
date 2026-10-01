@@ -1,7 +1,8 @@
 package org.vernac.compiler.generator;
 
 import com.squareup.javapoet.*;
-import org.vernac.compiler.ast.*;
+import org.vernac.compiler.ast.FieldNode;
+import org.vernac.compiler.ast.TypeNode;
 
 import javax.lang.model.element.Modifier;
 import java.sql.ResultSet;
@@ -18,15 +19,6 @@ public class RepositoryGenerator {
     private static final ClassName NOT_FOUND_EX = ClassName.get("org.vernac.runtime", "AggregateNotFoundException");
     private static final ClassName OPTIMISTIC_LOCK_EX = ClassName.get("org.springframework.dao", "OptimisticLockingFailureException");
 
-    private static String toSnakeCase(String camel) {
-        return camel.replaceAll("([a-z])([A-Z]+)", "$1_$2").toLowerCase(Locale.ROOT);
-    }
-
-    private static String capitalize(String str) {
-        if (str == null || str.isEmpty()) return str;
-        return Character.toUpperCase(str.charAt(0)) + str.substring(1);
-    }
-
     public List<JavaFile> generate(
             RepositoryNode repo,
             AggregateNode agg,
@@ -37,11 +29,7 @@ public class RepositoryGenerator {
     ) {
         List<JavaFile> files = new ArrayList<>();
 
-        // ZENTRALE PACKAGE-AUFLÖSUNG:
-        // Das Domänen-Interface gehört ins Domain-Package (passend zum Aggregat)
         String domainPackage = PackageResolver.resolveDomainPackage(basePackage, agg.customPackage());
-
-        // Die JDBC-Implementierung gehört ins Adapter-Package (oder das explizite Repo-Custom-Package)
         String adapterPackage = PackageResolver.resolveAdapterPackage(basePackage, repo.customPackage());
 
         ClassName aggType = ClassName.get(domainPackage, agg.name());
@@ -106,7 +94,7 @@ public class RepositoryGenerator {
 
         // 3. JDBC-Implementierung
         String jdbcClassName = "Jdbc" + repo.name();
-        String tableName = repo.tableName().orElse(toSnakeCase(agg.name()) + "s");
+        String tableName = repo.tableName().orElse(PostgresSchemaUtils.toSnakeCase(agg.name()) + "s");
 
         TypeSpec.Builder jdbcClass = TypeSpec.classBuilder(jdbcClassName)
                 .addModifiers(Modifier.PUBLIC)
@@ -143,11 +131,11 @@ public class RepositoryGenerator {
         }
         jdbcClass.addMethod(ctor.build());
 
-        // CRUD & Mapper Methoden
+        // CRUD & Mapping Methoden
         jdbcClass.addMethod(buildByIdMethod(agg, aggType, idType, tableName));
         jdbcClass.addMethod(buildSaveMethod(agg, aggType));
-        jdbcClass.addMethod(buildInsertMethod(agg, aggType, tableName, valueObjects));
-        jdbcClass.addMethod(buildUpdateMethod(agg, aggType, tableName, valueObjects));
+        jdbcClass.addMethod(buildInsertMethod(agg, aggType, tableName, valueObjects, domainPackage));
+        jdbcClass.addMethod(buildUpdateMethod(agg, aggType, tableName, valueObjects, domainPackage));
         jdbcClass.addMethod(buildDeleteMethod(agg, aggType, tableName));
         jdbcClass.addMethod(buildMapRowMethod(agg, aggType, valueObjects, entities, domainPackage, explicitImports));
 
@@ -158,7 +146,7 @@ public class RepositoryGenerator {
                     EntityNode childEntity = entities.get(elemType.name());
                     jdbcClass.addMethod(buildFetchChildEntitiesMethod(agg, childEntity, field.name(), valueObjects, domainPackage, explicitImports));
                     jdbcClass.addMethod(buildSyncChildEntitiesMethod(agg, childEntity, field.name(), valueObjects, domainPackage, explicitImports));
-                    jdbcClass.addMethod(buildEntityParamSourceMethod(agg, childEntity, valueObjects, domainPackage, explicitImports));
+                    jdbcClass.addMethod(buildEntityParamSourceMethod(agg, childEntity, valueObjects, domainPackage));
                 }
             }
         }
@@ -167,9 +155,7 @@ public class RepositoryGenerator {
             jdbcClass.addMethod(buildFindMethod(m, aggType, tableName, domainPackage, explicitImports));
         }
 
-        // Implementierung in das Adapter-Package generieren!
         files.add(JavaFile.builder(adapterPackage, jdbcClass.build()).skipJavaLangImports(true).build());
-
         return files;
     }
 
@@ -203,7 +189,13 @@ public class RepositoryGenerator {
                 .build();
     }
 
-    private MethodSpec buildInsertMethod(AggregateNode agg, ClassName aggType, String tableName, Map<String, ValueObjectNode> valueObjects) {
+    private MethodSpec buildInsertMethod(
+            AggregateNode agg,
+            ClassName aggType,
+            String tableName,
+            Map<String, ValueObjectNode> valueObjects,
+            String domainPackage
+    ) {
         MethodSpec.Builder mb = MethodSpec.methodBuilder("insert")
                 .addModifiers(Modifier.PRIVATE)
                 .returns(aggType)
@@ -220,7 +212,12 @@ public class RepositoryGenerator {
 
         for (FieldNode f : agg.fields()) {
             if (f.type().name().equals("List")) continue;
-            bindFieldParameters(mb, f, "aggregate." + f.name() + "()", cols, vals, valueObjects);
+            List<FlatColumn> flatCols = PostgresSchemaUtils.flattenField(f, "aggregate", valueObjects, domainPackage);
+            for (FlatColumn c : flatCols) {
+                cols.add(c.columnName());
+                vals.add(":" + c.sqlParameterName());
+                mb.addStatement("params.addValue($S, $L)", c.sqlParameterName(), c.propertyPath());
+            }
         }
 
         mb.addStatement("String sql = \"INSERT INTO $L ($L) VALUES ($L)\"", tableName, String.join(", ", cols), String.join(", ", vals));
@@ -228,7 +225,7 @@ public class RepositoryGenerator {
 
         for (FieldNode f : agg.fields()) {
             if (f.type().name().equals("List")) {
-                mb.addStatement("sync$L(aggregate.id(), aggregate.$L())", capitalize(f.name()), f.name());
+                mb.addStatement("sync$L(aggregate.id(), aggregate.$L())", PostgresSchemaUtils.capitalize(f.name()), f.name());
             }
         }
 
@@ -236,7 +233,13 @@ public class RepositoryGenerator {
         return mb.build();
     }
 
-    private MethodSpec buildUpdateMethod(AggregateNode agg, ClassName aggType, String tableName, Map<String, ValueObjectNode> valueObjects) {
+    private MethodSpec buildUpdateMethod(
+            AggregateNode agg,
+            ClassName aggType,
+            String tableName,
+            Map<String, ValueObjectNode> valueObjects,
+            String domainPackage
+    ) {
         MethodSpec.Builder mb = MethodSpec.methodBuilder("update")
                 .addModifiers(Modifier.PRIVATE)
                 .returns(aggType)
@@ -250,15 +253,13 @@ public class RepositoryGenerator {
                 .addStatement("params.addValue(\"currentVersion\", currentVersion)");
 
         List<String> setClauses = new ArrayList<>(List.of("updated_at = :updatedAt", "version = :nextVersion"));
-        List<String> colsDummy = new ArrayList<>();
-        List<String> valsDummy = new ArrayList<>();
 
         for (FieldNode f : agg.fields()) {
             if (f.type().name().equals("List")) continue;
-            int startSize = colsDummy.size();
-            bindFieldParameters(mb, f, "aggregate." + f.name() + "()", colsDummy, valsDummy, valueObjects);
-            for (int i = startSize; i < colsDummy.size(); i++) {
-                setClauses.add(colsDummy.get(i) + " = " + valsDummy.get(i));
+            List<FlatColumn> flatCols = PostgresSchemaUtils.flattenField(f, "aggregate", valueObjects, domainPackage);
+            for (FlatColumn c : flatCols) {
+                setClauses.add(c.columnName() + " = :" + c.sqlParameterName());
+                mb.addStatement("params.addValue($S, $L)", c.sqlParameterName(), c.propertyPath());
             }
         }
 
@@ -271,7 +272,7 @@ public class RepositoryGenerator {
 
         for (FieldNode f : agg.fields()) {
             if (f.type().name().equals("List")) {
-                mb.addStatement("sync$L(aggregate.id(), aggregate.$L())", capitalize(f.name()), f.name());
+                mb.addStatement("sync$L(aggregate.id(), aggregate.$L())", PostgresSchemaUtils.capitalize(f.name()), f.name());
             }
         }
 
@@ -314,12 +315,11 @@ public class RepositoryGenerator {
 
         for (FieldNode f : agg.fields()) {
             if (f.type().name().equals("List") && !f.type().typeArguments().isEmpty()) {
-                String childMethod = "fetch" + capitalize(f.name()) + "(id)";
+                String childMethod = "fetch" + PostgresSchemaUtils.capitalize(f.name()) + "(id)";
                 reconstituteArgs.add(childMethod);
             } else {
-                String varName = f.name();
-                readFieldFromResultSet(mb, f, varName, valueObjects, targetPackage, explicitImports);
-                reconstituteArgs.add(varName);
+                readAndReconstruct(mb, f.type(), PostgresSchemaUtils.toSnakeCase(f.name()), f.name(), valueObjects, targetPackage, explicitImports);
+                reconstituteArgs.add(f.name());
             }
         }
 
@@ -335,22 +335,60 @@ public class RepositoryGenerator {
         return mb.build();
     }
 
-    private MethodSpec buildEntityParamSourceMethod(
-            AggregateNode agg,
-            EntityNode entity,
+    private void readAndReconstruct(
+            MethodSpec.Builder mb,
+            TypeNode type,
+            String colPrefix,
+            String targetVar,
             Map<String, ValueObjectNode> valueObjects,
             String targetPackage,
             List<String> explicitImports
     ) {
+        String typeName = type.name();
+        TypeName resolvedType = TypeResolver.resolve(type, targetPackage, explicitImports);
+
+        if (valueObjects.containsKey(typeName)) {
+            ValueObjectNode vo = valueObjects.get(typeName);
+
+            if (vo.fields().size() == 1) {
+                // Single-Value Object
+                FieldNode inner = vo.fields().getFirst();
+                TypeName boxedType = PostgresSchemaUtils.resolveBoxedType(inner.type(), targetPackage);
+                String readExpr = String.format("rs.getObject(\"%s\", %s.class)", colPrefix, boxedType);
+
+                if (type.isOptional()) {
+                    mb.addStatement("$T $L = rs.getObject($S) != null ? $T.of($L) : null",
+                            resolvedType, targetVar, colPrefix, resolvedType, readExpr);
+                } else {
+                    mb.addStatement("$T $L = $T.of($L)", resolvedType, targetVar, resolvedType, readExpr);
+                }
+            } else {
+                // Multi-Value Object: Rekursives Auslesen aller inneren Attribute
+                List<String> ctorArgs = new ArrayList<>();
+                for (FieldNode inner : vo.fields()) {
+                    String subCol = colPrefix + "_" + PostgresSchemaUtils.toSnakeCase(inner.name());
+                    String subVar = targetVar + "_" + inner.name();
+                    readAndReconstruct(mb, inner.type(), subCol, subVar, valueObjects, targetPackage, explicitImports);
+                    ctorArgs.add(subVar);
+                }
+                mb.addStatement("$T $L = $T.of($L)", resolvedType, targetVar, resolvedType, String.join(", ", ctorArgs));
+            }
+        } else {
+            // Leaf-Typ
+            TypeName boxedType = PostgresSchemaUtils.resolveBoxedType(type, targetPackage);
+            mb.addStatement("$T $L = rs.getObject($S, $T.class)", resolvedType, targetVar, colPrefix, boxedType);
+        }
+    }
+
+    private MethodSpec buildEntityParamSourceMethod(
+            AggregateNode agg,
+            EntityNode entity,
+            Map<String, ValueObjectNode> valueObjects,
+            String domainPackage
+    ) {
         String methodName = "build" + entity.name() + "ParamSource";
-        TypeName aggIdType = TypeResolver.resolve(agg.idDefinition().type(), targetPackage, explicitImports);
-        ClassName entityType = ClassName.get(targetPackage, entity.name());
-
-        String entityIdTypeName = entity.idDefinition().type().name();
-        String aggIdTypeName = agg.idDefinition().type().name();
-
-        String parentIdExtract = extractIdValue("aggregateId", aggIdTypeName, valueObjects);
-        String entityIdExtract = extractIdValue("item.id()", entityIdTypeName, valueObjects);
+        TypeName aggIdType = TypeResolver.resolve(agg.idDefinition().type(), domainPackage);
+        ClassName entityType = ClassName.get(domainPackage, entity.name());
 
         MethodSpec.Builder mb = MethodSpec.methodBuilder(methodName)
                 .addModifiers(Modifier.PRIVATE)
@@ -359,11 +397,14 @@ public class RepositoryGenerator {
                 .addParameter(entityType, "item");
 
         mb.addStatement("$T params = new $T()", MAP_PARAM_SOURCE, MAP_PARAM_SOURCE);
-        mb.addStatement("params.addValue(\"id\", $L)", entityIdExtract);
-        mb.addStatement("params.addValue(\"parentId\", $L)", parentIdExtract);
+        mb.addStatement("params.addValue(\"id\", item.id().value())");
+        mb.addStatement("params.addValue(\"parentId\", aggregateId.value())");
 
         for (FieldNode f : entity.fields()) {
-            bindFieldParameters(mb, f, "item." + f.name() + "()", new ArrayList<>(), new ArrayList<>(), valueObjects);
+            List<FlatColumn> flatCols = PostgresSchemaUtils.flattenField(f, "item", valueObjects, domainPackage);
+            for (FlatColumn c : flatCols) {
+                mb.addStatement("params.addValue($S, $L)", c.sqlParameterName(), c.propertyPath());
+            }
         }
 
         mb.addStatement("return params");
@@ -378,9 +419,9 @@ public class RepositoryGenerator {
             String targetPackage,
             List<String> explicitImports
     ) {
-        String methodName = "fetch" + capitalize(fieldName);
-        String childTable = toSnakeCase(entity.name()) + "s";
-        String parentFkColumn = toSnakeCase(agg.name()) + "_id";
+        String methodName = "fetch" + PostgresSchemaUtils.capitalize(fieldName);
+        String childTable = PostgresSchemaUtils.toSnakeCase(entity.name()) + "s";
+        String parentFkColumn = PostgresSchemaUtils.toSnakeCase(agg.name()) + "_id";
 
         TypeName aggIdType = TypeResolver.resolve(agg.idDefinition().type(), targetPackage, explicitImports);
         ClassName entityType = ClassName.get(targetPackage, entity.name());
@@ -397,17 +438,12 @@ public class RepositoryGenerator {
         List<String> entityArgs = new ArrayList<>();
         TypeName entityIdType = TypeResolver.resolve(entity.idDefinition().type(), targetPackage, explicitImports);
 
-        if (valueObjects.containsKey(entity.idDefinition().type().name())) {
-            mb.addStatement("$T id = $T.of(rs.getObject(\"id\", $T.class))", entityIdType, entityIdType, UUID.class);
-        } else {
-            mb.addStatement("$T id = rs.getObject(\"id\", $T.class)", entityIdType, UUID.class);
-        }
+        mb.addStatement("$T id = $T.of(rs.getObject(\"id\", $T.class))", entityIdType, entityIdType, UUID.class);
         entityArgs.add("id");
 
         for (FieldNode f : entity.fields()) {
-            String varName = f.name();
-            readFieldFromResultSet(mb, f, varName, valueObjects, targetPackage, explicitImports);
-            entityArgs.add(varName);
+            readAndReconstruct(mb, f.type(), PostgresSchemaUtils.toSnakeCase(f.name()), f.name(), valueObjects, targetPackage, explicitImports);
+            entityArgs.add(f.name());
         }
 
         mb.addStatement("return $T.create($L)", entityType, String.join(", ", entityArgs));
@@ -424,20 +460,14 @@ public class RepositoryGenerator {
             String targetPackage,
             List<String> explicitImports
     ) {
-        String methodName = "sync" + capitalize(fieldName);
-        String childTable = toSnakeCase(entity.name()) + "s";
-        String parentFkColumn = toSnakeCase(agg.name()) + "_id";
+        String methodName = "sync" + PostgresSchemaUtils.capitalize(fieldName);
+        String childTable = PostgresSchemaUtils.toSnakeCase(entity.name()) + "s";
+        String parentFkColumn = PostgresSchemaUtils.toSnakeCase(agg.name()) + "_id";
         String paramMethodName = "build" + entity.name() + "ParamSource";
 
         TypeName aggIdType = TypeResolver.resolve(agg.idDefinition().type(), targetPackage, explicitImports);
         ClassName entityType = ClassName.get(targetPackage, entity.name());
         TypeName listType = ParameterizedTypeName.get(ClassName.get(List.class), entityType);
-
-        String entityIdTypeName = entity.idDefinition().type().name();
-        String aggIdTypeName = agg.idDefinition().type().name();
-
-        String parentIdExtract = extractIdValue("aggregateId", aggIdTypeName, valueObjects);
-        String entityIdExtract = extractIdValue("i.id()", entityIdTypeName, valueObjects);
 
         MethodSpec.Builder mb = MethodSpec.methodBuilder(methodName)
                 .addModifiers(Modifier.PRIVATE)
@@ -445,15 +475,15 @@ public class RepositoryGenerator {
                 .addParameter(listType, "items");
 
         mb.addStatement("String selectExistingSql = \"SELECT id FROM $L WHERE $L = :parentId\"", childTable, parentFkColumn);
-        mb.addStatement("$T<$T> existingIds = new $T<>(this.jdbcTemplate.query(selectExistingSql, $T.of(\"parentId\", $L), (rs, rowNum) -> rs.getObject(\"id\", $T.class)))",
-                Set.class, Object.class, HashSet.class, Map.class, parentIdExtract, Object.class);
+        mb.addStatement("$T<$T> existingIds = new $T<>(this.jdbcTemplate.query(selectExistingSql, $T.of(\"parentId\", aggregateId.value()), (rs, rowNum) -> rs.getObject(\"id\", $T.class)))",
+                Set.class, UUID.class, HashSet.class, Map.class, UUID.class);
 
-        mb.addStatement("$T<$T> incomingIds = items.stream().map(i -> (Object) $L).collect($T.toSet())",
-                Set.class, Object.class, entityIdExtract, java.util.stream.Collectors.class);
+        mb.addStatement("$T<$T> incomingIds = items.stream().map(i -> i.id().value()).collect($T.toSet())",
+                Set.class, UUID.class, java.util.stream.Collectors.class);
 
-        mb.addStatement("$T<$T> toDelete = existingIds.stream().filter(id -> !incomingIds.contains(id)).toList()", List.class, Object.class);
-        mb.addStatement("$T<$T> toInsert = items.stream().filter(i -> !existingIds.contains($L)).toList()", List.class, entityType, entityIdExtract);
-        mb.addStatement("$T<$T> toUpdate = items.stream().filter(i -> existingIds.contains($L)).toList()", List.class, entityType, entityIdExtract);
+        mb.addStatement("$T<$T> toDelete = existingIds.stream().filter(id -> !incomingIds.contains(id)).toList()", List.class, UUID.class);
+        mb.addStatement("$T<$T> toInsert = items.stream().filter(i -> !existingIds.contains(i.id().value())).toList()", List.class, entityType);
+        mb.addStatement("$T<$T> toUpdate = items.stream().filter(i -> existingIds.contains(i.id().value())).toList()", List.class, entityType);
 
         mb.beginControlFlow("if (!toDelete.isEmpty())")
                 .addStatement("this.jdbcTemplate.update(\"DELETE FROM $L WHERE id IN (:ids)\", $T.of(\"ids\", toDelete))", childTable, Map.class)
@@ -464,20 +494,10 @@ public class RepositoryGenerator {
         List<String> insertVals = new ArrayList<>(List.of(":id", ":parentId"));
 
         for (FieldNode f : entity.fields()) {
-            if (valueObjects.containsKey(f.type().name())) {
-                ValueObjectNode vo = valueObjects.get(f.type().name());
-                if (vo.fields().size() == 1) {
-                    insertCols.add(toSnakeCase(f.name()));
-                    insertVals.add(":" + f.name());
-                } else {
-                    for (FieldNode vof : vo.fields()) {
-                        insertCols.add(toSnakeCase(f.name()) + "_" + toSnakeCase(vof.name()));
-                        insertVals.add(":" + f.name() + capitalize(vof.name()));
-                    }
-                }
-            } else {
-                insertCols.add(toSnakeCase(f.name()));
-                insertVals.add(":" + f.name());
+            List<FlatColumn> flatCols = PostgresSchemaUtils.flattenField(f, "", valueObjects, targetPackage);
+            for (FlatColumn c : flatCols) {
+                insertCols.add(c.columnName());
+                insertVals.add(":" + c.sqlParameterName());
             }
         }
 
@@ -490,17 +510,9 @@ public class RepositoryGenerator {
         mb.beginControlFlow("if (!toUpdate.isEmpty())");
         List<String> updateSets = new ArrayList<>();
         for (FieldNode f : entity.fields()) {
-            if (valueObjects.containsKey(f.type().name())) {
-                ValueObjectNode vo = valueObjects.get(f.type().name());
-                if (vo.fields().size() == 1) {
-                    updateSets.add(toSnakeCase(f.name()) + " = :" + f.name());
-                } else {
-                    for (FieldNode vof : vo.fields()) {
-                        updateSets.add(toSnakeCase(f.name()) + "_" + toSnakeCase(vof.name()) + " = :" + f.name() + capitalize(vof.name()));
-                    }
-                }
-            } else {
-                updateSets.add(toSnakeCase(f.name()) + " = :" + f.name());
+            List<FlatColumn> flatCols = PostgresSchemaUtils.flattenField(f, "", valueObjects, targetPackage);
+            for (FlatColumn c : flatCols) {
+                updateSets.add(c.columnName() + " = :" + c.sqlParameterName());
             }
         }
 
@@ -511,73 +523,6 @@ public class RepositoryGenerator {
         mb.endControlFlow();
 
         return mb.build();
-    }
-
-    private void bindFieldParameters(
-            MethodSpec.Builder mb,
-            FieldNode f,
-            String getterPath,
-            List<String> cols,
-            List<String> vals,
-            Map<String, ValueObjectNode> valueObjects
-    ) {
-        String typeName = f.type().name();
-        if (valueObjects.containsKey(typeName)) {
-            ValueObjectNode vo = valueObjects.get(typeName);
-            if (vo.fields().size() == 1) {
-                cols.add(toSnakeCase(f.name()));
-                vals.add(":" + f.name());
-                mb.addStatement("params.addValue(\"$L\", $L != null ? $L.value() : null)", f.name(), getterPath, getterPath);
-            } else {
-                for (FieldNode vof : vo.fields()) {
-                    String col = toSnakeCase(f.name()) + "_" + toSnakeCase(vof.name());
-                    String param = f.name() + capitalize(vof.name());
-                    cols.add(col);
-                    vals.add(":" + param);
-                    mb.addStatement("params.addValue(\"$L\", $L != null ? $L.$L() : null)", param, getterPath, getterPath, vof.name());
-                }
-            }
-        } else {
-            cols.add(toSnakeCase(f.name()));
-            vals.add(":" + f.name());
-            mb.addStatement("params.addValue(\"$L\", $L)", f.name(), getterPath);
-        }
-    }
-
-    private void readFieldFromResultSet(
-            MethodSpec.Builder mb,
-            FieldNode f,
-            String varName,
-            Map<String, ValueObjectNode> valueObjects,
-            String targetPackage,
-            List<String> explicitImports
-    ) {
-        String typeName = f.type().name();
-        TypeName targetType = TypeResolver.resolve(f.type(), targetPackage, explicitImports);
-
-        if (valueObjects.containsKey(typeName)) {
-            ValueObjectNode vo = valueObjects.get(typeName);
-            if (vo.fields().size() == 1) {
-                FieldNode inner = vo.fields().getFirst();
-                TypeName innerType = TypeResolver.resolve(inner.type(), targetPackage, explicitImports);
-                String col = toSnakeCase(f.name());
-                mb.addStatement("$T $L = rs.getObject(\"$L\") != null ? $T.of(rs.getObject(\"$L\", $T.class)) : null",
-                        targetType, varName, col, targetType, col, innerType);
-            } else {
-                List<String> ctorArgs = new ArrayList<>();
-                for (FieldNode vof : vo.fields()) {
-                    String subCol = toSnakeCase(f.name()) + "_" + toSnakeCase(vof.name());
-                    String subVar = varName + "_" + vof.name();
-                    TypeName subType = TypeResolver.resolve(vof.type(), targetPackage, explicitImports);
-                    mb.addStatement("$T $L = rs.getObject(\"$L\", $T.class)", subType, subVar, subCol, subType);
-                    ctorArgs.add(subVar);
-                }
-                mb.addStatement("$T $L = $T.of($L)", targetType, varName, targetType, String.join(", ", ctorArgs));
-            }
-        } else {
-            String col = toSnakeCase(f.name());
-            mb.addStatement("$T $L = rs.getObject(\"$L\", $T.class)", targetType, varName, col, targetType);
-        }
     }
 
     private MethodSpec buildFindMethod(
@@ -602,7 +547,7 @@ public class RepositoryGenerator {
             mb.addParameter(pType, p.name());
 
             if (i > 0) whereClause.append(" AND ");
-            whereClause.append(toSnakeCase(p.name())).append(" = :").append(p.name());
+            whereClause.append(PostgresSchemaUtils.toSnakeCase(p.name())).append(" = :").append(p.name());
             mb.addStatement("params.addValue(\"$L\", $L)", p.name(), p.name());
         }
 
@@ -616,12 +561,5 @@ public class RepositoryGenerator {
         }
 
         return mb.build();
-    }
-
-    private String extractIdValue(String accessor, String typeName, Map<String, ValueObjectNode> valueObjects) {
-        if (valueObjects.containsKey(typeName)) {
-            return accessor + ".value()";
-        }
-        return accessor;
     }
 }

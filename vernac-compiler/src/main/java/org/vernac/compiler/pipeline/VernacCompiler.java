@@ -5,7 +5,10 @@ import org.antlr.v4.runtime.*;
 import org.vernac.compiler.analyzer.CompilerDiagnostic;
 import org.vernac.compiler.analyzer.SemanticAnalyzer;
 import org.vernac.compiler.analyzer.SemanticValidationException;
-import org.vernac.compiler.ast.*;
+import org.vernac.compiler.ast.AstBuilderVisitor;
+import org.vernac.compiler.ast.EventNode;
+import org.vernac.compiler.ast.PortNode;
+import org.vernac.compiler.ast.TopLevelDefinition;
 import org.vernac.compiler.generator.*;
 import org.vernac.compiler.parser.VernacLexer;
 import org.vernac.compiler.parser.VernacParser;
@@ -68,9 +71,9 @@ public class VernacCompiler {
             } else if (definition instanceof EventNode event) {
                 generatedFiles.add(eventGenerator.generate(event, packageName, imports));
             } else if (definition instanceof AggregateNode agg) {
-                generatedFiles.add(aggregateGenerator.generate(agg, packageName, imports));
+                generatedFiles.add(aggregateGenerator.generate(agg, valueObjects, packageName, imports));
             } else if (definition instanceof EntityNode entity) {
-                generatedFiles.add(entityGenerator.generate(entity, packageName, imports));
+                generatedFiles.add(entityGenerator.generate(entity, valueObjects, packageName, imports));
             } else if (definition instanceof RepositoryNode repo) {
                 AggregateNode targetAgg = aggregates.get(repo.aggregateName());
                 generatedFiles.addAll(repositoryGenerator.generate(
