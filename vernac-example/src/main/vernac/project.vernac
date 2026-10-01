@@ -6,6 +6,9 @@ value ProjectId(UUID);
 value ProjectName(String) validates {
   require(value != null && !value.isEmpty(), "Project Name must be specified!");
 }
+value ProjectNumber(long) validates {
+  require(value >= 0, "Project number must not be negative!");
+}
 
 aggregate Project[ProjectId](ProjectName, int) {
 }
@@ -16,7 +19,9 @@ repository for Project {
 }
 
 port ProjectNumberFetcher {
-
+   ProjectNumber fetchNewProjectNumber(ProjectName name) {
+      adapter custom;
+   }
 }
 
 

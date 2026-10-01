@@ -151,7 +151,7 @@ adapterRest
     ;
 
 adapterCustom
-    : 'adapter' 'custom' delegateName=qualifiedName ';'                             // Variante 1: Nur Delegate
+    : 'adapter' 'custom' delegateName=qualifiedName? ';'                             // Variante 1: Nur Delegate
     | 'adapter' 'custom' '{' packageDeclarationStatement? rawJavaBlock '}'          // Variante 2: Inline Java-Code
     | 'adapter' 'custom' delegateName=qualifiedName '{' packageDeclarationStatement? '}' ';'?   // Variante 3: Delegate mit Package-Override
     ;

@@ -1,0 +1,25 @@
+package org.vernac.example.agify;
+
+value PersonName(String value);
+value EstimatedAge(int years);
+
+port AgePredictor {
+
+    // Das externe JSON Format von agify.io
+    schema AgifyResponse {
+        String name;
+        int age;
+    }
+
+    // Domänen-Methode
+    Optional<EstimatedAge> predictAge(PersonName name) {
+        adapter rest {
+            GET "https://api.agify.io";
+            on 404 return Optional.empty();
+        }
+        mapping {
+            // Wir picken uns nur das Alter heraus
+            response.age -> EstimatedAge.years;
+        }
+    }
+}

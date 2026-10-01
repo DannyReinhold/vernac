@@ -105,4 +105,94 @@ class PortGeneratorTest {
                 .contains("public interface InvoiceGeneratorDelegate")
                 .contains("PdfDocument generate(InvoiceData data);");
     }
+
+    @Test
+    @DisplayName("Verarbeitet URL-Parameter und generiert RestClient mit Catch-All Fehlerbehandlung")
+    void shouldGenerateRestClientWithParamsAndCatchAllHandler() {
+        String dsl = """
+                package com.example;
+                
+                value CityName(String value);
+                value Temperature(double celsius);
+                
+                port WeatherProvider {
+                    schema WeatherDto {
+                        double tempCelsius;
+                    }
+                
+                    Optional<Temperature> fetchWeather(CityName city) {
+                        adapter rest {
+                            GET "/api/weather";
+                            on 404 return Optional.empty();
+                        }
+                        mapping {
+                            response.tempCelsius -> Temperature.celsius;
+                        }
+                    }
+                }
+                """;
+
+        VernacCompilationResult result = compiler.compileSource(dsl);
+
+        JavaFile restAdapter = result.generatedFiles().stream()
+                .filter(f -> f.typeSpec.name.equals("RestWeatherProviderFetchWeatherAdapter"))
+                .findFirst().orElseThrow();
+
+        String code = restAdapter.toString();
+
+        // Prüft URL Zusammenbau und Query Parameter Extraction
+        assertThat(code).contains(".uri(\"/api/weather?city={city}\", city.value())");
+
+        // Prüft die Fehlerbehandlung
+        assertThat(code).contains(".onStatus(HttpStatusCode.valueOf(404)::equals");
+        assertThat(code).contains(".onStatus(HttpStatusCode::isError, (req, res) -> {");
+        assertThat(code).contains("throw new RuntimeException(\"External API call failed with status: \" + res.getStatusCode());");
+
+        // Prüft, dass Value Objects über .of() instanziiert werden
+        assertThat(code).contains("return body != null ? Optional.of(Temperature.of(body.tempCelsius())) : Optional.empty();");
+    }
+
+    @Test
+    @DisplayName("Mappt Infrastruktur-DTO in ein Entity via fromExternal")
+    void shouldMapDtoToEntityUsingFromExternal() {
+        String dsl = """
+                package com.example;
+                
+                value ProjectId(String value);
+                value ProjectName(String value);
+                
+                entity Project [ProjectId id] (ProjectName name);
+                
+                port ExternalProjectService {
+                    schema ExternalProjectDto {
+                        String extId;
+                        String extTitle;
+                    }
+                
+                    Project fetchProject(ProjectId id) {
+                        adapter rest {
+                            GET "/api/projects";
+                        }
+                        mapping {
+                            response.extId -> Project.id;
+                            response.extTitle -> Project.name;
+                        }
+                    }
+                }
+                """;
+
+        VernacCompilationResult result = compiler.compileSource(dsl);
+
+        JavaFile restAdapter = result.generatedFiles().stream()
+                .filter(f -> f.typeSpec.name.equals("RestExternalProjectServiceFetchProjectAdapter"))
+                .findFirst().orElseThrow();
+
+        String code = restAdapter.toString();
+
+        // Prüft URL Zusammenbau mit Parameter
+        assertThat(code).contains(".uri(\"/api/projects?id={id}\", id.value())");
+
+        // Prüft, dass Entities über .fromExternal() instanziiert werden (id muss erstes Argument sein)
+        assertThat(code).contains("return body != null ? Project.fromExternal(body.extId(), body.extTitle()) : null;");
+    }
 }

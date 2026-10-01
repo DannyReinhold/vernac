@@ -64,19 +64,22 @@ public class EntityGenerator {
         // 6. reconstitute(...) Factory
         classBuilder.addMethod(buildReconstituteFactory(node, targetPackage, selfType, idType, idFieldName));
 
-        // 7. Private Setter für mut-Felder
+        // 7. fromExternal(...) Factory
+        classBuilder.addMethod(buildFromExternalFactory(node, targetPackage, selfType, idType, idFieldName));
+
+        // 8. Private Setter für mut-Felder
         for (FieldNode field : node.fields()) {
             if (field.isMutable()) {
                 classBuilder.addMethod(buildPrivateSetter(field, targetPackage));
             }
         }
 
-        // 8. Eigene Methoden aus DSL
+        // 9. Eigene Methoden aus DSL
         for (MethodNode method : node.methods()) {
             classBuilder.addMethod(buildCustomMethod(method, targetPackage));
         }
 
-        // 9. Getter
+        // 10. Getter
         classBuilder.addMethod(buildIdGetter(idType, idFieldName));
         if (!"id".equals(idFieldName)) {
             classBuilder.addMethod(buildCustomIdAliasGetter(idType, idFieldName));
@@ -86,7 +89,7 @@ public class EntityGenerator {
             classBuilder.addMethod(buildFieldGetter(field, targetPackage));
         }
 
-        // 10. equals, hashCode (auf ID-Basis) & toString
+        // 11. equals, hashCode (auf ID-Basis) & toString
         classBuilder.addMethod(buildEquals(selfType, idFieldName));
         classBuilder.addMethod(buildHashCode(idFieldName));
         classBuilder.addMethod(buildToString(className, idFieldName));
@@ -295,5 +298,30 @@ public class EntityGenerator {
                 .returns(String.class)
                 .addStatement("return $S + this.$N + \"]\"", className + "[id=", idFieldName)
                 .build();
+    }
+
+    private MethodSpec buildFromExternalFactory(EntityNode node, String targetPackage, ClassName selfType, TypeName idType, String idFieldName) {
+        MethodSpec.Builder fromExternal = MethodSpec.methodBuilder("fromExternal")
+                .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                .returns(selfType)
+                .addParameter(idType, idFieldName);
+
+        List<String> passArgs = new ArrayList<>();
+        passArgs.add(idFieldName);
+
+        for (FieldNode field : node.fields()) {
+            TypeName type = TypeResolver.resolve(field.type(), targetPackage);
+            ParameterSpec.Builder param = ParameterSpec.builder(type, field.name());
+            if (field.type().isOptional()) {
+                param.addAnnotation(NULLABLE_ANNOTATION);
+            }
+            fromExternal.addParameter(param.build());
+            passArgs.add(field.name());
+        }
+
+        passArgs.add("true"); // Validierung erzwingen!
+
+        fromExternal.addStatement("return new $T(" + String.join(", ", passArgs) + ")", selfType);
+        return fromExternal.build();
     }
 }

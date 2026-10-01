@@ -1,0 +1,26 @@
+package com.example.weather;
+
+import java.math.BigDecimal;
+
+value CityName(String value);
+value Temperature(BigDecimal celsius);
+
+port WeatherProvider {
+
+    // Infrastruktur-DTO für den externen JSON-Payload
+    schema WeatherApiResponse {
+        String description;
+        BigDecimal tempCelsius;
+    }
+
+    // Reine Domänensignatur – kein technisches Rauschen
+    Optional<Temperature> getCurrentTemperature(CityName city) {
+        adapter rest {
+            GET "/api/v1/weather";
+            on 404 return Optional.empty();
+        }
+        mapping {
+            response.tempCelsius -> Temperature.celsius;
+        }
+    }
+}

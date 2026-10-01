@@ -8,16 +8,18 @@ import java.util.*;
 
 public class PortGenerator {
 
-    private static final ClassName REST_TEMPLATE = ClassName.get("org.springframework.web.client", "RestTemplate");
+    private static final ClassName REST_CLIENT = ClassName.get("org.springframework.web.client", "RestClient");
     private static final ClassName COMPONENT = ClassName.get("org.springframework.stereotype", "Component");
-
-    private static String toSnakeCase(String camel) {
-        return camel.replaceAll("([a-z])([A-Z]+)", "$1_$2").toLowerCase(Locale.ROOT);
-    }
+    private static final ClassName MEDIA_TYPE = ClassName.get("org.springframework.http", "MediaType");
+    private static final ClassName HTTP_STATUS = ClassName.get("org.springframework.http", "HttpStatusCode");
 
     private static String capitalize(String str) {
         if (str == null || str.isEmpty()) return str;
         return Character.toUpperCase(str.charAt(0)) + str.substring(1);
+    }
+
+    private static String toSnakeCase(String camel) {
+        return camel.replaceAll("([a-z])([A-Z]+)", "$1_$2").toLowerCase(Locale.ROOT);
     }
 
     public List<JavaFile> generate(
@@ -95,10 +97,8 @@ public class PortGenerator {
                 JavaFile restAdapterFile = generateRestAdapter(port, method, restAdapter, portInterfaceType, adapterPackage, domainPackage, explicitImports);
                 files.add(restAdapterFile);
             } else if (adapter instanceof CustomAdapterNode customAdapter) {
-                if (customAdapter.delegateName().isPresent()) {
-                    JavaFile delegateFile = generateCustomDelegate(port, method, customAdapter, adapterPackage, domainPackage, explicitImports);
-                    files.add(delegateFile);
-                }
+                JavaFile delegateFile = generateCustomDelegate(port, method, customAdapter, adapterPackage, domainPackage, explicitImports);
+                files.add(delegateFile);
             }
         }
 
@@ -121,13 +121,15 @@ public class PortGenerator {
                 .addSuperinterface(portInterfaceType)
                 .addAnnotation(COMPONENT);
 
-        adapterClass.addField(REST_TEMPLATE, "restTemplate", Modifier.PRIVATE, Modifier.FINAL);
+        // 1. RestClient per Konstruktor injizieren
+        adapterClass.addField(REST_CLIENT, "restClient", Modifier.PRIVATE, Modifier.FINAL);
 
         MethodSpec.Builder ctor = MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC);
-        ctor.addParameter(REST_TEMPLATE, "restTemplate");
-        ctor.addStatement("this.restTemplate = $T.requireNonNull(restTemplate, \"restTemplate must not be null\")", Objects.class);
+        ctor.addParameter(REST_CLIENT, "restClient");
+        ctor.addStatement("this.restClient = $T.requireNonNull(restClient, \"restClient must not be null\")", Objects.class);
         adapterClass.addMethod(ctor.build());
 
+        // 2. Methodensignatur aufbauen
         TypeName returnType = TypeResolver.resolve(method.returnType(), domainPackage, explicitImports);
         MethodSpec.Builder methodImpl = MethodSpec.methodBuilder(method.name())
                 .addAnnotation(Override.class)
@@ -144,22 +146,145 @@ public class PortGenerator {
             methodImpl.addException(ClassName.bestGuess(ex));
         }
 
+        // 3. URL aus den REST-Configs ermitteln
         String url = restAdapter.configs().stream()
                 .filter(c -> !c.key().equals("accept") && !c.key().equals("content-type"))
                 .map(RestConfigNode::value)
                 .findFirst()
                 .orElse("/api/" + toSnakeCase(method.name()));
 
-        methodImpl.addStatement("// TODO: HTTP Call implementation for endpoint: $L", url);
+        // 4. URI & Query-Parameter dynamisch aufbauen
+        StringBuilder uriTemplate = new StringBuilder(url);
+        boolean first = true;
+        for (FieldNode param : method.parameters()) {
+            if (param != null && param.name() != null) {
+                uriTemplate.append(first ? "?" : "&").append(param.name()).append("={").append(param.name()).append("}");
+                first = false;
+            }
+        }
 
-        if (method.returnType().name().equals("Optional")) {
-            methodImpl.addStatement("return $T.empty()", Optional.class);
-        } else if (!method.returnType().name().equals("void")) {
-            methodImpl.addStatement("return null");
+        // 5. RestClient Fluent Chain aufbauen
+        methodImpl.addCode("var body = this.restClient.get()\n");
+        methodImpl.addCode("    .uri($S", uriTemplate.toString());
+
+        for (FieldNode param : method.parameters()) {
+            if (param != null && param.name() != null) {
+                methodImpl.addCode(", $N.value()", param.name());
+            }
+        }
+        methodImpl.addCode(")\n");
+        methodImpl.addCode("    .accept($T.APPLICATION_JSON)\n", MEDIA_TYPE);
+        methodImpl.addCode("    .retrieve()\n");
+
+        // Fehlerregeln einbauen (z.B. 404)
+        for (RestErrorRuleNode rule : restAdapter.errorRules()) {
+            if (rule.statusCode().equals("404")) {
+                methodImpl.addCode("    .onStatus($T.valueOf(404)::equals, (req, res) -> {})\n", HTTP_STATUS);
+            }
+        }
+        // Catch-All für alle restlichen HTTP-Fehler, um das Leaken von Spring-Exceptions zu verhindern
+        methodImpl.addCode("    .onStatus($T::isError, (req, res) -> {\n", HTTP_STATUS);
+        methodImpl.addCode("        throw new $T($S + res.getStatusCode());\n", RuntimeException.class, "External API call failed with status: ");
+        methodImpl.addCode("    })\n");
+
+        // 6. Auswertung des Schemas & Mappings
+        String schemaName = port.schemas().isEmpty() ? null : port.schemas().getFirst().name();
+
+        if (schemaName != null) {
+            ClassName schemaType = ClassName.get(adapterPackage, schemaName);
+            methodImpl.addCode("    .body($T.class);\n", schemaType);
+
+            // Prüfe, ob die Rückgabe Optional ist, und extrahiere den echten Domänentyp
+            // Variablen final machen, damit sie im Lambda genutzt werden dürfen
+            final TypeName actualDomainType;
+            final String domainSimpleName;
+            final boolean isOptionalReturn;
+
+            if (method.returnType().name().equals("Optional") && !method.returnType().typeArguments().isEmpty()) {
+                actualDomainType = TypeResolver.resolve(method.returnType().typeArguments().getFirst(), domainPackage, explicitImports);
+                domainSimpleName = method.returnType().typeArguments().getFirst().name();
+                isOptionalReturn = true;
+            } else {
+                actualDomainType = returnType;
+                domainSimpleName = method.returnType().name();
+                isOptionalReturn = false;
+            }
+
+            // Auswertung des Mapping-Blocks, falls vorhanden
+            if (method.mapping().isPresent() && !method.mapping().get().statements().isEmpty()) {
+                MappingBlockNode mappingBlock = method.mapping().get();
+
+                // Finde heraus, ob der Zieltyp eine "fromExternal" (Aggregate/Entity) oder "of" (Value Object) erwartet
+                boolean isEntityOrAggregate = mappingBlock.statements().stream()
+                        .anyMatch(stmt -> stmt.targetPath().equals(domainSimpleName + ".id") || stmt.targetPath().equals("id"));
+
+                List<String> mappingArgs = new ArrayList<>();
+
+                if (isEntityOrAggregate) {
+                    // 1. Suche nach der gemappten ID
+                    String idSource = mappingBlock.statements().stream()
+                            .filter(stmt -> stmt.targetPath().endsWith(".id") || stmt.targetPath().equals("id"))
+                            .map(stmt -> {
+                                String[] parts = stmt.sourcePath().split("\\.");
+                                return "body." + (parts.length > 1 ? parts[1] : parts[0]) + "()";
+                            })
+                            .findFirst()
+                            .orElse("null");
+                    mappingArgs.add(idSource);
+
+                    // 2. Füge alle weiteren Felder an
+                    for (MappingStatementNode stmt : mappingBlock.statements()) {
+                        if (!stmt.targetPath().endsWith(".id") && !stmt.targetPath().equals("id")) {
+                            String[] parts = stmt.sourcePath().split("\\.");
+                            String sourceField = parts.length > 1 ? parts[1] : parts[0];
+                            mappingArgs.add("body." + sourceField + "()");
+                        }
+                    }
+
+                    String joinedArgs = String.join(", ", mappingArgs);
+                    if (isOptionalReturn) {
+                        methodImpl.addStatement("return body != null ? $T.of($T.fromExternal($L)) : $T.empty()",
+                                Optional.class, actualDomainType, joinedArgs, Optional.class);
+                    } else {
+                        methodImpl.addStatement("return body != null ? $T.fromExternal($L) : null",
+                                actualDomainType, joinedArgs);
+                    }
+
+                } else {
+                    // Es ist ein Value Object, nutze .of(...)
+                    for (MappingStatementNode stmt : mappingBlock.statements()) {
+                        String[] parts = stmt.sourcePath().split("\\.");
+                        String sourceField = parts.length > 1 ? parts[1] : parts[0];
+                        mappingArgs.add("body." + sourceField + "()");
+                    }
+                    String joinedArgs = String.join(", ", mappingArgs);
+
+                    if (isOptionalReturn) {
+                        methodImpl.addStatement("return body != null ? $T.of($T.of($L)) : $T.empty()",
+                                Optional.class, actualDomainType, joinedArgs, Optional.class);
+                    } else {
+                        methodImpl.addStatement("return body != null ? $T.of($L) : null",
+                                actualDomainType, joinedArgs);
+                    }
+                }
+            } else {
+                // Fallback, wenn kein explizites Mapping definiert ist
+                if (isOptionalReturn) {
+                    methodImpl.addStatement("return body != null ? $T.of($T.of(body)) : $T.empty()", Optional.class, actualDomainType, Optional.class);
+                } else {
+                    methodImpl.addStatement("return body != null ? $T.of(body) : null", actualDomainType);
+                }
+            }
+        } else {
+            // Kein Schema vorhanden (z.B. reiner Void/String Call)
+            if (method.returnType().name().equals("Optional")) {
+                methodImpl.addStatement("return $T.empty()", Optional.class);
+            } else {
+                methodImpl.addStatement("return null");
+            }
         }
 
         adapterClass.addMethod(methodImpl.build());
-
         return JavaFile.builder(adapterPackage, adapterClass.build()).skipJavaLangImports(true).build();
     }
 
@@ -171,7 +296,9 @@ public class PortGenerator {
             String domainPackage,
             List<String> explicitImports
     ) {
-        String delegateName = customAdapter.delegateName().get();
+        String delegateName = customAdapter.delegateName().orElseGet(() ->
+                port.name() + capitalize(method.name()) + "Delegate"
+        );
         TypeSpec.Builder delegateInterface = TypeSpec.interfaceBuilder(delegateName)
                 .addModifiers(Modifier.PUBLIC);
 

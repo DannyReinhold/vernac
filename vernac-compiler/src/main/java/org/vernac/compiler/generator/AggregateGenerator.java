@@ -79,11 +79,14 @@ public class AggregateGenerator {
         classBuilder.addMethod(buildReconstituteFactory(node, targetPackage, selfType, idType, idFieldName));
         classBuilder.addMethod(buildWithVersionMethod(node, selfType, idFieldName));
 
-        // 8. Event Management
+        // 8. fromExternal(...) Factory
+        classBuilder.addMethod(buildFromExternalFactory(node, targetPackage, selfType, idType, idFieldName));
+
+        // 9. Event Management
         classBuilder.addMethod(buildRegisterEventMethod());
         classBuilder.addMethod(buildPullDomainEventsMethod());
 
-        // 9. markAsUpdated & automatische Setter ohne set-Präfix
+        // 10. markAsUpdated & automatische Setter ohne set-Präfix
         boolean hasMutableFields = node.fields().stream().anyMatch(FieldNode::isMutable);
         if (hasMutableFields) {
             classBuilder.addMethod(buildMarkAsUpdatedMethod());
@@ -99,12 +102,12 @@ public class AggregateGenerator {
             }
         }
 
-        // 10. Fachmethoden aus der DSL
+        // 11. Fachmethoden aus der DSL
         for (MethodNode method : node.methods()) {
             classBuilder.addMethod(buildCustomMethod(method, targetPackage));
         }
 
-        // 11. Getter für Metadaten & Id
+        // 12. Getter für Metadaten & Id
         classBuilder.addMethod(buildIdGetter(idType, idFieldName));
         if (!"id".equals(idFieldName)) {
             classBuilder.addMethod(buildCustomIdAliasGetter(idType, idFieldName));
@@ -135,7 +138,7 @@ public class AggregateGenerator {
             classBuilder.addMethod(buildFieldGetter(field, targetPackage));
         }
 
-        // 12. equals, hashCode (auf ID-Basis) & toString
+        // 13. equals, hashCode (auf ID-Basis) & toString
         classBuilder.addMethod(buildEquals(selfType, idFieldName));
         classBuilder.addMethod(buildHashCode(idFieldName));
         classBuilder.addMethod(buildToString(className, idFieldName));
@@ -421,5 +424,33 @@ public class AggregateGenerator {
                 .returns(String.class)
                 .addStatement("return $S + this.$N + \"]\"", className + "[id=", idFieldName)
                 .build();
+    }
+
+    private MethodSpec buildFromExternalFactory(AggregateNode node, String targetPackage, ClassName selfType, TypeName idType, String idFieldName) {
+        MethodSpec.Builder fromExternal = MethodSpec.methodBuilder("fromExternal")
+                .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                .returns(selfType)
+                .addParameter(idType, idFieldName);
+
+        List<String> passArgs = new ArrayList<>();
+        passArgs.add(idFieldName);
+
+        for (FieldNode field : node.fields()) {
+            TypeName type = TypeResolver.resolve(field.type(), targetPackage);
+            ParameterSpec.Builder param = ParameterSpec.builder(type, field.name());
+            if (field.type().isOptional()) {
+                param.addAnnotation(NULLABLE_ANNOTATION);
+            }
+            fromExternal.addParameter(param.build());
+            passArgs.add(field.name());
+        }
+
+        passArgs.add("Instant.now()");
+        passArgs.add("Instant.now()");
+        passArgs.add("0L");
+        passArgs.add("true"); // Validierung erzwingen!
+
+        fromExternal.addStatement("return new $T(" + String.join(", ", passArgs) + ")", selfType);
+        return fromExternal.build();
     }
 }
