@@ -77,8 +77,8 @@ class RepositoryGeneratorTest {
                 id ProjectId;
                 id TaskId;
                 
-                entity Task[TaskId](String title);
-                aggregate Project[ProjectId](String name, mut List<Task> tasks);
+                entity Task[TaskId](String title) collection;
+                aggregate Project[ProjectId](String name, mut Tasks tasks);
                 
                 repository for Project {
                 };
@@ -93,8 +93,8 @@ class RepositoryGeneratorTest {
         String code = jdbcRepo.toString().replaceAll("\\s+", " ");
 
         assertThat(code)
-                .contains("private List<Task> fetchTasks(ProjectId aggregateId)")
-                .contains("private void syncTasks(ProjectId aggregateId, List<Task> items)")
+                .contains("private Tasks fetchTasks(ProjectId aggregateId)")
+                .contains("private void syncTasks(ProjectId aggregateId, Tasks items)")
                 .contains("private MapSqlParameterSource buildTaskParamSource(ProjectId aggregateId, Task item)");
 
         assertThat(code).contains("fetchTasks(id)");
@@ -174,8 +174,8 @@ class RepositoryGeneratorTest {
                 id TaskId;
                 value TaskDuration(int hours);
                 
-                entity Task[TaskId](String title, TaskDuration duration);
-                aggregate Project[ProjectId](String name, mut List<Task> tasks);
+                entity Task[TaskId](String title, TaskDuration duration) collection;
+                aggregate Project[ProjectId](String name, mut Tasks tasks);
                 
                 repository for Project {
                 };

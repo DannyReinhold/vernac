@@ -54,13 +54,13 @@ entity OrderLine[OrderLineId](ItemSku sku, Money unitPrice, mut int quantity) va
         }
         setQuantity(this.quantity + delta);
     }
-};
+} collection;
 
 aggregate Order[OrderId](
     CustomerId customer,
     mut Money total,
     mut String status,
-    List<OrderLine> lines
+    mut OrderLines lines
 ) validates {
     require(status != null && !status.isBlank(), "Status cannot be empty");
 } {
@@ -73,7 +73,7 @@ aggregate Order[OrderId](
     }
 
     public void addLine(OrderLine line) {
-        this.lines.add(line);
+        lines(lines.plus(line));
     }
 };
 

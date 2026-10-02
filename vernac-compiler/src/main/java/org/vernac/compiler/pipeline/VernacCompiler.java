@@ -26,6 +26,7 @@ public class VernacCompiler {
     private final EventGenerator eventGenerator = new EventGenerator();
     private final AggregateGenerator aggregateGenerator = new AggregateGenerator();
     private final EntityGenerator entityGenerator = new EntityGenerator();
+    private final DomainCollectionGenerator domainCollectionGenerator = new DomainCollectionGenerator(); // <-- NEU
     private final RepositoryGenerator repositoryGenerator = new RepositoryGenerator();
     private final PortGenerator portGenerator = new PortGenerator();
 
@@ -68,12 +69,18 @@ public class VernacCompiler {
                 generatedFiles.add(idGenerator.generate(idDef, packageName));
             } else if (definition instanceof ValueObjectNode vo) {
                 generatedFiles.add(valueObjectGenerator.generate(vo, packageName, imports));
+                if (vo.collection().isPresent()) {
+                    generatedFiles.add(domainCollectionGenerator.generate(vo, packageName, imports));
+                }
             } else if (definition instanceof EventNode event) {
                 generatedFiles.add(eventGenerator.generate(event, packageName, imports));
             } else if (definition instanceof AggregateNode agg) {
-                generatedFiles.add(aggregateGenerator.generate(agg, valueObjects, packageName, imports));
+                generatedFiles.add(aggregateGenerator.generate(agg, valueObjects, entities, packageName, imports));
             } else if (definition instanceof EntityNode entity) {
-                generatedFiles.add(entityGenerator.generate(entity, valueObjects, packageName, imports));
+                generatedFiles.add(entityGenerator.generate(entity, valueObjects, entities, packageName, imports));
+                if (entity.collection().isPresent()) {
+                    generatedFiles.add(domainCollectionGenerator.generate(entity, packageName, imports));
+                }
             } else if (definition instanceof RepositoryNode repo) {
                 AggregateNode targetAgg = aggregates.get(repo.aggregateName());
                 generatedFiles.addAll(repositoryGenerator.generate(

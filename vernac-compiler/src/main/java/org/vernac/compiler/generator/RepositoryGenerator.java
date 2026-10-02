@@ -133,21 +133,17 @@ public class RepositoryGenerator {
         // CRUD & Mapping Methoden
         jdbcClass.addMethod(buildByIdMethod(agg, aggType, idType, tableName));
         jdbcClass.addMethod(buildSaveMethod(agg, aggType));
-        jdbcClass.addMethod(buildInsertMethod(agg, aggType, tableName, valueObjects, domainPackage));
-        jdbcClass.addMethod(buildUpdateMethod(agg, aggType, tableName, valueObjects, domainPackage));
+        jdbcClass.addMethod(buildInsertMethod(agg, aggType, tableName, valueObjects, entities, domainPackage));
+        jdbcClass.addMethod(buildUpdateMethod(agg, aggType, tableName, valueObjects, entities, domainPackage));
         jdbcClass.addMethod(buildDeleteMethod(agg, aggType, tableName));
         jdbcClass.addMethod(buildMapRowMethod(agg, aggType, valueObjects, entities, domainPackage, explicitImports));
 
         for (FieldNode field : agg.fields()) {
-            if (field.type().name().equals("List") && !field.type().typeArguments().isEmpty()) {
-                TypeNode elemType = field.type().typeArguments().getFirst();
-                if (entities.containsKey(elemType.name())) {
-                    EntityNode childEntity = entities.get(elemType.name());
-                    jdbcClass.addMethod(buildFetchChildEntitiesMethod(agg, childEntity, field.name(), valueObjects, domainPackage, explicitImports));
-                    jdbcClass.addMethod(buildSyncChildEntitiesMethod(agg, childEntity, field.name(), valueObjects, domainPackage, explicitImports));
-                    jdbcClass.addMethod(buildEntityParamSourceMethod(agg, childEntity, valueObjects, domainPackage));
-                }
-            }
+            findChildEntityForField(field, entities).ifPresent(childEntity -> {
+                jdbcClass.addMethod(buildFetchChildEntitiesMethod(agg, childEntity, field, valueObjects, domainPackage, explicitImports));
+                jdbcClass.addMethod(buildSyncChildEntitiesMethod(agg, childEntity, field, valueObjects, domainPackage, explicitImports));
+                jdbcClass.addMethod(buildEntityParamSourceMethod(agg, childEntity, valueObjects, domainPackage));
+            });
         }
 
         for (RepositoryMethodNode m : repo.findMethods()) {
@@ -193,6 +189,7 @@ public class RepositoryGenerator {
             ClassName aggType,
             String tableName,
             Map<String, ValueObjectNode> valueObjects,
+            Map<String, EntityNode> entities,
             String domainPackage
     ) {
         MethodSpec.Builder mb = MethodSpec.methodBuilder("insert")
@@ -210,7 +207,7 @@ public class RepositoryGenerator {
         List<String> vals = new ArrayList<>(List.of(":id", ":createdAt", ":updatedAt", ":version"));
 
         for (FieldNode f : agg.fields()) {
-            if (f.type().name().equals("List")) continue;
+            if (findChildEntityForField(f, entities).isPresent()) continue; // <-- Kind-Entities überspringen
             List<FlatColumn> flatCols = PostgresSchemaUtils.flattenField(f, "aggregate", valueObjects, domainPackage);
             for (FlatColumn c : flatCols) {
                 cols.add(c.columnName());
@@ -223,7 +220,7 @@ public class RepositoryGenerator {
         mb.addStatement("this.jdbcTemplate.update(sql, params)");
 
         for (FieldNode f : agg.fields()) {
-            if (f.type().name().equals("List")) {
+            if (findChildEntityForField(f, entities).isPresent()) { // <-- Sync aufrufen
                 mb.addStatement("sync$L(aggregate.id(), aggregate.$L())", PostgresSchemaUtils.capitalize(f.name()), f.name());
             }
         }
@@ -237,6 +234,7 @@ public class RepositoryGenerator {
             ClassName aggType,
             String tableName,
             Map<String, ValueObjectNode> valueObjects,
+            Map<String, EntityNode> entities, // <-- entities als Parameter ergänzen!
             String domainPackage
     ) {
         MethodSpec.Builder mb = MethodSpec.methodBuilder("update")
@@ -254,7 +252,7 @@ public class RepositoryGenerator {
         List<String> setClauses = new ArrayList<>(List.of("updated_at = :updatedAt", "version = :nextVersion"));
 
         for (FieldNode f : agg.fields()) {
-            if (f.type().name().equals("List")) continue;
+            if (findChildEntityForField(f, entities).isPresent()) continue; // <-- Kind-Entities überspringen
             List<FlatColumn> flatCols = PostgresSchemaUtils.flattenField(f, "aggregate", valueObjects, domainPackage);
             for (FlatColumn c : flatCols) {
                 setClauses.add(c.columnName() + " = :" + c.sqlParameterName());
@@ -270,7 +268,7 @@ public class RepositoryGenerator {
                 .endControlFlow();
 
         for (FieldNode f : agg.fields()) {
-            if (f.type().name().equals("List")) {
+            if (findChildEntityForField(f, entities).isPresent()) { // <-- Sync aufrufen
                 mb.addStatement("sync$L(aggregate.id(), aggregate.$L())", PostgresSchemaUtils.capitalize(f.name()), f.name());
             }
         }
@@ -313,7 +311,7 @@ public class RepositoryGenerator {
         reconstituteArgs.add("id");
 
         for (FieldNode f : agg.fields()) {
-            if (f.type().name().equals("List") && !f.type().typeArguments().isEmpty()) {
+            if (findChildEntityForField(f, entities).isPresent()) {
                 String childMethod = "fetch" + PostgresSchemaUtils.capitalize(f.name()) + "(id)";
                 reconstituteArgs.add(childMethod);
             } else {
@@ -413,26 +411,29 @@ public class RepositoryGenerator {
     private MethodSpec buildFetchChildEntitiesMethod(
             AggregateNode agg,
             EntityNode entity,
-            String fieldName,
+            FieldNode field,
             Map<String, ValueObjectNode> valueObjects,
             String targetPackage,
             List<String> explicitImports
     ) {
+        String fieldName = field.name();
         String methodName = "fetch" + PostgresSchemaUtils.capitalize(fieldName);
         String childTable = PostgresSchemaUtils.resolveTableName(entity.name());
         String parentFkColumn = PostgresSchemaUtils.resolveForeignKeyColumn(agg.name());
 
         TypeName aggIdType = TypeResolver.resolve(agg.idDefinition().type(), targetPackage, explicitImports);
         ClassName entityType = ClassName.get(targetPackage, entity.name());
-        TypeName listType = ParameterizedTypeName.get(ClassName.get(List.class), entityType);
+        TypeName collectionType = TypeResolver.resolve(field.type(), targetPackage, explicitImports);
 
         MethodSpec.Builder mb = MethodSpec.methodBuilder(methodName)
                 .addModifiers(Modifier.PRIVATE)
-                .returns(listType)
+                .returns(collectionType)
                 .addParameter(aggIdType, "aggregateId");
 
         mb.addStatement("String sql = \"SELECT * FROM $L WHERE $L = :parentId\"", childTable, parentFkColumn);
-        mb.beginControlFlow("return this.jdbcTemplate.query(sql, $T.of(\"parentId\", aggregateId.value()), (rs, rowNum) ->", Map.class);
+
+        mb.beginControlFlow("List<$T> list = this.jdbcTemplate.query(sql, $T.of(\"parentId\", aggregateId.value()), (rs, rowNum) ->",
+                entityType, Map.class);
 
         List<String> entityArgs = new ArrayList<>();
         TypeName entityIdType = TypeResolver.resolve(entity.idDefinition().type(), targetPackage, explicitImports);
@@ -448,17 +449,19 @@ public class RepositoryGenerator {
         mb.addStatement("return $T.create($L)", entityType, String.join(", ", entityArgs));
         mb.endControlFlow(")");
 
+        mb.addStatement("return $T.of(list)", collectionType);
         return mb.build();
     }
 
     private MethodSpec buildSyncChildEntitiesMethod(
             AggregateNode agg,
             EntityNode entity,
-            String fieldName,
+            FieldNode field, // <-- FieldNode übergeben
             Map<String, ValueObjectNode> valueObjects,
             String targetPackage,
             List<String> explicitImports
     ) {
+        String fieldName = field.name();
         String methodName = "sync" + PostgresSchemaUtils.capitalize(fieldName);
         String childTable = PostgresSchemaUtils.resolveTableName(entity.name());
         String parentFkColumn = PostgresSchemaUtils.resolveForeignKeyColumn(agg.name());
@@ -466,23 +469,23 @@ public class RepositoryGenerator {
 
         TypeName aggIdType = TypeResolver.resolve(agg.idDefinition().type(), targetPackage, explicitImports);
         ClassName entityType = ClassName.get(targetPackage, entity.name());
-        TypeName listType = ParameterizedTypeName.get(ClassName.get(List.class), entityType);
+        TypeName collectionType = TypeResolver.resolve(field.type(), targetPackage, explicitImports); // <-- Tasks
 
         MethodSpec.Builder mb = MethodSpec.methodBuilder(methodName)
                 .addModifiers(Modifier.PRIVATE)
                 .addParameter(aggIdType, "aggregateId")
-                .addParameter(listType, "items");
+                .addParameter(collectionType, "items"); // <-- Tasks items
 
         mb.addStatement("String selectExistingSql = \"SELECT id FROM $L WHERE $L = :parentId\"", childTable, parentFkColumn);
         mb.addStatement("$T<$T> existingIds = new $T<>(this.jdbcTemplate.query(selectExistingSql, $T.of(\"parentId\", aggregateId.value()), (rs, rowNum) -> rs.getObject(\"id\", $T.class)))",
                 Set.class, UUID.class, HashSet.class, Map.class, UUID.class);
 
-        mb.addStatement("$T<$T> incomingIds = items.stream().map(i -> i.id().value()).collect($T.toSet())",
+        mb.addStatement("$T<$T> incomingIds = items.elements().stream().map(i -> i.id().value()).collect($T.toSet())",
                 Set.class, UUID.class, java.util.stream.Collectors.class);
 
         mb.addStatement("$T<$T> toDelete = existingIds.stream().filter(id -> !incomingIds.contains(id)).toList()", List.class, UUID.class);
-        mb.addStatement("$T<$T> toInsert = items.stream().filter(i -> !existingIds.contains(i.id().value())).toList()", List.class, entityType);
-        mb.addStatement("$T<$T> toUpdate = items.stream().filter(i -> existingIds.contains(i.id().value())).toList()", List.class, entityType);
+        mb.addStatement("$T<$T> toInsert = items.elements().stream().filter(i -> !existingIds.contains(i.id().value())).toList()", List.class, entityType);
+        mb.addStatement("$T<$T> toUpdate = items.elements().stream().filter(i -> existingIds.contains(i.id().value())).toList()", List.class, entityType);
 
         mb.beginControlFlow("if (!toDelete.isEmpty())")
                 .addStatement("this.jdbcTemplate.update(\"DELETE FROM $L WHERE id IN (:ids)\", $T.of(\"ids\", toDelete))", childTable, Map.class)
@@ -493,7 +496,7 @@ public class RepositoryGenerator {
         List<String> insertVals = new ArrayList<>(List.of(":id", ":parentId"));
 
         for (FieldNode f : entity.fields()) {
-            List<FlatColumn> flatCols = PostgresSchemaUtils.flattenField(f, "", valueObjects, targetPackage);
+            List<FlatColumn> flatCols = PostgresSchemaUtils.flattenField(f, "item", valueObjects, targetPackage);
             for (FlatColumn c : flatCols) {
                 insertCols.add(c.columnName());
                 insertVals.add(":" + c.sqlParameterName());
@@ -509,7 +512,7 @@ public class RepositoryGenerator {
         mb.beginControlFlow("if (!toUpdate.isEmpty())");
         List<String> updateSets = new ArrayList<>();
         for (FieldNode f : entity.fields()) {
-            List<FlatColumn> flatCols = PostgresSchemaUtils.flattenField(f, "", valueObjects, targetPackage);
+            List<FlatColumn> flatCols = PostgresSchemaUtils.flattenField(f, "item", valueObjects, targetPackage);
             for (FlatColumn c : flatCols) {
                 updateSets.add(c.columnName() + " = :" + c.sqlParameterName());
             }
@@ -560,5 +563,19 @@ public class RepositoryGenerator {
         }
 
         return mb.build();
+    }
+
+    private Optional<EntityNode> findChildEntityForField(FieldNode field, Map<String, EntityNode> entities) {
+        String typeName = field.type().name();
+        for (EntityNode entity : entities.values()) {
+            if (entity.collection().isPresent()) {
+                String collName = entity.collection().get().customName().orElse(entity.name() + "s");
+                if (collName.equals(typeName)) {
+                    return Optional.of(entity);
+                }
+            }
+        }
+
+        return Optional.empty();
     }
 }

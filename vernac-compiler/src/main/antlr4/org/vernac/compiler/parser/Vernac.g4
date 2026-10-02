@@ -50,7 +50,12 @@ valueMember
     ;
 
 collectionDefinition
-    : 'collection' collectionName=typeName? ( '{' methodDefinition* '}' )?
+    : 'collection' collectionName=typeName? ( '{' collectionMember* '}' )?
+    ;
+
+collectionMember
+    : packageDeclarationStatement
+    | methodDefinition
     ;
 
 validationBlock
@@ -102,6 +107,7 @@ entityDefinition
     : 'entity' name=typeName '[' idReference ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
       ( '{' entityMember* '}' )?
+      ( collectionDefinition )?
       ';'?
     ;
 
@@ -163,9 +169,9 @@ adapterRest
     ;
 
 adapterCustom
-    : 'adapter' 'custom' delegateName=qualifiedName? ';'                             // Variante 1: Nur Delegate
-    | 'adapter' 'custom' '{' packageDeclarationStatement? rawJavaBlock '}'          // Variante 2: Inline Java-Code
-    | 'adapter' 'custom' delegateName=qualifiedName '{' packageDeclarationStatement? '}' ';'?   // Variante 3: Delegate mit Package-Override
+    : 'adapter' 'custom' delegateName=qualifiedName? ';'
+    | 'adapter' 'custom' '{' packageDeclarationStatement? rawJavaBlock '}'
+    | 'adapter' 'custom' delegateName=qualifiedName '{' packageDeclarationStatement? '}' ';'?
     ;
 
 restConfig

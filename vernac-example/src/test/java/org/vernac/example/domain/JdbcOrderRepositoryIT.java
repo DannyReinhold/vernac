@@ -84,7 +84,7 @@ class JdbcOrderRepositoryIT {
                 customerId,
                 Money.of(new BigDecimal("88.98"), eur),
                 "NEW",
-                new ArrayList<>(List.of(line1, line2))
+                OrderLines.of(line1, line2)
         );
 
         // 1. Speichern im Use-Case-Transaktionskontext
@@ -123,7 +123,7 @@ class JdbcOrderRepositoryIT {
                 customerId,
                 Money.of(new BigDecimal("30.00"), eur),
                 "NEW",
-                new ArrayList<>(List.of(line1, line2))
+                OrderLines.of(line1, line2)
         );
 
         Order savedV1 = txTemplate.execute(status -> repository.save(order));
@@ -137,7 +137,7 @@ class JdbcOrderRepositoryIT {
         OrderLine line1Modified = OrderLine.create(line1Id, ItemSku.of("SKU-A"), Money.of(new BigDecimal("10.00"), eur), 5);
 
         savedV1.completeOrder();
-        List<OrderLine> newLines = new ArrayList<>(List.of(line1Modified, line3));
+        OrderLines newLines = OrderLines.of(line1Modified, line3);
 
         Order orderToUpdate = Order.reconstitute(
                 savedV1.id(),
@@ -174,7 +174,7 @@ class JdbcOrderRepositoryIT {
         CustomerId customerId = CustomerId.of(UUID.randomUUID());
         Currency eur = Currency.getInstance("EUR");
 
-        Order order = Order.create(orderId, customerId, Money.of(new BigDecimal("10.00"), eur), "NEW", new ArrayList<>());
+        Order order = Order.create(orderId, customerId, Money.of(new BigDecimal("10.00"), eur), "NEW", OrderLines.of());
         Order v1 = txTemplate.execute(status -> repository.save(order));
 
         // Erster Request aktualisiert erfolgreich auf V2
@@ -185,7 +185,7 @@ class JdbcOrderRepositoryIT {
         // Zweiter Request versucht noch immer, auf Basis von V1 zu speichern
         Order concurrentAttempt = Order.reconstitute(
                 v1.id(), v1.customer(), v1.total(), "CANCELLED",
-                new ArrayList<>(), v1.createdAt(), v1.updatedAt(), 1L
+                OrderLines.of(), v1.createdAt(), v1.updatedAt(), 1L
         );
 
         assertThatThrownBy(() -> txTemplate.execute(status -> repository.save(concurrentAttempt)))
@@ -207,8 +207,8 @@ class JdbcOrderRepositoryIT {
     @DisplayName("Find-Methode liefert Datensätze gefiltert nach Kriterium")
     void shouldFindOrdersByStatus() {
         Currency eur = Currency.getInstance("EUR");
-        Order o1 = Order.create(OrderId.of(UUID.randomUUID()), CustomerId.of(UUID.randomUUID()), Money.of(BigDecimal.TEN, eur), "PENDING", new ArrayList<>());
-        Order o2 = Order.create(OrderId.of(UUID.randomUUID()), CustomerId.of(UUID.randomUUID()), Money.of(BigDecimal.ONE, eur), "SHIPPED", new ArrayList<>());
+        Order o1 = Order.create(OrderId.of(UUID.randomUUID()), CustomerId.of(UUID.randomUUID()), Money.of(BigDecimal.TEN, eur), "PENDING", OrderLines.of());
+        Order o2 = Order.create(OrderId.of(UUID.randomUUID()), CustomerId.of(UUID.randomUUID()), Money.of(BigDecimal.ONE, eur), "SHIPPED", OrderLines.of());
 
         txTemplate.executeWithoutResult(status -> {
             repository.save(o1);

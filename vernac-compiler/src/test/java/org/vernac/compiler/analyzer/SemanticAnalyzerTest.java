@@ -403,4 +403,85 @@ class SemanticAnalyzerTest {
                     .hasMessageContaining("Syntax error at line 5:38 - mismatched input '.' expecting ';'");
         }
     }
+
+    @Nested
+    @DisplayName("DDD Aggregat- & Collection-Regeln")
+    class DddCollectionAndAssociationTests {
+
+        @Test
+        @DisplayName("Verhindert rohe JDK-Collections in Aggregaten")
+        void shouldRejectRawCollectionsInAggregate() {
+            String dsl = """
+                    package com.example.domain;
+                    id OrderId;
+                    aggregate Order[OrderId](List<String> items);
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Raw collection 'List' is not permitted in 'Order'");
+        }
+
+        @Test
+        @DisplayName("Verhindert direkte Referenz auf ein anderes Aggregat")
+        void shouldRejectDirectAggregateReference() {
+            String dsl = """
+                    package com.example.domain;
+                    id CustomerId;
+                    aggregate Customer[CustomerId](String name);
+                    
+                    id OrderId;
+                    aggregate Order[OrderId](Customer customer);
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Direct reference to aggregate root 'Customer' inside 'Order' is forbidden. Reference external aggregates by their ID type instead.");
+        }
+
+        @Test
+        @DisplayName("Verhindert direkte Referenz auf ein Aggregat innerhalb einer Entity")
+        void shouldRejectDirectAggregateReferenceInEntity() {
+            String dsl = """
+                    package com.example.domain;
+                    id CustomerId;
+                    aggregate Customer[CustomerId](String name);
+                    
+                    id ItemId;
+                    entity OrderItem[ItemId](Customer buyer);
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Direct reference to aggregate root 'Customer' inside 'OrderItem' is forbidden. Reference external aggregates by their ID type instead.");
+        }
+
+        @Test
+        @DisplayName("Erkennt Namenskonflikte bei abgeleiteten Collection-Namen")
+        void shouldRejectDuplicateCollectionTypeName() {
+            String dsl = """
+                    package com.example.domain;
+                    value Tag(String name) collection; // default: Tags
+                    value Tags(String customHolder);  // Kollision!
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Duplicate type declaration 'Tags'");
+        }
+
+        @Test
+        @DisplayName("Erlaubt First-Class Collections von Value Objects im Aggregat")
+        void shouldAllowFirstClassValueObjectCollections() {
+            String dsl = """
+                    package com.example.domain;
+                    id OrderId;
+                    value OrderLine(String sku) collection OrderLines;
+                    aggregate Order[OrderId](OrderLines lines);
+                    """;
+
+            // Sollte fehlerfrei durchlaufen
+            assertThat(compiler.compileSource(dsl)).isNotNull();
+        }
+    }
 }

@@ -15,7 +15,7 @@ public class EntityGenerator {
     private static final ClassName ENTITY_INTERFACE = ClassName.get(Entity.class);
     private static final ClassName NULLABLE_ANNOTATION = ClassName.get(Nullable.class);
 
-    public JavaFile generate(EntityNode node, Map<String, ValueObjectNode> valueObjects, String basePackage, List<String> imports) {
+    public JavaFile generate(EntityNode node, Map<String, ValueObjectNode> valueObjects, Map<String, EntityNode> entities, String basePackage, List<String> imports) {
         String targetPackage = PackageResolver.resolveDomainPackage(basePackage, node.customPackage());
         String className = node.name();
         ClassName selfType = ClassName.get(targetPackage, className);
@@ -27,7 +27,7 @@ public class EntityGenerator {
 
         String tableName = PostgresSchemaUtils.resolveTableName(className);
         String idColName = PostgresSchemaUtils.resolveColumnName(idFieldName);
-        String ddl = PostgresSchemaUtils.generateEntityDdl(tableName, idColName, node.fields(), valueObjects, targetPackage);
+        String ddl = PostgresSchemaUtils.generateEntityDdl(tableName, idColName, node.fields(), valueObjects, entities, targetPackage);
 
         TypeSpec.Builder classBuilder = TypeSpec.classBuilder(className)
                 .addModifiers(Modifier.PUBLIC)

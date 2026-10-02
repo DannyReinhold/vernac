@@ -18,7 +18,7 @@ public class AggregateGenerator {
     private static final ClassName DOMAIN_EVENT_INTERFACE = ClassName.get(DomainEvent.class);
     private static final ClassName NULLABLE_ANNOTATION = ClassName.get(Nullable.class);
 
-    public JavaFile generate(AggregateNode node, Map<String, ValueObjectNode> valueObjects, String basePackage, List<String> imports) {
+    public JavaFile generate(AggregateNode node, Map<String, ValueObjectNode> valueObjects, Map<String, EntityNode> entities, String basePackage, List<String> imports) {
         String targetPackage = PackageResolver.resolveDomainPackage(basePackage, node.customPackage());
 
         String className = node.name();
@@ -31,7 +31,7 @@ public class AggregateGenerator {
 
         String tableName = PostgresSchemaUtils.resolveTableName(className);
         String idColName = PostgresSchemaUtils.resolveColumnName(idFieldName);
-        String ddl = PostgresSchemaUtils.generateAggregateDdl(tableName, idColName, node.fields(), valueObjects, targetPackage);
+        String ddl = PostgresSchemaUtils.generateAggregateDdl(tableName, idColName, node.fields(), valueObjects, entities, targetPackage);
 
         TypeSpec.Builder classBuilder = TypeSpec.classBuilder(className)
                 .addModifiers(Modifier.PUBLIC)

@@ -52,7 +52,7 @@ class AggregateGeneratorTest {
 
         CompilationUnitNode cu = parse(src);
         AggregateNode node = cu.aggregates().getFirst();
-        JavaFile file = generator.generate(node, Map.of(), "com.example.domain", List.of());
+        JavaFile file = generator.generate(node, Map.of(), Map.of(), "com.example.domain", List.of());
         String code = file.toString();
         String normalizedCode = code.replaceAll("\\s+", " ");
 
@@ -101,7 +101,7 @@ class AggregateGeneratorTest {
 
         CompilationUnitNode cu = parse(src);
         AggregateNode node = cu.aggregates().getFirst();
-        JavaFile file = generator.generate(node, Map.of(), "com.example.domain", List.of());
+        JavaFile file = generator.generate(node, Map.of(), Map.of(), "com.example.domain", List.of());
         String code = file.toString().replaceAll("\\s+", " ");
 
         assertThat(code)
@@ -120,7 +120,7 @@ class AggregateGeneratorTest {
 
         CompilationUnitNode cu = parse(src);
         AggregateNode node = cu.aggregates().getFirst();
-        JavaFile file = generator.generate(node, Map.of(), "com.example.domain", List.of());
+        JavaFile file = generator.generate(node, Map.of(), Map.of(), "com.example.domain", List.of());
         String code = file.toString().replaceAll("\\s+", " ");
 
         assertThat(code)
@@ -152,7 +152,7 @@ class AggregateGeneratorTest {
         Map<String, ValueObjectNode> valueObjects = extractValueObjects(cu);
         AggregateNode node = cu.aggregates().getFirst();
 
-        JavaFile file = generator.generate(node, valueObjects, "com.example.domain", List.of());
+        JavaFile file = generator.generate(node, valueObjects, Map.of(), "com.example.domain", List.of());
         String code = file.toString();
 
         assertThat(code)

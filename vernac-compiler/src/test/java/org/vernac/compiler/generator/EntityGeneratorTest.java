@@ -52,7 +52,7 @@ class EntityGeneratorTest {
 
         CompilationUnitNode cu = parse(src);
         EntityNode node = cu.entities().getFirst();
-        JavaFile file = generator.generate(node, Map.of(), "com.example.domain", List.of());
+        JavaFile file = generator.generate(node, Map.of(), Map.of(), "com.example.domain", List.of());
         String code = file.toString();
         String normalizedCode = code.replaceAll("\\s+", " ");
 
@@ -86,7 +86,7 @@ class EntityGeneratorTest {
 
         CompilationUnitNode cu = parse(src);
         EntityNode node = cu.entities().getFirst();
-        JavaFile file = generator.generate(node, Map.of(), "com.example.domain", List.of());
+        JavaFile file = generator.generate(node, Map.of(), Map.of(), "com.example.domain", List.of());
         String code = file.toString().replaceAll("\\s+", " ");
 
         // Prüft, ob Default-Name ('string') und Custom-Name ('explicitQuantity') korrekt deklariert werden
@@ -127,7 +127,7 @@ class EntityGeneratorTest {
         Map<String, ValueObjectNode> valueObjects = extractValueObjects(cu);
         EntityNode node = cu.entities().getFirst();
 
-        JavaFile file = generator.generate(node, valueObjects, "com.example.domain", List.of());
+        JavaFile file = generator.generate(node, valueObjects, Map.of(), "com.example.domain", List.of());
         String code = file.toString();
 
         assertThat(code)

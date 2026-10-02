@@ -40,6 +40,7 @@ public class SemanticAnalyzer {
                 diagnostics.add(CompilerDiagnostic.error(def.location(), "Duplicate type declaration '" + name + "'"));
             }
 
+            // A. Value-Object Collections registrieren & auf Kollision prüfen
             if (def instanceof ValueObjectNode vo && vo.collection().isPresent()) {
                 String collName = vo.collection().get().customName().orElse(vo.name() + "s");
                 validateIdentifier(collName, vo.collection().get().location(), "collection type", diagnostics);
@@ -50,8 +51,19 @@ public class SemanticAnalyzer {
                     ));
                 }
             }
-        }
 
+            // B. Entity Collections registrieren & auf Kollision prüfen
+            if (def instanceof EntityNode entity && entity.collection().isPresent()) {
+                String collName = entity.collection().get().customName().orElse(entity.name() + "s");
+                validateIdentifier(collName, entity.collection().get().location(), "collection type", diagnostics);
+                if (!declaredTypes.add(collName)) {
+                    diagnostics.add(CompilerDiagnostic.error(
+                            entity.collection().get().location(),
+                            "Collection type name '" + collName + "' conflicts with an existing type declaration."
+                    ));
+                }
+            }
+        }
         Set<String> availableSymbols = new HashSet<>();
         for (String primitive : TypeUtils.getAllPrimitives()) {
             availableSymbols.add(primitive);
@@ -239,6 +251,12 @@ public class SemanticAnalyzer {
         if (vo.customPackage().isPresent()) validatePackageName(vo.customPackage().get(), vo.location(), diagnostics);
         checkDuplicateFields(vo.fields(), vo.name(), diagnostics);
 
+        if (vo.collection().isPresent()) {
+            vo.collection().get().customPackage().ifPresent(pkg ->
+                    validatePackageName(pkg, vo.collection().get().location(), diagnostics)
+            );
+        }
+
         for (FieldNode field : vo.fields()) {
             validateIdentifier(field.name(), field.location(), "field", diagnostics);
             if (field.isMutable()) {
@@ -285,6 +303,7 @@ public class SemanticAnalyzer {
             validateIdentifier(field.name(), field.location(), "field", diagnostics);
             validateTypeResolvable(field.type(), availableSymbols, imports, diagnostics);
             checkNoDirectAggregateReference(field, agg.name(), declaredAggregates, diagnostics);
+            validateFieldCollectionConstraints(field, agg.name(), diagnostics);
         }
         for (MethodNode method : agg.methods()) {
             validateIdentifier(method.name(), method.location(), "method", diagnostics);
@@ -301,9 +320,16 @@ public class SemanticAnalyzer {
             List<String> imports,
             List<CompilerDiagnostic> diagnostics
     ) {
-        if (entity.customPackage().isPresent())
+        if (entity.customPackage().isPresent()) {
             validatePackageName(entity.customPackage().get(), entity.location(), diagnostics);
+        }
 
+        if (entity.collection().isPresent()) {
+            entity.collection().get().customPackage().ifPresent(pkg ->
+                    validatePackageName(pkg, entity.collection().get().location(), diagnostics)
+            );
+        }
+        
         String idTypeName = entity.idDefinition().type().name();
         if (!declaredIds.contains(idTypeName)) {
             diagnostics.add(CompilerDiagnostic.error(
@@ -325,6 +351,7 @@ public class SemanticAnalyzer {
             validateIdentifier(field.name(), field.location(), "field", diagnostics);
             validateTypeResolvable(field.type(), availableSymbols, imports, diagnostics);
             checkNoDirectAggregateReference(field, entity.name(), declaredAggregates, diagnostics);
+            validateFieldCollectionConstraints(field, entity.name(), diagnostics);
         }
         for (MethodNode method : entity.methods()) {
             validateIdentifier(method.name(), method.location(), "method", diagnostics);
@@ -340,12 +367,6 @@ public class SemanticAnalyzer {
             List<CompilerDiagnostic> diagnostics
     ) {
         String typeToCheck = field.type().name();
-        if (field.type().name().equals("List") || field.type().name().equals("Set")) {
-            if (!field.type().typeArguments().isEmpty()) {
-                typeToCheck = field.type().typeArguments().getFirst().name();
-            }
-        }
-
         if (declaredAggregates.contains(typeToCheck)) {
             diagnostics.add(CompilerDiagnostic.error(
                     field.location(),
@@ -439,6 +460,17 @@ public class SemanticAnalyzer {
             if (JAVA_KEYWORDS.contains(part)) {
                 diagnostics.add(CompilerDiagnostic.error(loc, "Java keyword '" + part + "' cannot be used in package name '" + pkgName + "'."));
             }
+        }
+    }
+
+    private void validateFieldCollectionConstraints(FieldNode field, String parentName, List<CompilerDiagnostic> diagnostics) {
+        String typeName = field.type().name();
+        if (typeName.equals("List") || typeName.equals("Set") || typeName.equals("Map") || typeName.equals("Collection")) {
+            diagnostics.add(CompilerDiagnostic.error(
+                    field.location(),
+                    "Raw collection '" + typeName + "' is not permitted in '" + parentName +
+                            "'. Define a first-class value object collection or an explicit child entity relation instead."
+            ));
         }
     }
 

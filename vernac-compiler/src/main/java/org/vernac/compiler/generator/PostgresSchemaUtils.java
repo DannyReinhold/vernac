@@ -2,6 +2,7 @@ package org.vernac.compiler.generator;
 
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.TypeName;
+import org.vernac.compiler.ast.EntityNode;
 import org.vernac.compiler.ast.FieldNode;
 import org.vernac.compiler.ast.TypeNode;
 import org.vernac.compiler.ast.ValueObjectNode;
@@ -135,13 +136,20 @@ public final class PostgresSchemaUtils {
     /**
      * Erzeugt das DDL anhand der tatsächlichen, geflachten Spalten.
      */
-    public static String generateAggregateDdl(String tableName, String idColumn, List<FieldNode> fields, Map<String, ValueObjectNode> valueObjects, String targetPackage) {
+    public static String generateAggregateDdl(
+            String tableName,
+            String idColumn,
+            List<FieldNode> fields,
+            Map<String, ValueObjectNode> valueObjects,
+            Map<String, EntityNode> entities,
+            String targetPackage
+    ) {
         StringBuilder sb = new StringBuilder();
         sb.append("CREATE TABLE IF NOT EXISTS ").append(tableName).append(" (\n");
         sb.append("    ").append(idColumn).append(" UUID PRIMARY KEY,\n");
 
         for (FieldNode field : fields) {
-            if (field.type().name().equals("List")) continue;
+            if (isEntityCollection(field, entities)) continue;
             List<FlatColumn> flatCols = flattenField(field, "", valueObjects, targetPackage);
             for (FlatColumn col : flatCols) {
                 String nullable = col.isOptional() ? "" : " NOT NULL";
@@ -156,13 +164,18 @@ public final class PostgresSchemaUtils {
         return sb.toString();
     }
 
-    public static String generateEntityDdl(String tableName, String idColumn, List<FieldNode> fields, Map<String, ValueObjectNode> valueObjects, String targetPackage) {
+    public static String generateEntityDdl(String tableName,
+                                           String idColumn,
+                                           List<FieldNode> fields,
+                                           Map<String, ValueObjectNode> valueObjects,
+                                           Map<String, EntityNode> entities,
+                                           String targetPackage) {
         StringBuilder sb = new StringBuilder();
         sb.append("CREATE TABLE IF NOT EXISTS ").append(tableName).append(" (\n");
         sb.append("    ").append(idColumn).append(" UUID PRIMARY KEY");
 
         for (FieldNode field : fields) {
-            if (field.type().name().equals("List")) continue;
+            if (isEntityCollection(field, entities)) continue;
             List<FlatColumn> flatCols = flattenField(field, "", valueObjects, targetPackage);
             for (FlatColumn col : flatCols) {
                 String nullable = col.isOptional() ? "" : " NOT NULL";
@@ -192,5 +205,21 @@ public final class PostgresSchemaUtils {
      */
     public static String resolveForeignKeyColumn(String aggregateName) {
         return toSnakeCase(aggregateName) + "_id";
+    }
+
+    public static boolean isEntityCollection(FieldNode field, Map<String, EntityNode> entities) {
+        String typeName = field.type().name();
+        if (typeName.equals("List") && !field.type().typeArguments().isEmpty()) {
+            return entities.containsKey(field.type().typeArguments().getFirst().name());
+        }
+        for (EntityNode entity : entities.values()) {
+            if (entity.collection().isPresent()) {
+                String collName = entity.collection().get().customName().orElse(entity.name() + "s");
+                if (collName.equals(typeName)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
