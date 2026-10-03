@@ -331,6 +331,7 @@ public class AggregateGenerator {
         }
 
         setter.addStatement("markAsUpdated()");
+        setter.addStatement("validate()");
         return setter.build();
     }
 

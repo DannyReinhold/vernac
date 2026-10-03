@@ -1,10 +1,10 @@
 package org.vernac.example.home.energy;
 
-import java.math.BigDecimal;
+// --- 0. Identifiers ---
+id StorageId;
+id AcId;
 
-// --- Value Objects ---
-id StorageId
-
+// --- 1. Value Objects ---
 value WattHours(int) validates {
     require(value >= 0, "WattHours cannot be negative");
 }
@@ -13,20 +13,40 @@ value BatterySoc(int percent) validates {
     require(percent >= 0 && percent <= 100, "SOC must be between 0 and 100");
 }
 
-id AcId;
-value AcStatus(String mode);
+value AcMode(String mode) validates {
+    require(!mode.isBlank(), "Mode must not be blank");
+}
 
-// --- Entities ---
-entity AirConditioner [AcId] (AcStatus)
+// --- 2. Events ---
+outbox event StorageCharged(StorageId storageId, BatterySoc newSoc);
 
-// --- Aggregates ---
-aggregate EnergyStorage [StorageId] (
+// --- 3. Entities & Aggregates ---
+entity AirConditioner[AcId](mut AcMode mode) {
+    public void switchMode(AcMode newMode) {
+        mode(newMode);
+    }
+}
+
+aggregate EnergyStorage[StorageId](
     WattHours capacity,
-    BatterySoc,
-    WattHours
-)
+    mut BatterySoc soc,
+    mut WattHours storedEnergy
+) validates {
+    require(storedEnergy.value() <= capacity.value(), "Stored energy cannot exceed capacity");
+} {
+    public void charge(WattHours additionalEnergy) {
+        int newTotal = this.storedEnergy.value() + additionalEnergy.value();
+        int cappedTotal = Math.min(newTotal, this.capacity.value());
 
-// --- Outbound Ports ---
+        storedEnergy(WattHours.of(cappedTotal));
+        int calculatedSoc = (int) ((((double) cappedTotal) / this.capacity.value()) * 100);
+        soc(BatterySoc.of(calculatedSoc));
+
+        registerEvent(StorageCharged.create(this.id, this.soc));
+    }
+}
+
+// --- 4. Outbound Ports ---
 port SolarForecastProvider {
     schema ForecastResponse {
         String location;
@@ -44,6 +64,25 @@ port SolarForecastProvider {
     }
 }
 
-// --- Repositories ---
+// --- 5. Repositories ---
 repository for EnergyStorage {
+}
+
+// --- 6. UseCases ---
+usecase OptimizeEnergyFlow(StorageId storageId) validates {
+    require(storageId != null, "StorageId required");
+} {
+    use EnergyStorageRepository;
+    use SolarForecastProvider solarProvider;
+
+    load EnergyStorage by storageId;
+
+    var forecast = this.solarProvider.fetchExpectedYield(storageId);
+    if (forecast.isPresent() && forecast.get().value() > 0) {
+        energyStorage.charge(forecast.get());
+    }
+
+    save energyStorage;
+
+    return (energyStorage.id(), energyStorage.soc(), energyStorage.storedEnergy());
 }

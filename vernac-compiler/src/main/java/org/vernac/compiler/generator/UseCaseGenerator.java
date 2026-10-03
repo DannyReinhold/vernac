@@ -150,7 +150,15 @@ public class UseCaseGenerator {
                 String repoVar = load.repositoryName().orElseGet(() -> defaultRepos.get(load.aggregateType()));
                 String idCode = load.idExpressionCode().orElseGet(() -> deriveDefaultInstanceName(load.aggregateType()) + "Id");
 
-                execute.addStatement("$L $L = this.$L.byId($L)", load.aggregateType(), varName, repoVar, idCode);
+                // Typ des Aggregats sauber als ClassName im domainPackage auflösen:
+                TypeName aggregateClass = TypeResolver.resolve(
+                        new TypeNode(load.location(), load.aggregateType(), List.of(), false),
+                        domainPackage,
+                        explicitImports
+                );
+
+                // $T statt $L für den Typen nutzen!
+                execute.addStatement("$T $L = this.$L.byId($L)", aggregateClass, varName, repoVar, idCode);
             } else if (stmt instanceof SaveStatementNode save) {
                 String repoVar = save.repositoryName().orElseGet(() -> {
                     // Falls repo nicht angegeben, suchen wir Repo passend zum Instanznamen

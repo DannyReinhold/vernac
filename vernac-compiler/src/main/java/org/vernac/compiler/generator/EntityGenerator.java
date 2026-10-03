@@ -78,10 +78,14 @@ public class EntityGenerator {
         // 7. fromExternal(...) Factory
         classBuilder.addMethod(buildFromExternalFactory(node, targetPackage, selfType, idType, idFieldName));
 
-        // 8. Private Setter für mut-Felder
+        // 8. Automatische Mutatoren im Record-Stil für veränderliche Felder
+        Set<String> explicitMethodNames = node.methods().stream()
+                .map(MethodNode::name)
+                .collect(java.util.stream.Collectors.toSet());
+
         for (FieldNode field : node.fields()) {
-            if (field.isMutable()) {
-                classBuilder.addMethod(buildPrivateSetter(field, targetPackage));
+            if (field.isMutable() && !explicitMethodNames.contains(field.name())) {
+                classBuilder.addMethod(buildDomainMutator(field, targetPackage));
             }
         }
 
@@ -90,7 +94,7 @@ public class EntityGenerator {
             classBuilder.addMethod(buildCustomMethod(method, targetPackage));
         }
 
-        // 10. Getter0
+        // 10. Getter
         classBuilder.addMethod(buildIdGetter(idType, idFieldName));
 
         for (FieldNode field : node.fields()) {
@@ -204,24 +208,33 @@ public class EntityGenerator {
         return reconstitute.build();
     }
 
-    private MethodSpec buildPrivateSetter(FieldNode field, String targetPackage) {
-        String capitalized = field.name().substring(0, 1).toUpperCase(Locale.ROOT) + field.name().substring(1);
+    private MethodSpec buildDomainMutator(FieldNode field, String targetPackage) {
         TypeName type = TypeResolver.resolve(field.type(), targetPackage);
-
-        MethodSpec.Builder setter = MethodSpec.methodBuilder("set" + capitalized)
-                .addModifiers(Modifier.PRIVATE);
+        MethodSpec.Builder setter = MethodSpec.methodBuilder(field.name())
+                .addModifiers(Modifier.PUBLIC);
 
         ParameterSpec.Builder param = ParameterSpec.builder(type, field.name());
+
         if (field.type().isOptional()) {
             param.addAnnotation(NULLABLE_ANNOTATION);
             setter.addParameter(param.build());
+            setter.beginControlFlow("if ($T.equals(this.$N, $N))", Objects.class, field.name(), field.name());
+            setter.addStatement("return");
+            setter.endControlFlow();
             setter.addStatement("this.$N = $N", field.name(), field.name());
         } else if (TypeUtils.isPrimitive(field.type().name())) {
             setter.addParameter(param.build());
+            setter.beginControlFlow("if (this.$N == $N)", field.name(), field.name());
+            setter.addStatement("return");
+            setter.endControlFlow();
             setter.addStatement("this.$N = $N", field.name(), field.name());
         } else {
             setter.addParameter(param.build());
-            setter.addStatement("this.$N = $T.requireNonNull($N, $S)", field.name(), Objects.class, field.name(), field.name() + " must not be null");
+            setter.addStatement("$T.requireNonNull($N, $S)", Objects.class, field.name(), field.name() + " must not be null");
+            setter.beginControlFlow("if ($T.equals(this.$N, $N))", Objects.class, field.name(), field.name());
+            setter.addStatement("return");
+            setter.endControlFlow();
+            setter.addStatement("this.$N = $N", field.name(), field.name());
         }
 
         setter.addStatement("validate()");

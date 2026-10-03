@@ -52,7 +52,7 @@ entity OrderLine[OrderLineId](ItemSku sku, Money unitPrice, mut int quantity) va
         if (delta <= 0) {
             throw new IllegalArgumentException("Delta must be positive");
         }
-        setQuantity(this.quantity + delta);
+        quantity(this.quantity + delta);
     }
 } collection;
 

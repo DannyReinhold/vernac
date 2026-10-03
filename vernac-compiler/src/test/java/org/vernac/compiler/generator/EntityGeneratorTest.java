@@ -45,7 +45,7 @@ class EntityGeneratorTest {
                     require(title.value().length() <= 100, "Title too long");
                 } {
                     public void complete() {
-                        setStatus(TaskStatus.COMPLETED);
+                        status(TaskStatus.COMPLETED);
                     }
                 };
                 """;
@@ -61,7 +61,7 @@ class EntityGeneratorTest {
                 .contains("private final TaskId id;")
                 .contains("private final TaskTitle title;")
                 .contains("private TaskStatus status;")
-                .contains("private void setStatus(TaskStatus status)")
+                .contains("public void status(TaskStatus status)")
                 .contains("validate();")
                 .contains("public void complete()")
                 .contains("public TaskId id()")
@@ -101,7 +101,7 @@ class EntityGeneratorTest {
 
         // Prüft die internen Mutatoren (Setter) für mut-Felder
         assertThat(code)
-                .contains("private void setExplicitQuantity(int explicitQuantity)")
+                .contains("public void explicitQuantity(int explicitQuantity)")
                 .contains("this.explicitQuantity = explicitQuantity;");
 
         // Prüft die öffentlichen Getter
