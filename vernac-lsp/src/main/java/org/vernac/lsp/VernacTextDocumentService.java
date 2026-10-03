@@ -19,11 +19,12 @@ import java.util.regex.Pattern;
 public class VernacTextDocumentService implements TextDocumentService {
 
     private static final Set<String> DSL_KEYWORDS = Set.of(
-            "package", "import", "as",
+            "package", "import", "as", "id",
             "aggregate", "value", "entity", "event", "service", "external", "schema",
             "repository", "for", "table", "find", "custom", "validates", "require",
             "mut", "invariant", "mapping",
-            "port", "adapter", "rest", "on", "throw", "throws"
+            "port", "adapter", "rest", "on", "throw", "throws",
+            "usecase", "use", "load", "save"
     );
 
     private static final Set<String> JAVA_KEYWORDS = Set.of(
@@ -297,7 +298,15 @@ public class VernacTextDocumentService implements TextDocumentService {
             return CompletableFuture.completedFuture(Either.forLeft(items));
         }
 
-        // Kontext C: Innerhalb eines repository { ... } Blocks
+        // Kontext C1: Innerhalb eines usecase { ... } Blocks
+        if (isInsideUseCaseBlock(prefix)) {
+            addKeywordCompletion(items, "use", "use ${1:Repository};");
+            addKeywordCompletion(items, "load", "load ${1:Aggregate} by ${2:id};");
+            addKeywordCompletion(items, "save", "save ${1:instance};");
+            addKeywordCompletion(items, "return", "return ($1);");
+            return CompletableFuture.completedFuture(Either.forLeft(items));
+        }
+        // Kontext C2: Innerhalb eines repository { ... } Blocks
         if (isInsideRepositoryBlock(prefix)) {
             addKeywordCompletion(items, "table", "table: \"${1:table_name}\";");
             addKeywordCompletion(items, "find", "find ${1:ReturnType} ${2:methodName}(${3:params});");
@@ -349,6 +358,14 @@ public class VernacTextDocumentService implements TextDocumentService {
         return false;
     }
 
+    private boolean isInsideUseCaseBlock(String prefix) {
+        int lastUseCase = prefix.lastIndexOf("usecase ");
+        if (lastUseCase == -1) return false;
+        int lastBraceOpen = prefix.lastIndexOf('{');
+        int lastBraceClose = prefix.lastIndexOf('}');
+        return lastBraceOpen > lastUseCase && lastBraceOpen > lastBraceClose;
+    }
+
     private boolean isInsideRepositoryBlock(String prefix) {
         int lastRepo = prefix.lastIndexOf("repository ");
         if (lastRepo == -1) return false;
@@ -379,7 +396,7 @@ public class VernacTextDocumentService implements TextDocumentService {
     }
 
     private void addModelDeclaredTypes(List<CompletionItem> items, String content, Set<String> alreadyAdded) {
-        Pattern pattern = Pattern.compile("\\b(value|entity|aggregate|event)\\s+([A-Z][a-zA-Z0-9_]*)");
+        Pattern pattern = Pattern.compile("\\b(value|entity|aggregate|event|id)\\s+([A-Z][a-zA-Z0-9_]*)");
         Matcher matcher = pattern.matcher(content);
 
         while (matcher.find()) {
@@ -388,7 +405,7 @@ public class VernacTextDocumentService implements TextDocumentService {
 
             if (alreadyAdded.add(typeName)) {
                 CompletionItem item = new CompletionItem(typeName);
-                item.setKind(kind.equals("value") ? CompletionItemKind.Struct : CompletionItemKind.Class);
+                item.setKind(kind.equals("value") || kind.equals("id") ? CompletionItemKind.Struct : CompletionItemKind.Class);
                 item.setDetail("Vernac " + kind);
                 item.setInsertText(typeName);
                 items.add(item);
@@ -419,6 +436,8 @@ public class VernacTextDocumentService implements TextDocumentService {
         addKeywordCompletion(items, "event", "event ${1:Name}(${2:Type} value);");
         addKeywordCompletion(items, "port", "port ${1:Name} {\n    $0\n}");
         addKeywordCompletion(items, "repository", "repository ${1:Name} for ${2:Aggregate} {\n    table: \"${3:table_name}\";\n    $0\n};");
+        addKeywordCompletion(items, "id", "id ${1:Name}Id;");
+        addKeywordCompletion(items, "usecase", "usecase ${1:Name}(${2:params}) {\n    $0\n}");
     }
 
     private void addKeywordCompletion(List<CompletionItem> list, String label, String insertSnippet) {
@@ -499,7 +518,7 @@ public class VernacTextDocumentService implements TextDocumentService {
 
     private Location findDeclaration(String uri, String content, String targetName) {
         String[] lines = content.split("\r?\n", -1);
-        Pattern pattern = Pattern.compile("\\b(aggregate|value|entity|event)\\s+(" + Pattern.quote(targetName) + ")\\b");
+        Pattern pattern = Pattern.compile("\\b(aggregate|value|entity|event|usecase|id)\\s+(" + Pattern.quote(targetName) + ")\\b");
 
         for (int i = 0; i < lines.length; i++) {
             Matcher m = pattern.matcher(lines[i]);

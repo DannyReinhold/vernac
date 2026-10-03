@@ -31,7 +31,7 @@
 
         <!-- Zentrale Tool- und Dependency-Versionen -->
         <antlr.version>4.13.2</antlr.version>
-        <javapoet.version>1.13.0</javapoet.version>
+        <javapoet.version>0.20.0</javapoet.version>
         <junit.version>5.11.4</junit.version>
         <assertj.version>3.27.7</assertj.version>
     </properties>
@@ -54,7 +54,7 @@
 
             <!-- Java Code Generation -->
             <dependency>
-                <groupId>com.squareup</groupId>
+                <groupId>com.palantir.javapoet</groupId>
                 <artifactId>javapoet</artifactId>
                 <version>${javapoet.version}</version>
             </dependency>

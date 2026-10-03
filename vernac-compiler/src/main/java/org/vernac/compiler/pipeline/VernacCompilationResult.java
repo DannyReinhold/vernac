@@ -1,6 +1,6 @@
 package org.vernac.compiler.pipeline;
 
-import com.squareup.javapoet.JavaFile;
+import com.palantir.javapoet.JavaFile;
 
 import java.io.IOException;
 import java.nio.file.Path;

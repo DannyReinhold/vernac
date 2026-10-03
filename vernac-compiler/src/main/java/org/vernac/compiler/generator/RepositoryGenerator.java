@@ -1,6 +1,6 @@
 package org.vernac.compiler.generator;
 
-import com.squareup.javapoet.*;
+import com.palantir.javapoet.*;
 import org.vernac.compiler.ast.*;
 
 import javax.lang.model.element.Modifier;

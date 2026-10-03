@@ -1,6 +1,6 @@
 package org.vernac.compiler.generator;
 
-import com.squareup.javapoet.*;
+import com.palantir.javapoet.*;
 import org.jspecify.annotations.Nullable;
 import org.vernac.compiler.ast.FieldNode;
 import org.vernac.compiler.ast.MethodNode;
@@ -90,7 +90,7 @@ public class ValueObjectGenerator {
                     constructor.addStatement("this.$N = $N", field.name(), field.name());
                 } else if (isCollectionType(field.type().name())) {
                     constructor.addStatement("this.$N = $T.copyOf($T.requireNonNull($N, $S))",
-                            field.name(), type instanceof ParameterizedTypeName p ? p.rawType : type,
+                            field.name(), type instanceof ParameterizedTypeName p ? p.rawType() : type,
                             Objects.class, field.name(), field.name() + " must not be null");
                 } else {
                     constructor.addStatement("this.$N = $T.requireNonNull($N, $S)",

@@ -1,6 +1,6 @@
 package org.vernac.compiler.generator;
 
-import com.squareup.javapoet.JavaFile;
+import com.palantir.javapoet.JavaFile;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.vernac.compiler.pipeline.VernacCompilationResult;
@@ -36,7 +36,7 @@ class RepositoryGeneratorTest {
         VernacCompilationResult result = compiler.compileSource(dsl);
 
         List<String> typeNames = result.generatedFiles().stream()
-                .map(f -> f.typeSpec.name)
+                .map(f -> f.typeSpec().name())
                 .toList();
 
         assertThat(typeNames).contains(
@@ -45,7 +45,7 @@ class RepositoryGeneratorTest {
         );
 
         JavaFile repoInterface = result.generatedFiles().stream()
-                .filter(f -> f.typeSpec.name.equals("OrderRepository"))
+                .filter(f -> f.typeSpec().name().equals("OrderRepository"))
                 .findFirst().orElseThrow();
 
         String normalizedInterface = normalize(repoInterface.toString());
@@ -57,7 +57,7 @@ class RepositoryGeneratorTest {
                 .contains("interface OrderRepository extends OrderRepositoryCustom");
 
         JavaFile jdbcRepo = result.generatedFiles().stream()
-                .filter(f -> f.typeSpec.name.equals("JdbcOrderRepository"))
+                .filter(f -> f.typeSpec().name().equals("JdbcOrderRepository"))
                 .findFirst().orElseThrow();
 
         String normalizedJdbc = normalize(jdbcRepo.toString());
@@ -87,7 +87,7 @@ class RepositoryGeneratorTest {
         VernacCompilationResult result = compiler.compileSource(dsl);
 
         JavaFile jdbcRepo = result.generatedFiles().stream()
-                .filter(f -> f.typeSpec.name.equals("JdbcProjectRepository"))
+                .filter(f -> f.typeSpec().name().equals("JdbcProjectRepository"))
                 .findFirst().orElseThrow();
 
         String code = jdbcRepo.toString().replaceAll("\\s+", " ");
@@ -121,7 +121,7 @@ class RepositoryGeneratorTest {
         VernacCompilationResult result = compiler.compileSource(dsl);
 
         JavaFile jdbcRepo = result.generatedFiles().stream()
-                .filter(f -> f.typeSpec.name.equals("JdbcAccountRepository"))
+                .filter(f -> f.typeSpec().name().equals("JdbcAccountRepository"))
                 .findFirst().orElseThrow();
 
         String code = jdbcRepo.toString().replaceAll("\\s+", " ");
@@ -153,7 +153,7 @@ class RepositoryGeneratorTest {
         VernacCompilationResult result = compiler.compileSource(dsl);
 
         JavaFile jdbcRepo = result.generatedFiles().stream()
-                .filter(f -> f.typeSpec.name.equals("JdbcEnergyStorageRepository"))
+                .filter(f -> f.typeSpec().name().equals("JdbcEnergyStorageRepository"))
                 .findFirst().orElseThrow();
 
         String code = jdbcRepo.toString().replaceAll("\\s+", " ");
@@ -184,7 +184,7 @@ class RepositoryGeneratorTest {
         VernacCompilationResult result = compiler.compileSource(dsl);
 
         JavaFile jdbcRepo = result.generatedFiles().stream()
-                .filter(f -> f.typeSpec.name.equals("JdbcProjectRepository"))
+                .filter(f -> f.typeSpec().name().equals("JdbcProjectRepository"))
                 .findFirst().orElseThrow();
 
         String code = jdbcRepo.toString().replaceAll("\\s+", " ");

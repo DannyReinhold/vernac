@@ -1,6 +1,6 @@
 package org.vernac.compiler.generator;
 
-import com.squareup.javapoet.JavaFile;
+import com.palantir.javapoet.JavaFile;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.vernac.compiler.pipeline.VernacCompilationResult;
@@ -38,7 +38,7 @@ class PortGeneratorTest {
         VernacCompilationResult result = compiler.compileSource(dsl);
 
         List<String> typeNames = result.generatedFiles().stream()
-                .map(f -> f.typeSpec.name)
+                .map(f -> f.typeSpec().name())
                 .toList();
 
         assertThat(typeNames).contains(
@@ -48,7 +48,7 @@ class PortGeneratorTest {
         );
 
         JavaFile portInterface = result.generatedFiles().stream()
-                .filter(f -> f.typeSpec.name.equals("HolidayCalendarProvider"))
+                .filter(f -> f.typeSpec().name().equals("HolidayCalendarProvider"))
                 .findFirst().orElseThrow();
 
         assertThat(portInterface.toString())
@@ -56,7 +56,7 @@ class PortGeneratorTest {
                 .contains("Optional<String> fetch();");
 
         JavaFile schemaDto = result.generatedFiles().stream()
-                .filter(f -> f.typeSpec.name.equals("HolidayResponseDto"))
+                .filter(f -> f.typeSpec().name().equals("HolidayResponseDto"))
                 .findFirst().orElseThrow();
 
         assertThat(schemaDto.toString())
@@ -66,7 +66,7 @@ class PortGeneratorTest {
                 .contains("public LocalDate date()");
 
         JavaFile restAdapter = result.generatedFiles().stream()
-                .filter(f -> f.typeSpec.name.equals("RestHolidayCalendarProviderFetchAdapter"))
+                .filter(f -> f.typeSpec().name().equals("RestHolidayCalendarProviderFetchAdapter"))
                 .findFirst().orElseThrow();
 
         assertThat(restAdapter.toString())
@@ -96,13 +96,13 @@ class PortGeneratorTest {
         VernacCompilationResult result = compiler.compileSource(dsl);
 
         List<String> typeNames = result.generatedFiles().stream()
-                .map(f -> f.typeSpec.name)
+                .map(f -> f.typeSpec().name())
                 .toList();
 
         assertThat(typeNames).contains("InvoiceGenerator", "InvoiceGeneratorDelegate");
 
         JavaFile delegate = result.generatedFiles().stream()
-                .filter(f -> f.typeSpec.name.equals("InvoiceGeneratorDelegate"))
+                .filter(f -> f.typeSpec().name().equals("InvoiceGeneratorDelegate"))
                 .findFirst().orElseThrow();
 
         assertThat(delegate.toString())
@@ -139,7 +139,7 @@ class PortGeneratorTest {
         VernacCompilationResult result = compiler.compileSource(dsl);
 
         JavaFile restAdapter = result.generatedFiles().stream()
-                .filter(f -> f.typeSpec.name.equals("RestWeatherProviderFetchWeatherAdapter"))
+                .filter(f -> f.typeSpec().name().equals("RestWeatherProviderFetchWeatherAdapter"))
                 .findFirst().orElseThrow();
 
         String code = restAdapter.toString();
@@ -188,7 +188,7 @@ class PortGeneratorTest {
         VernacCompilationResult result = compiler.compileSource(dsl);
 
         JavaFile restAdapter = result.generatedFiles().stream()
-                .filter(f -> f.typeSpec.name.equals("RestExternalProjectServiceFetchProjectAdapter"))
+                .filter(f -> f.typeSpec().name().equals("RestExternalProjectServiceFetchProjectAdapter"))
                 .findFirst().orElseThrow();
 
         String code = restAdapter.toString();

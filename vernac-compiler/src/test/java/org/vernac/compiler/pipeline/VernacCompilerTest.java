@@ -60,7 +60,7 @@ class VernacCompilerTest {
 
         assertThat(result.packageName()).isEqualTo("com.example");
         List<String> generatedTypeNames = result.generatedFiles().stream()
-                .map(f -> f.typeSpec.name)
+                .map(f -> f.typeSpec().name())
                 .toList();
 
         // 4 Value Objects + 1 Event + 1 Aggregate + 1 Entity + 1 Port + 1 Schema + 1 Adapter = 10 Klassen

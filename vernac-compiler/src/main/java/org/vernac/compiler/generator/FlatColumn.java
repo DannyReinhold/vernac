@@ -1,6 +1,6 @@
 package org.vernac.compiler.generator;
 
-import com.squareup.javapoet.TypeName;
+import com.palantir.javapoet.TypeName;
 
 public record FlatColumn(
         String columnName,          // z. B. "money_amount" oder "capacity"

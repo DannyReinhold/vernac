@@ -20,6 +20,7 @@ topLevelDeclaration
     | entityDefinition
     | portDefinition
     | repositoryDefinition
+    | usecaseDefinition
     ;
 
 // ==========================================
@@ -234,6 +235,66 @@ repositoryFindMethod
 
 repositoryCustomMethod
     : 'custom' returnType=type name=methodName '(' parameterList? ')' ';'
+    ;
+
+// ==========================================
+// 6. Use Cases
+// ==========================================
+usecaseDefinition
+    : 'usecase' name=typeName '(' parameterList? ')'
+      ( 'validates' validationBlock )?
+      '{' usecaseMember* '}'
+      ';'?
+    ;
+
+usecaseMember
+    : packageDeclarationStatement
+    | useDependencyStatement
+    | usecaseStatement
+    ;
+
+useDependencyStatement
+    : 'use' typeName (variableName)? ';'
+    ;
+
+usecaseStatement
+    : loadStatement
+    | saveStatement
+    | tupleReturnStatement
+    | singleReturnStatement
+    | rawJavaStatement
+    ;
+
+loadStatement
+    : 'load' aggregateType=typeName (instanceName=variableName)?
+      ('from' repositoryName=variableName)?
+      ('by' idExpression=expression)? ';'
+    ;
+
+saveStatement
+    : 'save' instanceName=variableName ('to' repositoryName=variableName)? ';'
+    ;
+
+singleReturnStatement
+    : 'return' expression? ';'
+    ;
+
+tupleReturnStatement
+    : 'return' '(' tupleElement (',' tupleElement)* ')' ';'
+    ;
+
+tupleElement
+    : expression ('as'? alias=variableName)?
+    ;
+
+rawJavaStatement
+    : javaBlockStatement
+    | '{' rawJavaBlock '}'
+    | ~('}' | 'use' | 'load' | 'save' | 'return' | 'package' | '{') ~(';' | '{')* ';'
+    ;
+
+javaBlockStatement
+    : ('if' | 'for' | 'while' | 'switch' | 'try') ~('{')* '{' rawJavaBlock '}' ( 'else' ( '{' rawJavaBlock '}' | javaBlockStatement ) )?
     ;
 
 // ==========================================

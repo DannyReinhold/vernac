@@ -1,6 +1,6 @@
 package org.vernac.compiler.pipeline;
 
-import com.squareup.javapoet.JavaFile;
+import com.palantir.javapoet.JavaFile;
 import org.antlr.v4.runtime.*;
 import org.vernac.compiler.analyzer.CompilerDiagnostic;
 import org.vernac.compiler.analyzer.SemanticAnalyzer;
@@ -29,6 +29,7 @@ public class VernacCompiler {
     private final DomainCollectionGenerator domainCollectionGenerator = new DomainCollectionGenerator(); // <-- NEU
     private final RepositoryGenerator repositoryGenerator = new RepositoryGenerator();
     private final PortGenerator portGenerator = new PortGenerator();
+    private final UseCaseGenerator useCaseGenerator = new UseCaseGenerator();
 
     public VernacCompilationResult compile(Path vernacFile) throws IOException {
         String source = Files.readString(vernacFile);
@@ -56,11 +57,13 @@ public class VernacCompiler {
         Map<String, AggregateNode> aggregates = new HashMap<>();
         Map<String, EntityNode> entities = new HashMap<>();
         Map<String, ValueObjectNode> valueObjects = new HashMap<>();
+        Map<String, RepositoryNode> repositories = new HashMap<>();
 
         for (TopLevelDefinition def : unit.definitions()) {
             if (def instanceof AggregateNode agg) aggregates.put(agg.name(), agg);
             else if (def instanceof EntityNode entity) entities.put(entity.name(), entity);
             else if (def instanceof ValueObjectNode vo) valueObjects.put(vo.name(), vo);
+            else if (def instanceof RepositoryNode repo) repositories.put(repo.name(), repo);
         }
 
         // Bestehende Generierungsschleife
@@ -88,6 +91,8 @@ public class VernacCompiler {
                 ));
             } else if (definition instanceof PortNode port) {
                 generatedFiles.addAll(portGenerator.generate(port, packageName, imports));
+            } else if (definition instanceof UseCaseNode useCase) {
+                generatedFiles.add(useCaseGenerator.generate(useCase, aggregates, repositories, packageName, imports));
             }
         }
 

@@ -38,6 +38,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         if (ctx.eventDefinition() != null) return visitEventDefinition(ctx.eventDefinition());
         if (ctx.portDefinition() != null) return visitPortDefinition(ctx.portDefinition());
         if (ctx.repositoryDefinition() != null) return visitRepositoryDefinition(ctx.repositoryDefinition());
+        if (ctx.usecaseDefinition() != null) return visitUsecaseDefinition(ctx.usecaseDefinition());
         return null;
     }
 
@@ -534,6 +535,89 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         return new SourceLocation(
                 ctx.getStart().getLine(),
                 ctx.getStart().getCharPositionInLine()
+        );
+    }
+
+    @Override
+    public UseCaseNode visitUsecaseDefinition(VernacParser.UsecaseDefinitionContext ctx) {
+        String name = ctx.name.getText();
+
+        List<FieldNode> parameters = Optional.ofNullable(ctx.parameterList())
+                .map(p -> extractParameters(p, false))
+                .orElse(Collections.emptyList());
+
+        List<ValidationRuleNode> validations = new ArrayList<>();
+        if (ctx.validationBlock() != null) {
+            for (VernacParser.ValidationStatementContext valCtx : ctx.validationBlock().validationStatement()) {
+                String condition = valCtx.condition.getText();
+                String message = valCtx.message != null ? unquote(valCtx.message.getText()) : "";
+                validations.add(new ValidationRuleNode(toLocation(valCtx), condition, message));
+            }
+        }
+
+        Optional<String> customPackage = Optional.empty();
+        List<UseDependencyNode> dependencies = new ArrayList<>();
+        List<UseCaseStatementNode> statements = new ArrayList<>();
+        Optional<ReturnStatementNode> returnStatement = Optional.empty();
+
+        if (ctx.usecaseMember() != null) {
+            for (VernacParser.UsecaseMemberContext member : ctx.usecaseMember()) {
+                if (member.packageDeclarationStatement() != null) {
+                    customPackage = Optional.of(member.packageDeclarationStatement().qualifiedName().getText());
+                } else if (member.useDependencyStatement() != null) {
+                    VernacParser.UseDependencyStatementContext depCtx = member.useDependencyStatement();
+                    String typeName = depCtx.typeName().getText();
+                    Optional<String> instanceName = depCtx.variableName() != null
+                            ? Optional.of(depCtx.variableName().getText())
+                            : Optional.empty();
+                    dependencies.add(new UseDependencyNode(toLocation(depCtx), typeName, instanceName));
+                } else if (member.usecaseStatement() != null) {
+                    VernacParser.UsecaseStatementContext stmtCtx = member.usecaseStatement();
+
+                    if (stmtCtx.loadStatement() != null) {
+                        VernacParser.LoadStatementContext loadCtx = stmtCtx.loadStatement();
+                        String aggType = loadCtx.aggregateType.getText();
+                        Optional<String> instance = Optional.ofNullable(loadCtx.instanceName).map(RuleContext::getText);
+                        Optional<String> repo = Optional.ofNullable(loadCtx.repositoryName).map(RuleContext::getText);
+                        Optional<String> idExpr = Optional.ofNullable(loadCtx.idExpression).map(RuleContext::getText);
+                        statements.add(new LoadStatementNode(toLocation(loadCtx), aggType, instance, repo, idExpr));
+                    } else if (stmtCtx.saveStatement() != null) {
+                        VernacParser.SaveStatementContext saveCtx = stmtCtx.saveStatement();
+                        String instance = saveCtx.instanceName.getText();
+                        Optional<String> repo = Optional.ofNullable(saveCtx.repositoryName).map(RuleContext::getText);
+                        statements.add(new SaveStatementNode(toLocation(saveCtx), instance, repo));
+                    } else if (stmtCtx.singleReturnStatement() != null) {
+                        VernacParser.SingleReturnStatementContext retCtx = stmtCtx.singleReturnStatement();
+                        Optional<String> expr = Optional.ofNullable(retCtx.expression()).map(RuleContext::getText);
+                        returnStatement = Optional.of(new SingleReturnNode(toLocation(retCtx), expr));
+                    } else if (stmtCtx.tupleReturnStatement() != null) {
+                        VernacParser.TupleReturnStatementContext retCtx = stmtCtx.tupleReturnStatement();
+                        List<TupleElementNode> elements = retCtx.tupleElement().stream()
+                                .map(te -> new TupleElementNode(
+                                        toLocation(te),
+                                        te.expression().getText(),
+                                        Optional.ofNullable(te.alias).map(RuleContext::getText)
+                                ))
+                                .toList();
+                        returnStatement = Optional.of(new TupleReturnNode(toLocation(retCtx), elements));
+                    } else if (stmtCtx.rawJavaStatement() != null) {
+                        VernacParser.RawJavaStatementContext rawCtx = stmtCtx.rawJavaStatement();
+                        String code = extractRawSource(rawCtx);
+                        statements.add(new RawJavaStatementNode(toLocation(rawCtx), code));
+                    }
+                }
+            }
+        }
+
+        return new UseCaseNode(
+                toLocation(ctx),
+                name,
+                parameters,
+                validations,
+                dependencies,
+                statements,
+                returnStatement,
+                customPackage
         );
     }
 }

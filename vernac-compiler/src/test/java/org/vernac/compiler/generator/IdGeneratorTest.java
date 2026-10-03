@@ -1,6 +1,6 @@
 package org.vernac.compiler.generator;
 
-import com.squareup.javapoet.JavaFile;
+import com.palantir.javapoet.JavaFile;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.vernac.compiler.ast.IdDeclarationNode;
@@ -47,6 +47,6 @@ class IdGeneratorTest {
         JavaFile file = generator.generate(node, "com.example");
 
         assertThat(file.toString()).contains("package com.example.shared.kernel;");
-        assertThat(file.typeSpec.name).isEqualTo("SharedId");
+        assertThat(file.typeSpec().name()).isEqualTo("SharedId");
     }
 }

@@ -157,6 +157,67 @@ class SemanticAnalyzerTest {
                 .hasMessageContaining("Primitive type 'int' cannot be optional. Use the wrapper type 'Integer?' instead.");
     }
 
+    @Test
+    @DisplayName("Verhindert doppelte Dependency-Typen in use-Klauseln")
+    void shouldRejectDuplicateDependencyTypes() {
+        String dsl = """
+                package com.example.app;
+                id OrderId;
+                aggregate Order[OrderId](String status);
+                repository for Order {}
+                
+                usecase CancelOrder(OrderId id) {
+                    use OrderRepository repo1;
+                    use OrderRepository repo2;
+                }
+                """;
+
+        assertThatThrownBy(() -> compiler.compileSource(dsl))
+                .isInstanceOf(SemanticValidationException.class)
+                .hasMessageContaining("Duplicate dependency type 'OrderRepository' in usecase 'CancelOrder'");
+    }
+
+    @Test
+    @DisplayName("Meldet Fehler, wenn 'from' den Repository-Typ statt der Variablen nutzt")
+    void shouldRejectRepositoryTypeInFromClause() {
+        String dsl = """
+                package com.example.app;
+                id OrderId;
+                aggregate Order[OrderId](String status);
+                repository for Order {}
+                
+                usecase CancelOrder(OrderId id) {
+                    use OrderRepository myRepo;
+                    load Order from OrderRepository by id;
+                }
+                """;
+
+        assertThatThrownBy(() -> compiler.compileSource(dsl))
+                .isInstanceOf(SemanticValidationException.class)
+                .hasMessageContaining("Repository variable 'OrderRepository' used in 'from' clause is not declared with 'use'");
+    }
+
+    @Test
+    @DisplayName("Verhindert Rückgabe von Aggregat-Instanzen im Tuple-Return")
+    void shouldRejectAggregateInTupleReturn() {
+        String dsl = """
+                package com.example.app;
+                id OrderId;
+                aggregate Order[OrderId](String status);
+                repository for Order {}
+                
+                usecase CancelOrder(OrderId id) {
+                    use OrderRepository;
+                    load Order by id;
+                    return (Order, id);
+                }
+                """;
+
+        assertThatThrownBy(() -> compiler.compileSource(dsl))
+                .isInstanceOf(SemanticValidationException.class)
+                .hasMessageContaining("Direct return of aggregate root 'Order' in tuple is forbidden");
+    }
+
     @Nested
     @DisplayName("Identifier & First-Class ID Validierungen")
     class IdentifierAndIdTests {

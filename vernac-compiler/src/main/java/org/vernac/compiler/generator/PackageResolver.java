@@ -72,4 +72,17 @@ public final class PackageResolver {
         // 3. Priorität: Domain-Package aus basePackage ableiten
         return resolveDomainPackage(basePackage, Optional.empty());
     }
+
+    /**
+     * Ermittelt das Package für UseCase-Service-Klassen.
+     */
+    public static String resolveUseCasePackage(String basePackage, Optional<String> customPackage) {
+        if (customPackage != null && customPackage.isPresent() && !customPackage.get().isBlank()) {
+            return customPackage.get();
+        }
+        if (basePackage == null || basePackage.isBlank()) {
+            return "usecase";
+        }
+        return basePackage.endsWith(".usecase") ? basePackage : basePackage + ".usecase";
+    }
 }

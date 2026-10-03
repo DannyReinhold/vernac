@@ -1,6 +1,6 @@
 package org.vernac.compiler.generator;
 
-import com.squareup.javapoet.*;
+import com.palantir.javapoet.*;
 import org.vernac.compiler.ast.EntityNode;
 import org.vernac.compiler.ast.FieldNode;
 import org.vernac.compiler.ast.MethodNode;

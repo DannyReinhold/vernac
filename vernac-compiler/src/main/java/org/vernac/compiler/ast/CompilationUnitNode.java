@@ -51,4 +51,11 @@ public record CompilationUnitNode(
                 .map(PortNode.class::cast)
                 .toList();
     }
+
+    public List<UseCaseNode> useCases() {
+        return definitions.stream()
+                .filter(d -> d instanceof UseCaseNode)
+                .map(d -> (UseCaseNode) d)
+                .toList();
+    }
 }

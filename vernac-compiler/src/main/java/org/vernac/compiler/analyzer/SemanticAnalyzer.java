@@ -105,6 +105,8 @@ public class SemanticAnalyzer {
                 validateRepository(repo, unit, availableSymbols, diagnostics);
             } else if (def instanceof PortNode port) {
                 validatePort(port, unit, availableSymbols, diagnostics);
+            } else if (def instanceof UseCaseNode useCase) {
+                validateUseCase(useCase, unit, declaredAggregates, availableSymbols, diagnostics);
             }
         }
 
@@ -329,7 +331,7 @@ public class SemanticAnalyzer {
                     validatePackageName(pkg, entity.collection().get().location(), diagnostics)
             );
         }
-        
+
         String idTypeName = entity.idDefinition().type().name();
         if (!declaredIds.contains(idTypeName)) {
             diagnostics.add(CompilerDiagnostic.error(
@@ -482,6 +484,175 @@ public class SemanticAnalyzer {
         if (def instanceof EventNode event) return event.name();
         if (def instanceof PortNode port) return port.name();
         if (def instanceof RepositoryNode repo) return repo.name();
+        if (def instanceof UseCaseNode useCase) return useCase.name();
         throw new IllegalArgumentException("Unknown definition: " + def);
+    }
+
+    private void validateUseCase(
+            UseCaseNode useCase,
+            CompilationUnitNode unit,
+            Set<String> declaredAggregates,
+            Set<String> availableSymbols,
+            List<CompilerDiagnostic> diagnostics
+    ) {
+        if (useCase.customPackage().isPresent()) {
+            validatePackageName(useCase.customPackage().get(), useCase.location(), diagnostics);
+        }
+
+        // 1. Parameter prüfen
+        checkDuplicateFields(useCase.parameters(), useCase.name(), diagnostics);
+        for (FieldNode param : useCase.parameters()) {
+            validateIdentifier(param.name(), param.location(), "parameter", diagnostics);
+            validateTypeResolvable(param.type(), availableSymbols, unit.imports(), diagnostics);
+
+            // DDD-Regel: Keine Aggregates als Eingabeparameter
+            if (declaredAggregates.contains(param.type().name())) {
+                diagnostics.add(CompilerDiagnostic.error(
+                        param.location(),
+                        "Direct passing of aggregate root '" + param.type().name() +
+                                "' into usecase '" + useCase.name() + "' is forbidden. Pass IDs or Value Objects instead."
+                ));
+            }
+        }
+
+        // 2. Dependencies (use ...) prüfen
+        Set<String> depTypes = new HashSet<>();
+        Set<String> depInstances = new HashSet<>();
+        // Speichert pro Aggregat-Name die Liste aller dafür passenden Repo-Instanznamen in den use-Klauseln
+        Map<String, List<String>> aggregateToRepoInstances = new HashMap<>();
+
+        for (UseDependencyNode dep : useCase.dependencies()) {
+            validateIdentifier(dep.typeName(), dep.location(), "dependency type", diagnostics);
+
+            // Regel 4: Generell keine zwei identischen Dependency-Typen
+            if (!depTypes.add(dep.typeName())) {
+                diagnostics.add(CompilerDiagnostic.error(
+                        dep.location(),
+                        "Duplicate dependency type '" + dep.typeName() + "' in usecase '" + useCase.name() + "'."
+                ));
+            }
+
+            // Instanzname ermitteln (explizit oder per Konvention: camelCase des Typnamens)
+            String instanceName = dep.instanceName().orElseGet(() -> {
+                String type = dep.typeName();
+                return Character.toLowerCase(type.charAt(0)) + type.substring(1);
+            });
+
+            if (!depInstances.add(instanceName)) {
+                diagnostics.add(CompilerDiagnostic.error(
+                        dep.location(),
+                        "Duplicate dependency instance variable '" + instanceName + "' in usecase '" + useCase.name() + "'."
+                ));
+            }
+
+            // Prüfen, ob Dependency ein bekanntes Repository für ein Aggregat ist
+            unit.definitions().stream()
+                    .filter(d -> d instanceof RepositoryNode)
+                    .map(d -> (RepositoryNode) d)
+                    .filter(r -> r.name().equals(dep.typeName()))
+                    .findFirst()
+                    .ifPresent(r -> aggregateToRepoInstances
+                            .computeIfAbsent(r.aggregateName(), k -> new ArrayList<>())
+                            .add(instanceName));
+        }
+
+        // 3. Statements prüfen
+        for (UseCaseStatementNode stmt : useCase.statements()) {
+            if (stmt instanceof LoadStatementNode load) {
+                // Prüfen, ob aggregateType überhaupt ein Aggregat ist
+                if (!declaredAggregates.contains(load.aggregateType())) {
+                    diagnostics.add(CompilerDiagnostic.error(
+                            load.location(),
+                            "Cannot load non-aggregate type '" + load.aggregateType() + "' in usecase '" + useCase.name() + "'."
+                    ));
+                    continue;
+                }
+
+                if (load.repositoryName().isPresent()) {
+                    // Regel 5.2: repositoryName muss der Variablenname (Instanzname) sein!
+                    String repoVar = load.repositoryName().get();
+                    if (!depInstances.contains(repoVar)) {
+                        diagnostics.add(CompilerDiagnostic.error(
+                                load.location(),
+                                "Repository variable '" + repoVar + "' used in 'from' clause is not declared with 'use'."
+                        ));
+                    }
+                } else {
+                    // Regel 5.3: Es muss exakt EIN passendes Repository in den use-Klauseln dieses UseCases geben
+                    List<String> matchingRepos = aggregateToRepoInstances.getOrDefault(load.aggregateType(), Collections.emptyList());
+                    if (matchingRepos.isEmpty()) {
+                        diagnostics.add(CompilerDiagnostic.error(
+                                load.location(),
+                                "No repository in 'use' manages aggregate '" + load.aggregateType() + "'."
+                        ));
+                    } else if (matchingRepos.size() > 1) {
+                        diagnostics.add(CompilerDiagnostic.error(
+                                load.location(),
+                                "Ambiguous repositories for aggregate '" + load.aggregateType() +
+                                        "'. Explicitly specify 'from <repositoryVariable>'."
+                        ));
+                    }
+                }
+
+            } else if (stmt instanceof SaveStatementNode save) {
+                if (save.repositoryName().isPresent()) {
+                    String repoVar = save.repositoryName().get();
+                    if (!depInstances.contains(repoVar)) {
+                        diagnostics.add(CompilerDiagnostic.error(
+                                save.location(),
+                                "Repository variable '" + repoVar + "' used in 'to' clause is not declared with 'use'."
+                        ));
+                    }
+                }
+            }
+        }
+
+        // 4. Return-Statement & Tupel prüfen (Regel 6: Keine Aggregates im Result)
+        if (useCase.returnStatement().isPresent()) {
+            ReturnStatementNode ret = useCase.returnStatement().get();
+
+            if (ret instanceof SingleReturnNode single) {
+                single.expressionCode().ifPresent(expr -> {
+                    // Falls direkt ein Aggregat-Name als Singleton zurückgegeben wird
+                    if (declaredAggregates.contains(expr)) {
+                        diagnostics.add(CompilerDiagnostic.error(
+                                single.location(),
+                                "Returning aggregate root '" + expr + "' from usecase is forbidden. Return DTOs, IDs or Value Objects."
+                        ));
+                    }
+                });
+            } else if (ret instanceof TupleReturnNode tuple) {
+                Set<String> tupleFieldNames = new HashSet<>();
+                for (TupleElementNode elem : tuple.elements()) {
+                    String code = elem.expressionCode().trim();
+
+                    // Regel 6: Keine Aggregates im Tupel
+                    if (declaredAggregates.contains(code)) {
+                        diagnostics.add(CompilerDiagnostic.error(
+                                elem.location(),
+                                "Direct return of aggregate root '" + code + "' in tuple is forbidden. Projiziere Properties oder IDs."
+                        ));
+                    }
+
+                    // Eindeutige Komponentennamen sicherstellen
+                    String fieldName = elem.alias().orElseGet(() -> {
+                        int lastDot = code.lastIndexOf('.');
+                        if (lastDot >= 0) {
+                            String afterDot = code.substring(lastDot + 1).replaceAll("[^a-zA-Z0-9_]", "");
+                            return afterDot.isEmpty() ? "value" : afterDot;
+                        }
+                        return "value";
+                    });
+
+                    if (!tupleFieldNames.add(fieldName)) {
+                        diagnostics.add(CompilerDiagnostic.error(
+                                elem.location(),
+                                "Duplicate component name '" + fieldName + "' in tuple return of usecase '" + useCase.name() +
+                                        "'. Use explicit aliases with 'as <name>'."
+                        ));
+                    }
+                }
+            }
+        }
     }
 }

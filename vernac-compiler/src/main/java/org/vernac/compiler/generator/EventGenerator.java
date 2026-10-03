@@ -1,6 +1,6 @@
 package org.vernac.compiler.generator;
 
-import com.squareup.javapoet.*;
+import com.palantir.javapoet.*;
 import org.jspecify.annotations.Nullable;
 import org.vernac.compiler.ast.EventNode;
 import org.vernac.compiler.ast.FieldNode;
