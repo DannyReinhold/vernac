@@ -31,6 +31,7 @@ public class VernacCompiler {
     private final PortGenerator portGenerator = new PortGenerator();
     private final UseCaseGenerator useCaseGenerator = new UseCaseGenerator();
     private final DomainServiceGenerator domainServiceGenerator = new DomainServiceGenerator();
+    private final ListenerGenerator listenerGenerator = new ListenerGenerator();
 
     public VernacCompilationResult compile(Path vernacFile) throws IOException {
         String source = Files.readString(vernacFile);
@@ -96,6 +97,8 @@ public class VernacCompiler {
                 generatedFiles.add(useCaseGenerator.generate(useCase, aggregates, repositories, packageName, imports));
             } else if (definition instanceof DomainServiceNode service) { // <-- DIESER ZWEIG FEHLT
                 generatedFiles.add(domainServiceGenerator.generate(service, aggregates, packageName, imports));
+            } else if (definition instanceof ListenerNode listener) { // <-- NEU
+                generatedFiles.add(listenerGenerator.generate(listener, packageName, imports));
             }
         }
 

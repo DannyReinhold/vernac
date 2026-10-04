@@ -18,6 +18,40 @@
     <description>Lightweight runtime interfaces and exceptions for Vernac applications</description>
 
     <dependencies>
+        <!-- Nullability Annotations -->
+        <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+        </dependency>
+
+        <!-- Spring Core / Context (für @Component und ApplicationEventPublisher) -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Spring JDBC (für NamedParameterJdbcTemplate & MapSqlParameterSource) -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Spring Transaction (für @Transactional) -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Jackson Databind (für JSON-Serialisierung der Outbox-Payloads) -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        
         <!-- Runtime bleibt bewusst frei von 3rd-Party-Abhängigkeiten -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>

@@ -83,4 +83,34 @@ class EventGeneratorTest {
                 .contains("public CustomerId customerId()")
                 .contains("public String newAddress()");
     }
+
+    @Test
+    @DisplayName("Erzeugt OUTBOX_TABLE_NAME und OUTBOX_SCHEMA_DDL nur bei Outbox-Events")
+    void shouldGenerateOutboxSchemaConstantsForOutboxEvents() {
+        String src = """
+                package com.example.domain;
+                
+                outbox event OrderPlaced(String orderId);
+                memory event OrderValidated(String orderId);
+                """;
+
+        CompilationUnitNode cu = parse(src);
+
+        // 1. Outbox Event
+        EventNode outboxNode = cu.events().get(0);
+        JavaFile outboxFile = generator.generate(outboxNode, "com.example.domain", List.of());
+        String outboxCode = outboxFile.toString();
+        assertThat(outboxCode)
+                .contains("public static final String OUTBOX_TABLE_NAME = \"vernac_outbox\";")
+                .contains("public static final String OUTBOX_SCHEMA_DDL =")
+                .contains("CREATE TABLE IF NOT EXISTS vernac_outbox (")
+                .contains("<p>Expected PostgreSQL Outbox Table Schema:</p>");
+
+        // 2. Memory Event (keine DDL-Konstanten)
+        EventNode memoryNode = cu.events().get(1);
+        JavaFile memoryFile = generator.generate(memoryNode, "com.example.domain", List.of());
+        String memoryCode = memoryFile.toString();
+        assertThat(memoryCode).doesNotContain("OUTBOX_TABLE_NAME");
+        assertThat(memoryCode).doesNotContain("OUTBOX_SCHEMA_DDL");
+    }
 }

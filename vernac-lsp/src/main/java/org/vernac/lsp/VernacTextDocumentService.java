@@ -20,11 +20,11 @@ public class VernacTextDocumentService implements TextDocumentService {
 
     private static final Set<String> DSL_KEYWORDS = Set.of(
             "package", "import", "as", "id",
-            "aggregate", "value", "entity", "event", "service", "external", "schema",
+            "aggregate", "value", "entity", "event", "outbox", "memory", "service", "external", "schema",
             "repository", "for", "table", "find", "custom", "validates", "require",
             "mut", "invariant", "mapping",
             "port", "adapter", "rest", "on", "throw", "throws",
-            "usecase", "use", "load", "save"
+            "usecase", "use", "load", "save", "listener"
     );
 
     private static final Set<String> JAVA_KEYWORDS = Set.of(
@@ -290,6 +290,12 @@ public class VernacTextDocumentService implements TextDocumentService {
             return CompletableFuture.completedFuture(Either.forLeft(items));
         }
 
+        // Kontext A2: Nach "listener" -> Nur deklarierte Events
+        if (prefix.matches("(?s).*\\blistener\\s+\\w*$")) {
+            addEventCompletions(items, content);
+            return CompletableFuture.completedFuture(Either.forLeft(items));
+        }
+
         // Kontext B: Typ-Position (nach '[', '<', ':', 'mut', 'find', 'custom' oder in Parameterliste)
         if (isTypeExpected(prefix)) {
             Set<String> seenTypes = new HashSet<>();
@@ -434,7 +440,9 @@ public class VernacTextDocumentService implements TextDocumentService {
         addKeywordCompletion(items, "value", "value ${1:Name}(${2:Type} value);");
         addKeywordCompletion(items, "value (enum)", "value ${1:Name} = ${2:CONST1} | ${3:CONST2};");
         addKeywordCompletion(items, "entity", "entity ${1:Name}[${2:IdType} id](\n    $0\n);");
-        addKeywordCompletion(items, "event", "event ${1:Name}(${2:Type} value);");
+        addKeywordCompletion(items, "event (outbox)", "outbox event ${1:Name}(${2:Type} value);");
+        addKeywordCompletion(items, "event (memory)", "memory event ${1:Name}(${2:Type} value);");
+        addKeywordCompletion(items, "listener", "listener ${1:EventName} {\n    $0\n}");
         addKeywordCompletion(items, "port", "port ${1:Name} {\n    $0\n}");
         addKeywordCompletion(items, "repository", "repository ${1:Name} for ${2:Aggregate} {\n    table: \"${3:table_name}\";\n    $0\n};");
         addKeywordCompletion(items, "id", "id ${1:Name}Id;");
@@ -520,7 +528,7 @@ public class VernacTextDocumentService implements TextDocumentService {
 
     private Location findDeclaration(String uri, String content, String targetName) {
         String[] lines = content.split("\r?\n", -1);
-        Pattern typePattern = Pattern.compile("\\b(aggregate|value|entity|event|usecase|id|service)\\s+(" + Pattern.quote(targetName) + ")\\b");
+        Pattern typePattern = Pattern.compile("\\b(aggregate|value|entity|event|listener|usecase|id|service)\\s+(" + Pattern.quote(targetName) + ")\\b");
         // Erkennt Enum-Konstanten nach einem '=' oder '|'
         Pattern enumConstPattern = Pattern.compile("[=|]\\s*(" + Pattern.quote(targetName) + ")\\b");
 
@@ -547,6 +555,20 @@ public class VernacTextDocumentService implements TextDocumentService {
     // ==========================================
     // Interne Hilfsstrukturen
     // ==========================================
+
+    private void addEventCompletions(List<CompletionItem> items, String content) {
+        Pattern pattern = Pattern.compile("\\b(?:outbox\\s+|memory\\s+)?event\\s+([A-Z][a-zA-Z0-9_]*)");
+        Matcher matcher = pattern.matcher(content);
+
+        while (matcher.find()) {
+            String eventName = matcher.group(1);
+            CompletionItem item = new CompletionItem(eventName);
+            item.setKind(CompletionItemKind.Event);
+            item.setDetail("Vernac Domain Event");
+            item.setInsertText(eventName);
+            items.add(item);
+        }
+    }
 
     private static class RawToken {
         final int line;

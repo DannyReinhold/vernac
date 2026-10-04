@@ -227,6 +227,37 @@ class AstBuilderVisitorTest {
             assertThat(vo.methods()).hasSize(1);
             assertThat(vo.methods().getFirst().name()).isEqualTo("isActive");
         }
+
+        @Nested
+        @DisplayName("10. Event Listeners")
+        class ListenerTests {
+
+            @Test
+            @DisplayName("Parst Listener mit Dependencies und Statements")
+            void shouldParseListener() {
+                String src = """
+                        package com.example.energy;
+                        
+                        listener StorageOverheated {
+                            use NotificationPort notifications;
+                        
+                            notifications.sendAlert("Overheated");
+                        }
+                        """;
+
+                CompilationUnitNode cu = parse(src);
+                assertThat(cu.listeners()).hasSize(1);
+
+                ListenerNode listener = cu.listeners().getFirst();
+                assertThat(listener.eventName()).isEqualTo("StorageOverheated");
+                assertThat(listener.listenerName()).isEqualTo("StorageOverheatedListener");
+                assertThat(listener.dependencies()).hasSize(1);
+                assertThat(listener.dependencies().getFirst().typeName()).isEqualTo("NotificationPort");
+                assertThat(listener.dependencies().getFirst().instanceName()).contains("notifications");
+                assertThat(listener.statements()).hasSize(1);
+                assertThat(listener.statements().getFirst().javaCode()).contains("notifications.sendAlert(\"Overheated\");");
+            }
+        }
     }
 
     @Nested

@@ -63,7 +63,8 @@ class RepositoryGeneratorTest {
         String normalizedJdbc = normalize(jdbcRepo.toString());
         assertThat(normalizedJdbc)
                 .contains("@Transactional(propagation = Propagation.MANDATORY)")
-                .contains("this.customDelegate = Objects.requireNonNull(customDelegate")
+                .contains("this.eventDispatcher = Objects.requireNonNull(eventDispatcher, \"eventDispatcher must not be null\");")
+                .contains("this.eventDispatcher.dispatch(\"Order\", aggregate.id().value().toString(), aggregate.pullDomainEvents());")
                 .contains("throw new AggregateNotFoundException")
                 .contains("throw new OptimisticLockingFailureException");
     }

@@ -11,7 +11,7 @@ public class SemanticAnalyzer {
             "String", "Boolean", "Integer", "Long", "Double", "Float",
             "BigDecimal", "BigInteger", "UUID", "Currency",
             "Instant", "LocalDate", "LocalDateTime", "LocalTime", "ZonedDateTime", "Duration",
-            "List", "Set", "Map", "Optional"
+            "List", "Set", "Map", "Optional", "void", "Void"
     );
 
     // Alle relevanten reservierten Java-Wörter
@@ -84,6 +84,11 @@ public class SemanticAnalyzer {
                 .map(this::getDefinitionName)
                 .collect(java.util.stream.Collectors.toSet());
 
+        Set<String> declaredEvents = unit.definitions().stream()
+                .filter(d -> d instanceof EventNode)
+                .map(this::getDefinitionName)
+                .collect(java.util.stream.Collectors.toSet());
+
         Set<String> declaredIds = new HashSet<>();
         for (TopLevelDefinition def : unit.definitions()) {
             if (def instanceof IdDeclarationNode idDef) {
@@ -109,6 +114,8 @@ public class SemanticAnalyzer {
                 validateUseCase(useCase, unit, declaredAggregates, availableSymbols, diagnostics);
             } else if (def instanceof DomainServiceNode service) {
                 validateDomainService(service, unit, availableSymbols, diagnostics);
+            } else if (def instanceof ListenerNode listener) {
+                validateListener(listener, unit, declaredEvents, diagnostics);
             }
         }
 
@@ -524,6 +531,7 @@ public class SemanticAnalyzer {
         if (def instanceof RepositoryNode repo) return repo.name();
         if (def instanceof UseCaseNode useCase) return useCase.name();
         if (def instanceof DomainServiceNode service) return service.name();
+        if (def instanceof ListenerNode listener) return listener.listenerName();
         throw new IllegalArgumentException("Unknown definition: " + def);
     }
 
@@ -722,5 +730,51 @@ public class SemanticAnalyzer {
         service.returnType().ifPresent(retType ->
                 validateTypeResolvable(retType, availableSymbols, unit.imports(), diagnostics)
         );
+    }
+
+    private void validateListener(
+            ListenerNode listener,
+            CompilationUnitNode unit,
+            Set<String> declaredEvents,
+            List<CompilerDiagnostic> diagnostics
+    ) {
+        if (listener.customPackage().isPresent()) {
+            validatePackageName(listener.customPackage().get(), listener.location(), diagnostics);
+        }
+
+        // 1. Prüfen, ob das Event deklariert ist
+        if (!declaredEvents.contains(listener.eventName())) {
+            diagnostics.add(CompilerDiagnostic.error(
+                    listener.location(),
+                    "Listener target '" + listener.eventName() + "' must be an existing event declaration."
+            ));
+        }
+
+        // 2. Dependencies (use ...) prüfen
+        Set<String> depTypes = new HashSet<>();
+        Set<String> depInstances = new HashSet<>();
+
+        for (UseDependencyNode dep : listener.dependencies()) {
+            validateIdentifier(dep.typeName(), dep.location(), "dependency type", diagnostics);
+
+            if (!depTypes.add(dep.typeName())) {
+                diagnostics.add(CompilerDiagnostic.error(
+                        dep.location(),
+                        "Duplicate dependency type '" + dep.typeName() + "' in listener '" + listener.listenerName() + "'."
+                ));
+            }
+
+            String instanceName = dep.instanceName().orElseGet(() -> {
+                String type = dep.typeName();
+                return Character.toLowerCase(type.charAt(0)) + type.substring(1);
+            });
+
+            if (!depInstances.add(instanceName)) {
+                diagnostics.add(CompilerDiagnostic.error(
+                        dep.location(),
+                        "Duplicate dependency instance variable '" + instanceName + "' in listener '" + listener.listenerName() + "'."
+                ));
+            }
+        }
     }
 }

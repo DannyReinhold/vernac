@@ -65,4 +65,11 @@ public record CompilationUnitNode(
                 .map(d -> (DomainServiceNode) d)
                 .toList();
     }
+
+    public List<ListenerNode> listeners() {
+        return definitions.stream()
+                .filter(d -> d instanceof ListenerNode)
+                .map(d -> (ListenerNode) d)
+                .toList();
+    }
 }

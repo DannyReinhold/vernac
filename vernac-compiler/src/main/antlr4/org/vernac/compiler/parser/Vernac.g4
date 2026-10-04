@@ -22,6 +22,7 @@ topLevelDeclaration
     | repositoryDefinition
     | usecaseDefinition
     | domainServiceDefinition
+    | listenerDefinition
     ;
 
 // ==========================================
@@ -300,7 +301,7 @@ tupleElement
 rawJavaStatement
     : javaBlockStatement
     | '{' rawJavaBlock '}'
-    | ~('}' | 'use' | 'load' | 'save' | 'return' | 'package' | '{') ~(';' | '{')* ';'
+    | ~('}' | 'use' | 'load' | 'save' | 'return' | 'package' | 'emit' | '{') ~(';' | '{')* ';'
     ;
 
 javaBlockStatement
@@ -321,6 +322,22 @@ domainServiceMember
     : packageDeclarationStatement
     | singleReturnStatement
     | tupleReturnStatement
+    | rawJavaStatement
+    ;
+
+// ==========================================
+// 8. Event Listeners
+// ==========================================
+listenerDefinition
+    : 'listener' eventName=typeName '{'
+        listenerMember*
+      '}'
+      ';'?
+    ;
+
+listenerMember
+    : packageDeclarationStatement
+    | useDependencyStatement
     | rawJavaStatement
     ;
 

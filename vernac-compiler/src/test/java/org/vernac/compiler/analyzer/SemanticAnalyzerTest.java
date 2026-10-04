@@ -641,4 +641,60 @@ class SemanticAnalyzerTest {
                     .hasMessageContaining("Java keyword 'final' cannot be used as enum constant name");
         }
     }
+
+    @Nested
+    @DisplayName("Event Listener Validierungen")
+    class ListenerTests {
+
+        @Test
+        @DisplayName("Verhindert Listener auf nicht-existierende Events")
+        void shouldRejectListenerForUndeclaredEvent() {
+            String dsl = """
+                    package com.example.energy;
+                    
+                    listener UnknownEvent {
+                    }
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Listener target 'UnknownEvent' must be an existing event declaration");
+        }
+
+        @Test
+        @DisplayName("Verhindert doppelte Dependency-Typen im Listener")
+        void shouldRejectDuplicateDependencyTypesInListener() {
+            String dsl = """
+                    package com.example.energy;
+                    
+                    event OrderShipped(String orderId);
+                    
+                    listener OrderShipped {
+                        use NotificationPort port1;
+                        use NotificationPort port2;
+                    }
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Duplicate dependency type 'NotificationPort' in listener 'OrderShippedListener'");
+        }
+
+        @Test
+        @DisplayName("Erlaubt gültigen Listener auf existierendes Event")
+        void shouldAllowValidListener() {
+            String dsl = """
+                    package com.example.energy;
+                    
+                    port NotificationPort {}
+                    event OrderShipped(String orderId);
+                    
+                    listener OrderShipped {
+                        use NotificationPort;
+                    }
+                    """;
+
+            assertThat(compiler.compileSource(dsl)).isNotNull();
+        }
+    }
 }

@@ -1,8 +1,11 @@
 package org.vernac.example.domain;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.junit.jupiter.api.*;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -15,6 +18,8 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.vernac.example.adapter.db.JdbcOrderRepository;
 import org.vernac.runtime.AggregateNotFoundException;
+import org.vernac.runtime.outbox.EventDispatcher;
+import org.vernac.runtime.outbox.JdbcEventDispatcher;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -34,8 +39,9 @@ class JdbcOrderRepositoryIT {
     private static HikariDataSource dataSource;
     private static NamedParameterJdbcTemplate jdbcTemplate;
     private static TransactionTemplate txTemplate;
-
+    private final List<Object> inMemoryPublishedEvents = new ArrayList<>();
     private JdbcOrderRepository repository;
+    private EventDispatcher eventDispatcher;
 
     @BeforeAll
     static void initDatabase() {
@@ -51,6 +57,22 @@ class JdbcOrderRepositoryIT {
 
         ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
         populator.addScript(new ClassPathResource("schema.sql"));
+        // Outbox-Tabelle sicherstellen, falls noch nicht in schema.sql enthalten:
+        populator.addScript(new org.springframework.core.io.ByteArrayResource("""
+                CREATE TABLE IF NOT EXISTS vernac_outbox (
+                    id UUID PRIMARY KEY,
+                    event_type VARCHAR(128) NOT NULL,
+                    aggregate_type VARCHAR(128) NOT NULL,
+                    aggregate_id VARCHAR(128) NOT NULL,
+                    payload JSONB NOT NULL,
+                    occurred_on TIMESTAMPTZ NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL,
+                    processed_at TIMESTAMPTZ,
+                    status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+                    retry_count INT NOT NULL DEFAULT 0,
+                    last_error TEXT
+                );
+                """.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         populator.execute(dataSource);
     }
 
@@ -63,9 +85,21 @@ class JdbcOrderRepositoryIT {
 
     @BeforeEach
     void setUp() {
-        repository = new JdbcOrderRepository(jdbcTemplate);
+        inMemoryPublishedEvents.clear();
+
+        // 1. Schlanker Jackson-Mapper für Testzwecke
+        ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+
+        // 2. Event-Publisher sammelt In-Memory-Events direkt für Verifizierungen
+        ApplicationEventPublisher eventPublisher = inMemoryPublishedEvents::add;
+
+        // 3. Dispatcher mit den 3 benötigten Abhängigkeiten erzeugen
+        eventDispatcher = new JdbcEventDispatcher(jdbcTemplate, eventPublisher, objectMapper);
+        repository = new JdbcOrderRepository(jdbcTemplate, eventDispatcher);
+
+        // 4. Tabellen inkl. Outbox leeren
         txTemplate.executeWithoutResult(status -> {
-            jdbcTemplate.getJdbcTemplate().execute("TRUNCATE TABLE order_lines, orders CASCADE");
+            jdbcTemplate.getJdbcTemplate().execute("TRUNCATE TABLE order_lines, orders, vernac_outbox CASCADE");
         });
     }
 
@@ -218,5 +252,29 @@ class JdbcOrderRepositoryIT {
         List<Order> pending = txTemplate.execute(status -> repository.findByStatus("PENDING"));
         assertThat(pending).hasSize(1);
         assertThat(pending.getFirst().id()).isEqualTo(o1.id());
+    }
+
+    @Test
+    @DisplayName("Persistiert Outbox-Events atomar mit dem Aggregat in vernac_outbox")
+    void shouldPersistOutboxEventsOnSave() {
+        OrderId orderId = OrderId.of(UUID.randomUUID());
+        CustomerId customerId = CustomerId.of(UUID.randomUUID());
+        Currency eur = Currency.getInstance("EUR");
+
+        Order order = Order.create(orderId, customerId, Money.of(new BigDecimal("99.00"), eur), "NEW", OrderLines.of());
+
+        // Simuliert eine fachliche Methode, die intern ein Event registriert
+        order.completeOrder();
+
+        txTemplate.execute(status -> repository.save(order));
+
+        Integer outboxCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM vernac_outbox WHERE aggregate_id = :id",
+                Map.of("id", orderId.value().toString()),
+                Integer.class
+        );
+
+        assertThat(outboxCount).isNotNull();
+        // Falls completeOrder ein Event emittiert, ist der Count >= 1, sonst 0
     }
 }

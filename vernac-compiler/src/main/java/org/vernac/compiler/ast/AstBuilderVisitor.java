@@ -40,6 +40,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         if (ctx.repositoryDefinition() != null) return visitRepositoryDefinition(ctx.repositoryDefinition());
         if (ctx.usecaseDefinition() != null) return visitUsecaseDefinition(ctx.usecaseDefinition());
         if (ctx.domainServiceDefinition() != null) return visitDomainServiceDefinition(ctx.domainServiceDefinition());
+        if (ctx.listenerDefinition() != null) return visitListenerDefinition(ctx.listenerDefinition());
         return null;
     }
 
@@ -704,6 +705,39 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 validations,
                 statements,
                 returnStatement,
+                customPackage
+        );
+    }
+
+    public ListenerNode visitListenerDefinition(VernacParser.ListenerDefinitionContext ctx) {
+        String eventName = ctx.eventName.getText();
+        Optional<String> customPackage = Optional.empty();
+        List<UseDependencyNode> dependencies = new ArrayList<>();
+        List<RawJavaStatementNode> statements = new ArrayList<>();
+
+        if (ctx.listenerMember() != null) {
+            for (VernacParser.ListenerMemberContext member : ctx.listenerMember()) {
+                if (member.packageDeclarationStatement() != null) {
+                    customPackage = Optional.of(member.packageDeclarationStatement().qualifiedName().getText());
+                } else if (member.useDependencyStatement() != null) {
+                    VernacParser.UseDependencyStatementContext depCtx = member.useDependencyStatement();
+                    String typeName = depCtx.typeName().getText();
+                    Optional<String> instanceName = depCtx.variableName() != null
+                            ? Optional.of(depCtx.variableName().getText())
+                            : Optional.empty();
+                    dependencies.add(new UseDependencyNode(toLocation(depCtx), typeName, instanceName));
+                } else if (member.rawJavaStatement() != null) {
+                    String code = extractRawSource(member.rawJavaStatement());
+                    statements.add(new RawJavaStatementNode(toLocation(member.rawJavaStatement()), code));
+                }
+            }
+        }
+
+        return new ListenerNode(
+                toLocation(ctx),
+                eventName,
+                dependencies,
+                statements,
                 customPackage
         );
     }
