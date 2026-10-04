@@ -36,14 +36,23 @@ idMember
     ;
 
 // ==========================================
-// 1. Value Objects
+// 1. Value Objects & Enums
 // ==========================================
 valueDefinition
-    : 'value' name=typeName '(' parameterList? ')'
-      ( 'validates' validationBlock )?
+    : 'value' name=typeName (
+        '(' parameterList? ')' ( 'validates' validationBlock )? ( collectionDefinition )?
+      | '=' enumConstantList
+      )
       ( '{' valueMember* '}' )?
-      ( collectionDefinition )?
       ';'?
+    ;
+
+enumConstantList
+    : enumConstant ( '|' enumConstant )*
+    ;
+
+enumConstant
+    : name=IDENTIFIER ( '(' dbValue=STRING_LITERAL ')' )?
     ;
 
 valueMember

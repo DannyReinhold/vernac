@@ -182,6 +182,51 @@ class AstBuilderVisitorTest {
             assertThat(coll.customMethods().getFirst().name()).isEqualTo("sum");
             assertThat(coll.customMethods().getFirst().returnType().name()).isEqualTo("Money");
         }
+
+        @Test
+        @DisplayName("Parst Enum Value Object mit Standard- und Custom-DB-Werten sowie Methoden")
+        void shouldParseEnumValueObject() {
+            String src = """
+                    package com.example.domain;
+                    
+                    value AcMode = ECO("eco") | COOL | HEAT("heat") | OFF {
+                        public boolean isActive() {
+                            return this != OFF;
+                        }
+                    }
+                    """;
+
+            CompilationUnitNode cu = parse(src);
+            assertThat(cu.valueObjects()).hasSize(1);
+
+            ValueObjectNode vo = cu.valueObjects().getFirst();
+            assertThat(vo.name()).isEqualTo("AcMode");
+            assertThat(vo.isEnum()).isTrue();
+            assertThat(vo.fields()).isEmpty();
+            assertThat(vo.enumConstants()).hasSize(4);
+
+            // ECO mit explizitem dbValue "eco"
+            assertThat(vo.enumConstants().get(0).name()).isEqualTo("ECO");
+            assertThat(vo.enumConstants().get(0).customDbValue()).contains("eco");
+            assertThat(vo.enumConstants().get(0).effectiveDbValue()).isEqualTo("eco");
+
+            // COOL ohne dbValue -> Fallback auf Konstantenname
+            assertThat(vo.enumConstants().get(1).name()).isEqualTo("COOL");
+            assertThat(vo.enumConstants().get(1).customDbValue()).isEmpty();
+            assertThat(vo.enumConstants().get(1).effectiveDbValue()).isEqualTo("COOL");
+
+            // HEAT mit explizitem dbValue "heat"
+            assertThat(vo.enumConstants().get(2).name()).isEqualTo("HEAT");
+            assertThat(vo.enumConstants().get(2).customDbValue()).contains("heat");
+
+            // OFF ohne dbValue
+            assertThat(vo.enumConstants().get(3).name()).isEqualTo("OFF");
+            assertThat(vo.enumConstants().get(3).customDbValue()).isEmpty();
+
+            // Methode prüfen
+            assertThat(vo.methods()).hasSize(1);
+            assertThat(vo.methods().getFirst().name()).isEqualTo("isActive");
+        }
     }
 
     @Nested

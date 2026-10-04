@@ -124,4 +124,32 @@ class ValueObjectGeneratorTest {
                 .contains("public String string()")
                 .contains("public UUID uuid()");
     }
+
+    @Test
+    @DisplayName("Generiert ein Java-Enum mit dbValue, of-Factory und Methoden")
+    void shouldGenerateEnumValueObject() {
+        String src = """
+                package com.example.climate;
+                
+                value AcMode = ECO("eco") | COOL | HEAT("heat") | OFF {
+                    public boolean isActive() {
+                        return this != OFF;
+                    }
+                }
+                """;
+
+        CompilationUnitNode cu = parse(src);
+        ValueObjectNode node = cu.valueObjects().getFirst();
+        JavaFile file = generator.generate(node, "com.example.climate", List.of());
+        String code = file.toString();
+
+        assertThat(code).contains("public enum AcMode implements ValueObject");
+        assertThat(code).contains("ECO(\"eco\")");
+        assertThat(code).contains("COOL(\"COOL\")");
+        assertThat(code).contains("HEAT(\"heat\")");
+        assertThat(code).contains("OFF(\"OFF\")");
+        assertThat(code).contains("public String dbValue()");
+        assertThat(code).contains("public static AcMode of(String value)");
+        assertThat(code).contains("public boolean isActive()");
+    }
 }

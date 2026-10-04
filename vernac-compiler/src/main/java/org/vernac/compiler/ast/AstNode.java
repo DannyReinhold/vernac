@@ -16,7 +16,8 @@ public sealed interface AstNode permits
         RestConfigNode,
         RestErrorRuleNode,
         MappingBlockNode,
-        MappingStatementNode {
+        MappingStatementNode,
+        EnumConstantNode {
 
     SourceLocation location();
 }

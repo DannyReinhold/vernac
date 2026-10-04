@@ -7,9 +7,14 @@ public record ValueObjectNode(
         SourceLocation location,
         String name,
         List<FieldNode> fields,
+        List<EnumConstantNode> enumConstants,
         List<ValidationRuleNode> validations,
         List<MethodNode> methods,
         Optional<CollectionDefinitionNode> collection,
         Optional<String> customPackage
 ) implements TopLevelDefinition {
+    public boolean isEnum() {
+        return !enumConstants.isEmpty();
+    }
 }
+

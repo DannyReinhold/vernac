@@ -109,7 +109,18 @@ public final class PostgresSchemaUtils {
         if (valueObjects.containsKey(typeName)) {
             ValueObjectNode vo = valueObjects.get(typeName);
 
-            if (vo.fields().size() == 1) {
+            if (vo.isEnum()) {
+                // Enum Value Object: Als VARCHAR(32) flachen und .dbValue() aufrufen
+                TypeName boxedType = ClassName.get(String.class);
+                String pgType = "VARCHAR(32)";
+                String enumAccessor;
+                if (effectivelyOptional) {
+                    enumAccessor = accessorPath + ".map(" + vo.name() + "::dbValue).orElse(null)";
+                } else {
+                    enumAccessor = accessorPath + ".dbValue()";
+                }
+                result.add(new FlatColumn(colPrefix, paramPrefix, enumAccessor, pgType, boxedType, effectivelyOptional));
+            } else if (vo.fields().size() == 1) {
                 // Single Value Object: Kein Namenszusatz
                 FieldNode inner = vo.fields().getFirst();
                 String innerAccessor = accessorPath + "." + (inner.name().equals("value") ? "value()" : inner.name() + "()");

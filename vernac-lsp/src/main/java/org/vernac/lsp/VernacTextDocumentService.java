@@ -432,6 +432,7 @@ public class VernacTextDocumentService implements TextDocumentService {
         addKeywordCompletion(items, "import", "import ${1:package.Type};");
         addKeywordCompletion(items, "aggregate", "aggregate ${1:Name}[${2:IdType} id](\n    $0\n);");
         addKeywordCompletion(items, "value", "value ${1:Name}(${2:Type} value);");
+        addKeywordCompletion(items, "value (enum)", "value ${1:Name} = ${2:CONST1} | ${3:CONST2};");
         addKeywordCompletion(items, "entity", "entity ${1:Name}[${2:IdType} id](\n    $0\n);");
         addKeywordCompletion(items, "event", "event ${1:Name}(${2:Type} value);");
         addKeywordCompletion(items, "port", "port ${1:Name} {\n    $0\n}");
@@ -519,19 +520,25 @@ public class VernacTextDocumentService implements TextDocumentService {
 
     private Location findDeclaration(String uri, String content, String targetName) {
         String[] lines = content.split("\r?\n", -1);
-        Pattern pattern = Pattern.compile("\\b(aggregate|value|entity|event|usecase|id|service)\\s+(" + Pattern.quote(targetName) + ")\\b");
+        Pattern typePattern = Pattern.compile("\\b(aggregate|value|entity|event|usecase|id|service)\\s+(" + Pattern.quote(targetName) + ")\\b");
+        // Erkennt Enum-Konstanten nach einem '=' oder '|'
+        Pattern enumConstPattern = Pattern.compile("[=|]\\s*(" + Pattern.quote(targetName) + ")\\b");
 
         for (int i = 0; i < lines.length; i++) {
-            Matcher m = pattern.matcher(lines[i]);
+            Matcher m = typePattern.matcher(lines[i]);
             if (m.find()) {
-                int startChar = m.start(2);
-                int endChar = m.end(2);
+                return new Location(uri, new Range(
+                        new Position(i, m.start(2)),
+                        new Position(i, m.end(2))
+                ));
+            }
 
-                Range range = new Range(
-                        new Position(i, startChar),
-                        new Position(i, endChar)
-                );
-                return new Location(uri, range);
+            Matcher em = enumConstPattern.matcher(lines[i]);
+            if (em.find()) {
+                return new Location(uri, new Range(
+                        new Position(i, em.start(1)),
+                        new Position(i, em.end(1))
+                ));
             }
         }
         return null;

@@ -62,10 +62,25 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     @Override
     public ValueObjectNode visitValueDefinition(VernacParser.ValueDefinitionContext ctx) {
         String name = ctx.name.getText();
+
+        // 1. Parameter für normale Value Objects
         List<FieldNode> fields = Optional.ofNullable(ctx.parameterList())
                 .map(p -> extractParameters(p, true))
                 .orElse(Collections.emptyList());
 
+        // 2. Enum-Konstanten (falls vorhanden)
+        List<EnumConstantNode> enumConstants = new ArrayList<>();
+        if (ctx.enumConstantList() != null) {
+            for (VernacParser.EnumConstantContext ecCtx : ctx.enumConstantList().enumConstant()) {
+                String constName = ecCtx.name.getText();
+                Optional<String> customDbValue = ecCtx.dbValue != null
+                        ? Optional.of(unquote(ecCtx.dbValue.getText()))
+                        : Optional.empty();
+                enumConstants.add(new EnumConstantNode(toLocation(ecCtx), constName, customDbValue));
+            }
+        }
+
+        // 3. Validierungen
         List<ValidationRuleNode> validations = new ArrayList<>();
         if (ctx.validationBlock() != null) {
             for (VernacParser.ValidationStatementContext valCtx : ctx.validationBlock().validationStatement()) {
@@ -75,6 +90,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             }
         }
 
+        // 4. Methoden & Package-Override
         Optional<String> customPackage = Optional.empty();
         List<MethodNode> voMethods = new ArrayList<>();
 
@@ -88,6 +104,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             }
         }
 
+        // 5. First-Class Collections
         Optional<CollectionDefinitionNode> collection = Optional.empty();
         if (ctx.collectionDefinition() != null) {
             VernacParser.CollectionDefinitionContext collCtx = ctx.collectionDefinition();
@@ -108,7 +125,16 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             collection = Optional.of(new CollectionDefinitionNode(toLocation(collCtx), collectionName, collMethods, collPackage));
         }
 
-        return new ValueObjectNode(toLocation(ctx), name, fields, validations, voMethods, collection, customPackage);
+        return new ValueObjectNode(
+                toLocation(ctx),
+                name,
+                fields,
+                enumConstants,
+                validations,
+                voMethods,
+                collection,
+                customPackage
+        );
     }
 
     @Override
@@ -669,7 +695,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 }
             }
         }
-        
+
         return new DomainServiceNode(
                 toLocation(ctx),
                 name,

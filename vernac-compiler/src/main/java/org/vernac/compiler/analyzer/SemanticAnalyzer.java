@@ -249,25 +249,61 @@ public class SemanticAnalyzer {
         }
     }
 
-    // ... [Alle bisherigen bestehenden validate-Methoden ab hier bleiben exakt unverändert] ...
-
     private void validateValueObject(ValueObjectNode vo, Set<String> availableSymbols, List<String> imports, List<CompilerDiagnostic> diagnostics) {
         if (vo.customPackage().isPresent()) validatePackageName(vo.customPackage().get(), vo.location(), diagnostics);
-        checkDuplicateFields(vo.fields(), vo.name(), diagnostics);
 
-        if (vo.collection().isPresent()) {
-            vo.collection().get().customPackage().ifPresent(pkg ->
-                    validatePackageName(pkg, vo.collection().get().location(), diagnostics)
-            );
-        }
-
-        for (FieldNode field : vo.fields()) {
-            validateIdentifier(field.name(), field.location(), "field", diagnostics);
-            if (field.isMutable()) {
-                diagnostics.add(CompilerDiagnostic.error(field.location(), "Value Object '" + vo.name() + "' cannot have mutable field '" + field.name() + "'. Value Objects must be strictly immutable."));
+        // A. Enum-Spezifische Validierung
+        if (vo.isEnum()) {
+            if (vo.enumConstants().isEmpty()) {
+                diagnostics.add(CompilerDiagnostic.error(vo.location(), "Enum Value Object '" + vo.name() + "' must declare at least one constant."));
             }
-            validateTypeResolvable(field.type(), availableSymbols, imports, diagnostics);
+
+            if (vo.collection().isPresent()) {
+                diagnostics.add(CompilerDiagnostic.error(
+                        vo.collection().get().location(),
+                        "Enum Value Object '" + vo.name() + "' cannot define a first-class collection."
+                ));
+            }
+
+            Set<String> constantNames = new HashSet<>();
+            Set<String> dbValues = new HashSet<>();
+
+            for (EnumConstantNode ec : vo.enumConstants()) {
+                validateIdentifier(ec.name(), ec.location(), "enum constant", diagnostics);
+
+                if (!constantNames.add(ec.name())) {
+                    diagnostics.add(CompilerDiagnostic.error(ec.location(), "Duplicate enum constant '" + ec.name() + "' in '" + vo.name() + "'"));
+                }
+
+                String dbVal = ec.effectiveDbValue();
+                if (!dbValues.add(dbVal)) {
+                    diagnostics.add(CompilerDiagnostic.error(
+                            ec.location(),
+                            "Duplicate database persistence value '" + dbVal + "' in enum '" + vo.name() + "'"
+                    ));
+                }
+            }
+
+            // B. Reguläre Value Objects (Felder-Prüfung)
+        } else {
+            checkDuplicateFields(vo.fields(), vo.name(), diagnostics);
+
+            if (vo.collection().isPresent()) {
+                vo.collection().get().customPackage().ifPresent(pkg ->
+                        validatePackageName(pkg, vo.collection().get().location(), diagnostics)
+                );
+            }
+
+            for (FieldNode field : vo.fields()) {
+                validateIdentifier(field.name(), field.location(), "field", diagnostics);
+                if (field.isMutable()) {
+                    diagnostics.add(CompilerDiagnostic.error(field.location(), "Value Object '" + vo.name() + "' cannot have mutable field '" + field.name() + "'. Value Objects must be strictly immutable."));
+                }
+                validateTypeResolvable(field.type(), availableSymbols, imports, diagnostics);
+            }
         }
+
+        // C. Methoden (gelten für beide Varianten)
         for (MethodNode method : vo.methods()) {
             validateIdentifier(method.name(), method.location(), "method", diagnostics);
             for (FieldNode p : method.parameters())

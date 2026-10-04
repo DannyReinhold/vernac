@@ -597,4 +597,48 @@ class SemanticAnalyzerTest {
                     .hasMessageContaining("Java keyword 'final' cannot be used as type name");
         }
     }
+
+    @Nested
+    @DisplayName("Enum Value Object Validierungen")
+    class EnumValueObjectTests {
+
+        @Test
+        @DisplayName("Verhindert doppelte Enum-Konstanten")
+        void shouldRejectDuplicateEnumConstants() {
+            String dsl = """
+                    package com.example.domain;
+                    value AcMode = ECO | COOL | ECO;
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Duplicate enum constant 'ECO' in 'AcMode'");
+        }
+
+        @Test
+        @DisplayName("Verhindert doppelte DB-Persistenzwerte")
+        void shouldRejectDuplicateDbPersistenceValues() {
+            String dsl = """
+                    package com.example.domain;
+                    value AcMode = ECO("eco") | ECONOMY("eco");
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Duplicate database persistence value 'eco' in enum 'AcMode'");
+        }
+
+        @Test
+        @DisplayName("Verhindert Java-Keywords als Enum-Konstante")
+        void shouldRejectJavaKeywordsAsEnumConstant() {
+            String dsl = """
+                    package com.example.domain;
+                    value AcMode = ECO | final | OFF;
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Java keyword 'final' cannot be used as enum constant name");
+        }
+    }
 }
