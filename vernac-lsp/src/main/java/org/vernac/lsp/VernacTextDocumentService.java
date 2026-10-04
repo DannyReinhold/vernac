@@ -396,7 +396,7 @@ public class VernacTextDocumentService implements TextDocumentService {
     }
 
     private void addModelDeclaredTypes(List<CompletionItem> items, String content, Set<String> alreadyAdded) {
-        Pattern pattern = Pattern.compile("\\b(value|entity|aggregate|event|id)\\s+([A-Z][a-zA-Z0-9_]*)");
+        Pattern pattern = Pattern.compile("\\b(value|entity|aggregate|event|id|service)\\s+([A-Z][a-zA-Z0-9_]*)");
         Matcher matcher = pattern.matcher(content);
 
         while (matcher.find()) {
@@ -438,6 +438,7 @@ public class VernacTextDocumentService implements TextDocumentService {
         addKeywordCompletion(items, "repository", "repository ${1:Name} for ${2:Aggregate} {\n    table: \"${3:table_name}\";\n    $0\n};");
         addKeywordCompletion(items, "id", "id ${1:Name}Id;");
         addKeywordCompletion(items, "usecase", "usecase ${1:Name}(${2:params}) {\n    $0\n}");
+        addKeywordCompletion(items, "service", "service ${1:Name}(${2:params}) : ${3:ReturnType} {\n    $0\n}");
     }
 
     private void addKeywordCompletion(List<CompletionItem> list, String label, String insertSnippet) {
@@ -518,7 +519,7 @@ public class VernacTextDocumentService implements TextDocumentService {
 
     private Location findDeclaration(String uri, String content, String targetName) {
         String[] lines = content.split("\r?\n", -1);
-        Pattern pattern = Pattern.compile("\\b(aggregate|value|entity|event|usecase|id)\\s+(" + Pattern.quote(targetName) + ")\\b");
+        Pattern pattern = Pattern.compile("\\b(aggregate|value|entity|event|usecase|id|service)\\s+(" + Pattern.quote(targetName) + ")\\b");
 
         for (int i = 0; i < lines.length; i++) {
             Matcher m = pattern.matcher(lines[i]);

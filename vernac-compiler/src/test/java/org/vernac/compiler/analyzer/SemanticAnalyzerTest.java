@@ -545,4 +545,56 @@ class SemanticAnalyzerTest {
             assertThat(compiler.compileSource(dsl)).isNotNull();
         }
     }
+
+    @Nested
+    @DisplayName("Domain Service Validierungen")
+    class DomainServiceTests {
+
+        @Test
+        @DisplayName("Verhindert mutable Parameter in Domain Services")
+        void shouldRejectMutableParametersInDomainService() {
+            String dsl = """
+                    package com.example.domain;
+                    value WattHours(int value);
+                    
+                    service TariffCalculator(mut WattHours capacity) : WattHours {
+                        return capacity;
+                    }
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Domain service parameter 'capacity' cannot be mutable");
+        }
+
+        @Test
+        @DisplayName("Verhindert nicht auflösbare Rückgabetypen im Service")
+        void shouldRejectUnresolvableReturnType() {
+            String dsl = """
+                    package com.example.domain;
+                    value WattHours(int value);
+                    
+                    service TariffCalculator(WattHours capacity) : UnknownType {
+                        return capacity;
+                    }
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Cannot resolve type 'UnknownType'");
+        }
+
+        @Test
+        @DisplayName("Verhindert Java-Keywords als Service-Namen")
+        void shouldRejectJavaKeywordAsServiceName() {
+            String dsl = """
+                    package com.example.domain;
+                    service final() {}
+                    """;
+
+            assertThatThrownBy(() -> compiler.compileSource(dsl))
+                    .isInstanceOf(SemanticValidationException.class)
+                    .hasMessageContaining("Java keyword 'final' cannot be used as type name");
+        }
+    }
 }

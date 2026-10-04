@@ -58,4 +58,11 @@ public record CompilationUnitNode(
                 .map(d -> (UseCaseNode) d)
                 .toList();
     }
+
+    public List<DomainServiceNode> domainServices() {
+        return definitions.stream()
+                .filter(d -> d instanceof DomainServiceNode)
+                .map(d -> (DomainServiceNode) d)
+                .toList();
+    }
 }

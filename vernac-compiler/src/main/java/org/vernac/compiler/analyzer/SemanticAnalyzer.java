@@ -107,6 +107,8 @@ public class SemanticAnalyzer {
                 validatePort(port, unit, availableSymbols, diagnostics);
             } else if (def instanceof UseCaseNode useCase) {
                 validateUseCase(useCase, unit, declaredAggregates, availableSymbols, diagnostics);
+            } else if (def instanceof DomainServiceNode service) {
+                validateDomainService(service, unit, availableSymbols, diagnostics);
             }
         }
 
@@ -485,6 +487,7 @@ public class SemanticAnalyzer {
         if (def instanceof PortNode port) return port.name();
         if (def instanceof RepositoryNode repo) return repo.name();
         if (def instanceof UseCaseNode useCase) return useCase.name();
+        if (def instanceof DomainServiceNode service) return service.name();
         throw new IllegalArgumentException("Unknown definition: " + def);
     }
 
@@ -654,5 +657,34 @@ public class SemanticAnalyzer {
                 }
             }
         }
+    }
+
+    private void validateDomainService(
+            DomainServiceNode service,
+            CompilationUnitNode unit,
+            Set<String> availableSymbols,
+            List<CompilerDiagnostic> diagnostics
+    ) {
+        if (service.customPackage().isPresent()) {
+            validatePackageName(service.customPackage().get(), service.location(), diagnostics);
+        }
+
+        // 1. Parameter prüfen
+        checkDuplicateFields(service.parameters(), service.name(), diagnostics);
+        for (FieldNode param : service.parameters()) {
+            validateIdentifier(param.name(), param.location(), "parameter", diagnostics);
+            if (param.isMutable()) {
+                diagnostics.add(CompilerDiagnostic.error(
+                        param.location(),
+                        "Domain service parameter '" + param.name() + "' cannot be mutable. Services operate on immutable inputs."
+                ));
+            }
+            validateTypeResolvable(param.type(), availableSymbols, unit.imports(), diagnostics);
+        }
+
+        // 2. Return-Type prüfen
+        service.returnType().ifPresent(retType ->
+                validateTypeResolvable(retType, availableSymbols, unit.imports(), diagnostics)
+        );
     }
 }

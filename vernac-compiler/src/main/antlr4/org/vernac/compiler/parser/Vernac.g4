@@ -21,6 +21,7 @@ topLevelDeclaration
     | portDefinition
     | repositoryDefinition
     | usecaseDefinition
+    | domainServiceDefinition
     ;
 
 // ==========================================
@@ -295,6 +296,23 @@ rawJavaStatement
 
 javaBlockStatement
     : ('if' | 'for' | 'while' | 'switch' | 'try') ~('{')* '{' rawJavaBlock '}' ( 'else' ( '{' rawJavaBlock '}' | javaBlockStatement ) )?
+    ;
+
+// ==========================================
+// 7. Domain Services
+// ==========================================
+domainServiceDefinition
+    : 'service' name=typeName '(' parameterList? ')' (':' returnType=type)?
+      ( 'validates' validationBlock )?
+      '{' domainServiceMember* '}'
+      ';'?
+    ;
+
+domainServiceMember
+    : packageDeclarationStatement
+    | singleReturnStatement
+    | tupleReturnStatement
+    | rawJavaStatement
     ;
 
 // ==========================================

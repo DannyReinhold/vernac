@@ -8,5 +8,6 @@ public sealed interface TopLevelDefinition extends AstNode permits
         EventNode,
         RepositoryNode,
         PortNode,
-        UseCaseNode {
+        UseCaseNode,
+        DomainServiceNode {
 }

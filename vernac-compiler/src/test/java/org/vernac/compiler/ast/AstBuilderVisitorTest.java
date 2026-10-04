@@ -609,4 +609,47 @@ class AstBuilderVisitorTest {
             assertThat(single.expressionCode()).contains("order.id()");
         }
     }
+
+    @Nested
+    @DisplayName("9. Domain Services")
+    class DomainServiceTests {
+
+        @Test
+        @DisplayName("Parst DomainService mit Conventions, Parametern, Validierung und Rückgabetyp")
+        void shouldParseDomainService() {
+            String src = """
+                    package com.example.domain;
+                    
+                    service TariffCalculator(WattHours capacity, WattHours storedEnergy, WattHours) : WattHours validates {
+                        require(capacity.value() > 0, "Capacity must be positive");
+                    } {
+                        int available = Math.max(0, storedEnergy.value() - wattHours.value());
+                        return WattHours.of(Math.max(0, capacity.value() - available));
+                    }
+                    """;
+
+            CompilationUnitNode cu = parse(src);
+            assertThat(cu.domainServices()).hasSize(1);
+
+            DomainServiceNode service = cu.domainServices().getFirst();
+            assertThat(service.name()).isEqualTo("TariffCalculator");
+
+            // Parameter prüfen (2x expliziter Name, 1x Konvention abgeleitet)
+            assertThat(service.parameters()).hasSize(3);
+            assertThat(service.parameters().get(0).name()).isEqualTo("capacity");
+            assertThat(service.parameters().get(1).name()).isEqualTo("storedEnergy");
+            assertThat(service.parameters().get(2).name()).isEqualTo("wattHours");
+
+            // ReturnType & Validierung
+            assertThat(service.returnType()).isPresent();
+            assertThat(service.returnType().get().name()).isEqualTo("WattHours");
+            assertThat(service.validations()).hasSize(1);
+            assertThat(service.validations().getFirst().condition()).isEqualTo("capacity.value()>0");
+
+            // Rumpf & Return-Statement
+            assertThat(service.statements()).hasSize(1);
+            assertThat(service.returnStatement()).isPresent();
+            assertThat(service.returnStatement().get()).isInstanceOf(SingleReturnNode.class);
+        }
+    }
 }
