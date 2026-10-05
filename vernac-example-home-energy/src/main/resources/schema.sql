@@ -1,11 +1,11 @@
 DROP TABLE IF EXISTS energy_storage;
 
-CREATE TABLE energy_storage (
-                                id VARCHAR(64) PRIMARY KEY,
-                                capacity INT NOT NULL,
-                                soc INT NOT NULL,
-                                stored_energy INT NOT NULL,
-                                created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-                                updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
-                                version BIGINT NOT NULL
+CREATE TABLE IF NOT EXISTS energy_storage (
+            id UUID PRIMARY KEY,
+            capacity INTEGER NOT NULL,
+            soc INTEGER NOT NULL,
+            stored_energy INTEGER NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL,
+            updated_at TIMESTAMPTZ NOT NULL,
+            version BIGINT NOT NULL DEFAULT 0
 );

@@ -34,7 +34,11 @@
             <artifactId>spring-context</artifactId>
             <scope>provided</scope>
         </dependency>
-
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+            <scope>provided</scope>
+        </dependency>
         <!-- Spring JDBC (für NamedParameterJdbcTemplate & MapSqlParameterSource) -->
         <dependency>
             <groupId>org.springframework</groupId>
@@ -55,7 +59,7 @@
             <artifactId>jackson-databind</artifactId>
             <scope>provided</scope>
         </dependency>
-        
+
         <!-- Runtime bleibt bewusst frei von 3rd-Party-Abhängigkeiten -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
