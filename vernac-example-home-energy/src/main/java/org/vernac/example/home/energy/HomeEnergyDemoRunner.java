@@ -8,6 +8,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.vernac.example.home.energy.domain.*;
 import org.vernac.example.home.energy.usecase.OptimizeEnergyFlow;
 
@@ -18,13 +20,16 @@ public class HomeEnergyDemoRunner implements ApplicationRunner {
 
     private final EnergyStorageRepository storageRepository;
     private final OptimizeEnergyFlow optimizeEnergyFlow;
+    private final TransactionTemplate transactions;
 
     public HomeEnergyDemoRunner(
             EnergyStorageRepository storageRepository,
-            OptimizeEnergyFlow optimizeEnergyFlow
+            OptimizeEnergyFlow optimizeEnergyFlow,
+            PlatformTransactionManager transactionManager
     ) {
         this.storageRepository = storageRepository;
         this.optimizeEnergyFlow = optimizeEnergyFlow;
+        this.transactions = new TransactionTemplate(transactionManager);
     }
 
     @Override
@@ -41,8 +46,10 @@ public class HomeEnergyDemoRunner implements ApplicationRunner {
 
         log.info("1. Initialisiere Speicher {} mit 2.500 Wh (25% SOC)...", storageId.value());
         EnergyStorage initialStorage = EnergyStorage.create(storageId, capacity, initialSoc, initialReserve);
-        storageRepository.save(initialStorage);
-        log.info("   -> Gespeichert in DB mit Version {}", initialStorage.version());
+        transactions.executeWithoutResult(status -> {
+            EnergyStorage saved = storageRepository.save(initialStorage);
+            log.info("   -> Gespeichert in DB mit Version {}", saved.version());
+        });
 
         // 2. Invoke UseCase: Loads storage, calls REST port, charges, and saves
         log.info("2. Führe UseCase 'OptimizeEnergyFlow' aus...");
@@ -54,9 +61,11 @@ public class HomeEnergyDemoRunner implements ApplicationRunner {
         log.info("      Energie-Stand: {} Wh", result.storedEnergy().value());
 
         // 3. Read fresh from DB for verification
-        EnergyStorage reloaded = storageRepository.byId(storageId);
-        log.info("3. DB-Prüfung nach Transaktion: SOC={}%, Version={}",
-                reloaded.soc().percent(), reloaded.version());
+        transactions.executeWithoutResult(status -> {
+            EnergyStorage reloaded = storageRepository.byId(storageId);
+            log.info("3. DB-Prüfung nach UseCase-Commit: SOC={}%, Version={}",
+                    reloaded.soc().percent(), reloaded.version());
+        });
 
         log.info("==================================================================");
         log.info("✅ DURCHSTICH ERFOLGREICH ABGESCHLOSSEN");

@@ -1,0 +1,153 @@
+<idea-plugin url="https://github.com/DannyReinhold/vernac">
+    <id>org.vernac.intellij</id>
+    <name>Vernac</name>
+    <version>0.1.0-dev.2</version>
+
+    <vendor url="https://github.com/DannyReinhold">
+        Danny Reinhold
+    </vendor>
+
+    <description><![CDATA[
+        <p>
+            <b>Domain-Driven Design for Java, expressed in Vernac.</b>
+        </p>
+
+        <p>
+            Vernac is a domain-specific language for defining typed
+            identifiers, value objects, aggregates, repositories, ports,
+            and use cases. Its compiler generates Java code following
+            consistent architectural conventions, while custom business
+            logic remains Java.
+        </p>
+
+        <p><b>Editor features</b></p>
+        <ul>
+            <li>Automatic recognition of <code>.vernac</code> files</li>
+            <li>Semantic highlighting</li>
+            <li>Syntax and semantic diagnostics</li>
+            <li>Code completion and snippets</li>
+            <li>Hover documentation</li>
+            <li>Go to Declaration for definitions within Vernac</li>
+        </ul>
+
+        <p><b>Getting started</b></p>
+        <p>
+            Open a <code>.vernac</code> file to activate language support.
+            The Vernac language server is bundled with this plugin and
+            starts automatically. No separate language server installation
+            or LSP4IJ configuration is required.
+        </p>
+
+        <p>
+            To generate Java sources, configure the Vernac Maven plugin
+            in your project. This IDE plugin provides editor support;
+            code generation runs through your Maven build.
+        </p>
+
+        <p><b>Project status</b></p>
+        <p>
+            Vernac is under active development. Language syntax and
+            generated APIs may change between releases.
+        </p>
+
+        <p>
+            <a href="https://github.com/DannyReinhold/vernac">Documentation and examples</a>
+            &nbsp;|&nbsp;
+            <a href="https://github.com/DannyReinhold/vernac/issues">Report an issue</a>
+        </p>
+    ]]></description>
+
+    <change-notes><![CDATA[
+        <p><b>Initial IntelliJ integration</b></p>
+        <ul>
+            <li>Registered the Vernac language and file type.</li>
+            <li>Bundled the Vernac language server with automatic startup.</li>
+            <li>Connected editor features through the IntelliJ LSP API.</li>
+        </ul>
+    ]]></change-notes><idea-plugin url="https://github.com/DannyReinhold/vernac">
+    <id>org.vernac.intellij</id>
+    <name>Vernac</name>
+    <version>0.1.0-dev.2</version>
+
+    <vendor url="https://github.com/DannyReinhold">
+        Danny Reinhold
+    </vendor>
+
+    <description><![CDATA[
+        <p>
+            <b>Domain-Driven Design for Java, expressed in Vernac.</b>
+        </p>
+
+        <p>
+            Vernac is a domain-specific language for defining typed
+            identifiers, value objects, aggregates, repositories, ports,
+            and use cases. Its compiler generates Java code following
+            consistent architectural conventions, while custom business
+            logic remains Java.
+        </p>
+
+        <p><b>Editor features</b></p>
+        <ul>
+            <li>Automatic recognition of <code>.vernac</code> files</li>
+            <li>Semantic highlighting</li>
+            <li>Syntax and semantic diagnostics</li>
+            <li>Code completion and snippets</li>
+            <li>Hover documentation</li>
+            <li>Go to Declaration for definitions within Vernac</li>
+        </ul>
+
+        <p><b>Getting started</b></p>
+        <p>
+            Open a <code>.vernac</code> file to activate language support.
+            The Vernac language server is bundled with this plugin and
+            starts automatically. No separate language server installation
+            or LSP4IJ configuration is required.
+        </p>
+
+        <p>
+            To generate Java sources, configure the Vernac Maven plugin
+            in your project. This IDE plugin provides editor support;
+            code generation runs through your Maven build.
+        </p>
+
+        <p><b>Project status</b></p>
+        <p>
+            Vernac is under active development. Language syntax and
+            generated APIs may change between releases.
+        </p>
+
+        <p>
+            <a href="https://github.com/DannyReinhold/vernac">Documentation and examples</a>
+            &nbsp;|&nbsp;
+            <a href="https://github.com/DannyReinhold/vernac/issues">Report an issue</a>
+        </p>
+    ]]></description>
+
+    <change-notes><![CDATA[
+        <p><b>Initial IntelliJ integration</b></p>
+        <ul>
+            <li>Registered the Vernac language and file type.</li>
+            <li>Bundled the Vernac language server with automatic startup.</li>
+            <li>Connected editor features through the IntelliJ LSP API.</li>
+        </ul>
+    ]]></change-notes>
+
+    <idea-version since-build="262.10968.63" until-build="262.*"/>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lsp</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <fileType
+                name="Vernac"
+                implementationClass="org.vernac.intellij.VernacFileType"
+                fieldName="INSTANCE"
+                language="Vernac"
+                extensions="vernac"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="com.intellij.platform.lsp">
+        <integrationProvider
+                implementation="org.vernac.intellij.VernacLspIntegrationProvider"/>
+    </extensions>
+</idea-plugin>
