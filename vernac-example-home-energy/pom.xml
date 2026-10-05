@@ -19,7 +19,6 @@
         <spring-boot.version>3.4.2</spring-boot.version>
     </properties>
 
-    <!-- Importiert die Spring Boot Versionen, da wir das Vernac-Root als Parent haben -->
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -33,14 +32,17 @@
     </dependencyManagement>
 
     <dependencies>
-        <!-- Vernac Laufzeit-Abhängigkeiten -->
         <dependency>
             <groupId>org.vernac</groupId>
             <artifactId>vernac-runtime</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.vernac</groupId>
+            <artifactId>vernac-runtime-jdbc</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
-        <!-- Web & Frontend (Thymeleaf) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -50,7 +52,6 @@
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
 
-        <!-- Datenbank & JDBC -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-jdbc</artifactId>
@@ -61,7 +62,6 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Automatisiertes Starten von Docker-Containern (z.B. Postgres) zur Laufzeit -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-docker-compose</artifactId>
@@ -69,7 +69,6 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

@@ -25,6 +25,7 @@
         <module>vernac-lsp</module>
         <module>vernac-example-home-energy</module>
         <module>vernac-intellij</module>
+        <module>vernac-runtime-jdbc</module>
     </modules>
 
     <properties>
@@ -49,7 +50,12 @@
                 <artifactId>vernac-runtime</artifactId>
                 <version>${project.version}</version>
             </dependency>
-
+            <dependency>
+                <groupId>org.vernac</groupId>
+                <artifactId>vernac-runtime-jdbc</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            
             <!-- ANTLR 4 Parser Runtime -->
             <dependency>
                 <groupId>org.antlr</groupId>

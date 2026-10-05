@@ -15,32 +15,55 @@
         <version>0.1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>vernac-runtime</artifactId>
-    <packaging>jar</packaging>
+    <artifactId>vernac-runtime-jdbc</artifactId>
 
-    <name>Vernac Runtime</name>
-    <description>Lightweight runtime interfaces and exceptions for Vernac applications</description>
+    <name>Vernac Runtime JDBC</name>
+    <description>
+        JDBC infrastructure and Spring Boot auto-configuration for Vernac applications
+    </description>
 
     <dependencies>
         <dependency>
-            <groupId>org.jspecify</groupId>
-            <artifactId>jspecify</artifactId>
+            <groupId>org.vernac</groupId>
+            <artifactId>vernac-runtime</artifactId>
         </dependency>
+
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-context</artifactId>
             <scope>provided</scope>
         </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-tx</artifactId>
             <scope>provided</scope>
         </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
+
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>

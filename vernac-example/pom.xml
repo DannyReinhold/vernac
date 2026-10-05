@@ -32,33 +32,33 @@
     </dependencyManagement>
 
     <dependencies>
-        <!-- Laufzeit-Typen für generierten Code -->
+        <!-- runtime type for generated code -->
         <dependency>
             <groupId>org.vernac</groupId>
             <artifactId>vernac-runtime</artifactId>
             <version>${project.version}</version>
         </dependency>
-
-        <!-- Spring Boot Web (enthält RestClient, DispatcherServlet, Jackson etc.) -->
+        <dependency>
+            <groupId>org.vernac</groupId>
+            <artifactId>vernac-runtime-jdbc</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- Spring Boot JDBC & Transactions -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-jdbc</artifactId>
         </dependency>
 
-        <!-- PostgreSQL & HikariCP (wird von Boot automatisch gemanagt) -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Test Dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
