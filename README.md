@@ -108,6 +108,7 @@ See:
 
 - `docs/language-reference.md` (DSL reference + examples)
 - `docs/outbound-port-mapping.md` (Mapping rules and conventions for outbound ports)
+- `docs/repository-db-mapping.md` (Database mapping, DDL, table/column conventions, and custom repository beans)
 
 ### Quickstart (local build)
 

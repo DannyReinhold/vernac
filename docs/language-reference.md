@@ -300,7 +300,7 @@ outbox event ProjectBudgetExceeded(ProjectId projectId, Money currentCost, Strin
 
 ## 8. Repositories (`repository`)
 
-Repositories provide Spring JDBC-based persistence with optimistic locking and event dispatching.
+Repositories provide Spring JDBC-based persistence with optimistic locking and event dispatching. For an in-depth guide on database mapping rules, DDL generation, column flattening, child entity synchronization, and custom Spring repository beans, see [Repository Database Mapping Documentation](repository-db-mapping.md).
 
 ```vernac
 repository for Order {
