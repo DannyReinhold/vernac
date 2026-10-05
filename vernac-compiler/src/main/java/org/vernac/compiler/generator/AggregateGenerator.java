@@ -218,8 +218,7 @@ public class AggregateGenerator {
     private MethodSpec buildCreateFactory(AggregateNode node, String targetPackage, ClassName selfType, TypeName idType, String idFieldName) {
         MethodSpec.Builder create = MethodSpec.methodBuilder("create")
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-                .returns(selfType)
-                .addParameter(idType, idFieldName);
+                .returns(selfType);
 
         List<String> passArgs = new ArrayList<>();
         passArgs.add(idFieldName);
@@ -240,6 +239,8 @@ public class AggregateGenerator {
         passArgs.add("true");
 
         create.addStatement("$T now = $T.now()", Instant.class, Instant.class);
+        create.addStatement("$T $N = $T.create()", idType, idFieldName, idType);
+
         create.addStatement("return new $T(" + String.join(", ", passArgs) + ")", selfType);
         return create.build();
     }

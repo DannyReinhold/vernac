@@ -38,11 +38,10 @@ class OrderDomainTest {
     @Test
     @DisplayName("Entity kapselt interne Mutationen und Berechnungen")
     void testEntityLifecycle() {
-        OrderLineId lineId = OrderLineId.create();
         ItemSku sku = ItemSku.of("BOOK-VERNAC-01");
         Money unitPrice = Money.of(new BigDecimal("49.50"), EUR);
 
-        OrderLine line = OrderLine.create(lineId, sku, unitPrice, 1);
+        OrderLine line = OrderLine.create(sku, unitPrice, 1);
         assertThat(line.calculateSubtotal().amount()).isEqualByComparingTo("49.50");
 
         line.increaseQuantity(2);
@@ -56,11 +55,11 @@ class OrderDomainTest {
     @Test
     @DisplayName("Aggregate registriert Domain Event und leert den Puffer beim Abholen")
     void testAggregateEventLifecycle() {
-        OrderId orderId = OrderId.of(UUID.randomUUID());
         CustomerId customerId = CustomerId.of(UUID.randomUUID());
         Money total = Money.of(new BigDecimal("148.50"), EUR);
 
-        Order order = Order.create(orderId, customerId, total, "PENDING", OrderLines.of());
+        Order order = Order.create(customerId, total, "PENDING", OrderLines.of());
+        OrderId orderId = order.id();
         assertThat(order.status()).isEqualTo("PENDING");
 
         // Event buffer must initially be empty

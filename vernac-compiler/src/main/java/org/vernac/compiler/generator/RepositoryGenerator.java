@@ -458,7 +458,7 @@ public class RepositoryGenerator {
             entityArgs.add(f.name());
         }
 
-        mb.addStatement("return $T.create($L)", entityType, String.join(", ", entityArgs));
+        mb.addStatement("return $T.reconstitute($L)", entityType, String.join(", ", entityArgs));
         mb.endControlFlow(")");
 
         mb.addStatement("return $T.of(list)", collectionType);

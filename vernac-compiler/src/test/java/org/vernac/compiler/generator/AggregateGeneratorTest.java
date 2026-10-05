@@ -84,7 +84,7 @@ class AggregateGeneratorTest {
                 .contains("return \"Project[id=\" + this.id + \"]\";");
 
         assertThat(normalizedCode)
-                .contains("public static Project create(ProjectId id, ProjectName name, Money budget)")
+                .contains("public static Project create(ProjectName name, Money budget)")
                 .contains("public static Project reconstitute(ProjectId id, ProjectName name, Money budget, Instant createdAt, Instant updatedAt, long version)");
     }
 
@@ -130,7 +130,7 @@ class AggregateGeneratorTest {
                 .contains("private final String string;")
                 .contains("private String customAlias;")
                 .contains("private Customer(CustomerId id, String string, String customAlias, Instant createdAt, Instant updatedAt, long version, boolean validate)")
-                .contains("public static Customer create(CustomerId id, String string, String customAlias)")
+                .contains("public static Customer create(String string, String customAlias)")
                 .contains("public static Customer reconstitute(CustomerId id, String string, String customAlias, Instant createdAt, Instant updatedAt, long version)")
                 .contains("public void customAlias(String customAlias) {")
                 .contains("this.customAlias = customAlias;")

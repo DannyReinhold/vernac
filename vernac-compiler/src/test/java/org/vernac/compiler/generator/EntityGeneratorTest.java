@@ -75,7 +75,7 @@ class EntityGeneratorTest {
                 .contains("return \"Task[id=\" + this.id + \"]\";");
 
         assertThat(normalizedCode)
-                .contains("public static Task create(TaskId id, TaskTitle title, TaskStatus status)")
+                .contains("public static Task create(TaskTitle title, TaskStatus status)")
                 .contains("public static Task reconstitute(TaskId id, TaskTitle title, TaskStatus status)");
     }
 
@@ -99,7 +99,7 @@ class EntityGeneratorTest {
 
         // Prüft die Signaturen der Factory-Methoden
         assertThat(code)
-                .contains("public static OrderItem create(ItemId id, String string, int explicitQuantity)")
+                .contains("public static OrderItem create(String string, int explicitQuantity)")
                 .contains("public static OrderItem reconstitute(ItemId id, String string, int explicitQuantity)");
 
         // Prüft die internen Mutatoren (Setter) für mut-Felder

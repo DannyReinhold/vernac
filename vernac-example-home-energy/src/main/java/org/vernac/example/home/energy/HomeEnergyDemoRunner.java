@@ -39,13 +39,13 @@ public class HomeEnergyDemoRunner implements ApplicationRunner {
         log.info("==================================================================");
 
         // 1. Create initial state for EnergyStorage in PostgreSQL
-        StorageId storageId = StorageId.create();
         WattHours capacity = WattHours.of(10_000);
         BatterySoc initialSoc = BatterySoc.of(25);
         WattHours initialReserve = WattHours.of(2_500);
 
-        log.info("1. Initialisiere Speicher {} mit 2.500 Wh (25% SOC)...", storageId.value());
-        EnergyStorage initialStorage = EnergyStorage.create(storageId, capacity, initialSoc, initialReserve);
+        log.info("1. Initialisiere Speicher mit 2.500 Wh (25% SOC)...");
+        EnergyStorage initialStorage = EnergyStorage.create(capacity, initialSoc, initialReserve);
+        StorageId storageId = initialStorage.id();
         transactions.executeWithoutResult(status -> {
             EnergyStorage saved = storageRepository.save(initialStorage);
             log.info("   -> Gespeichert in DB mit Version {}", saved.version());

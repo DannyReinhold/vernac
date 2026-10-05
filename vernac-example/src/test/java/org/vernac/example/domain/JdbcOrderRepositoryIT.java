@@ -109,20 +109,19 @@ class JdbcOrderRepositoryIT {
     @Test
     @DisplayName("Speichert ein neues Aggregat mit Lines (INSERT) und rekonstituiert es mit Version 1")
     void shouldInsertAndLoadAggregate() {
-        OrderId orderId = OrderId.of(UUID.randomUUID());
-        CustomerId customerId = CustomerId.of(UUID.randomUUID());
+        CustomerId customerId = CustomerId.create();
         Currency eur = Currency.getInstance("EUR");
 
-        OrderLine line1 = OrderLine.create(OrderLineId.create(), ItemSku.of("SKU-1"), Money.of(new BigDecimal("19.99"), eur), 2);
-        OrderLine line2 = OrderLine.create(OrderLineId.create(), ItemSku.of("SKU-2"), Money.of(new BigDecimal("49.00"), eur), 1);
+        OrderLine line1 = OrderLine.create(ItemSku.of("SKU-1"), Money.of(new BigDecimal("19.99"), eur), 2);
+        OrderLine line2 = OrderLine.create(ItemSku.of("SKU-2"), Money.of(new BigDecimal("49.00"), eur), 1);
 
         Order initialOrder = Order.create(
-                orderId,
                 customerId,
                 Money.of(new BigDecimal("88.98"), eur),
                 "NEW",
                 OrderLines.of(line1, line2)
         );
+        OrderId orderId = initialOrder.id();
 
         // 1. Save within use-case transaction context
         Order saved = txTemplate.execute(status -> repository.save(initialOrder));
@@ -146,22 +145,19 @@ class JdbcOrderRepositoryIT {
     @Test
     @DisplayName("Führt 3-Wege-Diff auf Child-Entities aus (Insert neu, Update bestehend, Delete entfernt)")
     void shouldSynchronizeChildEntitiesViaDiff() {
-        OrderId orderId = OrderId.of(UUID.randomUUID());
-        CustomerId customerId = CustomerId.of(UUID.randomUUID());
+        CustomerId customerId = CustomerId.create();
         Currency eur = Currency.getInstance("EUR");
 
-        OrderLineId line1Id = OrderLineId.create();
-        OrderLineId line2Id = OrderLineId.create();
-        OrderLine line1 = OrderLine.create(line1Id, ItemSku.of("SKU-A"), Money.of(new BigDecimal("10.00"), eur), 1);
-        OrderLine line2 = OrderLine.create(line2Id, ItemSku.of("SKU-B"), Money.of(new BigDecimal("20.00"), eur), 1);
+        OrderLine line1 = OrderLine.create(ItemSku.of("SKU-A"), Money.of(new BigDecimal("10.00"), eur), 1);
+        OrderLine line2 = OrderLine.create(ItemSku.of("SKU-B"), Money.of(new BigDecimal("20.00"), eur), 1);
 
         Order order = Order.create(
-                orderId,
                 customerId,
                 Money.of(new BigDecimal("30.00"), eur),
                 "NEW",
                 OrderLines.of(line1, line2)
         );
+        OrderId orderId = order.id();
 
         Order savedV1 = txTemplate.execute(status -> repository.save(order));
 
@@ -169,9 +165,8 @@ class JdbcOrderRepositoryIT {
         // line1 quantity changed (Update)
         // line2 removed (Delete)
         // line3 added (Insert)
-        OrderLineId line3Id = OrderLineId.create();
-        OrderLine line3 = OrderLine.create(line3Id, ItemSku.of("SKU-C"), Money.of(new BigDecimal("15.00"), eur), 3);
-        OrderLine line1Modified = OrderLine.create(line1Id, ItemSku.of("SKU-A"), Money.of(new BigDecimal("10.00"), eur), 5);
+        OrderLine line3 = OrderLine.create(ItemSku.of("SKU-C"), Money.of(new BigDecimal("15.00"), eur), 3);
+        OrderLine line1Modified = OrderLine.reconstitute(line1.id(), ItemSku.of("SKU-A"), Money.of(new BigDecimal("10.00"), eur), 5);
 
         savedV1.completeOrder();
         OrderLines newLines = OrderLines.of(line1Modified, line3);
@@ -199,19 +194,18 @@ class JdbcOrderRepositoryIT {
         Map<OrderLineId, OrderLine> linesById = new HashMap<>();
         reloaded.lines().forEach(l -> linesById.put(l.id(), l));
 
-        assertThat(linesById.containsKey(line2Id)).as("Line 2 muss gelöscht worden sein").isFalse();
-        assertThat(linesById.get(line1Id).quantity()).as("Line 1 muss auf Menge 5 aktualisiert sein").isEqualTo(5);
-        assertThat(linesById.get(line3Id).sku().value()).isEqualTo("SKU-C");
+        assertThat(linesById.containsKey(line2.id())).as("Line 2 muss gelöscht worden sein").isFalse();
+        assertThat(linesById.get(line1.id()).quantity()).as("Line 1 muss auf Menge 5 aktualisiert sein").isEqualTo(5);
+        assertThat(linesById.get(line3.id()).sku().value()).isEqualTo("SKU-C");
     }
 
     @Test
     @DisplayName("Wirft OptimisticLockingFailureException bei veralteter Version")
     void shouldEnforceOptimisticLockingOnConcurrentModification() {
-        OrderId orderId = OrderId.of(UUID.randomUUID());
-        CustomerId customerId = CustomerId.of(UUID.randomUUID());
+        CustomerId customerId = CustomerId.create();
         Currency eur = Currency.getInstance("EUR");
 
-        Order order = Order.create(orderId, customerId, Money.of(new BigDecimal("10.00"), eur), "NEW", OrderLines.of());
+        Order order = Order.create(customerId, Money.of(new BigDecimal("10.00"), eur), "NEW", OrderLines.of());
         Order v1 = txTemplate.execute(status -> repository.save(order));
 
         // First request successfully updates to V2
@@ -244,8 +238,8 @@ class JdbcOrderRepositoryIT {
     @DisplayName("Find-Methode liefert Datensätze gefiltert nach Kriterium")
     void shouldFindOrdersByStatus() {
         Currency eur = Currency.getInstance("EUR");
-        Order o1 = Order.create(OrderId.of(UUID.randomUUID()), CustomerId.of(UUID.randomUUID()), Money.of(BigDecimal.TEN, eur), "PENDING", OrderLines.of());
-        Order o2 = Order.create(OrderId.of(UUID.randomUUID()), CustomerId.of(UUID.randomUUID()), Money.of(BigDecimal.ONE, eur), "SHIPPED", OrderLines.of());
+        Order o1 = Order.create(CustomerId.create(), Money.of(BigDecimal.TEN, eur), "PENDING", OrderLines.of());
+        Order o2 = Order.create(CustomerId.create(), Money.of(BigDecimal.ONE, eur), "SHIPPED", OrderLines.of());
 
         txTemplate.executeWithoutResult(status -> {
             repository.save(o1);
@@ -260,11 +254,11 @@ class JdbcOrderRepositoryIT {
     @Test
     @DisplayName("Persistiert Outbox-Events atomar mit dem Aggregat in vernac_outbox")
     void shouldPersistOutboxEventsOnSave() {
-        OrderId orderId = OrderId.of(UUID.randomUUID());
-        CustomerId customerId = CustomerId.of(UUID.randomUUID());
+        CustomerId customerId = CustomerId.create();
         Currency eur = Currency.getInstance("EUR");
 
-        Order order = Order.create(orderId, customerId, Money.of(new BigDecimal("99.00"), eur), "NEW", OrderLines.of());
+        Order order = Order.create(customerId, Money.of(new BigDecimal("99.00"), eur), "NEW", OrderLines.of());
+        OrderId orderId = order.id();
 
         // Simulates a domain method that registers an event internally
         order.completeOrder();
