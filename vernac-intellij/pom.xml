@@ -61,9 +61,40 @@
             <version>${intellij.platform.version}</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>com.jetbrains.intellij.platform</groupId>
+            <artifactId>ide-impl</artifactId>
+            <version>${intellij.platform.version}</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <build>
+        <resources>
+            <!-- Bestehende Plugin-Ressourcen weiterhin mitnehmen -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+            </resource>
+
+            <!-- Getestete Projektvorlage ins Plugin-JAR kopieren -->
+            <resource>
+                <directory>${project.basedir}/../templates/vernac-basic</directory>
+                <targetPath>projectTemplates/vernac-basic</targetPath>
+                <filtering>false</filtering>
+                <includes>
+                    <include>pom.xml</include>
+                    <include>README.md</include>
+                    <include>mvnw</include>
+                    <include>mvnw.cmd</include>
+                    <include>.mvn/wrapper/**</include>
+                    <include>.gitignore</include>
+                    <include>.gitattributes</include>
+                    <include>src/main/vernac/**</include>
+                    <include>src/test/java/**</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -83,6 +114,22 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.3.1</version>
+                <configuration>
+                    <addDefaultExcludes>false</addDefaultExcludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.2</version>
+                <configuration>
+                    <addDefaultExcludes>false</addDefaultExcludes>
+                </configuration>
             </plugin>
         </plugins>
     </build>

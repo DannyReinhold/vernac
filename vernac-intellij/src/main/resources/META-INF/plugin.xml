@@ -72,6 +72,8 @@
     <depends>com.intellij.modules.lsp</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <newProjectWizard.generator
+                implementation="org.vernac.intellij.VernacNewProjectWizard"/>
         <fileType
                 name="Vernac"
                 implementationClass="org.vernac.intellij.VernacFileType"
