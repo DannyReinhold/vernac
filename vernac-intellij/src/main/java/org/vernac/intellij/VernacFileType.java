@@ -1,12 +1,16 @@
 package org.vernac.intellij;
 
 import com.intellij.openapi.fileTypes.LanguageFileType;
+import com.intellij.openapi.util.IconLoader;
 
 import javax.swing.*;
 
 public final class VernacFileType extends LanguageFileType {
 
     public static final VernacFileType INSTANCE = new VernacFileType();
+
+    private static final Icon FILE_ICON =
+            IconLoader.getIcon("/icons/vernac.svg", VernacFileType.class);
 
     private VernacFileType() {
         super(VernacLanguage.INSTANCE);
@@ -29,6 +33,6 @@ public final class VernacFileType extends LanguageFileType {
 
     @Override
     public Icon getIcon() {
-        return null;
+        return FILE_ICON;
     }
 }

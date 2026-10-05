@@ -1,3 +1,12 @@
+<p>
+  <img
+    src="assets/brand/vernac-logo-light.svg"
+    alt="Vernac"
+    width="420"
+    style="max-width: 100%; height: auto;"
+  >
+</p>
+
 # Vernac Documentation
 
 **A Domain-Specific Language for Domain-Driven Design in Java 21, Spring Boot, and PostgreSQL**
