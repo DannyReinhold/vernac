@@ -1,0 +1,3 @@
+package ${BASE_PACKAGE};
+
+// Define your domain model here.
