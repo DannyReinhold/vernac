@@ -1,229 +1,155 @@
 # Vernac
 
-> **Clean Architecture & Domain-Driven Design without the boilerplate nightmare.**
+Vernac is a small DSL + compiler that generates Java code for typical Domain-Driven Design building blocks.
 
-Vernac is a declarative Domain-Specific Language (DSL) and a source-to-source compiler for Java 21+, Spring Boot 3.4+,
-and PostgreSQL.
+You write a `.vernac` file, the Maven plugin compiles it during `generate-sources`, and your project ends up with plain
+Java sources under `target/generated-sources/vernac`.
 
-Instead of writing hundreds of lines of redundant Java code for Value Objects, aggregate metadata, JDBC RowMappers,
-outbox tables, and REST adapters by hand, you declare your domain in concise `.vernac` files. Vernac compiles these
-directly into standard-compliant, type-safe, and fully auditable Java code before the standard Java compiler runs.
+This repository already contains:
 
-No bytecode enhancement. No reflection voodoo. 100% JavaPoet-generated code.
+- a compiler (`vernac-compiler`)
+- a Maven plugin (`vernac-maven-plugin`)
+- a small runtime API (`vernac-runtime`)
+- an LSP server for `.vernac` files (`vernac-lsp`)
+- two example modules (`vernac-example`, `vernac-example-home-energy`)
 
----
-
-## Why Vernac?
-
-Classic Enterprise Java applications often suffer from two extremes:
-
-1. **Primitive Obsession & Anemic Models:** Entities degrade into pure DTOs with getters and setters. Validation logic
-   scatters uncontrollably across service classes.
-2. **Architecture Fatigue:** Genuine DDD with strict boundaries requires massive amounts of technical glue: ID classes,
-   immutability boilerplate, repository implementations with JSON/flattening logic, event outbox patterns, and DTO
-   mapping.
-
-Vernac resolves this conflict:
-
-* **Strict Integrity:** Value Objects are immutable by default. Mutations on aggregates are only possible via explicitly
-  declared `mut` fields and reliably trigger invariant validation.
-* **No Primitive Obsession:** Strongly typed IDs (`id StorageId;`) prevent parameter mix-ups at compile time.
-* **Built-in Outbox:** Events are persisted either in-memory (`memory`) or transactionally via a PostgreSQL outbox
-  pattern (`outbox`).
-* **No ORM Bloat:** Vernac relies on modern Spring JDBC (`NamedParameterizedJdbcTemplate` / `RowMapper`) with
-  deterministic column
-  flattening for maximum performance and transparency.
-
----
-
-## 60 Lines of Vernac vs. 800 Lines of Java
-
-This example from the included showcase module (`vernac-example-home-energy`) defines a complete domain including a REST
-integration and a Use Case:
+### A tiny example
 
 ```vernac
-package org.vernac.example.home.energy;
+package com.example.energy;
 
-// 1. Typed Identifiers & Value Objects with Invariants
 id StorageId;
 
-value WattHours (int) validates {
-require (value >= 0, "WattHours cannot be negative");
+value WattHours(int) validates {
+    require(value >= 0, "WattHours cannot be negative");
 }
 
-value BatterySoc (int percent) validates {
-require (percent >= 0 && percent <= 100, "SOC must be between 0 and 100");
-}
+outbox event StorageCharged(StorageId storageId, WattHours newTotal);
 
-// 2. Transactional Outbox Events
-outbox event StorageCharged (StorageId storageId, BatterySoc newSoc);
-
-// 3. Consistent Aggregates with Automatic Auditing & Versioning
-aggregate EnergyStorage[StorageId](WattHours capacity,
-mut BatterySoc soc,
-mut WattHours storedEnergy
-) validates {
-require (storedEnergy.value () <= capacity.value (), "Stored energy cannot exceed capacity");
-} {
-public void charge (WattHours additionalEnergy) {
-int newTotal = this.storedEnergy.value () + additionalEnergy.value ();
-int cappedTotal = Math.min (newTotal, this.capacity.value ());
-
-        storedEnergy(WattHours.of(cappedTotal));
-        int calculatedSoc = (int) ((((double) cappedTotal) / this.capacity.value()) * 100);
-        soc(BatterySoc.of(calculatedSoc));
-
-        registerEvent(StorageCharged.create(this.id, this.soc));
+aggregate EnergyStorage[StorageId](
+    mut WattHours storedEnergy
+) {
+    public void charge(WattHours additionalEnergy) {
+        int newTotal = this.storedEnergy.value() + additionalEnergy.value();
+        storedEnergy(WattHours.of(newTotal));
+        registerEvent(StorageCharged.create(this.id, this.storedEnergy));
     }
-
 }
 
-// 4. Outbound Port with REST Client Adapter & ACL Mapping
-port SolarForecastProvider {
-schema ForecastResponse {
-String location;
-int expectedYieldWh;
-}
-
-    Optional<WattHours> fetchExpectedYield(StorageId id) {
-        adapter rest {
-            GET "/api/v1/solar/forecast";
-            on 404 return Optional.empty();
-        }
-        mapping {
-            response.expectedYieldWh -> WattHours.value;
-        }
-    }
-
-}
-
-// 5. Repository with Automatic PostgreSQL Mapping
 repository for EnergyStorage {
 }
+```
 
-// 6. Use Case Orchestration
-usecase OptimizeEnergyFlow (StorageId storageId) validates {
-require (storageId != null, "StorageId required");
-} {
-use EnergyStorageRepository;
-use SolarForecastProvider solarProvider;
+Vernac turns this into regular Java classes (excerpt from the real generated code in `vernac-example-home-energy`):
 
-    load EnergyStorage by storageId;
-
-    var forecast = this.solarProvider.fetchExpectedYield(storageId);
-    if (forecast.isPresent() && forecast.get().value() > 0) {
-        energyStorage.charge(forecast.get());
+```java
+private void validate() {
+    if (!(storedEnergy.value() <= capacity.value())) {
+        throw new DomainValidationException("Stored energy cannot exceed capacity");
     }
+}
 
-    save energyStorage;
-
-    return (energyStorage.id(), energyStorage.soc(), energyStorage.storedEnergy());
-
+public void storedEnergy(WattHours storedEnergy) {
+    Objects.requireNonNull(storedEnergy, "storedEnergy must not be null");
+    if (Objects.equals(this.storedEnergy, storedEnergy)) {
+        return;
+    }
+    this.storedEnergy = storedEnergy;
+    markAsUpdated();
+    validate();
 }
 ```
 
-### What the compiler automatically generates from this:
+And (if you define a `repository for ...`) a Spring JDBC repository implementation with optimistic locking and event
+dispatching (excerpt):
 
-1. **Records & Value Objects:** `WattHours`, `BatterySoc` with static factory methods (`of`), validation, and
-   immutability.
-2. **Aggregate Root:** `EnergyStorage` with ID, `createdAt`, `updatedAt`, `version`, encapsulation of `storedEnergy` and
-   `soc`, as well as an event buffer (`pullDomainEvents`).
-3. **Persistence Layer:** `EnergyStorageRepository` (Interface) and `JdbcEnergyStorageRepository` (`@Repository`) with
-   ready-to-use Insert/Update SQL, Optimistic Locking, and automatic outbox persistence.
-4. **Outbound REST Adapter:** Fully configured Spring `RestClient` adapter for `SolarForecastProvider` that executes
-   HTTP calls and converts external JSON responses into domain types.
-5. **Use Case Component:** `OptimizeEnergyFlow` as a Spring `@Service`, including a cleanly typed
-   `OptimizeEnergyFlow.Result` record.
+```java
 
----
-
-## Quickstart
-
-### 1. Add the Maven Plugin
-
-In your `pom.xml`:
-
-```xml
-
-<dependencies>
-    <dependency>
-        <groupId>org.vernac</groupId>
-        <artifactId>vernac-runtime</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
-    </dependency>
-</dependencies>
-
-<build>
-<plugins>
-    <plugin>
-        <groupId>org.vernac</groupId>
-        <artifactId>vernac-maven-plugin</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
-        <executions>
-            <execution>
-                <goals>
-                    <goal>compile</goal>
-                </goals>
-            </execution>
-        </executions>
-    </plugin>
-</plugins>
-</build>
+@Repository
+@Transactional(propagation = Propagation.MANDATORY)
+public class JdbcEnergyStorageRepository implements EnergyStorageRepository {
+    // ...
+    @Override
+    public EnergyStorage save(EnergyStorage aggregate) {
+        EnergyStorage saved = aggregate.version() == 0L ? insert(aggregate) : update(aggregate);
+        this.eventDispatcher.dispatch("EnergyStorage", aggregate.id().value().toString(), aggregate.pullDomainEvents());
+        return saved;
+    }
+}
 ```
 
-### 2. Create the Model
+### What works today (v0.1.x)
 
-Place your definitions under `src/main/vernac/domain.vernac`.
+The DSL currently supports:
 
-### 3. Compile
+- `id` declarations (typed identifiers)
+- `value` objects
+    - single-field values (e.g. `value WattHours(int) ...`)
+    - multi-field and nested values (e.g. `value Currency(string); value Money(BigDecimal amount, Currency currency)`)
+    - enums (e.g. `value Status = NEW | SHIPPED;`)
+    - `validates { require(...) }` blocks
+- `event` declarations (`memory` and `outbox`)
+- `entity` and `aggregate` (with `mut` (mutable) fields and invariant re-validation on mutation)
+- `repository for <Aggregate>` (Spring JDBC implementation is generated - you can easily add custom methods)
+- `port` with adapters
+    - `adapter rest { ... }` generates a Spring `RestClient` adapter
+    - `mapping { ... }` supports simple request/response mapping
+    - custom adapters (where you define the adapter logic)
+- `usecase` (generates a Spring `@Service` with a @Transactional annotated `execute(...)` method)
+- `service` (domain services) and `listener` (event subscribers) blocks (compiler support exists; see the language
+  reference for details)
+
+The LSP (`vernac-lsp`) currently provides diagnostics (syntax + semantic), semantic highlighting, hover/definition, and
+completions/snippets.
+You can directly go to vernac definitions, use context aware completions, and navigate to vernac definitions. Tested in
+Intellij.
+
+See:
+
+- `docs/language-reference.md` (DSL reference + examples)
+
+### Quickstart (local build)
+
+Vernac is not published to Maven Central yet; for now, build and install it locally:
 
 ```bash
-mvn compile
+mvn -q -DskipTests install
 ```
 
-The compiler validates the model semantically and places the Java classes under `target/generated-sources/vernac`.
+Then, in your own project:
 
----
+1. Add the dependency `org.vernac:vernac-runtime:${vernac.version}`
+2. Add the plugin `org.vernac:vernac-maven-plugin:${vernac.version}` with goal `compile`
+3. Put `.vernac` files under `src/main/vernac`
+4. Run `mvn compile`
 
-## Try the Showcase
+Generated sources land in `target/generated-sources/vernac` and are added as a compile source root.
 
-The repository contains a ready-to-run example (`vernac-example-home-energy`) that demonstrates the interaction of
-Aggregates, Repositories, Ports, and Use Cases:
+### Run the showcase
+
+The module `vernac-example-home-energy` is a small Spring Boot demo with PostgreSQL (see `compose.yaml`).
 
 ```bash
-# 1. Start the local PostgreSQL database (e.g., via Docker Compose)
 cd vernac-example-home-energy
 docker compose up -d
-
-# 2. Run the application (schema.sql initializes the DB automatically)
 mvn spring-boot:run
 ```
 
-Upon startup, the `HomeEnergyDemoRunner` executes a complete vertical slice:
+### Status of the project
 
-1. Creates a storage with 2,500 Wh in PostgreSQL.
-2. Invokes the `OptimizeEnergyFlow` Use Case.
-3. Internally queries the solar forecast port, charges the storage within the aggregate, and registers the
-   `StorageCharged` event.
-4. Saves the new state atomically with a versioning update to the database.
+Many DDD core concepts are already supported, but the project is still in its early stages.
+I may change the language definition and the code generators at any time in the stage.
 
----
+* The language supports DDD concepts on an architectural level and makes you code much more concise.
+* Convention over Configuration is a core concept: Write only what varies from the standard.
+* The language is designed to be easy to learn and use, with a focus on readability and maintainability.
 
-## Project Status & Roadmap
+Current work concentrates on:
 
-Vernac is in active development (**v0.1.0-alpha**). The core compiler, outbox persistence, and the Language Server (LSP)
-for IDE support are ready for use.
+* Redefining the anti corruption layers to become more powerful.
+* Add api/endpoints constructs (for now you can simply use Java/Spring Controllers).
+* Add more and better examples.
 
-- [x] **Core Domain Engine:** Aggregates, Entities, Value Objects, Identifiers.
-- [x] **Persistence & Outbox:** JDBC code generation, PostgreSQL flattening, Transactional Eventing.
-- [x] **Outbound ACL:** Declarative REST Ports with DTO mapping and Custom Adapters.
-- [x] **IDE Support:** Vernac Language Server (Syntax Highlighting, Semantic Validation, Snippets).
-- [ ] **Inbound Web APIs:** Declarative REST endpoints (`api`, `endpoint`) mapped directly to Use Cases.
-- [ ] **AI & Agentic Layer:** Model Context Protocol (MCP) Endpoints for autonomous LLM tools.
-- [ ] **Multi-File Builds:** Cross-project symbol table for large domains.
+### License
 
----
-
-## License
-
-Apache License 2.0. See `LICENSE` for details.
+Apache License 2.0. See `LICENSE`.
