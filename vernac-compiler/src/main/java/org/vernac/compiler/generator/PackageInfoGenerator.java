@@ -1,3 +1,6 @@
+// Copyright 2026 Danny Reinhold
+// SPDX-License-Identifier: Apache-2.0
+
 package org.vernac.compiler.generator;
 
 import java.io.IOException;
