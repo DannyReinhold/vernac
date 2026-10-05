@@ -75,6 +75,16 @@ public void storedEnergy(WattHours storedEnergy) {
 }
 ```
 
+**Validation failures:** Generated mutators apply the change before checking
+invariants. If validation throws a `DomainValidationException`, the object
+is not automatically restored to its previous state. Abort the current
+operation and discard the affected aggregate instance rather than continuing
+to use or persist it. A database transaction rollback does not restore
+in-memory Java objects.
+
+See [Validation failures and object state](docs/language-reference.md#validation-failures-and-object-state)
+for details.
+
 And (if you define a `repository for ...`) a Spring JDBC repository implementation with optimistic locking and event
 dispatching (excerpt):
 
