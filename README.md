@@ -107,6 +107,7 @@ Intellij.
 See:
 
 - `docs/language-reference.md` (DSL reference + examples)
+- `docs/outbound-port-mapping.md` (Mapping rules and conventions for outbound ports)
 
 ### Quickstart (local build)
 

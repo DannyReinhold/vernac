@@ -326,7 +326,7 @@ repository for Order {
 
 ## 9. Ports and Adapters (`port`)
 
-Ports define outbound boundaries (Hexagonal Architecture / Clean Architecture).
+Ports define outbound boundaries (Hexagonal Architecture / Clean Architecture). For an in-depth guide on mapping rules, conventions, and code generation details, see [Outbound Port Mapping Documentation](outbound-port-mapping.md).
 
 ### 9.1 REST Adapters and Schemas
 
