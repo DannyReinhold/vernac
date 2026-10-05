@@ -109,6 +109,8 @@ See:
 - `docs/language-reference.md` (DSL reference + examples)
 - `docs/outbound-port-mapping.md` (Mapping rules and conventions for outbound ports)
 - `docs/repository-db-mapping.md` (Database mapping, DDL, table/column conventions, and custom repository beans)
+- `docs/usecase-application-layer.md` (Application layer, UseCases, Domain Services, and tuple results)
+- `docs/event-driven-architecture.md` (Domain Events, Transactional Outbox pattern, and Listeners)
 
 ### Quickstart (local build)
 

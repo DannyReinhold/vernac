@@ -278,7 +278,7 @@ aggregate Order[OrderId](
 
 ## 7. Events (`event`)
 
-Events capture immutable facts that occurred in the domain.
+Events capture immutable facts that occurred in the domain. For an in-depth guide on the Transactional Outbox pattern, `vernac_outbox` DDL, event dispatching, and asynchronous event listeners, see [Event-Driven Architecture & Outbox Documentation](event-driven-architecture.md).
 
 ```vernac
 // Default is outbox dispatch mode
@@ -377,7 +377,7 @@ port InvoiceGenerator {
 
 ## 10. Use Cases (`usecase`)
 
-Use Cases represent transactional application services orchestrating domain logic.
+Use Cases represent transactional application services orchestrating domain logic. For an in-depth guide on parameter validation, dependency injection, repository conventions, load/save semantics, and tuple returns, see [Use Cases & Application Layer Documentation](usecase-application-layer.md).
 
 ```vernac
 usecase CancelOrder(OrderId id, String reason) validates {
