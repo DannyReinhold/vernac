@@ -12,6 +12,11 @@ target/
 *.iws
 *.iml
 *.ipr
+# IntelliJ Language Server settings
+.idea/LanguageServersSettings.xml
+
+# Maven Shade Plugin artifact
+**/dependency-reduced-pom.xml
 
 ### Eclipse ###
 .apt_generated
