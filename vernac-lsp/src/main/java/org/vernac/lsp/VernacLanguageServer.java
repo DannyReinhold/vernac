@@ -11,7 +11,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class VernacLanguageServer implements LanguageServer, LanguageClientAware {
 
-    // Unterstützte Token-Typen (Index in dieser Liste bestimmt den Token-Typ)
+    // Supported token types (index in this list determines the token type)
     public static final List<String> TOKEN_TYPES = List.of(
             SemanticTokenTypes.Keyword,     // 0
             SemanticTokenTypes.Type,        // 1

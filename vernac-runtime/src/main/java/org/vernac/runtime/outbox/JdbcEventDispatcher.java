@@ -54,7 +54,7 @@ public class JdbcEventDispatcher implements EventDispatcher {
                         .addValue("createdAt", Timestamp.from(Instant.now()))
                         .addValue("status", "PENDING"));
             } else {
-                // In-Memory Events direkt an den Spring ApplicationContext
+                // Publish in-memory events directly to the Spring ApplicationContext
                 this.eventPublisher.publishEvent(event);
             }
         }

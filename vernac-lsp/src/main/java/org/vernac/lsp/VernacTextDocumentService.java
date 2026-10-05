@@ -84,7 +84,7 @@ public class VernacTextDocumentService implements TextDocumentService {
     }
 
     // ==========================================
-    // 1. Validierung (Syntax & Semantik)
+    // 1. Validation (Syntax & Semantics)
     // ==========================================
 
     private void validateDocument(String uri, String content) {
@@ -116,7 +116,7 @@ public class VernacTextDocumentService implements TextDocumentService {
         } catch (Exception ignored) {
         }
 
-        // Semantische Validierung via AST nur ausführen, wenn keine reinen Syntax-Fehler vorliegen
+        // Only perform semantic validation via AST if there are no pure syntax errors
         if (diagnostics.isEmpty() && tree != null) {
             try {
                 AstBuilderVisitor astBuilder = new AstBuilderVisitor();
@@ -126,7 +126,7 @@ public class VernacTextDocumentService implements TextDocumentService {
                     diagnostics.addAll(semanticValidator.validate(ast));
                 }
             } catch (Exception ignored) {
-                // Fängt Übergangszustände beim Tippen im Editor ab
+                // Catches transient states while typing in the editor
             }
         }
 
@@ -166,23 +166,23 @@ public class VernacTextDocumentService implements TextDocumentService {
             int line = token.getLine() - 1;
             int startChar = token.getCharPositionInLine();
 
-            // 1. Einfache Direkt-Tokens (Keywords, Typen, Strings, etc.)
+            // 1. Simple direct tokens (keywords, types, strings, etc.)
             Integer type = classifyToken(text.trim());
             if (type != null) {
                 int leadingSpaces = Math.max(0, text.indexOf(text.trim()));
                 collected.add(new RawToken(line, startChar + leadingSpaces, text.trim().length(), type));
             } else if (text.length() > 1 && (text.contains(" ") || text.contains("\n") || text.contains("{") || text.contains("("))) {
-                // 2. Nur wenn es kein einzelnes Token war, Unterfragmente zerlegen
+                // 2. Break down into sub-fragments only if it was not a single token
                 lexCompositeFragment(text, line, startChar, collected);
             }
         }
 
-        // Streng sortieren: Zuerst Zeile, dann Spalte, bei Gleichheit längeres Token zuerst
+        // Strictly sort: line first, then column; on equality, longer token first
         collected.sort(Comparator.comparingInt((RawToken t) -> t.line)
                 .thenComparingInt(t -> t.startChar)
                 .thenComparingInt(t -> -t.length));
 
-        // Duplikate & Überlappungen filtern
+        // Filter duplicates & overlaps
         List<RawToken> nonOverlapping = new ArrayList<>();
         int curLine = -1;
         int curEndChar = -1;
@@ -198,7 +198,7 @@ public class VernacTextDocumentService implements TextDocumentService {
             }
         }
 
-        // Relative Deltas exakt nach LSP-Spezifikation berechnen
+        // Calculate relative deltas exactly according to LSP specification
         List<Integer> data = new ArrayList<>();
         int prevLine = 0;
         int prevChar = 0;
@@ -271,7 +271,7 @@ public class VernacTextDocumentService implements TextDocumentService {
     }
 
     // ==========================================
-    // 3. Autovervollständigung (Context-Aware)
+    // 3. Autocompletion (Context-Aware)
     // ==========================================
 
     @Override
@@ -287,19 +287,19 @@ public class VernacTextDocumentService implements TextDocumentService {
 
         List<CompletionItem> items = new ArrayList<>();
 
-        // Kontext A: Nach "for" bei Repositories -> Nur Aggregate
+        // Context A: After "for" in repositories -> Only aggregates
         if (prefix.matches("(?s).*\\brepository\\s+\\w+\\s+for\\s+\\w*$")) {
             addAggregateCompletions(items, content);
             return CompletableFuture.completedFuture(Either.forLeft(items));
         }
 
-        // Kontext A2: Nach "listener" -> Nur deklarierte Events
+        // Context A2: After "listener" -> Only declared events
         if (prefix.matches("(?s).*\\blistener\\s+\\w*$")) {
             addEventCompletions(items, content);
             return CompletableFuture.completedFuture(Either.forLeft(items));
         }
 
-        // Kontext B: Typ-Position (nach '[', '<', ':', 'mut', 'find', 'custom' oder in Parameterliste)
+        // Context B: Type position (after '[', '<', ':', 'mut', 'find', 'custom', or in parameter list)
         if (isTypeExpected(prefix)) {
             Set<String> seenTypes = new HashSet<>();
             addModelDeclaredTypes(items, content, seenTypes);
@@ -307,7 +307,7 @@ public class VernacTextDocumentService implements TextDocumentService {
             return CompletableFuture.completedFuture(Either.forLeft(items));
         }
 
-        // Kontext C1: Innerhalb eines usecase { ... } Blocks
+        // Context C1: Inside a usecase { ... } block
         if (isInsideUseCaseBlock(prefix)) {
             addKeywordCompletion(items, "use", "use ${1:Repository};");
             addKeywordCompletion(items, "load", "load ${1:Aggregate} by ${2:id};");
@@ -315,7 +315,7 @@ public class VernacTextDocumentService implements TextDocumentService {
             addKeywordCompletion(items, "return", "return ($1);");
             return CompletableFuture.completedFuture(Either.forLeft(items));
         }
-        // Kontext C2: Innerhalb eines repository { ... } Blocks
+        // Context C2: Inside a repository { ... } block
         if (isInsideRepositoryBlock(prefix)) {
             addKeywordCompletion(items, "table", "table: \"${1:table_name}\";");
             addKeywordCompletion(items, "find", "find ${1:ReturnType} ${2:methodName}(${3:params});");
@@ -323,7 +323,7 @@ public class VernacTextDocumentService implements TextDocumentService {
             return CompletableFuture.completedFuture(Either.forLeft(items));
         }
 
-        // Kontext D: Top-Level Keywords
+        // Context D: Top-level keywords
         addTopLevelCompletions(items);
 
         return CompletableFuture.completedFuture(Either.forLeft(items));
@@ -532,7 +532,7 @@ public class VernacTextDocumentService implements TextDocumentService {
     private Location findDeclaration(String uri, String content, String targetName) {
         String[] lines = content.split("\r?\n", -1);
         Pattern typePattern = Pattern.compile("\\b(aggregate|value|entity|event|listener|usecase|id|service)\\s+(" + Pattern.quote(targetName) + ")\\b");
-        // Erkennt Enum-Konstanten nach einem '=' oder '|'
+        // Matches enum constants after an '=' or '|'
         Pattern enumConstPattern = Pattern.compile("[=|]\\s*(" + Pattern.quote(targetName) + ")\\b");
 
         for (int i = 0; i < lines.length; i++) {
@@ -556,7 +556,7 @@ public class VernacTextDocumentService implements TextDocumentService {
     }
 
     // ==========================================
-    // Interne Hilfsstrukturen
+    // Internal Helper Structures
     // ==========================================
 
     private void addEventCompletions(List<CompletionItem> items, String content) {

@@ -16,7 +16,7 @@ public interface AggregateRoot<ID> {
     long version();
 
     /**
-     * Liefert alle gesammelten Domain Events zurück und leert den internen Puffer.
+     * Returns all collected domain events and clears the internal buffer.
      */
     List<DomainEvent> pullDomainEvents();
 }

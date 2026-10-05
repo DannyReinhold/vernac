@@ -63,14 +63,14 @@ class OrderDomainTest {
         Order order = Order.create(orderId, customerId, total, "PENDING", OrderLines.of());
         assertThat(order.status()).isEqualTo("PENDING");
 
-        // Event-Puffer muss anfangs leer sein
+        // Event buffer must initially be empty
         assertThat(order.pullDomainEvents()).isEmpty();
 
-        // Status ändern und Event registrieren
+        // Change status and register event
         order.completeOrder();
         assertThat(order.status()).isEqualTo("PAID");
 
-        // Event prüfen und Puffer leeren
+        // Verify event and clear buffer
         List<DomainEvent> events = order.pullDomainEvents();
         assertThat(events).hasSize(1);
 
@@ -80,7 +80,7 @@ class OrderDomainTest {
         assertThat(event.totalAmount()).isEqualTo(total);
         assertThat(event.occurredOn()).isNotNull();
 
-        // Zweiter Aufruf muss leer sein (pull-Semantik)
+        // Second call must be empty (pull semantics)
         assertThat(order.pullDomainEvents()).isEmpty();
     }
 }

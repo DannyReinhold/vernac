@@ -33,7 +33,7 @@ public class HomeEnergyDemoRunner implements ApplicationRunner {
         log.info("🚀 VERNAC HOME ENERGY SHOWCASE GESTARTET");
         log.info("==================================================================");
 
-        // 1. Initialzustand für EnergyStorage in PostgreSQL anlegen
+        // 1. Create initial state for EnergyStorage in PostgreSQL
         StorageId storageId = StorageId.create();
         WattHours capacity = WattHours.of(10_000);
         BatterySoc initialSoc = BatterySoc.of(25);
@@ -44,7 +44,7 @@ public class HomeEnergyDemoRunner implements ApplicationRunner {
         storageRepository.save(initialStorage);
         log.info("   -> Gespeichert in DB mit Version {}", initialStorage.version());
 
-        // 2. UseCase aufrufen: Lädt Speicher, ruft REST-Port ab, lädt auf und speichert
+        // 2. Invoke UseCase: Loads storage, calls REST port, charges, and saves
         log.info("2. Führe UseCase 'OptimizeEnergyFlow' aus...");
         OptimizeEnergyFlow.Result result = optimizeEnergyFlow.execute(storageId);
 
@@ -53,7 +53,7 @@ public class HomeEnergyDemoRunner implements ApplicationRunner {
         log.info("      Neuer SOC:     {}%", result.soc().percent());
         log.info("      Energie-Stand: {} Wh", result.storedEnergy().value());
 
-        // 3. Zur Gegenprobe frisch aus DB lesen
+        // 3. Read fresh from DB for verification
         EnergyStorage reloaded = storageRepository.byId(storageId);
         log.info("3. DB-Prüfung nach Transaktion: SOC={}%, Version={}",
                 reloaded.soc().percent(), reloaded.version());

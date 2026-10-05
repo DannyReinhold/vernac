@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * Kompiliert Vernac DSL Dateien (.vernac) in Java Source Code während der generate-sources Phase.
+ * Compiles Vernac DSL files (.vernac) into Java source code during the generate-sources phase.
  */
 @Mojo(
         name = "compile",
@@ -36,17 +36,17 @@ public class VernacCompileMojo extends AbstractMojo {
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
     private MavenProject project;
     /**
-     * Quellverzeichnis für .vernac Dateien.
+     * Source directory for .vernac files.
      */
     @Parameter(property = "vernac.sourceDirectory", defaultValue = "${project.basedir}/src/main/vernac")
     private File sourceDirectory;
     /**
-     * Zielverzeichnis für den generierten Java-Code.
+     * Target directory for generated Java code.
      */
     @Parameter(property = "vernac.outputDirectory", defaultValue = "${project.build.directory}/generated-sources/vernac")
     private File outputDirectory;
     /**
-     * Flag zum Überspringen der Ausführung.
+     * Flag to skip execution.
      */
     @Parameter(property = "vernac.skip", defaultValue = "false")
     private boolean skip;
@@ -104,14 +104,14 @@ public class VernacCompileMojo extends AbstractMojo {
 
         getLog().info("Successfully generated " + totalGeneratedFiles + " Java source file(s).");
 
-        // Registriere das Verzeichnis bei Maven, damit der Java-Compiler die Klassen findet
+        // Register the directory with Maven so that the Java compiler finds the classes
         if (project != null) {
             project.addCompileSourceRoot(outputDirectory.getAbsolutePath());
             getLog().debug("Added compile source root: " + outputDirectory.getAbsolutePath());
         }
     }
 
-    // Für Unit-Tests & direkte Instanziierung
+    // For unit tests and direct instantiation
     public void setSourceDirectory(File sourceDirectory) {
         this.sourceDirectory = sourceDirectory;
     }

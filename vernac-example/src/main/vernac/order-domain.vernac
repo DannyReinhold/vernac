@@ -9,7 +9,7 @@ import java.util.UUID;
 import java.util.List;
 import java.util.ArrayList;
 
-// A simple value object
+// Typed identifiers
 id OrderId;
 id CustomerId;
 

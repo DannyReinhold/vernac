@@ -10,13 +10,13 @@ value Temperature(BigDecimal celsius);
 
 port WeatherProvider {
 
-    // Infrastruktur-DTO für den externen JSON-Payload
+    // Infrastructure DTO for the external JSON payload
     schema WeatherApiResponse {
         String description;
         BigDecimal tempCelsius;
     }
 
-    // Reine Domänensignatur – kein technisches Rauschen
+    // Pure domain signature without technical noise
     Optional<Temperature> getCurrentTemperature(CityName city) {
         adapter rest {
             GET "/api/v1/weather";

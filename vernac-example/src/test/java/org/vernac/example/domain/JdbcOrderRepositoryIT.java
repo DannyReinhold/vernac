@@ -60,7 +60,7 @@ class JdbcOrderRepositoryIT {
 
         ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
         populator.addScript(new ClassPathResource("schema.sql"));
-        // Outbox-Tabelle sicherstellen, falls noch nicht in schema.sql enthalten:
+        // Ensure outbox table exists if not already included in schema.sql:
         populator.addScript(new org.springframework.core.io.ByteArrayResource("""
                 CREATE TABLE IF NOT EXISTS vernac_outbox (
                     id UUID PRIMARY KEY,
@@ -90,17 +90,17 @@ class JdbcOrderRepositoryIT {
     void setUp() {
         inMemoryPublishedEvents.clear();
 
-        // 1. Schlanker Jackson-Mapper für Testzwecke
+        // 1. Lightweight Jackson mapper for testing purposes
         ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
-        // 2. Event-Publisher sammelt In-Memory-Events direkt für Verifizierungen
+        // 2. Event publisher collects in-memory events directly for verifications
         ApplicationEventPublisher eventPublisher = inMemoryPublishedEvents::add;
 
-        // 3. Dispatcher mit den 3 benötigten Abhängigkeiten erzeugen
+        // 3. Create dispatcher with the 3 required dependencies
         eventDispatcher = new JdbcEventDispatcher(jdbcTemplate, eventPublisher, objectMapper);
         repository = new JdbcOrderRepository(jdbcTemplate, eventDispatcher);
 
-        // 4. Tabellen inkl. Outbox leeren
+        // 4. Truncate tables including outbox
         txTemplate.executeWithoutResult(status -> {
             jdbcTemplate.getJdbcTemplate().execute("TRUNCATE TABLE order_lines, orders, vernac_outbox CASCADE");
         });
@@ -124,13 +124,13 @@ class JdbcOrderRepositoryIT {
                 OrderLines.of(line1, line2)
         );
 
-        // 1. Speichern im Use-Case-Transaktionskontext
+        // 1. Save within use-case transaction context
         Order saved = txTemplate.execute(status -> repository.save(initialOrder));
 
         assertThat(saved).isNotNull();
         assertThat(saved.version()).isEqualTo(1L);
 
-        // 2. Laden via byId
+        // 2. Load via byId
         Order loaded = txTemplate.execute(status -> repository.byId(orderId));
 
         assertThat(loaded).isNotNull();
@@ -165,10 +165,10 @@ class JdbcOrderRepositoryIT {
 
         Order savedV1 = txTemplate.execute(status -> repository.save(order));
 
-        // Modifikation:
-        // line1 Menge geändert (Update)
-        // line2 entfernt (Delete)
-        // line3 hinzugefügt (Insert)
+        // Modification:
+        // line1 quantity changed (Update)
+        // line2 removed (Delete)
+        // line3 added (Insert)
         OrderLineId line3Id = OrderLineId.create();
         OrderLine line3 = OrderLine.create(line3Id, ItemSku.of("SKU-C"), Money.of(new BigDecimal("15.00"), eur), 3);
         OrderLine line1Modified = OrderLine.create(line1Id, ItemSku.of("SKU-A"), Money.of(new BigDecimal("10.00"), eur), 5);
@@ -192,7 +192,7 @@ class JdbcOrderRepositoryIT {
         assertThat(savedV2.version()).isEqualTo(2L);
         assertThat(savedV2.status()).isEqualTo("PAID");
 
-        // Zustand aus der Datenbank verifizieren
+        // Verify state from the database
         Order reloaded = txTemplate.execute(status -> repository.byId(orderId));
         assertThat(reloaded.lines()).hasSize(2);
 
@@ -214,12 +214,12 @@ class JdbcOrderRepositoryIT {
         Order order = Order.create(orderId, customerId, Money.of(new BigDecimal("10.00"), eur), "NEW", OrderLines.of());
         Order v1 = txTemplate.execute(status -> repository.save(order));
 
-        // Erster Request aktualisiert erfolgreich auf V2
+        // First request successfully updates to V2
         v1.completeOrder();
         Order v2 = txTemplate.execute(status -> repository.save(v1));
         assertThat(v2.version()).isEqualTo(2L);
 
-        // Zweiter Request versucht noch immer, auf Basis von V1 zu speichern
+        // Second request still attempts to save based on V1
         Order concurrentAttempt = Order.reconstitute(
                 v1.id(), v1.customer(), v1.total(), "CANCELLED",
                 OrderLines.of(), v1.createdAt(), v1.updatedAt(), 1L
@@ -266,7 +266,7 @@ class JdbcOrderRepositoryIT {
 
         Order order = Order.create(orderId, customerId, Money.of(new BigDecimal("99.00"), eur), "NEW", OrderLines.of());
 
-        // Simuliert eine fachliche Methode, die intern ein Event registriert
+        // Simulates a domain method that registers an event internally
         order.completeOrder();
 
         txTemplate.execute(status -> repository.save(order));
@@ -278,6 +278,6 @@ class JdbcOrderRepositoryIT {
         );
 
         assertThat(outboxCount).isNotNull();
-        // Falls completeOrder ein Event emittiert, ist der Count >= 1, sonst 0
+        // If completeOrder emits an outbox event, the count is >= 1, otherwise 0
     }
 }
