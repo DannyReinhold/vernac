@@ -272,7 +272,8 @@ aggregate Order[OrderId](
 
 - **Identity**: Bound to an ID type via `[IdType]`.
 - **Factory Methods**:
-    - `public static Type create(IdType id, ...)` for initial domain creation.
+    - `public static Type create(...)` for initial domain creation. A new object Id is created by using the id type's
+      `create` method.
     - `public static Type reconstitute(IdType id, ..., Instant createdAt, Instant updatedAt, long version)` for
       persistence rehydration.
 - **Mutable Fields (`mut`)**:

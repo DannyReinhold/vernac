@@ -20,6 +20,15 @@ idiomatic, robust, and production-ready Java 21 code.
 
 ---
 
+## Learn Vernac by Doing
+
+Start with a small task model and explore how Vernac definitions become
+Java types and behavior.
+
+[Start the tutorials →](tutorials/index.md)
+
+---
+
 ## 🚀 Key Highlights
 
 - **Pure, Type-Safe Domain Model**: Strongly typed IDs, immutable Value Objects, First-Class Collections, and Aggregates
