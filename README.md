@@ -19,7 +19,8 @@ This repository already contains:
 - a compiler (`vernac-compiler`)
 - a Maven plugin (`vernac-maven-plugin`)
 - a small runtime API (`vernac-runtime`)
-- an LSP server for `.vernac` files (`vernac-lsp`)
+- an IntelliJ IDEA plugin with a bundled language server (`vernac-intellij`)
+- the reusable language server behind the editor integration (`vernac-lsp`)
 - two example modules (`vernac-example`, `vernac-example-home-energy`)
 
 ### A tiny example
@@ -113,10 +114,10 @@ The DSL currently supports:
 - `service` (domain services) and `listener` (event subscribers) blocks (compiler support exists; see the language
   reference for details)
 
-The LSP (`vernac-lsp`) currently provides diagnostics (syntax + semantic), semantic highlighting, hover/definition, and
-completions/snippets.
-You can directly go to vernac definitions, use context aware completions, and navigate to vernac definitions. Tested in
-Intellij.
+The IntelliJ IDEA plugin provides semantic highlighting, syntax and semantic
+diagnostics, hover documentation, code completion and snippets, and Go to
+Declaration within Vernac files. See [IntelliJ IDEA plugin](#intellij-idea-plugin)
+for installation instructions.
 
 See the documentation portal at [vernac.org](https://vernac.org) (or `docs/index.md`) and the individual guides:
 
@@ -131,8 +132,13 @@ See the documentation portal at [vernac.org](https://vernac.org) (or `docs/index
 
 Prerequisites:
 
-- JDK 21
+- JDK 25 to build the full repository, including the IntelliJ plugin
 - Maven 3.9+
+
+The compiler, runtime, language server, and generated application code retain
+their Java 21 target. Only the IntelliJ plugin targets Java 25. Ensure that
+`mvn -version` reports Java 25; when building from IntelliJ, also select JDK 25
+in Settings → Build, Execution, Deployment → Build Tools → Maven → Runner → JRE.
 
 Vernac is not published to Maven Central yet. Clone this repository
 and install its artifacts locally:
@@ -229,6 +235,65 @@ System.out.
 
 `WattHours.of(-1)` throws a `DomainValidationException`.
 
+### IntelliJ IDEA plugin
+
+The `vernac-intellij` plugin integrates Vernac directly into IntelliJ IDEA.
+It registers `.vernac` files and starts its bundled language server automatically.
+No LSP4IJ installation, manual file-type mapping, or external server path is needed.
+The server uses the IDE's Java runtime, independently of your project's JDK.
+
+#### Requirements
+
+- IntelliJ IDEA 2026.2.3 (build `262.10968.63`) or a newer build in the 2026.2 series
+- JDK 25 and Maven 3.9+ to build the plugin from source
+
+The current plugin descriptor limits compatibility to the 2026.2 series.
+Later IDE release series require a compatibility check and an updated descriptor.
+
+#### Build and install
+
+From the repository root, build the plugin and its dependencies:
+
+```bash
+mvn -pl vernac-intellij -am package -DskipTests
+```
+
+The installation archive is generated at:
+
+```text
+vernac-intellij/target/vernac-intellij-0.1.0-SNAPSHOT-plugin.zip
+```
+
+1. In IntelliJ IDEA, open **Settings → Plugins** (or **Plugins** on the welcome screen).
+2. Open the gear menu and choose **Install Plugin from Disk…**.
+3. Select the ZIP archive above and restart the IDE if prompted.
+4. Open a project and a `.vernac` file to activate language support.
+
+If you previously configured Vernac manually in LSP4IJ, disable that server
+configuration and remove its manually created `*.vernac` file-type association
+so the Vernac plugin can own the extension.
+
+#### Try it
+
+Create `mytest.vernac` in your project:
+
+```vernac
+package demo;
+
+id StorageId;
+
+aggregate EnergyStorage[StorageId](int capacity) {
+}
+```
+
+Use **Go To → Declaration or Usages** from the editor context menu on the
+`StorageId` reference in the aggregate to navigate to its declaration.
+Code completion is available through **Code → Code Completion → Basic**;
+invalid syntax is reported in the editor.
+
+The IDE plugin provides editing support. Java source generation still runs
+through the Vernac Maven plugin during your project's Maven build.
+
 ### Run the showcase
 
 The `vernac-example-home-energy` module demonstrates Vernac with
@@ -240,7 +305,7 @@ and ensure Docker is running.
 From the repository root:
 
 ```bash
-mvn -pl vernac-example-home-energy spring-boot:run -Dspring-boot.run.workingDirectory=..
+mvn -pl vernac-example-home-energy spring-boot:run "-Dspring-boot.run.workingDirectory=.."
 ```
 
 The application runs with the repository root as its working directory.

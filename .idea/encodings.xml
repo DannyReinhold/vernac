@@ -9,6 +9,8 @@
     <file url="file://$PROJECT_DIR$/vernac-example-home-energy/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/vernac-example/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/vernac-example/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/vernac-intellij/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/vernac-intellij/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/vernac-lsp/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/vernac-lsp/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/vernac-maven-plugin/src/main/java" charset="UTF-8" />

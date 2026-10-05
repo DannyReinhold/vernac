@@ -24,6 +24,7 @@
         <module>vernac-example</module>
         <module>vernac-lsp</module>
         <module>vernac-example-home-energy</module>
+        <module>vernac-intellij</module>
     </modules>
 
     <properties>
