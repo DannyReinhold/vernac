@@ -298,6 +298,33 @@ aggregate Order[OrderId](
     - Multi-field and nested value objects are recursively flattened into SQL column definitions (e.g. `Money budget`
       becomes `budget_amount NUMERIC(19, 4)` and `budget_currency VARCHAR(255)`).
 
+#### Validation failures and object state
+
+Generated aggregate and entity mutators validate the object after applying
+a field change. If an invariant fails, they throw a
+`DomainValidationException`. They do not undo the assignment or restore
+previous lifecycle metadata. A rejected mutation can therefore leave the
+instance in an invalid state.
+
+After such a failure:
+
+- Abort the current use case and ensure its database transaction is rolled back.
+- Discard the affected aggregate instance, including its contained entities.
+- Do not catch the exception and then continue modifying or saving that instance.
+- If another attempt is needed, load a fresh instance in a new transaction.
+
+Handle the error outside the failed transactional operation, for example
+by translating it into an application or API error response. Database
+rollback affects transactional database changes; it does not restore Java
+object fields or undo external side effects.
+
+This differs from value-object construction: if construction fails validation,
+no new value object is returned to the caller.
+
+Custom Java methods must explicitly preserve domain invariants, for example
+by using generated mutators or calling `validate()`. Vernac does not
+automatically wrap arbitrary Java method bodies in validation or rollback logic.
+
 ### 6.3 Strict DDD Invariant Rules Checked by Compiler
 
 - Aggregates **cannot** be directly embedded inside other Aggregates/Entities as fields; reference them by their
