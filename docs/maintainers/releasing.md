@@ -1,7 +1,8 @@
 # Publishing a Vernac Release
 
-This guide describes the local Maven Central release process.
-It also serves as a reference for future GitHub Actions automation.
+This guide describes local Maven Central releases and IntelliJ plugin
+distribution through GitHub Releases and JetBrains Marketplace.
+It also records the current scope of release automation.
 
 ## Release scope
 
@@ -266,12 +267,16 @@ After successful publication and consumption verification, tag the exact
 commit used to build the release:
 
 ```text
-git tag -a v0.1.0 RELEASE_COMMIT_SHA -m "Release 0.1.0"
-git push origin v0.1.0
+git tag -a maven-v0.1.0 RELEASE_COMMIT_SHA -m "Maven Central release 0.1.0"
+git push origin maven-v0.1.0
 ```
 
 Replace `RELEASE_COMMIT_SHA` with the previously recorded commit ID.
 Ensure that commit is also pushed to the repository.
+
+Use `maven-v<version>` for Maven Central release tags and
+`plugin-v<version>` for IntelliJ plugin release tags. The existing `v0.1.0`
+tag identifies an earlier preview and must not be moved or reused.
 
 Create a GitHub Release for the tag, including:
 
@@ -291,6 +296,149 @@ SNAPSHOT version, for example:
 ```
 
 Commit this development-version change separately.
+
+## IntelliJ plugin distribution
+
+The IntelliJ plugin is released separately from the Maven Central artifacts.
+Its ZIP contains the plugin and the bundled language server.
+
+The Marketplace plugin ID is `org.vernac`. Keep it stable across updates.
+The Maven module name `vernac-intellij` and Java packages
+`org.vernac.intellij` remain unchanged.
+
+### 1. Prepare and build
+
+Commit the intended changes and start with a clean working tree. Record the
+source commit before building:
+
+```powershell
+git status --short
+git rev-parse HEAD
+```
+
+Use JDK 25. For a temporary PowerShell configuration, substitute the path of
+your installed JDK:
+
+```powershell
+$env:JAVA_HOME = "C:\path\to\jdk-25"
+$env:Path = "$env:JAVA_HOME\bin;$env:Path"
+mvn -version
+```
+
+Build from the repository root:
+
+```powershell
+$releaseVersion = "0.1.0"
+mvn "-Drevision=$releaseVersion" -pl vernac-intellij -am clean verify
+```
+
+Continue only after a successful build. The ZIP is located at:
+
+```text
+vernac-intellij/target/vernac-intellij-<version>-plugin.zip
+```
+
+The command-line revision does not change the development version in the POM.
+
+The current template version injection uses the project version. Check that
+the generated project's `vernac.version` references a release available on
+Maven Central. With this shared version configuration, publish the matching
+Maven artifacts before distributing a new plugin version. Independent plugin
+bugfix releases will require separating the plugin version from the template's
+Vernac dependency version first.
+
+Do not redeploy an already published Maven version to release a plugin.
+
+### 2. Test the exact ZIP
+
+In IntelliJ IDEA, use **Settings → Plugins → gear menu → Install Plugin from
+Disk**. Select the generated ZIP and restart the IDE if requested.
+
+Check:
+
+- The displayed plugin version.
+- Syntax highlighting, semantic diagnostics and context-aware completion.
+- Go to Declaration for a reference to a Vernac type.
+- Project creation with custom group ID, artifact ID and base package.
+- Correct packages and Maven coordinates in the generated files.
+- The intended Vernac dependency version in the generated POM and README.
+- Automatic Maven import of the generated project.
+- Successful execution of `./mvnw.cmd clean verify` in the generated project
+  on Windows.
+
+The early manually installed plugin used ID `org.vernac.intellij`.
+Marketplace rejected that ID because it contains `intellij`. For the one-time
+migration, uninstall the old plugin before installing the `org.vernac` build.
+Normal updates with the same ID do not require this migration step.
+
+Keep the tested ZIP for both distribution channels. Do not rebuild between
+testing and upload; if a rebuild is necessary, test the replacement ZIP.
+
+### 3. Tag the tested commit
+
+Tag the exact commit recorded before the build:
+
+```powershell
+git tag -a "plugin-v$releaseVersion" RELEASE_COMMIT_SHA -m "Vernac IntelliJ plugin $releaseVersion"
+git push origin "plugin-v$releaseVersion"
+```
+
+Replace `RELEASE_COMMIT_SHA` with the recorded commit ID and ensure that the
+commit is pushed as well. Do not move an existing published tag.
+
+### 4. Create the GitHub Release
+
+Create a GitHub Release for `plugin-v<version>`, titled **Vernac IntelliJ Plugin <version>**. Attach the tested ZIP.
+
+Include a summary of changes, known limitations and installation instructions.
+State compatibility according to the packaged `plugin.xml`; do not promise
+support for IDE versions outside its declared range. Mark early previews as
+pre-releases where appropriate.
+
+### 5. Submit to JetBrains Marketplace
+
+Sign in at https://plugins.jetbrains.com/.
+
+For the first release, choose **Upload plugin**, select the vendor profile
+and upload the tested ZIP. Complete vendor verification in the Marketplace
+account; identity documents and banking information do not belong in this
+repository.
+
+Use these public project details:
+
+| Field                          | Value                                          |
+|--------------------------------|------------------------------------------------|
+| License                        | Apache License 2.0                             |
+| Source code URL                | https://github.com/DannyReinhold/vernac        |
+| Website, where available       | https://vernac.org                             |
+| Issue tracker, where available | https://github.com/DannyReinhold/vernac/issues |
+
+Select appropriate language-support tags from the available choices. For
+normal public distribution, use the default channel and leave the hidden
+flag unchecked. Leave the advertising flag unchecked unless the plugin
+actually contains advertising. Describe the preview status in the listing.
+
+For later versions, upload an update to the existing plugin listing.
+Do not create another listing or change the plugin ID.
+
+A successful upload starts the review process; it does not establish that
+the plugin is approved or publicly available. Monitor the submission and
+respond to review feedback. After approval, verify the public listing and
+installation through Marketplace, then link the listing from the project
+website and documentation.
+
+### First release history
+
+| Tag             | Purpose                                         |
+|-----------------|-------------------------------------------------|
+| `v0.1.0`        | Earlier initial preview                         |
+| `maven-v0.1.0`  | First Maven Central release source              |
+| `plugin-v0.1.0` | Plugin source with the corrected Marketplace ID |
+
+The plugin ZIP originally attached to the Maven 0.1.0 GitHub Release uses the
+old ID. The corrected ZIP submitted to Marketplace belongs to the plugin tag.
+Once its separate GitHub Release is created, link it from the older release
+notes so users can find the corrected distribution.
 
 ## Troubleshooting
 
@@ -358,17 +506,31 @@ Check that:
 
 Never include token values in issue reports or build-log excerpts.
 
-## Future automation
+## GitHub Actions automation
 
-A GitHub Actions workflow should automate the same sequence:
+The release workflow is located at `.github/workflows/release.yml` and is
+started manually with a release version and a dry-run option.
 
-1. Select an explicit release version and source commit.
-2. Run the required verification.
-3. Build sources, Javadocs, and signatures.
-4. Upload the selected Maven Central components.
-5. Verify publication and consumer resolution.
-6. Record the release and attach separate distribution assets.
+The successful dry run verified the CI build and signing path. An actual
+publication through this workflow is a separate verification step.
 
-Credentials and signing material belong in GitHub Actions secrets.
-The workflow should preserve the deliberate publication policy established
-for the project.
+The current workflow verifies the project and builds the selected publication
+artifacts. In dry-run mode it does not deploy them. In deployment mode it
+uploads to the Central Publisher Portal for validation; final publication
+remains a manual Portal action.
+
+CI signing uses the Maven GPG plugin's Bouncy Castle signer. Local releases
+in this guide use GnuPG. CI credentials and private signing material are
+provided through GitHub Actions secrets, never repository files.
+
+After a CI deployment, perform the Portal review, publication and independent
+consumer checks described above. Record the workflow's source commit when
+creating the release tag.
+
+The workflow does not currently publish the IntelliJ plugin, create release
+tags or create GitHub Releases. Those steps remain manual.
+
+Future plugin automation should retain the tested ZIP and use that same
+artifact for GitHub Releases and Marketplace. Any Marketplace upload token
+must be stored as a secret. Never include credentials, private keys or
+passphrases in commands, release notes, screenshots or shared build logs.
