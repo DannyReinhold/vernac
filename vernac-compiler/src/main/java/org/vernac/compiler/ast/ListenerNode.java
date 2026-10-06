@@ -15,7 +15,8 @@ public record ListenerNode(
 ) implements TopLevelDefinition {
 
     /**
-     * Konvention: Generierter Klassenname lautet <EventName>Listener (z. B. StorageOverheatedListener).
+     * Konvention: Generierter Klassenname lautet {@code <EventName>Listener}
+     * (z. B. StorageOverheatedListener).
      */
     public String listenerName() {
         return eventName + "Listener";

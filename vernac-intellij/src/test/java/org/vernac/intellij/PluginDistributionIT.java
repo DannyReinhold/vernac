@@ -94,6 +94,7 @@ class PluginDistributionIT {
 
             for (String entry : List.of(
                     "META-INF/plugin.xml",
+                    "vernac-version.txt",
                     "org/vernac/intellij/VernacNewProjectWizard.class",
                     "org/vernac/intellij/VernacProjectTemplate.class",
                     "org/vernac/intellij/VernacProjectOpenActivity.class",

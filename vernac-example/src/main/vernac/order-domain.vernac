@@ -59,7 +59,7 @@ entity OrderLine[OrderLineId](ItemSku sku, Money unitPrice, mut int quantity) va
     }
 } collection;
 
-aggregate Order[OrderId](
+aggregate PurchaseOrder[OrderId](
     CustomerId customer,
     mut Money total,
     mut String status,
@@ -80,6 +80,6 @@ aggregate Order[OrderId](
     }
 };
 
-repository OrderRepository for Order {
-    find List<Order> findByStatus(String status);
+repository OrderRepository for PurchaseOrder {
+    find List<PurchaseOrder> findByStatus(String status);
 };

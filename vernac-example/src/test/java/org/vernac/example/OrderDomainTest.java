@@ -58,7 +58,7 @@ class OrderDomainTest {
         CustomerId customerId = CustomerId.of(UUID.randomUUID());
         Money total = Money.of(new BigDecimal("148.50"), EUR);
 
-        Order order = Order.create(customerId, total, "PENDING", OrderLines.of());
+        PurchaseOrder order = PurchaseOrder.create(customerId, total, "PENDING", OrderLines.of());
         OrderId orderId = order.id();
         assertThat(order.status()).isEqualTo("PENDING");
 

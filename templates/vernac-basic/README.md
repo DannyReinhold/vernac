@@ -8,11 +8,12 @@ No database, Docker, or running Spring application is required.
 
 - JDK 21 or a compatible newer JDK.
 - Internet access for the initial download of Maven and dependencies.
-- Vernac `0.1.0-SNAPSHOT` artifacts installed in your local Maven repository.
 
-For the current development version, first run `mvn clean install`
-from the Vernac repository root using the JDK required by that build.
-Afterward, this example can be built independently.
+<!-- vernac-dependency-note:start -->
+This example uses Vernac `0.1.0-SNAPSHOT`. Install the matching artifacts
+in your local Maven repository first by running `mvn clean install`
+from the Vernac repository root with the JDK required by that build.
+<!-- vernac-dependency-note:end -->
 
 A separate Maven installation is not required to build this example:
 the Maven Wrapper is included.

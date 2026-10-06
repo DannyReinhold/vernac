@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.vernac</groupId>
         <artifactId>vernac</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>${revision}</version>
     </parent>
 
     <artifactId>vernac-intellij</artifactId>
@@ -82,13 +82,24 @@
 
     <build>
         <resources>
-            <!-- Keep existing plugin resources -->
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>false</filtering>
+                <excludes>
+                    <exclude>META-INF/plugin.xml</exclude>
+                    <exclude>vernac-version.txt</exclude>
+                </excludes>
             </resource>
 
-            <!-- Copy tested project template into plugin JAR -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>META-INF/plugin.xml</include>
+                    <include>vernac-version.txt</include>
+                </includes>
+            </resource>
+
             <resource>
                 <directory>${project.basedir}/../templates/vernac-basic</directory>
                 <targetPath>projectTemplates/vernac-basic</targetPath>
@@ -132,6 +143,10 @@
                 <version>3.3.1</version>
                 <configuration>
                     <addDefaultExcludes>false</addDefaultExcludes>
+                    <useDefaultDelimiters>false</useDefaultDelimiters>
+                    <delimiters>
+                        <delimiter>@</delimiter>
+                    </delimiters>
                 </configuration>
             </plugin>
             <plugin>
@@ -160,6 +175,15 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <vernac.expected.version>${project.version}</vernac.expected.version>
+                    </systemPropertyVariables>
+                </configuration>
             </plugin>
         </plugins>
     </build>

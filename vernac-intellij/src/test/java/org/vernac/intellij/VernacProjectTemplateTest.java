@@ -56,7 +56,40 @@ class VernacProjectTemplateTest {
                 .parse(project.resolve("pom.xml").toFile());
 
         var root = document.getDocumentElement();
+        String expectedVersion =
+                System.getProperty("vernac.expected.version");
 
+        assertNotNull(
+                expectedVersion,
+                "Run this test through Maven to provide the expected build version."
+        );
+
+        var properties = (org.w3c.dom.Element) root
+                .getElementsByTagNameNS(
+                        "http://maven.apache.org/POM/4.0.0",
+                        "properties"
+                )
+                .item(0);
+
+        assertNotNull(properties, "Missing POM properties");
+
+        assertEquals(
+                expectedVersion,
+                directChildText(properties, "vernac.version")
+        );
+
+        // The user's project version must stay independent of Vernac's version.
+        assertEquals(
+                "0.1.0-SNAPSHOT",
+                directChildText(root, "version")
+        );
+
+        String generatedPom = Files.readString(project.resolve("pom.xml"));
+
+        assertTrue(
+                generatedPom.contains("<version>${vernac.version}</version>"),
+                "The generated project must retain its Maven property references."
+        );
         assertEquals("de.rsas.demo", directChildText(root, "groupId"));
         assertEquals("task-service", directChildText(root, "artifactId"));
         assertEquals(

@@ -1,7 +1,7 @@
 <idea-plugin url="https://github.com/DannyReinhold/vernac">
     <id>org.vernac.intellij</id>
     <name>Vernac</name>
-    <version>0.1.0-dev.3</version>
+    <version>@project.version@</version>
 
     <vendor url="https://github.com/DannyReinhold">
         Danny Reinhold
@@ -59,14 +59,21 @@
         For existing projects, add the Maven plugin to your build.
     </p>
 
-    <p><b>Development version requirements</b></p>
-    <p>
-        Generated projects currently require the Vernac
-        <code>0.1.0-SNAPSHOT</code> artifacts in your local Maven repository.
-        Build and install Vernac from its source repository first,
-        following the repository build instructions.
-        The bundled language server does not replace these build dependencies.
-    </p>
+<p><b>Vernac build dependencies</b></p>
+<p>
+    Projects created by this plugin use Vernac
+    <code>@project.version@</code>.
+    Published release artifacts are downloaded automatically from Maven Central.
+</p>
+<p>
+    If the version ends in <code>-SNAPSHOT</code>, install the matching
+    Vernac artifacts in your local Maven repository before building
+    the generated project. Follow the Vernac repository build instructions.
+</p>
+<p>
+    The bundled language server provides editor support;
+    Maven resolves the compiler and runtime dependencies separately.
+</p>
     <p>
         The starter example requires no database, Docker,
         or running Spring application.
@@ -109,7 +116,7 @@
         <li>Added Vernac file templates.</li>
     </ul>
 ]]></change-notes>
-    
+
     <idea-version since-build="262.10968.63" until-build="262.*"/>
 
     <depends>com.intellij.modules.platform</depends>

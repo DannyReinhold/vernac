@@ -140,6 +140,25 @@ public final class VernacProjectTemplate {
             String artifactId,
             String basePackage
     ) throws IOException {
+        String version = readVernacVersion();
+
+        String dependencyNote = version.endsWith("-SNAPSHOT")
+                ? "This project uses Vernac `" + version + "`.\n\n"
+                + "Install the matching SNAPSHOT artifacts in your local Maven "
+                + "repository before building this project. Build the matching "
+                + "Vernac source version with `mvn clean install`, using the JDK "
+                + "required by the Vernac repository."
+                : "This project uses Vernac `" + version + "`.\n\n"
+                + "Maven downloads the published compiler and runtime artifacts "
+                + "from Maven Central automatically. You do not need to build "
+                + "the Vernac source repository first.";
+
+        readme = replaceSection(
+                readme,
+                "<!-- vernac-dependency-note:start -->",
+                "<!-- vernac-dependency-note:end -->",
+                dependencyNote
+        );
         String heading = "# " + escapeMarkdown(projectName)
                 + "\n\n"
                 + "- Maven coordinates: `" + groupId + ":" + artifactId + "`\n"
@@ -158,6 +177,29 @@ public final class VernacProjectTemplate {
                         + basePackage.replace('.', '/')
                         + "/TaskTest.java"
         );
+    }
+
+    private static String replaceSection(
+            String text,
+            String startMarker,
+            String endMarker,
+            String replacement
+    ) throws IOException {
+        int start = text.indexOf(startMarker);
+        int end = text.indexOf(endMarker);
+
+        if (start < 0
+                || end < start + startMarker.length()
+                || text.indexOf(startMarker, start + startMarker.length()) >= 0
+                || text.indexOf(endMarker, end + endMarker.length()) >= 0) {
+            throw new IOException(
+                    "Missing or ambiguous template section: " + startMarker
+            );
+        }
+
+        return text.substring(0, start)
+                + replacement
+                + text.substring(end + endMarker.length());
     }
 
     private static String escapeMarkdown(String value) {
@@ -263,6 +305,13 @@ public final class VernacProjectTemplate {
                 "<artifactId>" + escapeXml(artifactId) + "</artifactId>"
         );
 
+        pom = replaceExactlyOnce(
+                pom,
+                "<vernac.version>0.1.0-SNAPSHOT</vernac.version>",
+                "<vernac.version>"
+                        + escapeXml(readVernacVersion())
+                        + "</vernac.version>"
+        );
         return replaceExactlyOnce(
                 pom,
                 "<name>Vernac Basic Example</name>",
@@ -309,5 +358,31 @@ public final class VernacProjectTemplate {
         }
 
         return templatePath;
+    }
+
+    private static String readVernacVersion() throws IOException {
+        try (InputStream source =
+                     VernacProjectTemplate.class.getResourceAsStream(
+                             "/vernac-version.txt"
+                     )) {
+            if (source == null) {
+                throw new IOException("Bundled Vernac version is missing.");
+            }
+
+            String version = new String(
+                    source.readAllBytes(),
+                    StandardCharsets.UTF_8
+            ).strip();
+
+            if (version.isEmpty()
+                    || version.contains("@")
+                    || version.contains("${")) {
+                throw new IOException(
+                        "Bundled Vernac version was not resolved: " + version
+                );
+            }
+
+            return version;
+        }
     }
 }

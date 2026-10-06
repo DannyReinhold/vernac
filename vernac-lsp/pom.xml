@@ -9,7 +9,7 @@
     <parent>
         <groupId>org.vernac</groupId>
         <artifactId>vernac</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>${revision}</version>
     </parent>
 
     <artifactId>vernac-lsp</artifactId>

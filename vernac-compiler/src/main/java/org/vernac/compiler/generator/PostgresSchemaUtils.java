@@ -215,7 +215,8 @@ public final class PostgresSchemaUtils {
 
     /**
      * Ermittelt den Namen der Fremdschlüssel-Spalte, die auf ein Aggregat verweist.
-     * Konvention: <aggregate_singular_snake_case>_id (z. B. "energy_storage_id").
+     * Konvention: {@code <aggregate_singular_snake_case>_id}
+     * (z. B. {@code energy_storage_id}).
      */
     public static String resolveForeignKeyColumn(String aggregateName) {
         return toSnakeCase(aggregateName) + "_id";
