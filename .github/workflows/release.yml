@@ -1,0 +1,111 @@
+name: Maven Central Release
+
+run-name: Maven Central ${{ inputs.version }} (dry-run=${{ inputs.dry_run }})
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, e.g. 0.1.1"
+        required: true
+        type: string
+      dry_run:
+        description: "Build and sign without uploading"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maven-central-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check release version and tag
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$RELEASE_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::Use a release version such as 0.1.1, without SNAPSHOT."
+            exit 1
+          fi
+
+          for tag in "v$RELEASE_VERSION" "maven-v$RELEASE_VERSION"; do
+            if git show-ref --verify --quiet "refs/tags/$tag"; then
+              echo "::error::Tag $tag already exists. Check the release history."
+              exit 1
+            fi
+          done
+
+          {
+            echo "## Release candidate"
+            echo "- Version: $RELEASE_VERSION"
+            echo "- Commit: $(git rev-parse HEAD)"
+            echo "- Dry run: ${{ inputs.dry_run }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Set up Java and Maven credentials
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          server-id: central
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_PASSWORD
+
+      - name: Verify complete project
+        run: mvn -B -ntp -Drevision="$RELEASE_VERSION" clean verify
+
+      - name: Build and sign or upload
+        shell: bash
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+          MAVEN_GPG_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+
+          goal=verify
+          if [[ "$DRY_RUN" == "false" ]]; then
+            goal=deploy
+          fi
+
+          mvn -B -ntp \
+            -Prelease \
+            -Drevision="$RELEASE_VERSION" \
+            -Dgpg.signer=bc \
+            -pl vernac-runtime-jdbc,vernac-jdbc-spring-boot-starter,vernac-maven-plugin \
+            -am \
+            clean "$goal"
+
+      - name: Record result
+        shell: bash
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          if [[ "$DRY_RUN" == "true" ]]; then
+            echo "Build and signing succeeded. Nothing was uploaded." \
+              >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Upload and validation succeeded. Review and publish in the Central Portal." \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
