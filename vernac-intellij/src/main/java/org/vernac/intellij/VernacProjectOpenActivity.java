@@ -21,7 +21,7 @@ public final class VernacProjectOpenActivity implements ProjectActivity {
             Logger.getInstance(VernacProjectOpenActivity.class);
 
     private static final Key<Path> INITIAL_MODEL =
-            Key.create("org.vernac.intellij.initialModel");
+            Key.create("org.vernac.initialModel");
 
     public static void openAfterProjectCreation(
             Project project,

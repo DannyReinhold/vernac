@@ -36,7 +36,7 @@ public final class VernacNewProjectWizard
 
     @Override
     public @NotNull String getId() {
-        return "org.vernac.intellij.project";
+        return "org.vernac.project";
     }
 
     @Override

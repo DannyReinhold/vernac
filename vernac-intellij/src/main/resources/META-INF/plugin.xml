@@ -1,5 +1,5 @@
 <idea-plugin url="https://github.com/DannyReinhold/vernac">
-    <id>org.vernac.intellij</id>
+    <id>org.vernac</id>
     <name>Vernac</name>
     <version>@project.version@</version>
 
