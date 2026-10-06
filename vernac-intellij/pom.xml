@@ -67,6 +67,12 @@
             <version>${intellij.platform.version}</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>com.jetbrains.intellij.maven</groupId>
+            <artifactId>maven</artifactId>
+            <version>${intellij.platform.version}</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <build>

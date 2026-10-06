@@ -2,11 +2,14 @@ package org.vernac.intellij;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 
 public final class VernacProjectTemplate {
 
@@ -28,7 +31,7 @@ public final class VernacProjectTemplate {
     private VernacProjectTemplate() {
     }
 
-    public static void copyTo(Path projectDirectory) throws IOException {
+    public static void copyTo(Path projectDirectory, String projectName) throws IOException {
         // Check everything before starting to copy.
         for (String relativePath : FILES) {
             Path destination = projectDirectory.resolve(relativePath);
@@ -65,7 +68,23 @@ public final class VernacProjectTemplate {
                 }
 
                 // Existing files are deliberately not overwritten.
-                Files.copy(source, destination);
+                if ("pom.xml".equals(relativePath)) {
+                    String pom = new String(
+                            source.readAllBytes(),
+                            StandardCharsets.UTF_8
+                    );
+
+                    pom = customizePom(pom, projectName);
+
+                    Files.writeString(
+                            destination,
+                            pom,
+                            StandardCharsets.UTF_8,
+                            StandardOpenOption.CREATE_NEW
+                    );
+                } else {
+                    Files.copy(source, destination);
+                }
             }
         }
 
@@ -83,5 +102,56 @@ public final class VernacProjectTemplate {
         );
         permissions.add(PosixFilePermission.OWNER_EXECUTE);
         Files.setPosixFilePermissions(script, permissions);
+    }
+
+    private static String customizePom(
+            String pom,
+            String projectName
+    ) throws IOException {
+        String artifactId = projectName.strip()
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9_.-]+", "-")
+                .replaceAll("^-+|-+$", "");
+
+        if (artifactId.isEmpty()) {
+            artifactId = "vernac-project";
+        }
+
+        pom = replaceExactlyOnce(
+                pom,
+                "<artifactId>vernac-basic</artifactId>",
+                "<artifactId>" + artifactId + "</artifactId>"
+        );
+
+        return replaceExactlyOnce(
+                pom,
+                "<name>Vernac Basic Example</name>",
+                "<name>" + escapeXml(projectName) + "</name>"
+        );
+    }
+
+    private static String replaceExactlyOnce(
+            String text,
+            String expected,
+            String replacement
+    ) throws IOException {
+        int position = text.indexOf(expected);
+
+        if (position < 0
+                || text.indexOf(expected, position + expected.length()) >= 0) {
+            throw new IOException(
+                    "Expected exactly one template entry: " + expected
+            );
+        }
+
+        return text.substring(0, position)
+                + replacement
+                + text.substring(position + expected.length());
+    }
+
+    private static String escapeXml(String value) {
+        return value.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;");
     }
 }

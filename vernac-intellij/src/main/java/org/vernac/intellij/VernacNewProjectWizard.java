@@ -6,11 +6,15 @@ package org.vernac.intellij;
 import com.intellij.ide.util.projectWizard.WizardContext;
 import com.intellij.ide.wizard.*;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.vfs.LocalFileSystem;
+import com.intellij.openapi.vfs.VirtualFile;
+import org.jetbrains.idea.maven.project.MavenProjectsManager;
 
 import javax.swing.*;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import java.util.List;
 
 public final class VernacNewProjectWizard
         implements GeneratorNewProjectWizard {
@@ -61,7 +65,22 @@ public final class VernacNewProjectWizard
                     .resolve(baseStep.getName());
 
             try {
-                VernacProjectTemplate.copyTo(projectDirectory);
+                VernacProjectTemplate.copyTo(projectDirectory, baseStep.getName());
+
+                Path pomPath = projectDirectory.resolve("pom.xml");
+                VirtualFile pomFile = LocalFileSystem.getInstance()
+                        .refreshAndFindFileByNioFile(pomPath);
+
+                if (pomFile == null) {
+                    throw new IOException(
+                            "Created pom.xml could not be found by IntelliJ: "
+                                    + pomPath
+                    );
+                }
+
+                MavenProjectsManager.getInstance(project)
+                        .addManagedFiles(List.of(pomFile));
+
             } catch (IOException exception) {
                 throw new UncheckedIOException(
                         "Could not create the Vernac project at "
