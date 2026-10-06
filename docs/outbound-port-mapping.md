@@ -1,17 +1,17 @@
-# Mapping-Regeln für Outbound Ports in Vernac
+# Outbound Port Mapping Rules in Vernac
 
-Dieses Dokument beschreibt die Architektur, Konventionen, Semantik und Code-Generierungsregeln für **Outbound Ports**, **Schemas (DTOs)** und **Adapter-Mappings** in der Vernac DSL (abgeleitet aus `Vernac.g4`, `AstBuilderVisitor`, `SemanticAnalyzer` und `PortGenerator`).
+This document describes the architecture, conventions, semantics, and code generation rules for **Outbound Ports**, **Schemas (DTOs)**, and **Adapter Mappings** in the Vernac DSL (derived from `Vernac.g4`, `AstBuilderVisitor`, `SemanticAnalyzer`, and `PortGenerator`).
 
 ---
 
-## 1. Architektur & Konzept
+## 1. Architecture & Concept
 
-Vernac folgt den Prinzipien der **Hexagonalen Architektur (Ports & Adapters)** und des **Domain-Driven Designs (DDD)**:
+Vernac follows the principles of **Hexagonal Architecture (Ports & Adapters)** and **Domain-Driven Design (DDD)**:
 
-- **Port (Domänen-Interface):** Ein Port definiert eine ausgehende Schnittstelle der Domäne (z. B. Abfrage eines Wetterdienstes, Validierung über externe Register, Rechnungsgenerierung). Er liegt standardmäßig im Domänen-Package (`<basePackage>.domain`).
-- **Schema (Infrastruktur-DTO):** Ein Schema definiert die externe Datenstruktur (z. B. ein JSON-Response-Payload). Es liegt im Infrastruktur-Package (`<basePackage>.infrastructure.outbound.<portname>`) und wird für die JSON-Deserialisierung (Jackson) generiert.
-- **Adapter (Infrastruktur-Implementierung):** Implementiert das Port-Interface (z. B. als Spring `@Component` unter Nutzung des Spring `RestClient`).
-- **Mapping (Antikorruptionsschicht / ACL):** Die `mapping { ... }`-Klausel fungiert als Anti-Corruption Layer: Sie übersetzt die externen Infrastruktur-DTOs in reine, valide Domänenmodelle (Value Objects, Entities, Aggregates), ohne dass die Domäne von externen DTOs abhängt.
+- **Port (Domain Interface):** A port defines an outbound interface of the domain (e.g., querying a weather service, validation via external registries, invoice generation). By default, it resides in the domain package (`<basePackage>.domain`).
+- **Schema (Infrastructure DTO):** A schema defines the external data structure (e.g., a JSON response payload). It resides in the infrastructure package (`<basePackage>.infrastructure.outbound.<portname>`) and is generated for JSON deserialization (Jackson).
+- **Adapter (Infrastructure Implementation):** Implements the port interface (e.g., as a Spring `@Component` using Spring's `RestClient`).
+- **Mapping (Anti-Corruption Layer / ACL):** The `mapping { ... }` clause acts as an Anti-Corruption Layer: it translates external infrastructure DTOs into pure, valid domain models (Value Objects, Entities, Aggregates) without the domain depending on external DTOs.
 
 ```
 +-------------------------------------------------------------------------+
@@ -19,7 +19,7 @@ Vernac folgt den Prinzipien der **Hexagonalen Architektur (Ports & Adapters)** u
 |                                                                         |
 |  +------------------------+             +----------------------------+  |
 |  |     Port Interface     |             | Domain Model               |  |
-|  |  (z.B. WeatherProvider)|             | (Value Object / Entity)    |  |
+|  |  (e.g., WeatherProvider)|            | (Value Object / Entity)    |  |
 |  +------------------------+             +----------------------------+  |
 |               ^                                       ^                 |
 +---------------|---------------------------------------|-----------------+
@@ -27,31 +27,31 @@ Vernac folgt den Prinzipien der **Hexagonalen Architektur (Ports & Adapters)** u
 |               |                                       |                 |
 |  +------------------------+             +----------------------------+  |
 |  |     REST Adapter       | ----------> | Schema DTO                 |  |
-|  | (Spring RestClient)    |   Payload   | (z.B. WeatherDto)          |  |
+|  | (Spring RestClient)    |   Payload   | (e.g., WeatherDto)         |  |
 |  +------------------------+             +----------------------------+  |
 +-------------------------------------------------------------------------+
 ```
 
 ---
 
-## 2. Syntax & Aufbau eines Outbound Ports
+## 2. Syntax & Structure of an Outbound Port
 
-Ein Port deklariert einen Namen, optionale lokale Schemas und eine oder mehrere Port-Methoden mit zugehörigem Adapter und Mapping:
+A port declares a name, optional local schemas, and one or more port methods with associated adapter and mapping configuration:
 
 ```vernac
 port WeatherProvider {
 
-    // 1. Lokales Schema (Infrastruktur-DTO für JSON)
+    // 1. Local schema (Infrastructure DTO for JSON)
     schema WeatherApiResponse {
         String description;
         BigDecimal tempCelsius;
         BigDecimal humidity;
     }
 
-    // 2. Domänen-Methode
+    // 2. Domain method
     Optional<Temperature> fetchCurrentTemperature(CityName city) {
         
-        // 3. Adapter-Konfiguration
+        // 3. Adapter configuration
         adapter rest {
             GET "/api/v1/weather";
             baseUrlProperty: "services.weather.base-url";
@@ -59,7 +59,7 @@ port WeatherProvider {
             on 5xx throw ServiceUnavailableException;
         }
 
-        // 4. Mapping-Block (Anti-Corruption Layer)
+        // 4. Mapping block (Anti-Corruption Layer)
         mapping {
             response.tempCelsius -> Temperature.celsius;
         }
@@ -69,11 +69,11 @@ port WeatherProvider {
 
 ---
 
-## 3. Schemas (Infrastruktur-DTOs)
+## 3. Schemas (Infrastructure DTOs)
 
-Schemas definieren die Datenstruktur externer Schnittstellen:
+Schemas define the data structures of external interfaces:
 
-### 3.1 DSL-Deklaration
+### 3.1 DSL Declaration
 ```vernac
 schema ExternalProjectDto {
     String extId;
@@ -82,91 +82,91 @@ schema ExternalProjectDto {
 }
 ```
 
-### 3.2 Generierter Java-Code (`PortGenerator`)
-Für jedes Schema wird eine POJO-Klasse im Infrastruktur-Package generiert:
-- **Default-Konstruktor:** Öffentlicher parameterloser Konstruktor für Reflection/Jackson-Deserialisierung.
-- **All-Args-Konstruktor:** Öffentlicher Konstruktor zur Übergabe aller Felder.
-- **Private Fields:** Nicht-finale Attribute (z. B. `private String extId;`).
-- **Getter:** Record-artige Getter ohne `get`-Präfix (z. B. `public String extId()`).
-- **Setter:** Java-Bean-Setter mit `set`-Präfix (z. B. `public void setExtId(String extId)`).
+### 3.2 Generated Java Code (`PortGenerator`)
+For each schema, a POJO class is generated in the infrastructure package:
+- **Default Constructor:** Public no-arg constructor for reflection and Jackson deserialization.
+- **All-Args Constructor:** Public constructor accepting all fields.
+- **Private Fields:** Non-final attributes (e.g., `private String extId;`).
+- **Getters:** Record-style getters without `get` prefix (e.g., `public String extId()`).
+- **Setters:** JavaBean setters with `set` prefix (e.g., `public void setExtId(String extId)`).
 
 ---
 
-## 4. REST-Adapter Konfiguration & Parameter-Handling
+## 4. REST Adapter Configuration & Parameter Handling
 
-Wird ein `adapter rest { ... }` deklariert, generiert der Compiler eine vollständige Spring-Komponente:
+When an `adapter rest { ... }` block is declared, the compiler generates a complete Spring component:
 `public class Rest<PortName><MethodName>Adapter implements <PortName>`.
 
-### 4.1 Base-URL Auflösung & Dependency Injection
-- Der Adapter wird als Spring `@Component` registriert.
-- Er injiziert `RestClient.Builder` und eine `@Value`-annotierte Base-URL:
-  - **Standard-Property-Konvention:** `vernac.outbound.<kebab-case-port-name>.base-url`
-    *(Beispiel: `vernac.outbound.weather-provider.base-url` mit Fallback `http://localhost:8080`)*
-  - **Expliziter Property-Key:** Über `baseUrlProperty: "custom.key"` oder `base-url-property: "custom.key"` in der `adapter rest`-Konfiguration anpassbar.
+### 4.1 Base URL Resolution & Dependency Injection
+- The adapter is registered as a Spring `@Component`.
+- It injects `RestClient.Builder` and a `@Value`-annotated base URL:
+  - **Default Property Convention:** `vernac.outbound.<kebab-case-port-name>.base-url`
+    *(Example: `vernac.outbound.weather-provider.base-url` with fallback `http://localhost:8080`)*
+  - **Explicit Property Key:** Configurable via `baseUrlProperty: "custom.key"` or `base-url-property: "custom.key"` in the `adapter rest` configuration.
 
-### 4.2 URL & automatische Query-Parameter-Extraktion
-- **Endpunkt-Auflösung:** Der Pfad wird aus der Konfiguration (z. B. `GET "/api/v1/weather";`) entnommen oder standardmäßig auf `/api/<snake_case_method_name>` gesetzt.
-- **Query-Parameter:** Sämtliche Methodenparameter der Port-Methode werden automatisch als URL-Query-Parameter angehängt:
+### 4.2 URL & Automatic Query Parameter Extraction
+- **Endpoint Resolution:** The path is taken from the configuration (e.g., `GET "/api/v1/weather";`) or defaults to `/api/<snake_case_method_name>`.
+- **Query Parameters:** All method parameters of the port method are automatically appended as URL query parameters:
   ```java
-  // Port-Methode: fetchWeather(CityName city, CountryCode country)
-  // Generierte URI: "/api/v1/weather?city={city}&country={country}"
+  // Port method: fetchWeather(CityName city, CountryCode country)
+  // Generated URI: "/api/v1/weather?city={city}&country={country}"
   ```
-- **Unwrapping:** Bei typisierten IDs (`id`) und Single-Field Value Objects wird beim URL-Aufruf automatisch `.value()` aufgerufen (z. B. `city.value()`).
+- **Unwrapping:** For typed IDs (`id`) and single-field Value Objects, `.value()` is automatically invoked when passing parameters into the URL template (e.g., `city.value()`).
 
-### 4.3 HTTP-Status & Fehlerbehandlung
-1. **Status-Regeln (`on <status> ...`):**
-   - `on 404 return Optional.empty();`: Fängt 404-Fehler ab und leert den Response-Body, sodass das Mapping anschließend sauber `Optional.empty()` zurückliefern kann.
-   - `on 5xx throw CustomException;`: Fängt Serverfehler ab und wirft die deklarierte Exception (muss in der `throws`-Klausel der Methode enthalten sein).
+### 4.3 HTTP Status & Error Handling
+1. **Status Rules (`on <status> ...`):**
+   - `on 404 return Optional.empty();`: Intercepts 404 status codes and suppresses the response body so that mapping cleanly produces `Optional.empty()`.
+   - `on 5xx throw CustomException;`: Intercepts server error status codes and throws the declared exception (which must be declared in the method's `throws` clause).
 2. **Catch-All Exception Handler:**
-   - Alle restlichen HTTP-Fehlerstatus werden über `.onStatus(HttpStatusCode::isError, ...)` abgefangen und in eine kontrollierte `RuntimeException("External API call failed with status: " + res.getStatusCode())` umgewandelt. Dies verhindert das Durchsickern interner Spring-Framework-Exceptions in die Domäne.
+   - Any remaining HTTP error statuses are caught via `.onStatus(HttpStatusCode::isError, ...)` and wrapped into a controlled `RuntimeException("External API call failed with status: " + res.getStatusCode())`. This prevents internal Spring framework exceptions from leaking into the domain layer.
 
 ---
 
-## 5. Detaillierte Mapping-Regeln
+## 5. Detailed Mapping Rules
 
-Der `mapping { ... }`-Block steuert die Überführung der Schema-Felder in die Domänen-Instanzen.
+The `mapping { ... }` block governs the transformation of schema fields into domain instances.
 
-### 5.1 Syntax & Pfade
+### 5.1 Syntax & Paths
 ```vernac
 mapping {
     <sourcePath> -> <targetPath>;
     <targetPath> <- <sourcePath>;
 }
 ```
-- Standardmäßig wird `->` verwendet (Response $\rightarrow$ Domäne).
-- `sourcePath`: Pfad auf der Quellseite (z. B. `response.tempCelsius` oder `body.extTitle`).
-- `targetPath`: Pfad auf der Zielseite (z. B. `Temperature.celsius` oder `Project.id`).
+- By default, `->` is used (Response $\rightarrow$ Domain).
+- `sourcePath`: Path on the source side (e.g., `response.tempCelsius` or `body.extTitle`).
+- `targetPath`: Path on the target side (e.g., `Temperature.celsius` or `Project.id`).
 
-### 5.2 Semantische Validierung (`SemanticAnalyzer`)
-Vor der Code-Generierung führt der Compiler strenge Prüfungen durch:
-1. **Schema-Feldprüfung:** Existiert das referenzierte Feld im deklarierten Schema?
-2. **Domänentyp-Prüfung:** Existiert der Zieltyp (Value Object, Entity, Aggregate oder Event) im Projekt?
-3. **Domänenfeld-Prüfung:** Existiert das angegebene Feld im Domänentyp (bzw. ist es das ID-Feld bei Entities/Aggregaten)?
-4. **Fehlersignatur:** Verwendet eine Fehlerregel `return empty`, muss der Rückgabetyp der Methode zwingend `Optional<...>` sein.
+### 5.2 Semantic Validation (`SemanticAnalyzer`)
+Before code generation, the compiler performs strict semantic checks:
+1. **Schema Field Check:** Does the referenced field exist in the declared schema?
+2. **Domain Type Check:** Does the target type (Value Object, Entity, Aggregate, or Event) exist in the project?
+3. **Domain Field Check:** Does the specified field exist on the domain type (or is it the ID field for Entities/Aggregates)?
+4. **Error Signature Check:** If an error rule specifies `return empty`, the return type of the method must be `Optional<...>`.
 
 ---
 
-## 6. Code-Generierung des Mappings (`PortGenerator`)
+## 6. Mapping Code Generation (`PortGenerator`)
 
-Der Generator unterscheidet anhand der Ziel-Domänentypen und Rückgabetypen vier Hauptfälle:
+Based on the target domain types and return types, the generator distinguishes four main cases:
 
-### 6.1 Fall 1: Mapping auf Value Objects (Instanziierung via `.of(...)`)
+### 6.1 Case 1: Mapping to Value Objects (Instantiation via `.of(...)`)
 
-Ein Value Object besitzt keine eigene Identität (`id`).
+A Value Object has no independent identity (`id`).
 
-- **Erkennung:** Kein Statement im Mapping-Block weist auf ein `.id` oder `id`-Zielfeld hin.
-- **Argument-Zusammenstellung:** Für jedes Statement im Mapping-Block wird der entsprechende Schema-Getter aufgerufen (`body.<sourceField>()`) in der deklarierten Reihenfolge.
-- **Generierter Code:**
-  - **Bei regulärem Rückgabetyp (`TargetType`):**
+- **Detection:** No statement in the mapping block targets `.id` or `id`.
+- **Argument Assembly:** For each statement in the mapping block, the corresponding schema getter is called (`body.<sourceField>()`) in the declared order.
+- **Generated Code:**
+  - **For regular return type (`TargetType`):**
     ```java
     return body != null ? TargetType.of(body.tempCelsius()) : null;
     ```
-  - **Bei `Optional<TargetType>`:**
+  - **For `Optional<TargetType>`:**
     ```java
     return body != null ? Optional.of(TargetType.of(body.tempCelsius())) : Optional.empty();
     ```
 
-#### Beispiel:
+#### Example:
 ```vernac
 value Temperature(BigDecimal celsius);
 
@@ -186,7 +186,7 @@ port WeatherProvider {
     }
 }
 ```
-*Generierte Rückgabe im Adapter:*
+*Generated return in adapter:*
 ```java
 var body = this.restClient.get()
     .uri("/api/weather?city={city}", city.value())
@@ -203,25 +203,25 @@ return body != null ? Optional.of(Temperature.of(body.tempCelsius())) : Optional
 
 ---
 
-### 6.2 Fall 2: Mapping auf Entities und Aggregate (Instanziierung via `.fromExternal(...)`)
+## 6.2 Case 2: Mapping to Entities and Aggregates (Instantiation via `.fromExternal(...)`)
 
-Entities und Aggregate besitzen eine eindeutige Identität (`id`) und Lebenszyklusdaten.
+Entities and Aggregates possess a unique identity (`id`) and lifecycle metadata.
 
-- **Erkennung:** Mindestens ein Mapping-Statement weist auf ein ID-Feld hin (`targetPath.endsWith(".id") || targetPath.equals("id")`), z. B. `response.extId -> Project.id`.
-- **Argument-Zusammenstellung:**
-  1. **1. Argument (ID):** Das der ID zugeordnete Quellfeld wird als erstes Argument extrahiert (`body.<idSourceField>()`).
-  2. **Folgende Argumente (Payload-Felder):** Alle restlichen Statements werden in ihrer Definitionsreihenfolge als nachfolgende Argumente angehängt.
-- **Generierter Code:**
-  - **Bei regulärem Rückgabetyp (`EntityType`):**
+- **Detection:** At least one mapping statement targets an ID field (`targetPath.endsWith(".id") || targetPath.equals("id")`), e.g., `response.extId -> Project.id`.
+- **Argument Assembly:**
+  1. **1st Argument (ID):** The source field mapped to ID is extracted as the first argument (`body.<idSourceField>()`).
+  2. **Subsequent Arguments (Payload Fields):** All remaining statements are passed as subsequent arguments in their declaration order.
+- **Generated Code:**
+  - **For regular return type (`EntityType`):**
     ```java
     return body != null ? EntityType.fromExternal(body.extId(), body.extTitle()) : null;
     ```
-  - **Bei `Optional<EntityType>`:**
+  - **For `Optional<EntityType>`:**
     ```java
     return body != null ? Optional.of(EntityType.fromExternal(body.extId(), body.extTitle())) : Optional.empty();
     ```
 
-#### Beispiel:
+#### Example:
 ```vernac
 id ProjectId;
 value ProjectName(String value);
@@ -245,7 +245,7 @@ port ExternalProjectService {
     }
 }
 ```
-*Generierte Rückgabe im Adapter:*
+*Generated return in adapter:*
 ```java
 var body = this.restClient.get()
     .uri("/api/projects?id={id}", id.value())
@@ -261,26 +261,26 @@ return body != null ? Project.fromExternal(body.extId(), body.extTitle()) : null
 
 ---
 
-### 6.3 Fall 3: Fallback ohne expliziten Mapping-Block
+## 6.3 Case 3: Fallback without Explicit Mapping Block
 
-Wenn ein Port ein `schema` deklariert, aber die Methode keinen `mapping { ... }`-Block enthält:
-- Das gesamte Schema-Objekt `body` wird direkt an die `of(...)`-Factory des Domänentyps übergeben:
+When a port declares a `schema`, but the method does not contain a `mapping { ... }` block:
+- The entire schema object `body` is passed directly to the `of(...)` factory of the domain type:
   ```java
   return body != null ? Optional.of(DomainType.of(body)) : Optional.empty();
   ```
 
 ---
 
-### 6.4 Fall 4: Port-Methoden ohne Schema
+## 6.4 Case 4: Port Methods without Schema
 
-Wenn kein Schema im Port deklariert ist (z. B. bei reinen Ping-/Trigger-Methoden):
-- Der Adapter führt den Call ohne `.body(...)`-Deserialisierung aus und liefert bei `Optional` `Optional.empty()`, andernfalls `null`.
+When no schema is declared in the port (e.g., for pure ping or trigger methods):
+- The adapter executes the call without `.body(...)` deserialization and returns `Optional.empty()` for `Optional` returns, or `null` otherwise.
 
 ---
 
-## 7. Custom Adapter (`adapter custom`)
+## 7. Custom Adapters (`adapter custom`)
 
-Für Nicht-REST-Integrationen (z. B. SOAP, gRPC, Direct SDKs, PDF-Generierung) wird `adapter custom` genutzt:
+For non-REST integrations (e.g., SOAP, gRPC, direct SDKs, PDF generation), `adapter custom` is used:
 
 ```vernac
 port InvoiceGenerator {
@@ -290,7 +290,7 @@ port InvoiceGenerator {
 }
 ```
 
-- **Generiertes Interface:** `InvoiceGeneratorDelegate` im Infrastruktur-Package mit exakt der Port-Methodensignatur:
+- **Generated Interface:** `InvoiceGeneratorDelegate` in the infrastructure package with the exact port method signature:
   ```java
   package com.example.infrastructure.outbound.invoicegenerator;
 
@@ -298,22 +298,22 @@ port InvoiceGenerator {
       PdfDocument generate(InvoiceData data);
   }
   ```
-- **Namenskonvention:** Wird kein Name angegeben (`adapter custom;`), wird standardmäßig `<PortName><MethodName>Delegate` gewählt.
-- **Implementierung:** Der Entwickler implementiert das Delegate-Interface in einer eigenen Spring-Komponente.
+- **Naming Convention:** If no name is provided (`adapter custom;`), the compiler defaults to `<PortName><MethodName>Delegate`.
+- **Implementation:** The developer implements the delegate interface in a custom Spring component.
 
 ---
 
-## 8. Zusammenfassende Referenztabelle der Mapping-Regeln
+## 8. Summary Reference Table of Mapping Rules
 
-| Merkmal / Fall | Erkennung / Kriterium | Generiertes Muster / Instanziierung |
+| Feature / Case | Detection / Criterion | Generated Pattern / Instantiation |
 | :--- | :--- | :--- |
-| **Value Object Return** | Kein Statement mapped auf `.id` | `Target.of(body.field1(), ...)` |
-| **Entity / Aggregate Return** | Statement mapped auf `*.id` | `Target.fromExternal(body.idField(), body.payload1(), ...)` |
-| **Optional Return Type** | `Optional<T>` als Methoden-Rückgabe | `body != null ? Optional.of(...) : Optional.empty()` |
-| **Direkter Return Type** | `T` als Methoden-Rückgabe | `body != null ? ... : null` |
-| **Kein Mapping-Block** | Schema vorhanden, aber kein `mapping` | `Target.of(body)` |
-| **Kein Schema vorhanden** | Port ohne `schema` Deklaration | `return Optional.empty();` bzw. `return null;` |
-| **Query-Parameter** | Methoden-Parameter an Port-Methode | `?param={param}` mit `.value()` Unwrapping |
+| **Value Object Return** | No statement maps to `.id` | `Target.of(body.field1(), ...)` |
+| **Entity / Aggregate Return** | Statement maps to `*.id` | `Target.fromExternal(body.idField(), body.payload1(), ...)` |
+| **Optional Return Type** | `Optional<T>` as method return type | `body != null ? Optional.of(...) : Optional.empty()` |
+| **Direct Return Type** | `T` as method return type | `body != null ? ... : null` |
+| **No Mapping Block** | Schema present, but no `mapping` block | `Target.of(body)` |
+| **No Schema Present** | Port without `schema` declaration | `return Optional.empty();` or `return null;` |
+| **Query Parameters** | Method parameters on port method | `?param={param}` with `.value()` unwrapping |
 | **Status 404 Handling** | `on 404 return Optional.empty();` | `.onStatus(HttpStatusCode.valueOf(404)::equals, (req, res) -> {})` |
-| **Catch-All Error** | Automatisch in jedem REST-Adapter | `.onStatus(HttpStatusCode::isError, ...)` $\rightarrow$ `RuntimeException` |
-| **Custom Delegate** | `adapter custom [DelegateName];` | Erzeugt Java-Interface `DelegateName` im Adapter-Package |
+| **Catch-All Error** | Automatic in every REST adapter | `.onStatus(HttpStatusCode::isError, ...)` $\rightarrow$ `RuntimeException` |
+| **Custom Delegate** | `adapter custom [DelegateName];` | Generates Java interface `DelegateName` in the adapter package |

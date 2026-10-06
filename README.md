@@ -238,9 +238,7 @@ import com.example.energy.domain.WattHours;
 
 // Inside a Java method:
 var energy = WattHours.of(500);
-System.out.
-
-        println(energy.value()); // 500
+System.out.println(energy.value()); // 500
 ```
 
 `WattHours.of(-1)` throws a `DomainValidationException`.

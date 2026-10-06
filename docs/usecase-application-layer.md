@@ -1,23 +1,23 @@
-# Use Cases und Application Layer in Vernac
+# Use Cases and Application Layer in Vernac
 
-Dieses Dokument beschreibt die Architektur, Konventionen, Compiler-Regeln und Code-Generierungsmechanismen für **Use Cases** (`usecase`) und **Domain Services** (`service`) in Vernac (abgeleitet aus `UseCaseGenerator`, `DomainServiceGenerator`, `SemanticAnalyzer` und `AstBuilderVisitor`).
+This document describes the architecture, conventions, compiler rules, and code generation mechanisms for **Use Cases** (`usecase`) and **Domain Services** (`service`) in Vernac (derived from `UseCaseGenerator`, `DomainServiceGenerator`, `SemanticAnalyzer`, and `AstBuilderVisitor`).
 
 ---
 
-## 1. Architektur & Rolle im Domain-Driven Design (DDD)
+## 1. Architecture & Role in Domain-Driven Design (DDD)
 
-In der hexagonalen Architektur von Vernac bildet die Use-Case-Schicht den **Application Layer (Anwendungsschicht)**:
+In Vernac's hexagonal architecture, the use case layer forms the **Application Layer**:
 
-- **Aufgabe von Use Cases (`usecase`):** Orchestrierung fachlicher Abläufe. Sie laden Aggregate über Repositories, rufen Domänenmethoden auf, persistieren Zustandsänderungen (`save`), delegieren an Outbound-Ports und geben fachliche Resultate (DTOs, Tupel oder Primitiven) zurück.
-- **Aufgabe von Domain Services (`service`):** Aggregat-übergreifende Berechnungen oder reine Domänenlogik, die keinem einzelnen Aggregat zugeordnet werden kann, ohne eigene Persistenz- oder Infrastrukturabhängigkeiten.
-- **Transaktionsklammer:** Jeder generierte Use Case ist eine Spring `@Service`-Komponente und wird mit `@Transactional` annotiert. Dadurch laufen alle Lade-, Speicher- und Event-Dispatching-Operationen atomar innerhalb einer Datenbanktransaktion.
+- **Role of Use Cases (`usecase`):** Orchestrating business workflows. They load aggregates through repositories, invoke domain methods, persist state modifications (`save`), delegate to outbound ports, and return business results (DTOs, tuples, or primitives).
+- **Role of Domain Services (`service`):** Cross-aggregate calculations or pure domain logic that cannot be naturally attributed to a single aggregate, free of persistence or infrastructure dependencies.
+- **Transaction Boundary:** Every generated use case is a Spring `@Service` component annotated with `@Transactional`. As a result, all load, save, and event dispatching operations execute atomically within a single database transaction.
 
 ```
 +-------------------------------------------------------------------------+
-| APPLICATION LAYER (Orchestrierung)                                      |
+| APPLICATION LAYER (Orchestration)                                       |
 |                                                                         |
 |  +-------------------------------------------------------------------+  |
-|  |  @Service @Transactional UseCase (z.B. PlaceOrder)                |  |
+|  |  @Service @Transactional UseCase (e.g., PlaceOrder)               |  |
 |  |                                                                   |  |
 |  |   1. validates { require(...) }                                   |  |
 |  |   2. load Order from orderRepository with orderId                 |  |
@@ -37,9 +37,9 @@ In der hexagonalen Architektur von Vernac bildet die Use-Case-Schicht den **Appl
 
 ---
 
-## 2. Deklaration & Syntax von Use Cases
+## 2. Declaration & Syntax of Use Cases
 
-Ein Use Case in Vernac besitzt folgende optionale und verpflichtende Abschnitte:
+A use case in Vernac contains the following optional and required sections:
 
 ```vernac
 usecase PlaceOrder(
@@ -62,29 +62,29 @@ usecase PlaceOrder(
 
 ---
 
-## 3. Parameter- und Typregeln (DDD-Restriktionen)
+## 3. Parameter and Type Rules (DDD Restrictions)
 
-Der `SemanticAnalyzer` erzwingt strikte semantische Regeln für Use-Case-Parameter:
+The `SemanticAnalyzer` enforces strict semantic rules for use case parameters:
 
-1. **Keine direkten Aggregate als Parameter:**
-   - **Verboten:** `usecase CancelOrder(Order order)`
-   - **Erlaubt:** `usecase CancelOrder(OrderId orderId, Reason reason)`
-   - *Begründung:* Aggregate dürfen nicht unkontrolliert von außen in die Anwendungsschicht gereicht werden. Der Use Case muss die Konsistenzgrenze wahren und das Aggregat selbst über das Repository laden.
-2. **Erlaubte Parametertypen:**
-   - IDs (z. B. `OrderId`, `CustomerId`, `UUID`)
-   - Value Objects (z. B. `Money`, `Quantity`, `EmailAddress`)
-   - First-Class Collections (z. B. `OrderLines`, `ProductIds`)
-   - Primitive Typen und Standard-JDK-Typen (`int`, `String`, `Instant`, `BigDecimal` etc.)
-3. **Eindeutigkeit der Parameternamen:** Doppelte Parameternamen führen zu einem Compiler-Fehler.
+1. **No Direct Aggregates as Parameters:**
+   - **Forbidden:** `usecase CancelOrder(Order order)`
+   - **Allowed:** `usecase CancelOrder(OrderId orderId, Reason reason)`
+   - *Rationale:* Aggregates must not be passed into the application layer uncontrolled from outside. The use case must maintain consistency boundaries and load the aggregate itself via the repository.
+2. **Allowed Parameter Types:**
+   - IDs (e.g., `OrderId`, `CustomerId`, `UUID`)
+   - Value Objects (e.g., `Money`, `Quantity`, `EmailAddress`)
+   - First-Class Collections (e.g., `OrderLines`, `ProductIds`)
+   - Primitive types and standard JDK types (`int`, `String`, `Instant`, `BigDecimal`, etc.)
+3. **Parameter Name Uniqueness:** Duplicate parameter names trigger a compiler error.
 
 ---
 
 ## 4. Dependencies (`use (...)`) & Injection
 
-Über den `use`-Block deklariert der Use Case seine benötigten Abhängigkeiten (Repositories, Outbound Ports, Domain Services etc.).
+Via the `use` block, a use case declares its required dependencies (repositories, outbound ports, domain services, etc.).
 
-### 4.1 Namenskonventionen & Default-Instanznamen
-Wird kein expliziter Instanzname angegeben, leitet Vernac den Variablennamen per **camelCase** vom Typnamen ab:
+### 4.1 Naming Conventions & Default Instance Names
+If no explicit instance name is specified, Vernac derives the variable name in **camelCase** from the type name:
 
 ```vernac
 use (
@@ -94,8 +94,8 @@ use (
 )
 ```
 
-### 4.2 Konstruktor-Generierung
-Der Compiler generiert automatisch den vollständigen Konstruktor mit `Objects.requireNonNull`-Guards für Spring Constructor Injection:
+### 4.2 Constructor Generation
+The compiler automatically generates the full constructor with `Objects.requireNonNull` guards for Spring constructor injection:
 
 ```java
 @Service
@@ -119,15 +119,15 @@ public class PlaceOrder {
 }
 ```
 
-### 4.3 Eindeutigkeitsregeln
-- Jeder Dependency-Typ darf im `use`-Block nur einmal vorkommen.
-- Instanzvariablennamen müssen eindeutig sein.
+### 4.3 Uniqueness Rules
+- Each dependency type may appear only once in the `use` block.
+- Instance variable names must be unique.
 
 ---
 
-## 5. Vorbedingungen & Validierung (`validates`)
+## 5. Preconditions & Validation (`validates`)
 
-Use Cases können Eingabedaten über den `validates`-Block absichern:
+Use cases can validate input arguments using the `validates` block:
 
 ```vernac
 validates {
@@ -136,8 +136,8 @@ validates {
 }
 ```
 
-- **Generierung:** Wird als erste Anweisung in die `execute`-Methode generiert.
-- **Fehlerbehandlung:** Schlägt eine Bedingung fehl, wird eine `org.vernac.runtime.DomainValidationException` ausgelöst:
+- **Generation:** Emitted as the first statements in the `execute` method.
+- **Error Handling:** If a condition fails, an `org.vernac.runtime.DomainValidationException` is thrown:
   ```java
   if (!(customerId != null)) {
       throw new DomainValidationException("Customer ID must not be null");
@@ -146,50 +146,50 @@ validates {
 
 ---
 
-## 6. Statements & Orchestrierung im Use Case
+## 6. Statements & Orchestration in Use Cases
 
-Der Body eines Use Cases unterstützt sowohl DSL-eigene Schlüsselwörter als auch eingebetteten Java-Code.
+The body of a use case supports both DSL-specific statements and embedded Java code.
 
-### 6.1 `load`-Statement
-Lädt ein Aggregat über sein zuständiges Repository anhand der ID:
+### 6.1 `load` Statement
+Loads an aggregate through its responsible repository by ID:
 
 ```vernac
-// Volle Syntax
+// Full syntax
 Order order = load Order from orderRepository with orderId;
 
-// Konventionelle Syntax (Repository wird automatisch inferiert)
+// Conventional syntax (repository is automatically inferred)
 Order order = load Order with orderId;
 ```
 
-**Generierter Java-Code:**
+**Generated Java Code:**
 ```java
 Order order = this.orderRepository.byId(orderId);
 ```
 
-**Inferenzregeln des Compilers:**
-- Ist `from <repoVar>` nicht angegeben, sucht der `SemanticAnalyzer` im `use`-Block nach dem passenden Repository für den Aggregattyp `Order`.
-- Gibt es genau ein passendes Repository, wird dieses automatisch gewählt.
-- Gibt es mehrere oder kein passendes Repository im `use`-Block, meldet der Compiler einen Fehler (`Ambiguous repositories` bzw. `No repository in 'use' manages aggregate...`).
-- *Hinweis:* `byId()` liefert kein `Optional`, sondern wirft bei Nicht-Auffinden direkt eine `AggregateNotFoundException`.
+**Compiler Inference Rules:**
+- If `from <repoVar>` is omitted, the `SemanticAnalyzer` looks in the `use` block for a matching repository for the aggregate type `Order`.
+- If exactly one matching repository is found, it is selected automatically.
+- If there are multiple or no matching repositories in the `use` block, the compiler reports an error (`Ambiguous repositories` or `No repository in 'use' manages aggregate...`).
+- *Note:* `byId()` does not return `Optional`, but throws an `AggregateNotFoundException` immediately if not found.
 
-### 6.2 `save`-Statement
-Speichert ein Aggregat über sein Repository:
+### 6.2 `save` Statement
+Saves an aggregate through its repository:
 
 ```vernac
-// Volle Syntax
+// Full syntax
 save order to orderRepository;
 
-// Konventionelle Syntax (Repository-Name wird aus Instanzname abgeleitet)
+// Conventional syntax (repository name inferred from instance name or single matching repo)
 save order;
 ```
 
-**Generierter Java-Code:**
+**Generated Java Code:**
 ```java
 this.orderRepository.save(order);
 ```
 
-### 6.3 Freier Java-Code
-Alle weiteren fachlichen Aufrufe (Methoden auf Aggregaten, Port-Aufrufe, Kontrollstrukturen) können direkt als Java-Code geschrieben werden:
+### 6.3 Free Java Code
+All other domain invocations (methods on aggregates, port calls, control structures) can be written directly as standard Java statements:
 ```vernac
 order.completeOrder();
 paymentPort.process(order.id(), order.total());
@@ -197,21 +197,21 @@ paymentPort.process(order.id(), order.total());
 
 ---
 
-## 7. Rückgabewerte & Tupel-Returns (`return`)
+## 7. Return Values & Tuple Returns (`return`)
 
-Use Cases unterstützen drei Arten von Rückgabewerten:
+Use cases support three kinds of return values:
 
-### 7.1 Kein Rückgabewert (Void)
-Wird kein `return` deklariert, hat die generierte `execute(...)`-Methode den Rückgabetyp `void`.
+### 7.1 No Return Value (Void)
+If no `return` statement is declared, the generated `execute(...)` method has a return type of `void`.
 
-### 7.2 Einzelner Rückgabewert
+### 7.2 Single Return Value
 ```vernac
 usecase GetOrderStatus(OrderId orderId) use (OrderRepository) {
     Order order = load Order with orderId;
     return order.status();
 }
 ```
-**Generierter Java-Code:**
+**Generated Java Code:**
 ```java
 public String execute(OrderId orderId) {
     Order order = this.orderRepository.byId(orderId);
@@ -219,8 +219,8 @@ public String execute(OrderId orderId) {
 }
 ```
 
-### 7.3 Tuple-Return (`Result`-Record)
-Möchte ein Use Case mehrere Werte zurückgeben, unterstützt Vernac Tupel-Returns mit automatischer Record-Generierung:
+### 7.3 Tuple Return (`Result` Record)
+When a use case returns multiple values, Vernac supports tuple returns with automatic record generation:
 
 ```vernac
 usecase PlaceOrder(CustomerId customerId, OrderLines lines) use (OrderRepository) {
@@ -230,13 +230,13 @@ usecase PlaceOrder(CustomerId customerId, OrderLines lines) use (OrderRepository
 }
 ```
 
-**Generierter Java-Code:**
-1. **Eingebetteter `Result`-Record:**
+**Generated Java Code:**
+1. **Embedded `Result` Record:**
    ```java
    public static record Result(OrderId orderId, Money totalAmount) {
    }
    ```
-2. **Methodensignatur & Rückgabe:**
+2. **Method Signature & Return:**
    ```java
    public Result execute(CustomerId customerId, OrderLines lines) {
        Order order = Order.create(OrderId.random(), customerId, lines);
@@ -245,16 +245,16 @@ usecase PlaceOrder(CustomerId customerId, OrderLines lines) use (OrderRepository
    }
    ```
 
-**Namens- und Typinferenz bei Tupeln:**
-- **Feldname:** Wird über `as <name>` festgelegt. Fehlt `as`, leitet der Compiler den Namen aus dem letzten Pfadsegment ab (`order.id()` $\rightarrow$ `id`).
-- **Typ:** Wird über den `ExpressionTypeInferrer` anhand bekannter Aggregat-Getter, Parameter oder Literal-Typen ermittelt.
-- **DDD-Regel:** Das direkte Zurückgeben eines ganzen Aggregat-Roots im Tupel ist verboten (`Returning aggregate root is forbidden`), um ein unkontrolliertes Entweichen des Domänenzustands aus der Transaktionsgrenze zu verhindern.
+**Name and Type Inference for Tuples:**
+- **Field Name:** Specified via `as <name>`. If `as` is omitted, the compiler derives the name from the last path segment (`order.id()` $\rightarrow$ `id`).
+- **Type:** Inferred by the `ExpressionTypeInferrer` based on aggregate getters, parameters, or literal types.
+- **DDD Rule:** Directly returning an entire aggregate root in a tuple is forbidden (`Returning aggregate root is forbidden`) to prevent leaking domain state outside transactional boundaries.
 
 ---
 
 ## 8. Domain Services (`service`)
 
-Für zustandslose, berechnende Domänenlogik bietet Vernac `service`:
+For stateless, computational domain logic, Vernac provides `service`:
 
 ```vernac
 service TaxCalculator(
@@ -268,26 +268,26 @@ service TaxCalculator(
 }
 ```
 
-### Unterschiede zwischen `usecase` und `service`:
-| Merkmal | `usecase` (Application Layer) | `service` (Domain Layer) |
+### Differences between `usecase` and `service`:
+| Feature | `usecase` (Application Layer) | `service` (Domain Layer) |
 | :--- | :--- | :--- |
 | **Package** | `<basePackage>.usecase` | `<basePackage>.domain` |
-| **Transaktionen** | `@Transactional` (erzwingt DB-Transaktion) | Keine `@Transactional`-Annotation |
-| **Dependencies** | Repositories, Ports, Services (`use (...)`) | Keine Repositories / DB-Zugriffe |
-| **Parameter** | Unveränderlich; keine Aggregat-Roots | Reines Domänenmodell / VOs / Parameter |
-| **Zweck** | Orchestrierung, Persistenz, Ports | Komplexe Algorithmen, Berechnungen |
+| **Transactions** | `@Transactional` (enforces DB transaction) | No `@Transactional` annotation |
+| **Dependencies** | Repositories, Ports, Services (`use (...)`) | No repositories / DB access |
+| **Parameters** | Immutable; no aggregate roots | Pure domain model / VOs / parameters |
+| **Purpose** | Orchestration, persistence, ports | Complex algorithms, calculations |
 
 ---
 
-## 9. Zusammenfassende Referenztabelle
+## 9. Summary Reference Table
 
-| Sprachmittel | Syntax / Konvention | Generiertes Verhalten / Regel |
+| Language Feature | Syntax / Convention | Generated Behavior / Rule |
 | :--- | :--- | :--- |
-| **Klassendefinition** | `usecase Name(Params...)` | Generiert `@Service @Transactional public class Name` |
-| **Dependencies** | `use (RepoA, PortB portVar)` | Generiert `private final` Felder + Constructor Injection mit Null-Checks |
-| **Default Repo-Name** | `Type` $\rightarrow$ `camelCase(Type)` | `OrderRepository` $\rightarrow$ `orderRepository` |
-| **Validierung** | `validates { require(cond, msg); }` | Generiert Guards mit `DomainValidationException` |
-| **Laden** | `load Agg [from repo] with id;` | Generiert `this.<repo>.byId(id)` |
-| **Speichern** | `save agg [to repo];` | Generiert `this.<repo>.save(agg)` |
-| **Tupel-Return** | `return (expr as alias, ...);` | Generiert `public static record Result(...)` und `return new Result(...)` |
-| **Aggregate-Schutz** | Parameter / Return Restriktion | Aggregate dürfen weder direkt übergeben noch als Ganzes zurückgegeben werden |
+| **Class Definition** | `usecase Name(Params...)` | Generates `@Service @Transactional public class Name` |
+| **Dependencies** | `use (RepoA, PortB portVar)` | Generates `private final` fields + constructor injection with null checks |
+| **Default Repo Name** | `Type` $\rightarrow$ `camelCase(Type)` | `OrderRepository` $\rightarrow$ `orderRepository` |
+| **Validation** | `validates { require(cond, msg); }` | Generates guards throwing `DomainValidationException` |
+| **Loading** | `load Agg [from repo] with id;` | Generates `this.<repo>.byId(id)` |
+| **Saving** | `save agg [to repo];` | Generates `this.<repo>.save(agg)` |
+| **Tuple Return** | `return (expr as alias, ...);` | Generates `public static record Result(...)` and `return new Result(...)` |
+| **Aggregate Protection** | Parameter / Return Restriction | Aggregates may neither be passed directly as input nor returned as a whole |

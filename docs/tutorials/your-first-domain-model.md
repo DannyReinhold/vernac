@@ -284,9 +284,7 @@ Task task = Task.create(
         Status.CANCELLED
 );
 
-task.
-
-complete();
+task.complete();
 ```
 
 What status do you expect?

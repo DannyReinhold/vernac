@@ -282,7 +282,8 @@ aggregate Order[OrderId](
     - When a field value changes, generated mutators assign the new value
       and then execute all `validates { ... }` invariant checks.
       Aggregate mutators also call `markAsUpdated()` before validation.
-    - Assigning an equal value is a no-op and does not re-run invariant checks.- **Lifecycle & Auditing**:
+    - Assigning an equal value is a no-op and does not re-run invariant checks.
+- **Lifecycle & Auditing**:
     - Aggregates implement `AggregateRoot<IdType>` and maintain `createdAt`, `updatedAt`, and `version` (optimistic
       locking).
     - Entities implement `Entity<IdType>`.

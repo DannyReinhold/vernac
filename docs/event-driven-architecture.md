@@ -1,21 +1,21 @@
 # Event-Driven Architecture & Transactional Outbox in Vernac
 
-Dieses Dokument beschreibt die Architektur, Lebenszyklen, Datenbanktabellen und Generierungsregeln für **Domain Events** (`event`), das **Transactional Outbox Pattern** (`vernac_outbox`, `JdbcEventDispatcher`) und **Event Listener** (`listener`) in Vernac (abgeleitet aus `EventGenerator`, `ListenerGenerator`, `JdbcEventDispatcher`, `AggregateRoot` und `SemanticAnalyzer`).
+This document describes the architecture, lifecycles, database tables, and generation rules for **Domain Events** (`event`), the **Transactional Outbox Pattern** (`vernac_outbox`, `JdbcEventDispatcher`), and **Event Listeners** (`listener`) in Vernac (derived from `EventGenerator`, `ListenerGenerator`, `JdbcEventDispatcher`, `AggregateRoot`, and `SemanticAnalyzer`).
 
 ---
 
-## 1. Übersicht & Architektur
+## 1. Overview & Architecture
 
-Vernac bietet integrierte Unterstützung für ereignisgesteuerte Architekturen (EDA) nach DDD-Prinzipien:
+Vernac provides built-in support for Event-Driven Architectures (EDA) following DDD principles:
 
-- **Domain Events (`event`):** Repräsentieren unveränderliche fachliche Fakten, die in der Vergangenheit stattgefunden haben (z. B. `OrderPlaced`, `PaymentReceived`, `StorageCharged`).
-- **Event-Registrierung im Aggregat:** Zustandsändernde Methoden auf Aggregaten erzeugen und registrieren Events über `registerEvent(...)`.
-- **Atomares Persistieren & Transactional Outbox:** Beim Aufruf von `repository.save(aggregate)` werden die registrierten Events innerhalb derselben Datenbanktransaktion wie das Aggregat in die Outbox-Tabelle `vernac_outbox` geschrieben (oder bei In-Memory-Events direkt publiziert).
-- **Asynchrone Entkopplung & Listener:** Nach erfolgreichem Commit der Transaktion (`AFTER_COMMIT`) verarbeiten Spring-Listener (`listener`) die Events ohne Blockierung der Haupttransaktion.
+- **Domain Events (`event`):** Represent immutable business facts that occurred in the past (e.g., `OrderPlaced`, `PaymentReceived`, `StorageCharged`).
+- **Event Registration in Aggregates:** State-mutating methods on aggregates create and register events via `registerEvent(...)`.
+- **Atomic Persistence & Transactional Outbox:** When calling `repository.save(aggregate)`, registered events are written to the outbox table `vernac_outbox` within the same database transaction as the aggregate (or published directly for in-memory events).
+- **Asynchronous Decoupling & Listeners:** After a successful transaction commit (`AFTER_COMMIT`), Spring listeners (`listener`) process the events without blocking the primary business transaction.
 
 ```
 +---------------------------------------------------------------------------------------+
-| 1. DOMAIN AGGREGATE (z.B. Order)                                                      |
+| 1. DOMAIN AGGREGATE (e.g., Order)                                                     |
 |    order.completeOrder()                                                              |
 |      -> registerEvent(OrderPaid.create(this.id, this.customer))                       |
 +---------------------------------------------------------------------------------------+
@@ -52,25 +52,25 @@ Vernac bietet integrierte Unterstützung für ereignisgesteuerte Architekturen (
 
 ## 2. Domain Events (`event`)
 
-### 2.1 Deklaration in der DSL
-Domain Events werden mit ihren Attributen und dem optionalen Dispatch-Modus deklariert:
+### 2.1 DSL Declaration
+Domain events are declared with their attributes and an optional dispatch mode:
 
 ```vernac
-// Standard: Outbox Event (wird persistent in vernac_outbox gespeichert)
+// Default: Outbox Event (persistently stored in vernac_outbox)
 event OrderPaid(
     OrderId orderId,
     CustomerId customer,
     Money amount
 ) outbox;
 
-// In-Memory Event (wird direkt im Spring ApplicationContext publiziert)
+// In-Memory Event (published directly within the Spring ApplicationContext)
 event CacheInvalidated(
     String cacheKey
 );
 ```
 
-### 2.2 Eigenschaften & Generierter Code
-Jedes generierte Event implementiert das Runtime-Interface `org.vernac.runtime.DomainEvent` und ist strikt **unveränderlich (immutable)**:
+### 2.2 Properties & Generated Code
+Every generated event implements the runtime interface `org.vernac.runtime.DomainEvent` and is strictly **immutable**:
 
 ```java
 public final class OrderPaid implements DomainEvent {
@@ -83,26 +83,26 @@ public final class OrderPaid implements DomainEvent {
     private final CustomerId customer;
     private final Money amount;
 
-    // Statische Factory-Methode (erzeugt automatisch UUID und Zeitstempel)
+    // Static factory method (automatically generates UUID and timestamp)
     public static OrderPaid create(OrderId orderId, CustomerId customer, Money amount) {
         return new OrderPaid(UUID.randomUUID(), Instant.now(), orderId, customer, amount);
     }
     
-    // Getters, immutability guarantees, equals & hashCode basierend auf eventId
+    // Getters, immutability guarantees, equals & hashCode based on eventId
 }
 ```
 
-- **Automatische Metadaten:**
-  - `eventId`: Eindeutige UUID zur Idempotenz-Prüfung und Deduplizierung.
-  - `occurredOn`: UTC-Zeitstempel (`Instant.now()`) des Auftretens.
-  - `eventType`: Standardisierter `UPPER_SNAKE_CASE` Typ-Identifikator (`ORDER_PAID`).
-- **Compiler-Restriktionen:** Der `SemanticAnalyzer` verbietet veränderliche Felder (`mut`) in Events (`Events must represent past facts and be strictly immutable`).
+- **Automatic Metadata:**
+  - `eventId`: Unique UUID for idempotency checks and deduplication.
+  - `occurredOn`: UTC timestamp (`Instant.now()`) when the event occurred.
+  - `eventType`: Standardized `UPPER_SNAKE_CASE` type identifier (`ORDER_PAID`).
+- **Compiler Restrictions:** The `SemanticAnalyzer` forbids mutable fields (`mut`) in events (`Events must represent past facts and be strictly immutable`).
 
 ---
 
-## 3. Event-Registrierung in Aggregaten
+## 3. Event Registration in Aggregates
 
-Aggregate erben von `org.vernac.runtime.AggregateRoot`:
+Aggregates inherit from `org.vernac.runtime.AggregateRoot`:
 
 ```vernac
 aggregate Order[OrderId](
@@ -117,19 +117,19 @@ aggregate Order[OrderId](
 }
 ```
 
-### Lebenszyklus im `AggregateRoot`:
-1. `registerEvent(event)`: Fügt das Event einer internen Liste `registeredEvents` hinzu.
-2. `registeredEvents()`: Gibt eine unveränderliche Kopie der bisher registrierten Events zurück.
-3. `clearEvents()`: Wird nach erfolgreicher Übergabe an den `EventDispatcher` im Repository aufgerufen, um Doppelauslieferungen im selben Aggregat-Lebenszyklus zu verhindern.
+### Lifecycle in `AggregateRoot`:
+1. `registerEvent(event)`: Adds the event to an internal list `registeredEvents`.
+2. `registeredEvents()`: Returns an unmodifiable copy of registered events.
+3. `clearEvents()`: Invoked by the repository after successfully handing events over to the `EventDispatcher`, preventing duplicate dispatching during the same aggregate lifecycle.
 
 ---
 
-## 4. Das Transactional Outbox Pattern (`vernac_outbox`)
+## 4. The Transactional Outbox Pattern (`vernac_outbox`)
 
-Um das Problem von "Dual Writes" (gleichzeitiges Schreiben in Datenbank und Nachrichtentreiber ohne 2PC-Transaktionen) zu lösen, verwendet Vernac das **Transactional Outbox Pattern**.
+To solve the dual-write problem (concurrently writing to the database and a message broker without two-phase commit / 2PC), Vernac uses the **Transactional Outbox Pattern**.
 
-### 4.1 Tabellenschema & DDL (`vernac_outbox`)
-In PostgreSQL wird die Tabelle `vernac_outbox` angelegt:
+### 4.1 Table Schema & DDL (`vernac_outbox`)
+In PostgreSQL, the `vernac_outbox` table is created as follows:
 
 ```sql
 CREATE TABLE IF NOT EXISTS vernac_outbox (
@@ -151,26 +151,26 @@ ON vernac_outbox (status, created_at)
 WHERE status = 'PENDING';
 ```
 
-### 4.2 Spaltenbedeutung:
-| Spalte | Typ | Beschreibung |
+### 4.2 Column Descriptions:
+| Column | Type | Description |
 | :--- | :--- | :--- |
-| `id` | `UUID` | Eindeutige Event-ID (entspricht `event.eventId()`) |
-| `event_type` | `VARCHAR(128)` | Fachlicher Ereignistyp (z. B. `ORDER_PAID`) |
-| `aggregate_type` | `VARCHAR(128)` | Name des Aggregats (z. B. `Order`) |
-| `aggregate_id` | `VARCHAR(128)` | String-Repräsentation der Aggregat-ID |
-| `payload` | `JSONB` | Vollständige JSON-Serialisierung des Events (Jackson) |
-| `occurred_on` | `TIMESTAMPTZ` | Zeitpunkt des fachlichen Auftretens |
-| `created_at` | `TIMESTAMPTZ` | Einfügezeitpunkt in die Outbox |
-| `processed_at` | `TIMESTAMPTZ` | Zeitpunkt des erfolgreichen Versands an Message Broker |
+| `id` | `UUID` | Unique event ID (corresponds to `event.eventId()`) |
+| `event_type` | `VARCHAR(128)` | Business event type name (e.g., `ORDER_PAID`) |
+| `aggregate_type` | `VARCHAR(128)` | Name of the aggregate (e.g., `Order`) |
+| `aggregate_id` | `VARCHAR(128)` | String representation of the aggregate ID |
+| `payload` | `JSONB` | Full JSON serialization of the event (Jackson) |
+| `occurred_on` | `TIMESTAMPTZ` | Timestamp when the business event occurred |
+| `created_at` | `TIMESTAMPTZ` | Insertion timestamp into the outbox |
+| `processed_at` | `TIMESTAMPTZ` | Timestamp of successful delivery to message broker |
 | `status` | `VARCHAR(32)` | Status: `PENDING`, `PROCESSED`, `FAILED` |
-| `retry_count` | `INT` | Anzahl bisheriger Zustellversuche |
-| `last_error` | `TEXT` | Letzte Fehlermeldung bei Fehlversuchen |
+| `retry_count` | `INT` | Number of previous delivery attempts |
+| `last_error` | `TEXT` | Last error message upon delivery failure |
 
 ---
 
-## 5. Dispatcher & Ausführung (`JdbcEventDispatcher`)
+## 5. Dispatcher & Execution (`JdbcEventDispatcher`)
 
-Die Komponente `JdbcEventDispatcher` aus `vernac-runtime` implementiert die Trennung zwischen Outbox- und In-Memory-Events:
+The `JdbcEventDispatcher` component in `vernac-runtime` implements the distinction between outbox and in-memory events:
 
 ```java
 @Component
@@ -198,7 +198,7 @@ public class JdbcEventDispatcher implements EventDispatcher {
                         .addValue("createdAt", Timestamp.from(Instant.now()))
                         .addValue("status", "PENDING"));
             } else {
-                // Direkte Veröffentlichung im Spring ApplicationContext
+                // Direct publication to Spring ApplicationContext
                 this.eventPublisher.publishEvent(event);
             }
         }
@@ -217,9 +217,9 @@ public class JdbcEventDispatcher implements EventDispatcher {
 
 ---
 
-## 6. Event Listener (`listener`)
+## 6. Event Listeners (`listener`)
 
-In Vernac deklarierte Listener reagieren auf publizierte Events:
+Listeners declared in Vernac subscribe to published events:
 
 ```vernac
 listener SendOrderConfirmation on OrderPaid use (
@@ -229,7 +229,7 @@ listener SendOrderConfirmation on OrderPaid use (
 }
 ```
 
-### Generierter Java-Code:
+### Generated Java Code:
 ```java
 @Component
 public class SendOrderConfirmation {
@@ -247,20 +247,20 @@ public class SendOrderConfirmation {
 }
 ```
 
-### Wichtige Eigenschaften:
-- **`@TransactionalEventListener(phase = AFTER_COMMIT)`:** Der Listener wird erst ausgeführt, wenn die Transaktion, die das Event ausgelöst hat, erfolgreich in der Datenbank committet wurde.
-- **Fehlerisolation:** Wirft der Listener eine Exception, gefährdet dies nicht den bereits festgeschriebenen Zustand des Aggregats in der Datenbank.
-- **Dependency Injection:** Alle im `use (...)`-Block deklarierten Services oder Ports werden automatisch per Konstruktor injiziert.
+### Key Characteristics:
+- **`@TransactionalEventListener(phase = AFTER_COMMIT)`:** The listener executes only after the transaction that triggered the event has successfully committed to the database.
+- **Fault Isolation:** If the listener throws an exception, it does not jeopardize or roll back the already committed aggregate state in the database.
+- **Dependency Injection:** All services or ports declared in the `use (...)` block are automatically injected via constructor injection.
 
 ---
 
-## 7. Zusammenfassende Referenztabelle
+## 7. Summary Reference Table
 
-| Konzept | Vernac Syntax | Generiertes Artefakt / Verhalten |
+| Concept | Vernac Syntax | Generated Artifact / Behavior |
 | :--- | :--- | :--- |
-| **Domain Event** | `event Name(...) [outbox];` | Immutable Klasse mit `eventId`, `occurredOn`, `EVENT_TYPE` |
-| **Event Registrierung** | `registerEvent(...)` | Registriert Event im `AggregateRoot` |
-| **Outbox Speicherung** | `save(aggregate)` | Schreibt atomar `INSERT INTO vernac_outbox (...)` |
-| **Outbox Index** | Partial Index | `idx_vernac_outbox_pending` für performantes Polling |
-| **Event Listener** | `listener L on Event use (...)` | Spring `@Component` mit `@TransactionalEventListener(phase = AFTER_COMMIT)` |
-| **In-Memory Event** | `event Name(...)` (ohne outbox) | Publiziert direkt über Spring `ApplicationEventPublisher` |
+| **Domain Event** | `event Name(...) [outbox];` | Immutable class with `eventId`, `occurredOn`, `EVENT_TYPE` |
+| **Event Registration** | `registerEvent(...)` | Registers event inside `AggregateRoot` |
+| **Outbox Persistence** | `save(aggregate)` | Atomically executes `INSERT INTO vernac_outbox (...)` |
+| **Outbox Index** | Partial Index | `idx_vernac_outbox_pending` for performant polling |
+| **Event Listener** | `listener L on Event use (...)` | Spring `@Component` with `@TransactionalEventListener(phase = AFTER_COMMIT)` |
+| **In-Memory Event** | `event Name(...)` (without outbox) | Publishes directly via Spring `ApplicationEventPublisher` |
