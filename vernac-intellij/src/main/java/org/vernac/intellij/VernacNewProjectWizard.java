@@ -5,43 +5,47 @@ package org.vernac.intellij;
 
 import com.intellij.ide.util.projectWizard.WizardContext;
 import com.intellij.ide.wizard.*;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.WriteAction;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.projectRoots.JavaSdk;
 import com.intellij.openapi.projectRoots.JavaSdkVersion;
 import com.intellij.openapi.projectRoots.ProjectJdkTable;
 import com.intellij.openapi.projectRoots.Sdk;
 import com.intellij.openapi.roots.ProjectRootManager;
+import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.ui.ValidationInfo;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.ui.dsl.builder.Panel;
 import kotlin.Unit;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.idea.maven.execution.MavenRunner;
 import org.jetbrains.idea.maven.execution.MavenRunnerSettings;
 
 import javax.lang.model.SourceVersion;
 import javax.swing.*;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Path;
 
 public final class VernacNewProjectWizard
         implements GeneratorNewProjectWizard {
+    private static final Logger LOG = Logger.getInstance(VernacNewProjectWizard.class);
 
     @Override
-    public String getId() {
+    public @NotNull String getId() {
         return "org.vernac.intellij.project";
     }
 
     @Override
-    public String getName() {
+    public @NotNull String getName() {
         return "Vernac";
     }
 
     @Override
-    public Icon getIcon() {
+    public @NotNull Icon getIcon() {
         return VernacFileType.INSTANCE.getIcon();
     }
 
@@ -279,11 +283,38 @@ public final class VernacNewProjectWizard
                 );
 
             } catch (IOException exception) {
-                throw new UncheckedIOException(
-                        "Could not create the Vernac project at "
-                                + projectDirectory,
+                LOG.warn(
+                        "Could not create Vernac project at " + projectDirectory,
                         exception
                 );
+
+                String reason = exception.getMessage();
+
+                if (reason == null || reason.isBlank()) {
+                    reason = exception.getClass().getSimpleName();
+                }
+
+                String message =
+                        "The Vernac project could not be created completely.\n\n"
+                                + "Location:\n"
+                                + projectDirectory.toAbsolutePath().normalize()
+                                + "\n\nReason:\n"
+                                + reason
+                                + "\n\nSome project files may already have been created. "
+                                + "Inspect the directory before trying again."
+                                + "\n\nTechnical details are available in the IDE log.";
+
+                ApplicationManager.getApplication().invokeLater(() -> {
+                    if (!project.isDisposed()) {
+                        Messages.showErrorDialog(
+                                project,
+                                message,
+                                "Vernac Project Creation Failed"
+                        );
+                    }
+                });
+
+                return;
             }
         }
     }
