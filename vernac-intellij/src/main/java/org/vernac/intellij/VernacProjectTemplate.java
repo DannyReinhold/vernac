@@ -1,15 +1,15 @@
 package org.vernac.intellij;
 
+import javax.lang.model.SourceVersion;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermission;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 public final class VernacProjectTemplate {
 
@@ -31,30 +31,38 @@ public final class VernacProjectTemplate {
     private VernacProjectTemplate() {
     }
 
-    public static void copyTo(Path projectDirectory, String projectName) throws IOException {
-        // Check everything before starting to copy.
-        for (String relativePath : FILES) {
-            Path destination = projectDirectory.resolve(relativePath);
+    public static void copyTo(
+            Path projectDirectory,
+            String projectName,
+            String groupId,
+            String artifactId,
+            String basePackage
+    ) throws IOException {
+        validateParameters(projectName, groupId, artifactId, basePackage);
 
-            if (Files.exists(destination)) {
+        Path root = projectDirectory.toAbsolutePath().normalize();
+        Map<Path, byte[]> preparedFiles = new LinkedHashMap<>();
+
+        // Prepare all files before writing anything.
+        for (String relativePath : FILES) {
+            Path destination = root.resolve(
+                    destinationPath(relativePath, basePackage)
+            ).normalize();
+
+            if (!destination.startsWith(root)) {
+                throw new IOException(
+                        "Template destination is outside the project: "
+                                + destination
+                );
+            }
+
+            if (Files.exists(destination, LinkOption.NOFOLLOW_LINKS)) {
                 throw new IOException(
                         "Project file already exists: " + destination
                 );
             }
 
-            if (VernacProjectTemplate.class.getResource(
-                    RESOURCE_ROOT + relativePath
-            ) == null) {
-                throw new IOException(
-                        "Bundled project template is incomplete: "
-                                + relativePath
-                );
-            }
-        }
-
-        for (String relativePath : FILES) {
-            Path destination = projectDirectory.resolve(relativePath);
-            Files.createDirectories(destination.getParent());
+            byte[] content;
 
             try (InputStream source =
                          VernacProjectTemplate.class.getResourceAsStream(
@@ -62,33 +70,139 @@ public final class VernacProjectTemplate {
                          )) {
                 if (source == null) {
                     throw new IOException(
-                            "Project template resource not found: "
+                            "Bundled project template is incomplete: "
                                     + relativePath
                     );
                 }
 
-                // Existing files are deliberately not overwritten.
-                if ("pom.xml".equals(relativePath)) {
-                    String pom = new String(
-                            source.readAllBytes(),
-                            StandardCharsets.UTF_8
-                    );
+                content = source.readAllBytes();
+            }
 
-                    pom = customizePom(pom, projectName);
+            if ("pom.xml".equals(relativePath)) {
+                content = customizePom(
+                        new String(content, StandardCharsets.UTF_8),
+                        projectName,
+                        groupId,
+                        artifactId
+                ).getBytes(StandardCharsets.UTF_8);
+            } else if ("README.md".equals(relativePath)) {
+                content = customizeReadme(
+                        new String(content, StandardCharsets.UTF_8),
+                        projectName,
+                        groupId,
+                        artifactId,
+                        basePackage
+                ).getBytes(StandardCharsets.UTF_8);
+            } else if (relativePath.endsWith(".vernac")
+                    || relativePath.endsWith(".java")) {
+                content = customizeSource(
+                        new String(content, StandardCharsets.UTF_8),
+                        basePackage
+                ).getBytes(StandardCharsets.UTF_8);
+            }
 
-                    Files.writeString(
-                            destination,
-                            pom,
-                            StandardCharsets.UTF_8,
-                            StandardOpenOption.CREATE_NEW
+            if (preparedFiles.putIfAbsent(destination, content) != null) {
+                throw new IOException(
+                        "Duplicate template destination: " + destination
+                );
+            }
+        }
+
+        // Check parent paths before starting to write.
+        for (Path destination : preparedFiles.keySet()) {
+            for (Path parent = destination.getParent();
+                 parent != null;
+                 parent = parent.getParent()) {
+                if (Files.exists(parent) && !Files.isDirectory(parent)) {
+                    throw new IOException(
+                            "Expected a directory: " + parent
                     );
-                } else {
-                    Files.copy(source, destination);
                 }
             }
         }
 
-        makeExecutable(projectDirectory.resolve("mvnw"));
+        for (Map.Entry<Path, byte[]> entry : preparedFiles.entrySet()) {
+            Files.createDirectories(entry.getKey().getParent());
+            Files.write(
+                    entry.getKey(),
+                    entry.getValue(),
+                    StandardOpenOption.CREATE_NEW
+            );
+        }
+
+        makeExecutable(root.resolve("mvnw"));
+    }
+
+    private static String customizeReadme(
+            String readme,
+            String projectName,
+            String groupId,
+            String artifactId,
+            String basePackage
+    ) throws IOException {
+        String heading = "# " + escapeMarkdown(projectName)
+                + "\n\n"
+                + "- Maven coordinates: `" + groupId + ":" + artifactId + "`\n"
+                + "- Java package: `" + basePackage + "`";
+
+        readme = replaceExactlyOnce(
+                readme,
+                "# Vernac Basic Example",
+                heading
+        );
+
+        return replaceExactlyOnce(
+                readme,
+                "src/test/java/org/example/tasks/TaskTest.java",
+                "src/test/java/"
+                        + basePackage.replace('.', '/')
+                        + "/TaskTest.java"
+        );
+    }
+
+    private static String escapeMarkdown(String value) {
+        String singleLine = value.replace('\r', ' ').replace('\n', ' ');
+        StringBuilder escaped = new StringBuilder();
+
+        for (char character : singleLine.toCharArray()) {
+            if ("\\`*_{}[]<>()#+-.!|&".indexOf(character) >= 0) {
+                escaped.append('\\');
+            }
+            escaped.append(character);
+        }
+
+        return escaped.toString();
+    }
+
+    private static void validateParameters(
+            String projectName,
+            String groupId,
+            String artifactId,
+            String basePackage
+    ) throws IOException {
+        if (projectName == null || projectName.isBlank()) {
+            throw new IOException("Project name must not be blank.");
+        }
+
+        if (groupId == null || !groupId.matches(
+                "[A-Za-z0-9_][A-Za-z0-9_-]*"
+                        + "(\\.[A-Za-z0-9_][A-Za-z0-9_-]*)*"
+        )) {
+            throw new IOException("Invalid Maven groupId: " + groupId);
+        }
+
+        if (artifactId == null
+                || !artifactId.matches("[A-Za-z0-9][A-Za-z0-9_.-]*")) {
+            throw new IOException("Invalid Maven artifactId: " + artifactId);
+        }
+
+        if (basePackage == null
+                || !SourceVersion.isName(
+                basePackage,
+                SourceVersion.RELEASE_21
+        )) {
+            throw new IOException("Invalid Java package: " + basePackage);
+        }
     }
 
     private static void makeExecutable(Path script) throws IOException {
@@ -104,23 +218,49 @@ public final class VernacProjectTemplate {
         Files.setPosixFilePermissions(script, permissions);
     }
 
-    private static String customizePom(
-            String pom,
-            String projectName
-    ) throws IOException {
+    public static String suggestArtifactId(String projectName) {
         String artifactId = projectName.strip()
+                .replaceAll("([A-Z]+)([A-Z][a-z])", "$1-$2")
+                .replaceAll("([a-z0-9])([A-Z])", "$1-$2")
                 .toLowerCase(Locale.ROOT)
                 .replaceAll("[^a-z0-9_.-]+", "-")
                 .replaceAll("^-+|-+$", "");
 
-        if (artifactId.isEmpty()) {
-            artifactId = "vernac-project";
-        }
+        return artifactId.isEmpty() ? "vernac-project" : artifactId;
+    }
+
+    private static String customizeSource(
+            String content,
+            String basePackage
+    ) throws IOException {
+        content = replaceExactlyOnce(
+                content,
+                "package org.example.tasks;",
+                "package " + basePackage + ";"
+        );
+
+        return content.replace(
+                "import org.example.tasks.",
+                "import " + basePackage + "."
+        );
+    }
+
+    private static String customizePom(
+            String pom,
+            String projectName,
+            String groupId,
+            String artifactId
+    ) throws IOException {
+        pom = replaceExactlyOnce(
+                pom,
+                "<groupId>org.example</groupId>",
+                "<groupId>" + escapeXml(groupId) + "</groupId>"
+        );
 
         pom = replaceExactlyOnce(
                 pom,
                 "<artifactId>vernac-basic</artifactId>",
-                "<artifactId>" + artifactId + "</artifactId>"
+                "<artifactId>" + escapeXml(artifactId) + "</artifactId>"
         );
 
         return replaceExactlyOnce(
@@ -153,5 +293,21 @@ public final class VernacProjectTemplate {
         return value.replace("&", "&amp;")
                 .replace("<", "&lt;")
                 .replace(">", "&gt;");
+    }
+
+    private static String destinationPath(
+            String templatePath,
+            String basePackage
+    ) {
+        String testRoot = "src/test/java/org/example/tasks/";
+
+        if (templatePath.startsWith(testRoot)) {
+            return "src/test/java/"
+                    + basePackage.replace('.', '/')
+                    + "/"
+                    + templatePath.substring(testRoot.length());
+        }
+
+        return templatePath;
     }
 }

@@ -1,77 +1,122 @@
 <idea-plugin url="https://github.com/DannyReinhold/vernac">
     <id>org.vernac.intellij</id>
     <name>Vernac</name>
-    <version>0.1.0-dev.2</version>
+    <version>0.1.0-dev.3</version>
 
     <vendor url="https://github.com/DannyReinhold">
         Danny Reinhold
     </vendor>
 
     <description><![CDATA[
-        <p>
-            <b>Domain-Driven Design for Java, expressed in Vernac.</b>
-        </p>
+    <p>
+        <b>Domain-Driven Design for Java, expressed in Vernac.</b>
+    </p>
 
-        <p>
-            Vernac is a domain-specific language for defining typed
-            identifiers, value objects, aggregates, repositories, ports,
-            and use cases. Its compiler generates Java code following
-            consistent architectural conventions, while custom business
-            logic remains Java.
-        </p>
+    <p>
+        Vernac is a domain-specific language for defining typed
+        identifiers, value objects, entities, aggregates, events,
+        repositories, ports, services, and use cases.
+        Its compiler generates Java code following consistent
+        architectural conventions, while custom business logic remains Java.
+    </p>
 
-        <p><b>Editor features</b></p>
-        <ul>
-            <li>Automatic recognition of <code>.vernac</code> files</li>
-            <li>Semantic highlighting</li>
-            <li>Syntax and semantic diagnostics</li>
-            <li>Code completion and snippets</li>
-            <li>Hover documentation</li>
-            <li>Go to Declaration for definitions within Vernac</li>
-        </ul>
+    <p><b>Create your first project</b></p>
+    <p>
+        Select <b>New Project → Vernac</b> to create a Maven project
+        with a small domain model and a Java test.
+        Choose your project name, Maven coordinates, Java package,
+        and a registered JDK with Java 21 or newer.
+    </p>
+    <ul>
+        <li>Ready-to-build project template with Maven Wrapper</li>
+        <li>Consistent package declarations, imports, and source paths</li>
+        <li>Automatic Maven import</li>
+        <li>Automatic opening of the initial Vernac model</li>
+        <li>Project-specific README with build instructions</li>
+    </ul>
 
-        <p><b>Getting started</b></p>
-        <p>
-            Open a <code>.vernac</code> file to activate language support.
-            The Vernac language server is bundled with this plugin and
-            starts automatically. No separate language server installation
-            or LSP4IJ configuration is required.
-        </p>
+    <p><b>Editor features</b></p>
+    <ul>
+        <li>Automatic recognition of <code>.vernac</code> files</li>
+        <li>Semantic highlighting</li>
+        <li>Syntax and semantic diagnostics</li>
+        <li>Code completion and snippets</li>
+        <li>Hover documentation</li>
+        <li>Go to Declaration for definitions within Vernac</li>
+        <li>File templates for new Vernac models</li>
+    </ul>
 
-        <p>
-            To generate Java sources, configure the Vernac Maven plugin
-            in your project. This IDE plugin provides editor support;
-            code generation runs through your Maven build.
-        </p>
+    <p><b>Language server and code generation</b></p>
+    <p>
+        Open a <code>.vernac</code> file to activate language support.
+        The language server is bundled and starts automatically.
+        No separate language server installation or LSP4IJ configuration
+        is required.
+    </p>
+    <p>
+        Java source generation runs through the Vernac Maven plugin.
+        Projects created by the wizard already include its configuration.
+        For existing projects, add the Maven plugin to your build.
+    </p>
 
-        <p><b>Project status</b></p>
-        <p>
-            Vernac is under active development. Language syntax and
-            generated APIs may change between releases.
-        </p>
+    <p><b>Development version requirements</b></p>
+    <p>
+        Generated projects currently require the Vernac
+        <code>0.1.0-SNAPSHOT</code> artifacts in your local Maven repository.
+        Build and install Vernac from its source repository first,
+        following the repository build instructions.
+        The bundled language server does not replace these build dependencies.
+    </p>
+    <p>
+        The starter example requires no database, Docker,
+        or running Spring application.
+        Internet access is needed for the initial download of Maven
+        and dependencies.
+    </p>
 
-        <p>
-            <a href="https://github.com/DannyReinhold/vernac">Documentation and examples</a>
-            &nbsp;|&nbsp;
-            <a href="https://github.com/DannyReinhold/vernac/issues">Report an issue</a>
-        </p>
-    ]]></description>
+    <p><b>Project status</b></p>
+    <p>
+        Vernac is under active development. Language syntax and
+        generated APIs may change between releases.
+    </p>
+
+    <p>
+        <a href="https://vernac.org">Documentation and tutorials</a>
+        &nbsp;|&nbsp;
+        <a href="https://github.com/DannyReinhold/vernac">Source code and examples</a>
+        &nbsp;|&nbsp;
+        <a href="https://github.com/DannyReinhold/vernac/issues">Report an issue</a>
+    </p>
+]]></description>
 
     <change-notes><![CDATA[
-        <p><b>Initial IntelliJ integration</b></p>
-        <ul>
-            <li>Registered the Vernac language and file type.</li>
-            <li>Bundled the Vernac language server with automatic startup.</li>
-            <li>Connected editor features through the IntelliJ LSP API.</li>
-        </ul>
-    ]]></change-notes>
+    <p><b>0.1.0-dev.3 — Project creation</b></p>
+    <ul>
+        <li>Added the New Project → Vernac wizard.</li>
+        <li>Added editable Maven coordinates and Java package.</li>
+        <li>Added selection of registered JDKs with Java 21 or newer.</li>
+        <li>Included a Maven Wrapper, sample domain model, and Java test.</li>
+        <li>Added automatic Maven import and initial model opening.</li>
+        <li>Added a project-specific README.</li>
+        <li>Added template preflight checks and project generation tests.</li>
+    </ul>
 
+    <p><b>Earlier development versions — Editor integration</b></p>
+    <ul>
+        <li>Registered the Vernac language and file type.</li>
+        <li>Bundled the language server with automatic startup.</li>
+        <li>Connected editor features through the IntelliJ LSP API.</li>
+        <li>Added Vernac file templates.</li>
+    </ul>
+]]></change-notes>
+    
     <idea-version since-build="262.10968.63" until-build="262.*"/>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lsp</depends>
     <depends>org.jetbrains.idea.maven</depends>
-    
+    <depends>com.intellij.java</depends>
+
     <extensions defaultExtensionNs="com.intellij">
         <newProjectWizard.generator
                 implementation="org.vernac.intellij.VernacNewProjectWizard"/>
@@ -81,6 +126,8 @@
                 fieldName="INSTANCE"
                 language="Vernac"
                 extensions="vernac"/>
+        <postStartupActivity
+                implementation="org.vernac.intellij.VernacProjectOpenActivity"/>
     </extensions>
 
     <extensions defaultExtensionNs="com.intellij.platform.lsp">

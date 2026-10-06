@@ -31,12 +31,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.jetbrains.intellij.platform</groupId>
-            <artifactId>core</artifactId>
-            <version>${intellij.platform.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
             <groupId>org.vernac</groupId>
             <artifactId>vernac-lsp</artifactId>
             <version>${project.version}</version>
@@ -47,6 +41,12 @@
                     <artifactId>*</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.jetbrains.intellij.platform</groupId>
+            <artifactId>core</artifactId>
+            <version>${intellij.platform.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.jetbrains.intellij.platform</groupId>
@@ -72,6 +72,11 @@
             <artifactId>maven</artifactId>
             <version>${intellij.platform.version}</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
