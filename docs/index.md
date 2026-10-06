@@ -150,13 +150,25 @@ These sources are automatically added to your project's compile classpath.
 
 ---
 
-## 💡 IDE Support & Tooling
+## 🛠️ IDE Support & Tooling
 
-Vernac includes a dedicated Language Server Protocol (LSP) implementation in `vernac-lsp`:
+The Vernac IntelliJ plugin provides a project wizard, file templates,
+and editor support powered by its bundled language server:
 
-- Real-time syntax and semantic validation.
-- Diagnostics with exact line and column numbers.
-- Ready for integration with any LSP-compatible editor (VS Code, IntelliJ IDEA, Neovim, etc.).
+- Create Maven projects with custom coordinates, packages, and JDK selection.
+- Import generated projects into Maven automatically.
+- Syntax and semantic highlighting.
+- Real-time syntax and semantic diagnostics.
+- Context-aware code completion and snippets.
+- Hover documentation and Go to Declaration within Vernac files.
+
+No separate language-server installation or LSP4IJ configuration is required.
+Java source generation runs through the Vernac Maven plugin.
+
+[Get started with the IntelliJ plugin →](tutorials/intellij-plugin.md)
+
+The current development template requires locally installed Vernac
+SNAPSHOT artifacts. See the tutorial for setup instructions.
 
 ---
 
