@@ -19,6 +19,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 /**
  * Compiles Vernac DSL files (.vernac) into Java source code during the generate-sources phase.
@@ -57,23 +58,17 @@ public class VernacCompileMojo extends AbstractMojo {
             return;
         }
 
-        if (!sourceDirectory.exists()) {
-            getLog().info("No Vernac source directory found at " + sourceDirectory.getAbsolutePath() + " - skipping.");
-            return;
-        }
-        if (!sourceDirectory.isDirectory()) {
+        if (sourceDirectory.exists() && !sourceDirectory.isDirectory()) {
             throw new MojoExecutionException("Vernac source path is not a directory: " + sourceDirectory);
         }
 
         Path outputPath = outputDirectory.toPath();
         try {
             // Resolve the entire source tree before writing any generated Java.
-            VernacProjectCompilationResult result = compiler.compileProject(sourceDirectory.toPath());
+            VernacProjectCompilationResult result = sourceDirectory.exists()
+                    ? compiler.compileProject(sourceDirectory.toPath())
+                    : new VernacProjectCompilationResult(List.of(), List.of());
             result.diagnostics().forEach(diagnostic -> getLog().warn(diagnostic.toString()));
-            if (result.generatedFiles().isEmpty()) {
-                getLog().info("No Java sources generated from " + sourceDirectory.getAbsolutePath());
-                return;
-            }
             Files.createDirectories(outputPath);
             result.writeTo(outputPath);
             getLog().info("Successfully generated " + result.generatedFiles().size() + " Java source file(s).");

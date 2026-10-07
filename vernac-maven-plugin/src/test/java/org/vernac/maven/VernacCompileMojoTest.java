@@ -103,4 +103,49 @@ class VernacCompileMojoTest {
         assertThatThrownBy(mojo::execute).isInstanceOf(MojoExecutionException.class)
                 .hasMessageContaining("not a directory");
     }
+
+    @Test
+    void reconcilesRemovedLastFileAndRemovedSourceDirectory(@TempDir Path root) throws Exception {
+        Path source = root.resolve("src");
+        Path namespace = source.resolve("example");
+        Path output = root.resolve("generated");
+        Files.createDirectories(namespace);
+        Path input = namespace.resolve("model.vernac");
+        VernacCompileMojo mojo = new VernacCompileMojo();
+        mojo.setSourceDirectory(source.toFile());
+        mojo.setOutputDirectory(output.toFile());
+        Files.writeString(input, "namespace example; id TaskId;");
+        mojo.execute();
+        Path generated = output.resolve("example/domain/TaskId.java");
+        assertThat(generated).exists();
+        Files.delete(input);
+        mojo.execute();
+        assertThat(generated).doesNotExist();
+        Files.writeString(input, "namespace example; id TaskId;");
+        mojo.execute();
+        Files.delete(input);
+        Files.delete(namespace);
+        Files.delete(source);
+        mojo.execute();
+        assertThat(generated).doesNotExist();
+    }
+
+    @Test
+    void compilerFailurePreservesPreviousOutputAndManifest(@TempDir Path root) throws Exception {
+        Path source = root.resolve("src");
+        Files.createDirectories(source.resolve("example"));
+        Path input = source.resolve("example/model.vernac");
+        Path output = root.resolve("generated");
+        VernacCompileMojo mojo = new VernacCompileMojo();
+        mojo.setSourceDirectory(source.toFile());
+        mojo.setOutputDirectory(output.toFile());
+        Files.writeString(input, "namespace example; id TaskId;");
+        mojo.execute();
+        String previous = Files.readString(output.resolve("example/domain/TaskId.java"));
+        String manifest = Files.readString(output.resolve(".vernac-generated-sources"));
+        Files.writeString(input, "namespace example; value Broken(Missing value);");
+        assertThatThrownBy(mojo::execute).isInstanceOf(MojoFailureException.class);
+        assertThat(Files.readString(output.resolve("example/domain/TaskId.java"))).isEqualTo(previous);
+        assertThat(Files.readString(output.resolve(".vernac-generated-sources"))).isEqualTo(manifest);
+    }
 }
