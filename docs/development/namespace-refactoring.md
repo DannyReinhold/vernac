@@ -124,8 +124,8 @@ The generated VO contract now includes:
   equality/hash codes over all fields.
 - `@NullMarked` on each generated class/enum; type-use `@Nullable` on optional
   storage and input parameters and on `equals`' parameter.
-- `Optional<T>` getters for optional fields. Optional scalar conversion helpers
-  also return `Optional`, never a nullable result.
+- `Optional<T>` getters for optional fields. Redundant `asString`/`asUuid` helpers
+  are not generated for VOs; IDs retain `asString`.
 - A complete `of` factory and one required-only overload for mixed required and
   optional fields. All-optional VOs have no additional zero-argument factory.
 - Required reference checks in declaration order before invariant checks.
@@ -149,11 +149,14 @@ typed null when a caller passes a null literal.
 Enum generation now uses the same namespace and nullness conventions, but its
 existing parsing behavior is not a newly reviewed enum contract.
 
-## Next: Maven and language-server integration
+## Completed: Maven integration; next: language-server integration
 
 `compileSource` and `compile(Path)` now use resolved types for ID/VO generation,
-but their source scope remains a single file. The Maven plugin still invokes this
-per-file path; it has not yet been connected to `compileProject`.
+but their source scope remains a single file. The Maven plugin now invokes `compileProject` once for the entire source root.
+Semantic errors are Maven build failures with source-aware diagnostics; filesystem
+errors are execution failures. Successful analysis warnings are logged. Java files
+are written only after the whole project passes analysis and generation. The output
+directory is then registered as a Maven compile source root.
 
 The LSP has namespace syntax support but has not yet been connected to the shared
 project scopes for workspace diagnostics and navigation. Other generators still
@@ -165,7 +168,7 @@ compatibility guarantee.
 
 Existing example `.vernac` files, IntelliJ file templates, and the basic project
 template still use the old file-level syntax and source layout. They must be migrated
-together with the remaining generator and Maven integration. A whole-repository
+together with the remaining generator integration. A whole-repository
 build that compiles those old examples is therefore not the gate for this interim
 step. Do not introduce compatibility fallbacks to accommodate them.
 
@@ -192,7 +195,7 @@ unused invalid imports, file-local visibility, non-re-export, wildcard ambiguity
 repeated-import warnings, mutually referring namespaces, forbidden Java fallback,
 VO field categories, optional primitive diagnostics, and explicit analysis deferrals.
 
-Generation tests compile emitted Java and execute its factories, getters, helpers,
+Generation tests compile emitted Java and execute its factories, getters,
 equality, hash codes, and validation. They also exercise multi-file references,
 same-simple-name types from different namespaces, all approved scalar types,
 handwritten Java callers, and a namespace ending in `.domain`. Nullable qualified
@@ -201,3 +204,31 @@ types are tested specifically to ensure valid Java type-use annotation placement
 Nullness annotations are checked through compilation and reflection, and runtime
 null rejection is exercised directly. A static nullness checker such as NullAway
 has not been integrated in this step.
+
+## Maven end-to-end example
+
+[The namespace/value-object example](../../examples/namespace-values/README.md)
+uses the actual Maven lifecycle, three Vernac files in two namespaces, and a Java
+JUnit test. It is a reactor module and needs no database.
+Run from the repository root:
+
+```text
+mvn -pl examples/namespace-values -am clean verify
+```
+
+The reactor builds the local compiler and plugin before compiling the example.
+This also runs the compiler and Maven-plugin unit tests. The existing broad
+examples are not selected because their language features remain under review.
+
+No automatic deletion of stale generated sources is introduced here. Use `clean`
+after deleting or renaming definitions until the generated-file ownership and
+cleanup contract is implemented. The no-partial-output guarantee concerns analysis
+and generation errors, not atomic filesystem writes or cleanup of earlier output.
+
+## IntelliJ follow-up: New Namespace
+
+Add a **New Namespace** action analogous to Java's **New Package**, relative to
+an identified Vernac source root. Validate namespace names with the shared compiler
+rules, create the corresponding directory structure, and have subsequent new
+Vernac files receive the matching `namespace` declaration automatically. This is
+pending plugin work, alongside LSP workspace integration.

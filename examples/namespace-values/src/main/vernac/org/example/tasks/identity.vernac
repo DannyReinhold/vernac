@@ -1,0 +1,6 @@
+namespace org.example.tasks;
+
+id TaskId;
+value Title(String value) validates {
+    require(!value.isBlank(), "Task title must not be blank");
+};

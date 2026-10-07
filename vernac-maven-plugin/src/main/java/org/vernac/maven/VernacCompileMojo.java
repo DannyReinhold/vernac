@@ -11,15 +11,14 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
-import org.vernac.compiler.pipeline.VernacCompilationResult;
+import org.vernac.compiler.pipeline.VernacProjectCompilationResult;
+import org.vernac.compiler.analyzer.SemanticValidationException;
 import org.vernac.compiler.pipeline.VernacCompiler;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
-import java.util.stream.Stream;
 
 /**
  * Compiles Vernac DSL files (.vernac) into Java source code during the generate-sources phase.
@@ -58,51 +57,31 @@ public class VernacCompileMojo extends AbstractMojo {
             return;
         }
 
-        if (!sourceDirectory.exists() || !sourceDirectory.isDirectory()) {
+        if (!sourceDirectory.exists()) {
             getLog().info("No Vernac source directory found at " + sourceDirectory.getAbsolutePath() + " - skipping.");
             return;
         }
+        if (!sourceDirectory.isDirectory()) {
+            throw new MojoExecutionException("Vernac source path is not a directory: " + sourceDirectory);
+        }
 
-        Path sourcePath = sourceDirectory.toPath();
         Path outputPath = outputDirectory.toPath();
-
-        List<Path> vernacFiles;
-        try (Stream<Path> stream = Files.walk(sourcePath)) {
-            vernacFiles = stream
-                    .filter(Files::isRegularFile)
-                    .filter(p -> p.getFileName().toString().endsWith(".vernac"))
-                    .toList();
-        } catch (IOException e) {
-            throw new MojoExecutionException("Failed to scan Vernac source directory: " + sourceDirectory, e);
-        }
-
-        if (vernacFiles.isEmpty()) {
-            getLog().info("No .vernac files found in " + sourceDirectory.getAbsolutePath());
-            return;
-        }
-
-        getLog().info("Compiling " + vernacFiles.size() + " Vernac DSL file(s) to " + outputDirectory.getAbsolutePath());
-
         try {
-            Files.createDirectories(outputPath);
-        } catch (IOException e) {
-            throw new MojoExecutionException("Could not create output directory: " + outputDirectory, e);
-        }
-
-        int totalGeneratedFiles = 0;
-
-        for (Path file : vernacFiles) {
-            getLog().debug("Compiling Vernac file: " + file);
-            try {
-                VernacCompilationResult result = compiler.compile(file);
-                result.writeTo(outputPath);
-                totalGeneratedFiles += result.generatedFiles().size();
-            } catch (Exception e) {
-                throw new MojoFailureException("Failed to compile Vernac file: " + file + " (" + e.getMessage() + ")", e);
+            // Resolve the entire source tree before writing any generated Java.
+            VernacProjectCompilationResult result = compiler.compileProject(sourceDirectory.toPath());
+            result.diagnostics().forEach(diagnostic -> getLog().warn(diagnostic.toString()));
+            if (result.generatedFiles().isEmpty()) {
+                getLog().info("No Java sources generated from " + sourceDirectory.getAbsolutePath());
+                return;
             }
+            Files.createDirectories(outputPath);
+            result.writeTo(outputPath);
+            getLog().info("Successfully generated " + result.generatedFiles().size() + " Java source file(s).");
+        } catch (SemanticValidationException e) {
+            throw new MojoFailureException("Failed to compile Vernac project: " + e.getMessage(), e);
+        } catch (IOException e) {
+            throw new MojoExecutionException("Could not read or write Vernac project files: " + e.getMessage(), e);
         }
-
-        getLog().info("Successfully generated " + totalGeneratedFiles + " Java source file(s).");
 
         // Register the directory with Maven so that the Java compiler finds the classes
         if (project != null) {

@@ -71,9 +71,8 @@ field parameters.
 
 When a value object has both required and optional fields, an additional `of`
 factory MUST accept only the required fields, preserving their declaration order.
-It supplies absence for the optional fields and follows the same validation path
-as the full factory. Overloads for arbitrary subsets of optional fields MUST NOT
-be generated.
+It MUST delegate to the full factory, supplying `null` for optional fields.
+Overloads for arbitrary subsets of optional fields MUST NOT be generated.
 
 | Field structure              | Generated factories                                |
 |------------------------------|----------------------------------------------------|
@@ -128,10 +127,14 @@ return a non-null `Optional`, using `Optional.empty()` for absence.
 Optional storage fields and constructor parameters MUST be annotated with
 `@Nullable`. `equals` MUST accept an `@Nullable Object` argument.
 
-Generated derived accessors MUST preserve the same absence semantics. For example,
-if an `asString` convenience method is generated for an optional value, it MUST
-return `Optional<String>`, never a nullable `String`. This rule does not require
-an `asString` method for every field or type.
+Value objects MUST NOT receive automatically generated `asString()` or `asUuid()`
+conversion methods. Named field getters are the standard access API. Authors may
+explicitly define domain-specific conversion methods, including these names,
+provided they do not collide with actual generated members.
+
+This rule does not apply to `id` declarations: IDs provide `asString()` as a
+convenient UUID string representation. `toString()` remains part of the VO contract
+as a readable object representation, not a serialization format.
 
 Generated convenience methods and user-facing code should use the public accessor
 contract. Constructor, equality, and hash-code implementations may access private
@@ -179,11 +182,12 @@ Contract verification MUST cover both generated source structure and observable
 behavior of compiled generated classes. Essential cases include:
 
 - Private construction, final class and fields, and absence of setters.
-- Full and required-only factories, including all-optional declarations.
+- Full and required-only factories, including delegation and all-optional declarations.
 - Required-null rejection and invariant enforcement through every factory.
 - Required checks before invariants, declaration order, and first-failure behavior.
 - Rejection of fieldless declarations and reserved built-in type names.
-- Optional getters, nullable annotations, and safe optional convenience methods.
+- Optional getters, nullable annotations, and absence of automatic conversion helpers.
+- Explicit author-defined conversion methods without false generated-name conflicts.
 - Equality and hashing across all fields, absent fields, nested values, and distinct types.
 - Scale-sensitive decimals and floating-point edge cases.
 - A safe, readable `toString`.

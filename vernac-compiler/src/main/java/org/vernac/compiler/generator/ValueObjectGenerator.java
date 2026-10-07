@@ -216,7 +216,7 @@ public class ValueObjectGenerator {
                     callArgs.add("null");
                 }
             }
-            requiredOnlyFactory.addStatement("return new $T($L)", selfType, String.join(", ", callArgs));
+            requiredOnlyFactory.addStatement("return $T.of($L)", selfType, String.join(", ", callArgs));
             factories.add(requiredOnlyFactory.build());
         }
 
@@ -232,18 +232,6 @@ public class ValueObjectGenerator {
             helpers.add(MethodSpec.methodBuilder("create").addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                     .returns(selfType).addStatement("return new $T($T.randomUUID())", selfType, UUID.class).build());
             helpers.add(UuidFactoryMethods.fromString(selfType, field.name(), optional));
-            helpers.add(MethodSpec.methodBuilder("asUuid").addModifiers(Modifier.PUBLIC)
-                    .returns(optional ? ParameterizedTypeName.get(Optional.class, UUID.class) : ClassName.get(UUID.class))
-                    .addStatement("return $N()", field.name()).build());
-            MethodSpec.Builder asString = MethodSpec.methodBuilder("asString").addModifiers(Modifier.PUBLIC)
-                    .returns(optional ? ParameterizedTypeName.get(Optional.class, String.class) : ClassName.get(String.class));
-            if (optional) asString.addStatement("return $N().map($T::toString)", field.name(), UUID.class);
-            else asString.addStatement("return $N().toString()", field.name());
-            helpers.add(asString.build());
-        } else if (ClassName.get(String.class).equals(type)) {
-            helpers.add(MethodSpec.methodBuilder("asString").addModifiers(Modifier.PUBLIC)
-                    .returns(optional ? ParameterizedTypeName.get(Optional.class, String.class) : ClassName.get(String.class))
-                    .addStatement("return $N()", field.name()).build());
         }
         return helpers;
     }

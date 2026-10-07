@@ -76,6 +76,7 @@ class IdGeneratorTest {
         assertEquals(fromUuid.hashCode(), fromText.hashCode());
         assertEquals(uuid, taskId.getMethod("value").invoke(fromUuid));
         assertEquals(uuid.toString(), fromUuid.toString());
+        assertEquals(uuid.toString(), taskId.getMethod("asString").invoke(fromUuid));
         assertNotEquals(fromUuid, ownerId.getMethod("of", UUID.class).invoke(null, uuid));
         assertFalse(fromUuid.equals(null));
         var created = taskId.getMethod("create").invoke(null);

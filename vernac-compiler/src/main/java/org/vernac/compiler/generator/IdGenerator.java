@@ -61,6 +61,13 @@ public class IdGenerator {
                 .addStatement("return this.value")
                 .build());
 
+        // Stable UUID string representation for identifier boundaries.
+        classBuilder.addMethod(MethodSpec.methodBuilder("asString")
+                .addModifiers(Modifier.PUBLIC)
+                .returns(String.class)
+                .addStatement("return value().toString()")
+                .build());
+
         // equals
         classBuilder.addMethod(MethodSpec.methodBuilder("equals")
                 .addModifiers(Modifier.PUBLIC)

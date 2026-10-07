@@ -44,7 +44,7 @@ class ValueObjectGeneratorTest {
     }
 
     @Test
-    @DisplayName("Generiert Single-Value Object mit create(), asString(), asUuid()")
+    @DisplayName("Generiert UUID-Value-Object mit Factories und benanntem Getter")
     void shouldGenerateSingleValueObjectWithHelpers() {
         String src = """
                 namespace com.example.domain;
@@ -65,8 +65,8 @@ class ValueObjectGeneratorTest {
                 .contains("public static ProjectId of(String value)")
                 .contains("public static ProjectId create()")
                 .contains("public UUID value()")
-                .contains("public String asString()")
-                .contains("public UUID asUuid()");
+                .doesNotContain(" asString(")
+                .doesNotContain(" asUuid(");
     }
 
     @Test
@@ -306,15 +306,18 @@ class ValueObjectGeneratorTest {
         }
 
         @Test
-        void optionalConvenienceAccessorsNeverReturnNull() throws Exception {
+        void optionalGettersReplaceRedundantConvenienceAccessors() throws Exception {
             var text = of("OptionalText", new Class<?>[]{String.class}, (Object) null);
-            assertEquals(Optional.empty(), type("OptionalText").getMethod("asString").invoke(text));
+            assertEquals(Optional.empty(), type("OptionalText").getMethod("value").invoke(text));
             var empty = of("OptionalUuid", new Class<?>[]{UUID.class}, (Object) null);
-            assertEquals(Optional.empty(), type("OptionalUuid").getMethod("asUuid").invoke(empty));
-            assertEquals(Optional.empty(), type("OptionalUuid").getMethod("asString").invoke(empty));
+            assertEquals(Optional.empty(), type("OptionalUuid").getMethod("value").invoke(empty));
+            for (String name : List.of("OptionalText", "OptionalUuid", "RequiredUuid")) {
+                assertThrows(NoSuchMethodException.class, () -> type(name).getMethod("asString"));
+                assertThrows(NoSuchMethodException.class, () -> type(name).getMethod("asUuid"));
+            }
             UUID uuid = UUID.randomUUID();
             var present = of("OptionalUuid", new Class<?>[]{String.class}, uuid.toString());
-            assertEquals(Optional.of(uuid.toString()), type("OptionalUuid").getMethod("asString").invoke(present));
+            assertEquals(Optional.of(uuid), type("OptionalUuid").getMethod("value").invoke(present));
             var parsedNull = of("OptionalUuid", new Class<?>[]{String.class}, (Object) null);
             assertEquals(Optional.empty(), type("OptionalUuid").getMethod("value").invoke(parsedNull));
         }
@@ -388,8 +391,8 @@ class ValueObjectGeneratorTest {
     void diagnosesGeneratedApiCollisionsBeforeJavac() {
         for (String declaration : List.of(
                 "value Example(String toString);",
-                "value Example(UUID asString);",
-                "value Example(String value) { public String asString() { return value(); } }",
+                "value Example(UUID create);",
+                "value Example(String text) { public String text() { return text; } }",
                 "value Example(String getClass);")) {
             var error = assertThrows(SemanticValidationException.class, () ->
                     new VernacCompiler().compileSource("namespace contract.collision; " + declaration));
@@ -397,4 +400,23 @@ class ValueObjectGeneratorTest {
         }
     }
 
+
+    @Test
+    void allowsExplicitConversionMethodsAndDelegatesRequiredOnlyFactory() throws Exception {
+        var result = new VernacCompiler().compileSource("""
+                namespace contract.explicit;
+                value Text(String value) {
+                    public String asString() { return value(); }
+                };
+                value Uuid(UUID asString);
+                value Note(String title, String? detail);
+                """);
+        var compiled = InMemoryJavaCompiler.compile(result);
+        assertTrue(compiled.success(), compiled.diagnostics().toString());
+        var text = compiled.loadClass("contract.explicit.domain.Text");
+        var instance = text.getMethod("of", String.class).invoke(null, "hello");
+        assertEquals("hello", text.getMethod("asString").invoke(instance));
+        assertThat(result.generatedFiles().stream().filter(f -> f.typeSpec().name().equals("Note"))
+                .findFirst().orElseThrow().toString()).contains("return Note.of(title, null);");
+    }
 }

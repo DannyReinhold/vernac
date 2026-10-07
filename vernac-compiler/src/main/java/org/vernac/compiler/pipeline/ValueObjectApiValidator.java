@@ -43,11 +43,9 @@ final class ValueObjectApiValidator {
             if (!value.validations().isEmpty()) add("validate()", value.location(), signatures, diagnostics);
             if (value.fields().size() == 1 && types.get(value.fields().getFirst().type()) instanceof ResolvedType.Builtin builtin) {
                 if (builtin.javaType() == UUID.class) {
-                    for (String signature : List.of("create()", "of(java.lang.String)", "asUuid()", "asString()")) {
+                    for (String signature : List.of("create()", "of(java.lang.String)")) {
                         add(signature, value.location(), signatures, diagnostics);
                     }
-                } else if (builtin.javaType() == String.class) {
-                    add("asString()", value.location(), signatures, diagnostics);
                 }
             }
             Set<String> fields = new HashSet<>();
