@@ -20,6 +20,15 @@ public final class VernacProjectLoader {
 
     /** Open editor snapshots override disk contents; unsaved new files are included. */
     public VernacProject load(Path sourceRoot, Map<Path, String> snapshots) throws IOException {
+        List<CompilerDiagnostic> diagnostics = new ArrayList<>();
+        VernacProject project = loadForAnalysis(sourceRoot, snapshots, diagnostics);
+        if (!diagnostics.isEmpty()) throw new SemanticValidationException(diagnostics);
+        return project;
+    }
+
+    /** Collects source errors while retaining independently parseable files for editor analysis. */
+    public VernacProject loadForAnalysis(Path sourceRoot, Map<Path, String> snapshots,
+                                        List<CompilerDiagnostic> diagnostics) throws IOException {
         Path root = sourceRoot.toAbsolutePath().normalize();
         Map<Path, String> overlays = new TreeMap<>();
         for (var entry : snapshots.entrySet()) {
@@ -41,7 +50,6 @@ public final class VernacProjectLoader {
             }
         }
         List<VernacSourceFile> sources = new ArrayList<>();
-        List<CompilerDiagnostic> diagnostics = new ArrayList<>();
         var parser = new VernacSourceParser();
         for (Path path : paths) {
             try {
@@ -52,14 +60,20 @@ public final class VernacProjectLoader {
                 diagnostics.addAll(e.diagnostics());
             }
         }
-        if (!diagnostics.isEmpty()) throw new SemanticValidationException(diagnostics);
-        return index(root, sources);
+        return index(root, sources, diagnostics);
     }
 
     /** Indexes parsed snapshots; filesystem layout is checked by load, not by this method. */
     public VernacProject index(Path sourceRoot, List<VernacSourceFile> sources) {
-        Path root = sourceRoot.toAbsolutePath().normalize();
         List<CompilerDiagnostic> diagnostics = new ArrayList<>();
+        VernacProject project = index(sourceRoot, sources, diagnostics);
+        if (!diagnostics.isEmpty()) throw new SemanticValidationException(diagnostics);
+        return project;
+    }
+
+    private VernacProject index(Path sourceRoot, List<VernacSourceFile> sources,
+                                List<CompilerDiagnostic> diagnostics) {
+        Path root = sourceRoot.toAbsolutePath().normalize();
         List<TypeSymbol> symbols = new ArrayList<>();
         for (var source : sources) {
             if (!VernacNames.isNamespace(source.unit().namespace())) {
@@ -90,7 +104,6 @@ public final class VernacProjectLoader {
                         problem.message() + " Declaration locations: " + origins));
             }
         }
-        if (!diagnostics.isEmpty()) throw new SemanticValidationException(diagnostics);
         return new VernacProject(root, sources, index);
     }
 

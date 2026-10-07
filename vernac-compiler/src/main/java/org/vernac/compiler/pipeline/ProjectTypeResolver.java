@@ -23,12 +23,13 @@ public final class ProjectTypeResolver {
             scopes.put(source.path(), scope);
             diagnostics.addAll(scope.diagnostics());
         }
-        // Invalid imports must be diagnosed even when unused. Avoid cascading lookup errors.
-        failOnErrors(diagnostics);
+        // Import errors only prevent lookups in the affected file.
 
         Map<TypeNode, ResolvedType> fieldTypes = new LinkedHashMap<>();
         for (var source : project.sources()) {
             FileTypeScope scope = scopes.get(source.path());
+            boolean validScope = scope.diagnostics().stream()
+                    .noneMatch(d -> d.severity() == CompilerDiagnostic.Severity.ERROR);
             for (var value : source.unit().valueObjects()) {
 
                 if (!value.isEnum() && value.fields().isEmpty()) {
@@ -40,20 +41,19 @@ public final class ProjectTypeResolver {
                         diagnostics.add(CompilerDiagnostic.error(field.location(),
                                 "Value Object '" + value.name() + "' cannot have mutable field '" + field.name() + "'."));
                     }
-                    resolveField(field, scope, fieldTypes, diagnostics);
+                    if (validScope) resolveField(field, scope, fieldTypes, diagnostics);
                 }
                 for (var method : value.methods()) {
                     TypeNode returnType = method.returnType();
                     if (returnType.name().equals("void") && !returnType.isOptional() && returnType.typeArguments().isEmpty()) {
                         fieldTypes.put(returnType, new ResolvedType.VoidReturn());
-                    } else {
+                    } else if (validScope) {
                         resolveField(new FieldNode(method.location(), returnType, method.name()), scope, fieldTypes, diagnostics);
                     }
-                    for (var parameter : method.parameters()) resolveField(parameter, scope, fieldTypes, diagnostics);
+                    if (validScope) for (var parameter : method.parameters()) resolveField(parameter, scope, fieldTypes, diagnostics);
                 }
             }
         }
-        failOnErrors(diagnostics);
         for (var source : project.sources()) {
             for (var value : source.unit().valueObjects()) {
                 diagnostics.addAll(new ValueObjectApiValidator().validate(value, fieldTypes));

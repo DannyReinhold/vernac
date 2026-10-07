@@ -45,3 +45,21 @@ mvn -pl vernac-intellij,vernac-maven-plugin -am clean verify
 After installing the rebuilt plugin, try the [naming tutorial](../tutorials/default-names.md).
 The obsolete embedded-body `.value()` assumption in outbound mapping is a recorded
 follow-up for the mapping review; it is not silently generalized in this change.
+
+## Independent editor diagnostics
+
+Editor analysis retains parseable files when another source has syntax, namespace,
+or declaration errors. Import failures only block type lookups in the affected
+file. Name and getter collisions do not require complete type resolution.
+Factory and custom-method parameter signatures are checked only when their
+parameter types have resolved; Object override return checks require a resolved
+return type. No placeholder Java types are invented to continue validation.
+
+The strict loader and compiler still reject erroneous projects before generation.
+This is partial analysis, not parser recovery: a syntactically broken file is
+excluded until it parses. References to declarations missing from that file may
+therefore report unresolved types. Completion/navigation recovery is a separate
+concern; this change concerns published diagnostics.
+
+`VernacProjectDiagnosticsTest` covers errors in a second file, unsaved edits,
+independent collisions, clearing corrected diagnostics, and strict loading.

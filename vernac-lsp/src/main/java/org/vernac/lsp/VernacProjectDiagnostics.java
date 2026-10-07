@@ -149,12 +149,12 @@ final class VernacProjectDiagnostics {
         open.forEach((path, document) -> {
             if (root.equals(rootFor(path))) snapshots.put(path, document.text());
         });
-        List<CompilerDiagnostic> problems;
+        List<CompilerDiagnostic> problems = new ArrayList<>();
         try {
-            var project = new VernacProjectLoader().load(root, snapshots);
-            problems = new ProjectTypeResolver().resolve(project).diagnostics();
+            var project = new VernacProjectLoader().loadForAnalysis(root, snapshots, problems);
+            problems.addAll(new ProjectTypeResolver().resolve(project).diagnostics());
         } catch (SemanticValidationException e) {
-            problems = e.diagnostics();
+            problems.addAll(e.diagnostics());
         } catch (IOException | RuntimeException e) {
             if (client != null) client.logMessage(new MessageParams(MessageType.Error,
                     "Vernac project analysis failed for " + root + ": " + e));

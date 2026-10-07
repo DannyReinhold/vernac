@@ -56,6 +56,54 @@ class VernacProjectDiagnosticsTest {
     List<Diagnostic> diagnostics(Path path) { return client.latest.get(path.toUri().toString()).getDiagnostics(); }
 
     @Test
+    void independentNamingDiagnosticsSurviveErrorsInOtherFiles() throws Exception {
+        Path model = file("names", "model", "value IntValue(int); value Neu(int, IntValue);");
+        Path broken = file("other", "broken", "value Broken(Missing);");
+        open(model);
+        open(broken);
+        int diagnosticVersion = 1;
+        // Exercise each earlier analysis stage without saving either editor snapshot.
+        for (String body : List.of(
+                "value Broken(Missing);",
+                "value Broken(",
+                "import absent.Type; value Broken(String);",
+                "value Duplicate(String); value Duplicate(int);",
+                "value String(int);")) {
+            change(broken, "namespace other;\n" + body, ++diagnosticVersion);
+            assertFalse(diagnostics(broken).isEmpty(), body);
+            assertTrue(diagnostics(model).stream().anyMatch(d ->
+                    d.getMessage().contains("Duplicate field name 'intValue'")), body);
+            assertTrue(diagnostics(model).stream().noneMatch(d ->
+                    d.getMessage().contains("Could not analyze")), body);
+        }
+        change(model, "namespace names; value IntValue(int); value Neu(int count, IntValue limit);", 2);
+        assertTrue(diagnostics(model).isEmpty());
+        assertFalse(diagnostics(broken).isEmpty());
+        change(broken, "namespace other; value Fixed(String);", ++diagnosticVersion);
+        assertTrue(diagnostics(broken).isEmpty());
+    }
+
+    @Test
+    void unresolvedTypesDoNotHideLocalNamesOrInventSignatureConflicts() throws Exception {
+        Path model = file("names", "partial", """
+                value Partial(Missing first, Missing second, String toString, int count, long count);
+                """);
+        open(model);
+        assertTrue(diagnostics(model).stream().anyMatch(d -> d.getMessage().contains("Missing")));
+        assertTrue(diagnostics(model).stream().anyMatch(d -> d.getMessage().contains("Duplicate field name 'count'")));
+        assertTrue(diagnostics(model).stream().anyMatch(d -> d.getMessage().contains("toString()")));
+        assertTrue(diagnostics(model).stream().noneMatch(d -> d.getMessage().contains("Could not analyze")));
+    }
+
+    @Test
+    void strictLoaderStillRejectsBrokenProjects() throws Exception {
+        file("names", "valid", "value Title(String);");
+        file("other", "broken", "value Broken(");
+        assertThrows(org.vernac.compiler.analyzer.SemanticValidationException.class,
+                () -> new org.vernac.compiler.pipeline.VernacProjectLoader().load(root));
+    }
+
+    @Test
     void reportsDerivedAndGeneratedNameConflictsAndClearsThemAfterCorrection() throws Exception {
         Path path = file("names", "model", """
                 value IntValue(int value);

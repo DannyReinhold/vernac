@@ -37,9 +37,9 @@ final class ValueObjectApiValidator {
                         "Enum constant '" + constant.name() + "' conflicts with another or generated member."));
             }
         } else {
-            generated("of(" + parameters(value.fields(), types) + ")", value, signatures, diagnostics);
+            if (resolved(value.fields(), types)) generated("of(" + parameters(value.fields(), types) + ")", value, signatures, diagnostics);
             var required = value.fields().stream().filter(f -> !f.type().isOptional()).toList();
-            if (!required.isEmpty() && required.size() != value.fields().size())
+            if (!required.isEmpty() && required.size() != value.fields().size() && resolved(required, types))
                 generated("of(" + parameters(required, types) + ")", value, signatures, diagnostics);
             if (!value.validations().isEmpty()) generated("validate()", value, signatures, diagnostics);
             if (value.fields().size() == 1 && types.get(value.fields().get(0).type()) instanceof ResolvedType.Builtin builtin
@@ -59,6 +59,7 @@ final class ValueObjectApiValidator {
         for (var method : value.methods()) {
             identifier(method.name(), method.location(), diagnostics);
             checkNames(method.parameters(), "parameter", diagnostics);
+            if (!resolved(method.parameters(), types)) continue;
             String signature = method.name() + "(" + parameters(method.parameters(), types) + ")";
             add(signature, new Member(method.location(), "Declared method '" + signature + "'"), signatures, diagnostics,
                     "Use a distinct method name or parameter signature; changing only the return type does not resolve the conflict.");
@@ -72,6 +73,7 @@ final class ValueObjectApiValidator {
     private void checkObjectOverride(String name, List<FieldNode> parameters, ResolvedType returnType,
                                      boolean optionalReturn, String visibility, SourceLocation location,
                                      List<CompilerDiagnostic> diagnostics) {
+        if (returnType == null) return;
         if (!parameters.isEmpty() || (!name.equals("clone") && !name.equals("finalize"))) return;
         boolean reference = optionalReturn || returnType instanceof ResolvedType.Declared
                 || returnType instanceof ResolvedType.Builtin builtin && !builtin.javaType().isPrimitive();
@@ -80,6 +82,10 @@ final class ValueObjectApiValidator {
                 "Method '" + name + "()' conflicts with inherited Object." + name + "(): "
                         + (!compatible ? "incompatible return type. " : "visibility cannot be reduced. ")
                         + "Use a distinct name or a Java-compatible override."));
+    }
+
+    private boolean resolved(List<FieldNode> fields, Map<TypeNode, ResolvedType> types) {
+        return fields.stream().allMatch(field -> types.containsKey(field.type()));
     }
 
     private String parameters(List<FieldNode> parameters, Map<TypeNode, ResolvedType> types) {
