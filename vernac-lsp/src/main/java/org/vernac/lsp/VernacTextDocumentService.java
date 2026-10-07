@@ -3,13 +3,18 @@
 
 package org.vernac.lsp;
 
-import org.antlr.v4.runtime.*;
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.Token;
+import org.antlr.v4.runtime.tree.ParseTree;
 import org.eclipse.lsp4j.*;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.TextDocumentService;
 import org.vernac.compiler.parser.VernacLexer;
 import org.vernac.compiler.parser.VernacParser;
+import org.vernac.language.VernacNames;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -38,17 +43,26 @@ public class VernacTextDocumentService implements TextDocumentService {
             "true", "false"
     );
 
-    private static final Pattern IDENTIFIER_OR_KEYWORD = Pattern.compile("[a-zA-Z_$][a-zA-Z0-9_$]*");
-    private static final Pattern STRING_LITERAL = Pattern.compile("\"(\\\\.|[^\"\\\\])*\"");
-    private static final Pattern NUMBER_LITERAL = Pattern.compile("\\b\\d+(\\.\\d+)?([eE][+-]?\\d+)?[fFdDlL]?\\b");
-
     private final VernacProjectDiagnostics projects;
 
-    public VernacTextDocumentService() { this(new VernacProjectDiagnostics()); }
+    public VernacTextDocumentService() {
+        this(new VernacProjectDiagnostics());
+    }
 
-    VernacTextDocumentService(VernacProjectDiagnostics projects) { this.projects = projects; }
+    VernacTextDocumentService(VernacProjectDiagnostics projects) {
+        this.projects = projects;
+    }
 
-    public void setClient(LanguageClient client) { projects.connect(client); }
+    private static void collectTypeOffsets(ParseTree tree, Set<Integer> offsets) {
+        if (tree instanceof VernacParser.TypeNameContext name) offsets.add(name.getStart().getStartIndex());
+        if (tree instanceof VernacParser.TypeContext type && type.rawType != null)
+            offsets.add(type.rawType.getStop().getStartIndex());
+        for (int i = 0; i < tree.getChildCount(); i++) collectTypeOffsets(tree.getChild(i), offsets);
+    }
+
+    public void setClient(LanguageClient client) {
+        projects.connect(client);
+    }
 
     @Override
     public void didOpen(DidOpenTextDocumentParams params) {
@@ -69,12 +83,14 @@ public class VernacTextDocumentService implements TextDocumentService {
         projects.close(params.getTextDocument().getUri());
     }
 
-    @Override
-    public void didSave(DidSaveTextDocumentParams params) { projects.refresh(); }
-
     // ==========================================
     // 2. Semantic Highlighting Tokens
     // ==========================================
+
+    @Override
+    public void didSave(DidSaveTextDocumentParams params) {
+        projects.refresh();
+    }
 
     @Override
     public CompletableFuture<SemanticTokens> semanticTokensFull(SemanticTokensParams params) {
@@ -89,19 +105,29 @@ public class VernacTextDocumentService implements TextDocumentService {
 
         List<RawToken> collected = new ArrayList<>();
 
+        String[] sourceLines = content.split("\n", -1);
+        Set<Integer> typeOffsets = new HashSet<>();
+        var parser = new VernacParser(new CommonTokenStream(new VernacLexer(CharStreams.fromString(content))));
+        parser.removeErrorListeners();
+        collectTypeOffsets(parser.compilationUnit(), typeOffsets);
         for (Token token = lexer.nextToken(); token.getType() != Token.EOF; token = lexer.nextToken()) {
             String text = token.getText();
             int line = token.getLine() - 1;
-            int startChar = token.getCharPositionInLine();
-
-            // 1. Simple direct tokens (keywords, types, strings, etc.)
-            Integer type = classifyToken(text.trim());
-            if (type != null) {
-                int leadingSpaces = Math.max(0, text.indexOf(text.trim()));
-                collected.add(new RawToken(line, startChar + leadingSpaces, text.trim().length(), type));
-            } else if (text.length() > 1 && (text.contains(" ") || text.contains("\n") || text.contains("{") || text.contains("("))) {
-                // 2. Break down into sub-fragments only if it was not a single token
-                lexCompositeFragment(text, line, startChar, collected);
+            int startChar = sourceLines[line].offsetByCodePoints(0, token.getCharPositionInLine());
+            Integer type;
+            if (typeOffsets.contains(token.getStartIndex())) {
+                type = 1;
+            } else {
+                type = classifyToken(text);
+            }
+            if (type == null) continue;
+            // LSP tokens cannot span lines unless the client explicitly supports it.
+            String[] fragments = text.split("\n", -1);
+            for (int i = 0; i < fragments.length; i++) {
+                String fragment = fragments[i];
+                if (fragment.endsWith("\r")) fragment = fragment.substring(0, fragment.length() - 1);
+                if (!fragment.isEmpty()) collected.add(new RawToken(line + i, i == 0 ? startChar : 0,
+                        fragment.length(), type));
             }
         }
 
@@ -148,37 +174,6 @@ public class VernacTextDocumentService implements TextDocumentService {
         return CompletableFuture.completedFuture(new SemanticTokens(data));
     }
 
-    private void lexCompositeFragment(String fragmentText, int baseLine, int baseChar, List<RawToken> tokens) {
-        String[] lines = fragmentText.split("\r?\n", -1);
-        for (int i = 0; i < lines.length; i++) {
-            String currentLine = lines[i];
-            int currentLineNum = baseLine + i;
-            int offsetCorrection = (i == 0) ? baseChar : 0;
-
-            Matcher stringMatcher = STRING_LITERAL.matcher(currentLine);
-            while (stringMatcher.find()) {
-                tokens.add(new RawToken(currentLineNum, stringMatcher.start() + offsetCorrection, stringMatcher.group().length(), 3));
-            }
-
-            Matcher numMatcher = NUMBER_LITERAL.matcher(currentLine);
-            while (numMatcher.find()) {
-                tokens.add(new RawToken(currentLineNum, numMatcher.start() + offsetCorrection, numMatcher.group().length(), 4));
-            }
-
-            Matcher idMatcher = IDENTIFIER_OR_KEYWORD.matcher(currentLine);
-            while (idMatcher.find()) {
-                String word = idMatcher.group();
-                int start = idMatcher.start() + offsetCorrection;
-
-                if (DSL_KEYWORDS.contains(word) || JAVA_KEYWORDS.contains(word)) {
-                    tokens.add(new RawToken(currentLineNum, start, word.length(), 0));
-                } else if (Character.isUpperCase(word.charAt(0))) {
-                    tokens.add(new RawToken(currentLineNum, start, word.length(), 1));
-                }
-            }
-        }
-    }
-
     private Integer classifyToken(String tokenText) {
         if (DSL_KEYWORDS.contains(tokenText) || JAVA_KEYWORDS.contains(tokenText)) {
             return 0; // Keyword
@@ -192,7 +187,7 @@ public class VernacTextDocumentService implements TextDocumentService {
         if (tokenText.matches("\\d+(\\.\\d+)?")) {
             return 4; // Number
         }
-        if (!tokenText.isEmpty() && Character.isUpperCase(tokenText.charAt(0)) && tokenText.matches("[A-Z][a-zA-Z0-9_]*")) {
+        if (!tokenText.isEmpty() && Character.isUpperCase(tokenText.codePointAt(0)) && VernacNames.isIdentifier(tokenText)) {
             return 1; // Type
         }
         return null;
@@ -219,13 +214,13 @@ public class VernacTextDocumentService implements TextDocumentService {
         List<CompletionItem> items = new ArrayList<>();
 
         // Context A: After "for" in repositories -> Only aggregates
-        if (prefix.matches("(?s).*\\brepository\\s+\\w+\\s+for\\s+\\w*$")) {
+        if (prefix.matches("(?s).*\\brepository\\s+[\\p{L}\\p{N}\\p{M}_$]+\\s+for\\s+[\\p{L}\\p{N}\\p{M}_$]*$")) {
             addAggregateCompletions(items, content);
             return CompletableFuture.completedFuture(Either.forLeft(items));
         }
 
         // Context A2: After "listener" -> Only declared events
-        if (prefix.matches("(?s).*\\blistener\\s+\\w*$")) {
+        if (prefix.matches("(?s).*\\blistener\\s+[\\p{L}\\p{N}\\p{M}_$]*$")) {
             addEventCompletions(items, content);
             return CompletableFuture.completedFuture(Either.forLeft(items));
         }
@@ -286,11 +281,12 @@ public class VernacTextDocumentService implements TextDocumentService {
     }
 
     private void addAggregateCompletions(List<CompletionItem> items, String content) {
-        Pattern pattern = Pattern.compile("\\baggregate\\s+([A-Z][a-zA-Z0-9_]*)");
+        Pattern pattern = Pattern.compile("\\baggregate\\s+(\\p{javaJavaIdentifierStart}\\p{javaJavaIdentifierPart}*)");
         Matcher matcher = pattern.matcher(content);
 
         while (matcher.find()) {
             String aggregateName = matcher.group(1);
+            if (!VernacNames.isTypeName(aggregateName)) continue;
             CompletionItem item = new CompletionItem(aggregateName);
             item.setKind(CompletionItemKind.Class);
             item.setDetail("Vernac Aggregate Root");
@@ -354,11 +350,12 @@ public class VernacTextDocumentService implements TextDocumentService {
     // ==========================================
 
     private void addEventCompletions(List<CompletionItem> items, String content) {
-        Pattern pattern = Pattern.compile("\\b(?:outbox\\s+|memory\\s+)?event\\s+([A-Z][a-zA-Z0-9_]*)");
+        Pattern pattern = Pattern.compile("\\b(?:outbox\\s+|memory\\s+)?event\\s+(\\p{javaJavaIdentifierStart}\\p{javaJavaIdentifierPart}*)");
         Matcher matcher = pattern.matcher(content);
 
         while (matcher.find()) {
             String eventName = matcher.group(1);
+            if (!VernacNames.isTypeName(eventName)) continue;
             CompletionItem item = new CompletionItem(eventName);
             item.setKind(CompletionItemKind.Event);
             item.setDetail("Vernac Domain Event");

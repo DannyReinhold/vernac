@@ -129,6 +129,31 @@ class VernacProjectSymbolsTest {
         assertFalse(labels.contains("Labels"));
     }
 
+    @Test void unicodeCompletionReplacesSupplementaryNamesAndNavigatesPrecisely() {
+        var target = file("de.aufträge", "größen", "/* 😀 */ value 𐐀name(String größe);");
+        var current = file("例.注文", "model", "import de.aufträge.*; value Auftrag(de.aufträge.𐐀na titel);");
+        var completion = complete(current, "Auftrag(de.aufträge.𐐀").getFirst();
+        assertEquals("de.aufträge.𐐀name", completion.getLabel());
+        var edit = completion.getTextEdit().getLeft();
+        assertEquals("de.aufträge.𐐀name", edit.getNewText());
+        String line = files.get(current).split("\n")[1];
+        assertEquals(line.indexOf("de.aufträge.𐐀na"), edit.getRange().getStart().getCharacter());
+        assertEquals(line.indexOf("de.aufträge.𐐀na") + "de.aufträge.𐐀na".length(), edit.getRange().getEnd().getCharacter());
+        files.put(current, files.get(current).replace("𐐀na titel", "𐐀name titel"));
+        var location = definition(current, "Auftrag(de.aufträge.𐐀na").getFirst();
+        assertEquals(target.toUri().toString(), location.getUri());
+        assertEquals(new Position(1, "/* 😀 */ value ".length()), location.getRange().getStart());
+        assertEquals("𐐀name".length(), location.getRange().getEnd().getCharacter() - location.getRange().getStart().getCharacter());
+    }
+
+    @Test void normalizedSpellingsResolveToDifferentDeclarations() {
+        var composed = file("tasks", "one", "value Größe(String value);");
+        var decomposed = file("tasks", "two", "value Gro\u0308ße(String value);");
+        var current = file("tasks", "model", "value Pair(Größe first, Gro\u0308ße second);");
+        assertEquals(composed.toUri().toString(), definition(current, "Pair(Grö").getFirst().getUri());
+        assertEquals(decomposed.toUri().toString(), definition(current, "first, Gro\u0308").getFirst().getUri());
+    }
+
     @Test void wrongNamespaceAndArbitraryJavaNamesAreNotResolved() {
         var wrong = file("tasks", "wrong", "value Wrong(String value);");
         files.put(wrong, "namespace elsewhere; value Wrong(String value);");

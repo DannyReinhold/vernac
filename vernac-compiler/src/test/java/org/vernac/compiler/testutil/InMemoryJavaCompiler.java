@@ -70,6 +70,7 @@ public class InMemoryJavaCompiler {
         }
 
         List<String> options = List.of(
+                "--release", "21", "-encoding", "UTF-8",
                 "-classpath", System.getProperty("java.class.path")
         );
 

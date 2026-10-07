@@ -253,6 +253,31 @@ class VernacProjectDiagnosticsTest {
         assertEquals(List.of(), completion(draft, 1, "value Draft(Ne".length()));
     }
 
+    @Test
+    void unicodeDiagnosticsAndSemanticTokensUseUtf16AndSingleLineRanges() throws Exception {
+        String body = "/* 😀 */ id 𐐀Id; value 名称(String größe);\n/* comment\n😀 second */ value Prüfung(Missing größe);";
+        Path model = file("de.aufträge", "unicode", body);
+        open(model);
+        var diagnostic = diagnostics(model).getFirst();
+        assertEquals(new Position(3, "😀 second */ value Prüfung(".length()), diagnostic.getRange().getStart());
+        var tokens = server.getTextDocumentService().semanticTokensFull(new SemanticTokensParams(
+                new TextDocumentIdentifier(model.toUri().toString()))).join().getData();
+        String[] lines = Files.readString(model).split("\n", -1);
+        int line = 0, column = 0;
+        List<String> types = new ArrayList<>();
+        for (int i = 0; i < tokens.size(); i += 5) {
+            int deltaLine = tokens.get(i);
+            line += deltaLine;
+            column = deltaLine == 0 ? column + tokens.get(i + 1) : tokens.get(i + 1);
+            int end = column + tokens.get(i + 2);
+            assertTrue(end <= lines[line].length(), "Token spans a line boundary");
+            assertFalse(column < lines[line].length() && Character.isLowSurrogate(lines[line].charAt(column)));
+            assertFalse(end < lines[line].length() && Character.isLowSurrogate(lines[line].charAt(end)));
+            if (tokens.get(i + 3) == 1) types.add(lines[line].substring(column, end));
+        }
+        assertTrue(types.containsAll(List.of("𐐀Id", "名称", "Prüfung", "Missing")), types.toString());
+    }
+
     static class RecordingClient implements LanguageClient {
         final Map<String, PublishDiagnosticsParams> latest = new HashMap<>();
         RegistrationParams registration;

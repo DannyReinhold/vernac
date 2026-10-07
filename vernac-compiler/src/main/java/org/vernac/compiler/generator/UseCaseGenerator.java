@@ -3,6 +3,8 @@
 
 package org.vernac.compiler.generator;
 
+import org.vernac.language.VernacNames;
+
 import com.palantir.javapoet.*;
 import org.vernac.compiler.ast.*;
 import org.vernac.compiler.util.ConditionUtils;
@@ -191,13 +193,13 @@ public class UseCaseGenerator {
 
     private String deriveDefaultInstanceName(String typeName) {
         if (typeName == null || typeName.isEmpty()) return "value";
-        return Character.toLowerCase(typeName.charAt(0)) + typeName.substring(1);
+        return VernacNames.lowerFirst(typeName);
     }
 
     private String deriveTupleFieldName(String code) {
         int lastDot = code.lastIndexOf('.');
         if (lastDot >= 0) {
-            String after = code.substring(lastDot + 1).replaceAll("[^a-zA-Z0-9_]", "");
+            String after = code.substring(lastDot + 1).replaceAll("[^\\p{javaJavaIdentifierPart}]", "");
             return after.isEmpty() ? "value" : after;
         }
         return "value";

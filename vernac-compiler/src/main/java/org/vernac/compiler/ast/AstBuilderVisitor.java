@@ -520,10 +520,12 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             return typeName + "Value";
         }
 
-        if (typeName.length() > 1 && Character.isUpperCase(typeName.charAt(0)) && Character.isUpperCase(typeName.charAt(1))) {
+        int first = typeName.codePointAt(0);
+        int next = Character.charCount(first);
+        if (next < typeName.length() && Character.isUpperCase(first) && Character.isUpperCase(typeName.codePointAt(next))) {
             return typeName.toLowerCase(Locale.ROOT);
         }
-        return Character.toLowerCase(typeName.charAt(0)) + typeName.substring(1);
+        return org.vernac.language.VernacNames.lowerFirst(typeName);
     }
 
     private TypeNode toTypeNode(VernacParser.TypeContext ctx) {

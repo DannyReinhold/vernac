@@ -1,6 +1,6 @@
 package org.vernac.intellij;
 
-import javax.lang.model.SourceVersion;
+import org.vernac.language.VernacNames;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -238,11 +238,7 @@ public final class VernacProjectTemplate {
             throw new IOException("Invalid Maven artifactId: " + artifactId);
         }
 
-        if (basePackage == null
-                || !SourceVersion.isName(
-                basePackage,
-                SourceVersion.RELEASE_21
-        )) {
+        if (!VernacNames.isNamespace(basePackage)) {
             throw new IOException("Invalid Java package: " + basePackage);
         }
     }

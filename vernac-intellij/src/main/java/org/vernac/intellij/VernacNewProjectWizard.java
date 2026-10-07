@@ -25,7 +25,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.idea.maven.execution.MavenRunner;
 import org.jetbrains.idea.maven.execution.MavenRunnerSettings;
 
-import javax.lang.model.SourceVersion;
+import org.vernac.language.VernacNames;
 import javax.swing.*;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -143,9 +143,9 @@ public final class VernacNewProjectWizard
         private static ValidationInfo validatePackage(JBTextField field) {
             String value = field.getText().strip();
 
-            if (!SourceVersion.isName(value, SourceVersion.RELEASE_21)) {
+            if (!VernacNames.isNamespace(value)) {
                 return new ValidationInfo(
-                        "Enter a valid Java package name without Java keywords.",
+                        "Enter a valid Java 21 package name. " + VernacNames.invalidNamespaceMessage(value),
                         field
                 );
             }

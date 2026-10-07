@@ -293,6 +293,6 @@ public class EventGenerator {
     }
 
     private String toUpperSnakeCase(String camelCase) {
-        return camelCase.replaceAll("([a-z])([A-Z]+)", "$1_$2").toUpperCase(Locale.ROOT);
+        return camelCase.replaceAll("(\\p{Ll})(\\p{Lu}+)", "$1_$2").toUpperCase(Locale.ROOT);
     }
 }

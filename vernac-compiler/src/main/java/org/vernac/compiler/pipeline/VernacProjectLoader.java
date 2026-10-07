@@ -6,7 +6,7 @@ import org.vernac.compiler.analyzer.CompilerDiagnostic;
 import org.vernac.compiler.analyzer.SemanticValidationException;
 import org.vernac.compiler.ast.*;
 import org.vernac.compiler.symbols.*;
-import javax.lang.model.SourceVersion;
+import org.vernac.language.VernacNames;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
@@ -62,7 +62,7 @@ public final class VernacProjectLoader {
         List<CompilerDiagnostic> diagnostics = new ArrayList<>();
         List<TypeSymbol> symbols = new ArrayList<>();
         for (var source : sources) {
-            if (!SourceVersion.isName(source.unit().namespace(), SourceVersion.RELEASE_21)) {
+            if (!VernacNames.isNamespace(source.unit().namespace())) {
                 diagnostics.add(CompilerDiagnostic.error(source.unit().location(),
                         "Invalid namespace '" + source.unit().namespace() + "'."));
                 continue;
@@ -96,7 +96,7 @@ public final class VernacProjectLoader {
 
     private void validateNamespace(Path root, Path file, CompilationUnitNode unit,
                                    List<CompilerDiagnostic> diagnostics) {
-        if (!SourceVersion.isName(unit.namespace(), SourceVersion.RELEASE_21)) {
+        if (!VernacNames.isNamespace(unit.namespace())) {
             diagnostics.add(CompilerDiagnostic.error(unit.location(),
                     "Invalid namespace '" + unit.namespace() + "': expected a Java-compatible qualified name."));
             return;

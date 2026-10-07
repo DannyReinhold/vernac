@@ -10,7 +10,7 @@ import org.vernac.compiler.ast.*;
 import org.vernac.compiler.parser.*;
 import org.vernac.compiler.symbols.*;
 
-import javax.lang.model.SourceVersion;
+import org.vernac.language.VernacNames;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Consumer;
@@ -32,7 +32,7 @@ final class VernacProjectSymbols {
             var header = tree.namespaceDeclaration();
             if (header == null || header.qualifiedName() == null) return;
             String namespace = header.qualifiedName().getText();
-            if (!SourceVersion.isName(namespace, SourceVersion.RELEASE_21)
+            if (!VernacNames.isNamespace(namespace)
                     || !root.resolve(namespace.replace('.', '/')).equals(path.getParent())) return;
             List<ImportNode> imports = new ArrayList<>();
             for (var item : tree.importDeclaration()) {
@@ -112,8 +112,10 @@ final class VernacProjectSymbols {
         int cursor = offset(file.text(), position);
         if (cursor < 0) return List.of();
         int start = cursor, end = cursor;
-        while (start > 0 && nameCharacter(file.text().charAt(start - 1))) start--;
-        while (end < file.text().length() && nameCharacter(file.text().charAt(end))) end++;
+        while (start > 0 && nameCharacter(file.text().codePointBefore(start)))
+            start -= Character.charCount(file.text().codePointBefore(start));
+        while (end < file.text().length() && nameCharacter(file.text().codePointAt(end)))
+            end += Character.charCount(file.text().codePointAt(end));
         String prefix = file.text().substring(start, cursor);
         if (excluded(file, cursor)) return List.of();
         var probe = parse(file.text().substring(0, start) + CURSOR + file.text().substring(end));
@@ -243,7 +245,7 @@ final class VernacProjectSymbols {
     private static SourceLocation location(Path path, Token token) {
         return new SourceLocation(path.toString(), token.getLine(), token.getCharPositionInLine() + 1);
     }
-    private static boolean nameCharacter(char c) { return Character.isJavaIdentifierPart(c) || c == '.'; }
+    private static boolean nameCharacter(int c) { return VernacNames.isPart(c) || c == '.'; }
     private static int utf16(String text, int points) { return text.offsetByCodePoints(0, points); }
     private static int offset(String text, Position position) {
         if (position.getLine() < 0 || position.getCharacter() < 0) return -1;
@@ -255,7 +257,11 @@ final class VernacProjectSymbols {
         }
         int end = text.indexOf('\n', start);
         if (end < 0) end = text.length();
-        return position.getCharacter() <= end - start ? start + position.getCharacter() : -1;
+        if (position.getCharacter() > end - start) return -1;
+        int result = start + position.getCharacter();
+        if (result > 0 && result < text.length() && Character.isHighSurrogate(text.charAt(result - 1))
+                && Character.isLowSurrogate(text.charAt(result))) return -1;
+        return result;
     }
     private static Position position(String text, int offset) {
         int line = 0, start = 0;

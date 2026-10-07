@@ -467,7 +467,15 @@ variableName
 // ==========================================
 // Lexer-Tokens
 // ==========================================
-IDENTIFIER      : [a-zA-Z_][a-zA-Z0-9_]* ;
+IDENTIFIER      : IdentifierStart IdentifierPart* ;
+fragment IdentifierStart
+    : {org.vernac.language.VernacNames.isStart(_input.LA(1))
+        || (org.vernac.language.VernacNames.isForbidden(_input.LA(1)) && !Character.isWhitespace(_input.LA(1)))}? .
+    ;
+fragment IdentifierPart
+    : {org.vernac.language.VernacNames.isPart(_input.LA(1))
+        || (org.vernac.language.VernacNames.isForbidden(_input.LA(1)) && !Character.isWhitespace(_input.LA(1)))}? .
+    ;
 STRING_LITERAL  : '"' (~["\\\r\n] | '\\' .)* '"' ;
 INT_LITERAL     : [0-9]+ ;
 DECIMAL_LITERAL : [0-9]+ '.' [0-9]+ ;

@@ -640,7 +640,7 @@ class SemanticAnalyzerTest {
 
             assertThatThrownBy(() -> compiler.compileSource(dsl))
                     .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Java keyword 'final' cannot be used as enum constant name");
+                    .hasMessageContaining("Invalid Java 21 name 'final'. Use a valid identifier; Java keywords and literals are reserved.");
         }
     }
 

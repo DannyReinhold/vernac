@@ -16,6 +16,6 @@ public record VernacProjectCompilationResult(List<JavaFile> generatedFiles, List
     }
 
     public void writeTo(Path outputDirectory) throws IOException {
-        for (JavaFile file : generatedFiles) file.writeTo(outputDirectory);
+        GeneratedSourceWriter.write(generatedFiles, outputDirectory);
     }
 }

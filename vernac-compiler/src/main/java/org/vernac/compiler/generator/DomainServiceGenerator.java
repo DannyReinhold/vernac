@@ -162,9 +162,9 @@ public class DomainServiceGenerator {
         String code = expr.trim();
         int dot = code.lastIndexOf('.');
         if (dot >= 0) {
-            String candidate = code.substring(dot + 1).replaceAll("[^a-zA-Z0-9_]", "");
+            String candidate = code.substring(dot + 1).replaceAll("[^\\p{javaJavaIdentifierPart}]", "");
             return candidate.isEmpty() ? "value" : candidate;
         }
-        return code.replaceAll("[^a-zA-Z0-9_]", "");
+        return code.replaceAll("[^\\p{javaJavaIdentifierPart}]", "");
     }
 }

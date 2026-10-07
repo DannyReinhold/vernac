@@ -3,6 +3,8 @@
 
 package org.vernac.compiler.generator;
 
+import org.vernac.language.VernacNames;
+
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.TypeName;
 import org.vernac.compiler.ast.EntityNode;
@@ -24,12 +26,12 @@ public final class PostgresSchemaUtils {
 
     public static String toSnakeCase(String camel) {
         if (camel == null || camel.isBlank()) return "";
-        return camel.replaceAll("([a-z])([A-Z]+)", "$1_$2").toLowerCase(Locale.ROOT);
+        return camel.replaceAll("(\\p{Ll})(\\p{Lu}+)", "$1_$2").toLowerCase(Locale.ROOT);
     }
 
     public static String capitalize(String str) {
         if (str == null || str.isEmpty()) return str;
-        return Character.toUpperCase(str.charAt(0)) + str.substring(1);
+        return VernacNames.upperFirst(str);
     }
 
     /**

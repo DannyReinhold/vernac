@@ -202,8 +202,10 @@ and selects that directory. Existing directories are reused.
 When invoked inside an existing namespace, the dialog suggests that namespace as
 a prefix. The entered name is always fully qualified, relative to the source root.
 Vernac keywords such as `custom` are allowed as segments; Java keywords such as
-`class`, empty segments, and trailing dots are rejected. The current lexer limits
-namespace segments to ASCII letters, digits and underscores (no leading digit).
+`class`, empty segments, and trailing dots are rejected. Namespace segments support
+the Java 21 Unicode identifier alphabet, including names such as `aufträge` and
+`注文`. Control/format characters are rejected, and spelling is not normalized or
+transliterated. See [the naming contract](../contracts/names-and-unicode.md).
 
 Select the new namespace directory and choose **New → Vernac File**. Enter a file
 name, with or without `.vernac`, and choose:

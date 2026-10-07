@@ -78,6 +78,14 @@
                 <version>3.6.0</version>
                 <executions>
                     <execution>
+                        <id>add-shared-names</id>
+                        <phase>generate-sources</phase>
+                        <goals><goal>add-source</goal></goals>
+                        <configuration><sources>
+                            <source>${project.basedir}/../shared/vernac-names/src/main/java</source>
+                        </sources></configuration>
+                    </execution>
+                    <execution>
                         <id>add-antlr-source</id>
                         <phase>generate-sources</phase>
                         <goals>

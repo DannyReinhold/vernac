@@ -172,7 +172,7 @@ final class VernacProjectDiagnostics {
             // ANTLR counts code points; LSP's default position encoding is UTF-16.
             try {
                 String text = snapshots.containsKey(file) ? snapshots.get(file) : Files.readString(file);
-                String[] lines = text.split("\\R", -1);
+                String[] lines = text.split("\n", -1);
                 line = Math.min(line, lines.length - 1);
                 String current = lines[line];
                 column = current.offsetByCodePoints(0, Math.min(column, current.codePointCount(0, current.length())));

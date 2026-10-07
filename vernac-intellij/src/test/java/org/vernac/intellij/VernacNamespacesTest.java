@@ -24,11 +24,20 @@ class VernacNamespacesTest {
 
     @Test
     void enforcesJavaCompatibleNamesButAllowsVernacKeywords() {
-        for (String name : new String[]{"org.example.custom", "org.example.value", "org.example.record", "tasks"}) {
+        for (String name : new String[]{"org.example.custom", "org.example.value", "org.example.record", "tasks", "org.ümlaut", "org.$name", "例.注文", "org.𐐨"}) {
             assertDoesNotThrow(() -> VernacNamespaces.requireNamespace(name));
         }
-        for (String name : new String[]{"", "org..tasks", "org.class", "org.example.", "../tasks", "org.tasks ", "1tasks", "org.ümlaut", "org.$name"}) {
+        for (String name : new String[]{"", "org..tasks", "org.class", "org.example.", "../tasks", "org.tasks ", "1tasks", "org.\u200Bhidden", "org._"}) {
             assertThrows(IllegalArgumentException.class, () -> VernacNamespaces.requireNamespace(name), name);
+        }
+    }
+
+    @Test
+    void unicodeNamespaceRoundTripPreservesExactSpelling() {
+        Path root = project.resolve("src/main/vernac");
+        for (String namespace : new String[]{"de.aufträge", "例.注文", "org.𐐨", "org.ö", "org.o\u0308"}) {
+            Path path = VernacNamespaces.destination(root, namespace);
+            assertEquals(namespace, VernacNamespaces.namespace(root, path));
         }
     }
 

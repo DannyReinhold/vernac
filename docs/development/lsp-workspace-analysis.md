@@ -147,6 +147,18 @@ value TaskSummary(TaskId id, Title title);
 
 ## Next
 
-Review Unicode identifier rules across compiler, LSP and namespace creation.
-Then track generator-owned output files and remove obsolete generated classes
-only after successful generation. Neither change is included in this patch.
+Unicode identifier support is implemented in the next slice; see
+[Unicode implementation](unicode-support.md) for its pending full verification.
+After that, track generator-owned output files and remove obsolete generated classes
+only after successful generation. Stale-file cleanup is not implemented yet.
+
+## Confirmed navigation and deferred Ctrl-hover feedback
+
+Manual verification confirmed project-wide Go to Declaration through the context
+menu, Ctrl+B and Ctrl+left-click, including cross-namespace references.
+
+Deferred plugin enhancement: while Ctrl is held and the pointer is over a resolvable
+Vernac reference, show link styling (blue/underlined, respecting the IDE theme) and
+a declaration/type-information preview comparable to Java navigation. Navigation
+already works; this item concerns visual feedback before clicking. It is separate
+from the Unicode contract in `../contracts/names-and-unicode.md`.

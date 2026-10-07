@@ -3,6 +3,8 @@
 
 package org.vernac.compiler.generator;
 
+import org.vernac.language.VernacNames;
+
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.TypeName;
 import org.vernac.compiler.ast.*;
@@ -84,6 +86,6 @@ public final class ExpressionTypeInferrer {
 
     private static String deriveDefaultInstanceName(String typeName) {
         if (typeName == null || typeName.isEmpty()) return "value";
-        return Character.toLowerCase(typeName.charAt(0)) + typeName.substring(1);
+        return VernacNames.lowerFirst(typeName);
     }
 }

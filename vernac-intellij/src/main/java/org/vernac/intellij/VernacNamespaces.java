@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.vernac.intellij;
 
-import javax.lang.model.SourceVersion;
+import org.vernac.language.VernacNames;
 import java.nio.file.Path;
 import java.util.Optional;
 
@@ -38,12 +38,9 @@ final class VernacNamespaces {
     }
 
     static void requireNamespace(String namespace) {
-        // Java 21 package-name rule plus the current lexer identifier alphabet.
-        if (namespace == null || !SourceVersion.isName(namespace, SourceVersion.RELEASE_21)) {
-            throw new IllegalArgumentException("Enter a qualified namespace such as org.example.tasks. Java keywords are not allowed.");
-        }
-        if (!namespace.matches("[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*")) {
-            throw new IllegalArgumentException("The current Vernac lexer supports only ASCII letters, digits and underscores in namespace segments.");
+        if (!VernacNames.isNamespace(namespace)) {
+            throw new IllegalArgumentException("Enter a Java-compatible namespace such as org.example.tasks. "
+                    + "Unicode names are supported. " + VernacNames.invalidNamespaceMessage(namespace));
         }
     }
 

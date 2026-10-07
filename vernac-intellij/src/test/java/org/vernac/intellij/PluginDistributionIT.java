@@ -103,6 +103,8 @@ class PluginDistributionIT {
                     "org/vernac/intellij/VernacNewFileAction.class",
                     "org/vernac/intellij/VernacFileTemplateHandler.class",
                     "org/vernac/intellij/VernacNamespaces.class",
+                    "org/vernac/language/VernacNames.class",
+                    "org/vernac/language/Unicode15Identifiers.class",
                     "fileTemplates/internal/Vernac File.vernac.ft",
                     "fileTemplates/internal/Vernac Getting Started.vernac.ft"
             )) {

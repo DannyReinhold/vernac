@@ -3,6 +3,8 @@
 
 package org.vernac.compiler.generator;
 
+import org.vernac.language.VernacNames;
+
 import com.palantir.javapoet.*;
 import org.vernac.compiler.ast.ListenerNode;
 import org.vernac.compiler.ast.RawJavaStatementNode;
@@ -71,6 +73,6 @@ public class ListenerGenerator {
 
     private String deriveInstanceName(String typeName) {
         if (typeName == null || typeName.isEmpty()) return "dependency";
-        return Character.toLowerCase(typeName.charAt(0)) + typeName.substring(1);
+        return VernacNames.lowerFirst(typeName);
     }
 }

@@ -5,7 +5,7 @@ package org.vernac.compiler.pipeline;
 import org.vernac.compiler.analyzer.CompilerDiagnostic;
 import org.vernac.compiler.ast.*;
 import org.vernac.compiler.symbols.ResolvedType;
-import javax.lang.model.SourceVersion;
+import org.vernac.language.VernacNames;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -87,7 +87,7 @@ final class ValueObjectApiValidator {
     }
 
     private void identifier(String name, SourceLocation location, List<CompilerDiagnostic> diagnostics) {
-        if (!SourceVersion.isIdentifier(name) || SourceVersion.isKeyword(name, SourceVersion.RELEASE_21)) {
+        if (!VernacNames.isIdentifier(name)) {
             diagnostics.add(CompilerDiagnostic.error(location, "Invalid Java member name '" + name + "'. Choose an explicit valid name."));
         }
     }

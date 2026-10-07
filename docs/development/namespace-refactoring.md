@@ -246,8 +246,7 @@ namespace-aware move/rename refactoring, and migration of the New Project wizard
 separate project template remain pending. The actions use IntelliJ PSI creation
 within IDE write commands so changes participate in normal undo and VFS updates.
 
-Naming review follow-up: the lexer currently accepts only ASCII letters, digits and
-underscores in identifiers. The namespace dialog rejects Unicode and `$` rather
-than producing an unparsable declaration. Whether to expand this alphabet to Java
-identifier coverage must be decided and implemented in the language first; this
-is a current limitation, not a permanent namespace contract.
+The ASCII-only namespace restriction has been replaced by the shared Java 21 /
+Unicode 15 identifier policy. Compiler and plugin compile the same small source
+set from `shared/vernac-names`. See [Unicode implementation](unicode-support.md)
+for coverage, tests and remaining verification.

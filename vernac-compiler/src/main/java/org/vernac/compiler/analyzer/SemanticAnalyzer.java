@@ -3,6 +3,8 @@
 
 package org.vernac.compiler.analyzer;
 
+import org.vernac.language.VernacNames;
+
 import org.vernac.compiler.ast.*;
 import org.vernac.compiler.util.TypeUtils;
 
@@ -585,7 +587,7 @@ public class SemanticAnalyzer {
             // Instanzname ermitteln (explizit oder per Konvention: camelCase des Typnamens)
             String instanceName = dep.instanceName().orElseGet(() -> {
                 String type = dep.typeName();
-                return Character.toLowerCase(type.charAt(0)) + type.substring(1);
+                return VernacNames.lowerFirst(type);
             });
 
             if (!depInstances.add(instanceName)) {
@@ -688,7 +690,7 @@ public class SemanticAnalyzer {
                     String fieldName = elem.alias().orElseGet(() -> {
                         int lastDot = code.lastIndexOf('.');
                         if (lastDot >= 0) {
-                            String afterDot = code.substring(lastDot + 1).replaceAll("[^a-zA-Z0-9_]", "");
+                            String afterDot = code.substring(lastDot + 1).replaceAll("[^\\p{javaJavaIdentifierPart}]", "");
                             return afterDot.isEmpty() ? "value" : afterDot;
                         }
                         return "value";
@@ -769,7 +771,7 @@ public class SemanticAnalyzer {
 
             String instanceName = dep.instanceName().orElseGet(() -> {
                 String type = dep.typeName();
-                return Character.toLowerCase(type.charAt(0)) + type.substring(1);
+                return VernacNames.lowerFirst(type);
             });
 
             if (!depInstances.add(instanceName)) {
