@@ -119,8 +119,8 @@ class AstBuilderVisitorTest {
         }
 
         @Test
-        @DisplayName("Unterstützt package-Override im Value Object Block")
-        void shouldParseValueObjectWithPackageOverride() {
+        @DisplayName("Rejects removed package overrides in Value Objects")
+        void shouldRejectValueObjectWithPackageOverride() {
             String src = """
                     namespace com.example.domain;
                     value SharedId(UUID) {
@@ -128,10 +128,10 @@ class AstBuilderVisitorTest {
                     }
                     """;
 
-            CompilationUnitNode cu = parse(src);
-            ValueObjectNode vo = cu.valueObjects().getFirst();
-            assertThat(vo.customPackage()).contains("com.example.shared.kernel");
-            assertThat(vo.fields().getFirst().name()).isEqualTo("value");
+            org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                    new org.vernac.compiler.pipeline.VernacSourceParser().parse("override.vernac", src))
+                    .isInstanceOf(org.vernac.compiler.analyzer.SemanticValidationException.class)
+                    .hasMessageContaining("Syntax error");
         }
 
         @Test

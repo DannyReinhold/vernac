@@ -73,10 +73,12 @@ public class SemanticAnalyzer {
             availableSymbols.add(primitive);
         }
         availableSymbols.addAll(BUILTIN_JDK_TYPES);
+        availableSymbols.addAll(org.vernac.compiler.symbols.BuiltinTypes.names());
         availableSymbols.addAll(declaredTypes);
 
-        for (String imp : unit.imports()) {
-            if (imp.endsWith(".*")) continue;
+        for (ImportNode declaration : unit.imports()) {
+            if (declaration.wildcard()) continue;
+            String imp = declaration.target();
             int lastDot = imp.lastIndexOf('.');
             if (lastDot >= 0) {
                 availableSymbols.add(imp.substring(lastDot + 1));
@@ -127,9 +129,7 @@ public class SemanticAnalyzer {
     }
 
     private void validateIdDeclaration(IdDeclarationNode idDef, List<CompilerDiagnostic> diagnostics) {
-        if (idDef.customPackage().isPresent()) {
-            validatePackageName(idDef.customPackage().get(), idDef.location(), diagnostics);
-        }
+        // IDs follow their namespace; there is no per-type package override.
     }
 
     private void validatePort(PortNode port, CompilationUnitNode unit, Set<String> availableSymbols, List<CompilerDiagnostic> diagnostics) {
@@ -260,8 +260,7 @@ public class SemanticAnalyzer {
         }
     }
 
-    private void validateValueObject(ValueObjectNode vo, Set<String> availableSymbols, List<String> imports, List<CompilerDiagnostic> diagnostics) {
-        if (vo.customPackage().isPresent()) validatePackageName(vo.customPackage().get(), vo.location(), diagnostics);
+    private void validateValueObject(ValueObjectNode vo, Set<String> availableSymbols, List<ImportNode> imports, List<CompilerDiagnostic> diagnostics) {
 
         // A. Enum-Spezifische Validierung
         if (vo.isEnum()) {
@@ -327,7 +326,7 @@ public class SemanticAnalyzer {
             Set<String> declaredIds,
             Set<String> declaredAggregates,
             Set<String> availableSymbols,
-            List<String> imports,
+            List<ImportNode> imports,
             List<CompilerDiagnostic> diagnostics
     ) {
         if (agg.customPackage().isPresent())
@@ -368,7 +367,7 @@ public class SemanticAnalyzer {
             Set<String> declaredIds,
             Set<String> declaredAggregates,
             Set<String> availableSymbols,
-            List<String> imports,
+            List<ImportNode> imports,
             List<CompilerDiagnostic> diagnostics
     ) {
         if (entity.customPackage().isPresent()) {
@@ -427,7 +426,7 @@ public class SemanticAnalyzer {
         }
     }
 
-    private void validateEvent(EventNode event, Set<String> availableSymbols, List<String> imports, List<CompilerDiagnostic> diagnostics) {
+    private void validateEvent(EventNode event, Set<String> availableSymbols, List<ImportNode> imports, List<CompilerDiagnostic> diagnostics) {
         if (event.customPackage().isPresent())
             validatePackageName(event.customPackage().get(), event.location(), diagnostics);
 
@@ -480,7 +479,7 @@ public class SemanticAnalyzer {
         }
     }
 
-    private void validateTypeResolvable(TypeNode type, Set<String> availableSymbols, List<String> imports, List<CompilerDiagnostic> diagnostics) {
+    private void validateTypeResolvable(TypeNode type, Set<String> availableSymbols, List<ImportNode> imports, List<CompilerDiagnostic> diagnostics) {
         String typeName = type.name();
 
         if (type.isOptional() && TypeUtils.isPrimitive(typeName)) {
@@ -488,7 +487,7 @@ public class SemanticAnalyzer {
             diagnostics.add(CompilerDiagnostic.error(type.location(), "Primitive type '" + typeName + "' cannot be optional. Use the wrapper type '" + wrapper + "?' instead."));
         }
 
-        boolean hasWildcardImport = imports.stream().anyMatch(i -> i.endsWith(".*"));
+        boolean hasWildcardImport = imports.stream().anyMatch(ImportNode::wildcard);
         boolean isFullyQualified = typeName.contains(".");
 
         if (!isFullyQualified && !hasWildcardImport && !availableSymbols.contains(typeName)) {

@@ -29,8 +29,8 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     public CompilationUnitNode visitCompilationUnit(VernacParser.CompilationUnitContext ctx) {
         String namespace = ctx.namespaceDeclaration().qualifiedName().getText();
 
-        List<String> imports = ctx.importDeclaration().stream()
-                .map(i -> i.qualifiedName().getText() + (i.getText().contains(".*") ? ".*" : ""))
+        List<ImportNode> imports = ctx.importDeclaration().stream()
+                .map(i -> new ImportNode(toLocation(i), i.qualifiedName().getText(), i.getText().endsWith(".*;")))
                 .toList();
 
         List<TopLevelDefinition> definitions = ctx.topLevelDeclaration().stream()
@@ -58,17 +58,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     @Override
     public IdDeclarationNode visitIdDeclaration(VernacParser.IdDeclarationContext ctx) {
         String name = ctx.name.getText();
-        Optional<String> customPackage = Optional.empty();
-
-        if (ctx.idMember() != null) {
-            for (VernacParser.IdMemberContext member : ctx.idMember()) {
-                if (member.packageDeclarationStatement() != null) {
-                    customPackage = Optional.of(member.packageDeclarationStatement().qualifiedName().getText());
-                }
-            }
-        }
-
-        return new IdDeclarationNode(toLocation(ctx), name, customPackage);
+        return new IdDeclarationNode(toLocation(ctx), name);
     }
 
     @Override
@@ -102,17 +92,12 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             }
         }
 
-        // 4. Methoden & Package-Override
-        Optional<String> customPackage = Optional.empty();
+        // 4. Methods
         List<MethodNode> voMethods = new ArrayList<>();
 
         if (ctx.valueMember() != null) {
             for (VernacParser.ValueMemberContext member : ctx.valueMember()) {
-                if (member.packageDeclarationStatement() != null) {
-                    customPackage = Optional.of(member.packageDeclarationStatement().qualifiedName().getText());
-                } else if (member.methodDefinition() != null) {
-                    voMethods.add(toMethodNode(member.methodDefinition()));
-                }
+                voMethods.add(toMethodNode(member.methodDefinition()));
             }
         }
 
@@ -144,8 +129,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 enumConstants,
                 validations,
                 voMethods,
-                collection,
-                customPackage
+                collection
         );
     }
 

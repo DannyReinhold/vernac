@@ -23,7 +23,6 @@ class RepositoryGeneratorTest {
         String dsl = """
                 namespace com.example.domain;
                 
-                import java.math.BigDecimal;
                 
                 id OrderId;
                 id CustomerId;
@@ -110,11 +109,10 @@ class RepositoryGeneratorTest {
         String dsl = """
                 namespace com.example.domain;
                 
-                import java.math.BigDecimal;
                 
                 id AccountId;
-                value Currency(String isoCode);
-                value Money(BigDecimal amount, Currency currency);
+                value MoneyCurrency(String isoCode);
+                value Money(BigDecimal amount, MoneyCurrency currency);
                 
                 aggregate Account[AccountId](String owner, mut Money balance);
                 

@@ -47,6 +47,31 @@ public class VernacCompiler {
         return new VernacProjectLoader().load(sourceRoot);
     }
 
+    /** Validates file imports and resolves value-object field types against the project index. */
+    public ResolvedProject analyzeProject(Path sourceRoot) throws IOException {
+        return new ProjectTypeResolver().resolve(readProject(sourceRoot));
+    }
+
+    /** Compiles the reviewed project slice: IDs, ordinary value objects, and enums. */
+    public VernacProjectCompilationResult compileProject(Path sourceRoot) throws IOException {
+        ResolvedProject project = analyzeProject(sourceRoot);
+        if (!project.deferredTypes().isEmpty()) {
+            throw new SemanticValidationException(project.deferredTypes().stream().map(symbol ->
+                    CompilerDiagnostic.error(symbol.location(), "Project generation for " + symbol.kind()
+                            + " '" + symbol.identity().qualifiedName() + "' has not been migrated yet.")).toList());
+        }
+        List<JavaFile> files = new ArrayList<>();
+        for (var source : project.project().sources()) {
+            for (var definition : source.unit().definitions()) {
+                if (definition instanceof IdDeclarationNode id) files.add(idGenerator.generate(id, source.unit().namespace()));
+                else if (definition instanceof ValueObjectNode value) {
+                    files.add(valueObjectGenerator.generate(value, source.unit().namespace(), project));
+                }
+            }
+        }
+        return new VernacProjectCompilationResult(files, project.diagnostics());
+    }
+
     private VernacCompilationResult generate(CompilationUnitNode unit) {
 
         // Semantische Analyse vor der Codegenerierung
@@ -59,8 +84,13 @@ public class VernacCompiler {
             throw new SemanticValidationException(errors);
         }
 
+        Path memoryRoot = Path.of(".").toAbsolutePath().normalize();
+        var indexed = new VernacProjectLoader().index(memoryRoot,
+                List.of(new VernacSourceFile(memoryRoot.resolve("memory.vernac"), unit)));
+        ResolvedProject resolved = new ProjectTypeResolver().resolve(indexed);
+
         String packageName = unit.namespace();
-        List<String> imports = unit.imports();
+        List<String> imports = unit.imports().stream().map(ImportNode::text).toList();
         List<JavaFile> generatedFiles = new ArrayList<>();
 
         // Lookup-Maps für Typ-Beziehungen aufbauen
@@ -81,7 +111,7 @@ public class VernacCompiler {
             if (definition instanceof IdDeclarationNode idDef) {
                 generatedFiles.add(idGenerator.generate(idDef, packageName));
             } else if (definition instanceof ValueObjectNode vo) {
-                generatedFiles.add(valueObjectGenerator.generate(vo, packageName, imports));
+                generatedFiles.add(valueObjectGenerator.generate(vo, packageName, resolved));
                 if (vo.collection().isPresent()) {
                     generatedFiles.add(domainCollectionGenerator.generate(vo, packageName, imports));
                 }

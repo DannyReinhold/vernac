@@ -18,7 +18,7 @@ import java.util.stream.Stream;
 public class DomainCollectionGenerator {
 
     public JavaFile generate(ValueObjectNode node, String basePackage, List<String> explicitImports) {
-        String targetPackage = PackageResolver.resolveCollectionPackage(basePackage, node.collection(), node.customPackage());
+        String targetPackage = PackageResolver.resolveCollectionPackage(basePackage, node.collection(), Optional.empty());
         String itemClassName = node.name();
         String collectionClassName = determineCollectionClassName(node);
 

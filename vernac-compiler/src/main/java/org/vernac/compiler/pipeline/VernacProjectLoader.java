@@ -37,9 +37,21 @@ public final class VernacProjectLoader {
                 diagnostics.addAll(e.diagnostics());
             }
         }
+        if (!diagnostics.isEmpty()) throw new SemanticValidationException(diagnostics);
+        return index(root, sources);
+    }
+
+    /** Indexes parsed snapshots; filesystem layout is checked by load, not by this method. */
+    public VernacProject index(Path sourceRoot, List<VernacSourceFile> sources) {
+        Path root = sourceRoot.toAbsolutePath().normalize();
+        List<CompilerDiagnostic> diagnostics = new ArrayList<>();
         List<TypeSymbol> symbols = new ArrayList<>();
         for (var source : sources) {
-            if (!SourceVersion.isName(source.unit().namespace(), SourceVersion.RELEASE_21)) continue;
+            if (!SourceVersion.isName(source.unit().namespace(), SourceVersion.RELEASE_21)) {
+                diagnostics.add(CompilerDiagnostic.error(source.unit().location(),
+                        "Invalid namespace '" + source.unit().namespace() + "'."));
+                continue;
+            }
             for (var definition : source.unit().definitions()) {
                 var declaration = describe(definition);
                 addSymbol(source, declaration.name(), declaration.kind(), definition.location(), symbols, diagnostics);

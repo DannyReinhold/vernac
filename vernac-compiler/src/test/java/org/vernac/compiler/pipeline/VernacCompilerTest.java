@@ -24,8 +24,6 @@ class VernacCompilerTest {
         String dsl = """
                 namespace com.example;
                 
-                import java.math.BigDecimal;
-                import java.util.Currency;
                 
                 id ProjectId;
                 id TaskId;

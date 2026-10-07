@@ -47,7 +47,7 @@ class VernacSourceParserTest {
                 import org.custom.value.Title;
                 value Label(org.custom.value.Title title);
                 """);
-        assertEquals("org.custom.value.Title", unit.imports().getFirst());
+        assertEquals("org.custom.value.Title", unit.imports().getFirst().text());
         assertEquals("org.custom.value.Title", unit.valueObjects().getFirst().fields().getFirst().type().name());
     }
 }

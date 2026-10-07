@@ -29,11 +29,7 @@ topLevelDeclaration
 // 0. Identifier Types
 // ==========================================
 idDeclaration
-    : 'id' name=typeName ( '{' idMember*'}' )? ';'?
-    ;
-
-idMember
-    : packageDeclarationStatement
+    : 'id' name=typeName ';'?
     ;
 
 // ==========================================
@@ -57,8 +53,7 @@ enumConstant
     ;
 
 valueMember
-    : packageDeclarationStatement
-    | methodDefinition
+    : methodDefinition
     ;
 
 collectionDefinition

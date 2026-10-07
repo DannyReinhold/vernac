@@ -9,7 +9,7 @@ import java.util.Objects;
 public record CompilationUnitNode(
         SourceLocation location,
         String namespace,
-        List<String> imports,
+        List<ImportNode> imports,
         List<TopLevelDefinition> definitions
 ) implements AstNode {
     public CompilationUnitNode {

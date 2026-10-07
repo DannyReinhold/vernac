@@ -13,8 +13,7 @@ public record ValueObjectNode(
         List<EnumConstantNode> enumConstants,
         List<ValidationRuleNode> validations,
         List<MethodNode> methods,
-        Optional<CollectionDefinitionNode> collection,
-        Optional<String> customPackage
+        Optional<CollectionDefinitionNode> collection
 ) implements TopLevelDefinition {
     public boolean isEnum() {
         return !enumConstants.isEmpty();

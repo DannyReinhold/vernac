@@ -15,8 +15,9 @@ value Title(String value);
 ```
 
 The old file-level `package` declaration and the implicit default namespace are
-rejected. Java output packages and the remaining per-definition package overrides
-have not been redesigned in this step.
+rejected. IDs and value objects now always generate into `<namespace>.domain`.
+Their per-definition package overrides have been removed from grammar and AST.
+Package handling for other declaration categories remains pending.
 
 Qualified names accept Vernac keyword segments such as `custom` and `value`.
 Namespaces must still be valid Java package names. Java contextual words that are
@@ -53,17 +54,112 @@ errors across files before reporting failure; it does not generate Java output.
 The LSP recognizes `namespace` for highlighting and completion and supplies the
 current document URI to the AST builder.
 
-## Next: reference resolution and integration
+## Completed: imports and value-object field type resolution
 
-Project reading deliberately does not validate imports or resolve field references.
-The presence of a parsed project does not mean that its imports, reference cycles,
-or domain field types are semantically valid.
+Imports are AST nodes carrying their own source locations. The next analysis
+entry point builds on the project loader:
 
-The next step will resolve same-namespace, imported, and fully qualified Vernac
-references against the shared index and supply resolved symbols to generators.
-The Maven plugin still invokes the existing per-file generation path; project-wide
-generation and the LSP workspace index must be connected after reference resolution.
-The existing string-based generator type resolver has not yet been replaced.
+```java
+ResolvedProject result = new VernacCompiler()
+        .analyzeProject(Path.of("src/main/vernac"));
+```
+
+This validates imports in every file, including unused imports, and resolves
+ordinary value-object field references. The rules are:
+
+- Same-namespace declarations are visible across files without imports.
+- Explicit imports and nonrecursive wildcard imports refer to Vernac identities.
+- Own-namespace imports, unknown imports, and conflicting explicit imports fail
+  at the import. A local/explicit name conflict also fails even when unused.
+- Local declarations and explicit imports take precedence over wildcard candidates.
+- Overlapping wildcard imports only cause an error when an ambiguous name is used.
+- Repeated external imports produce warnings and do not introduce ambiguity.
+- Imports remain file-local and are not re-exported.
+- Fully qualified Vernac names resolve directly. Generated Java package names and
+  arbitrary Java classes do not act as aliases or fallback targets.
+- Import cycles terminate because resolution uses the completed symbol index and
+  does not recursively follow imports or type definitions.
+
+Every successfully resolved VO field type is available through
+`result.typeOf(field.type())`. `ResolvedType.Builtin` contains the approved Java
+scalar class; `ResolvedType.Declared` contains the exact Vernac symbol, including
+its namespace, category, and declaration location. Optionality remains on the
+immutable source `TypeNode`; no automatic boxing or nullness inference is performed.
+The result also retains per-file scopes for subsequent tooling integration.
+
+This stage rejects optional primitives with wrapper suggestions, fieldless VOs,
+mutable VO fields, raw generic field types, and entity/aggregate/service/etc. types
+used as VO fields. IDs and enums are valid VO field types. Collection field analysis
+is explicitly reported as not implemented yet, pending the collection contract.
+
+`result.diagnostics()` retains warnings from successful analysis. Errors are
+reported through `SemanticValidationException`, with source-aware diagnostics.
+`result.deferredTypes()` identifies indexed declaration categories not covered by
+this VO analysis stage. An accepted project is not yet proof that every declaration,
+method body, validation expression, or generated member satisfies its full contract.
+
+## Completed: ID and value-object generation
+
+The new generation entry point builds on project analysis:
+
+```java
+VernacProjectCompilationResult result = new VernacCompiler()
+        .compileProject(Path.of("src/main/vernac"));
+result.writeTo(Path.of("target/generated-sources/vernac"));
+```
+
+It generates IDs, ordinary value objects, and enums across files and namespaces.
+It preserves analysis warnings. Projects containing declaration categories whose
+project generation has not been migrated are rejected explicitly, rather than
+silently producing partial output. Collections remain deferred.
+
+`ResolvedJavaTypes` translates resolved symbols into JavaPoet types. The ID/VO
+path does not guess classes from unrecognized strings. Custom VO and enum method
+signatures also use the project scopes; `void` is allowed only as a return type.
+Their embedded Java bodies are not fully analyzed by Vernac.
+
+The generated VO contract now includes:
+
+- Final classes, private constructors, final fields, record-style getters, and
+  equality/hash codes over all fields.
+- `@NullMarked` on each generated class/enum; type-use `@Nullable` on optional
+  storage and input parameters and on `equals`' parameter.
+- `Optional<T>` getters for optional fields. Optional scalar conversion helpers
+  also return `Optional`, never a nullable result.
+- A complete `of` factory and one required-only overload for mixed required and
+  optional fields. All-optional VOs have no additional zero-argument factory.
+- Required reference checks in declaration order before invariant checks.
+  Invariants execute in declaration order and stop at the first failure.
+- Source-aware rejection of invalid member names and collisions with generated
+  API members.
+
+The runtime exception hierarchy is `VernacException` with domain and technical
+branches: `VernacDomainException` and `VernacTechnicalException`.
+`DomainValidationException` extends the domain branch. Required-value and declared
+invariant failures use that exception; unexpected exceptions from handwritten
+validation code propagate unchanged.
+
+IDs retain UUID factories and type-specific equality. Missing required UUIDs and
+malformed UUID strings produce `DomainValidationException`; malformed strings
+retain the parsing exception as their cause. Constructor validation runs outside
+the UUID parsing catch block. Optional UUID VOs can accept a missing value, subject
+to their own invariants. Overloaded String/UUID factories require an explicitly
+typed null when a caller passes a null literal.
+
+Enum generation now uses the same namespace and nullness conventions, but its
+existing parsing behavior is not a newly reviewed enum contract.
+
+## Next: Maven and language-server integration
+
+`compileSource` and `compile(Path)` now use resolved types for ID/VO generation,
+but their source scope remains a single file. The Maven plugin still invokes this
+per-file path; it has not yet been connected to `compileProject`.
+
+The LSP has namespace syntax support but has not yet been connected to the shared
+project scopes for workspace diagnostics and navigation. Other generators still
+use their existing resolution paths and will be migrated deliberately. In
+particular, mixed old/new generator package behavior must not be treated as a
+compatibility guarantee.
 
 ## Migration work deliberately left pending
 
@@ -90,3 +186,18 @@ The project tests cover multi-file discovery, namespace/directory mismatches,
 duplicate declarations in and across files, reserved names, enum and collection
 symbols, invalid namespaces, missing declarations, source-aware syntax errors,
 empty source trees, and preservation of imports without recursive loading.
+
+Additional resolution tests cover explicit/wildcard/qualified lookup, precedence,
+unused invalid imports, file-local visibility, non-re-export, wildcard ambiguity,
+repeated-import warnings, mutually referring namespaces, forbidden Java fallback,
+VO field categories, optional primitive diagnostics, and explicit analysis deferrals.
+
+Generation tests compile emitted Java and execute its factories, getters, helpers,
+equality, hash codes, and validation. They also exercise multi-file references,
+same-simple-name types from different namespaces, all approved scalar types,
+handwritten Java callers, and a namespace ending in `.domain`. Nullable qualified
+types are tested specifically to ensure valid Java type-use annotation placement.
+
+Nullness annotations are checked through compilation and reflection, and runtime
+null rejection is exercised directly. A static nullness checker such as NullAway
+has not been integrated in this step.

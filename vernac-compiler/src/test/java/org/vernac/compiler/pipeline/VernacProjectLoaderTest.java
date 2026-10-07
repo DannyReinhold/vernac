@@ -145,7 +145,7 @@ class VernacProjectLoaderTest {
         write("org/second/model.vernac", "namespace org.second; import org.first.*; value Second(First value);");
         var project = compiler.readProject(root);
         assertEquals(2, project.sources().size());
-        assertEquals(List.of("org.second.*"), project.sources().getFirst().unit().imports());
+        assertEquals(List.of("org.second.*"), project.sources().getFirst().unit().imports().stream().map(org.vernac.compiler.ast.ImportNode::text).toList());
         assertTrue(project.symbols().find("org.first.First").isPresent());
         // This stage indexes declarations; it does not approve reference cycles or validate imports.
     }
