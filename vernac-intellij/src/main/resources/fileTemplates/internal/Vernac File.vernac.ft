@@ -1,3 +1,3 @@
-package ${BASE_PACKAGE};
+namespace ${NAMESPACE};
 
 // Define your domain model here.

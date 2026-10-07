@@ -81,4 +81,6 @@ JSON-RPC transport.
 Connect type completion and Go to Definition to shared project symbols and file
 scopes, including useful behavior while a document is temporarily incomplete.
 Then package the updated server with the IntelliJ plugin and test the complete
-editor workflow. The existing New Namespace backlog item remains pending.
+editor workflow. New Namespace and namespace-aware New Vernac File actions are
+implemented separately; their IntelliJ UI workflow still needs the same manual
+plugin verification.

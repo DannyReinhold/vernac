@@ -1,0 +1,9 @@
+namespace ${NAMESPACE};
+
+id TaskId;
+
+value Title(String value) validates {
+    require(!value.isBlank(), "Task title must not be blank");
+};
+
+value TaskSummary(TaskId id, Title title);

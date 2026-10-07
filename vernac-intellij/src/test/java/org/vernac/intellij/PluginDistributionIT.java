@@ -98,7 +98,12 @@ class PluginDistributionIT {
                     "org/vernac/intellij/VernacNewProjectWizard.class",
                     "org/vernac/intellij/VernacProjectTemplate.class",
                     "org/vernac/intellij/VernacProjectOpenActivity.class",
-                    "org/vernac/intellij/VernacLspIntegrationProvider.class"
+                    "org/vernac/intellij/VernacLspIntegrationProvider.class",
+                    "org/vernac/intellij/VernacNewNamespaceAction.class",
+                    "org/vernac/intellij/VernacNewFileAction.class",
+                    "org/vernac/intellij/VernacNamespaces.class",
+                    "fileTemplates/internal/Vernac File.vernac.ft",
+                    "fileTemplates/internal/Vernac Getting Started.vernac.ft"
             )) {
                 requireContent(plugin, entry);
             }

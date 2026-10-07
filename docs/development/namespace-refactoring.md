@@ -227,10 +227,27 @@ after deleting or renaming definitions until the generated-file ownership and
 cleanup contract is implemented. The no-partial-output guarantee concerns analysis
 and generation errors, not atomic filesystem writes or cleanup of earlier output.
 
-## IntelliJ follow-up: New Namespace
+## IntelliJ: namespace and file creation
 
-Add a **New Namespace** action analogous to Java's **New Package**, relative to
-an identified Vernac source root. Validate namespace names with the shared compiler
-rules, create the corresponding directory structure, and have subsequent new
-Vernac files receive the matching `namespace` declaration automatically. This is
-pending plugin work, alongside LSP workspace integration.
+**New → Vernac Namespace** creates directory segments below the enclosing
+`src/main/vernac` root. It validates names with the Java 21 package-name rule used by the compiler
+and the current lexer alphabet; Vernac keywords do not receive special restrictions.
+The dialog accepts a fully qualified namespace, prefilling the current namespace
+as a prefix. Existing directories are reused and the resulting directory selected.
+
+**New → Vernac File** offers Empty Model and Getting Started templates. Both receive
+`namespace` from the selected directory automatically. Files cannot be created
+through this action directly in the source root or in an invalid namespace.
+The supplied getting-started file uses only reviewed IDs and value objects.
+
+The templates are internal resources used by the action, replacing the old generic
+New-menu templates that prompted for `BASE_PACKAGE`. Custom source directories,
+namespace-aware move/rename refactoring, and migration of the New Project wizard's
+separate project template remain pending. The actions use IntelliJ PSI creation
+within IDE write commands so changes participate in normal undo and VFS updates.
+
+Naming review follow-up: the lexer currently accepts only ASCII letters, digits and
+underscores in identifiers. The namespace dialog rejects Unicode and `$` rather
+than producing an unparsable declaration. Whether to expand this alphabet to Java
+identifier coverage must be decided and implemented in the language first; this
+is a current limitation, not a permanent namespace contract.

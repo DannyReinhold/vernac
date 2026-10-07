@@ -186,18 +186,42 @@ testing navigation.
 
 ## 7. Add another Vernac file
 
-In the Project tool window, select `src/main/vernac/` and open the **New** menu. Choose the Vernac file template:
+In the Project tool window, select `src/main/vernac/` and choose
+**New → Vernac Namespace**. Enter a fully qualified namespace, for example
+`org.example.tasks`. The action creates `org/example/tasks` below the source root
+and selects that directory. Existing directories are reused.
 
-- **Vernac File** starts a new model file.
-- **Vernac Getting Started** provides the task example.
+When invoked inside an existing namespace, the dialog suggests that namespace as
+a prefix. The entered name is always fully qualified, relative to the source root.
+Vernac keywords such as `custom` are allowed as segments; Java keywords such as
+`class`, empty segments, and trailing dots are rejected. The current lexer limits
+namespace segments to ASCII letters, digits and underscores (no leading digit).
 
-Enter the requested filename and base package. Check the resulting package declaration before building.
+Select the new namespace directory and choose **New → Vernac File**. Enter a file
+name, with or without `.vernac`, and choose:
 
-Use a different package or rename the sample types when inserting another getting-started model into the same project.
-Two copies defining the same types in the same package will conflict.
+- **Empty Model** for a minimal file.
+- **Getting Started** for a small ID/value-object example.
 
-Editor support recognizes `.vernac` files independently of their directory. The standard Maven setup, however, reads
-model files from `src/main/vernac/`; keep build inputs there.
+Both choices automatically insert:
+
+```vernac
+namespace org.example.tasks;
+```
+
+No manual namespace or base-package input is required. The namespace comes from
+the directory, not the file name. Create the namespace first: the file action is
+available only inside a valid namespace below `src/main/vernac`, not directly at
+the source root. Directory paths are not accepted as file names.
+
+Use **Empty Model** for additional definitions in the same namespace. Repeating the
+getting-started sample there would introduce duplicate type declarations.
+
+These actions currently use the conventional `src/main/vernac` layout. Custom
+source roots and automatic declaration updates after moving a file are separate
+follow-ups. During the namespace refactoring, use `examples/namespace-values` for
+the working Maven example; the broader wizard project template is still awaiting
+migration and is not changed by these file-creation actions.
 
 ## 8. Make your first change
 
