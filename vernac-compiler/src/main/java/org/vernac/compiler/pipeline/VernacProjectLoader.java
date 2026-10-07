@@ -15,22 +15,37 @@ import java.util.stream.Collectors;
 /** Discovers and parses all source files before building the declaration index. */
 public final class VernacProjectLoader {
     public VernacProject load(Path sourceRoot) throws IOException {
+        return load(sourceRoot, Map.of());
+    }
+
+    /** Open editor snapshots override disk contents; unsaved new files are included. */
+    public VernacProject load(Path sourceRoot, Map<Path, String> snapshots) throws IOException {
         Path root = sourceRoot.toAbsolutePath().normalize();
-        if (!Files.isDirectory(root)) {
+        Map<Path, String> overlays = new TreeMap<>();
+        for (var entry : snapshots.entrySet()) {
+            Path path = entry.getKey().toAbsolutePath().normalize();
+            if (!path.startsWith(root) || !path.getFileName().toString().endsWith(".vernac")) {
+                throw new IllegalArgumentException("Snapshot is not a Vernac source below " + root + ": " + path);
+            }
+            overlays.put(path, entry.getValue());
+        }
+        if (!Files.isDirectory(root) && (Files.exists(root) || overlays.isEmpty())) {
             throw new IOException("Vernac source root is not a directory: " + root);
         }
-        List<Path> paths;
-        try (var files = Files.walk(root)) {
-            paths = files.filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
-                    .filter(path -> path.getFileName().toString().endsWith(".vernac"))
-                    .sorted().toList();
+        Set<Path> paths = new TreeSet<>(overlays.keySet());
+        if (Files.isDirectory(root)) {
+            try (var files = Files.walk(root)) {
+                files.filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
+                        .filter(path -> path.getFileName().toString().endsWith(".vernac"))
+                        .forEach(paths::add);
+            }
         }
         List<VernacSourceFile> sources = new ArrayList<>();
         List<CompilerDiagnostic> diagnostics = new ArrayList<>();
         var parser = new VernacSourceParser();
         for (Path path : paths) {
             try {
-                var unit = parser.parse(path.toString(), Files.readString(path));
+                var unit = parser.parse(path.toString(), overlays.containsKey(path) ? overlays.get(path) : Files.readString(path));
                 sources.add(new VernacSourceFile(path, unit));
                 validateNamespace(root, path, unit, diagnostics);
             } catch (SemanticValidationException e) {

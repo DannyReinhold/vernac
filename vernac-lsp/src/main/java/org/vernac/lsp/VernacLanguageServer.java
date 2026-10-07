@@ -25,13 +25,30 @@ public class VernacLanguageServer implements LanguageServer, LanguageClientAware
             SemanticTokenModifiers.Declaration,
             SemanticTokenModifiers.Definition
     );
-    private final VernacTextDocumentService documentService = new VernacTextDocumentService();
-    private final VernacWorkspaceService workspaceService = new VernacWorkspaceService();
+    private final VernacProjectDiagnostics projects = new VernacProjectDiagnostics();
+    private final VernacTextDocumentService documentService = new VernacTextDocumentService(projects);
+    private final VernacWorkspaceService workspaceService = new VernacWorkspaceService(projects);
+    private LanguageClient client;
+    private boolean canRegisterFileWatcher;
 
     @Override
     public CompletableFuture<InitializeResult> initialize(InitializeParams params) {
+        projects.initialize(params);
+        var workspace = params.getCapabilities() == null ? null : params.getCapabilities().getWorkspace();
+        canRegisterFileWatcher = workspace != null && workspace.getDidChangeWatchedFiles() != null
+                && Boolean.TRUE.equals(workspace.getDidChangeWatchedFiles().getDynamicRegistration());
         ServerCapabilities capabilities = new ServerCapabilities();
-        capabilities.setTextDocumentSync(TextDocumentSyncKind.Full);
+        TextDocumentSyncOptions sync = new TextDocumentSyncOptions();
+        sync.setOpenClose(true);
+        sync.setChange(TextDocumentSyncKind.Full);
+        sync.setSave(true);
+        capabilities.setTextDocumentSync(sync);
+        WorkspaceFoldersOptions folders = new WorkspaceFoldersOptions();
+        folders.setSupported(true);
+        folders.setChangeNotifications(true);
+        WorkspaceServerCapabilities workspaceCapabilities = new WorkspaceServerCapabilities();
+        workspaceCapabilities.setWorkspaceFolders(folders);
+        capabilities.setWorkspace(workspaceCapabilities);
         capabilities.setCompletionProvider(new CompletionOptions(true, List.of(".", ":", "[")));
         capabilities.setHoverProvider(true);
         capabilities.setDefinitionProvider(true);
@@ -44,6 +61,22 @@ public class VernacLanguageServer implements LanguageServer, LanguageClientAware
         capabilities.setSemanticTokensProvider(semanticTokensOptions);
 
         return CompletableFuture.completedFuture(new InitializeResult(capabilities));
+    }
+
+    @Override
+    public void initialized(InitializedParams params) {
+        if (canRegisterFileWatcher && client != null) {
+            FileSystemWatcher watcher = new FileSystemWatcher();
+            watcher.setGlobPattern(org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft("**/*.vernac"));
+            var options = new DidChangeWatchedFilesRegistrationOptions(List.of(watcher));
+            client.registerCapability(new RegistrationParams(List.of(
+                    new Registration("vernac-source-files", "workspace/didChangeWatchedFiles", options))))
+                    .exceptionally(error -> {
+                        client.logMessage(new MessageParams(MessageType.Warning,
+                                "Vernac file watcher registration failed; editor events still refresh diagnostics: " + error));
+                        return null;
+                    });
+        }
     }
 
     @Override
@@ -68,6 +101,7 @@ public class VernacLanguageServer implements LanguageServer, LanguageClientAware
 
     @Override
     public void connect(LanguageClient client) {
+        this.client = client;
         this.documentService.setClient(client);
     }
 }

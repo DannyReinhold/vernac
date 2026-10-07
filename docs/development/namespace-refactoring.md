@@ -158,8 +158,10 @@ errors are execution failures. Successful analysis warnings are logged. Java fil
 are written only after the whole project passes analysis and generation. The output
 directory is then registered as a Maven compile source root.
 
-The LSP has namespace syntax support but has not yet been connected to the shared
-project scopes for workspace diagnostics and navigation. Other generators still
+The LSP now uses the project loader and resolver for project-wide diagnostics,
+including open editor snapshots. Completion and navigation still use their prior
+document-local implementation and are the next integration step. See
+[LSP workspace analysis](lsp-workspace-analysis.md) for coverage and limitations. Other generators still
 use their existing resolution paths and will be migrated deliberately. In
 particular, mixed old/new generator package behavior must not be treated as a
 compatibility guarantee.

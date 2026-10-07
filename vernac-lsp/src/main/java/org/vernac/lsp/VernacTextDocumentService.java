@@ -8,14 +8,11 @@ import org.eclipse.lsp4j.*;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.TextDocumentService;
-import org.vernac.compiler.ast.AstBuilderVisitor;
-import org.vernac.compiler.ast.CompilationUnitNode;
 import org.vernac.compiler.parser.VernacLexer;
 import org.vernac.compiler.parser.VernacParser;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -45,104 +42,35 @@ public class VernacTextDocumentService implements TextDocumentService {
     private static final Pattern STRING_LITERAL = Pattern.compile("\"(\\\\.|[^\"\\\\])*\"");
     private static final Pattern NUMBER_LITERAL = Pattern.compile("\\b\\d+(\\.\\d+)?([eE][+-]?\\d+)?[fFdDlL]?\\b");
 
-    private final Map<String, String> documentContents = new ConcurrentHashMap<>();
-    private LanguageClient client;
+    private final VernacProjectDiagnostics projects;
 
-    public void setClient(LanguageClient client) {
-        this.client = client;
-    }
+    public VernacTextDocumentService() { this(new VernacProjectDiagnostics()); }
+
+    VernacTextDocumentService(VernacProjectDiagnostics projects) { this.projects = projects; }
+
+    public void setClient(LanguageClient client) { projects.connect(client); }
 
     @Override
     public void didOpen(DidOpenTextDocumentParams params) {
-        String uri = params.getTextDocument().getUri();
-        String text = params.getTextDocument().getText();
-        documentContents.put(uri, text);
-        validateDocument(uri, text);
+        var document = params.getTextDocument();
+        projects.open(document.getUri(), document.getText(), document.getVersion());
     }
 
     @Override
     public void didChange(DidChangeTextDocumentParams params) {
         if (!params.getContentChanges().isEmpty()) {
-            String uri = params.getTextDocument().getUri();
-            String text = params.getContentChanges().getFirst().getText();
-            documentContents.put(uri, text);
-            validateDocument(uri, text);
+            var document = params.getTextDocument();
+            projects.change(document.getUri(), params.getContentChanges().getLast().getText(), document.getVersion());
         }
     }
 
     @Override
     public void didClose(DidCloseTextDocumentParams params) {
-        String uri = params.getTextDocument().getUri();
-        documentContents.remove(uri);
-        if (client != null) {
-            client.publishDiagnostics(new PublishDiagnosticsParams(uri, List.of()));
-        }
+        projects.close(params.getTextDocument().getUri());
     }
 
     @Override
-    public void didSave(DidSaveTextDocumentParams params) {
-    }
-
-    // ==========================================
-    // 1. Validation (Syntax & Semantics)
-    // ==========================================
-
-    private void validateDocument(String uri, String content) {
-        List<Diagnostic> diagnostics = new ArrayList<>();
-
-        CharStream stream = CharStreams.fromString(content);
-        VernacLexer lexer = new VernacLexer(stream);
-        lexer.removeErrorListeners();
-        lexer.addErrorListener(new BaseErrorListener() {
-            @Override
-            public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line, int charPositionInLine, String msg, RecognitionException e) {
-                diagnostics.add(toDiagnostic(line, charPositionInLine, msg));
-            }
-        });
-
-        CommonTokenStream tokens = new CommonTokenStream(lexer);
-        VernacParser parser = new VernacParser(tokens);
-        parser.removeErrorListeners();
-        parser.addErrorListener(new BaseErrorListener() {
-            @Override
-            public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line, int charPositionInLine, String msg, RecognitionException e) {
-                diagnostics.add(toDiagnostic(line, charPositionInLine, msg));
-            }
-        });
-
-        VernacParser.CompilationUnitContext tree = null;
-        try {
-            tree = parser.compilationUnit();
-        } catch (Exception ignored) {
-        }
-
-        // Only perform semantic validation via AST if there are no pure syntax errors
-        if (diagnostics.isEmpty() && tree != null) {
-            try {
-                AstBuilderVisitor astBuilder = new AstBuilderVisitor(uri);
-                CompilationUnitNode ast = astBuilder.visitCompilationUnit(tree);
-                if (ast != null) {
-                    VernacSemanticValidator semanticValidator = new VernacSemanticValidator();
-                    diagnostics.addAll(semanticValidator.validate(ast));
-                }
-            } catch (Exception ignored) {
-                // Catches transient states while typing in the editor
-            }
-        }
-
-        if (client != null) {
-            client.publishDiagnostics(new PublishDiagnosticsParams(uri, diagnostics));
-        }
-    }
-
-    private Diagnostic toDiagnostic(int line, int charPositionInLine, String msg) {
-        Position start = new Position(Math.max(0, line - 1), Math.max(0, charPositionInLine));
-        Position end = new Position(Math.max(0, line - 1), Math.max(0, charPositionInLine + 1));
-        Diagnostic d = new Diagnostic(new Range(start, end), msg);
-        d.setSeverity(DiagnosticSeverity.Error);
-        d.setSource("vernac");
-        return d;
-    }
+    public void didSave(DidSaveTextDocumentParams params) { projects.refresh(); }
 
     // ==========================================
     // 2. Semantic Highlighting Tokens
@@ -150,7 +78,7 @@ public class VernacTextDocumentService implements TextDocumentService {
 
     @Override
     public CompletableFuture<SemanticTokens> semanticTokensFull(SemanticTokensParams params) {
-        String content = documentContents.get(params.getTextDocument().getUri());
+        String content = projects.text(params.getTextDocument().getUri());
         if (content == null || content.isEmpty()) {
             return CompletableFuture.completedFuture(new SemanticTokens(List.of()));
         }
@@ -277,7 +205,7 @@ public class VernacTextDocumentService implements TextDocumentService {
     @Override
     public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion(CompletionParams position) {
         String uri = position.getTextDocument().getUri();
-        String content = documentContents.get(uri);
+        String content = projects.text(uri);
         if (content == null || content.isEmpty()) {
             return CompletableFuture.completedFuture(Either.forLeft(List.of()));
         }
@@ -483,7 +411,7 @@ public class VernacTextDocumentService implements TextDocumentService {
     @Override
     public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> definition(DefinitionParams params) {
         String uri = params.getTextDocument().getUri();
-        String content = documentContents.get(uri);
+        String content = projects.text(uri);
         if (content == null || content.isEmpty()) {
             return CompletableFuture.completedFuture(Either.forLeft(List.of()));
         }
