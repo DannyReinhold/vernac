@@ -175,12 +175,20 @@ snippets. Compare this with completion while entering a type reference inside a 
 Suggestions depend on the cursor position and the language server's supported contexts. Invoke completion explicitly if
 automatic suggestions do not appear. Use IntelliJ's action search if your keymap differs.
 
+For namespace-based ID/VO models, completion includes visible types from other
+`.vernac` files in the same source root. Types in the same namespace need no
+import; other namespaces use explicit imports, wildcard imports, or qualified
+references. Import completion also suggests available namespaces and types.
+Suggestions track unsaved edits. Ambiguous names are not resolved arbitrarily.
+
 ### Hover information and navigation
 
 Hover over a reference such as `TaskId` to inspect any information supplied by the server. Then place the cursor on the
 reference and use **Go to Declaration** from the context menu.
 
-Navigation inside Vernac is supported. Navigation from a generated Java class back to the original Vernac declaration is
+Type navigation works across files and namespaces, including explicit imports.
+Navigation inside embedded Java bodies and enum-constant navigation are not covered
+by this step. Navigation from a generated Java class back to the original Vernac declaration is
 not part of this tutorial's current feature set. Mouse shortcuts depend on your keymap; use the named action when
 testing navigation.
 

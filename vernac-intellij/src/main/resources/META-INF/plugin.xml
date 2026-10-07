@@ -98,6 +98,13 @@
 ]]></description>
 
     <change-notes><![CDATA[
+    <p><b>Project-wide type assistance</b></p>
+    <ul>
+        <li>Type and import completion use namespace visibility across Vernac files.</li>
+        <li>Go to Declaration follows resolved type references and explicit imports.</li>
+        <li>Unsaved edits are included; ambiguous names have no arbitrary navigation target.</li>
+        <li>Grouped namespace/file actions near the top of New and hid duplicate generic template entries.</li>
+    </ul>
     <p><b>Namespace creation</b></p>
     <ul>
         <li>Added New → Vernac Namespace with namespace-name validation.</li>
@@ -143,6 +150,7 @@
                 extensions="vernac"/>
         <postStartupActivity
                 implementation="org.vernac.intellij.VernacProjectOpenActivity"/>
+        <createFromTemplateHandler implementation="org.vernac.intellij.VernacFileTemplateHandler" order="first"/>
         <internalFileTemplate name="Vernac File"/>
         <internalFileTemplate name="Vernac Getting Started"/>
     </extensions>
@@ -152,12 +160,11 @@
                 implementation="org.vernac.intellij.VernacLspIntegrationProvider"/>
     </extensions>
     <actions>
-        <action id="org.vernac.NewNamespace" class="org.vernac.intellij.VernacNewNamespaceAction"
-                text="Vernac Namespace" description="Create a namespace below the Vernac source root">
-            <add-to-group group-id="NewGroup" anchor="last"/>
-        </action>
-        <action id="org.vernac.NewFile" class="org.vernac.intellij.VernacNewFileAction">
-            <add-to-group group-id="NewGroup" anchor="last"/>
-        </action>
+        <group id="org.vernac.NewActions" popup="false">
+            <add-to-group group-id="NewGroup" anchor="first"/>
+            <action id="org.vernac.NewNamespace" class="org.vernac.intellij.VernacNewNamespaceAction"
+                    text="Vernac Namespace" description="Create a namespace below the Vernac source root"/>
+            <action id="org.vernac.NewFile" class="org.vernac.intellij.VernacNewFileAction"/>
+        </group>
     </actions>
 </idea-plugin>

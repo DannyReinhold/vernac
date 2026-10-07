@@ -207,6 +207,52 @@ class VernacProjectDiagnosticsTest {
         assertEquals(2, client.latest.get(model.toUri().toString()).getVersion());
     }
 
+    List<String> completion(Path path, int line, int column) {
+        return server.getTextDocumentService().completion(new CompletionParams(
+                new TextDocumentIdentifier(path.toUri().toString()), new Position(line, column)))
+                .join().getLeft().stream().map(CompletionItem::getLabel).toList();
+    }
+
+    List<? extends Location> definition(Path path, int line, int column) {
+        return server.getTextDocumentService().definition(new DefinitionParams(
+                new TextDocumentIdentifier(path.toUri().toString()), new Position(line, column)))
+                .join().getLeft();
+    }
+
+    @Test
+    void completionAndNavigationFollowUnsavedRenameCloseAndDiskDeletion() throws Exception {
+        Path title = file("tasks", "title", "value Title(String value);");
+        Path draft = file("tasks", "draft", "value Draft(Title title);");
+        open(draft);
+        assertEquals(List.of("Title"), completion(draft, 1, "value Draft(Ti".length()));
+        assertEquals(title.toUri().toString(), definition(draft, 1, 14).getFirst().getUri());
+        open(title);
+        change(title, "namespace tasks; value Renamed(String value);", 2);
+        assertEquals(List.of(), completion(draft, 1, "value Draft(Ti".length()));
+        assertEquals(List.of(), definition(draft, 1, 14));
+        close(title);
+        assertEquals(List.of("Title"), completion(draft, 1, "value Draft(Ti".length()));
+        Files.delete(title);
+        server.getWorkspaceService().didChangeWatchedFiles(new DidChangeWatchedFilesParams(
+                List.of(new FileEvent(title.toUri().toString(), FileChangeType.Deleted))));
+        assertEquals(List.of(), completion(draft, 1, "value Draft(Ti".length()));
+        assertEquals(List.of(), definition(draft, 1, 14));
+    }
+
+    @Test
+    void completionIncludesUnsavedNewFilesButNotOtherModuleRoots() throws Exception {
+        Path draft = file("tasks", "draft", "value Draft(Ne");
+        open(draft);
+        Path other = directory.resolve("other/src/main/vernac/tasks/new.vernac");
+        open(other, "namespace tasks; value NewTitle(String value);");
+        assertEquals(List.of(), completion(draft, 1, "value Draft(Ne".length()));
+        Path fresh = root.resolve("tasks/new.vernac");
+        open(fresh, "namespace tasks; value NewTitle(String value);");
+        assertEquals(List.of("NewTitle"), completion(draft, 1, "value Draft(Ne".length()));
+        close(fresh);
+        assertEquals(List.of(), completion(draft, 1, "value Draft(Ne".length()));
+    }
+
     static class RecordingClient implements LanguageClient {
         final Map<String, PublishDiagnosticsParams> latest = new HashMap<>();
         RegistrationParams registration;

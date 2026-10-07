@@ -1,7 +1,6 @@
 # LSP workspace analysis
 
-Status: project-wide diagnostics implemented; project-aware completion and navigation
-are the next step. This is an implementation progress document, not a claim that
+Status: project-wide diagnostics, type completion and type navigation implemented. This is an implementation progress document, not a claim that
 all language features are supported by the editor.
 
 ## Shared compiler analysis
@@ -56,7 +55,8 @@ publications carry the analyzed document version.
 
 The initial implementation serializes analysis and rebuilds snapshots for active
 source roots on each event. It prioritizes deterministic correctness; debouncing,
-caching, cancellation and large-project performance work remain pending. There is
+cancellation and large-project performance work remain pending. Tooling symbol snapshots
+are cached between notifications and invalidated on each editor/workspace event. There is
 no persistent disk index or recursive import traversal. A syntax/index failure
 prevents later semantic stages for that root, as in the compiler, avoiding cascading
 errors based on an incomplete project.
@@ -76,11 +76,77 @@ warnings, namespace mismatches, compiler parity, Unicode positions, module isola
 workspace removal, and watcher registration. They do not simulate IntelliJ or the
 JSON-RPC transport.
 
+## Completion and navigation
+
+Completion and Go to Definition use a tolerant parse of the current source tree,
+including open-document overlays. Declarations come from parser contexts, not
+whole-document regular expressions. The compiler's `ProjectSymbolIndex`,
+`FileTypeScope` and `BuiltinTypes` determine identities, visibility and built-ins.
+The editor does not recursively load imports or guess Java classes.
+
+- Simple type names follow the same local/explicit/wildcard precedence as the compiler.
+- Ambiguous wildcard references have no completion candidate or navigation target.
+- Invalid imports or index conflicts suppress simple-name resolution until repaired.
+  Exact, valid fully qualified identities remain navigable.
+- Completion supports unfinished type references and import declarations. An
+  unfinished import is omitted from the tooling scope; compiler diagnostics remain
+  authoritative and still report invalid source.
+- Import completion offers qualified types and direct namespace wildcards. It does
+  not offer imports from the current namespace or automatically insert imports.
+- Qualified completion replaces the entire reference, including the suffix after
+  the caret. It never inserts a duplicate namespace prefix.
+- VO fields offer the reviewed ID/VO/enum categories and approved built-ins. Collection
+  and entity field rules will be revisited with those language features.
+- Go to Definition targets the declaration name in its actual source file, with
+  UTF-16 ranges. Explicit imports are navigable; namespace/wildcard imports have no
+  single declaration target.
+- Comments and string contents do not create declarations or type references.
+  Embedded Java bodies have no Java completion/navigation in this step.
+
+Other declarations are indexed to preserve identity conflicts and import visibility.
+This does not complete their semantic review. Repository/listener shorthand
+completion remains the earlier implementation, and enum-constant/member navigation,
+Java interoperability, hover details and auto-import edits are deferred.
+
+Tests cover incomplete input, file-local imports, local precedence, ambiguous and
+conflicting declarations, fully qualified edits, UTF-16 declaration ranges, false
+references in comments/strings, unsaved rename/close, disk deletion and module
+isolation. Plugin distribution tests check internal template registration, the
+namespace-aware template handler and absence of old bundled generic templates.
+
+## Manual editor check
+
+Under `src/main/vernac`, create:
+
+`demo/shared/title.vernac`:
+
+```vernac
+namespace demo.shared;
+value Title(String value);
+```
+
+`demo/tasks/task.vernac`:
+
+```vernac
+namespace demo.tasks;
+import demo.shared.Title;
+id TaskId;
+value TaskSummary(TaskId id, Title title);
+```
+
+1. Replace `Title` in the field with `Ti` and invoke Basic Completion.
+2. Accept `Title`, then use Go to Declaration on the reference and on the import.
+3. Rename the declaration to `Heading` without saving: `Title` must no longer
+   resolve. Undo the rename and check that resolution returns.
+4. Remove the import and use `demo.shared.Ti` in the field. Completion must replace
+   it with `demo.shared.Title`, and navigation must reach the same declaration.
+5. Check New: the namespace and file actions should appear together near the top.
+   The old generic template dialogs should no longer be offered. Existing user
+   templates are preserved; only the two owned Vernac template names are hidden
+   from generic template creation.
+
 ## Next
 
-Connect type completion and Go to Definition to shared project symbols and file
-scopes, including useful behavior while a document is temporarily incomplete.
-Then package the updated server with the IntelliJ plugin and test the complete
-editor workflow. New Namespace and namespace-aware New Vernac File actions are
-implemented separately; their IntelliJ UI workflow still needs the same manual
-plugin verification.
+Review Unicode identifier rules across compiler, LSP and namespace creation.
+Then track generator-owned output files and remove obsolete generated classes
+only after successful generation. Neither change is included in this patch.

@@ -20,12 +20,14 @@ final class VernacProjectDiagnostics {
     private final Map<Path, Document> open = new LinkedHashMap<>();
     private final Set<Path> folders = new LinkedHashSet<>();
     private final Set<String> published = new LinkedHashSet<>();
+    private final Map<Path, VernacProjectSymbols> symbolSnapshots = new HashMap<>();
     private LanguageClient client;
     private boolean workspaceBound;
 
     synchronized void connect(LanguageClient client) { this.client = client; }
 
     synchronized void initialize(InitializeParams params) {
+        symbolSnapshots.clear();
         folders.clear();
         if (params.getWorkspaceFolders() != null && !params.getWorkspaceFolders().isEmpty()) {
             params.getWorkspaceFolders().forEach(folder -> addFolder(folder.getUri()));
@@ -54,6 +56,46 @@ final class VernacProjectDiagnostics {
         return document == null ? null : document.text();
     }
 
+    synchronized List<CompletionItem> complete(String uri, Position position) {
+        var symbols = symbols(uri);
+        return symbols == null ? List.of() : symbols.complete(path(uri), position);
+    }
+
+    synchronized List<Location> definition(String uri, Position position) {
+        var symbols = symbols(uri);
+        return symbols == null ? List.of() : symbols.definition(path(uri), position);
+    }
+
+    private VernacProjectSymbols symbols(String uri) {
+        Path file = path(uri);
+        if (file == null) return null;
+        Path root = rootFor(file);
+        if (root == null) return null;
+        if (symbolSnapshots.containsKey(root)) return symbolSnapshots.get(root);
+        Map<Path, String> texts = new TreeMap<>();
+        try {
+            if (Files.isDirectory(root)) {
+                try (var paths = Files.walk(root)) {
+                    for (Path source : paths.filter(p -> Files.isRegularFile(p, LinkOption.NOFOLLOW_LINKS)
+                            && p.toString().endsWith(".vernac")).toList()) {
+                        Document document = open.get(source);
+                        texts.put(source, document == null ? Files.readString(source) : document.text());
+                    }
+                }
+            }
+            open.forEach((source, document) -> {
+                if (root.equals(rootFor(source))) texts.put(source, document.text());
+            });
+            var symbols = new VernacProjectSymbols(root, texts);
+            symbolSnapshots.put(root, symbols);
+            return symbols;
+        } catch (IOException e) {
+            if (client != null) client.logMessage(new MessageParams(MessageType.Error,
+                    "Could not read Vernac symbols: " + e.getMessage()));
+            return null;
+        }
+    }
+
     synchronized void open(String uri, String text, int version) {
         Path path = path(uri);
         if (path == null) {
@@ -80,6 +122,7 @@ final class VernacProjectDiagnostics {
 
     /** Save/watch notifications reread disk while preserving all open editor snapshots. */
     synchronized void refresh() {
+        symbolSnapshots.clear();
         Map<String, List<Diagnostic>> diagnostics = new LinkedHashMap<>();
         Set<Path> roots = new LinkedHashSet<>();
         for (var entry : open.entrySet()) {

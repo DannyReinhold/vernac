@@ -101,12 +101,21 @@ class PluginDistributionIT {
                     "org/vernac/intellij/VernacLspIntegrationProvider.class",
                     "org/vernac/intellij/VernacNewNamespaceAction.class",
                     "org/vernac/intellij/VernacNewFileAction.class",
+                    "org/vernac/intellij/VernacFileTemplateHandler.class",
                     "org/vernac/intellij/VernacNamespaces.class",
                     "fileTemplates/internal/Vernac File.vernac.ft",
                     "fileTemplates/internal/Vernac Getting Started.vernac.ft"
             )) {
                 requireContent(plugin, entry);
             }
+
+            String descriptor = new String(requireContent(plugin, "META-INF/plugin.xml"),
+                    java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(descriptor.contains("<internalFileTemplate name=\"Vernac File\"/>"));
+            assertTrue(descriptor.contains("<internalFileTemplate name=\"Vernac Getting Started\"/>"));
+            assertTrue(descriptor.contains("implementation=\"org.vernac.intellij.VernacFileTemplateHandler\""));
+            assertFalse(plugin.containsKey("fileTemplates/Vernac File.vernac.ft"));
+            assertFalse(plugin.containsKey("fileTemplates/Vernac Getting Started.vernac.ft"));
 
             for (String templateFile : List.of(
                     "pom.xml",
