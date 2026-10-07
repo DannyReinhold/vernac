@@ -1,0 +1,1795 @@
+diff --git a/docs/development/namespace-refactoring.md b/docs/development/namespace-refactoring.md
+new file mode 100644
+index 0000000..8745d03
+--- /dev/null
++++ b/docs/development/namespace-refactoring.md
+@@ -0,0 +1,92 @@
++# Namespace refactoring: implementation progress
++
++This document records the staged implementation of the namespace design. It is not
++a claim that the complete namespace, import, or value object contract is implemented.
++
++## Completed: parsing and project indexing
++
++Every source now begins with an explicit declaration:
++
++```vernac
++namespace org.example.tasks;
++
++id TaskId;
++value Title(String value);
++```
++
++The old file-level `package` declaration and the implicit default namespace are
++rejected. Java output packages and the remaining per-definition package overrides
++have not been redesigned in this step.
++
++Qualified names accept Vernac keyword segments such as `custom` and `value`.
++Namespaces must still be valid Java package names. Java contextual words that are
++legal package segments, such as `record`, are not indiscriminately rejected.
++
++The new project-reading entry point is:
++
++```java
++VernacProject project = new VernacCompiler()
++        .readProject(Path.of("src/main/vernac"));
++```
++
++It discovers regular `.vernac` files recursively, in deterministic path order,
++parses all of them, and builds a shared declaration index. It does not follow
++symbolic links. Each namespace must match the source's directory relative to the
++source root, exactly and case-sensitively:
++
++```text
++src/main/vernac/org/example/tasks/model.vernac
++namespace org.example.tasks;
++```
++
++Multiple files and multiple declarations per file are supported. Filenames are
++not part of type identities. The index registers top-level declarations and their
++currently declared collection types. Duplicate identities are rejected with all
++conflicting source locations; equal simple names in different namespaces remain
++valid. Built-in catalog names are rejected as declaration names by the index.
++
++`VernacSourceParser` parses named in-memory text without a filesystem requirement.
++`SourceLocation` now carries the source name and one-based line and column numbers.
++Syntax and semantic diagnostics include that origin. Project reading collects
++errors across files before reporting failure; it does not generate Java output.
++
++The LSP recognizes `namespace` for highlighting and completion and supplies the
++current document URI to the AST builder.
++
++## Next: reference resolution and integration
++
++Project reading deliberately does not validate imports or resolve field references.
++The presence of a parsed project does not mean that its imports, reference cycles,
++or domain field types are semantically valid.
++
++The next step will resolve same-namespace, imported, and fully qualified Vernac
++references against the shared index and supply resolved symbols to generators.
++The Maven plugin still invokes the existing per-file generation path; project-wide
++generation and the LSP workspace index must be connected after reference resolution.
++The existing string-based generator type resolver has not yet been replaced.
++
++## Migration work deliberately left pending
++
++Existing example `.vernac` files, IntelliJ file templates, and the basic project
++template still use the old file-level syntax and source layout. They must be migrated
++together with the remaining generator and Maven integration. A whole-repository
++build that compiles those old examples is therefore not the gate for this interim
++step. Do not introduce compatibility fallbacks to accommodate them.
++
++Compiler test cases are retained and their Vernac fixtures use `namespace`.
++The former rejection test for a Vernac keyword in a qualified adapter package now
++asserts acceptance, matching the contextual-keyword rule. Existing tests for Java
++keyword rejection remain.
++
++## Verification
++
++Run from the repository root in the IntelliJ Maven command window:
++
++```text
++mvn -pl vernac-compiler,vernac-lsp -am test
++```
++
++The project tests cover multi-file discovery, namespace/directory mismatches,
++duplicate declarations in and across files, reserved names, enum and collection
++symbols, invalid namespaces, missing declarations, source-aware syntax errors,
++empty source trees, and preservation of imports without recursive loading.
+diff --git a/vernac-compiler/src/main/antlr4/org/vernac/compiler/parser/Vernac.g4 b/vernac-compiler/src/main/antlr4/org/vernac/compiler/parser/Vernac.g4
+index af1bff1..738d8f9 100644
+--- a/vernac-compiler/src/main/antlr4/org/vernac/compiler/parser/Vernac.g4
++++ b/vernac-compiler/src/main/antlr4/org/vernac/compiler/parser/Vernac.g4
+@@ -1,11 +1,11 @@
+ grammar Vernac;
+ 
+ compilationUnit
+-    : packageDeclaration? importDeclaration* topLevelDeclaration* EOF
++    : namespaceDeclaration importDeclaration* topLevelDeclaration* EOF
+     ;
+ 
+-packageDeclaration
+-    : 'package' qualifiedName ';'
++namespaceDeclaration
++    : 'namespace' qualifiedName ';'
+     ;
+ 
+ importDeclaration
+@@ -360,9 +360,66 @@ typeArguments
+     : type (',' type)*
+     ;
+ 
+-// Package- und Import-Pfade dürfen nur aus echten Identifiern bestehen
++// Vernac keywords are contextual in qualified names. Java validity is checked semantically.
+ qualifiedName
+-    : IDENTIFIER ('.' IDENTIFIER)*
++    : qualifiedNameSegment ('.' qualifiedNameSegment)*
++    ;
++
++qualifiedNameSegment
++    : IDENTIFIER
++    | BOOLEAN_LITERAL
++    | 'DELETE'
++    | 'GET'
++    | 'PATCH'
++    | 'POST'
++    | 'PUT'
++    | 'adapter'
++    | 'aggregate'
++    | 'as'
++    | 'by'
++    | 'collection'
++    | 'custom'
++    | 'else'
++    | 'emit'
++    | 'entity'
++    | 'event'
++    | 'find'
++    | 'for'
++    | 'from'
++    | 'id'
++    | 'if'
++    | 'import'
++    | 'internal'
++    | 'invariant'
++    | 'listener'
++    | 'load'
++    | 'mapping'
++    | 'memory'
++    | 'mut'
++    | 'namespace'
++    | 'on'
++    | 'outbox'
++    | 'package'
++    | 'port'
++    | 'private'
++    | 'public'
++    | 'repository'
++    | 'require'
++    | 'rest'
++    | 'return'
++    | 'save'
++    | 'schema'
++    | 'service'
++    | 'switch'
++    | 'throw'
++    | 'throws'
++    | 'to'
++    | 'try'
++    | 'use'
++    | 'usecase'
++    | 'validates'
++    | 'value'
++    | 'while'
+     ;
+ 
+ rawJavaBlock
+diff --git a/vernac-compiler/src/main/java/org/vernac/compiler/analyzer/CompilerDiagnostic.java b/vernac-compiler/src/main/java/org/vernac/compiler/analyzer/CompilerDiagnostic.java
+index ddeb050..7fc1eba 100644
+--- a/vernac-compiler/src/main/java/org/vernac/compiler/analyzer/CompilerDiagnostic.java
++++ b/vernac-compiler/src/main/java/org/vernac/compiler/analyzer/CompilerDiagnostic.java
+@@ -20,7 +20,7 @@ public record CompilerDiagnostic(
+ 
+     @Override
+     public String toString() {
+-        return "[" + severity + "] at line " + location.line() + ":" + location.column() + " - " + message;
++        return "[" + severity + "] " + location + " - " + message;
+     }
+ 
+     public enum Severity {
+diff --git a/vernac-compiler/src/main/java/org/vernac/compiler/analyzer/SemanticAnalyzer.java b/vernac-compiler/src/main/java/org/vernac/compiler/analyzer/SemanticAnalyzer.java
+index 1012c46..68fe9c7 100644
+--- a/vernac-compiler/src/main/java/org/vernac/compiler/analyzer/SemanticAnalyzer.java
++++ b/vernac-compiler/src/main/java/org/vernac/compiler/analyzer/SemanticAnalyzer.java
+@@ -30,8 +30,9 @@ public class SemanticAnalyzer {
+     public List<CompilerDiagnostic> analyze(CompilationUnitNode unit) {
+         List<CompilerDiagnostic> diagnostics = new ArrayList<>();
+ 
+-        if (unit.packageName().isPresent()) {
+-            validatePackageName(unit.packageName().get(), unit.location(), diagnostics);
++        if (!javax.lang.model.SourceVersion.isName(unit.namespace(), javax.lang.model.SourceVersion.RELEASE_21)) {
++            diagnostics.add(CompilerDiagnostic.error(unit.location(),
++                    "Invalid namespace '" + unit.namespace() + "': expected a Java-compatible qualified name."));
+         }
+ 
+         Set<String> declaredTypes = new HashSet<>();
+diff --git a/vernac-compiler/src/main/java/org/vernac/compiler/analyzer/SemanticValidationException.java b/vernac-compiler/src/main/java/org/vernac/compiler/analyzer/SemanticValidationException.java
+index 84dcafd..60914d6 100644
+--- a/vernac-compiler/src/main/java/org/vernac/compiler/analyzer/SemanticValidationException.java
++++ b/vernac-compiler/src/main/java/org/vernac/compiler/analyzer/SemanticValidationException.java
+@@ -16,7 +16,7 @@ public class SemanticValidationException extends RuntimeException {
+     }
+ 
+     private static String buildMessage(List<CompilerDiagnostic> diagnostics) {
+-        return "Vernac semantic analysis failed with " + diagnostics.size() + " issue(s):\n" +
++        return "Vernac compilation failed with " + diagnostics.size() + " issue(s):\n" +
+                 diagnostics.stream()
+                         .map(d -> "  - " + d)
+                         .collect(Collectors.joining("\n"));
+diff --git a/vernac-compiler/src/main/java/org/vernac/compiler/ast/AstBuilderVisitor.java b/vernac-compiler/src/main/java/org/vernac/compiler/ast/AstBuilderVisitor.java
+index 7403633..8a3a253 100644
+--- a/vernac-compiler/src/main/java/org/vernac/compiler/ast/AstBuilderVisitor.java
++++ b/vernac-compiler/src/main/java/org/vernac/compiler/ast/AstBuilderVisitor.java
+@@ -14,12 +14,20 @@ import org.vernac.runtime.DispatchMode;
+ import java.util.*;
+ 
+ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
++    private final String sourceName;
++
++    public AstBuilderVisitor() {
++        this("<memory>");
++    }
++
++    public AstBuilderVisitor(String sourceName) {
++        this.sourceName = Objects.requireNonNull(sourceName);
++    }
++
+ 
+     @Override
+     public CompilationUnitNode visitCompilationUnit(VernacParser.CompilationUnitContext ctx) {
+-        Optional<String> packageName = Optional.ofNullable(ctx.packageDeclaration())
+-                .map(VernacParser.PackageDeclarationContext::qualifiedName)
+-                .map(ParserRuleContext::getText);
++        String namespace = ctx.namespaceDeclaration().qualifiedName().getText();
+ 
+         List<String> imports = ctx.importDeclaration().stream()
+                 .map(i -> i.qualifiedName().getText() + (i.getText().contains(".*") ? ".*" : ""))
+@@ -30,7 +38,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
+                 .filter(Objects::nonNull)
+                 .toList();
+ 
+-        return new CompilationUnitNode(toLocation(ctx), packageName, imports, definitions);
++        return new CompilationUnitNode(toLocation(ctx.namespaceDeclaration()), namespace, imports, definitions);
+     }
+ 
+     private TopLevelDefinition toTopLevelDefinition(VernacParser.TopLevelDeclarationContext ctx) {
+@@ -547,9 +555,9 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
+     private SourceLocation toLocation(ParserRuleContext ctx) {
+         Token start = ctx.getStart();
+         if (start != null) {
+-            return new SourceLocation(start.getLine(), start.getCharPositionInLine() + 1);
++            return new SourceLocation(sourceName, start.getLine(), start.getCharPositionInLine() + 1);
+         }
+-        return SourceLocation.UNKNOWN;
++        return new SourceLocation(sourceName, 0, 0);
+     }
+ 
+     private String unquote(String text) {
+@@ -559,14 +567,8 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
+         return text;
+     }
+ 
+-    private SourceLocation locationOf(org.antlr.v4.runtime.ParserRuleContext ctx) {
+-        if (ctx == null || ctx.getStart() == null) {
+-            return new SourceLocation(0, 0); // Sicherer Fallback
+-        }
+-        return new SourceLocation(
+-                ctx.getStart().getLine(),
+-                ctx.getStart().getCharPositionInLine()
+-        );
++    private SourceLocation locationOf(ParserRuleContext ctx) {
++        return ctx == null ? new SourceLocation(sourceName, 0, 0) : toLocation(ctx);
+     }
+ 
+     @Override
+diff --git a/vernac-compiler/src/main/java/org/vernac/compiler/ast/CompilationUnitNode.java b/vernac-compiler/src/main/java/org/vernac/compiler/ast/CompilationUnitNode.java
+index 0c34168..b464a28 100644
+--- a/vernac-compiler/src/main/java/org/vernac/compiler/ast/CompilationUnitNode.java
++++ b/vernac-compiler/src/main/java/org/vernac/compiler/ast/CompilationUnitNode.java
+@@ -4,14 +4,21 @@
+ package org.vernac.compiler.ast;
+ 
+ import java.util.List;
+-import java.util.Optional;
++import java.util.Objects;
+ 
+ public record CompilationUnitNode(
+         SourceLocation location,
+-        Optional<String> packageName,
++        String namespace,
+         List<String> imports,
+         List<TopLevelDefinition> definitions
+ ) implements AstNode {
++    public CompilationUnitNode {
++        Objects.requireNonNull(location);
++        Objects.requireNonNull(namespace);
++        imports = List.copyOf(imports);
++        definitions = List.copyOf(definitions);
++    }
++
+ 
+     public List<ValueObjectNode> valueObjects() {
+         return definitions.stream()
+diff --git a/vernac-compiler/src/main/java/org/vernac/compiler/ast/SourceLocation.java b/vernac-compiler/src/main/java/org/vernac/compiler/ast/SourceLocation.java
+index 20f0deb..b936df5 100644
+--- a/vernac-compiler/src/main/java/org/vernac/compiler/ast/SourceLocation.java
++++ b/vernac-compiler/src/main/java/org/vernac/compiler/ast/SourceLocation.java
+@@ -1,13 +1,26 @@
+ // Copyright 2026 Danny Reinhold
+ // SPDX-License-Identifier: Apache-2.0
+-
+ package org.vernac.compiler.ast;
+ 
+-public record SourceLocation(int line, int column) {
+-    public static final SourceLocation UNKNOWN = new SourceLocation(0, 0);
++import java.util.Objects;
++
++/** Source name plus one-based line and column; zero denotes an unknown position. */
++public record SourceLocation(String sourceName, int line, int column) {
++    public static final SourceLocation UNKNOWN = new SourceLocation("<unknown>", 0, 0);
++
++    public SourceLocation {
++        Objects.requireNonNull(sourceName);
++        if (line < 0 || column < 0) {
++            throw new IllegalArgumentException("Source coordinates must not be negative");
++        }
++    }
++
++    public SourceLocation(int line, int column) {
++        this("<memory>", line, column);
++    }
+ 
+     @Override
+     public String toString() {
+-        return line + ":" + column;
++        return sourceName + ":" + line + ":" + column;
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/VernacCompiler.java b/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/VernacCompiler.java
+index ccf741b..6f0dd5d 100644
+--- a/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/VernacCompiler.java
++++ b/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/VernacCompiler.java
+@@ -4,14 +4,11 @@
+ package org.vernac.compiler.pipeline;
+ 
+ import com.palantir.javapoet.JavaFile;
+-import org.antlr.v4.runtime.*;
+ import org.vernac.compiler.analyzer.CompilerDiagnostic;
+ import org.vernac.compiler.analyzer.SemanticAnalyzer;
+ import org.vernac.compiler.analyzer.SemanticValidationException;
+ import org.vernac.compiler.ast.*;
+ import org.vernac.compiler.generator.*;
+-import org.vernac.compiler.parser.VernacLexer;
+-import org.vernac.compiler.parser.VernacParser;
+ 
+ import java.io.IOException;
+ import java.nio.file.Files;
+@@ -38,11 +35,19 @@ public class VernacCompiler {
+ 
+     public VernacCompilationResult compile(Path vernacFile) throws IOException {
+         String source = Files.readString(vernacFile);
+-        return compileSource(source);
++        return generate(new VernacSourceParser().parse(vernacFile.toString(), source));
+     }
+ 
+     public VernacCompilationResult compileSource(String source) {
+-        CompilationUnitNode unit = parse(source);
++        return generate(new VernacSourceParser().parse("<memory>", source));
++    }
++
++    /** Reads and indexes the complete source tree before reference resolution. */
++    public VernacProject readProject(Path sourceRoot) throws IOException {
++        return new VernacProjectLoader().load(sourceRoot);
++    }
++
++    private VernacCompilationResult generate(CompilationUnitNode unit) {
+ 
+         // Semantische Analyse vor der Codegenerierung
+         List<CompilerDiagnostic> diagnostics = semanticAnalyzer.analyze(unit);
+@@ -54,7 +59,7 @@ public class VernacCompiler {
+             throw new SemanticValidationException(errors);
+         }
+ 
+-        String packageName = unit.packageName().orElse("generated.domain");
++        String packageName = unit.namespace();
+         List<String> imports = unit.imports();
+         List<JavaFile> generatedFiles = new ArrayList<>();
+ 
+@@ -108,22 +113,4 @@ public class VernacCompiler {
+         return new VernacCompilationResult(packageName, generatedFiles);
+     }
+ 
+-    private CompilationUnitNode parse(String source) {
+-        VernacLexer lexer = new VernacLexer(CharStreams.fromString(source));
+-        lexer.removeErrorListeners();
+-        lexer.addErrorListener(new DescriptiveErrorListener());
+-
+-        VernacParser parser = new VernacParser(new CommonTokenStream(lexer));
+-        parser.removeErrorListeners();
+-        parser.addErrorListener(new DescriptiveErrorListener());
+-
+-        return new AstBuilderVisitor().visitCompilationUnit(parser.compilationUnit());
+-    }
+-
+-    private static class DescriptiveErrorListener extends BaseErrorListener {
+-        @Override
+-        public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line, int charPositionInLine, String msg, RecognitionException e) {
+-            throw new IllegalArgumentException("Syntax error at line " + line + ":" + (charPositionInLine + 1) + " - " + msg, e);
+-        }
+-    }
+-}
+\ No newline at end of file
++}
+diff --git a/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/VernacProject.java b/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/VernacProject.java
+new file mode 100644
+index 0000000..50255f2
+--- /dev/null
++++ b/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/VernacProject.java
+@@ -0,0 +1,18 @@
++// Copyright 2026 Danny Reinhold
++// SPDX-License-Identifier: Apache-2.0
++package org.vernac.compiler.pipeline;
++
++import org.vernac.compiler.symbols.ProjectSymbolIndex;
++import java.nio.file.Path;
++import java.util.List;
++import java.util.Objects;
++
++/** Parsed, indexed project. Field references and imports are not resolved yet. */
++public record VernacProject(Path sourceRoot, List<VernacSourceFile> sources,
++                            ProjectSymbolIndex symbols) {
++    public VernacProject {
++        sourceRoot = Objects.requireNonNull(sourceRoot).toAbsolutePath().normalize();
++        sources = List.copyOf(sources);
++        Objects.requireNonNull(symbols);
++    }
++}
+diff --git a/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/VernacProjectLoader.java b/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/VernacProjectLoader.java
+new file mode 100644
+index 0000000..d5c73e8
+--- /dev/null
++++ b/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/VernacProjectLoader.java
+@@ -0,0 +1,114 @@
++// Copyright 2026 Danny Reinhold
++// SPDX-License-Identifier: Apache-2.0
++package org.vernac.compiler.pipeline;
++
++import org.vernac.compiler.analyzer.CompilerDiagnostic;
++import org.vernac.compiler.analyzer.SemanticValidationException;
++import org.vernac.compiler.ast.*;
++import org.vernac.compiler.symbols.*;
++import javax.lang.model.SourceVersion;
++import java.io.IOException;
++import java.nio.file.*;
++import java.util.*;
++import java.util.stream.Collectors;
++
++/** Discovers and parses all source files before building the declaration index. */
++public final class VernacProjectLoader {
++    public VernacProject load(Path sourceRoot) throws IOException {
++        Path root = sourceRoot.toAbsolutePath().normalize();
++        if (!Files.isDirectory(root)) {
++            throw new IOException("Vernac source root is not a directory: " + root);
++        }
++        List<Path> paths;
++        try (var files = Files.walk(root)) {
++            paths = files.filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
++                    .filter(path -> path.getFileName().toString().endsWith(".vernac"))
++                    .sorted().toList();
++        }
++        List<VernacSourceFile> sources = new ArrayList<>();
++        List<CompilerDiagnostic> diagnostics = new ArrayList<>();
++        var parser = new VernacSourceParser();
++        for (Path path : paths) {
++            try {
++                var unit = parser.parse(path.toString(), Files.readString(path));
++                sources.add(new VernacSourceFile(path, unit));
++                validateNamespace(root, path, unit, diagnostics);
++            } catch (SemanticValidationException e) {
++                diagnostics.addAll(e.diagnostics());
++            }
++        }
++        List<TypeSymbol> symbols = new ArrayList<>();
++        for (var source : sources) {
++            if (!SourceVersion.isName(source.unit().namespace(), SourceVersion.RELEASE_21)) continue;
++            for (var definition : source.unit().definitions()) {
++                var declaration = describe(definition);
++                addSymbol(source, declaration.name(), declaration.kind(), definition.location(), symbols, diagnostics);
++                if (definition instanceof ValueObjectNode vo && vo.collection().isPresent()) {
++                    var collection = vo.collection().get();
++                    addSymbol(source, collection.customName().orElse(vo.name() + "s"),
++                            TypeSymbol.Kind.COLLECTION, collection.location(), symbols, diagnostics);
++                } else if (definition instanceof EntityNode entity && entity.collection().isPresent()) {
++                    var collection = entity.collection().get();
++                    addSymbol(source, collection.customName().orElse(entity.name() + "s"),
++                            TypeSymbol.Kind.COLLECTION, collection.location(), symbols, diagnostics);
++                }
++            }
++        }
++        var index = new ProjectSymbolIndex(symbols);
++        for (var problem : index.problems()) {
++            String origins = problem.declarations().stream().map(symbol -> symbol.location().toString())
++                    .collect(Collectors.joining(", "));
++            for (var symbol : problem.declarations()) {
++                diagnostics.add(CompilerDiagnostic.error(symbol.location(),
++                        problem.message() + " Declaration locations: " + origins));
++            }
++        }
++        if (!diagnostics.isEmpty()) throw new SemanticValidationException(diagnostics);
++        return new VernacProject(root, sources, index);
++    }
++
++    private void validateNamespace(Path root, Path file, CompilationUnitNode unit,
++                                   List<CompilerDiagnostic> diagnostics) {
++        if (!SourceVersion.isName(unit.namespace(), SourceVersion.RELEASE_21)) {
++            diagnostics.add(CompilerDiagnostic.error(unit.location(),
++                    "Invalid namespace '" + unit.namespace() + "': expected a Java-compatible qualified name."));
++            return;
++        }
++        Path expectedDirectory = root.resolve(unit.namespace().replace('.', '/'));
++        if (!file.getParent().equals(expectedDirectory)) {
++            diagnostics.add(CompilerDiagnostic.error(unit.location(),
++                    "Namespace '" + unit.namespace() + "' requires directory '"
++                            + root.relativize(expectedDirectory) + "' relative to the source root, but file is in '"
++                            + root.relativize(file.getParent()) + "'. Move the file or correct its namespace."));
++        }
++    }
++
++    private void addSymbol(VernacSourceFile source, String name, TypeSymbol.Kind kind,
++                           SourceLocation location, List<TypeSymbol> symbols,
++                           List<CompilerDiagnostic> diagnostics) {
++        try {
++            var identity = new TypeIdentity(source.unit().namespace(), name);
++            symbols.add(new TypeSymbol(identity, kind, source.path(), location));
++        } catch (IllegalArgumentException e) {
++            diagnostics.add(CompilerDiagnostic.error(location, e.getMessage()));
++        }
++    }
++
++    private record Declaration(String name, TypeSymbol.Kind kind) { }
++
++    private Declaration describe(TopLevelDefinition definition) {
++        return switch (definition) {
++            case IdDeclarationNode node -> new Declaration(node.name(), TypeSymbol.Kind.ID);
++            case ValueObjectNode node -> new Declaration(node.name(), node.isEnum()
++                    ? TypeSymbol.Kind.ENUM : TypeSymbol.Kind.VALUE_OBJECT);
++            case EntityNode node -> new Declaration(node.name(), TypeSymbol.Kind.ENTITY);
++            case AggregateNode node -> new Declaration(node.name(), TypeSymbol.Kind.AGGREGATE);
++            case EventNode node -> new Declaration(node.name(), TypeSymbol.Kind.EVENT);
++            case RepositoryNode node -> new Declaration(node.name(), TypeSymbol.Kind.REPOSITORY);
++            case PortNode node -> new Declaration(node.name(), TypeSymbol.Kind.PORT);
++            case UseCaseNode node -> new Declaration(node.name(), TypeSymbol.Kind.USE_CASE);
++            case DomainServiceNode node -> new Declaration(node.name(), TypeSymbol.Kind.DOMAIN_SERVICE);
++            case ListenerNode node -> new Declaration(node.listenerName(), TypeSymbol.Kind.LISTENER);
++        };
++    }
++}
+diff --git a/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/VernacSourceFile.java b/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/VernacSourceFile.java
+new file mode 100644
+index 0000000..e534818
+--- /dev/null
++++ b/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/VernacSourceFile.java
+@@ -0,0 +1,15 @@
++// Copyright 2026 Danny Reinhold
++// SPDX-License-Identifier: Apache-2.0
++package org.vernac.compiler.pipeline;
++
++import org.vernac.compiler.ast.CompilationUnitNode;
++import java.nio.file.Path;
++import java.util.Objects;
++
++/** A parsed source and its filesystem origin. */
++public record VernacSourceFile(Path path, CompilationUnitNode unit) {
++    public VernacSourceFile {
++        path = Objects.requireNonNull(path).toAbsolutePath().normalize();
++        Objects.requireNonNull(unit);
++    }
++}
+diff --git a/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/VernacSourceParser.java b/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/VernacSourceParser.java
+new file mode 100644
+index 0000000..d3eab83
+--- /dev/null
++++ b/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/VernacSourceParser.java
+@@ -0,0 +1,34 @@
++// Copyright 2026 Danny Reinhold
++// SPDX-License-Identifier: Apache-2.0
++package org.vernac.compiler.pipeline;
++
++import org.antlr.v4.runtime.*;
++import org.vernac.compiler.analyzer.CompilerDiagnostic;
++import org.vernac.compiler.analyzer.SemanticValidationException;
++import org.vernac.compiler.ast.AstBuilderVisitor;
++import org.vernac.compiler.ast.CompilationUnitNode;
++import org.vernac.compiler.ast.SourceLocation;
++import org.vernac.compiler.parser.VernacLexer;
++import org.vernac.compiler.parser.VernacParser;
++import java.util.List;
++
++/** Parses one named source without resolving imports or references. */
++public final class VernacSourceParser {
++    public CompilationUnitNode parse(String sourceName, String source) {
++        var errors = new BaseErrorListener() {
++            @Override
++            public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol,
++                                    int line, int column, String message, RecognitionException cause) {
++                throw new SemanticValidationException(List.of(CompilerDiagnostic.error(
++                        new SourceLocation(sourceName, line, column + 1), "Syntax error: " + message)));
++            }
++        };
++        var lexer = new VernacLexer(CharStreams.fromString(source, sourceName));
++        lexer.removeErrorListeners();
++        lexer.addErrorListener(errors);
++        var parser = new VernacParser(new CommonTokenStream(lexer));
++        parser.removeErrorListeners();
++        parser.addErrorListener(errors);
++        return new AstBuilderVisitor(sourceName).visitCompilationUnit(parser.compilationUnit());
++    }
++}
+diff --git a/vernac-compiler/src/test/java/org/vernac/compiler/analyzer/SemanticAnalyzerTest.java b/vernac-compiler/src/test/java/org/vernac/compiler/analyzer/SemanticAnalyzerTest.java
+index 36e8321..1c59ff0 100644
+--- a/vernac-compiler/src/test/java/org/vernac/compiler/analyzer/SemanticAnalyzerTest.java
++++ b/vernac-compiler/src/test/java/org/vernac/compiler/analyzer/SemanticAnalyzerTest.java
+@@ -19,7 +19,7 @@ class SemanticAnalyzerTest {
+     @DisplayName("Verhindert mut-Felder in Value Objects")
+     void shouldRejectMutableFieldsInValueObjects() {
+         String dsl = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 value User(String name, mut int age);
+                 """;
+ 
+@@ -38,7 +38,7 @@ class SemanticAnalyzerTest {
+     @DisplayName("Verhindert doppelte Feldnamen")
+     void shouldRejectDuplicateFieldNames() {
+         String dsl = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 value User(String email, String email);
+                 """;
+ 
+@@ -51,7 +51,7 @@ class SemanticAnalyzerTest {
+     @DisplayName("Meldet nicht auflösbare Typen mit Zeilenangabe")
+     void shouldRejectUnresolvedTypes() {
+         String dsl = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 value Order(UnknownType payload);
+                 """;
+ 
+@@ -64,7 +64,7 @@ class SemanticAnalyzerTest {
+     @DisplayName("Sammelt mehrere Fehler in einem Durchlauf")
+     void shouldCollectMultipleErrors() {
+         String dsl = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 value User(mut String name, UnknownType extra);
+                 """;
+ 
+@@ -80,7 +80,7 @@ class SemanticAnalyzerTest {
+     @DisplayName("Meldet Fehler, wenn ein Repository für ein Value Object statt für ein Aggregate deklariert wird")
+     void shouldRejectRepositoryForNonAggregate() {
+         String dsl = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 id OrderId;
+                 value OrderData(String payload);
+                 
+@@ -97,7 +97,7 @@ class SemanticAnalyzerTest {
+     @DisplayName("Verhindert mut-Felder in Events, da Events immutable Fakten sind")
+     void shouldRejectMutableFieldsInEvents() {
+         String dsl = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 event SomethingHappened(mut String status);
+                 """;
+ 
+@@ -107,23 +107,23 @@ class SemanticAnalyzerTest {
+     }
+ 
+     @Test
+-    @DisplayName("Verhindert Java-Keywords in Package-Namen")
+-    void shouldRejectJavaKeywordsInPackageName() {
++    @DisplayName("Verhindert Java-Keywords in Namespaces")
++    void shouldRejectJavaKeywordsInNamespace() {
+         String dsl = """
+-                package com.example.int.domain;
++                namespace com.example.int.domain;
+                 id ProjectId;
+                 """;
+ 
+         assertThatThrownBy(() -> compiler.compileSource(dsl))
+                 .isInstanceOf(SemanticValidationException.class)
+-                .hasMessageContaining("Java keyword 'int' cannot be used in package name 'com.example.int.domain'");
++                .hasMessageContaining("Invalid namespace 'com.example.int.domain'");
+     }
+ 
+     @Test
+     @DisplayName("Verhindert Java-Keywords als Typ-Namen")
+     void shouldRejectJavaKeywordsAsTypeName() {
+         String dsl = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 value class(String payload);
+                 """;
+ 
+@@ -136,7 +136,7 @@ class SemanticAnalyzerTest {
+     @DisplayName("Verhindert Java-Keywords als Feld- oder Parameter-Namen")
+     void shouldRejectJavaKeywordsAsFieldNames() {
+         String dsl = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 id ProjectId;
+                 value ProjectName(String value);
+                 aggregate Project[ProjectId](ProjectName name, int int);
+@@ -151,7 +151,7 @@ class SemanticAnalyzerTest {
+     @DisplayName("Verhindert optionale primitive Typen und schlägt Wrapper-Typ vor")
+     void shouldRejectOptionalPrimitives() {
+         String dsl = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 value Money(int? amount);
+                 """;
+ 
+@@ -164,7 +164,7 @@ class SemanticAnalyzerTest {
+     @DisplayName("Verhindert doppelte Dependency-Typen in use-Klauseln")
+     void shouldRejectDuplicateDependencyTypes() {
+         String dsl = """
+-                package com.example.app;
++                namespace com.example.app;
+                 id OrderId;
+                 aggregate Order[OrderId](String status);
+                 repository for Order {}
+@@ -184,7 +184,7 @@ class SemanticAnalyzerTest {
+     @DisplayName("Meldet Fehler, wenn 'from' den Repository-Typ statt der Variablen nutzt")
+     void shouldRejectRepositoryTypeInFromClause() {
+         String dsl = """
+-                package com.example.app;
++                namespace com.example.app;
+                 id OrderId;
+                 aggregate Order[OrderId](String status);
+                 repository for Order {}
+@@ -204,7 +204,7 @@ class SemanticAnalyzerTest {
+     @DisplayName("Verhindert Rückgabe von Aggregat-Instanzen im Tuple-Return")
+     void shouldRejectAggregateInTupleReturn() {
+         String dsl = """
+-                package com.example.app;
++                namespace com.example.app;
+                 id OrderId;
+                 aggregate Order[OrderId](String status);
+                 repository for Order {}
+@@ -229,7 +229,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert Aggregate mit nicht per 'id' deklarierten ID-Typen")
+         void shouldRejectAggregateWithUndeclaredIdType() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     aggregate Project[ProjectId](String name);
+                     """;
+ 
+@@ -242,7 +242,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert, dass normale Value Objects als ID im Aggregate-Kopf verwendet werden")
+         void shouldRejectValueObjectAsAggregateId() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     value ProjectId(UUID value);
+                     aggregate Project[ProjectId](String name);
+                     """;
+@@ -256,7 +256,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert, dass rohe Typen wie UUID direkt als ID verwendet werden")
+         void shouldRejectRawUuidAsAggregateId() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     aggregate Project[UUID](String name);
+                     """;
+ 
+@@ -269,7 +269,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert Entity mit nicht deklariertem ID-Typ")
+         void shouldRejectEntityWithUndeclaredIdType() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     entity Task[TaskId](String title);
+                     """;
+ 
+@@ -282,7 +282,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert doppelt deklarierte IDs")
+         void shouldRejectDuplicateIdDeclarations() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     id ProjectId;
+                     id ProjectId;
+                     """;
+@@ -301,7 +301,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert ungültige HTTP-Statuscodes im REST Adapter")
+         void shouldRejectInvalidHttpStatusCodes() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     port MyPort {
+                         Optional<String> fetch() {
+                             adapter rest {
+@@ -327,7 +327,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert 'return empty', wenn die Methode kein Optional zurückgibt")
+         void shouldRejectReturnEmptyForNonOptionalMethod() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     port MyPort {
+                         String fetch() {
+                             adapter rest {
+@@ -346,7 +346,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert das Werfen von Exceptions, die nicht in der throws-Klausel stehen")
+         void shouldRejectUndeclaredExceptions() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     port MyPort {
+                         String fetch() throws NetworkException {
+                             adapter rest {
+@@ -365,7 +365,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert Mappings auf nicht-existierende Felder im Schema")
+         void shouldRejectMappingToUnknownSchemaField() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     port MyPort {
+                         schema MyDto {
+                             String validName;
+@@ -388,7 +388,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert Mappings auf nicht-existierende Felder in der Domäne")
+         void shouldRejectMappingToUnknownDomainField() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     value Profile(String validName);
+                     
+                     port MyPort {
+@@ -410,7 +410,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert doppelte Schema-Namen in einem Port")
+         void shouldRejectDuplicateSchemaNames() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     port MyPort {
+                         schema MyDto {
+                             String id;
+@@ -433,7 +433,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert Java-Keywords im benutzerdefinierten Adapter-Package")
+         void shouldRejectJavaKeywordsInAdapterPackage() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     port MyPort {
+                         String fetch() {
+                             adapter rest {
+@@ -449,10 +449,10 @@ class SemanticAnalyzerTest {
+         }
+ 
+         @Test
+-        @DisplayName("Verhindert Vernac-Keywords im benutzerdefinierten Adapter-Package")
+-        void shouldRejectVernacKeywordsInAdapterPackage() {
++        @DisplayName("Erlaubt Vernac-Keywords im benutzerdefinierten Adapter-Package")
++        void shouldAllowVernacKeywordsInAdapterPackage() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     port MyPort {
+                         String fetch() {
+                             adapter rest {
+@@ -462,9 +462,8 @@ class SemanticAnalyzerTest {
+                     }
+                     """;
+ 
+-            assertThatThrownBy(() -> compiler.compileSource(dsl))
+-                    .isInstanceOf(IllegalArgumentException.class)
+-                    .hasMessageContaining("Syntax error at line 5:38 - mismatched input '.' expecting ';'");
++            assertThat(compiler.compileSource(dsl).generatedFiles())
++                    .anySatisfy(file -> assertThat(file.packageName()).isEqualTo("com.example.infra.adapter"));
+         }
+     }
+ 
+@@ -476,7 +475,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert rohe JDK-Collections in Aggregaten")
+         void shouldRejectRawCollectionsInAggregate() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     id OrderId;
+                     aggregate Order[OrderId](List<String> items);
+                     """;
+@@ -490,7 +489,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert direkte Referenz auf ein anderes Aggregat")
+         void shouldRejectDirectAggregateReference() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     id CustomerId;
+                     aggregate Customer[CustomerId](String name);
+                     
+@@ -507,7 +506,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert direkte Referenz auf ein Aggregat innerhalb einer Entity")
+         void shouldRejectDirectAggregateReferenceInEntity() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     id CustomerId;
+                     aggregate Customer[CustomerId](String name);
+                     
+@@ -524,7 +523,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Erkennt Namenskonflikte bei abgeleiteten Collection-Namen")
+         void shouldRejectDuplicateCollectionTypeName() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     value Tag(String name) collection; // default: Tags
+                     value Tags(String customHolder);  // Kollision!
+                     """;
+@@ -538,7 +537,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Erlaubt First-Class Collections von Value Objects im Aggregat")
+         void shouldAllowFirstClassValueObjectCollections() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     id OrderId;
+                     value OrderLine(String sku) collection OrderLines;
+                     aggregate Order[OrderId](OrderLines lines);
+@@ -557,7 +556,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert mutable Parameter in Domain Services")
+         void shouldRejectMutableParametersInDomainService() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     value WattHours(int value);
+                     
+                     service TariffCalculator(mut WattHours capacity) : WattHours {
+@@ -574,7 +573,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert nicht auflösbare Rückgabetypen im Service")
+         void shouldRejectUnresolvableReturnType() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     value WattHours(int value);
+                     
+                     service TariffCalculator(WattHours capacity) : UnknownType {
+@@ -591,7 +590,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert Java-Keywords als Service-Namen")
+         void shouldRejectJavaKeywordAsServiceName() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     service final() {}
+                     """;
+ 
+@@ -609,7 +608,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert doppelte Enum-Konstanten")
+         void shouldRejectDuplicateEnumConstants() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     value AcMode = ECO | COOL | ECO;
+                     """;
+ 
+@@ -622,7 +621,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert doppelte DB-Persistenzwerte")
+         void shouldRejectDuplicateDbPersistenceValues() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     value AcMode = ECO("eco") | ECONOMY("eco");
+                     """;
+ 
+@@ -635,7 +634,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert Java-Keywords als Enum-Konstante")
+         void shouldRejectJavaKeywordsAsEnumConstant() {
+             String dsl = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     value AcMode = ECO | final | OFF;
+                     """;
+ 
+@@ -653,7 +652,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert Listener auf nicht-existierende Events")
+         void shouldRejectListenerForUndeclaredEvent() {
+             String dsl = """
+-                    package com.example.energy;
++                    namespace com.example.energy;
+                     
+                     listener UnknownEvent {
+                     }
+@@ -668,7 +667,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Verhindert doppelte Dependency-Typen im Listener")
+         void shouldRejectDuplicateDependencyTypesInListener() {
+             String dsl = """
+-                    package com.example.energy;
++                    namespace com.example.energy;
+                     
+                     event OrderShipped(String orderId);
+                     
+@@ -687,7 +686,7 @@ class SemanticAnalyzerTest {
+         @DisplayName("Erlaubt gültigen Listener auf existierendes Event")
+         void shouldAllowValidListener() {
+             String dsl = """
+-                    package com.example.energy;
++                    namespace com.example.energy;
+                     
+                     port NotificationPort {}
+                     event OrderShipped(String orderId);
+diff --git a/vernac-compiler/src/test/java/org/vernac/compiler/ast/AstBuilderVisitorTest.java b/vernac-compiler/src/test/java/org/vernac/compiler/ast/AstBuilderVisitorTest.java
+index 2b60201..42843c3 100644
+--- a/vernac-compiler/src/test/java/org/vernac/compiler/ast/AstBuilderVisitorTest.java
++++ b/vernac-compiler/src/test/java/org/vernac/compiler/ast/AstBuilderVisitorTest.java
+@@ -26,7 +26,7 @@ class AstBuilderVisitorTest {
+     @DisplayName("Parst Aggregate mit Standard-Id und abgeleiteten sowie expliziten Feldnamen")
+     void shouldParseAggregateWithIdAndMutableFields() {
+         String src = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 
+                 aggregate Project[ProjectId](ProjectName, mut Money budget) validates {
+                     require(budget.amount().compareTo(BigDecimal.ZERO) >= 0, "Budget cannot be negative");
+@@ -78,7 +78,7 @@ class AstBuilderVisitorTest {
+         @DisplayName("Parst 'id <Name>;' als IdDeclarationNode")
+         void shouldParseIdDeclarations() {
+             String src = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     
+                     id ProjectId;
+                     id TaskId;
+@@ -104,7 +104,7 @@ class AstBuilderVisitorTest {
+         @DisplayName("Leitet bei Single Value Objects den Feldnamen 'value' automatisch ab")
+         void shouldDeriveDefaultValueFieldNameForSingleParam() {
+             String src = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     value ProjectId(UUID);
+                     """;
+ 
+@@ -122,7 +122,7 @@ class AstBuilderVisitorTest {
+         @DisplayName("Unterstützt package-Override im Value Object Block")
+         void shouldParseValueObjectWithPackageOverride() {
+             String src = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     value SharedId(UUID) {
+                         package com.example.shared.kernel;
+                     }
+@@ -137,7 +137,7 @@ class AstBuilderVisitorTest {
+         @Test
+         void shouldParseValueObjectWithValidation() {
+             String src = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     
+                     value Money(BigDecimal amount, Currency currency) validates {
+                         require(amount >= 0, "Amount must be positive");
+@@ -159,7 +159,7 @@ class AstBuilderVisitorTest {
+         @Test
+         void shouldParseValueObjectWithExplicitCollectionAndMethods() {
+             String src = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     
+                     value Money(BigDecimal amount, String? comment) validates {
+                         require(amount.compareTo(BigDecimal.ZERO) >= 0, "Amount must be positive");
+@@ -190,7 +190,7 @@ class AstBuilderVisitorTest {
+         @DisplayName("Parst Enum Value Object mit Standard- und Custom-DB-Werten sowie Methoden")
+         void shouldParseEnumValueObject() {
+             String src = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     
+                     value AcMode = ECO("eco") | COOL | HEAT("heat") | OFF {
+                         public boolean isActive() {
+@@ -239,7 +239,7 @@ class AstBuilderVisitorTest {
+             @DisplayName("Parst Listener mit Dependencies und Statements")
+             void shouldParseListener() {
+                 String src = """
+-                        package com.example.energy;
++                        namespace com.example.energy;
+                         
+                         listener StorageOverheated {
+                             use NotificationPort notifications;
+@@ -271,7 +271,7 @@ class AstBuilderVisitorTest {
+         @DisplayName("Parst Aggregate mit Id-Header, mut-Feldern, Validierungen und Methoden")
+         void shouldParseAggregateWithIdAndMethods() {
+             String src = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     
+                     aggregate Project[ProjectId](ProjectName title, Money? budget, mut Tasks tasks) validates {
+                         require(tasks.size() <= 100, "Max 100 tasks allowed");
+@@ -321,7 +321,7 @@ class AstBuilderVisitorTest {
+         @DisplayName("Parst Entity mit Id-Header und Feldern")
+         void shouldParseEntityWithId() {
+             String src = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     
+                     entity Task[TaskId](String title, mut int status);
+                     """;
+@@ -348,7 +348,7 @@ class AstBuilderVisitorTest {
+         @DisplayName("Parst outbox, memory und unpräfigierte Events mit DispatchMode")
+         void shouldParseEventsWithDispatchKind() {
+             String src = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     
+                     outbox event ProjectBudgetExceeded(ProjectId projectId, Money currentCost, Money budget);
+                     memory event ProjectValidated(ProjectId projectId);
+@@ -381,7 +381,7 @@ class AstBuilderVisitorTest {
+         @DisplayName("Leitet Standard-Namen ab und liest package-Override aus")
+         void shouldParseRepositoryWithDefaultNameAndCustomPackage() {
+             String src = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     
+                     repository for Project {
+                         package com.example.infrastructure.own;
+@@ -409,7 +409,7 @@ class AstBuilderVisitorTest {
+         @DisplayName("Parst Port mit Schema, REST Adapter, Config, Error Handling und Mapping")
+         void shouldParsePortWithRestAdapterAndMapping() {
+             String src = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     
+                     port HolidayCalendarProvider {
+                     
+@@ -483,7 +483,7 @@ class AstBuilderVisitorTest {
+         @DisplayName("Parst Port mit Custom Adaptern (Delegate und Inline Java)")
+         void shouldParsePortWithCustomAdapters() {
+             String src = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     
+                     port InvoiceGenerator {
+                         PdfDocument generate(InvoiceData data) {
+@@ -526,7 +526,7 @@ class AstBuilderVisitorTest {
+         @DisplayName("Erlaubt 'value' und 'id' in Feldnamen und Parametern, aber nicht als Methodenname")
+         void shouldAllowValueAndIdAsVariableNames() {
+             String src = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     
+                     value CustomType(String value, UUID id) validates {
+                         require(value != null && id != null, "value and id missing");
+@@ -563,7 +563,7 @@ class AstBuilderVisitorTest {
+         @DisplayName("Leitet sichere Feldnamen für primitive Typen ab, um Keyword-Kollisionen zu vermeiden")
+         void shouldDeriveSafeFieldNamesForPrimitives() {
+             String src = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     
+                     value Metrics(int, boolean, long, double, byte);
+                     """;
+@@ -588,7 +588,7 @@ class AstBuilderVisitorTest {
+         @DisplayName("Parst UseCase mit Conventions, Validierung, Java-Fragment und Tuple-Return")
+         void shouldParseUseCaseWithConventionsAndStatements() {
+             String src = """
+-                    package com.example.application;
++                    namespace com.example.application;
+                     
+                     usecase CancelOrder(OrderId, String reason) validates {
+                         require(!reason.isBlank(), "Reason must not be blank");
+@@ -667,7 +667,7 @@ class AstBuilderVisitorTest {
+         @DisplayName("Unterstützt package-Override und Single Return Statement")
+         void shouldParseUseCaseWithCustomPackageAndSingleReturn() {
+             String src = """
+-                    package com.example.application;
++                    namespace com.example.application;
+                     
+                     usecase CreateOrder(CustomerId customerId) {
+                         package com.example.mycustom.ordering;
+@@ -697,7 +697,7 @@ class AstBuilderVisitorTest {
+         @DisplayName("Parst DomainService mit Conventions, Parametern, Validierung und Rückgabetyp")
+         void shouldParseDomainService() {
+             String src = """
+-                    package com.example.domain;
++                    namespace com.example.domain;
+                     
+                     service TariffCalculator(WattHours capacity, WattHours storedEnergy, WattHours) : WattHours validates {
+                         require(capacity.value() > 0, "Capacity must be positive");
+diff --git a/vernac-compiler/src/test/java/org/vernac/compiler/generator/AggregateGeneratorTest.java b/vernac-compiler/src/test/java/org/vernac/compiler/generator/AggregateGeneratorTest.java
+index a56443f..07e4957 100644
+--- a/vernac-compiler/src/test/java/org/vernac/compiler/generator/AggregateGeneratorTest.java
++++ b/vernac-compiler/src/test/java/org/vernac/compiler/generator/AggregateGeneratorTest.java
+@@ -42,7 +42,7 @@ class AggregateGeneratorTest {
+     @DisplayName("Generiert vollständiges Aggregate Root mit Lifecycle, mut-Settern, Events und ID-Semantik")
+     void shouldGenerateAggregateRoot() {
+         String src = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 
+                 aggregate Project[ProjectId](ProjectName name, mut Money budget) validates {
+                     require(budget.amount().compareTo(BigDecimal.ZERO) >= 0, "Budget cannot be negative");
+@@ -92,7 +92,7 @@ class AggregateGeneratorTest {
+     @DisplayName("Übernimmt Java-Block mit Event-Emitting (registerEvent) fehlerfrei")
+     void shouldGenerateAggregateWithEventEmitting() {
+         String src = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 
+                 aggregate Project[ProjectId](ProjectName name) {
+                     public void rename(ProjectName newName) {
+@@ -117,7 +117,7 @@ class AggregateGeneratorTest {
+     @DisplayName("Nutzt konsistent explizite und abgeleitete Feldnamen inkl. Mutatoren durch alle Methoden")
+     void shouldGenerateAggregateWithExplicitAndDerivedNames() {
+         String src = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 aggregate Customer[CustomerId](String, mut String customAlias);
+                 """;
+ 
+@@ -142,7 +142,7 @@ class AggregateGeneratorTest {
+     @DisplayName("Erzeugt TABLE_NAME und SCHEMA_DDL mit korrektem Value-Object-Flattening")
+     void shouldGenerateSchemaConstantsWithFlattenedColumns() {
+         String src = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 
+                 value ProjectName(String value);
+                 value Currency(String code);
+diff --git a/vernac-compiler/src/test/java/org/vernac/compiler/generator/DomainCollectionGeneratorTest.java b/vernac-compiler/src/test/java/org/vernac/compiler/generator/DomainCollectionGeneratorTest.java
+index b9e86f0..d2b6c41 100644
+--- a/vernac-compiler/src/test/java/org/vernac/compiler/generator/DomainCollectionGeneratorTest.java
++++ b/vernac-compiler/src/test/java/org/vernac/compiler/generator/DomainCollectionGeneratorTest.java
+@@ -33,7 +33,7 @@ class DomainCollectionGeneratorTest {
+     @DisplayName("Generiert Standard-Collection mit pluralisiertem Namen, Immutability und plus/minus")
+     void shouldGenerateDefaultPluralizedCollection() {
+         String src = """
+-                package com.example;
++                namespace com.example;
+                 value Car(String model) collection;
+                 """;
+ 
+@@ -67,7 +67,7 @@ class DomainCollectionGeneratorTest {
+     @DisplayName("Generiert explizit benannte Collection mit Custom-Methoden")
+     void shouldGenerateCustomCollectionWithMethods() {
+         String src = """
+-                package com.example;
++                namespace com.example;
+                 value Money(BigDecimal amount) collection MoneyTransactions {
+                     public Money sum() {
+                         return null;
+@@ -94,7 +94,7 @@ class DomainCollectionGeneratorTest {
+     @DisplayName("Generiert Entity-Collection mit minusId(id)")
+     void shouldGenerateEntityCollectionWithMinusId() {
+         String src = """
+-                package com.example;
++                namespace com.example;
+                 id TaskId;
+                 entity Task[TaskId](String title) collection;
+                 """;
+@@ -121,7 +121,7 @@ class DomainCollectionGeneratorTest {
+     @DisplayName("Berücksichtigt benutzerdefiniertes Package für Entity-Collection")
+     void shouldRespectCustomPackageForEntityCollection() {
+         String src = """
+-                package com.example;
++                namespace com.example;
+                 id LineId;
+                 entity OrderLine[LineId](String sku) {
+                     package com.example.mycustom.order;
+diff --git a/vernac-compiler/src/test/java/org/vernac/compiler/generator/DomainServiceGeneratorTest.java b/vernac-compiler/src/test/java/org/vernac/compiler/generator/DomainServiceGeneratorTest.java
+index b6a9039..a791299 100644
+--- a/vernac-compiler/src/test/java/org/vernac/compiler/generator/DomainServiceGeneratorTest.java
++++ b/vernac-compiler/src/test/java/org/vernac/compiler/generator/DomainServiceGeneratorTest.java
+@@ -18,7 +18,7 @@ class DomainServiceGeneratorTest {
+     @DisplayName("Generiert eine Spring @Service Bean mit Vorbedingungen und execute-Methode")
+     void shouldGenerateDomainService() {
+         String dsl = """
+-                package com.example.energy;
++                namespace com.example.energy;
+                 
+                 value WattHours(int value) validates {
+                     require(value >= 0, "Non-negative");
+diff --git a/vernac-compiler/src/test/java/org/vernac/compiler/generator/EntityGeneratorTest.java b/vernac-compiler/src/test/java/org/vernac/compiler/generator/EntityGeneratorTest.java
+index 4712978..c0e58f3 100644
+--- a/vernac-compiler/src/test/java/org/vernac/compiler/generator/EntityGeneratorTest.java
++++ b/vernac-compiler/src/test/java/org/vernac/compiler/generator/EntityGeneratorTest.java
+@@ -42,7 +42,7 @@ class EntityGeneratorTest {
+     @DisplayName("Generiert Entity mit Entity-Interface, mut-Settern, create/reconstitute und ID-Semantik")
+     void shouldGenerateEntity() {
+         String src = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 
+                 entity Task[TaskId](TaskTitle title, mut TaskStatus status) validates {
+                     require(title.value().length() <= 100, "Title too long");
+@@ -83,7 +83,7 @@ class EntityGeneratorTest {
+     @DisplayName("Nutzt konsistent explizite und abgeleitete Feldnamen im generierten Entity durch alle Methoden")
+     void shouldGenerateEntityWithExplicitAndDerivedNames() {
+         String src = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 entity OrderItem[ItemId](String, mut int explicitQuantity);
+                 """;
+ 
+@@ -117,7 +117,7 @@ class EntityGeneratorTest {
+     @DisplayName("Erzeugt TABLE_NAME und SCHEMA_DDL mit korrektem Value-Object-Flattening für Entities")
+     void shouldGenerateSchemaConstantsWithFlattenedColumns() {
+         String src = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 
+                 value ItemDescription(String text);
+                 value Currency(String isoCode);
+diff --git a/vernac-compiler/src/test/java/org/vernac/compiler/generator/EventGeneratorTest.java b/vernac-compiler/src/test/java/org/vernac/compiler/generator/EventGeneratorTest.java
+index 260033a..e12f907 100644
+--- a/vernac-compiler/src/test/java/org/vernac/compiler/generator/EventGeneratorTest.java
++++ b/vernac-compiler/src/test/java/org/vernac/compiler/generator/EventGeneratorTest.java
+@@ -32,7 +32,7 @@ class EventGeneratorTest {
+     @DisplayName("Generiert Domain Event mit create(), of(), DispatchMode, Konstante und Getter-Zugriff")
+     void shouldGenerateDomainEventWithCreateAndDispatch() {
+         String src = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 
+                 outbox event ProjectBudgetExceeded(ProjectId projectId, Money currentCost, String? reason);
+                 """;
+@@ -69,7 +69,7 @@ class EventGeneratorTest {
+     @DisplayName("Nutzt explizite und abgeleitete Feldnamen im generierten Event durchgängig")
+     void shouldGenerateEventWithExplicitAndDerivedNames() {
+         String src = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 event CustomerRelocated(CustomerId, String newAddress);
+                 """;
+ 
+@@ -91,7 +91,7 @@ class EventGeneratorTest {
+     @DisplayName("Erzeugt OUTBOX_TABLE_NAME und OUTBOX_SCHEMA_DDL nur bei Outbox-Events")
+     void shouldGenerateOutboxSchemaConstantsForOutboxEvents() {
+         String src = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 
+                 outbox event OrderPlaced(String orderId);
+                 memory event OrderValidated(String orderId);
+diff --git a/vernac-compiler/src/test/java/org/vernac/compiler/generator/ListenerGeneratorTest.java b/vernac-compiler/src/test/java/org/vernac/compiler/generator/ListenerGeneratorTest.java
+index 537ebd6..6259070 100644
+--- a/vernac-compiler/src/test/java/org/vernac/compiler/generator/ListenerGeneratorTest.java
++++ b/vernac-compiler/src/test/java/org/vernac/compiler/generator/ListenerGeneratorTest.java
+@@ -21,7 +21,7 @@ class ListenerGeneratorTest {
+     @DisplayName("Generiert Spring @Component Listener mit TransactionalEventListener und Dependency Injection")
+     void shouldGenerateEventListenerWithTransactionalAnnotation() {
+         String dsl = """
+-                package com.example.energy;
++                namespace com.example.energy;
+                 
+                 id StorageId;
+                 outbox event StorageOverheated(StorageId storageId, int temperatureCelsius);
+@@ -69,7 +69,7 @@ class ListenerGeneratorTest {
+     @DisplayName("Unterstützt package-Override im Listener-Block")
+     void shouldSupportCustomPackageInListener() {
+         String dsl = """
+-                package com.example.energy;
++                namespace com.example.energy;
+                 
+                 event SystemAlertTriggered(String message);
+                 
+diff --git a/vernac-compiler/src/test/java/org/vernac/compiler/generator/PortGeneratorTest.java b/vernac-compiler/src/test/java/org/vernac/compiler/generator/PortGeneratorTest.java
+index abb13da..7a8b49c 100644
+--- a/vernac-compiler/src/test/java/org/vernac/compiler/generator/PortGeneratorTest.java
++++ b/vernac-compiler/src/test/java/org/vernac/compiler/generator/PortGeneratorTest.java
+@@ -21,7 +21,7 @@ class PortGeneratorTest {
+     @DisplayName("Generiert Port-Interface, Schema-DTO und REST-Adapter")
+     void shouldGeneratePortAndRestAdapterStructure() {
+         String dsl = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 
+                 port HolidayCalendarProvider {
+                     schema HolidayResponseDto {
+@@ -84,7 +84,7 @@ class PortGeneratorTest {
+     @DisplayName("Generiert Custom Delegate Interface bei Custom Adapter")
+     void shouldGenerateCustomAdapterDelegate() {
+         String dsl = """
+-                package com.example;
++                namespace com.example;
+                 
+                 value PdfDocument(String value);
+                 value InvoiceData(String value);
+@@ -117,7 +117,7 @@ class PortGeneratorTest {
+     @DisplayName("Verarbeitet URL-Parameter und generiert RestClient mit Catch-All Fehlerbehandlung")
+     void shouldGenerateRestClientWithParamsAndCatchAllHandler() {
+         String dsl = """
+-                package com.example;
++                namespace com.example;
+                 
+                 value CityName(String value);
+                 value Temperature(double celsius);
+@@ -163,7 +163,7 @@ class PortGeneratorTest {
+     @DisplayName("Mappt Infrastruktur-DTO in ein Entity via fromExternal")
+     void shouldMapDtoToEntityUsingFromExternal() {
+         String dsl = """
+-                package com.example;
++                namespace com.example;
+                 
+                 id ProjectId;
+                 value ProjectName(String value);
+diff --git a/vernac-compiler/src/test/java/org/vernac/compiler/generator/RepositoryGeneratorTest.java b/vernac-compiler/src/test/java/org/vernac/compiler/generator/RepositoryGeneratorTest.java
+index b1fb504..5a138a0 100644
+--- a/vernac-compiler/src/test/java/org/vernac/compiler/generator/RepositoryGeneratorTest.java
++++ b/vernac-compiler/src/test/java/org/vernac/compiler/generator/RepositoryGeneratorTest.java
+@@ -21,7 +21,7 @@ class RepositoryGeneratorTest {
+     @DisplayName("Generiert Interface, Custom-Fragment und Jdbc-Repository")
+     void shouldGenerateCompleteRepositoryStructure() {
+         String dsl = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 
+                 import java.math.BigDecimal;
+                 
+@@ -76,7 +76,7 @@ class RepositoryGeneratorTest {
+     @DisplayName("Generiert 1:N Entity-Mapping Methoden (sync und fetch) in JDBC Repositories")
+     void shouldGenerateJdbcRepositoryWithOneToManyEntityMapping() {
+         String dsl = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 
+                 id ProjectId;
+                 id TaskId;
+@@ -108,7 +108,7 @@ class RepositoryGeneratorTest {
+     @DisplayName("Flacht Multi-Value-Objects und geschachtelte Value-Objects in SQL und Parametern rekursiv ab")
+     void shouldFlattenNestedValueObjectsInSqlStatementsAndParams() {
+         String dsl = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 
+                 import java.math.BigDecimal;
+                 
+@@ -142,7 +142,7 @@ class RepositoryGeneratorTest {
+     @DisplayName("Liest primitive Attribute in Value Objects mit Boxed Types (Integer.class) und rekonstruiert verschachtelte VOs im RowMapper")
+     void shouldMapRowUsingBoxedTypesAndReconstructValueObjects() {
+         String dsl = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 
+                 id StorageId;
+                 value WattHours(int value);
+@@ -172,7 +172,7 @@ class RepositoryGeneratorTest {
+     @DisplayName("Flacht Value Objects auch in 1:N Child-Entity Sync-Statements sauber ab")
+     void shouldFlattenValueObjectsInChildEntitySync() {
+         String dsl = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 
+                 id ProjectId;
+                 id TaskId;
+diff --git a/vernac-compiler/src/test/java/org/vernac/compiler/generator/UseCaseGeneratorTest.java b/vernac-compiler/src/test/java/org/vernac/compiler/generator/UseCaseGeneratorTest.java
+index 752abcd..7703efe 100644
+--- a/vernac-compiler/src/test/java/org/vernac/compiler/generator/UseCaseGeneratorTest.java
++++ b/vernac-compiler/src/test/java/org/vernac/compiler/generator/UseCaseGeneratorTest.java
+@@ -18,7 +18,7 @@ class UseCaseGeneratorTest {
+     @DisplayName("Generiert vollständigen Spring-Service für UseCase mit Conventions")
+     void shouldGenerateUseCaseService() {
+         String dsl = """
+-                package com.example.shop;
++                namespace com.example.shop;
+                 
+                 id OrderId;
+                 aggregate Order[OrderId](String status);
+diff --git a/vernac-compiler/src/test/java/org/vernac/compiler/generator/ValueObjectGeneratorTest.java b/vernac-compiler/src/test/java/org/vernac/compiler/generator/ValueObjectGeneratorTest.java
+index debd13d..be1de94 100644
+--- a/vernac-compiler/src/test/java/org/vernac/compiler/generator/ValueObjectGeneratorTest.java
++++ b/vernac-compiler/src/test/java/org/vernac/compiler/generator/ValueObjectGeneratorTest.java
+@@ -32,7 +32,7 @@ class ValueObjectGeneratorTest {
+     @DisplayName("Generiert Single-Value Object mit create(), asString(), asUuid()")
+     void shouldGenerateSingleValueObjectWithHelpers() {
+         String src = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 value ProjectId(UUID value);
+                 """;
+ 
+@@ -58,7 +58,7 @@ class ValueObjectGeneratorTest {
+     @DisplayName("Generiert Multi-Value Object mit @Nullable und Optional Getter")
+     void shouldGenerateMultiValueObjectWithNullableAndOptional() {
+         String src = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 value Money(BigDecimal amount, String? comment) validates {
+                     require(amount.compareTo(BigDecimal.ZERO) >= 0, "Amount must be positive");
+                 };
+@@ -86,7 +86,7 @@ class ValueObjectGeneratorTest {
+     @DisplayName("Generiert konsistent explizite Feldnamen (Felder, Konstruktor, Getter, Factories)")
+     void shouldGenerateCodeWithExplicitFieldNames() {
+         String src = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 value UserEmail(String emailAddress, boolean isVerified);
+                 """;
+ 
+@@ -109,7 +109,7 @@ class ValueObjectGeneratorTest {
+     @DisplayName("Leitet Namen aus Typen ab, wenn mehrere Felder ohne Namen angegeben sind")
+     void shouldDeriveFieldNamesFromTypes() {
+         String src = """
+-                package com.example.domain;
++                namespace com.example.domain;
+                 value Document(String, UUID);
+                 """;
+ 
+@@ -132,7 +132,7 @@ class ValueObjectGeneratorTest {
+     @DisplayName("Generiert ein Java-Enum mit dbValue, of-Factory und Methoden")
+     void shouldGenerateEnumValueObject() {
+         String src = """
+-                package com.example.climate;
++                namespace com.example.climate;
+                 
+                 value AcMode = ECO("eco") | COOL | HEAT("heat") | OFF {
+                     public boolean isActive() {
+diff --git a/vernac-compiler/src/test/java/org/vernac/compiler/pipeline/VernacCompilerTest.java b/vernac-compiler/src/test/java/org/vernac/compiler/pipeline/VernacCompilerTest.java
+index ac0e1c7..f015aef 100644
+--- a/vernac-compiler/src/test/java/org/vernac/compiler/pipeline/VernacCompilerTest.java
++++ b/vernac-compiler/src/test/java/org/vernac/compiler/pipeline/VernacCompilerTest.java
+@@ -22,7 +22,7 @@ class VernacCompilerTest {
+     @DisplayName("Kompiliert eine vollständige Domain- und Port-Spezifikation inklusive Dateisystem-Export")
+     void shouldCompileCompleteDomainAndPortSpecification(@TempDir Path tempDir) throws IOException {
+         String dsl = """
+-                package com.example;
++                namespace com.example;
+                 
+                 import java.math.BigDecimal;
+                 import java.util.Currency;
+diff --git a/vernac-compiler/src/test/java/org/vernac/compiler/pipeline/VernacProjectLoaderTest.java b/vernac-compiler/src/test/java/org/vernac/compiler/pipeline/VernacProjectLoaderTest.java
+new file mode 100644
+index 0000000..22b69e5
+--- /dev/null
++++ b/vernac-compiler/src/test/java/org/vernac/compiler/pipeline/VernacProjectLoaderTest.java
+@@ -0,0 +1,152 @@
++// Copyright 2026 Danny Reinhold
++// SPDX-License-Identifier: Apache-2.0
++package org.vernac.compiler.pipeline;
++
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.io.TempDir;
++import org.vernac.compiler.analyzer.SemanticValidationException;
++import org.vernac.compiler.symbols.TypeSymbol;
++import java.io.IOException;
++import java.nio.file.*;
++import java.util.List;
++import static org.junit.jupiter.api.Assertions.*;
++
++class VernacProjectLoaderTest {
++    @TempDir Path root;
++    private final VernacCompiler compiler = new VernacCompiler();
++
++    private Path write(String relativePath, String source) throws IOException {
++        Path path = root.resolve(relativePath);
++        Files.createDirectories(path.getParent());
++        return Files.writeString(path, source);
++    }
++
++    @Test
++    void indexesAllFilesBeforeResolvingAnyReferences() throws IOException {
++        write("org/example/tasks/a-model.vernac", """
++                namespace org.example.tasks;
++                value Task(Title title, TaskId id);
++                """);
++        write("org/example/tasks/z-values.vernac", """
++                namespace org.example.tasks;
++                id TaskId;
++                value Title(String value);
++                """);
++        var project = compiler.readProject(root);
++        assertEquals(2, project.sources().size());
++        assertEquals(3, project.symbols().inNamespace("org.example.tasks").size());
++        assertEquals(TypeSymbol.Kind.ID, project.symbols().find("org.example.tasks.TaskId").orElseThrow().kind());
++        assertEquals(TypeSymbol.Kind.VALUE_OBJECT, project.symbols().find("org.example.tasks.Task").orElseThrow().kind());
++    }
++
++    @Test
++    void permitsSameSimpleNameInDifferentNamespaces() throws IOException {
++        write("org/sales/model.vernac", "namespace org.sales; value Title(String value);");
++        write("org/support/model.vernac", "namespace org.support; value Title(String value);");
++        var index = compiler.readProject(root).symbols();
++        assertTrue(index.find("org.sales.Title").isPresent());
++        assertTrue(index.find("org.support.Title").isPresent());
++    }
++
++    @Test
++    void reportsDuplicateDeclarationsWithBothFileLocations() throws IOException {
++        Path first = write("org/example/first.vernac", "namespace org.example;\nvalue Title(String value);");
++        Path second = write("org/example/second.vernac", "namespace org.example;\nvalue Title(String value);");
++        var error = assertThrows(SemanticValidationException.class, () -> compiler.readProject(root));
++        assertEquals(2, error.diagnostics().size());
++        assertTrue(error.getMessage().contains(first + ":2:1"));
++        assertTrue(error.getMessage().contains(second + ":2:1"));
++        assertTrue(error.getMessage().contains("Duplicate type declaration 'org.example.Title'"));
++    }
++
++    @Test
++    void reportsDuplicateDeclarationsWithinOneFile() throws IOException {
++        Path file = write("org/example/model.vernac", "namespace org.example;\nid TaskId;\nid TaskId;");
++        var error = assertThrows(SemanticValidationException.class, () -> compiler.readProject(root));
++        assertTrue(error.getMessage().contains(file + ":2:1"));
++        assertTrue(error.getMessage().contains(file + ":3:1"));
++    }
++
++    @Test
++    void reservesBuiltinTypeNamesAtTheirDeclaration() throws IOException {
++        Path file = write("org/example/model.vernac", "namespace org.example;\nvalue Currency(String value);");
++        var error = assertThrows(SemanticValidationException.class, () -> compiler.readProject(root));
++        assertTrue(error.getMessage().contains("Type name 'Currency' is reserved"));
++        assertEquals(file.toString(), error.diagnostics().getFirst().location().sourceName());
++        assertEquals(2, error.diagnostics().getFirst().location().line());
++    }
++
++    @Test
++    void includesEnumsAndCollectionsInTheSameCollisionDomain() throws IOException {
++        write("org/example/values.vernac", "namespace org.example; value Tag(String value) collection Tags; value State = NEW | DONE;");
++        var index = compiler.readProject(root).symbols();
++        assertEquals(TypeSymbol.Kind.COLLECTION, index.find("org.example.Tags").orElseThrow().kind());
++        assertEquals(TypeSymbol.Kind.ENUM, index.find("org.example.State").orElseThrow().kind());
++        write("org/example/collision.vernac", "namespace org.example; value Tags(String value);");
++        var error = assertThrows(SemanticValidationException.class, () -> compiler.readProject(root));
++        assertTrue(error.getMessage().contains("Duplicate type declaration 'org.example.Tags'"));
++    }
++
++    @Test
++    void requiresDirectoryToMatchTheNamespaceExactly() throws IOException {
++        Path file = write("org/example/wrong/model.vernac", "namespace org.example.tasks; id TaskId;");
++        var error = assertThrows(SemanticValidationException.class, () -> compiler.readProject(root));
++        assertTrue(error.getMessage().contains("Move the file or correct its namespace"));
++        assertTrue(error.getMessage().contains(Path.of("org/example/tasks").toString()));
++        assertEquals(file.toString(), error.diagnostics().getFirst().location().sourceName());
++    }
++
++    @Test
++    void rejectsSourceRootFilesInsteadOfInventingADefaultNamespace() throws IOException {
++        write("model.vernac", "namespace org.example; id TaskId;");
++        var error = assertThrows(SemanticValidationException.class, () -> compiler.readProject(root));
++        assertTrue(error.getMessage().contains("requires directory"));
++    }
++
++    @Test
++    void acceptsVernacKeywordsAndJavaContextualWordsInNamespaceSegments() throws IOException {
++        write("org/custom/value/record/model.vernac", "namespace org.custom.value.record; id TaskId;");
++        assertTrue(compiler.readProject(root).symbols().find("org.custom.value.record.TaskId").isPresent());
++    }
++
++    @Test
++    void rejectsJavaKeywordsInNamespaceWithAVernacDiagnostic() throws IOException {
++        write("org/class/model.vernac", "namespace org.class; id TaskId;");
++        var error = assertThrows(SemanticValidationException.class, () -> compiler.readProject(root));
++        assertTrue(error.getMessage().contains("Invalid namespace 'org.class'"));
++        assertTrue(error.getMessage().contains("Java-compatible"));
++    }
++
++    @Test
++    void scansOnlyVernacFilesAndAcceptsAnEmptyTree() throws IOException {
++        write("README.md", "not a Vernac source");
++        write("org/example/model.vernac.bak", "invalid source");
++        assertTrue(compiler.readProject(root).sources().isEmpty());
++    }
++
++    @Test
++    void rejectsAMissingSourceRoot() {
++        assertThrows(IOException.class, () -> compiler.readProject(root.resolve("missing")));
++    }
++
++    @Test
++    void collectsSyntaxErrorsFromDifferentFiles() throws IOException {
++        Path first = write("org/example/first.vernac", "value MissingNamespace(String value);");
++        Path second = write("org/example/second.vernac", "namespace org.example; value Broken(;");
++        var error = assertThrows(SemanticValidationException.class, () -> compiler.readProject(root));
++        assertEquals(2, error.diagnostics().size());
++        assertTrue(error.getMessage().contains(first.toString()));
++        assertTrue(error.getMessage().contains(second.toString()));
++    }
++
++    @Test
++    void preservesImportsWithoutFollowingThemDuringIndexing() throws IOException {
++        write("org/first/model.vernac", "namespace org.first; import org.second.*; value First(Second value);");
++        write("org/second/model.vernac", "namespace org.second; import org.first.*; value Second(First value);");
++        var project = compiler.readProject(root);
++        assertEquals(2, project.sources().size());
++        assertEquals(List.of("org.second.*"), project.sources().getFirst().unit().imports());
++        assertTrue(project.symbols().find("org.first.First").isPresent());
++        // This stage indexes declarations; it does not approve reference cycles or validate imports.
++    }
++}
+diff --git a/vernac-compiler/src/test/java/org/vernac/compiler/pipeline/VernacSourceParserTest.java b/vernac-compiler/src/test/java/org/vernac/compiler/pipeline/VernacSourceParserTest.java
+new file mode 100644
+index 0000000..d897df5
+--- /dev/null
++++ b/vernac-compiler/src/test/java/org/vernac/compiler/pipeline/VernacSourceParserTest.java
+@@ -0,0 +1,53 @@
++// Copyright 2026 Danny Reinhold
++// SPDX-License-Identifier: Apache-2.0
++package org.vernac.compiler.pipeline;
++
++import org.junit.jupiter.api.Test;
++import org.vernac.compiler.analyzer.SemanticValidationException;
++import static org.junit.jupiter.api.Assertions.*;
++
++class VernacSourceParserTest {
++    private final VernacSourceParser parser = new VernacSourceParser();
++
++    @Test
++    void requiresNamespaceAndRejectsTheOldFileLevelPackageSyntax() {
++        for (String source : new String[]{"id TaskId;", "package org.example; id TaskId;", ""}) {
++            var error = assertThrows(SemanticValidationException.class, () -> parser.parse("model.vernac", source));
++            assertTrue(error.getMessage().contains("namespace"));
++            assertEquals("model.vernac", error.diagnostics().getFirst().location().sourceName());
++        }
++    }
++
++    @Test
++    void propagatesSourceNameAndOneBasedCoordinatesIntoNestedNodes() {
++        var unit = parser.parse("model.vernac", "namespace org.example;\nvalue Title(String value);");
++        assertEquals("org.example", unit.namespace());
++        assertEquals("model.vernac", unit.location().sourceName());
++        var value = unit.valueObjects().getFirst();
++        assertEquals(2, value.location().line());
++        assertEquals(1, value.location().column());
++        assertEquals("model.vernac", value.fields().getFirst().type().location().sourceName());
++        assertEquals(13, value.fields().getFirst().type().location().column());
++    }
++
++    @Test
++    void reportsSyntaxErrorColumnAsOneBased() {
++        var error = assertThrows(SemanticValidationException.class,
++                () -> parser.parse("broken.vernac", "namespace org.example;\n  id ;"));
++        var location = error.diagnostics().getFirst().location();
++        assertEquals("broken.vernac", location.sourceName());
++        assertEquals(2, location.line());
++        assertEquals(6, location.column());
++    }
++
++    @Test
++    void handlesKeywordSegmentsInImportsAndQualifiedTypeReferences() {
++        var unit = parser.parse("model.vernac", """
++                namespace org.example;
++                import org.custom.value.Title;
++                value Label(org.custom.value.Title title);
++                """);
++        assertEquals("org.custom.value.Title", unit.imports().getFirst());
++        assertEquals("org.custom.value.Title", unit.valueObjects().getFirst().fields().getFirst().type().name());
++    }
++}
+diff --git a/vernac-lsp/src/main/java/org/vernac/lsp/VernacTextDocumentService.java b/vernac-lsp/src/main/java/org/vernac/lsp/VernacTextDocumentService.java
+index 4249f92..957212c 100644
+--- a/vernac-lsp/src/main/java/org/vernac/lsp/VernacTextDocumentService.java
++++ b/vernac-lsp/src/main/java/org/vernac/lsp/VernacTextDocumentService.java
+@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
+ public class VernacTextDocumentService implements TextDocumentService {
+ 
+     private static final Set<String> DSL_KEYWORDS = Set.of(
+-            "package", "import", "as", "id",
++            "namespace", "package", "import", "as", "id",
+             "aggregate", "value", "entity", "event", "outbox", "memory", "service", "external", "schema",
+             "repository", "for", "table", "find", "custom", "validates", "require",
+             "mut", "invariant", "mapping",
+@@ -119,7 +119,7 @@ public class VernacTextDocumentService implements TextDocumentService {
+         // Only perform semantic validation via AST if there are no pure syntax errors
+         if (diagnostics.isEmpty() && tree != null) {
+             try {
+-                AstBuilderVisitor astBuilder = new AstBuilderVisitor();
++                AstBuilderVisitor astBuilder = new AstBuilderVisitor(uri);
+                 CompilationUnitNode ast = astBuilder.visitCompilationUnit(tree);
+                 if (ast != null) {
+                     VernacSemanticValidator semanticValidator = new VernacSemanticValidator();
+@@ -437,7 +437,7 @@ public class VernacTextDocumentService implements TextDocumentService {
+     }
+ 
+     private void addTopLevelCompletions(List<CompletionItem> items) {
+-        addKeywordCompletion(items, "package", "package ${1:com.example.domain};");
++        addKeywordCompletion(items, "namespace", "namespace ${1:com.example};");
+         addKeywordCompletion(items, "import", "import ${1:package.Type};");
+         addKeywordCompletion(items, "aggregate", "aggregate ${1:Name}[${2:IdType} id](\n    $0\n);");
+         addKeywordCompletion(items, "value", "value ${1:Name}(${2:Type} value);");

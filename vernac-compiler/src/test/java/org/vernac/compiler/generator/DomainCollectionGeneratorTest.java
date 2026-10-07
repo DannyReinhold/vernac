@@ -33,7 +33,7 @@ class DomainCollectionGeneratorTest {
     @DisplayName("Generiert Standard-Collection mit pluralisiertem Namen, Immutability und plus/minus")
     void shouldGenerateDefaultPluralizedCollection() {
         String src = """
-                package com.example;
+                namespace com.example;
                 value Car(String model) collection;
                 """;
 
@@ -67,7 +67,7 @@ class DomainCollectionGeneratorTest {
     @DisplayName("Generiert explizit benannte Collection mit Custom-Methoden")
     void shouldGenerateCustomCollectionWithMethods() {
         String src = """
-                package com.example;
+                namespace com.example;
                 value Money(BigDecimal amount) collection MoneyTransactions {
                     public Money sum() {
                         return null;
@@ -94,7 +94,7 @@ class DomainCollectionGeneratorTest {
     @DisplayName("Generiert Entity-Collection mit minusId(id)")
     void shouldGenerateEntityCollectionWithMinusId() {
         String src = """
-                package com.example;
+                namespace com.example;
                 id TaskId;
                 entity Task[TaskId](String title) collection;
                 """;
@@ -121,7 +121,7 @@ class DomainCollectionGeneratorTest {
     @DisplayName("Berücksichtigt benutzerdefiniertes Package für Entity-Collection")
     void shouldRespectCustomPackageForEntityCollection() {
         String src = """
-                package com.example;
+                namespace com.example;
                 id LineId;
                 entity OrderLine[LineId](String sku) {
                     package com.example.mycustom.order;

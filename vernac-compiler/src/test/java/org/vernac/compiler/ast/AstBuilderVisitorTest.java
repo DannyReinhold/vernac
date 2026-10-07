@@ -26,7 +26,7 @@ class AstBuilderVisitorTest {
     @DisplayName("Parst Aggregate mit Standard-Id und abgeleiteten sowie expliziten Feldnamen")
     void shouldParseAggregateWithIdAndMutableFields() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 aggregate Project[ProjectId](ProjectName, mut Money budget) validates {
                     require(budget.amount().compareTo(BigDecimal.ZERO) >= 0, "Budget cannot be negative");
@@ -78,7 +78,7 @@ class AstBuilderVisitorTest {
         @DisplayName("Parst 'id <Name>;' als IdDeclarationNode")
         void shouldParseIdDeclarations() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     id ProjectId;
                     id TaskId;
@@ -104,7 +104,7 @@ class AstBuilderVisitorTest {
         @DisplayName("Leitet bei Single Value Objects den Feldnamen 'value' automatisch ab")
         void shouldDeriveDefaultValueFieldNameForSingleParam() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     value ProjectId(UUID);
                     """;
 
@@ -122,7 +122,7 @@ class AstBuilderVisitorTest {
         @DisplayName("Unterstützt package-Override im Value Object Block")
         void shouldParseValueObjectWithPackageOverride() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     value SharedId(UUID) {
                         package com.example.shared.kernel;
                     }
@@ -137,7 +137,7 @@ class AstBuilderVisitorTest {
         @Test
         void shouldParseValueObjectWithValidation() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     value Money(BigDecimal amount, Currency currency) validates {
                         require(amount >= 0, "Amount must be positive");
@@ -159,7 +159,7 @@ class AstBuilderVisitorTest {
         @Test
         void shouldParseValueObjectWithExplicitCollectionAndMethods() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     value Money(BigDecimal amount, String? comment) validates {
                         require(amount.compareTo(BigDecimal.ZERO) >= 0, "Amount must be positive");
@@ -190,7 +190,7 @@ class AstBuilderVisitorTest {
         @DisplayName("Parst Enum Value Object mit Standard- und Custom-DB-Werten sowie Methoden")
         void shouldParseEnumValueObject() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     value AcMode = ECO("eco") | COOL | HEAT("heat") | OFF {
                         public boolean isActive() {
@@ -239,7 +239,7 @@ class AstBuilderVisitorTest {
             @DisplayName("Parst Listener mit Dependencies und Statements")
             void shouldParseListener() {
                 String src = """
-                        package com.example.energy;
+                        namespace com.example.energy;
                         
                         listener StorageOverheated {
                             use NotificationPort notifications;
@@ -271,7 +271,7 @@ class AstBuilderVisitorTest {
         @DisplayName("Parst Aggregate mit Id-Header, mut-Feldern, Validierungen und Methoden")
         void shouldParseAggregateWithIdAndMethods() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     aggregate Project[ProjectId](ProjectName title, Money? budget, mut Tasks tasks) validates {
                         require(tasks.size() <= 100, "Max 100 tasks allowed");
@@ -321,7 +321,7 @@ class AstBuilderVisitorTest {
         @DisplayName("Parst Entity mit Id-Header und Feldern")
         void shouldParseEntityWithId() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     entity Task[TaskId](String title, mut int status);
                     """;
@@ -348,7 +348,7 @@ class AstBuilderVisitorTest {
         @DisplayName("Parst outbox, memory und unpräfigierte Events mit DispatchMode")
         void shouldParseEventsWithDispatchKind() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     outbox event ProjectBudgetExceeded(ProjectId projectId, Money currentCost, Money budget);
                     memory event ProjectValidated(ProjectId projectId);
@@ -381,7 +381,7 @@ class AstBuilderVisitorTest {
         @DisplayName("Leitet Standard-Namen ab und liest package-Override aus")
         void shouldParseRepositoryWithDefaultNameAndCustomPackage() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     repository for Project {
                         package com.example.infrastructure.own;
@@ -409,7 +409,7 @@ class AstBuilderVisitorTest {
         @DisplayName("Parst Port mit Schema, REST Adapter, Config, Error Handling und Mapping")
         void shouldParsePortWithRestAdapterAndMapping() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     port HolidayCalendarProvider {
                     
@@ -483,7 +483,7 @@ class AstBuilderVisitorTest {
         @DisplayName("Parst Port mit Custom Adaptern (Delegate und Inline Java)")
         void shouldParsePortWithCustomAdapters() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     port InvoiceGenerator {
                         PdfDocument generate(InvoiceData data) {
@@ -526,7 +526,7 @@ class AstBuilderVisitorTest {
         @DisplayName("Erlaubt 'value' und 'id' in Feldnamen und Parametern, aber nicht als Methodenname")
         void shouldAllowValueAndIdAsVariableNames() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     value CustomType(String value, UUID id) validates {
                         require(value != null && id != null, "value and id missing");
@@ -563,7 +563,7 @@ class AstBuilderVisitorTest {
         @DisplayName("Leitet sichere Feldnamen für primitive Typen ab, um Keyword-Kollisionen zu vermeiden")
         void shouldDeriveSafeFieldNamesForPrimitives() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     value Metrics(int, boolean, long, double, byte);
                     """;
@@ -588,7 +588,7 @@ class AstBuilderVisitorTest {
         @DisplayName("Parst UseCase mit Conventions, Validierung, Java-Fragment und Tuple-Return")
         void shouldParseUseCaseWithConventionsAndStatements() {
             String src = """
-                    package com.example.application;
+                    namespace com.example.application;
                     
                     usecase CancelOrder(OrderId, String reason) validates {
                         require(!reason.isBlank(), "Reason must not be blank");
@@ -667,7 +667,7 @@ class AstBuilderVisitorTest {
         @DisplayName("Unterstützt package-Override und Single Return Statement")
         void shouldParseUseCaseWithCustomPackageAndSingleReturn() {
             String src = """
-                    package com.example.application;
+                    namespace com.example.application;
                     
                     usecase CreateOrder(CustomerId customerId) {
                         package com.example.mycustom.ordering;
@@ -697,7 +697,7 @@ class AstBuilderVisitorTest {
         @DisplayName("Parst DomainService mit Conventions, Parametern, Validierung und Rückgabetyp")
         void shouldParseDomainService() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     service TariffCalculator(WattHours capacity, WattHours storedEnergy, WattHours) : WattHours validates {
                         require(capacity.value() > 0, "Capacity must be positive");

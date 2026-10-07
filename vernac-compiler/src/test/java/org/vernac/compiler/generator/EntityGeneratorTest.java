@@ -42,7 +42,7 @@ class EntityGeneratorTest {
     @DisplayName("Generiert Entity mit Entity-Interface, mut-Settern, create/reconstitute und ID-Semantik")
     void shouldGenerateEntity() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 entity Task[TaskId](TaskTitle title, mut TaskStatus status) validates {
                     require(title.value().length() <= 100, "Title too long");
@@ -83,7 +83,7 @@ class EntityGeneratorTest {
     @DisplayName("Nutzt konsistent explizite und abgeleitete Feldnamen im generierten Entity durch alle Methoden")
     void shouldGenerateEntityWithExplicitAndDerivedNames() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 entity OrderItem[ItemId](String, mut int explicitQuantity);
                 """;
 
@@ -117,7 +117,7 @@ class EntityGeneratorTest {
     @DisplayName("Erzeugt TABLE_NAME und SCHEMA_DDL mit korrektem Value-Object-Flattening für Entities")
     void shouldGenerateSchemaConstantsWithFlattenedColumns() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 value ItemDescription(String text);
                 value Currency(String isoCode);

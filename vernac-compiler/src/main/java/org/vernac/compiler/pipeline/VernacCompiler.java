@@ -4,14 +4,11 @@
 package org.vernac.compiler.pipeline;
 
 import com.palantir.javapoet.JavaFile;
-import org.antlr.v4.runtime.*;
 import org.vernac.compiler.analyzer.CompilerDiagnostic;
 import org.vernac.compiler.analyzer.SemanticAnalyzer;
 import org.vernac.compiler.analyzer.SemanticValidationException;
 import org.vernac.compiler.ast.*;
 import org.vernac.compiler.generator.*;
-import org.vernac.compiler.parser.VernacLexer;
-import org.vernac.compiler.parser.VernacParser;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -38,11 +35,19 @@ public class VernacCompiler {
 
     public VernacCompilationResult compile(Path vernacFile) throws IOException {
         String source = Files.readString(vernacFile);
-        return compileSource(source);
+        return generate(new VernacSourceParser().parse(vernacFile.toString(), source));
     }
 
     public VernacCompilationResult compileSource(String source) {
-        CompilationUnitNode unit = parse(source);
+        return generate(new VernacSourceParser().parse("<memory>", source));
+    }
+
+    /** Reads and indexes the complete source tree before reference resolution. */
+    public VernacProject readProject(Path sourceRoot) throws IOException {
+        return new VernacProjectLoader().load(sourceRoot);
+    }
+
+    private VernacCompilationResult generate(CompilationUnitNode unit) {
 
         // Semantische Analyse vor der Codegenerierung
         List<CompilerDiagnostic> diagnostics = semanticAnalyzer.analyze(unit);
@@ -54,7 +59,7 @@ public class VernacCompiler {
             throw new SemanticValidationException(errors);
         }
 
-        String packageName = unit.packageName().orElse("generated.domain");
+        String packageName = unit.namespace();
         List<String> imports = unit.imports();
         List<JavaFile> generatedFiles = new ArrayList<>();
 
@@ -108,22 +113,4 @@ public class VernacCompiler {
         return new VernacCompilationResult(packageName, generatedFiles);
     }
 
-    private CompilationUnitNode parse(String source) {
-        VernacLexer lexer = new VernacLexer(CharStreams.fromString(source));
-        lexer.removeErrorListeners();
-        lexer.addErrorListener(new DescriptiveErrorListener());
-
-        VernacParser parser = new VernacParser(new CommonTokenStream(lexer));
-        parser.removeErrorListeners();
-        parser.addErrorListener(new DescriptiveErrorListener());
-
-        return new AstBuilderVisitor().visitCompilationUnit(parser.compilationUnit());
-    }
-
-    private static class DescriptiveErrorListener extends BaseErrorListener {
-        @Override
-        public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line, int charPositionInLine, String msg, RecognitionException e) {
-            throw new IllegalArgumentException("Syntax error at line " + line + ":" + (charPositionInLine + 1) + " - " + msg, e);
-        }
-    }
 }

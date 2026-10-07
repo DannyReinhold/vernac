@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
 public class VernacTextDocumentService implements TextDocumentService {
 
     private static final Set<String> DSL_KEYWORDS = Set.of(
-            "package", "import", "as", "id",
+            "namespace", "package", "import", "as", "id",
             "aggregate", "value", "entity", "event", "outbox", "memory", "service", "external", "schema",
             "repository", "for", "table", "find", "custom", "validates", "require",
             "mut", "invariant", "mapping",
@@ -119,7 +119,7 @@ public class VernacTextDocumentService implements TextDocumentService {
         // Only perform semantic validation via AST if there are no pure syntax errors
         if (diagnostics.isEmpty() && tree != null) {
             try {
-                AstBuilderVisitor astBuilder = new AstBuilderVisitor();
+                AstBuilderVisitor astBuilder = new AstBuilderVisitor(uri);
                 CompilationUnitNode ast = astBuilder.visitCompilationUnit(tree);
                 if (ast != null) {
                     VernacSemanticValidator semanticValidator = new VernacSemanticValidator();
@@ -437,7 +437,7 @@ public class VernacTextDocumentService implements TextDocumentService {
     }
 
     private void addTopLevelCompletions(List<CompletionItem> items) {
-        addKeywordCompletion(items, "package", "package ${1:com.example.domain};");
+        addKeywordCompletion(items, "namespace", "namespace ${1:com.example};");
         addKeywordCompletion(items, "import", "import ${1:package.Type};");
         addKeywordCompletion(items, "aggregate", "aggregate ${1:Name}[${2:IdType} id](\n    $0\n);");
         addKeywordCompletion(items, "value", "value ${1:Name}(${2:Type} value);");

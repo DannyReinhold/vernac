@@ -32,7 +32,7 @@ class ValueObjectGeneratorTest {
     @DisplayName("Generiert Single-Value Object mit create(), asString(), asUuid()")
     void shouldGenerateSingleValueObjectWithHelpers() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 value ProjectId(UUID value);
                 """;
 
@@ -58,7 +58,7 @@ class ValueObjectGeneratorTest {
     @DisplayName("Generiert Multi-Value Object mit @Nullable und Optional Getter")
     void shouldGenerateMultiValueObjectWithNullableAndOptional() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 value Money(BigDecimal amount, String? comment) validates {
                     require(amount.compareTo(BigDecimal.ZERO) >= 0, "Amount must be positive");
                 };
@@ -86,7 +86,7 @@ class ValueObjectGeneratorTest {
     @DisplayName("Generiert konsistent explizite Feldnamen (Felder, Konstruktor, Getter, Factories)")
     void shouldGenerateCodeWithExplicitFieldNames() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 value UserEmail(String emailAddress, boolean isVerified);
                 """;
 
@@ -109,7 +109,7 @@ class ValueObjectGeneratorTest {
     @DisplayName("Leitet Namen aus Typen ab, wenn mehrere Felder ohne Namen angegeben sind")
     void shouldDeriveFieldNamesFromTypes() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 value Document(String, UUID);
                 """;
 
@@ -132,7 +132,7 @@ class ValueObjectGeneratorTest {
     @DisplayName("Generiert ein Java-Enum mit dbValue, of-Factory und Methoden")
     void shouldGenerateEnumValueObject() {
         String src = """
-                package com.example.climate;
+                namespace com.example.climate;
                 
                 value AcMode = ECO("eco") | COOL | HEAT("heat") | OFF {
                     public boolean isActive() {

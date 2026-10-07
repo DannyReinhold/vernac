@@ -21,7 +21,7 @@ class RepositoryGeneratorTest {
     @DisplayName("Generiert Interface, Custom-Fragment und Jdbc-Repository")
     void shouldGenerateCompleteRepositoryStructure() {
         String dsl = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 import java.math.BigDecimal;
                 
@@ -76,7 +76,7 @@ class RepositoryGeneratorTest {
     @DisplayName("Generiert 1:N Entity-Mapping Methoden (sync und fetch) in JDBC Repositories")
     void shouldGenerateJdbcRepositoryWithOneToManyEntityMapping() {
         String dsl = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 id ProjectId;
                 id TaskId;
@@ -108,7 +108,7 @@ class RepositoryGeneratorTest {
     @DisplayName("Flacht Multi-Value-Objects und geschachtelte Value-Objects in SQL und Parametern rekursiv ab")
     void shouldFlattenNestedValueObjectsInSqlStatementsAndParams() {
         String dsl = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 import java.math.BigDecimal;
                 
@@ -142,7 +142,7 @@ class RepositoryGeneratorTest {
     @DisplayName("Liest primitive Attribute in Value Objects mit Boxed Types (Integer.class) und rekonstruiert verschachtelte VOs im RowMapper")
     void shouldMapRowUsingBoxedTypesAndReconstructValueObjects() {
         String dsl = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 id StorageId;
                 value WattHours(int value);
@@ -172,7 +172,7 @@ class RepositoryGeneratorTest {
     @DisplayName("Flacht Value Objects auch in 1:N Child-Entity Sync-Statements sauber ab")
     void shouldFlattenValueObjectsInChildEntitySync() {
         String dsl = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 id ProjectId;
                 id TaskId;

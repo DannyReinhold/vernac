@@ -1,11 +1,11 @@
 grammar Vernac;
 
 compilationUnit
-    : packageDeclaration? importDeclaration* topLevelDeclaration* EOF
+    : namespaceDeclaration importDeclaration* topLevelDeclaration* EOF
     ;
 
-packageDeclaration
-    : 'package' qualifiedName ';'
+namespaceDeclaration
+    : 'namespace' qualifiedName ';'
     ;
 
 importDeclaration
@@ -360,9 +360,66 @@ typeArguments
     : type (',' type)*
     ;
 
-// Package- und Import-Pfade dürfen nur aus echten Identifiern bestehen
+// Vernac keywords are contextual in qualified names. Java validity is checked semantically.
 qualifiedName
-    : IDENTIFIER ('.' IDENTIFIER)*
+    : qualifiedNameSegment ('.' qualifiedNameSegment)*
+    ;
+
+qualifiedNameSegment
+    : IDENTIFIER
+    | BOOLEAN_LITERAL
+    | 'DELETE'
+    | 'GET'
+    | 'PATCH'
+    | 'POST'
+    | 'PUT'
+    | 'adapter'
+    | 'aggregate'
+    | 'as'
+    | 'by'
+    | 'collection'
+    | 'custom'
+    | 'else'
+    | 'emit'
+    | 'entity'
+    | 'event'
+    | 'find'
+    | 'for'
+    | 'from'
+    | 'id'
+    | 'if'
+    | 'import'
+    | 'internal'
+    | 'invariant'
+    | 'listener'
+    | 'load'
+    | 'mapping'
+    | 'memory'
+    | 'mut'
+    | 'namespace'
+    | 'on'
+    | 'outbox'
+    | 'package'
+    | 'port'
+    | 'private'
+    | 'public'
+    | 'repository'
+    | 'require'
+    | 'rest'
+    | 'return'
+    | 'save'
+    | 'schema'
+    | 'service'
+    | 'switch'
+    | 'throw'
+    | 'throws'
+    | 'to'
+    | 'try'
+    | 'use'
+    | 'usecase'
+    | 'validates'
+    | 'value'
+    | 'while'
     ;
 
 rawJavaBlock

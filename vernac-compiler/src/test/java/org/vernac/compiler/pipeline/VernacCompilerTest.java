@@ -22,7 +22,7 @@ class VernacCompilerTest {
     @DisplayName("Kompiliert eine vollständige Domain- und Port-Spezifikation inklusive Dateisystem-Export")
     void shouldCompileCompleteDomainAndPortSpecification(@TempDir Path tempDir) throws IOException {
         String dsl = """
-                package com.example;
+                namespace com.example;
                 
                 import java.math.BigDecimal;
                 import java.util.Currency;

@@ -14,12 +14,20 @@ import org.vernac.runtime.DispatchMode;
 import java.util.*;
 
 public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
+    private final String sourceName;
+
+    public AstBuilderVisitor() {
+        this("<memory>");
+    }
+
+    public AstBuilderVisitor(String sourceName) {
+        this.sourceName = Objects.requireNonNull(sourceName);
+    }
+
 
     @Override
     public CompilationUnitNode visitCompilationUnit(VernacParser.CompilationUnitContext ctx) {
-        Optional<String> packageName = Optional.ofNullable(ctx.packageDeclaration())
-                .map(VernacParser.PackageDeclarationContext::qualifiedName)
-                .map(ParserRuleContext::getText);
+        String namespace = ctx.namespaceDeclaration().qualifiedName().getText();
 
         List<String> imports = ctx.importDeclaration().stream()
                 .map(i -> i.qualifiedName().getText() + (i.getText().contains(".*") ? ".*" : ""))
@@ -30,7 +38,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 .filter(Objects::nonNull)
                 .toList();
 
-        return new CompilationUnitNode(toLocation(ctx), packageName, imports, definitions);
+        return new CompilationUnitNode(toLocation(ctx.namespaceDeclaration()), namespace, imports, definitions);
     }
 
     private TopLevelDefinition toTopLevelDefinition(VernacParser.TopLevelDeclarationContext ctx) {
@@ -547,9 +555,9 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     private SourceLocation toLocation(ParserRuleContext ctx) {
         Token start = ctx.getStart();
         if (start != null) {
-            return new SourceLocation(start.getLine(), start.getCharPositionInLine() + 1);
+            return new SourceLocation(sourceName, start.getLine(), start.getCharPositionInLine() + 1);
         }
-        return SourceLocation.UNKNOWN;
+        return new SourceLocation(sourceName, 0, 0);
     }
 
     private String unquote(String text) {
@@ -559,14 +567,8 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         return text;
     }
 
-    private SourceLocation locationOf(org.antlr.v4.runtime.ParserRuleContext ctx) {
-        if (ctx == null || ctx.getStart() == null) {
-            return new SourceLocation(0, 0); // Sicherer Fallback
-        }
-        return new SourceLocation(
-                ctx.getStart().getLine(),
-                ctx.getStart().getCharPositionInLine()
-        );
+    private SourceLocation locationOf(ParserRuleContext ctx) {
+        return ctx == null ? new SourceLocation(sourceName, 0, 0) : toLocation(ctx);
     }
 
     @Override

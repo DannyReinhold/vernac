@@ -30,8 +30,9 @@ public class SemanticAnalyzer {
     public List<CompilerDiagnostic> analyze(CompilationUnitNode unit) {
         List<CompilerDiagnostic> diagnostics = new ArrayList<>();
 
-        if (unit.packageName().isPresent()) {
-            validatePackageName(unit.packageName().get(), unit.location(), diagnostics);
+        if (!javax.lang.model.SourceVersion.isName(unit.namespace(), javax.lang.model.SourceVersion.RELEASE_21)) {
+            diagnostics.add(CompilerDiagnostic.error(unit.location(),
+                    "Invalid namespace '" + unit.namespace() + "': expected a Java-compatible qualified name."));
         }
 
         Set<String> declaredTypes = new HashSet<>();

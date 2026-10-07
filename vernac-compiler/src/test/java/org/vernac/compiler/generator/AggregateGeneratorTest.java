@@ -42,7 +42,7 @@ class AggregateGeneratorTest {
     @DisplayName("Generiert vollständiges Aggregate Root mit Lifecycle, mut-Settern, Events und ID-Semantik")
     void shouldGenerateAggregateRoot() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 aggregate Project[ProjectId](ProjectName name, mut Money budget) validates {
                     require(budget.amount().compareTo(BigDecimal.ZERO) >= 0, "Budget cannot be negative");
@@ -92,7 +92,7 @@ class AggregateGeneratorTest {
     @DisplayName("Übernimmt Java-Block mit Event-Emitting (registerEvent) fehlerfrei")
     void shouldGenerateAggregateWithEventEmitting() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 aggregate Project[ProjectId](ProjectName name) {
                     public void rename(ProjectName newName) {
@@ -117,7 +117,7 @@ class AggregateGeneratorTest {
     @DisplayName("Nutzt konsistent explizite und abgeleitete Feldnamen inkl. Mutatoren durch alle Methoden")
     void shouldGenerateAggregateWithExplicitAndDerivedNames() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 aggregate Customer[CustomerId](String, mut String customAlias);
                 """;
 
@@ -142,7 +142,7 @@ class AggregateGeneratorTest {
     @DisplayName("Erzeugt TABLE_NAME und SCHEMA_DDL mit korrektem Value-Object-Flattening")
     void shouldGenerateSchemaConstantsWithFlattenedColumns() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 value ProjectName(String value);
                 value Currency(String code);

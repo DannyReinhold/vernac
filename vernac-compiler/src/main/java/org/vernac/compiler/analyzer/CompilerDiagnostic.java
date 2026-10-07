@@ -20,7 +20,7 @@ public record CompilerDiagnostic(
 
     @Override
     public String toString() {
-        return "[" + severity + "] at line " + location.line() + ":" + location.column() + " - " + message;
+        return "[" + severity + "] " + location + " - " + message;
     }
 
     public enum Severity {

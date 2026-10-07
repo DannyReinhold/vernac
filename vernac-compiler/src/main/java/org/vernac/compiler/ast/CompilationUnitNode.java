@@ -4,14 +4,21 @@
 package org.vernac.compiler.ast;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.Objects;
 
 public record CompilationUnitNode(
         SourceLocation location,
-        Optional<String> packageName,
+        String namespace,
         List<String> imports,
         List<TopLevelDefinition> definitions
 ) implements AstNode {
+    public CompilationUnitNode {
+        Objects.requireNonNull(location);
+        Objects.requireNonNull(namespace);
+        imports = List.copyOf(imports);
+        definitions = List.copyOf(definitions);
+    }
+
 
     public List<ValueObjectNode> valueObjects() {
         return definitions.stream()

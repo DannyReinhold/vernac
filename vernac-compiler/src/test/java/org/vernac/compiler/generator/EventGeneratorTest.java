@@ -32,7 +32,7 @@ class EventGeneratorTest {
     @DisplayName("Generiert Domain Event mit create(), of(), DispatchMode, Konstante und Getter-Zugriff")
     void shouldGenerateDomainEventWithCreateAndDispatch() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 outbox event ProjectBudgetExceeded(ProjectId projectId, Money currentCost, String? reason);
                 """;
@@ -69,7 +69,7 @@ class EventGeneratorTest {
     @DisplayName("Nutzt explizite und abgeleitete Feldnamen im generierten Event durchgängig")
     void shouldGenerateEventWithExplicitAndDerivedNames() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 event CustomerRelocated(CustomerId, String newAddress);
                 """;
 
@@ -91,7 +91,7 @@ class EventGeneratorTest {
     @DisplayName("Erzeugt OUTBOX_TABLE_NAME und OUTBOX_SCHEMA_DDL nur bei Outbox-Events")
     void shouldGenerateOutboxSchemaConstantsForOutboxEvents() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 outbox event OrderPlaced(String orderId);
                 memory event OrderValidated(String orderId);

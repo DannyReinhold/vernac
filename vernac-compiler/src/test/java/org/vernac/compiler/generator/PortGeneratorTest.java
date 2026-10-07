@@ -21,7 +21,7 @@ class PortGeneratorTest {
     @DisplayName("Generiert Port-Interface, Schema-DTO und REST-Adapter")
     void shouldGeneratePortAndRestAdapterStructure() {
         String dsl = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 port HolidayCalendarProvider {
                     schema HolidayResponseDto {
@@ -84,7 +84,7 @@ class PortGeneratorTest {
     @DisplayName("Generiert Custom Delegate Interface bei Custom Adapter")
     void shouldGenerateCustomAdapterDelegate() {
         String dsl = """
-                package com.example;
+                namespace com.example;
                 
                 value PdfDocument(String value);
                 value InvoiceData(String value);
@@ -117,7 +117,7 @@ class PortGeneratorTest {
     @DisplayName("Verarbeitet URL-Parameter und generiert RestClient mit Catch-All Fehlerbehandlung")
     void shouldGenerateRestClientWithParamsAndCatchAllHandler() {
         String dsl = """
-                package com.example;
+                namespace com.example;
                 
                 value CityName(String value);
                 value Temperature(double celsius);
@@ -163,7 +163,7 @@ class PortGeneratorTest {
     @DisplayName("Mappt Infrastruktur-DTO in ein Entity via fromExternal")
     void shouldMapDtoToEntityUsingFromExternal() {
         String dsl = """
-                package com.example;
+                namespace com.example;
                 
                 id ProjectId;
                 value ProjectName(String value);

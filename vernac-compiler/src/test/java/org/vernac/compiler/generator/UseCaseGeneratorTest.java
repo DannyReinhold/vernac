@@ -18,7 +18,7 @@ class UseCaseGeneratorTest {
     @DisplayName("Generiert vollständigen Spring-Service für UseCase mit Conventions")
     void shouldGenerateUseCaseService() {
         String dsl = """
-                package com.example.shop;
+                namespace com.example.shop;
                 
                 id OrderId;
                 aggregate Order[OrderId](String status);

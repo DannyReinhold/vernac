@@ -18,7 +18,7 @@ class DomainServiceGeneratorTest {
     @DisplayName("Generiert eine Spring @Service Bean mit Vorbedingungen und execute-Methode")
     void shouldGenerateDomainService() {
         String dsl = """
-                package com.example.energy;
+                namespace com.example.energy;
                 
                 value WattHours(int value) validates {
                     require(value >= 0, "Non-negative");

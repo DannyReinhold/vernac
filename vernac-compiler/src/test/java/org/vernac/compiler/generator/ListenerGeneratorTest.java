@@ -21,7 +21,7 @@ class ListenerGeneratorTest {
     @DisplayName("Generiert Spring @Component Listener mit TransactionalEventListener und Dependency Injection")
     void shouldGenerateEventListenerWithTransactionalAnnotation() {
         String dsl = """
-                package com.example.energy;
+                namespace com.example.energy;
                 
                 id StorageId;
                 outbox event StorageOverheated(StorageId storageId, int temperatureCelsius);
@@ -69,7 +69,7 @@ class ListenerGeneratorTest {
     @DisplayName("Unterstützt package-Override im Listener-Block")
     void shouldSupportCustomPackageInListener() {
         String dsl = """
-                package com.example.energy;
+                namespace com.example.energy;
                 
                 event SystemAlertTriggered(String message);
                 

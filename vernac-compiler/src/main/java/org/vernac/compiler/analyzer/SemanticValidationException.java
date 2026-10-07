@@ -16,7 +16,7 @@ public class SemanticValidationException extends RuntimeException {
     }
 
     private static String buildMessage(List<CompilerDiagnostic> diagnostics) {
-        return "Vernac semantic analysis failed with " + diagnostics.size() + " issue(s):\n" +
+        return "Vernac compilation failed with " + diagnostics.size() + " issue(s):\n" +
                 diagnostics.stream()
                         .map(d -> "  - " + d)
                         .collect(Collectors.joining("\n"));
