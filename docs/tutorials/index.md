@@ -16,4 +16,7 @@ Each tutorial starts with a working example and invites you to change it.
 3. [Default Names and Explicit Roles](default-names.md)
    Explore generated getters, role names and compiler diagnostics.
 
+4. [Closed Domain Values with Enums](enum-value-objects.md)
+   Add domain behavior, use enums in value objects, and explore naming collisions.
+
 [Back to the documentation](../index.md)

@@ -105,7 +105,7 @@ Mapping between Vernac/Java types and PostgreSQL column types follows these fixe
 | `Instant`, `LocalDateTime`, `ZonedDateTime` | `TIMESTAMPTZ` | `rs.getTimestamp(...).toInstant()` | `NOT NULL` (unless optional `?`) |
 | `LocalDate` | `DATE` | `java.time.LocalDate.class` | `NOT NULL` (unless optional `?`) |
 | `String` | `VARCHAR(255)` | `java.lang.String.class` | `NOT NULL` (unless optional `?`) |
-| **Enum Value Object** | `VARCHAR(32)` | `java.lang.String.class` | `NOT NULL` (unless optional `?`) |
+| **Enum Value Object** | Pending explicit mapping design | Not generated | Compilation diagnostic |
 | **Other Types** | `TEXT` | `TypeResolver.resolve(...)` | `NOT NULL` (unless optional `?`) |
 
 ### Nullability & Wrapper Guarantee
@@ -155,17 +155,14 @@ aggregate Order[OrderId](
 - **Reconstruction:** `Money.of(rs.getObject("total_amount", BigDecimal.class), Currency.of(rs.getObject("total_currency", String.class)))`
 
 ### 4.3 Enum Value Objects
-Enum Value Objects are persisted as string columns:
-```vernac
-value OrderStatus = NEW | PAID | CANCELLED;
+Enum value objects no longer contain persistence codes or generated `dbValue()`
+methods. Automatic enum persistence is currently rejected with a Vernac diagnostic
+at the enum field. This applies to enums nested in value objects as well.
 
-aggregate Order[OrderId](
-    mut OrderStatus status
-);
-```
-- **Column:** `status VARCHAR(32) NOT NULL`
-- **Saving:** `aggregate.status().dbValue()`
-- **Loading:** `OrderStatus.fromDbValue(rs.getObject("status", String.class))` (or for optional enums `Optional.ofNullable(...).map(OrderStatus::fromDbValue)`).
+An explicit external-code mapping will be designed alongside schema migrations
+and ACL mappings. The generator does not silently fall back to `name()`,
+`toString()`, or `ordinal()`. The domain API is specified in the
+[enum contract](contracts/enum-value-objects.md).
 
 ---
 
@@ -429,7 +426,7 @@ Spring Boot automatically detects `CustomOrderRepositoryImpl` via component scan
 | **Metadata** | `created_at`, `updated_at`, `version` | Automatic auditing and optimistic locking columns on aggregate roots |
 | **Value Object (Single)** | Field name without suffix | `ItemSku sku` $\rightarrow$ column `sku VARCHAR(255)` |
 | **Value Object (Multi)** | `<field>_<attribute>` | `Money total` $\rightarrow$ columns `total_amount`, `total_currency` |
-| **Enum Value Object** | `VARCHAR(32)` | Persists `.dbValue()`, reads via `.fromDbValue(...)` |
+| **Enum Value Object** | Pending explicit mapping | Rejected until the mapping contract is implemented |
 | **1:N Child Entities** | Dedicated table with FK | Automatic eager loading (`fetch...`) & 3-way diff (`sync...`) |
 | **byId(id)** | `Agg byId(AggId id)` | Returns aggregate directly; throws `AggregateNotFoundException` on 404 |
 | **save(agg)** | `Agg save(Agg agg)` | Distinguishes INSERT (`version == 0`) / UPDATE, synchronizes child entities, dispatches outbox events |

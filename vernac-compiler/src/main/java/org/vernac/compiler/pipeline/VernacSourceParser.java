@@ -61,7 +61,7 @@ public final class VernacSourceParser {
         if (tree instanceof VernacParser.EnumConstantContext constant
                 && !VernacNames.isIdentifier(constant.name.getText())) {
             throw new SemanticValidationException(List.of(CompilerDiagnostic.error(
-                    new SourceLocation(sourceName, constant.name.getLine(), constant.name.getCharPositionInLine() + 1),
+                    new SourceLocation(sourceName, constant.name.getStart().getLine(), constant.name.getStart().getCharPositionInLine() + 1),
                     VernacNames.invalidNameMessage(constant.name.getText()))));
         }
         for (int i = 0; i < tree.getChildCount(); i++) validateNames(sourceName, tree.getChild(i));

@@ -33,6 +33,18 @@ class VernacProjectSymbolsTest {
         return new VernacProjectSymbols(root, files).definition(path, at(path, beforeLastCharacter));
     }
 
+    @Test void enumTypeCompletionAndNavigationDoNotExposeConstantsAsTypes() {
+        var target = file("states", "status", "value Status = MeinTyp | String | name | values;");
+        var current = file("tasks", "draft", "import states.Status; value Draft(Sta");
+        assertEquals(List.of("Status"), labels(current, "Draft(Sta"));
+        files.put(current, "namespace tasks; import states.Status; value Draft(Status);");
+        assertEquals(target.toUri().toString(), definition(current, "Draft(Sta").getFirst().getUri());
+        files.put(current, "namespace tasks; import states.*; value Draft(");
+        assertFalse(labels(current, "Draft(").contains("MeinTyp"));
+        assertFalse(labels(current, "Draft(").contains("name"));
+        assertEquals(1, labels(current, "Draft(").stream().filter("String"::equals).count());
+    }
+
     @Test void completesUnfinishedValueUsingSiblingDeclarationsAndBuiltins() {
         file("tasks", "types", "value Title(String value); id TaskId; value Status = OPEN | DONE;");
         var current = file("tasks", "draft", "value Draft(Ti");

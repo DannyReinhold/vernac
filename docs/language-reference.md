@@ -221,22 +221,35 @@ Enums are declared as value objects using `=` and pipe `|` separators:
 value OrderStatus = NEW | PAID | SHIPPED;
 ```
 
-With custom database persistence values:
+Enums generate public Java enums in `<namespace>.domain`, with `@NullMarked`
+and the `ValueObject` marker interface. Use standard Java constants, `==`,
+`name()`, `values()`, and `valueOf(String)`. No `of()` or `dbValue()` helper is
+provided. External codes belong to a separately designed adapter/persistence
+mapping; constant names and ordinals are not automatic storage formats.
 
 ```vernac
-value CountryCode = DE("DEU") | US("USA");
-
-value AcMode = ECO("eco") | COOL | HEAT("heat") | OFF {
+value AcMode = ECO | COOL | HEAT | OFF {
     public boolean isActive() {
         return this != OFF;
     }
-}
+};
+value Settings(AcMode, AcMode? previousMode);
 ```
 
-- Generates a Java `enum` implementing `ValueObject`.
-- `public String dbValue()`: Returns the explicit string or defaults to the constant's name (e.g. `"COOL"`).
-- `public static AcMode of(String value)`: Lookup matching `dbValue` or enum name.
-- Enums can contain custom Java methods in a trailing block `{ ... }`.
+Enums support custom methods and ordinary VO fields, including optional fields.
+Additional state, custom constructors, constant-specific bodies, validation blocks,
+and per-definition packages are not supported. Legal custom overrides such as
+`public String toString()` are permitted; final/implicit Java API conflicts such
+as a parameterless `name()` method are diagnosed by Vernac.
+
+Constants must be unique valid member names. UPPER_SNAKE_CASE is recommended,
+not required. A constant named `String`, `name`, or an existing Vernac type is
+legal and does not declare or import a type. A constant named `name` does not
+conflict with `name()`. In embedded Java, an expression such as `String.valueOf(...)`
+may need qualification as `java.lang.String.valueOf(...)` if String is a constant.
+
+See the [enum contract](contracts/enum-value-objects.md) and
+[enum tutorial](tutorials/enum-value-objects.md).
 
 ---
 
@@ -548,5 +561,4 @@ For quick reference, this table summarizes everything you can omit in Vernac:
 | `usecase`             | `load Aggregate;` by expression   | `<aggregateName>Id` (e.g. `orderId`).                                                                        |
 | `usecase`             | `save aggregate;` repo name       | Single matching repository in `use` statements.                                                              |
 | `usecase`             | `return (a.b(), c as alias);`     | Component alias defaults to property after dot (`b`), types inferred automatically.                          |
-| `enum`                | Constant dbValue                  | String name of the constant (e.g. `COOL` $\to$ `"COOL"`).                                                    |
 | Top-level & blocks    | `package`                         | Inherits file package or default DDD subpackage (`.domain`, `.usecase`, etc.).                               |

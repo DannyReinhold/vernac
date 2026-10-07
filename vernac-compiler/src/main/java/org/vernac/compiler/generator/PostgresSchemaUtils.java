@@ -4,6 +4,8 @@
 package org.vernac.compiler.generator;
 
 import org.vernac.language.VernacNames;
+import org.vernac.compiler.analyzer.CompilerDiagnostic;
+import org.vernac.compiler.analyzer.SemanticValidationException;
 
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.TypeName;
@@ -115,16 +117,10 @@ public final class PostgresSchemaUtils {
             ValueObjectNode vo = valueObjects.get(typeName);
 
             if (vo.isEnum()) {
-                // Enum Value Object: Als VARCHAR(32) flachen und .dbValue() aufrufen
-                TypeName boxedType = ClassName.get(String.class);
-                String pgType = "VARCHAR(32)";
-                String enumAccessor;
-                if (effectivelyOptional) {
-                    enumAccessor = accessorPath + ".map(" + vo.name() + "::dbValue).orElse(null)";
-                } else {
-                    enumAccessor = accessorPath + ".dbValue()";
-                }
-                result.add(new FlatColumn(colPrefix, paramPrefix, enumAccessor, pgType, boxedType, effectivelyOptional));
+                throw new SemanticValidationException(List.of(
+                        CompilerDiagnostic.error(type.location(),
+                                "Persistence mapping for enum '" + vo.name() + "' requires an explicit external-code mapping. "
+                                        + "Enum persistence mapping is not supported yet; dbValue(), name(), and ordinal() are not implicit storage formats.")));
             } else if (vo.fields().size() == 1) {
                 // Single Value Object: Kein Namenszusatz
                 FieldNode inner = vo.fields().getFirst();

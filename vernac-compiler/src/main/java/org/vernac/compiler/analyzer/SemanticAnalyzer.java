@@ -278,21 +278,12 @@ public class SemanticAnalyzer {
             }
 
             Set<String> constantNames = new HashSet<>();
-            Set<String> dbValues = new HashSet<>();
 
             for (EnumConstantNode ec : vo.enumConstants()) {
                 validateIdentifier(ec.name(), ec.location(), "enum constant", diagnostics);
 
                 if (!constantNames.add(ec.name())) {
                     diagnostics.add(CompilerDiagnostic.error(ec.location(), "Duplicate enum constant '" + ec.name() + "' in '" + vo.name() + "'"));
-                }
-
-                String dbVal = ec.effectiveDbValue();
-                if (!dbValues.add(dbVal)) {
-                    diagnostics.add(CompilerDiagnostic.error(
-                            ec.location(),
-                            "Duplicate database persistence value '" + dbVal + "' in enum '" + vo.name() + "'"
-                    ));
                 }
             }
 

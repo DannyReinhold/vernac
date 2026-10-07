@@ -6,6 +6,7 @@ import org.vernac.compiler.analyzer.CompilerDiagnostic;
 import org.vernac.compiler.ast.*;
 import org.vernac.compiler.symbols.JavaTypeNames;
 import org.vernac.compiler.symbols.ResolvedType;
+import org.vernac.compiler.symbols.TypeIdentity;
 import org.vernac.language.VernacNames;
 import org.vernac.compiler.util.MemberNames;
 import java.util.*;
@@ -15,26 +16,28 @@ import java.util.stream.Collectors;
 final class ValueObjectApiValidator {
     private record Member(SourceLocation location, String description) { }
 
-    List<CompilerDiagnostic> validate(ValueObjectNode value, Map<TypeNode, ResolvedType> types) {
+    List<CompilerDiagnostic> validate(ValueObjectNode value, Map<TypeNode, ResolvedType> types, String namespace) {
         List<CompilerDiagnostic> diagnostics = new ArrayList<>();
         Map<String, Member> signatures = new LinkedHashMap<>();
-        for (String signature : List.of("toString()", "hashCode()", "equals(java.lang.Object)"))
-            signatures.put(signature, new Member(value.location(), "generated method '" + signature + "'"));
+        for (String signature : value.isEnum()
+                ? List.of("hashCode()", "equals(java.lang.Object)")
+                : List.of("toString()", "hashCode()", "equals(java.lang.Object)"))
+            signatures.put(signature, new Member(value.location(),
+                    (value.isEnum() ? "inherited final method '" : "generated method '") + signature + "'"));
         for (String signature : List.of("getClass()", "notify()", "notifyAll()", "wait()", "wait(long)", "wait(long,int)"))
             signatures.put(signature, new Member(value.location(), "inherited final method '" + signature + "'"));
         if (value.isEnum()) {
-            // Preserve existing enum checks; full enum design is reviewed separately.
-            for (String signature : List.of("of(java.lang.String)", "dbValue()", "values()", "valueOf(java.lang.String)",
-                    "name()", "ordinal()", "getDeclaringClass()"))
-                signatures.put(signature, new Member(value.location(), "generated or inherited enum method '" + signature + "'"));
+            String self = JavaTypeNames.domainPackage(new TypeIdentity(namespace, value.name()))
+                    + "." + value.name();
+            for (String signature : List.of("values()", "valueOf(java.lang.String)", "name()", "ordinal()",
+                    "getDeclaringClass()", "clone()", "finalize()", "describeConstable()",
+                    "compareTo(" + self + ")", "compareTo(java.lang.Object)", "compareTo(java.lang.Enum)"))
+                signatures.put(signature, new Member(value.location(), "implicit or reserved Java enum method '" + signature + "'"));
             Set<String> constants = new HashSet<>();
-            Set<String> databaseValues = new HashSet<>();
             for (var constant : value.enumConstants()) {
                 identifier(constant.name(), constant.location(), diagnostics);
-                if (!databaseValues.add(constant.effectiveDbValue())) diagnostics.add(CompilerDiagnostic.error(constant.location(),
-                        "Duplicate database persistence value '" + constant.effectiveDbValue() + "' in enum '" + value.name() + "'."));
-                if (!constants.add(constant.name()) || constant.name().equals("dbValue")) diagnostics.add(CompilerDiagnostic.error(constant.location(),
-                        "Enum constant '" + constant.name() + "' conflicts with another or generated member."));
+                if (!constants.add(constant.name())) diagnostics.add(CompilerDiagnostic.error(constant.location(),
+                        "Duplicate enum constant '" + constant.name() + "' in '" + value.name() + "'."));
             }
         } else {
             if (resolved(value.fields(), types)) generated("of(" + parameters(value.fields(), types) + ")", value, signatures, diagnostics);
@@ -63,6 +66,13 @@ final class ValueObjectApiValidator {
             String signature = method.name() + "(" + parameters(method.parameters(), types) + ")";
             add(signature, new Member(method.location(), "Declared method '" + signature + "'"), signatures, diagnostics,
                     "Use a distinct method name or parameter signature; changing only the return type does not resolve the conflict.");
+            if (value.isEnum() && signature.equals("toString()") && types.containsKey(method.returnType())) {
+                boolean stringReturn = types.get(method.returnType()) instanceof ResolvedType.Builtin builtin
+                        && builtin.javaType() == String.class && !method.returnType().isOptional();
+                if (!stringReturn || !method.accessModifier().equals("public"))
+                    diagnostics.add(CompilerDiagnostic.error(method.location(),
+                            "Method 'toString()' conflicts with the enum API: use public String toString() with a non-null result."));
+            }
             if (!value.isEnum()) checkObjectOverride(method.name(), method.parameters(), types.get(method.returnType()),
                     method.returnType().isOptional(), method.accessModifier(), method.location(), diagnostics);
         }

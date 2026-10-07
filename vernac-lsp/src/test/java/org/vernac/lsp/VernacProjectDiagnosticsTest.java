@@ -56,6 +56,31 @@ class VernacProjectDiagnosticsTest {
     List<Diagnostic> diagnostics(Path path) { return client.latest.get(path.toUri().toString()).getDiagnostics(); }
 
     @Test
+    void unusualEnumConstantsAreAcceptedHighlightedAndNotConfusedWithMethods() throws Exception {
+        Path model = file("enums", "status", "value Status = MeinTyp | String | name | values | toString | custom | Größe;");
+        open(model);
+        assertTrue(diagnostics(model).isEmpty(), diagnostics(model).toString());
+        var tokens = server.getTextDocumentService().semanticTokensFull(new SemanticTokensParams(
+                new TextDocumentIdentifier(model.toUri().toString()))).join().getData();
+        String[] lines = Files.readString(model).split("\n", -1);
+        int line = 0, column = 0;
+        List<String> constants = new ArrayList<>();
+        for (int i = 0; i < tokens.size(); i += 5) {
+            int deltaLine = tokens.get(i);
+            line += deltaLine;
+            column = deltaLine == 0 ? column + tokens.get(i + 1) : tokens.get(i + 1);
+            if (VernacLanguageServer.TOKEN_TYPES.get(tokens.get(i + 3)).equals(SemanticTokenTypes.EnumMember))
+                constants.add(lines[line].substring(column, column + tokens.get(i + 2)));
+        }
+        assertEquals(List.of("MeinTyp", "String", "name", "values", "toString", "custom", "Größe"), constants);
+        change(model, "namespace enums; value Status = name { public String name() { return \"x\"; } };", 2);
+        assertTrue(diagnostics(model).stream().anyMatch(d -> d.getMessage().contains("name()")
+                && d.getMessage().contains("conflicts with")));
+        change(model, "namespace enums; value Status = name { public String toString() { return name(); } };", 3);
+        assertTrue(diagnostics(model).isEmpty(), diagnostics(model).toString());
+    }
+
+    @Test
     void independentNamingDiagnosticsSurviveErrorsInOtherFiles() throws Exception {
         Path model = file("names", "model", "value IntValue(int); value Neu(int, IntValue);");
         Path broken = file("other", "broken", "value Broken(Missing);");

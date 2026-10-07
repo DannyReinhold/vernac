@@ -144,12 +144,12 @@ class ValueObjectGeneratorTest {
     }
 
     @Test
-    @DisplayName("Generiert ein Java-Enum mit dbValue, of-Factory und Methoden")
+    @DisplayName("Generiert ein Java-Enum ohne Persistenzcodes und mit eigenen Methoden")
     void shouldGenerateEnumValueObject() {
         String src = """
                 namespace com.example.climate;
                 
-                value AcMode = ECO("eco") | COOL | HEAT("heat") | OFF {
+                value AcMode = ECO | COOL | HEAT | OFF {
                     public boolean isActive() {
                         return this != OFF;
                     }
@@ -162,12 +162,8 @@ class ValueObjectGeneratorTest {
         String code = file.toString();
 
         assertThat(code).contains("public enum AcMode implements ValueObject");
-        assertThat(code).contains("ECO(\"eco\")");
-        assertThat(code).contains("COOL(\"COOL\")");
-        assertThat(code).contains("HEAT(\"heat\")");
-        assertThat(code).contains("OFF(\"OFF\")");
-        assertThat(code).contains("public String dbValue()");
-        assertThat(code).contains("public static AcMode of(String value)");
+        assertThat(code).contains("ECO,", "COOL,", "HEAT,", "OFF;", "@NullMarked");
+        assertThat(code).doesNotContain("dbValue", "static AcMode of(", "String toString()");
         assertThat(code).contains("public boolean isActive()");
     }
     @Nested

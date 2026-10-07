@@ -56,7 +56,7 @@ public final class ProjectTypeResolver {
         }
         for (var source : project.sources()) {
             for (var value : source.unit().valueObjects()) {
-                diagnostics.addAll(new ValueObjectApiValidator().validate(value, fieldTypes));
+                diagnostics.addAll(new ValueObjectApiValidator().validate(value, fieldTypes, source.unit().namespace()));
             }
         }
         failOnErrors(diagnostics);

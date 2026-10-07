@@ -53,11 +53,13 @@ public class VernacTextDocumentService implements TextDocumentService {
         this.projects = projects;
     }
 
-    private static void collectTypeOffsets(ParseTree tree, Set<Integer> offsets) {
+    private static void collectTypeOffsets(ParseTree tree, Set<Integer> offsets, Set<Integer> enumOffsets) {
+        if (tree instanceof VernacParser.EnumConstantContext constant && constant.name != null)
+            enumOffsets.add(constant.name.getStart().getStartIndex());
         if (tree instanceof VernacParser.TypeNameContext name) offsets.add(name.getStart().getStartIndex());
         if (tree instanceof VernacParser.TypeContext type && type.rawType != null)
             offsets.add(type.rawType.getStop().getStartIndex());
-        for (int i = 0; i < tree.getChildCount(); i++) collectTypeOffsets(tree.getChild(i), offsets);
+        for (int i = 0; i < tree.getChildCount(); i++) collectTypeOffsets(tree.getChild(i), offsets, enumOffsets);
     }
 
     public void setClient(LanguageClient client) {
@@ -107,15 +109,18 @@ public class VernacTextDocumentService implements TextDocumentService {
 
         String[] sourceLines = content.split("\n", -1);
         Set<Integer> typeOffsets = new HashSet<>();
+        Set<Integer> enumOffsets = new HashSet<>();
         var parser = new VernacParser(new CommonTokenStream(new VernacLexer(CharStreams.fromString(content))));
         parser.removeErrorListeners();
-        collectTypeOffsets(parser.compilationUnit(), typeOffsets);
+        collectTypeOffsets(parser.compilationUnit(), typeOffsets, enumOffsets);
         for (Token token = lexer.nextToken(); token.getType() != Token.EOF; token = lexer.nextToken()) {
             String text = token.getText();
             int line = token.getLine() - 1;
             int startChar = sourceLines[line].offsetByCodePoints(0, token.getCharPositionInLine());
             Integer type;
-            if (typeOffsets.contains(token.getStartIndex())) {
+            if (enumOffsets.contains(token.getStartIndex())) {
+                type = 7; // Enum member, even if its spelling resembles a type or keyword.
+            } else if (typeOffsets.contains(token.getStartIndex())) {
                 type = 1;
             } else {
                 type = classifyToken(text);

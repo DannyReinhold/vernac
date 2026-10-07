@@ -75,10 +75,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         if (ctx.enumConstantList() != null) {
             for (VernacParser.EnumConstantContext ecCtx : ctx.enumConstantList().enumConstant()) {
                 String constName = ecCtx.name.getText();
-                Optional<String> customDbValue = ecCtx.dbValue != null
-                        ? Optional.of(unquote(ecCtx.dbValue.getText()))
-                        : Optional.empty();
-                enumConstants.add(new EnumConstantNode(toLocation(ecCtx), constName, customDbValue));
+                enumConstants.add(new EnumConstantNode(toLocation(ecCtx), constName));
             }
         }
 

@@ -618,8 +618,8 @@ class SemanticAnalyzerTest {
         }
 
         @Test
-        @DisplayName("Verhindert doppelte DB-Persistenzwerte")
-        void shouldRejectDuplicateDbPersistenceValues() {
+        @DisplayName("Verhindert nicht mehr unterstützte DB-Persistenzwerte")
+        void shouldRejectLegacyDbPersistenceValues() {
             String dsl = """
                     namespace com.example.domain;
                     value AcMode = ECO("eco") | ECONOMY("eco");
@@ -627,7 +627,7 @@ class SemanticAnalyzerTest {
 
             assertThatThrownBy(() -> compiler.compileSource(dsl))
                     .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Duplicate database persistence value 'eco' in enum 'AcMode'");
+                    .hasMessageContaining("Syntax error:");
         }
 
         @Test

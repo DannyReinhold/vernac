@@ -49,7 +49,7 @@ enumConstantList
     ;
 
 enumConstant
-    : name=IDENTIFIER ( '(' dbValue=STRING_LITERAL ')' )?
+    : name=qualifiedNameSegment
     ;
 
 valueMember

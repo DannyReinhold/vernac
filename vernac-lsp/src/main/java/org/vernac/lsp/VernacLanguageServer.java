@@ -19,7 +19,8 @@ public class VernacLanguageServer implements LanguageServer, LanguageClientAware
             SemanticTokenTypes.String,      // 3
             SemanticTokenTypes.Number,      // 4
             SemanticTokenTypes.Comment,     // 5
-            SemanticTokenTypes.Function     // 6
+            SemanticTokenTypes.Function,    // 6
+            SemanticTokenTypes.EnumMember   // 7
     );
     public static final List<String> TOKEN_MODIFIERS = List.of(
             SemanticTokenModifiers.Declaration,

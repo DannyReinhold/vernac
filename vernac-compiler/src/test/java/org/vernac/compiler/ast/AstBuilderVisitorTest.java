@@ -187,12 +187,12 @@ class AstBuilderVisitorTest {
         }
 
         @Test
-        @DisplayName("Parst Enum Value Object mit Standard- und Custom-DB-Werten sowie Methoden")
+        @DisplayName("Parst Enum Value Object mit geordneten Konstanten und Methoden")
         void shouldParseEnumValueObject() {
             String src = """
                     namespace com.example.domain;
                     
-                    value AcMode = ECO("eco") | COOL | HEAT("heat") | OFF {
+                    value AcMode = ECO | COOL | HEAT | OFF {
                         public boolean isActive() {
                             return this != OFF;
                         }
@@ -208,23 +208,8 @@ class AstBuilderVisitorTest {
             assertThat(vo.fields()).isEmpty();
             assertThat(vo.enumConstants()).hasSize(4);
 
-            // ECO mit explizitem dbValue "eco"
-            assertThat(vo.enumConstants().get(0).name()).isEqualTo("ECO");
-            assertThat(vo.enumConstants().get(0).customDbValue()).contains("eco");
-            assertThat(vo.enumConstants().get(0).effectiveDbValue()).isEqualTo("eco");
-
-            // COOL ohne dbValue -> Fallback auf Konstantenname
-            assertThat(vo.enumConstants().get(1).name()).isEqualTo("COOL");
-            assertThat(vo.enumConstants().get(1).customDbValue()).isEmpty();
-            assertThat(vo.enumConstants().get(1).effectiveDbValue()).isEqualTo("COOL");
-
-            // HEAT mit explizitem dbValue "heat"
-            assertThat(vo.enumConstants().get(2).name()).isEqualTo("HEAT");
-            assertThat(vo.enumConstants().get(2).customDbValue()).contains("heat");
-
-            // OFF ohne dbValue
-            assertThat(vo.enumConstants().get(3).name()).isEqualTo("OFF");
-            assertThat(vo.enumConstants().get(3).customDbValue()).isEmpty();
+            assertThat(vo.enumConstants()).extracting(EnumConstantNode::name)
+                    .containsExactly("ECO", "COOL", "HEAT", "OFF");
 
             // Methode prüfen
             assertThat(vo.methods()).hasSize(1);
