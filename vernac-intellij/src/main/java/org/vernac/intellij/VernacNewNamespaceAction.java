@@ -3,7 +3,10 @@
 package org.vernac.intellij;
 
 import com.intellij.ide.IdeView;
-import com.intellij.openapi.actionSystem.*;
+import com.intellij.openapi.actionSystem.ActionUpdateThread;
+import com.intellij.openapi.actionSystem.AnAction;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.actionSystem.LangDataKeys;
 import com.intellij.openapi.command.WriteCommandAction;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.ui.InputValidatorEx;
@@ -15,8 +18,18 @@ import java.nio.file.Path;
 import java.util.Arrays;
 
 public final class VernacNewNamespaceAction extends AnAction implements DumbAware {
+    public VernacNewNamespaceAction() {
+        super(
+                "Vernac Namespace",
+                "Create a namespace below the Vernac source root",
+                VernacFileType.INSTANCE.getIcon()
+        );
+    }
+
     @Override
-    public ActionUpdateThread getActionUpdateThread() { return ActionUpdateThread.BGT; }
+    public ActionUpdateThread getActionUpdateThread() {
+        return ActionUpdateThread.BGT;
+    }
 
     @Override
     public void update(AnActionEvent event) {
@@ -42,16 +55,32 @@ public final class VernacNewNamespaceAction extends AnAction implements DumbAwar
             if (rootDirectory == null) return;
         }
         String prefix;
-        try { prefix = VernacNamespaces.namespace(root, selectedPath) + "."; }
-        catch (IllegalArgumentException e) { prefix = ""; }
+        try {
+            prefix = VernacNamespaces.namespace(root, selectedPath) + ".";
+        } catch (IllegalArgumentException e) {
+            prefix = "";
+        }
         String name = Messages.showInputDialog(project, "Fully qualified Vernac namespace:",
                 "New Vernac Namespace", Messages.getQuestionIcon(), prefix, new InputValidatorEx() {
-                    @Override public String getErrorText(String input) {
-                        try { VernacNamespaces.requireNamespace(input); return null; }
-                        catch (IllegalArgumentException e) { return e.getMessage(); }
+                    @Override
+                    public String getErrorText(String input) {
+                        try {
+                            VernacNamespaces.requireNamespace(input);
+                            return null;
+                        } catch (IllegalArgumentException e) {
+                            return e.getMessage();
+                        }
                     }
-                    @Override public boolean checkInput(String input) { return getErrorText(input) == null; }
-                    @Override public boolean canClose(String input) { return checkInput(input); }
+
+                    @Override
+                    public boolean checkInput(String input) {
+                        return getErrorText(input) == null;
+                    }
+
+                    @Override
+                    public boolean canClose(String input) {
+                        return checkInput(input);
+                    }
                 });
         if (name == null) return;
         PsiDirectory base = rootDirectory;
