@@ -101,8 +101,8 @@ class AstBuilderVisitorTest {
     class ValueObjectTests {
 
         @Test
-        @DisplayName("Leitet bei Single Value Objects den Feldnamen 'value' automatisch ab")
-        void shouldDeriveDefaultValueFieldNameForSingleParam() {
+        @DisplayName("Leitet auch bei Single Value Objects den Feldnamen aus dem Typ ab")
+        void shouldDeriveTypeBasedFieldNameForSingleParam() {
             String src = """
                     namespace com.example.domain;
                     value ProjectId(UUID);
@@ -114,7 +114,7 @@ class AstBuilderVisitorTest {
             ValueObjectNode vo = cu.valueObjects().getFirst();
             assertThat(vo.name()).isEqualTo("ProjectId");
             assertThat(vo.fields()).hasSize(1);
-            assertThat(vo.fields().getFirst().name()).isEqualTo("value");
+            assertThat(vo.fields().getFirst().name()).isEqualTo("uuid");
             assertThat(vo.fields().getFirst().type().name()).isEqualTo("UUID");
         }
 
@@ -523,7 +523,7 @@ class AstBuilderVisitorTest {
     class EdgeCaseTests {
 
         @Test
-        @DisplayName("Erlaubt 'value' und 'id' in Feldnamen und Parametern, aber nicht als Methodenname")
+        @DisplayName("Erlaubt 'value' und 'id' in Feldnamen und Parametern")
         void shouldAllowValueAndIdAsVariableNames() {
             String src = """
                     namespace com.example.domain;

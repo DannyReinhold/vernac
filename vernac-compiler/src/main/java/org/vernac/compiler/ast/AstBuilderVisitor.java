@@ -67,7 +67,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
 
         // 1. Parameter für normale Value Objects
         List<FieldNode> fields = Optional.ofNullable(ctx.parameterList())
-                .map(p -> extractParameters(p, true))
+                .map(p -> extractParameters(p))
                 .orElse(Collections.emptyList());
 
         // 2. Enum-Konstanten (falls vorhanden)
@@ -142,7 +142,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         IdReferenceNode idDef = new IdReferenceNode(toLocation(idCtx), idType);
 
         List<FieldNode> fields = Optional.ofNullable(ctx.parameterList())
-                .map(p -> extractParameters(p, false))
+                .map(p -> extractParameters(p))
                 .orElse(Collections.emptyList());
 
         List<ValidationRuleNode> validations = new ArrayList<>();
@@ -179,7 +179,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         IdReferenceNode idDef = new IdReferenceNode(toLocation(idCtx), idType);
 
         List<FieldNode> fields = Optional.ofNullable(ctx.parameterList())
-                .map(p -> extractParameters(p, false))
+                .map(p -> extractParameters(p))
                 .orElse(Collections.emptyList());
 
         List<ValidationRuleNode> validations = new ArrayList<>();
@@ -244,7 +244,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                         toLocation(findCtx),
                         toTypeNode(findCtx.returnType),
                         findCtx.name.getText(),
-                        Optional.ofNullable(findCtx.parameterList()).map(p -> extractParameters(p, false)).orElse(Collections.emptyList()),
+                        Optional.ofNullable(findCtx.parameterList()).map(p -> extractParameters(p)).orElse(Collections.emptyList()),
                         false
                 ));
             } else if (member.repositoryCustomMethod() != null) {
@@ -253,7 +253,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                         toLocation(customCtx),
                         toTypeNode(customCtx.returnType),
                         customCtx.name.getText(),
-                        Optional.ofNullable(customCtx.parameterList()).map(p -> extractParameters(p, false)).orElse(Collections.emptyList()),
+                        Optional.ofNullable(customCtx.parameterList()).map(p -> extractParameters(p)).orElse(Collections.emptyList()),
                         true
                 ));
             }
@@ -284,7 +284,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         }
 
         List<FieldNode> fields = Optional.ofNullable(ctx.parameterList())
-                .map(p -> extractParameters(p, false))
+                .map(p -> extractParameters(p))
                 .orElse(Collections.emptyList());
 
         return new EventNode(toLocation(ctx), name, dispatchMode, customPackage, fields);
@@ -397,7 +397,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
 
         // Korrekt: extractParameters statt dem nicht existierenden visitParameterList
         List<FieldNode> parameters = ctx.parameterList() != null
-                ? extractParameters(ctx.parameterList(), false)
+                ? extractParameters(ctx.parameterList())
                 : List.of();
 
         List<String> thrownExceptions = ctx.throwsClause() != null
@@ -462,7 +462,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         TypeNode returnType = toTypeNode(ctx.returnType);
         String name = ctx.name.getText();
         List<FieldNode> parameters = Optional.ofNullable(ctx.parameterList())
-                .map(p -> extractParameters(p, false))
+                .map(p -> extractParameters(p))
                 .orElse(Collections.emptyList());
 
         String body = extractRawSource(ctx.rawJavaBlock());
@@ -490,9 +490,8 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         return fullBlock;
     }
 
-    private List<FieldNode> extractParameters(VernacParser.ParameterListContext ctx, boolean isSingleValueFallback) {
+    private List<FieldNode> extractParameters(VernacParser.ParameterListContext ctx) {
         List<VernacParser.ParameterContext> params = ctx.parameter();
-        boolean isSingle = params.size() == 1;
 
         return params.stream()
                 .map(p -> {
@@ -502,30 +501,13 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
 
                     if (p.name != null) {
                         fieldName = p.name.getText();
-                    } else if (isSingle && isSingleValueFallback) {
-                        fieldName = "value";
                     } else {
-                        fieldName = deriveFieldName(type.name());
+                        fieldName = org.vernac.language.VernacNames.defaultMemberName(type.name());
                     }
 
-                    return new FieldNode(toLocation(p), type, fieldName, isMut);
+                    return new FieldNode(toLocation(p), type, fieldName, isMut, p.name != null);
                 })
                 .toList();
-    }
-
-    private String deriveFieldName(String typeName) {
-        if (typeName == null || typeName.isEmpty()) return "value";
-
-        if (TypeUtils.isPrimitive(typeName)) {
-            return typeName + "Value";
-        }
-
-        int first = typeName.codePointAt(0);
-        int next = Character.charCount(first);
-        if (next < typeName.length() && Character.isUpperCase(first) && Character.isUpperCase(typeName.codePointAt(next))) {
-            return typeName.toLowerCase(Locale.ROOT);
-        }
-        return org.vernac.language.VernacNames.lowerFirst(typeName);
     }
 
     private TypeNode toTypeNode(VernacParser.TypeContext ctx) {
@@ -562,7 +544,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         String name = ctx.name.getText();
 
         List<FieldNode> parameters = Optional.ofNullable(ctx.parameterList())
-                .map(p -> extractParameters(p, false))
+                .map(p -> extractParameters(p))
                 .orElse(Collections.emptyList());
 
         List<ValidationRuleNode> validations = new ArrayList<>();
@@ -644,7 +626,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         String name = ctx.name.getText();
 
         List<FieldNode> parameters = Optional.ofNullable(ctx.parameterList())
-                .map(p -> extractParameters(p, false))
+                .map(p -> extractParameters(p))
                 .orElse(Collections.emptyList());
 
         Optional<TypeNode> returnType = Optional.ofNullable(ctx.returnType)

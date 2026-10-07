@@ -308,9 +308,11 @@ public class ValueObjectGenerator {
         if (method.returnType().isOptional()) {
             returnType = ParameterizedTypeName.get(ClassName.get(Optional.class), returnType);
         }
-        MethodSpec.Builder builder = MethodSpec.methodBuilder(method.name())
-                .addModifiers(Modifier.valueOf(method.accessModifier().toUpperCase(Locale.ROOT)))
-                .returns(returnType);
+        MethodSpec.Builder builder = MethodSpec.methodBuilder(method.name()).returns(returnType);
+        // Vernac internal visibility means package-private Java visibility.
+        if (!method.accessModifier().equals("internal")) {
+            builder.addModifiers(Modifier.valueOf(method.accessModifier().toUpperCase(Locale.ROOT)));
+        }
         for (FieldNode param : method.parameters()) {
             TypeName parameterType = ResolvedJavaTypes.javaType(project.typeOf(param.type()));
             if (param.type().isOptional()) parameterType = parameterType.annotated(NULLABLE_ANNOTATION);

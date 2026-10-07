@@ -473,12 +473,7 @@ public class SemanticAnalyzer {
     }
 
     private void checkDuplicateFields(List<FieldNode> fields, String parentName, List<CompilerDiagnostic> diagnostics) {
-        Set<String> seen = new HashSet<>();
-        for (FieldNode field : fields) {
-            if (!seen.add(field.name())) {
-                diagnostics.add(CompilerDiagnostic.error(field.location(), "Duplicate field name '" + field.name() + "' in '" + parentName + "'"));
-            }
-        }
+        diagnostics.addAll(org.vernac.compiler.util.MemberNames.duplicates(fields, "field", parentName));
     }
 
     private void validateTypeResolvable(TypeNode type, Set<String> availableSymbols, List<ImportNode> imports, List<CompilerDiagnostic> diagnostics) {

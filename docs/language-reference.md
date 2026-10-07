@@ -76,21 +76,20 @@ value Money(BigDecimal amount) {
 One of Vernac's most powerful features is the ability to omit explicit variable, field, parameter, or component names.
 The compiler resolves them deterministically:
 
-### 3.1 Field & Parameter Name Derivation (`deriveFieldName`)
+### 3.1 Field and parameter names
 
-When a parameter or field name is omitted in definitions (e.g. `value Document(String, UUID);` or
-`aggregate Customer[CustomerId](String, mut String customAlias);`):
+Explicit names take precedence. Otherwise, use the type's simple name with the
+initial uppercase run converted to lower camel case: `StatusReason` → `statusReason`,
+`URLValue` → `urlValue`, `HTML2XMLMapper` → `html2XMLMapper`. Primitive types append
+`Value`, for example `intValue`. Namespace qualification does not affect the name.
 
-1. **Single-field Value Object Fallback**:
-    - In a single-field value object without an explicit name (e.g. `value WattHours(int)`), the field is named `value`.
-2. **Multi-field / General Parameter Fallback**:
-    - **Primitives** (`int`, `long`, `double`, `float`, `boolean`, `byte`, `short`, `char`):
-      Appends `Value` to the primitive type (e.g., `int` -> `intValue`, `double` -> `doubleValue`).
-    - **Acronyms / Multi-uppercase Types** (starts with $\ge 2$ uppercase letters):
-      Converted entirely to lowercase (e.g., `UUID` -> `uuid`, `URL` -> `url`, `ISBN` -> `isbn`).
-    - **Standard PascalCase Types**:
-      First letter decapitalized (e.g., `CustomerId` -> `customerId`, `ProjectName` -> `projectName`, `String` ->
-      `string`, `BatterySoc` -> `batterySoc`).
+The rule is identical for single- and multi-field value objects. Write
+`value Title(String value);` if you want `value()`; `value Title(String);` generates
+`string()`. Adding a second field does not rename an existing getter.
+
+Effective names must be unique and must not cause an illegal generated Java API.
+No numbering or silent renaming is used. See the authoritative
+[names and API collision contract](contracts/names-and-unicode.md).
 
 ### 3.2 Collection Name Derivation
 
@@ -147,12 +146,12 @@ cannot be marked `mut`).
 ### 5.1 Single-Field Value Objects
 
 ```vernac
-value WattHours(int) validates {
+value WattHours(int value) validates {
     require(value >= 0, "WattHours cannot be negative");
 }
 ```
 
-- When the parameter name is omitted, it defaults to `value`.
+- Here `value` is explicitly named. Omitting it would produce `intValue`.
 - Factory methods: `Type.of(...)`.
 - Getter: `value()`.
 - Validations defined in `validates { require(condition, "error message"); }` are checked at construction time, throwing
@@ -160,13 +159,13 @@ value WattHours(int) validates {
 - **UUID Value Object Special Helpers**: If a single-field value object wraps a `UUID` (e.g. `value ProjectId(UUID)`),
   the generator also produces:
     - `create()` (new random UUID), `of(String)`
-    - `asString()`, `asUuid()`
+    - The getter follows the field name; redundant `asString()` / `asUuid()` methods are not generated for ordinary VOs. IDs retain `asString()`.
 
 ### 5.2 Multi-Field and Nested Value Objects
 
 ```vernac
-value Currency(String);
-value Money(BigDecimal amount, Currency currency);
+value PaymentCurrency(String code);
+value Money(BigDecimal amount, PaymentCurrency currency);
 value Document(String, UUID); // field names inferred as 'string' and 'uuid'
 ```
 
@@ -536,12 +535,12 @@ For quick reference, this table summarizes everything you can omit in Vernac:
 
 | Context               | What can be omitted               | Default / Inferred Behavior                                                                                  |
 |:----------------------|:----------------------------------|:-------------------------------------------------------------------------------------------------------------|
-| `value Name(T)`       | Parameter name (single field)     | Named `value` (e.g. `value()`).                                                                              |
-| `value Name(T1, T2)`  | Parameter names (multi-field)     | Inferred via `deriveFieldName` (e.g., `UUID` $\to$ `uuid`, `String` $\to$ `string`, `int` $\to$ `intValue`). |
-| `entity`, `aggregate` | Field names                       | Inferred via `deriveFieldName` (e.g. `String` $\to$ `string`).                                               |
+| `value Name(T)`       | Parameter name (single field)     | Same type-based derivation as every other field; write `T value` explicitly for `value()`.                                                                              |
+| `value Name(T1, T2)`  | Parameter names (multi-field)     | Inferred via the shared naming rule (e.g., `UUID` $\to$ `uuid`, `String` $\to$ `string`, `int` $\to$ `intValue`). |
+| `entity`, `aggregate` | Field names                       | Inferred via the shared naming rule (e.g. `String` $\to$ `string`).                                               |
 | `collection`          | Collection name                   | Pluralized type name (e.g. `Car collection;` $\to$ `Cars`).                                                  |
 | `event`               | Dispatch mode                     | Defaults to `outbox`.                                                                                        |
-| `event`               | Parameter names                   | Inferred via `deriveFieldName`.                                                                              |
+| `event`               | Parameter names                   | Inferred via the shared naming rule.                                                                              |
 | `repository`          | Repository name                   | `<AggregateName>Repository`.                                                                                 |
 | `usecase`             | `use Dependency;` instance name   | Decapitalized type name (e.g. `orderRepository`).                                                            |
 | `usecase`             | `load Aggregate;` target variable | Decapitalized aggregate name (e.g. `order`).                                                                 |

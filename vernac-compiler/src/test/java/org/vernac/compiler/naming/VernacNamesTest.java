@@ -29,4 +29,19 @@ class VernacNamesTest {
             assertEquals(Character.isJavaIdentifierPart(point) && !excluded, VernacNames.isPart(point), "part " + point);
         }
     }
+    @Test void derivesNamesMechanicallyAndIndependentlyOfLocale() {
+        var old = java.util.Locale.getDefault();
+        try {
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag("tr-TR"));
+            String[][] examples = {
+                    {"StatusReason", "statusReason"}, {"int", "intValue"}, {"boolean", "booleanValue"},
+                    {"String", "string"}, {"BigDecimal", "bigDecimal"}, {"org.example.Title", "title"},
+                    {"URLValue", "urlValue"}, {"UrlValue", "urlValue"}, {"URL", "url"},
+                    {"HTMLXMLMapper", "htmlxmlMapper"}, {"HTML2XMLMapper", "html2XMLMapper"},
+                    {"CustomerID", "customerID"}, {"Größe", "größe"}, {"𐐀name", "𐐨name"},
+                    {"注文", "注文"}, {"I", "i"}
+            };
+            for (var example : examples) assertEquals(example[1], VernacNames.defaultMemberName(example[0]));
+        } finally { java.util.Locale.setDefault(old); }
+    }
 }

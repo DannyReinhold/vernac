@@ -7,10 +7,15 @@ public record FieldNode(
         SourceLocation location,
         TypeNode type,
         String name,
-        boolean isMutable
+        boolean isMutable,
+        boolean hasExplicitName
 ) implements AstNode {
 
+    public FieldNode(SourceLocation location, TypeNode type, String name, boolean isMutable) {
+        this(location, type, name, isMutable, true);
+    }
+
     public FieldNode(SourceLocation location, TypeNode type, String name) {
-        this(location, type, name, false);
+        this(location, type, name, false, true);
     }
 }

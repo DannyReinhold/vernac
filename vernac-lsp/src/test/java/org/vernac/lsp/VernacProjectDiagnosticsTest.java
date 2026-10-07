@@ -56,6 +56,28 @@ class VernacProjectDiagnosticsTest {
     List<Diagnostic> diagnostics(Path path) { return client.latest.get(path.toUri().toString()).getDiagnostics(); }
 
     @Test
+    void reportsDerivedAndGeneratedNameConflictsAndClearsThemAfterCorrection() throws Exception {
+        Path path = file("names", "model", """
+                value IntValue(int value);
+                value Pair(int, IntValue);
+                value Label(String text, String toString);
+                """);
+        open(path);
+        assertTrue(diagnostics(path).stream().anyMatch(d -> d.getMessage().contains("Duplicate field name 'intValue'")));
+        assertTrue(diagnostics(path).stream().anyMatch(d -> d.getMessage().contains("toString()")
+                && d.getMessage().contains("conflicts with")));
+        assertTrue(diagnostics(path).stream().filter(d -> d.getMessage().contains("intValue"))
+                .anyMatch(d -> d.getRange().getStart().getLine() == 2));
+        change(path, """
+                namespace names;
+                value IntValue(int value);
+                value Pair(int count, IntValue limit);
+                value Label(String text, String description);
+                """, 2);
+        assertTrue(diagnostics(path).isEmpty(), diagnostics(path).toString());
+    }
+
+    @Test
     void resolvesSameNamespaceAndImportedTypesFromUnopenedFiles() throws Exception {
         file("tasks", "title", "value Title(String value);");
         file("people", "owner", "value Owner(String value);");

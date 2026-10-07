@@ -456,6 +456,8 @@ typeName
 
 methodName
     : IDENTIFIER
+    | 'value'
+    | 'id'
     ;
 
 variableName

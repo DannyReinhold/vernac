@@ -13,4 +13,7 @@ Each tutorial starts with a working example and invites you to change it.
    Create a task model, use it from Java, explore validation, and add
    your first business method.
 
+3. [Default Names and Explicit Roles](default-names.md)
+   Explore generated getters, role names and compiler diagnostics.
+
 [Back to the documentation](../index.md)

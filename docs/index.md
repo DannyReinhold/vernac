@@ -55,7 +55,7 @@ package com.example.energy;
 
 id StorageId;
 
-value WattHours(int) validates {
+value WattHours(int value) validates {
     require(value >= 0, "WattHours cannot be negative");
 }
 

@@ -6,13 +6,14 @@ import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.TypeName;
 import org.vernac.compiler.symbols.ResolvedType;
 import org.vernac.compiler.symbols.TypeIdentity;
+import org.vernac.compiler.symbols.JavaTypeNames;
 
 /** Converts semantic type identities to JavaPoet types without name lookup. */
 public final class ResolvedJavaTypes {
     private ResolvedJavaTypes() { }
 
     public static ClassName domainClass(TypeIdentity identity) {
-        return ClassName.get(identity.namespace() + ".domain", identity.name());
+        return ClassName.get(JavaTypeNames.domainPackage(identity), identity.name());
     }
 
     public static TypeName javaType(ResolvedType type) {

@@ -50,6 +50,28 @@ public final class VernacNames {
         return true;
     }
 
+    /** Default name for an ordinary field or parameter, independent of field count. */
+    public static String defaultMemberName(String typeName) {
+        if (typeName == null || typeName.isEmpty()) throw new IllegalArgumentException("Missing type name");
+        String simpleName = typeName.substring(typeName.lastIndexOf('.') + 1);
+        if (Set.of("boolean", "byte", "short", "int", "long", "float", "double", "char").contains(simpleName))
+            return simpleName + "Value";
+        int end = 0;
+        int lastUpper = 0;
+        int count = 0;
+        while (end < simpleName.length() && Character.isUpperCase(simpleName.codePointAt(end))) {
+            lastUpper = end;
+            end += Character.charCount(simpleName.codePointAt(end));
+            count++;
+        }
+        if (count == 0) return simpleName;
+        if (count > 1 && end < simpleName.length() && Character.isLowerCase(simpleName.codePointAt(end)))
+            end = lastUpper;
+        StringBuilder result = new StringBuilder();
+        simpleName.substring(0, end).codePoints().map(Character::toLowerCase).forEach(result::appendCodePoint);
+        return result.append(simpleName.substring(end)).toString();
+    }
+
     public static String lowerFirst(String name) {
         if (name == null || name.isEmpty()) return name;
         int point = name.codePointAt(0);
