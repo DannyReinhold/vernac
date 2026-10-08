@@ -187,10 +187,21 @@ Hover over a reference such as `TaskId` to inspect any information supplied by t
 reference and use **Go to Declaration** from the context menu.
 
 Type navigation works across files and namespaces, including explicit imports.
-Navigation inside embedded Java bodies and enum-constant navigation are not covered
-by this step. Navigation from a generated Java class back to the original Vernac declaration is
-not part of this tutorial's current feature set. Mouse shortcuts depend on your keymap; use the named action when
-testing navigation.
+Inline `behavior` bodies also support Java completion and navigation; see the
+[behavior tutorial](behavior.md).
+
+After generating the Java sources, open a Java test and use **Go to Declaration**
+on a model type reference such as `TaskId` or `Title`. For compiler-owned IDs,
+value objects, enums and their collections, this opens the original Vernac
+declaration. Normal Java types retain normal Java navigation. The generated Java
+file remains accessible in the project tree and through Navigate to Class.
+Try the same action on a generated field getter or a public behavior method:
+it opens the field or method declaration in Vernac. This includes methods using
+`implemented by`; direct calls to your external Java implementation still open Java.
+See [Java-to-Vernac navigation](../development/java-to-vernac-navigation.md) for
+prerequisites and boundaries.
+
+Mouse shortcuts depend on your keymap; use the named action when testing navigation.
 
 ## 7. Add another Vernac file
 

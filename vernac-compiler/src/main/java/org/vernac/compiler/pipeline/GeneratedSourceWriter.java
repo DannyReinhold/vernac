@@ -12,7 +12,7 @@ import java.util.*;
 
 /** Preflights the actual output filesystem before replacing any generated source. */
 final class GeneratedSourceWriter {
-    private static final String MANIFEST = ".vernac-generated-sources";
+    static final String MANIFEST = ".vernac-generated-sources";
     private static final String HEADER = "vernac-generated-sources-v1";
     private GeneratedSourceWriter() { }
 
@@ -92,7 +92,7 @@ final class GeneratedSourceWriter {
         }
     }
 
-    private static Set<Path> readManifest(Path output) throws IOException {
+    static Set<Path> readManifest(Path output) throws IOException {
         Path manifest = output.resolve(MANIFEST);
         checkExistingSpelling(output, Path.of(MANIFEST));
         if (!Files.exists(manifest)) return new LinkedHashSet<>();

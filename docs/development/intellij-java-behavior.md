@@ -38,9 +38,11 @@ that Vernac target declaration is a separate feature.
 Java can navigate from a helper call to its original inline method name because
 that name is an injected source fragment, not merely synthetic scaffolding.
 Receiver and parameter declarations are currently synthetic; they do not yet
-provide source navigation into Vernac signatures. Java model references still
-navigate to generated Java classes. Navigation from ordinary Java files back to
-Vernac definitions is the next, separate integration step.
+provide source navigation into Vernac signatures. Model type references now use
+the separate [Java-to-Vernac type navigation](java-to-vernac-navigation.md)
+integration when the referenced Java source is owned by the compiler. Domain
+getters and public behavior references also navigate to their Vernac declarations;
+private helper calls retain their local injected-Java targets.
 
 IntelliJ Java inspections are not NullAway. The configured Maven checker remains
 the authoritative nullness build gate. No live NullAway analysis is promised.

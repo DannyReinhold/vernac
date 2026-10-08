@@ -98,6 +98,18 @@
 ]]></description>
 
     <change-notes><![CDATA[
+    <p><b>Java to Vernac member navigation</b></p>
+    <ul>
+        <li>Generated VO getters navigate to their field declarations; ID value() navigates to the ID declaration.</li>
+        <li>Public inline and implemented-by behavior methods navigate to their Vernac contracts.</li>
+        <li>Overloads use exact resolved parameter types; ambiguous or stale signatures keep normal Java navigation.</li>
+    </ul>
+    <p><b>Java to Vernac type navigation</b></p>
+    <ul>
+        <li>Go to Declaration on generated ID, value-object, enum and collection type references now opens the Vernac definition.</li>
+        <li>Uses compiler ownership metadata and exact type identities; ordinary Java classes keep normal navigation.</li>
+        <li>Reads current model content, including unsaved changes, in the referenced type's Maven module.</li>
+    </ul>
     <p><b>Inline Java behavior — first integration</b></p>
     <ul>
         <li>Added Java language injection for inline behavior method bodies.</li>
@@ -147,6 +159,7 @@
     <depends>com.intellij.java</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <gotoDeclarationHandler implementation="org.vernac.intellij.VernacJavaDeclarationHandler" order="first"/>
         <lang.parserDefinition language="Vernac" implementationClass="org.vernac.intellij.VernacParserDefinition"/>
         <multiHostInjector implementation="org.vernac.intellij.VernacJavaInjector"/>
         <lang.elementManipulator forClass="org.vernac.intellij.VernacInjectionHost"

@@ -100,6 +100,8 @@ class PluginDistributionIT {
                     "org/vernac/intellij/VernacProjectOpenActivity.class",
                     "org/vernac/intellij/VernacLspIntegrationProvider.class",
                     "org/vernac/intellij/VernacLspCustomization.class",
+                    "org/vernac/intellij/VernacJavaDeclarationHandler.class",
+                    "org/vernac/intellij/VernacTypeNavigationTarget.class",
                     "org/vernac/intellij/VernacNewNamespaceAction.class",
                     "org/vernac/intellij/VernacNewFileAction.class",
                     "org/vernac/intellij/VernacFileTemplateHandler.class",
@@ -143,6 +145,8 @@ class PluginDistributionIT {
                     && e.getName().endsWith(".jar")).findFirst().orElseThrow();
             var compiler = readNestedJar(zip, compilerJar.getName());
             requireContent(compiler, "org/vernac/compiler/tooling/BehaviorJavaProjection.class");
+            requireContent(compiler, "org/vernac/compiler/tooling/VernacTypeNavigation.class");
+            requireContent(compiler, "org/vernac/compiler/pipeline/GeneratedSourceOwnership.class");
             requireContent(compiler, "org/vernac/compiler/parser/VernacParser.class");
             requireContent(compiler, "org/vernac/language/VernacNames.class");
             for (String artifact : List.of("antlr4-runtime", "vernac-runtime", "javapoet", "jspecify")) {
@@ -151,6 +155,7 @@ class PluginDistributionIT {
             }
             assertFalse(plugin.containsKey("org/vernac/language/VernacNames.class"),
                     "Shared naming classes belong to the compiler JAR only");
+            assertTrue(descriptor.contains("org.vernac.intellij.VernacJavaDeclarationHandler"));
             assertTrue(descriptor.contains("org.vernac.intellij.VernacJavaInjector"));
             assertTrue(descriptor.contains("org.vernac.intellij.VernacParserDefinition"));
             assertTrue(descriptor.contains("org.vernac.intellij.VernacHostManipulator"));

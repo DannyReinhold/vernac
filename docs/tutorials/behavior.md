@@ -120,6 +120,10 @@ from a call to a private helper to its declaration in the same behavior block.
 Body edits are reflected without rebuilding. Changes to the generated model API
 still require regeneration. Add Java imports explicitly in `java imports`.
 
-This is separate from the Vernac language server. It does not yet navigate from
-ordinary Java files back to Vernac definitions or resolve the `implemented by`
-target in the Vernac declaration. See [details and limitations](../development/intellij-java-behavior.md).
+This is separate from the Vernac language server. Java type references can now
+navigate back to their Vernac definitions. Field getters and public behavior
+methods also navigate to their Vernac declarations, including `implemented by`
+contracts. Overloaded methods are matched by their resolved parameter types; see
+[Java-to-Vernac navigation](../development/java-to-vernac-navigation.md).
+The `implemented by` target in the Vernac declaration does not yet have Java
+navigation. See [details and limitations](../development/intellij-java-behavior.md).
