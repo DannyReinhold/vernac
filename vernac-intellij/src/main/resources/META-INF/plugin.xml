@@ -98,6 +98,13 @@
 ]]></description>
 
     <change-notes><![CDATA[
+    <p><b>Inline Java behavior — first integration</b></p>
+    <ul>
+        <li>Added Java language injection for inline behavior method bodies.</li>
+        <li>Private helpers share a Java context; method declarations retain Vernac source positions.</li>
+        <li>Uses the compiler's namespace/import rules and includes unsaved model changes.</li>
+        <li>Generate the domain Java sources first for receiver and model API resolution.</li>
+    </ul>
     <p><b>Project-wide type assistance</b></p>
     <ul>
         <li>Type and import completion use namespace visibility across Vernac files.</li>
@@ -140,6 +147,10 @@
     <depends>com.intellij.java</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <lang.parserDefinition language="Vernac" implementationClass="org.vernac.intellij.VernacParserDefinition"/>
+        <multiHostInjector implementation="org.vernac.intellij.VernacJavaInjector"/>
+        <lang.elementManipulator forClass="org.vernac.intellij.VernacInjectionHost"
+                                 implementationClass="org.vernac.intellij.VernacHostManipulator"/>
         <newProjectWizard.generator
                 implementation="org.vernac.intellij.VernacNewProjectWizard"/>
         <fileType

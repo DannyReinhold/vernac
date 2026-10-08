@@ -193,8 +193,13 @@ Vernac diagnoses syntax, signatures, reserved receiver names, conflicting import
 and known forbidden import/delegation targets. Behavior keywords are highlighted;
 Vernac types in signatures support completion and navigation.
 
-Java-body completion/navigation, Java class lookup for implementation targets,
-and live Java null analysis are not implemented by the Vernac LSP. Java compiler
+The IntelliJ plugin supplies a first Java-injection integration for inline
+behavior bodies: Java highlighting, completion and navigation use IntelliJ's Java
+support, while the LSP retains Vernac analysis. Generated domain types must be
+available in the imported Maven project. See the
+[scope and limitations](../development/intellij-java-behavior.md).
+Java class lookup for `implemented by` declarations and live NullAway analysis
+are not implemented by this integration. Java compiler
 errors currently refer to the generated companion file; each implementation
 method documents its originating Vernac source location. Automatic remapping of
 javac diagnostics to the DSL is a follow-up, not a guarantee of this version.

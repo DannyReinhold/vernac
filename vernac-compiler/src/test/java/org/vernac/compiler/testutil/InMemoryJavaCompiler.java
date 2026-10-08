@@ -29,6 +29,16 @@ public class InMemoryJavaCompiler {
     }
 
     public static CompilationOutput compile(List<JavaFile> files) {
+        Map<String, String> sources = new LinkedHashMap<>();
+        for (JavaFile file : files) {
+            String className = (file.packageName().isEmpty() ? "" : file.packageName() + ".") + file.typeSpec().name();
+            sources.put(className, file.toString());
+        }
+        return compile(sources);
+    }
+
+    /** Also accepts virtual Java documents assembled by editor tooling. */
+    public static CompilationOutput compile(Map<String, String> sources) {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         if (compiler == null) {
             throw new IllegalStateException("System Java Compiler not available. JDK required.");
@@ -56,15 +66,15 @@ public class InMemoryJavaCompiler {
         };
 
         List<JavaFileObject> compilationUnits = new ArrayList<>();
-        for (JavaFile file : files) {
-            String className = (file.packageName().isEmpty() ? "" : file.packageName() + ".") + file.typeSpec().name();
+        for (var source : sources.entrySet()) {
+            String className = source.getKey();
             compilationUnits.add(new SimpleJavaFileObject(
                     URI.create("string:///" + className.replace('.', '/') + JavaFileObject.Kind.SOURCE.extension),
                     JavaFileObject.Kind.SOURCE
             ) {
                 @Override
                 public CharSequence getCharContent(boolean ignoreEncodingErrors) {
-                    return file.toString();
+                    return source.getValue();
                 }
             });
         }

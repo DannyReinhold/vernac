@@ -110,3 +110,16 @@ remapping and Java-aware inline editing are future work.
 it does not inspect every Java dependency or prevent deliberate bypasses.
 
 See the [behavior contract](../contracts/behavior.md) for the complete rules.
+
+## IntelliJ assistance inside inline behavior
+
+After importing and building the Maven project, the plugin's Java-injection pilot
+provides Java assistance inside inline behavior bodies. Try completion after
+`self.string().`, navigation on a Java method such as `toUpperCase`, and navigation
+from a call to a private helper to its declaration in the same behavior block.
+Body edits are reflected without rebuilding. Changes to the generated model API
+still require regeneration. Add Java imports explicitly in `java imports`.
+
+This is separate from the Vernac language server. It does not yet navigate from
+ordinary Java files back to Vernac definitions or resolve the `implemented by`
+target in the Vernac declaration. See [details and limitations](../development/intellij-java-behavior.md).
