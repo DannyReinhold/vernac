@@ -64,7 +64,7 @@ class AggregateGeneratorTest {
                 .contains("private final transient List<DomainEvent> domainEvents = new ArrayList<>();")
                 .contains("private final Instant createdAt;")
                 .contains("private Instant updatedAt;")
-                .contains("private long version;")
+                .contains("private final PersistenceState persistenceState;")
                 .contains("private final ProjectId id;")
                 .contains("private final ProjectName name;")
                 .contains("private Money budget;")
@@ -75,7 +75,7 @@ class AggregateGeneratorTest {
                 .contains("public ProjectId id()")
                 .contains("public Instant createdAt()")
                 .contains("public Instant updatedAt()")
-                .contains("public long version()")
+                .contains("public PersistenceState persistenceState()")
                 .contains("public List<DomainEvent> pullDomainEvents()")
                 .contains("List<DomainEvent> events = List.copyOf(this.domainEvents);")
                 .contains("this.domainEvents.clear();")
@@ -175,10 +175,10 @@ class AggregateGeneratorTest {
     void generatesBehaviorViewsWithoutExposingSetters() {
         var result = new org.vernac.compiler.pipeline.VernacCompiler().compileSource("""
             namespace access.example;
-            id CounterId;
-            aggregate Counter[CounterId](mut int count) behavior {
-                read int current() { return self.count(); }
-                modify void increase() { self.count(self.count() + 1); }
+            id CounterId; value Count(int);
+            aggregate Counter[CounterId](mut Count count) behavior {
+                read int current() { return self.count().intValue(); }
+                modify void increase() { self.count(Count.of(self.count().intValue() + 1)); }
             };
             """);
         String owner = result.generatedFiles().stream().filter(f -> f.typeSpec().name().equals("Counter")).findFirst().orElseThrow().toString();

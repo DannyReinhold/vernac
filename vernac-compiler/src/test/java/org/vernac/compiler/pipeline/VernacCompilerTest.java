@@ -42,7 +42,8 @@ class VernacCompilerTest {
                     }
                 };
                 
-                entity Task[TaskId](String title, mut Boolean completed);
+                value Title(String); value Completed(Boolean value);
+                entity Task[TaskId](Title title, mut Completed completed);
                 
                 port ProjectExternalService {
                     schema ExternalProjectDto {

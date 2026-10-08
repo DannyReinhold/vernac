@@ -27,6 +27,9 @@ Java types and behavior.
 
 [Start the tutorials →](tutorials/index.md)
 
+For field rules, factories and lifecycle metadata, see the
+[Entity and aggregate contract](contracts/entities-and-aggregates.md).
+
 ---
 
 ## 🚀 Key Highlights

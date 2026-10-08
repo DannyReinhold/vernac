@@ -13,7 +13,8 @@ public interface AggregateRoot<ID> {
 
     Instant updatedAt();
 
-    long version();
+    /** Technical persistence access; not part of generated behavior views. */
+    PersistenceState persistenceState();
 
     /**
      * Returns all collected domain events and clears the internal buffer.

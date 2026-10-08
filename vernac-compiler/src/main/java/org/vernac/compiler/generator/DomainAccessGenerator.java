@@ -25,7 +25,7 @@ public final class DomainAccessGenerator {
             read.addMethod(abstractMethod(getter(field.name(), type(field, project), field.type().isOptional())));
             if (field.isMutable()) write.addMethod(abstractMethod(setter(field, project)));
         }
-        if (model.aggregate()) for (var name : List.of("createdAt", "updatedAt", "version"))
+        if (model.aggregate()) for (var name : List.of("createdAt", "updatedAt"))
             read.addMethod(abstractMethod(getter(name, name.equals("version") ? TypeName.LONG : ClassName.get(java.time.Instant.class), false)));
         for (var method : model.methods()) if (method.accessModifier().equals("public"))
             (method.mode() == MethodNode.Mode.READ ? read : write).addMethod(abstractMethod(behavior.signature(method, project)));
@@ -48,15 +48,17 @@ public final class DomainAccessGenerator {
                 var setter = setter(field, project).addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
                         .addStatement("this.guard.run()");
                 if (!field.type().isOptional() && !type(field, project).isPrimitive())
-                    setter.addStatement("$T.requireNonNull($N, $S)", Objects.class, field.name(), field.name() + " must not be null");
-                setter.beginControlFlow("if (!$T.equals($L.this.$N, $N))", Objects.class, owner.simpleName(), field.name(), field.name())
+                    setter.beginControlFlow("if ($N == null)", field.name())
+                            .addStatement("throw new $T($S)", org.vernac.runtime.DomainValidationException.class, owner.simpleName() + "." + field.name() + " must not be null")
+                            .endControlFlow();
+                setter.beginControlFlow("if (!($L))", sameValue(field, owner, project))
                         .addStatement("$L.this.$N = $N", owner.simpleName(), field.name(), field.name());
-                if (model.aggregate()) setter.addStatement("$L.this.markAsUpdated()", owner.simpleName());
+                setter.addStatement("$T.changed($L.this)", BehaviorModification.class, owner.simpleName());
                 setter.endControlFlow();
                 access.addMethod(setter.build());
             }
         }
-        if (model.aggregate()) for (String name : List.of("createdAt", "updatedAt", "version"))
+        if (model.aggregate()) for (String name : List.of("createdAt", "updatedAt"))
             forwardGetter(read, getter(name, name.equals("version") ? TypeName.LONG : ClassName.get(java.time.Instant.class), false), owner, name);
         for (var method : model.methods()) {
             if (!method.accessModifier().equals("public")) continue;
@@ -66,7 +68,7 @@ public final class DomainAccessGenerator {
             forward.addStatement((method.returnType().name().equals("void") ? "" : "return ") + "$L.this.$N($L)",
                     owner.simpleName(), method.name(), arguments(method));
             (modifying ? access : read).addMethod(forward.build());
-            entity.addMethod(wrapper(method, owner, project));
+            entity.addMethod(wrapper(method, owner, project, model.aggregate()));
         }
         entity.addType(read.build()).addType(access.build());
         var optional = model.fields().stream().filter(f -> f.type().isOptional()).toList();
@@ -82,13 +84,29 @@ public final class DomainAccessGenerator {
         }
     }
 
-    private MethodSpec wrapper(MethodNode method, ClassName owner, ResolvedProject project) {
+    private CodeBlock sameValue(FieldNode field, ClassName owner, ResolvedProject project) {
+        CodeBlock previous = CodeBlock.of("$L.this.$N", owner.simpleName(), field.name());
+        if (project.typeOf(field.type()) instanceof org.vernac.compiler.symbols.ResolvedType.Declared declared) {
+            if (declared.symbol().kind() == org.vernac.compiler.symbols.TypeSymbol.Kind.ENTITY)
+                return CodeBlock.of("$L == $N", previous, field.name());
+            if (declared.symbol().kind() == org.vernac.compiler.symbols.TypeSymbol.Kind.COLLECTION) {
+                var collection = org.vernac.compiler.pipeline.CollectionTypes.find(project.project(), declared.symbol().identity()).orElseThrow();
+                if (!collection.valueElements()) return CodeBlock.of("$T.sameEntityInstances($L, $N, $L)",
+                        org.vernac.runtime.DomainCollections.class, previous, field.name(),
+                        collection.definition().kind() == CollectionDefinitionNode.Kind.LIST);
+            }
+        }
+        return CodeBlock.of("$T.equals($L, $N)", Objects.class, previous, field.name());
+    }
+
+    private MethodSpec wrapper(MethodNode method, ClassName owner, ResolvedProject project, boolean aggregate) {
         var wrapper = behavior.signature(method, project).addModifiers(Modifier.PUBLIC);
         for (var p : method.parameters()) if (!p.type().isOptional() && !type(p, project).isPrimitive())
             wrapper.addStatement("$T.requireNonNull($N, $S)", Objects.class, p.name(), p.name() + " must not be null");
         boolean modify = method.mode() == MethodNode.Mode.MODIFY;
         boolean nothing = method.returnType().name().equals("void");
-        if (modify) wrapper.addCode((nothing ? "" : "return ") + "$T.$L(this, this::validate, () -> {\n$>",
+        if (modify) wrapper.addCode((nothing ? "" : "return ") + "$T.$L(this, this::validate, "
+                        + (aggregate ? "__vernacTime -> this.updatedAt = __vernacTime" : "__vernacTime -> {}") + ", () -> {\n$>",
                 BehaviorModification.class, nothing ? "run" : "execute");
         var call = CodeBlock.of("$T.$N(new $L(), $L)", BehaviorGenerator.companion(owner), method.name(),
                 modify ? "__AccessView" : "__ReadView", arguments(method));

@@ -98,6 +98,9 @@
 ]]></description>
 
     <change-notes><![CDATA[
+        <h3>Entity and aggregate contracts</h3>
+        <p>Added domain-field and containment-cycle diagnostics, including optional fields
+        and collections across namespaces. Aggregate metadata is isolated from write behavior.</p>
         <h3>Validation delegates</h3>
         <p>Java support inside validates expressions now uses a read-only self interface,
         including Optional getters, read behavior, and shared Java imports.</p>

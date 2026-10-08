@@ -147,10 +147,10 @@ class EntityGeneratorTest {
     void generatesBehaviorViewsWithoutExposingSetters() {
         var result = new org.vernac.compiler.pipeline.VernacCompiler().compileSource("""
             namespace access.example;
-            id CounterId;
-            entity Counter[CounterId](mut int count) behavior {
-                read int current() { return self.count(); }
-                modify void increase() { self.count(self.count() + 1); }
+            id CounterId; value Count(int);
+            entity Counter[CounterId](mut Count count) behavior {
+                read int current() { return self.count().intValue(); }
+                modify void increase() { self.count(Count.of(self.count().intValue() + 1)); }
             };
             """);
         String owner = result.generatedFiles().stream().filter(f -> f.typeSpec().name().equals("Counter")).findFirst().orElseThrow().toString();

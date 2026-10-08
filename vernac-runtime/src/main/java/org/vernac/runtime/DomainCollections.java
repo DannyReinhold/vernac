@@ -10,6 +10,30 @@ import java.util.*;
 public final class DomainCollections {
     private DomainCollections() { }
 
+    /** Change detection for child references. Entity equality alone would hide replacement
+     * of an entity by a different instance with the same id. Lists compare occurrence order;
+     * sets compare reference membership. This does not change collection equals/hashCode.
+     */
+    public static boolean sameEntityInstances(@org.jspecify.annotations.Nullable Iterable<?> before,
+                                               @org.jspecify.annotations.Nullable Iterable<?> after,
+                                               boolean ordered) {
+        if (before == after) return true;
+        if (before == null || after == null) return false;
+        if (ordered) {
+            var left = before.iterator(); var right = after.iterator();
+            while (left.hasNext() && right.hasNext()) if (left.next() != right.next()) return false;
+            return !left.hasNext() && !right.hasNext();
+        }
+        var references = new IdentityHashMap<Object, Integer>();
+        for (Object value : before) references.merge(value, 1, Integer::sum);
+        for (Object value : after) {
+            Integer count = references.get(value);
+            if (count == null) return false;
+            if (count == 1) references.remove(value); else references.put(value, count - 1);
+        }
+        return references.isEmpty();
+    }
+
     /** Rejects null without including domain values in the diagnostic. */
     public static <T> T required(T value) {
         if (value == null) throw new DomainValidationException("Collection arguments and elements must not be null.");

@@ -136,10 +136,10 @@ class BehaviorJavaProjectionTest {
     @Test void entityBehaviorProjectsTheCorrectReceiverInterfaces() {
         String source = """
             namespace model;
-            id TaskId;
-            entity Task[TaskId](mut int count) behavior {
-                read int current() { return self.count(); }
-                modify void increase() { self.count(self.count() + 1); }
+            id TaskId; value Count(int);
+            entity Task[TaskId](mut Count count) behavior {
+                read int current() { return self.count().intValue(); }
+                modify void increase() { self.count(Count.of(self.count().intValue() + 1)); }
                 private int one() { return 1; }
             };
             """;

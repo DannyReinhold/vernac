@@ -186,7 +186,7 @@ public class RepositoryGenerator {
                 .returns(aggType)
                 .addParameter(aggType, "aggregate")
                 .addStatement("$T saved", aggType)
-                .beginControlFlow("if (aggregate.version() == 0L)")
+                .beginControlFlow("if (aggregate.persistenceState().version() == 0L)")
                 .addStatement("saved = insert(aggregate)")
                 .nextControlFlow("else")
                 .addStatement("saved = update(aggregate)")
@@ -237,7 +237,8 @@ public class RepositoryGenerator {
             }
         }
 
-        mb.addStatement("return aggregate.withVersion(nextVersion)");
+        mb.addStatement("aggregate.persistenceState().version(nextVersion)");
+        mb.addStatement("return aggregate");
         return mb.build();
     }
 
@@ -253,7 +254,7 @@ public class RepositoryGenerator {
                 .addModifiers(Modifier.PRIVATE)
                 .returns(aggType)
                 .addParameter(aggType, "aggregate")
-                .addStatement("long currentVersion = aggregate.version()")
+                .addStatement("long currentVersion = aggregate.persistenceState().version()")
                 .addStatement("long nextVersion = currentVersion + 1L")
                 .addStatement("$T params = new $T()", MAP_PARAM_SOURCE, MAP_PARAM_SOURCE)
                 .addStatement("params.addValue(\"id\", aggregate.id().value())")
@@ -285,7 +286,8 @@ public class RepositoryGenerator {
             }
         }
 
-        mb.addStatement("return aggregate.withVersion(nextVersion)");
+        mb.addStatement("aggregate.persistenceState().version(nextVersion)");
+        mb.addStatement("return aggregate");
         return mb.build();
     }
 
@@ -295,7 +297,7 @@ public class RepositoryGenerator {
                 .addModifiers(Modifier.PUBLIC)
                 .addParameter(aggType, "aggregate")
                 .addStatement("String sql = \"DELETE FROM $L WHERE id = :id AND version = :version\"", tableName)
-                .addStatement("int rows = this.jdbcTemplate.update(sql, $T.of(\"id\", aggregate.id().value(), \"version\", aggregate.version()))", Map.class)
+                .addStatement("int rows = this.jdbcTemplate.update(sql, $T.of(\"id\", aggregate.id().value(), \"version\", aggregate.persistenceState().version()))", Map.class)
                 .beginControlFlow("if (rows == 0)")
                 .addStatement("throw new $T(\"Optimistic lock conflict deleting $L: [\" + aggregate.id().value() + \"]\")", OPTIMISTIC_LOCK_EX, agg.name())
                 .endControlFlow()

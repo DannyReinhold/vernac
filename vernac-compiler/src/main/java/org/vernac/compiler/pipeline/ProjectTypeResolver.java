@@ -69,11 +69,15 @@ public final class ProjectTypeResolver {
                         diagnostics.addAll(BehaviorImports.validate(project, scope, source.unit().namespace(), model.name(), model.imports(), model.methods()));
                         var idLookup = scope.resolve(model.id().type().name(), model.id().location());
                         diagnostics.addAll(idLookup.diagnostics());
-                        if (idLookup.type().orElse(null) instanceof ResolvedType.Declared id && id.symbol().kind() == TypeSymbol.Kind.ID)
+                        if (!model.id().type().isOptional() && model.id().type().typeArguments().isEmpty()
+                                && idLookup.type().orElse(null) instanceof ResolvedType.Declared id && id.symbol().kind() == TypeSymbol.Kind.ID)
                             fieldTypes.put(model.id().type(), id);
                         else diagnostics.add(CompilerDiagnostic.error(model.id().location(), "Entity identity requires a Vernac id type."));
                         for (var field : model.fields()) {
                             resolveField(field, scope, fieldTypes, diagnostics, project, true);
+                            if (fieldTypes.get(field.type()) instanceof ResolvedType.Builtin)
+                                diagnostics.add(CompilerDiagnostic.error(field.location(), "Entity/aggregate field '" + field.name()
+                                        + "' requires a Vernac domain type. Wrap Java type '" + field.type().name() + "' in a value object."));
                             if (fieldTypes.get(field.type()) instanceof ResolvedType.Declared declared) {
                                 boolean aggregate = declared.symbol().kind() == TypeSymbol.Kind.AGGREGATE;
                                 if (declared.symbol().kind() == TypeSymbol.Kind.COLLECTION) aggregate = CollectionTypes.find(project, declared.symbol().identity())
@@ -131,6 +135,7 @@ public final class ProjectTypeResolver {
                 diagnostics.addAll(BehaviorImports.validateLowered(source.unit().namespace(), value.name(), value.methods(), fieldTypes));
             }
         }
+        diagnostics.addAll(new ContainmentValidator().validate(project, fieldTypes));
         failOnErrors(diagnostics);
         List<TypeSymbol> deferred = namespaces.stream().flatMap(namespace -> project.symbols().inNamespace(namespace).stream())
                 .filter(symbol -> switch (symbol.kind()) {

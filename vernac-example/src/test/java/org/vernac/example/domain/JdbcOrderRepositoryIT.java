@@ -128,7 +128,7 @@ class JdbcOrderRepositoryIT {
         PurchaseOrder saved = txTemplate.execute(status -> repository.save(initialOrder));
 
         assertThat(saved).isNotNull();
-        assertThat(saved.version()).isEqualTo(1L);
+        assertThat(saved.persistenceState().version()).isEqualTo(1L);
 
         // 2. Load via byId
         PurchaseOrder loaded = txTemplate.execute(status -> repository.byId(orderId));
@@ -139,7 +139,7 @@ class JdbcOrderRepositoryIT {
         assertThat(loaded.status()).isEqualTo("NEW");
         assertThat(loaded.total().amount()).isEqualByComparingTo("88.98");
         assertThat(loaded.total().currency()).isEqualTo(eur);
-        assertThat(loaded.version()).isEqualTo(1L);
+        assertThat(loaded.persistenceState().version()).isEqualTo(1L);
         assertThat(loaded.lines()).hasSize(2);
     }
 
@@ -180,12 +180,12 @@ class JdbcOrderRepositoryIT {
                 newLines,
                 savedV1.createdAt(),
                 savedV1.updatedAt(),
-                savedV1.version()
+                savedV1.persistenceState().version()
         );
 
         PurchaseOrder savedV2 = txTemplate.execute(status -> repository.save(orderToUpdate));
 
-        assertThat(savedV2.version()).isEqualTo(2L);
+        assertThat(savedV2.persistenceState().version()).isEqualTo(2L);
         assertThat(savedV2.status()).isEqualTo("PAID");
 
         // Verify state from the database
@@ -212,7 +212,7 @@ class JdbcOrderRepositoryIT {
         // First request successfully updates to V2
         v1.completeOrder();
         PurchaseOrder v2 = txTemplate.execute(status -> repository.save(v1));
-        assertThat(v2.version()).isEqualTo(2L);
+        assertThat(v2.persistenceState().version()).isEqualTo(2L);
 
         // Second request still attempts to save based on V1
         PurchaseOrder concurrentAttempt = PurchaseOrder.reconstitute(

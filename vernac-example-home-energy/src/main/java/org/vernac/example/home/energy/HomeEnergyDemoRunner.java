@@ -48,7 +48,7 @@ public class HomeEnergyDemoRunner implements ApplicationRunner {
         StorageId storageId = initialStorage.id();
         transactions.executeWithoutResult(status -> {
             EnergyStorage saved = storageRepository.save(initialStorage);
-            log.info("   -> Gespeichert in DB mit Version {}", saved.version());
+            log.info("   -> Gespeichert in DB mit Version {}", saved.persistenceState().version());
         });
 
         // 2. Invoke UseCase: Loads storage, calls REST port, charges, and saves
@@ -64,7 +64,7 @@ public class HomeEnergyDemoRunner implements ApplicationRunner {
         transactions.executeWithoutResult(status -> {
             EnergyStorage reloaded = storageRepository.byId(storageId);
             log.info("3. DB-Prüfung nach UseCase-Commit: SOC={}%, Version={}",
-                    reloaded.soc().percent(), reloaded.version());
+                    reloaded.soc().percent(), reloaded.persistenceState().version());
         });
 
         log.info("==================================================================");

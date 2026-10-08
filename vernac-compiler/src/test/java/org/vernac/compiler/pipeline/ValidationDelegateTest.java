@@ -48,9 +48,9 @@ class ValidationDelegateTest {
     @Test void validatorCannotUsePrivateFieldsSettersOrModifyMethods() {
         for (String expression : List.of("self.number == 1", "self.change()", "self.number(1) == 1")) {
             var source = sources("""
-                id Key;
-                entity Item[Key](mut int number) validates { require(%s, "bad"); }
-                behavior { modify boolean change() { self.number(1); return true; } };
+                id Key; value NumberValue(int);
+                entity Item[Key](mut NumberValue number) validates { require(%s, "bad"); }
+                behavior { modify boolean change() { self.number(NumberValue.of(1)); return true; } };
                 """.formatted(expression));
             assertFalse(InMemoryJavaCompiler.compile(source).success(),expression);
         }

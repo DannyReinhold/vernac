@@ -88,15 +88,18 @@ class CollectionContractTest {
 
     @Test void entityAndAggregateCollectionsPreserveIdentityInstances() throws Exception {
         for (String kind : List.of("entity", "aggregate")) {
-            var output = compile("id AccountId; " + kind + " Account[AccountId](int balance) list Accounts;");
+            var output = compile("id AccountId; value Balance(int); " + kind + " Account[AccountId](Balance balance) list Accounts;");
             Class<?> id = output.loadClass("collections.domain.AccountId"), account = output.loadClass("collections.domain.Account"), accounts = output.loadClass("collections.domain.Accounts");
             Object identity = id.getMethod("create").invoke(null);
-            Method restore = kind.equals("entity") ? account.getMethod("reconstitute", id, int.class)
-                    : account.getMethod("reconstitute", id, int.class, java.time.Instant.class, java.time.Instant.class, long.class);
-            Object first = kind.equals("entity") ? restore.invoke(null, identity, 100)
-                    : restore.invoke(null, identity, 100, java.time.Instant.EPOCH, java.time.Instant.EPOCH, 0L);
-            Object second = kind.equals("entity") ? restore.invoke(null, identity, 200)
-                    : restore.invoke(null, identity, 200, java.time.Instant.EPOCH, java.time.Instant.EPOCH, 1L);
+        Class<?> balance = output.loadClass("collections.domain.Balance");
+        Object hundred = balance.getMethod("of", int.class).invoke(null, 100);
+        Object twoHundred = balance.getMethod("of", int.class).invoke(null, 200);
+            Method restore = kind.equals("entity") ? account.getMethod("reconstitute", id, balance)
+                    : account.getMethod("reconstitute", id, balance, java.time.Instant.class, java.time.Instant.class, long.class);
+            Object first = kind.equals("entity") ? restore.invoke(null, identity, hundred)
+                    : restore.invoke(null, identity, hundred, java.time.Instant.EPOCH, java.time.Instant.EPOCH, 0L);
+            Object second = kind.equals("entity") ? restore.invoke(null, identity, twoHundred)
+                    : restore.invoke(null, identity, twoHundred, java.time.Instant.EPOCH, java.time.Instant.EPOCH, 1L);
             Object list = of(accounts, List.of(first, second));
             var duplicates = (List<?>) call(call(list, "duplicates"), "asList");
             assertSame(first, duplicates.get(0)); assertSame(second, duplicates.get(1));
@@ -111,12 +114,15 @@ class CollectionContractTest {
     }
 
     @Test void setsNeverReplaceTheExistingInstance() throws Exception {
-        var output = compile("id AccountId; entity Account[AccountId](int balance) set Accounts;");
+        var output = compile("id AccountId; value Balance(int); entity Account[AccountId](Balance balance) set Accounts;");
         Class<?> id = output.loadClass("collections.domain.AccountId"), account = output.loadClass("collections.domain.Account"), accounts = output.loadClass("collections.domain.Accounts");
         Object identity = id.getMethod("create").invoke(null);
-        Method restore = account.getMethod("reconstitute", id, int.class);
-        Object first = restore.invoke(null, identity, 100);
-        Object second = restore.invoke(null, identity, 200);
+        Class<?> balance = output.loadClass("collections.domain.Balance");
+        Object hundred = balance.getMethod("of", int.class).invoke(null, 100);
+        Object twoHundred = balance.getMethod("of", int.class).invoke(null, 200);
+        Method restore = account.getMethod("reconstitute", id, balance);
+        Object first = restore.invoke(null, identity, hundred);
+        Object second = restore.invoke(null, identity, twoHundred);
         Object set = of(accounts, List.of(first, second));
         assertSame(first, ((Set<?>) call(set, "asSet")).iterator().next());
         Object plus = call(set, "plus", account, second);
@@ -137,8 +143,8 @@ class CollectionContractTest {
 
     @Test void rejectsInvalidFieldsPackagesAndApiCollisions() {
         for (String body : List.of(
-                "id TaskId; entity Task[TaskId](int value) list Tasks; value Broken(Tasks);",
-                "id TaskId; aggregate Task[TaskId](int value) set Tasks; value Broken(Tasks);",
+                "id TaskId; value NumberValue(int); entity Task[TaskId](NumberValue value) list Tasks; value Broken(Tasks);",
+                "id TaskId; value NumberValue(int); aggregate Task[TaskId](NumberValue value) set Tasks; value Broken(Tasks);",
                 "id TaskId list behavior { package elsewhere; };",
                 "value Name(String) list Names; value Names(String);",
                 "value Name(String) list String;",
@@ -146,7 +152,7 @@ class CollectionContractTest {
                 "value Name(String) list behavior { public int size() { return 0; } };",
                 "value Name(String) list behavior { public int count(Name other) { return 0; } };",
                 "value Name(String) list behavior { public String duplicates() { return \"x\"; } };",
-                "id TaskId; entity Task[TaskId](int value) list behavior { public String by(TaskId id) { return \"x\"; } };"))
+                "id TaskId; value NumberValue(int); entity Task[TaskId](NumberValue value) list behavior { public String by(TaskId id) { return \"x\"; } };"))
             assertThrows(SemanticValidationException.class, () -> new VernacCompiler().compileSource("namespace collections; " + body), body);
     }
 }

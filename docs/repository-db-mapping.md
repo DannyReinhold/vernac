@@ -206,9 +206,9 @@ When saving the aggregate (`save()`), the generated repository executes a **full
 This ensures that child entity changes (additions, modifications, removals) are synchronized atomically and efficiently.
 
 ### 5.4 Optimistic Locking
-- On initial creation (`aggregate.version() == 0L`):
+- On initial creation (`aggregate.persistenceState().version() == 0L`):
   - Executes an `INSERT` and sets `version = 1L`.
-- On update (`aggregate.version() > 0L`):
+- On update (`aggregate.persistenceState().version() > 0L`):
   - Executes an `UPDATE` with condition `WHERE id = :id AND version = :currentVersion`.
   - Increments version in the record (`nextVersion = currentVersion + 1L`).
   - If `rows == 0`, the repository immediately throws `org.springframework.dao.OptimisticLockingFailureException`.

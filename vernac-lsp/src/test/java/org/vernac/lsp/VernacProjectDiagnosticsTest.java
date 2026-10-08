@@ -55,6 +55,16 @@ class VernacProjectDiagnosticsTest {
     }
     List<Diagnostic> diagnostics(Path path) { return client.latest.get(path.toUri().toString()).getDiagnostics(); }
 
+    @Test void domainFieldAndContainmentErrorsAppearAndClearWhileEditing() throws Exception {
+        Path model = file("model", "model", "id Key; entity Node[Key](String text);");
+        open(model);
+        assertTrue(diagnostics(model).stream().anyMatch(d -> d.getMessage().contains("Wrap Java type")));
+        change(model, "namespace model; id Key; entity Node[Key](Nodes children) list Nodes;", 2);
+        assertTrue(diagnostics(model).stream().anyMatch(d -> d.getMessage().contains("Cyclic containment")));
+        change(model, "namespace model; id Key; entity Node[Key](Key? parent);", 3);
+        assertTrue(diagnostics(model).isEmpty(), diagnostics(model).toString());
+    }
+
     @Test void behaviorImportConflictIsReportedAndCleared() throws Exception {
         Path model = file("names", "name", "value Name(String) behavior { java imports { foreign.String; } };");
         open(model);

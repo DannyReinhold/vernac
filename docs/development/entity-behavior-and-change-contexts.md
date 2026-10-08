@@ -40,16 +40,17 @@ namespace example;
 
 id IntervalId;
 value Label(String);
+value Position(int);
 
-entity Interval[IntervalId](Label, mut int start, mut int end)
+entity Interval[IntervalId](Label, mut Position start, mut Position end)
 validates {
-    require(self.start() <= self.end(), "Start must not exceed end");
+    require(self.start().intValue() <= self.end().intValue(), "Start must not exceed end");
 }
 behavior {
     java imports { java.util.Locale; }
 
     read int length() {
-        return self.end() - self.start();
+        return self.end().intValue() - self.start().intValue();
     }
 
     read String displayLabel() {
@@ -57,8 +58,8 @@ behavior {
     }
 
     modify void move(int start, int end) {
-        self.start(start);
-        self.end(end);
+        self.start(Position.of(start));
+        self.end(Position.of(end));
     }
 
     modify void adjust(int start, int end)
@@ -70,8 +71,8 @@ behavior {
 };
 ```
 
-The primitive fields keep this example focused on behavior. The complete permissible entity
-field-type policy is a separate language-review item; this patch does not claim to finish it.
+Fields now use domain value objects. See the [entity/aggregate contract](../contracts/entities-and-aggregates.md)
+for allowed field types, containment, factories, metadata and effective-change detection.
 
 `public read`, `public modify`, and unclassified `public` entity behavior are not alternative
 spellings. Use `read` or `modify`. Private helpers remain ordinary private static Java helpers
@@ -81,7 +82,7 @@ Value-object, enum, and collection behavior keeps its established `public`/`priv
 in this step. They are not mutable entity receivers. Changing their syntax is not necessary
 to introduce entity access views.
 
-Java imports are scoped to the behavior companion. The existing import collision rules,
+Java imports are scoped to the owner’s behavior and validation companions. The existing import collision rules,
 known repository/adapter restrictions, nullable input rules, Optional output rules, and
 runtime checks for non-null public reference results continue to apply. An external method
 receives the same interface type as its inline counterpart; external implementations are
@@ -96,15 +97,15 @@ in `<namespace>.domain`:
 public interface IntervalRead {
     IntervalId id();
     Label label();
-    int start();
-    int end();
+    Position start();
+    Position end();
     int length();
     String displayLabel();
 }
 
 public interface IntervalWrite {
-    void start(int start);
-    void end(int end);
+    void start(Position start);
+    void end(Position end);
     void move(int start, int end);
     void adjust(int start, int end);
 }
@@ -133,7 +134,7 @@ The behavior companion remains a separate top-level class, preventing direct pri
 access. Both inline and external behavior pass through that companion. Entity instances are
 not replaced, copied, or exposed through a generated `unwrap` method.
 
-A simple invalid program such as `read void bad() { self.start(3); }` fails Java compilation:
+A simple invalid program such as `read void bad() { self.start(Position.of(3)); }` fails Java compilation:
 `IntervalRead` has no setter. The same applies to calls to modify methods through `self`.
 These are Java diagnostics, not a new Vernac Java-body analyzer. IntelliJ's injected Java
 uses the corresponding generated interface for completion and analysis after generation.
@@ -341,9 +342,9 @@ restrictions. Existing tests remain; deferred-feature tests now use an unreviewe
 instead of an entity, and the standalone compiler example uses the new behavior syntax.
 
 Legacy low-level generator entry points still serve tests and unreviewed infrastructure code;
-the reviewed project/compiler path uses access-based generation. Existing SQL schema constants,
-aggregate timestamps/version APIs, and event plumbing have not been redesigned here. Their
-presence does not constitute a completed DB mapping or aggregate lifecycle contract.
+the reviewed project/compiler path uses access-based generation. The reviewed generation path no longer assumes SQL schema constants. Aggregate metadata
+now follows the [entity/aggregate contract](../contracts/entities-and-aggregates.md); event plumbing
+and complete persistence/transaction semantics still require their dedicated review.
 
 Next steps:
 

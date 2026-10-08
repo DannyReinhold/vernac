@@ -67,4 +67,13 @@ class DomainCollectionsTest {
         assertThrows(DomainValidationException.class, () -> DomainCollections.plusAll(list, Arrays.asList("C", null)));
         assertEquals(List.of("A", "B"), list);
     }
+    @org.junit.jupiter.api.Test
+    void entityChangeDetectionUsesInstancesAndRespectsCollectionKind() {
+        Object a = new String("same"), b = new String("same");
+        org.junit.jupiter.api.Assertions.assertFalse(DomainCollections.sameEntityInstances(java.util.List.of(a), java.util.List.of(b), true));
+        org.junit.jupiter.api.Assertions.assertTrue(DomainCollections.sameEntityInstances(java.util.List.of(a, b), java.util.List.of(b, a), false));
+        org.junit.jupiter.api.Assertions.assertFalse(DomainCollections.sameEntityInstances(java.util.List.of(a, b), java.util.List.of(b, a), true));
+        org.junit.jupiter.api.Assertions.assertTrue(DomainCollections.sameEntityInstances(null, null, true));
+        org.junit.jupiter.api.Assertions.assertFalse(DomainCollections.sameEntityInstances(null, java.util.List.of(), true));
+    }
 }

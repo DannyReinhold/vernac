@@ -96,7 +96,7 @@ class DomainCollectionGeneratorTest {
         String src = """
                 namespace com.example;
                 id TaskId;
-                entity Task[TaskId](String title) list;
+                value Title(String); entity Task[TaskId](Title title) list;
                 """;
 
         CompilationUnitNode cu = parse(src);

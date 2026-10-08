@@ -96,7 +96,7 @@ public class JdbcEnergyStorageRepository implements EnergyStorageRepository {
     // ...
     @Override
     public EnergyStorage save(EnergyStorage aggregate) {
-        EnergyStorage saved = aggregate.version() == 0L ? insert(aggregate) : update(aggregate);
+        EnergyStorage saved = aggregate.persistenceState().version() == 0L ? insert(aggregate) : update(aggregate);
         this.eventDispatcher.dispatch("EnergyStorage", aggregate.id().value().toString(), aggregate.pullDomainEvents());
         return saved;
     }

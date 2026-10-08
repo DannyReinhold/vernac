@@ -21,7 +21,7 @@ class UseCaseGeneratorTest {
                 namespace com.example.shop;
                 
                 id OrderId;
-                aggregate Order[OrderId](String status);
+                value Status(String); aggregate Order[OrderId](Status status);
                 repository for Order {}
                 
                 usecase CancelOrder(OrderId id, String reason) validates {

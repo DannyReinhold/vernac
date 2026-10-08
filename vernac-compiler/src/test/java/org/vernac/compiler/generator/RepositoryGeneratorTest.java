@@ -27,7 +27,8 @@ class RepositoryGeneratorTest {
                 id OrderId;
                 id CustomerId;
                 
-                aggregate Order[OrderId](CustomerId customer, mut String status);
+                value Status(String);
+                aggregate Order[OrderId](CustomerId customer, mut Status status);
                 
                 repository OrderRepository for Order {
                     find List<Order> findByStatus(String status);
@@ -68,7 +69,10 @@ class RepositoryGeneratorTest {
                 .contains("this.eventDispatcher = Objects.requireNonNull(eventDispatcher, \"eventDispatcher must not be null\");")
                 .contains("this.eventDispatcher.dispatch(\"Order\", aggregate.id().value().toString(), aggregate.pullDomainEvents());")
                 .contains("throw new AggregateNotFoundException")
-                .contains("throw new OptimisticLockingFailureException");
+                .contains("throw new OptimisticLockingFailureException")
+                .contains("long currentVersion = aggregate.persistenceState().version()")
+                .contains("aggregate.persistenceState().version(nextVersion)")
+                .doesNotContain("withVersion(");
     }
 
     @Test
@@ -80,8 +84,9 @@ class RepositoryGeneratorTest {
                 id ProjectId;
                 id TaskId;
                 
-                entity Task[TaskId](String title) list;
-                aggregate Project[ProjectId](String name, mut Tasks tasks);
+                value Title(String); value ProjectName(String);
+                entity Task[TaskId](Title title) list;
+                aggregate Project[ProjectId](ProjectName name, mut Tasks tasks);
                 
                 repository for Project {
                 };
@@ -114,7 +119,8 @@ class RepositoryGeneratorTest {
                 value MoneyCurrency(String isoCode);
                 value Money(BigDecimal amount, MoneyCurrency currency);
                 
-                aggregate Account[AccountId](String owner, mut Money balance);
+                value Owner(String);
+                aggregate Account[AccountId](Owner owner, mut Money balance);
                 
                 repository for Account {
                 };
@@ -176,8 +182,9 @@ class RepositoryGeneratorTest {
                 id TaskId;
                 value TaskDuration(int hours);
                 
-                entity Task[TaskId](String title, TaskDuration duration) list;
-                aggregate Project[ProjectId](String name, mut Tasks tasks);
+                value Title(String); value ProjectName(String);
+                entity Task[TaskId](Title title, TaskDuration duration) list;
+                aggregate Project[ProjectId](ProjectName name, mut Tasks tasks);
                 
                 repository for Project {
                 };
