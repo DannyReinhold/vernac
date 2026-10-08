@@ -21,7 +21,7 @@ class DomainServiceGeneratorTest {
                 namespace com.example.energy;
                 
                 value WattHours(int value) validates {
-                    require(value >= 0, "Non-negative");
+                    require(self.value() >= 0, "Non-negative");
                 }
                 
                 service TariffCalculator(WattHours capacity, WattHours storedEnergy, WattHours) : WattHours validates {

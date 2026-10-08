@@ -27,6 +27,27 @@ class BehaviorJavaProjectionTest {
         return result.toString();
     }
 
+    @Test void validationFragmentsUseReadSelfAndUtf16Ranges() {
+        String text = """
+            // 😀 before validation
+            namespace model;
+            value Größe(String) validates {
+                require(!self.string().isBlank(), "blank");
+                require(self.string().toUpperCase(Locale.ROOT).length() > 0, "length");
+            } behavior { java imports { java.util.Locale; } };
+            """;
+        var block = project(text).getFirst();
+        assertEquals("GrößeValidation", block.owner());
+        assertEquals("!self.string().isBlank()", text.substring(block.fragments().getFirst().start(), block.fragments().getFirst().end()));
+        String code = java(text, block);
+        assertTrue(code.contains("model.domain.GrößeRead self"));
+        Map<String,String> sources = new LinkedHashMap<>();
+        new VernacCompiler().compileSource(text).generatedFiles().forEach(f -> sources.put(f.packageName()+"."+f.typeSpec().name(), f.toString()));
+        sources.put("model.domain.__VernacEditorValidation_Größe", code);
+        var result = org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(sources);
+        assertTrue(result.success(), result.diagnostics().toString());
+    }
+
     @Test void methodsShareOneContextAndOriginalDeclarationNames() {
         String text = """
                 namespace model;
@@ -110,5 +131,26 @@ class BehaviorJavaProjectionTest {
 
     @Test void externalOnlyBehaviorDoesNotInjectAnEmptyJavaFile() {
         assertTrue(project("namespace model; value Name(String) behavior { public String label() implemented by app.Impl; };").isEmpty());
+    }
+
+    @Test void entityBehaviorProjectsTheCorrectReceiverInterfaces() {
+        String source = """
+            namespace model;
+            id TaskId;
+            entity Task[TaskId](mut int count) behavior {
+                read int current() { return self.count(); }
+                modify void increase() { self.count(self.count() + 1); }
+                private int one() { return 1; }
+            };
+            """;
+        var block = project(source).getFirst();
+        String code = java(source, block);
+        assertTrue(code.contains("current(model.domain.TaskRead self)"));
+        assertTrue(code.contains("increase(model.domain.TaskAccess self)"));
+        Map<String, String> sources = new LinkedHashMap<>();
+        new VernacCompiler().compileSource(source).generatedFiles().forEach(f -> sources.put(f.packageName() + "." + f.typeSpec().name(), f.toString()));
+        sources.put("model.domain.__VernacEditorBehavior_Task", code);
+        var compiled = org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(sources);
+        assertTrue(compiled.success(), compiled.diagnostics().toString());
     }
 }

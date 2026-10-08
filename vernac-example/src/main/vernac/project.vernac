@@ -7,10 +7,10 @@ package org.vernac.example.project;
 
 id ProjectId;
 value ProjectName(String value) validates {
-  require(value != null && !value.isEmpty(), "Project Name must be specified!");
+  require(self.value() != null && !self.value().isEmpty(), "Project Name must be specified!");
 }
 value ProjectNumber(long) validates {
-  require(value >= 0, "Project number must not be negative!");
+  require(self.value() >= 0, "Project number must not be negative!");
 }
 
 aggregate Project[ProjectId](ProjectName, int) {

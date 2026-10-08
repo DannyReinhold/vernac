@@ -127,3 +127,36 @@ contracts. Overloaded methods are matched by their resolved parameter types; see
 [Java-to-Vernac navigation](../development/java-to-vernac-navigation.md).
 The `implemented by` target in the Vernac declaration does not yet have Java
 navigation. See [details and limitations](../development/intellij-java-behavior.md).
+
+
+## Entity and aggregate behavior
+
+Entities and aggregates use `read` and `modify` in place of `public`. A read method receives
+`TypeRead self`; a modify method receives `TypeAccess self`. The owner itself implements
+neither interface. Private forwarding views expose getters and, for modify only, mutable
+field setters and modifying behavior. Private helpers remain `private`.
+
+```vernac
+id CounterId;
+entity Counter[CounterId](mut int count) validates {
+    require(self.count() >= 0, "Count must not be negative");
+} behavior {
+    read int current() { return self.count(); }
+    modify void increment() { self.count(self.count() + 1); }
+};
+```
+
+Generate Java before trying completion on the new access interfaces in IntelliJ.
+The field setter is not part of the public Counter API; Java callers use `counter.increment()`.
+
+Modifications currently change objects directly. Validation runs on successful completion
+of the outermost synchronous modify call, including nested modify receivers. If validation
+or behavior throws, changes are **not rolled back**. Discard the affected objects after failure.
+Read access is shallow: child entity getters do not yet provide deep read-only views.
+
+For the complete design, limitations, and deferred candidate-state mechanism, see
+[Entity behavior and change contexts](../development/entity-behavior-and-change-contexts.md).
+
+Validation expressions use `self.field()` through a separate read view. The owner’s
+behavior Java imports are shared with validation, but private behavior helpers are not.
+See [validation delegates](../development/validation-delegates.md).

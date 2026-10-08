@@ -30,7 +30,12 @@ public final class VernacTypeNavigation {
         for (var source : project.sources()) {
             for (var symbol : project.symbols().inNamespace(source.unit().namespace())) {
                 if (!symbol.sourceFile().equals(source.path()) || !reviewed(symbol.kind())) continue;
-                if (!JavaTypeNames.canonicalName(new ResolvedType.Declared(symbol)).equals(javaName)) continue;
+                String generated = JavaTypeNames.canonicalName(new ResolvedType.Declared(symbol));
+                boolean access = (symbol.kind() == TypeSymbol.Kind.ENTITY || symbol.kind() == TypeSymbol.Kind.AGGREGATE)
+                        && List.of("Read", "Write", "Access").stream().anyMatch(suffix -> (generated + suffix).equals(javaName));
+                boolean valueRead = symbol.kind() == TypeSymbol.Kind.VALUE_OBJECT && (generated + "Read").equals(javaName)
+                        && source.unit().valueObjects().stream().anyMatch(v -> v.name().equals(symbol.identity().name()) && !v.validations().isEmpty());
+                if (!generated.equals(javaName) && !access && !valueRead) continue;
                 String text = texts.get(source.path());
                 return text == null ? Optional.empty() : locate(project, source, text, symbol, member);
             }
@@ -40,7 +45,7 @@ public final class VernacTypeNavigation {
 
     private boolean reviewed(TypeSymbol.Kind kind) {
         return switch (kind) {
-            case ID, VALUE_OBJECT, ENUM, COLLECTION -> true;
+            case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE -> true;
             default -> false;
         };
     }
@@ -66,6 +71,13 @@ public final class VernacTypeNavigation {
                 name = syntax.valueDefinition().name;
                 collection = syntax.valueDefinition().collectionDefinition();
             }
+            if (syntax.entityDefinition() != null) {
+                name = syntax.entityDefinition().name;
+                collection = syntax.entityDefinition().collectionDefinition();
+            } else if (syntax.aggregateDefinition() != null) {
+                name = syntax.aggregateDefinition().name;
+                collection = syntax.aggregateDefinition().collectionDefinition();
+            }
             if (name == null) continue;
             if (symbol.kind() != TypeSymbol.Kind.COLLECTION && name.getText().equals(symbol.identity().name())) {
                 if (member.isEmpty()) return target(source.path(), text, symbol.identity().name(), name.getStart(), name.getStop());
@@ -84,6 +96,23 @@ public final class VernacTypeNavigation {
                         }
                     }
                     candidates.addAll(behavior(project, source, text, value.methods(), valueSyntax.behaviorBlock(), key));
+                }
+                var mutable = MutableDomain.of(definition);
+                if (mutable.isPresent()) {
+                    var model = mutable.get();
+                    var parameters = syntax.entityDefinition() != null ? syntax.entityDefinition().parameterList() : syntax.aggregateDefinition().parameterList();
+                    var block = syntax.entityDefinition() != null ? syntax.entityDefinition().behaviorBlock() : syntax.aggregateDefinition().behaviorBlock();
+                    if (key.parameterTypes().isEmpty() && key.name().equals("id")) {
+                        var id = syntax.entityDefinition() != null ? syntax.entityDefinition().idReference() : syntax.aggregateDefinition().idReference();
+                        target(source.path(), text, "id", id.getStart(), id.getStop()).ifPresent(candidates::add);
+                    }
+                    if (key.parameterTypes().isEmpty() && parameters != null) for (int f = 0; f < model.fields().size(); f++) {
+                        if (!model.fields().get(f).name().equals(key.name())) continue;
+                        var field = parameters.parameter(f);
+                        var anchor = field.name == null ? field.paramType : field.name;
+                        target(source.path(), text, key.name(), anchor.getStart(), anchor.getStop()).ifPresent(candidates::add);
+                    }
+                    candidates.addAll(behavior(project, source, text, model.methods(), block, key));
                 }
                 return unique(candidates);
             }

@@ -58,7 +58,7 @@ class AstBuilderVisitorTest {
         assertThat(budgetField.isMutable()).isTrue();
 
         assertThat(project.validations()).hasSize(1);
-        assertThat(project.validations().getFirst().condition()).isEqualTo("budget.amount().compareTo(BigDecimal.ZERO)>=0");
+        assertThat(project.validations().getFirst().condition()).isEqualTo("budget.amount().compareTo(BigDecimal.ZERO) >= 0");
         assertThat(project.methods()).hasSize(1);
         assertThat(project.methods().getFirst().name()).isEqualTo("assignBudget");
 
@@ -152,7 +152,7 @@ class AstBuilderVisitorTest {
             assertThat(vo.name()).isEqualTo("Money");
             assertThat(vo.fields()).hasSize(2);
             assertThat(vo.validations()).hasSize(2);
-            assertThat(vo.validations().getFirst().condition()).isEqualTo("amount>=0");
+            assertThat(vo.validations().getFirst().condition()).isEqualTo("amount >= 0");
             assertThat(vo.validations().getFirst().message()).isEqualTo("Amount must be positive");
         }
 
@@ -292,7 +292,7 @@ class AstBuilderVisitorTest {
             assertThat(tasksField.isMutable()).isTrue();
 
             assertThat(agg.validations()).hasSize(1);
-            assertThat(agg.validations().getFirst().condition()).isEqualTo("tasks.size()<=100");
+            assertThat(agg.validations().getFirst().condition()).isEqualTo("tasks.size() <= 100");
             assertThat(agg.validations().getFirst().message()).isEqualTo("Max 100 tasks allowed");
 
             assertThat(agg.methods()).hasSize(1);
@@ -536,7 +536,7 @@ class AstBuilderVisitorTest {
             assertThat(vo.methods().getFirst().parameters().getFirst().name()).isEqualTo("id");
 
             // Expression prüfen
-            assertThat(vo.validations().getFirst().condition()).isEqualTo("value!=null&&id!=null");
+            assertThat(vo.validations().getFirst().condition()).isEqualTo("value != null && id != null");
         }
     }
 

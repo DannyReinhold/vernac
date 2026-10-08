@@ -14,6 +14,12 @@ public record EntityNode(
         List<ValidationRuleNode> validations,
         List<MethodNode> methods,
         Optional<CollectionDefinitionNode> collection,
-        Optional<String> customPackage
+        Optional<String> customPackage,
+        List<JavaImportNode> javaImports
 ) implements TopLevelDefinition {
+    public EntityNode(SourceLocation location, String name, IdReferenceNode idDefinition,
+                      List<FieldNode> fields, List<ValidationRuleNode> validations, List<MethodNode> methods,
+                      Optional<CollectionDefinitionNode> collection, Optional<String> customPackage) {
+        this(location, name, idDefinition, fields, validations, methods, collection, customPackage, List.of());
+    }
 }

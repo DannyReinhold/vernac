@@ -96,7 +96,7 @@ class MemberNamingContractTest {
                 "value Example(String text) behavior { public int toString() { return 0; } }",
                 "value Example(String text) behavior { public String of(String text) { return text; } }",
                 "value Example(String text, Integer? other) behavior { public String of(String text) { return text; } }",
-                "value Example(String text) validates { require(!text.isEmpty(), \"required\"); } behavior { public void validate() {} }",
+                "value Example(String text) validates { require(!self.text().isEmpty(), \"required\"); } behavior { public void validate() {} }",
                 "value Example(String text) behavior { public void wait(long duration, int nanos) {} }",
                 "value Example(String text) behavior { private String clone() { return text; } }",
                 "value Example(String text) behavior { private void finalize() {} }")) {

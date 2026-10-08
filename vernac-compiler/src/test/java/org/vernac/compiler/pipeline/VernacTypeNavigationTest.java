@@ -195,4 +195,20 @@ class VernacTypeNavigationTest {
         assertTrue(member("model.domain.Name", "text", List.of(), Map.of()).isEmpty());
     }
 
+
+    @Test void entityInterfacesAndBehaviorNavigateToTheSameModelContract() throws Exception {
+        Path file = source("model", "task", """
+            id TaskId;
+            entity Task[TaskId](mut int count) behavior {
+                read int current() { return self.count(); }
+                modify void increase() { self.count(self.count() + 1); }
+            };
+            """);
+        String text = Files.readString(file);
+        for (String suffix : List.of("", "Read", "Write", "Access")) {
+            assertEquals(text.indexOf("Task["), find("model.domain.Task" + suffix, Map.of()).orElseThrow().start());
+        }
+        assertEquals(text.indexOf("current()"), member("model.domain.TaskRead", "current", List.of(), Map.of()).orElseThrow().start());
+        assertEquals(text.indexOf("increase()"), member("model.domain.TaskAccess", "increase", List.of(), Map.of()).orElseThrow().start());
+    }
 }

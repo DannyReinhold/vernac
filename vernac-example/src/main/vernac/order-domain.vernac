@@ -15,14 +15,14 @@ id CustomerId;
 
 // A value object with invariants
 value ItemSku(String value) validates {
-    require(value != null && value.matches("^[A-Z0-9-]+$"), "SKU must be uppercase alphanumeric");
+    require(self.value() != null && self.value().matches("^[A-Z0-9-]+$"), "SKU must be uppercase alphanumeric");
 };
 
 /*
  * The Money value object contains two fields, an invariant and some java business methods
  */
 value Money(BigDecimal amount, Currency currency) validates {
-    require(amount.compareTo(BigDecimal.ZERO) >= 0, "Amount cannot be negative");
+    require(self.amount().compareTo(BigDecimal.ZERO) >= 0, "Amount cannot be negative");
 } behavior {
     public Money add(Money other) {
         if (!self.currency().equals(other.currency())) {
@@ -44,7 +44,7 @@ event OrderPlaced(OrderId orderId, CustomerId customerId, Money totalAmount);
 id OrderLineId;
 
 entity OrderLine[OrderLineId](ItemSku sku, Money unitPrice, mut int quantity) validates {
-    require(quantity > 0, "Quantity must be greater than zero");
+    require(self.quantity() > 0, "Quantity must be greater than zero");
 } {
 
     public Money calculateSubtotal() {
@@ -65,7 +65,7 @@ aggregate PurchaseOrder[OrderId](
     mut String status,
     mut OrderLines lines
 ) validates {
-    require(status != null && !status.isBlank(), "Status cannot be empty");
+    require(self.status() != null && !self.status().isBlank(), "Status cannot be empty");
 } {
     public void completeOrder() {
         if ("PAID".equals(this.status)) {

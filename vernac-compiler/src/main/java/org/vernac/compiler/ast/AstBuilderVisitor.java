@@ -83,7 +83,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         List<ValidationRuleNode> validations = new ArrayList<>();
         if (ctx.validationBlock() != null) {
             for (VernacParser.ValidationStatementContext valCtx : ctx.validationBlock().validationStatement()) {
-                String condition = valCtx.condition.getText();
+                String condition = extractRawSource(valCtx.condition);
                 String message = valCtx.message != null ? unquote(valCtx.message.getText()) : "";
                 validations.add(new ValidationRuleNode(toLocation(valCtx), condition, message));
             }
@@ -114,10 +114,11 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     private List<MethodNode> behaviorMethods(VernacParser.BehaviorBlockContext ctx) {
         if (ctx == null) return List.of();
         return ctx.behaviorMethod().stream().map(method -> new MethodNode(toLocation(method),
-                method.visibility.getText(), toTypeNode(method.returnType), method.name.getText(),
+                method.visibility == null ? "public" : method.visibility.getText(), toTypeNode(method.returnType), method.name.getText(),
                 method.parameterList() == null ? List.of() : extractParameters(method.parameterList()),
                 method.rawJavaBlock() == null ? "" : extractRawSource(method.rawJavaBlock()),
-                Optional.ofNullable(method.implementation).map(ParserRuleContext::getText))).toList();
+                Optional.ofNullable(method.implementation).map(ParserRuleContext::getText),
+                method.effect == null ? MethodNode.Mode.DEFAULT : MethodNode.Mode.valueOf(method.effect.getText().toUpperCase(java.util.Locale.ROOT)))).toList();
     }
 
     private Optional<CollectionDefinitionNode> collection(VernacParser.CollectionDefinitionContext ctx) {
@@ -143,7 +144,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         List<ValidationRuleNode> validations = new ArrayList<>();
         if (ctx.validationBlock() != null) {
             for (VernacParser.ValidationStatementContext valCtx : ctx.validationBlock().validationStatement()) {
-                String condition = valCtx.condition.getText();
+                String condition = extractRawSource(valCtx.condition);
                 String message = valCtx.message != null ? unquote(valCtx.message.getText()) : "";
                 validations.add(new ValidationRuleNode(toLocation(valCtx), condition, message));
             }
@@ -162,7 +163,8 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             }
         }
 
-        return new AggregateNode(toLocation(ctx), name, idDef, fields, validations, methods, customPackage, collection(ctx.collectionDefinition()));
+        methods.addAll(behaviorMethods(ctx.behaviorBlock()));
+        return new AggregateNode(toLocation(ctx), name, idDef, fields, validations, methods, customPackage, collection(ctx.collectionDefinition()), behaviorImports(ctx.behaviorBlock()));
     }
 
     @Override
@@ -180,7 +182,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         List<ValidationRuleNode> validations = new ArrayList<>();
         if (ctx.validationBlock() != null) {
             for (VernacParser.ValidationStatementContext valCtx : ctx.validationBlock().validationStatement()) {
-                String condition = valCtx.condition.getText();
+                String condition = extractRawSource(valCtx.condition);
                 String message = valCtx.message != null ? unquote(valCtx.message.getText()) : "";
                 validations.add(new ValidationRuleNode(toLocation(valCtx), condition, message));
             }
@@ -201,7 +203,8 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
 
         Optional<CollectionDefinitionNode> collection = collection(ctx.collectionDefinition());
 
-        return new EntityNode(toLocation(ctx), name, idDef, fields, validations, methods, collection, customPackage);
+        methods.addAll(behaviorMethods(ctx.behaviorBlock()));
+        return new EntityNode(toLocation(ctx), name, idDef, fields, validations, methods, collection, customPackage, behaviorImports(ctx.behaviorBlock()));
     }
 
     @Override

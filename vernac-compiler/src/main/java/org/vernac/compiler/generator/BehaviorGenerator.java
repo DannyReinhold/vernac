@@ -14,7 +14,12 @@ import java.nio.file.Path;
 
 /** Isolates inline Java in a separate top-level class without private domain access. */
 public final class BehaviorGenerator {
-    private static ClassName companion(ClassName owner) {
+    public static ClassName receiver(ClassName owner, MethodNode method) {
+        return method.mode() == MethodNode.Mode.DEFAULT ? owner : ClassName.get(owner.packageName(),
+                owner.simpleName() + (method.mode() == MethodNode.Mode.READ ? "Read" : "Access"));
+    }
+
+    public static ClassName companion(ClassName owner) {
         return ClassName.get(owner.packageName(), "__VernacBehavior_" + owner.simpleName());
     }
 
@@ -43,25 +48,14 @@ public final class BehaviorGenerator {
         var type = TypeSpec.classBuilder(companion(owner)).addModifiers(Modifier.FINAL).addAnnotation(NullMarked.class)
                 .addJavadoc("Generated behavior implementation for $T. Do not edit.\n", owner)
                 .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
-        var source = project.project().sources().stream().filter(s -> s.unit() == unit).findFirst().orElseThrow();
-        var scope = project.scopes().get(source.path());
-        Map<String, String> visible = new TreeMap<>(BehaviorImports.visible(project.project(), scope));
-        for (var imported : imports) visible.put(simpleName(imported.target()), imported.target());
-        String bodies = methods.stream().map(MethodNode::bodyCode).reduce("", (a, b) -> a + "\n" + b);
-        // JavaPoet tracks these type references, so body-only imports are preserved as well.
-        // @see documents the Java context without adding artificial fields or methods.
-        for (var entry : visible.entrySet()) {
-            String name = entry.getKey();
-            if (entry.getValue().contains(".") && java.util.regex.Pattern.compile("(?<![\\p{L}\\p{N}_$])"
-                    + java.util.regex.Pattern.quote(name) + "(?![\\p{L}\\p{N}_$])").matcher(bodies).find())
-                type.addJavadoc("@see $T\n", ClassName.get(entry.getValue().substring(0, entry.getValue().lastIndexOf('.')), name));
-        }
+        addBodyImports(type, owner, imports, unit, project,
+                methods.stream().map(MethodNode::bodyCode).reduce("", (a, b) -> a + "\n" + b));
         for (var method : methods) {
             MethodSpec.Builder implementation = MethodSpec.methodBuilder(method.name()).returns(returnType(method, project))
                     .addModifiers(Modifier.STATIC)
                     .addJavadoc("Vernac source: $L\n", sourceLocation(method, project).replace("*/", "* /"));
             if (method.accessModifier().equals("private")) implementation.addModifiers(Modifier.PRIVATE);
-            else implementation.addParameter(owner, "self");
+            else implementation.addParameter(receiver(owner, method), "self");
             addParameters(implementation, method, project);
             if (method.implementation().isPresent()) {
                 // Use a literal qualified target to keep Java imports out of delegation resolution.
@@ -71,6 +65,22 @@ public final class BehaviorGenerator {
             type.addMethod(implementation.build());
         }
         return Optional.of(JavaFile.builder(owner.packageName(), type.build()).indent("    ").skipJavaLangImports(true).build());
+    }
+
+    public void addBodyImports(TypeSpec.Builder type, ClassName owner, List<JavaImportNode> imports,
+                               CompilationUnitNode unit, ResolvedProject project, String bodies) {
+        var source = project.project().sources().stream().filter(s -> s.unit() == unit).findFirst().orElseThrow();
+        var scope = project.scopes().get(source.path());
+        Map<String, String> visible = new TreeMap<>(BehaviorImports.visible(project.project(), scope));
+        for (var imported : imports) visible.put(simpleName(imported.target()), imported.target());
+        // JavaPoet tracks these type references, so body-only imports are preserved as well.
+        // @see documents the Java context without adding artificial fields or methods.
+        for (var entry : visible.entrySet()) {
+            String name = entry.getKey();
+            if (entry.getValue().contains(".") && java.util.regex.Pattern.compile("(?<![\\p{L}\\p{N}_$])"
+                    + java.util.regex.Pattern.quote(name) + "(?![\\p{L}\\p{N}_$])").matcher(bodies).find())
+                type.addJavadoc("@see $T\n", ClassName.get(entry.getValue().substring(0, entry.getValue().lastIndexOf('.')), name));
+        }
     }
 
     /** Portable display location only; diagnostic/LSP source identities remain unchanged. */
@@ -91,11 +101,11 @@ public final class BehaviorGenerator {
     private String arguments(MethodNode method, String receiver) {
         return receiver + (method.parameters().isEmpty() ? "" : ", " + String.join(", ", method.parameters().stream().map(FieldNode::name).toList()));
     }
-    private TypeName returnType(MethodNode method, ResolvedProject project) {
+    public TypeName returnType(MethodNode method, ResolvedProject project) {
         TypeName type = ResolvedJavaTypes.javaType(project.typeOf(method.returnType()));
         return method.returnType().isOptional() ? ParameterizedTypeName.get(ClassName.get(Optional.class), type) : type;
     }
-    private MethodSpec.Builder signature(MethodNode method, ResolvedProject project) {
+    public MethodSpec.Builder signature(MethodNode method, ResolvedProject project) {
         var builder = MethodSpec.methodBuilder(method.name()).returns(returnType(method, project));
         addParameters(builder, method, project);
         return builder;

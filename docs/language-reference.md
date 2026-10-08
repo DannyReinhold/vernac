@@ -140,7 +140,7 @@ cannot be marked `mut`).
 
 ```vernac
 value WattHours(int value) validates {
-    require(value >= 0, "WattHours cannot be negative");
+    require(self.value() >= 0, "WattHours cannot be negative");
 }
 ```
 
@@ -171,7 +171,7 @@ Any field can be marked as optional using the `?` suffix (e.g., `String? comment
 
 ```vernac
 value Money(BigDecimal amount, String? comment) validates {
-    require(amount.compareTo(BigDecimal.ZERO) >= 0, "Amount must be positive");
+    require(self.amount().compareTo(BigDecimal.ZERO) >= 0, "Amount must be positive");
 }
 ```
 
@@ -277,7 +277,7 @@ aggregate Order[OrderId](
     mut String status,
     mut OrderLines lines
 ) validates {
-    require(status != null, "Status must not be null");
+    require(self.status() != null, "Status must not be null");
 } {
     public void completeOrder() {
         status("PAID");

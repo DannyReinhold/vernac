@@ -28,17 +28,17 @@ class VernacCompilerTest {
                 id ProjectId;
                 id TaskId;
                 value ProjectName(String value) validates {
-                    require(value.length() <= 50, "Name too long");
+                    require(self.value().length() <= 50, "Name too long");
                 };
                 value Money(BigDecimal amount, Currency currency);
                 
                 outbox event ProjectCreated(ProjectId projectId, ProjectName name);
                 
                 aggregate Project[ProjectId](ProjectName name, mut Money budget) validates {
-                    require(budget.amount().compareTo(BigDecimal.ZERO) >= 0, "Budget cannot be negative");
-                } {
-                    public void assignBudget(Money newBudget) {
-                        budget(newBudget);
+                    require(self.budget().amount().compareTo(BigDecimal.ZERO) >= 0, "Budget cannot be negative");
+                } behavior {
+                    modify void assignBudget(Money newBudget) {
+                        self.budget(newBudget);
                     }
                 };
                 

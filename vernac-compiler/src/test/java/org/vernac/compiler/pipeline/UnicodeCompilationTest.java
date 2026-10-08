@@ -78,6 +78,6 @@ class UnicodeCompilationTest {
             assertTrue(error.getMessage().contains("U+"), error.getMessage());
         }
         assertDoesNotThrow(() -> new VernacSourceParser().parse("test.vernac",
-                "namespace org.test; /* \u200B */ value V(String value) validates { require(!value.isBlank(), \"\u200B\"); };"));
+                "namespace org.test; /* \u200B */ value V(String value) validates { require(!self.value().isBlank(), \"\u200B\"); };"));
     }
 }

@@ -66,7 +66,7 @@ javaImports
     ;
 
 behaviorMethod
-    : visibility=('public' | 'private') returnType=type name=methodName '(' parameterList? ')'
+    : (visibility=('public' | 'private') | effect=('read' | 'modify')) returnType=type name=methodName '(' parameterList? ')'
       ( '{' rawJavaBlock '}' | 'implemented' 'by' implementation=qualifiedName ';' )
     ;
 
@@ -103,6 +103,7 @@ aggregateDefinition
     : 'aggregate' name=typeName '[' idReference ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
       ( '{' aggregateMember* '}' )?
+      behaviorBlock?
       collectionDefinition?
       ';'?
     ;
@@ -120,6 +121,7 @@ entityDefinition
     : 'entity' name=typeName '[' idReference ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
       ( '{' entityMember* '}' )?
+      behaviorBlock?
       ( collectionDefinition )?
       ';'?
     ;
@@ -378,7 +380,7 @@ qualifiedNameSegment
     | 'aggregate'
     | 'as'
     | 'by'
-    | 'behavior' | 'java' | 'imports' | 'implemented' | 'by' | 'collection'
+    | 'read' | 'modify' | 'behavior' | 'java' | 'imports' | 'implemented' | 'by' | 'collection'
     | 'list'
     | 'set'
     | 'custom'

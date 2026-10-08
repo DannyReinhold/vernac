@@ -309,7 +309,7 @@ class ProjectTypeResolverTest {
 
     @Test
     void reportsDeferredDeclarationKindsExplicitly() throws IOException {
-        source("org.tasks", "model", "id TaskId; entity Task[TaskId](NotReviewedYet title); value Name(String value);");
+        source("org.tasks", "model", "event Task(NotReviewedYet title); value Name(String value);");
         var project = analyze();
         assertEquals(1, project.deferredTypes().size());
         assertEquals("org.tasks.Task", project.deferredTypes().getFirst().identity().qualifiedName());

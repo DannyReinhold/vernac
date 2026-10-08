@@ -46,6 +46,7 @@ public final class ProjectTypeResolver {
                     if (validScope) resolveField(field, scope, fieldTypes, diagnostics, project, false);
                 }
                 for (var method : value.methods()) {
+                    if (method.mode() != MethodNode.Mode.DEFAULT) diagnostics.add(CompilerDiagnostic.error(method.location(), "read/modify currently belong to entity and aggregate behavior. Use public/private for value behavior."));
                     TypeNode returnType = method.returnType();
                     if (returnType.name().equals("void") && !returnType.isOptional() && returnType.typeArguments().isEmpty()) {
                         fieldTypes.put(returnType, new ResolvedType.VoidReturn());
@@ -56,6 +57,40 @@ public final class ProjectTypeResolver {
                 }
             }
             for (var definition : source.unit().definitions()) {
+                diagnostics.addAll(ValidationContracts.validate(definition, source.unit().namespace(), project));
+                var mutable = MutableDomain.of(definition);
+                if (mutable.isPresent()) {
+                    var model = mutable.get();
+                    for (var method : model.methods()) if (method.accessModifier().equals("public") && method.mode() == MethodNode.Mode.DEFAULT)
+                        diagnostics.add(CompilerDiagnostic.error(method.location(), "Entity/aggregate behavior requires read or modify instead of public. Move legacy inline methods into behavior."));
+                    if (definition instanceof EntityNode e && e.customPackage().isPresent() || definition instanceof AggregateNode a && a.customPackage().isPresent())
+                        diagnostics.add(CompilerDiagnostic.error(definition.location(), "Entity and aggregate packages derive from their namespace."));
+                    if (validScope) {
+                        diagnostics.addAll(BehaviorImports.validate(project, scope, source.unit().namespace(), model.name(), model.imports(), model.methods()));
+                        var idLookup = scope.resolve(model.id().type().name(), model.id().location());
+                        diagnostics.addAll(idLookup.diagnostics());
+                        if (idLookup.type().orElse(null) instanceof ResolvedType.Declared id && id.symbol().kind() == TypeSymbol.Kind.ID)
+                            fieldTypes.put(model.id().type(), id);
+                        else diagnostics.add(CompilerDiagnostic.error(model.id().location(), "Entity identity requires a Vernac id type."));
+                        for (var field : model.fields()) {
+                            resolveField(field, scope, fieldTypes, diagnostics, project, true);
+                            if (fieldTypes.get(field.type()) instanceof ResolvedType.Declared declared) {
+                                boolean aggregate = declared.symbol().kind() == TypeSymbol.Kind.AGGREGATE;
+                                if (declared.symbol().kind() == TypeSymbol.Kind.COLLECTION) aggregate = CollectionTypes.find(project, declared.symbol().identity())
+                                        .map(c -> project.symbols().find(declared.symbol().identity().namespace() + "." + c.elementName())
+                                                .map(element -> element.kind() == TypeSymbol.Kind.AGGREGATE).orElse(false)).orElse(false);
+                                if (aggregate) diagnostics.add(CompilerDiagnostic.error(field.location(), "Entities and aggregates cannot contain aggregates or their collections. Reference aggregate IDs instead."));
+                            }
+                        }
+                        for (var method : model.methods()) {
+                            if (method.returnType().name().equals("void") && !method.returnType().isOptional()) fieldTypes.put(method.returnType(), new ResolvedType.VoidReturn());
+                            else resolveField(new FieldNode(method.location(), method.returnType(), method.name()), scope, fieldTypes, diagnostics, project, true);
+                            for (var parameter : method.parameters()) resolveField(parameter, scope, fieldTypes, diagnostics, project, true);
+                        }
+                        diagnostics.addAll(new DomainAccessValidator().validate(model, fieldTypes, source.unit().namespace(), project));
+                        diagnostics.addAll(BehaviorImports.validateLowered(source.unit().namespace(), model.name(), model.methods(), fieldTypes));
+                    }
+                }
                 var requested = CollectionDeclaration.of(definition);
                 if (requested.isEmpty()) continue;
                 var collection = requested.get();
@@ -75,6 +110,7 @@ public final class ProjectTypeResolver {
                             "Collection ID helpers require a non-optional Vernac id type."));
                 });
                 for (var method : collection.definition().customMethods()) {
+                    if (method.mode() != MethodNode.Mode.DEFAULT) diagnostics.add(CompilerDiagnostic.error(method.location(), "read/modify currently belong to entity and aggregate behavior. Collection behavior remains public/private."));
                     if (method.returnType().name().equals("void") && !method.returnType().isOptional()
                             && method.returnType().typeArguments().isEmpty())
                         fieldTypes.put(method.returnType(), new ResolvedType.VoidReturn());
@@ -98,7 +134,7 @@ public final class ProjectTypeResolver {
         failOnErrors(diagnostics);
         List<TypeSymbol> deferred = namespaces.stream().flatMap(namespace -> project.symbols().inNamespace(namespace).stream())
                 .filter(symbol -> switch (symbol.kind()) {
-                    case ID, VALUE_OBJECT, ENUM, COLLECTION -> false;
+                    case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE -> false;
                     default -> true;
                 }).toList();
         return new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred);

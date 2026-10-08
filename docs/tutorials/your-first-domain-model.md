@@ -42,7 +42,7 @@ package org.example.tasks;
 id TaskId;
 
 value Title(String value) validates {
-    require(!value.isBlank(), "Task title must not be blank");
+    require(!self.value().isBlank(), "Task title must not be blank");
 };
 
 value Status = PENDING | IN_PROGRESS | COMPLETED | CANCELLED;
@@ -202,7 +202,7 @@ non-whitespace characters:
 ```vernac
 value Title(String value) validates {
     require(
-        value.strip().length() >= 3,
+        self.value().strip().length() >= 3,
         "Task title must contain at least 3 characters"
     );
 };

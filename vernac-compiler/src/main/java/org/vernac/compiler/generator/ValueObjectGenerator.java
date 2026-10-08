@@ -47,7 +47,9 @@ public class ValueObjectGenerator {
         classBuilder.addMethod(buildPrivateConstructor(node, project));
 
         if (!node.validations().isEmpty()) {
-            classBuilder.addMethod(buildValidateMethod(node));
+            var owner = ClassName.get(targetPackage, className);
+            classBuilder.addMethod(ValidationGenerator.delegate(owner));
+            new ValueReadGenerator().addView(classBuilder, node, owner, project);
         }
 
         for (MethodSpec factory : buildFactoryMethods(node, targetPackage, className, project)) {
@@ -123,20 +125,6 @@ public class ValueObjectGenerator {
         }
         if (!node.validations().isEmpty()) constructor.addStatement("validate()");
         return constructor.build();
-    }
-
-    private MethodSpec buildValidateMethod(ValueObjectNode node) {
-        MethodSpec.Builder validate = MethodSpec.methodBuilder("validate")
-                .addModifiers(Modifier.PRIVATE);
-
-        for (ValidationRuleNode rule : node.validations()) {
-            String msg = rule.message().isBlank() ? "Validation failed for: " + rule.condition() : rule.message();
-            validate.beginControlFlow("if (!($L))", rule.condition())
-                    .addStatement("throw new $T($S)", VALIDATION_EXCEPTION, node.name() + ": " + msg)
-                    .endControlFlow();
-        }
-
-        return validate.build();
     }
 
     private List<MethodSpec> buildFactoryMethods(ValueObjectNode node, String targetPackage, String className, ResolvedProject project) {

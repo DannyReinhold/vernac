@@ -9,15 +9,15 @@ id AcId;
 
 // --- 1. Value Objects ---
 value WattHours(int value) validates {
-    require(value >= 0, "WattHours cannot be negative");
+    require(self.value() >= 0, "WattHours cannot be negative");
 }
 
 value BatterySoc(int percent) validates {
-    require(percent >= 0 && percent <= 100, "SOC must be between 0 and 100");
+    require(self.percent() >= 0 && self.percent() <= 100, "SOC must be between 0 and 100");
 }
 
 value AcMode(String mode) validates {
-    require(!mode.isBlank(), "Mode must not be blank");
+    require(!self.mode().isBlank(), "Mode must not be blank");
 }
 
 // --- 2. Events ---
@@ -35,7 +35,7 @@ aggregate EnergyStorage[StorageId](
     mut BatterySoc soc,
     mut WattHours storedEnergy
 ) validates {
-    require(storedEnergy.value() <= capacity.value(), "Stored energy cannot exceed capacity");
+    require(self.storedEnergy().value() <= self.capacity().value(), "Stored energy cannot exceed capacity");
 } {
     public void charge(WattHours additionalEnergy) {
         int newTotal = this.storedEnergy.value() + additionalEnergy.value();

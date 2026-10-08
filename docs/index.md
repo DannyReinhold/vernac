@@ -56,7 +56,7 @@ package com.example.energy;
 id StorageId;
 
 value WattHours(int value) validates {
-    require(value >= 0, "WattHours cannot be negative");
+    require(self.value() >= 0, "WattHours cannot be negative");
 }
 
 outbox event StorageCharged(StorageId storageId, WattHours newTotal);
@@ -65,7 +65,7 @@ aggregate EnergyStorage[StorageId](
     WattHours capacity,
     mut WattHours storedEnergy
 ) validates {
-    require(storedEnergy.value() <= capacity.value(), "Stored energy cannot exceed capacity");
+    require(self.storedEnergy().value() <= self.capacity().value(), "Stored energy cannot exceed capacity");
 } {
     public void charge(WattHours additionalEnergy) {
         int newTotal = this.storedEnergy.value() + additionalEnergy.value();

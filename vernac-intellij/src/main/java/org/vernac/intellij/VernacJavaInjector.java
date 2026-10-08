@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.*;
 
-/** One Java file per behavior block, assembled from method names and bodies in the live document. */
+/** Java contexts for behavior blocks and validation expressions in the live document. */
 public final class VernacJavaInjector implements MultiHostInjector {
     @Override public @NotNull List<? extends Class<? extends PsiElement>> elementsToInjectIn() {
         return List.of(VernacInjectionHost.class);

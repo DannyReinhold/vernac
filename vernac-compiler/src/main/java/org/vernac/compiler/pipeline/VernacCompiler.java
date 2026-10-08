@@ -66,9 +66,11 @@ public class VernacCompiler {
                 if (definition instanceof IdDeclarationNode id) files.add(idGenerator.generate(id, source.unit().namespace()));
                 else if (definition instanceof ValueObjectNode value) {
                     files.add(valueObjectGenerator.generate(value, source.unit().namespace(), project));
+                    files.addAll(valueValidation(value, source.unit(), project));
                     new BehaviorGenerator().generate(com.palantir.javapoet.ClassName.get(source.unit().namespace() + ".domain", value.name()),
                             value.methods(), value.javaImports(), source.unit(), project).ifPresent(files::add);
                 }
+                MutableDomain.of(definition).ifPresent(model -> files.addAll(generateMutable(model, source.unit(), project)));
                 CollectionDeclaration.of(definition).ifPresent(collection -> {
                     files.add(domainCollectionGenerator.generate(collection, source.unit().namespace(), project));
                     new BehaviorGenerator().generate(com.palantir.javapoet.ClassName.get(source.unit().namespace() + ".domain", collection.name()),
@@ -77,6 +79,39 @@ public class VernacCompiler {
             }
         }
         return new VernacProjectCompilationResult(files, project.diagnostics());
+    }
+
+    private List<JavaFile> valueValidation(ValueObjectNode value, CompilationUnitNode unit, ResolvedProject project) {
+        if (value.validations().isEmpty()) return List.of();
+        var owner = com.palantir.javapoet.ClassName.get(unit.namespace() + ".domain", value.name());
+        var files = new ArrayList<JavaFile>();
+        files.add(new ValueReadGenerator().generate(value, owner, project));
+        new ValidationGenerator().generate(owner, value.validations(), value.javaImports(), unit, project).ifPresent(files::add);
+        return files;
+    }
+
+    private List<JavaFile> generateMutable(MutableDomain model, CompilationUnitNode unit, ResolvedProject project) {
+        var invalid = model.methods().stream().filter(m -> m.accessModifier().equals("public") && m.mode() == MethodNode.Mode.DEFAULT).toList();
+        if (!invalid.isEmpty()) throw new SemanticValidationException(invalid.stream().map(m -> CompilerDiagnostic.error(m.location(),
+                "Entity/aggregate behavior requires read or modify instead of public. Move legacy inline methods into behavior.")).toList());
+        if (model.definition() instanceof EntityNode e && e.customPackage().isPresent()
+                || model.definition() instanceof AggregateNode a && a.customPackage().isPresent())
+            throw new SemanticValidationException(List.of(CompilerDiagnostic.error(model.definition().location(), "Entity and aggregate packages derive from their namespace.")));
+        Map<String, ValueObjectNode> values = new HashMap<>();
+        Map<String, EntityNode> entities = new HashMap<>();
+        for (var source : project.project().sources()) for (var definition : source.unit().definitions()) {
+            if (definition instanceof ValueObjectNode v) values.put(v.name(), v);
+            if (definition instanceof EntityNode e) entities.put(e.name(), e);
+        }
+        List<JavaFile> files = new ArrayList<>();
+        if (model.definition() instanceof EntityNode e) files.add(new EntityGenerator(project).generate(e, values, entities, unit.namespace(), List.of()));
+        else files.add(new AggregateGenerator(project).generate((AggregateNode) model.definition(), values, entities, unit.namespace(), List.of()));
+        var owner = com.palantir.javapoet.ClassName.get(unit.namespace() + ".domain", model.name());
+        files.addAll(new DomainAccessGenerator().interfaces(model, owner, project));
+        var rules = model.definition() instanceof EntityNode e ? e.validations() : ((AggregateNode) model.definition()).validations();
+        new ValidationGenerator().generate(owner, rules, model.imports(), unit, project).ifPresent(files::add);
+        new BehaviorGenerator().generate(owner, model.methods(), model.imports(), unit, project).ifPresent(files::add);
+        return files;
     }
 
     private VernacCompilationResult generate(CompilationUnitNode unit) {
@@ -124,15 +159,16 @@ public class VernacCompiler {
                 generatedFiles.add(idGenerator.generate(idDef, packageName));
             } else if (definition instanceof ValueObjectNode vo) {
                 generatedFiles.add(valueObjectGenerator.generate(vo, packageName, resolved));
+                generatedFiles.addAll(valueValidation(vo, unit, resolved));
                 new BehaviorGenerator().generate(com.palantir.javapoet.ClassName.get(packageName + ".domain", vo.name()),
                         vo.methods(), vo.javaImports(), unit, resolved).ifPresent(generatedFiles::add);
 
             } else if (definition instanceof EventNode event) {
                 generatedFiles.add(eventGenerator.generate(event, packageName, imports));
             } else if (definition instanceof AggregateNode agg) {
-                generatedFiles.add(aggregateGenerator.generate(agg, valueObjects, entities, packageName, imports));
+                generatedFiles.addAll(generateMutable(MutableDomain.of(agg).orElseThrow(), unit, resolved));
             } else if (definition instanceof EntityNode entity) {
-                generatedFiles.add(entityGenerator.generate(entity, valueObjects, entities, packageName, imports));
+                generatedFiles.addAll(generateMutable(MutableDomain.of(entity).orElseThrow(), unit, resolved));
 
             } else if (definition instanceof RepositoryNode repo) {
                 AggregateNode targetAgg = aggregates.get(repo.aggregateName());

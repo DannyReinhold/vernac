@@ -1,7 +1,7 @@
 namespace org.example.tasks;
 
 value PersonName(String) validates {
-    require(string.startsWith("Hans"), "Name must start with Hans");
+    require(self.string().startsWith("Hans"), "Name must start with Hans");
 } behavior {
     java imports {
         java.util.Locale;

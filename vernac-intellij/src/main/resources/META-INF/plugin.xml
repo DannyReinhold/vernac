@@ -98,6 +98,16 @@
 ]]></description>
 
     <change-notes><![CDATA[
+        <h3>Validation delegates</h3>
+        <p>Java support inside validates expressions now uses a read-only self interface,
+        including Optional getters, read behavior, and shared Java imports.</p>
+        <h3>Entity and aggregate behavior</h3>
+        <ul>
+            <li>Added read/modify behavior with Read, Write, and Access contracts.</li>
+            <li>Injected Java uses the matching self interface for completion and analysis.</li>
+            <li>Java navigation now includes entity and aggregate contracts and behavior.</li>
+        </ul>
+
     <p><b>Java to Vernac member navigation</b></p>
     <ul>
         <li>Generated VO getters navigate to their field declarations; ID value() navigates to the ID declaration.</li>

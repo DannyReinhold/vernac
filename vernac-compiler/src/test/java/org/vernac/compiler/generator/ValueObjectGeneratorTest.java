@@ -75,7 +75,7 @@ class ValueObjectGeneratorTest {
         String src = """
                 namespace com.example.domain;
                 value Money(BigDecimal amount, String? comment) validates {
-                    require(amount.compareTo(BigDecimal.ZERO) >= 0, "Amount must be positive");
+                    require(self.amount().compareTo(BigDecimal.ZERO) >= 0, "Amount must be positive");
                 };
                 """;
 
@@ -92,7 +92,7 @@ class ValueObjectGeneratorTest {
                 .contains("public Optional<String> comment()")
                 .contains("return Optional.ofNullable(this.comment);")
                 .contains("private void validate()")
-                .contains("throw new DomainValidationException(\"Money: Amount must be positive\")")
+                .contains("__VernacValidation_Money.validate(new __ReadView())")
                 .contains("public static Money of(BigDecimal amount)")
                 .contains("public static Money of(BigDecimal amount, @Nullable String comment)");
     }
@@ -177,10 +177,10 @@ class ValueObjectGeneratorTest {
                     value Mixed(String required, Integer? count, String? note);
                     value Contact(String? email, String? phone);
                     value RequiredContact(String? email, String? phone) validates {
-                        require(email().isPresent() || phone().isPresent(), "one contact required");
+                        require(self.email().isPresent() || self.phone().isPresent(), "one contact required");
                     };
                     value NeedsEmail(String name, String? email) validates {
-                        require(email().isPresent(), "email required");
+                        require(self.email().isPresent(), "email required");
                     };
                     value OptionalText(String? value);
                     value OptionalUuid(UUID? value);
@@ -188,15 +188,15 @@ class ValueObjectGeneratorTest {
                     value RequiredUuid(UUID value);
                     value SameText(String value);
                     value Ordered(String first, String second) validates {
-                        require(first.length() > 2, "first invariant");
-                        require(second.length() > 2, "second invariant");
+                        require(self.first().length() > 2, "first invariant");
+                        require(self.second().length() > 2, "second invariant");
                     };
                     value Positive(int value) validates {
-                        require(value > 0, "positive required");
-                        require(value > 10, "over ten required");
+                        require(self.value() > 0, "positive required");
+                        require(self.value() > 10, "over ten required");
                     };
                     value Explosive(String value) validates {
-                        require(value.substring(10).isBlank(), "unused message");
+                        require(self.value().substring(10).isBlank(), "unused message");
                     };
                     value Amount(BigDecimal value);
                     value Floating(float first, double second);

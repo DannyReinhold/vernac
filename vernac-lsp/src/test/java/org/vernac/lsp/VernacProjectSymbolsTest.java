@@ -142,7 +142,7 @@ class VernacProjectSymbolsTest {
         file("tasks", "title", "value Title(String value);");
         var current = file("tasks", "draft", """
                 // value Phantom(String value);
-                value Draft(String value) validates { require(!value.isBlank(), "Title"); } behavior {
+                value Draft(String value) validates { require(!self.value().isBlank(), "Title"); } behavior {
                     public String example() { return "Title"; }
                 }
                 """);

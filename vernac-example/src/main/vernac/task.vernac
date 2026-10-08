@@ -3,7 +3,7 @@ package org.vernac.example.gettingstarted;
 id TaskId;
 
 value Title(String value) validates {
-    require(!value.isBlank(), "Task title must not be blank");
+    require(!self.value().isBlank(), "Task title must not be blank");
 };
 
 value Status = PENDING | IN_PROGRESS | COMPLETED | CANCELLED;

@@ -142,4 +142,22 @@ class EntityGeneratorTest {
                 .contains("unit_price_amount NUMERIC(19, 4) NOT NULL")
                 .contains("unit_price_currency VARCHAR(255) NOT NULL");
     }
+
+    @Test
+    void generatesBehaviorViewsWithoutExposingSetters() {
+        var result = new org.vernac.compiler.pipeline.VernacCompiler().compileSource("""
+            namespace access.example;
+            id CounterId;
+            entity Counter[CounterId](mut int count) behavior {
+                read int current() { return self.count(); }
+                modify void increase() { self.count(self.count() + 1); }
+            };
+            """);
+        String owner = result.generatedFiles().stream().filter(f -> f.typeSpec().name().equals("Counter")).findFirst().orElseThrow().toString();
+        assertThat(owner).contains("private class __ReadView", "private final class __AccessView", "implements CounterRead", "implements CounterAccess");
+        assertThat(owner.substring(0, owner.indexOf("{"))).doesNotContain("CounterRead", "CounterAccess");
+        assertThat(result.generatedFiles()).anyMatch(f -> f.typeSpec().name().equals("CounterWrite"));
+        var compiled = org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(result);
+        assertThat(compiled.success()).as(compiled.diagnostics().toString()).isTrue();
+    }
 }

@@ -236,3 +236,16 @@ inherit from or depend on an application-specific exception hierarchy.
 
 The treatment of existing runtime exceptions outside value object construction,
 including identifier parsing and persistence failures, requires a separate review.
+
+## Validation receiver
+
+Rules in `validates` use the explicit read receiver: `self.field()`.
+Optional fields return `Optional<T>` here as well. Bare field access is not supported.
+A validated value object generates a public `<Type>Read` interface and a separate
+package-private validation companion. The object itself does not implement that
+interface; a private view delegates getters and public behavior. Private helpers
+are unavailable to validation. Rules execute in declaration order after required-field
+checks. A failed rule throws `DomainValidationException`; other exceptions propagate.
+
+The owner's behavior Java imports are available to validation expressions. See
+[validation delegates](../development/validation-delegates.md) for examples and limits.

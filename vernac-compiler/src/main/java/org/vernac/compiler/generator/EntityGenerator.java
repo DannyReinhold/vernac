@@ -14,6 +14,14 @@ import javax.lang.model.element.Modifier;
 import java.util.*;
 
 public class EntityGenerator {
+    private final org.vernac.compiler.pipeline.ResolvedProject project;
+    public EntityGenerator() { this.project = null; }
+    public EntityGenerator(org.vernac.compiler.pipeline.ResolvedProject project) { this.project = project; }
+    private TypeName resolve(TypeNode type, String targetPackage) {
+        return project == null ? TypeResolver.resolve(type, targetPackage)
+                : ResolvedJavaTypes.javaType(project.typeOf(type));
+    }
+
 
     private static final ClassName ENTITY_INTERFACE = ClassName.get(Entity.class);
     private static final ClassName NULLABLE_ANNOTATION = ClassName.get(Nullable.class);
@@ -23,7 +31,7 @@ public class EntityGenerator {
         String className = node.name();
         ClassName selfType = ClassName.get(targetPackage, className);
 
-        TypeName idType = TypeResolver.resolve(node.idDefinition().type(), targetPackage, imports);
+        TypeName idType = resolve(node.idDefinition().type(), targetPackage);
         String idFieldName = node.idDefinition().fieldName();
 
         ParameterizedTypeName entityInterfaceType = ParameterizedTypeName.get(ENTITY_INTERFACE, idType);
@@ -52,7 +60,7 @@ public class EntityGenerator {
 
         // 2. Nutzlast-Felder
         for (FieldNode field : node.fields()) {
-            TypeName fieldType = TypeResolver.resolve(field.type(), targetPackage);
+            TypeName fieldType = resolve(field.type(), targetPackage);
             List<Modifier> modifiers = new ArrayList<>();
             modifiers.add(Modifier.PRIVATE);
             if (!field.isMutable()) {
@@ -70,7 +78,8 @@ public class EntityGenerator {
         classBuilder.addMethod(buildPrivateConstructor(node, targetPackage, idType, idFieldName));
 
         // 4. Validierungsmethode
-        classBuilder.addMethod(buildValidateMethod(node));
+        classBuilder.addMethod(project != null && !node.validations().isEmpty()
+                ? ValidationGenerator.delegate(selfType) : buildValidateMethod(node));
 
         // 5. create(...) Factory
         classBuilder.addMethod(buildCreateFactory(node, targetPackage, selfType, idType, idFieldName));
@@ -79,7 +88,7 @@ public class EntityGenerator {
         classBuilder.addMethod(buildReconstituteFactory(node, targetPackage, selfType, idType, idFieldName));
 
         // 7. fromExternal(...) Factory
-        classBuilder.addMethod(buildFromExternalFactory(node, targetPackage, selfType, idType, idFieldName));
+        if (project == null) classBuilder.addMethod(buildFromExternalFactory(node, targetPackage, selfType, idType, idFieldName));
 
         // 8. Automatische Mutatoren im Record-Stil für veränderliche Felder
         Set<String> explicitMethodNames = node.methods().stream()
@@ -87,14 +96,17 @@ public class EntityGenerator {
                 .collect(java.util.stream.Collectors.toSet());
 
         for (FieldNode field : node.fields()) {
-            if (field.isMutable() && !explicitMethodNames.contains(field.name())) {
+            if (project == null && field.isMutable() && !explicitMethodNames.contains(field.name())) {
                 classBuilder.addMethod(buildDomainMutator(field, targetPackage));
             }
         }
 
         // 9. Eigene Methoden aus DSL
-        for (MethodNode method : node.methods()) {
-            classBuilder.addMethod(buildCustomMethod(method, targetPackage));
+        if (project == null) {
+            for (MethodNode method : node.methods()) classBuilder.addMethod(buildCustomMethod(method, targetPackage));
+        } else {
+            classBuilder.addAnnotation(org.jspecify.annotations.NullMarked.class);
+            new DomainAccessGenerator().addTo(classBuilder, MutableDomain.of(node).orElseThrow(), selfType, project);
         }
 
         // 10. Getter
@@ -121,7 +133,7 @@ public class EntityGenerator {
                 .addParameter(idType, idFieldName);
 
         for (FieldNode field : node.fields()) {
-            TypeName type = TypeResolver.resolve(field.type(), packageName);
+            TypeName type = resolve(field.type(), packageName);
             ParameterSpec.Builder param = ParameterSpec.builder(type, field.name());
             if (field.type().isOptional()) {
                 param.addAnnotation(NULLABLE_ANNOTATION);
@@ -172,7 +184,7 @@ public class EntityGenerator {
         passArgs.add(idFieldName);
 
         for (FieldNode field : node.fields()) {
-            TypeName type = TypeResolver.resolve(field.type(), targetPackage);
+            TypeName type = resolve(field.type(), targetPackage);
             ParameterSpec.Builder param = ParameterSpec.builder(type, field.name());
             if (field.type().isOptional()) {
                 param.addAnnotation(NULLABLE_ANNOTATION);
@@ -197,7 +209,7 @@ public class EntityGenerator {
         passArgs.add(idFieldName);
 
         for (FieldNode field : node.fields()) {
-            TypeName type = TypeResolver.resolve(field.type(), targetPackage);
+            TypeName type = resolve(field.type(), targetPackage);
             ParameterSpec.Builder param = ParameterSpec.builder(type, field.name());
             if (field.type().isOptional()) {
                 param.addAnnotation(NULLABLE_ANNOTATION);
@@ -206,13 +218,13 @@ public class EntityGenerator {
             passArgs.add(field.name());
         }
 
-        passArgs.add("false");
+        passArgs.add(project == null ? "false" : "true");
         reconstitute.addStatement("return new $T(" + String.join(", ", passArgs) + ")", selfType);
         return reconstitute.build();
     }
 
     private MethodSpec buildDomainMutator(FieldNode field, String targetPackage) {
-        TypeName type = TypeResolver.resolve(field.type(), targetPackage);
+        TypeName type = resolve(field.type(), targetPackage);
         MethodSpec.Builder setter = MethodSpec.methodBuilder(field.name())
                 .addModifiers(Modifier.PUBLIC);
 
@@ -245,13 +257,13 @@ public class EntityGenerator {
     }
 
     private MethodSpec buildCustomMethod(MethodNode method, String targetPackage) {
-        TypeName returnType = TypeResolver.resolve(method.returnType(), targetPackage);
+        TypeName returnType = resolve(method.returnType(), targetPackage);
         MethodSpec.Builder builder = MethodSpec.methodBuilder(method.name())
                 .addModifiers(Modifier.PUBLIC)
                 .returns(returnType);
 
         for (FieldNode param : method.parameters()) {
-            TypeName paramType = TypeResolver.resolve(param.type(), targetPackage);
+            TypeName paramType = resolve(param.type(), targetPackage);
             builder.addParameter(paramType, param.name());
         }
 
@@ -270,7 +282,7 @@ public class EntityGenerator {
 
 
     private MethodSpec buildFieldGetter(FieldNode field, String targetPackage) {
-        TypeName baseType = TypeResolver.resolve(field.type(), targetPackage);
+        TypeName baseType = resolve(field.type(), targetPackage);
         MethodSpec.Builder getter = MethodSpec.methodBuilder(field.name())
                 .addModifiers(Modifier.PUBLIC);
 
@@ -291,7 +303,7 @@ public class EntityGenerator {
                 .addModifiers(Modifier.PUBLIC)
                 .addAnnotation(Override.class)
                 .returns(boolean.class)
-                .addParameter(Object.class, "o")
+                .addParameter(ParameterSpec.builder(Object.class, "o").addAnnotation(Nullable.class).build())
                 .addStatement("if (this == o) return true")
                 .addStatement("if (o == null || getClass() != o.getClass()) return false")
                 .addStatement("$T that = ($T) o", selfType, selfType)
@@ -327,7 +339,7 @@ public class EntityGenerator {
         passArgs.add(idFieldName);
 
         for (FieldNode field : node.fields()) {
-            TypeName type = TypeResolver.resolve(field.type(), targetPackage);
+            TypeName type = resolve(field.type(), targetPackage);
             ParameterSpec.Builder param = ParameterSpec.builder(type, field.name());
             if (field.type().isOptional()) {
                 param.addAnnotation(NULLABLE_ANNOTATION);

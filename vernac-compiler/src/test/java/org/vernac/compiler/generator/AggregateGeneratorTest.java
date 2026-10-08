@@ -170,4 +170,22 @@ class AggregateGeneratorTest {
                 .contains("updated_at TIMESTAMPTZ NOT NULL")
                 .contains("version BIGINT NOT NULL DEFAULT 0");
     }
+
+    @Test
+    void generatesBehaviorViewsWithoutExposingSetters() {
+        var result = new org.vernac.compiler.pipeline.VernacCompiler().compileSource("""
+            namespace access.example;
+            id CounterId;
+            aggregate Counter[CounterId](mut int count) behavior {
+                read int current() { return self.count(); }
+                modify void increase() { self.count(self.count() + 1); }
+            };
+            """);
+        String owner = result.generatedFiles().stream().filter(f -> f.typeSpec().name().equals("Counter")).findFirst().orElseThrow().toString();
+        assertThat(owner).contains("private class __ReadView", "private final class __AccessView", "implements CounterRead", "implements CounterAccess");
+        assertThat(owner.substring(0, owner.indexOf("{"))).doesNotContain("CounterRead", "CounterAccess");
+        assertThat(result.generatedFiles()).anyMatch(f -> f.typeSpec().name().equals("CounterWrite"));
+        var compiled = org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(result);
+        assertThat(compiled.success()).as(compiled.diagnostics().toString()).isTrue();
+    }
 }

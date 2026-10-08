@@ -16,6 +16,14 @@ import java.time.Instant;
 import java.util.*;
 
 public class AggregateGenerator {
+    private final org.vernac.compiler.pipeline.ResolvedProject project;
+    public AggregateGenerator() { this.project = null; }
+    public AggregateGenerator(org.vernac.compiler.pipeline.ResolvedProject project) { this.project = project; }
+    private TypeName resolve(TypeNode type, String targetPackage) {
+        return project == null ? TypeResolver.resolve(type, targetPackage)
+                : ResolvedJavaTypes.javaType(project.typeOf(type));
+    }
+
 
     private static final ClassName AGGREGATE_ROOT_INTERFACE = ClassName.get(AggregateRoot.class);
     private static final ClassName DOMAIN_EVENT_INTERFACE = ClassName.get(DomainEvent.class);
@@ -27,7 +35,7 @@ public class AggregateGenerator {
         String className = node.name();
         ClassName selfType = ClassName.get(targetPackage, className);
 
-        TypeName idType = TypeResolver.resolve(node.idDefinition().type(), targetPackage, imports);
+        TypeName idType = resolve(node.idDefinition().type(), targetPackage);
         String idFieldName = node.idDefinition().fieldName();
 
         ParameterizedTypeName aggregateRootType = ParameterizedTypeName.get(AGGREGATE_ROOT_INTERFACE, idType);
@@ -66,7 +74,7 @@ public class AggregateGenerator {
 
         // 3. Fachliche Felder
         for (FieldNode field : node.fields()) {
-            TypeName fieldType = TypeResolver.resolve(field.type(), targetPackage);
+            TypeName fieldType = resolve(field.type(), targetPackage);
             List<Modifier> modifiers = new ArrayList<>();
             modifiers.add(Modifier.PRIVATE);
             if (!field.isMutable()) {
@@ -84,7 +92,8 @@ public class AggregateGenerator {
         classBuilder.addMethod(buildPrivateConstructor(node, targetPackage, idType, idFieldName));
 
         // 5. Validierungsmethode
-        classBuilder.addMethod(buildValidateMethod(node));
+        classBuilder.addMethod(project != null && !node.validations().isEmpty()
+                ? ValidationGenerator.delegate(selfType) : buildValidateMethod(node));
 
         // 6. create(...) Factory
         classBuilder.addMethod(buildCreateFactory(node, targetPackage, selfType, idType, idFieldName));
@@ -94,7 +103,7 @@ public class AggregateGenerator {
         classBuilder.addMethod(buildWithVersionMethod(node, selfType, idFieldName));
 
         // 8. fromExternal(...) Factory
-        classBuilder.addMethod(buildFromExternalFactory(node, targetPackage, selfType, idType, idFieldName));
+        if (project == null) classBuilder.addMethod(buildFromExternalFactory(node, targetPackage, selfType, idType, idFieldName));
 
         // 9. Event Management
         classBuilder.addMethod(buildRegisterEventMethod());
@@ -111,14 +120,17 @@ public class AggregateGenerator {
                 .collect(java.util.stream.Collectors.toSet());
 
         for (FieldNode field : node.fields()) {
-            if (field.isMutable() && !explicitMethodNames.contains(field.name())) {
+            if (project == null && field.isMutable() && !explicitMethodNames.contains(field.name())) {
                 classBuilder.addMethod(buildDomainMutator(field, targetPackage));
             }
         }
 
         // 11. Fachmethoden aus der DSL
-        for (MethodNode method : node.methods()) {
-            classBuilder.addMethod(buildCustomMethod(method, targetPackage));
+        if (project == null) {
+            for (MethodNode method : node.methods()) classBuilder.addMethod(buildCustomMethod(method, targetPackage));
+        } else {
+            classBuilder.addAnnotation(org.jspecify.annotations.NullMarked.class);
+            new DomainAccessGenerator().addTo(classBuilder, MutableDomain.of(node).orElseThrow(), selfType, project);
         }
 
         // 12. Getter für Metadaten & Id
@@ -166,7 +178,7 @@ public class AggregateGenerator {
                 .addParameter(idType, idFieldName);
 
         for (FieldNode field : node.fields()) {
-            TypeName type = TypeResolver.resolve(field.type(), targetPackage);
+            TypeName type = resolve(field.type(), targetPackage);
             ParameterSpec.Builder param = ParameterSpec.builder(type, field.name());
             if (field.type().isOptional()) {
                 param.addAnnotation(NULLABLE_ANNOTATION);
@@ -224,7 +236,7 @@ public class AggregateGenerator {
         passArgs.add(idFieldName);
 
         for (FieldNode field : node.fields()) {
-            TypeName type = TypeResolver.resolve(field.type(), targetPackage);
+            TypeName type = resolve(field.type(), targetPackage);
             ParameterSpec.Builder param = ParameterSpec.builder(type, field.name());
             if (field.type().isOptional()) {
                 param.addAnnotation(NULLABLE_ANNOTATION);
@@ -233,12 +245,13 @@ public class AggregateGenerator {
             passArgs.add(field.name());
         }
 
-        passArgs.add("now");
-        passArgs.add("now");
+        String now = project == null ? "now" : "__vernacNow";
+        passArgs.add(now);
+        passArgs.add(now);
         passArgs.add("0L");
         passArgs.add("true");
 
-        create.addStatement("$T now = $T.now()", Instant.class, Instant.class);
+        create.addStatement("$T $N = $T.now()", Instant.class, now, Instant.class);
         create.addStatement("$T $N = $T.create()", idType, idFieldName, idType);
 
         create.addStatement("return new $T(" + String.join(", ", passArgs) + ")", selfType);
@@ -255,7 +268,7 @@ public class AggregateGenerator {
         passArgs.add(idFieldName);
 
         for (FieldNode field : node.fields()) {
-            TypeName type = TypeResolver.resolve(field.type(), targetPackage);
+            TypeName type = resolve(field.type(), targetPackage);
             ParameterSpec.Builder param = ParameterSpec.builder(type, field.name());
             if (field.type().isOptional()) {
                 param.addAnnotation(NULLABLE_ANNOTATION);
@@ -271,7 +284,7 @@ public class AggregateGenerator {
         passArgs.add("createdAt");
         passArgs.add("updatedAt");
         passArgs.add("version");
-        passArgs.add("false");
+        passArgs.add(project == null ? "false" : "true");
 
         reconstitute.addStatement("return new $T(" + String.join(", ", passArgs) + ")", selfType);
         return reconstitute.build();
@@ -306,7 +319,7 @@ public class AggregateGenerator {
     }
 
     private MethodSpec buildDomainMutator(FieldNode field, String targetPackage) {
-        TypeName type = TypeResolver.resolve(field.type(), targetPackage);
+        TypeName type = resolve(field.type(), targetPackage);
         MethodSpec.Builder setter = MethodSpec.methodBuilder(field.name())
                 .addModifiers(Modifier.PUBLIC);
 
@@ -340,13 +353,13 @@ public class AggregateGenerator {
     }
 
     private MethodSpec buildCustomMethod(MethodNode method, String targetPackage) {
-        TypeName returnType = TypeResolver.resolve(method.returnType(), targetPackage);
+        TypeName returnType = resolve(method.returnType(), targetPackage);
         MethodSpec.Builder builder = MethodSpec.methodBuilder(method.name())
                 .addModifiers(Modifier.PUBLIC)
                 .returns(returnType);
 
         for (FieldNode param : method.parameters()) {
-            TypeName paramType = TypeResolver.resolve(param.type(), targetPackage);
+            TypeName paramType = resolve(param.type(), targetPackage);
             builder.addParameter(paramType, param.name());
         }
 
@@ -364,7 +377,7 @@ public class AggregateGenerator {
     }
 
     private MethodSpec buildFieldGetter(FieldNode field, String targetPackage) {
-        TypeName baseType = TypeResolver.resolve(field.type(), targetPackage);
+        TypeName baseType = resolve(field.type(), targetPackage);
         MethodSpec.Builder getter = MethodSpec.methodBuilder(field.name())
                 .addModifiers(Modifier.PUBLIC);
 
@@ -385,7 +398,7 @@ public class AggregateGenerator {
                 .addModifiers(Modifier.PUBLIC)
                 .addAnnotation(Override.class)
                 .returns(boolean.class)
-                .addParameter(Object.class, "o")
+                .addParameter(ParameterSpec.builder(Object.class, "o").addAnnotation(Nullable.class).build())
                 .addStatement("if (this == o) return true")
                 .addStatement("if (o == null || getClass() != o.getClass()) return false")
                 .addStatement("$T that = ($T) o", selfType, selfType)
@@ -441,7 +454,7 @@ public class AggregateGenerator {
         passArgs.add(idFieldName);
 
         for (FieldNode field : node.fields()) {
-            TypeName type = TypeResolver.resolve(field.type(), targetPackage);
+            TypeName type = resolve(field.type(), targetPackage);
             ParameterSpec.Builder param = ParameterSpec.builder(type, field.name());
             if (field.type().isOptional()) {
                 param.addAnnotation(NULLABLE_ANNOTATION);

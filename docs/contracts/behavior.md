@@ -14,7 +14,7 @@ is involved.
 namespace org.example.people;
 
 value PersonName(String) validates {
-    require(string.startsWith("Hans"), "Name must start with Hans");
+    require(self.string().startsWith("Hans"), "Name must start with Hans");
 } behavior {
     java imports {
         java.util.Locale;
@@ -219,3 +219,7 @@ generated locations, so moving a project does not change the generated Java.
 Synthetic names such as `<memory>` are preserved. Standalone sources outside the
 compilation root use their file name only. These display locations do not replace
 absolute source identities used internally for compiler diagnostics and the LSP.
+
+Validation expressions use `self.field()` through a separate read view. The owner’s
+behavior Java imports are shared with validation, but private behavior helpers are not.
+See [validation delegates](../development/validation-delegates.md).

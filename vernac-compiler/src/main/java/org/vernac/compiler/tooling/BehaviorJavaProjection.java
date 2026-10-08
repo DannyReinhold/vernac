@@ -39,6 +39,15 @@ public final class BehaviorJavaProjection {
                 add(result, project, scope, unit, value.name(), value.methods(), value.javaImports(),
                         syntax.valueDefinition().behaviorBlock(), text);
             }
+            MutableDomain.of(definition).ifPresent(model -> add(result, project, scope, unit, model.name(), model.methods(), model.imports(),
+                    syntax.entityDefinition() != null ? syntax.entityDefinition().behaviorBlock() : syntax.aggregateDefinition().behaviorBlock(), text));
+            VernacParser.ValidationBlockContext validations = syntax.valueDefinition() != null ? syntax.valueDefinition().validationBlock()
+                    : syntax.entityDefinition() != null ? syntax.entityDefinition().validationBlock()
+                    : syntax.aggregateDefinition() != null ? syntax.aggregateDefinition().validationBlock() : null;
+            if (validations != null) {
+                if (definition instanceof ValueObjectNode value) addValidation(result, project, scope, unit, value.name(), value.javaImports(), validations, text);
+                else MutableDomain.of(definition).ifPresent(model -> addValidation(result, project, scope, unit, model.name(), model.imports(), validations, text));
+            }
             var collection = CollectionDeclaration.of(definition);
             if (collection.isPresent()) {
                 var c = collection.get();
@@ -52,6 +61,30 @@ public final class BehaviorJavaProjection {
             }
         }
         return List.copyOf(result);
+    }
+
+    private void addValidation(List<Block> result, VernacProject project, FileTypeScope scope,
+                               CompilationUnitNode unit, String owner, List<JavaImportNode> imports,
+                               VernacParser.ValidationBlockContext context, String text) {
+        if (context.validationStatement().isEmpty()) return;
+        Map<String, String> visible = new TreeMap<>(BehaviorImports.visible(project, scope));
+        imports.forEach(i -> visible.put(i.target().substring(i.target().lastIndexOf('.') + 1), i.target()));
+        StringBuilder header = new StringBuilder("package " + unit.namespace() + ".domain;\n");
+        visible.values().stream().filter(n -> n.contains(".")).distinct()
+                .forEach(n -> header.append("import ").append(n).append(";\n"));
+        header.append("@org.jspecify.annotations.NullMarked final class __VernacEditorValidation_")
+                .append(owner).append(" { static void validate(").append(unit.namespace()).append(".domain.")
+                .append(owner).append("Read self) {\n");
+        List<Fragment> fragments = new ArrayList<>();
+        for (var rule : context.validationStatement()) {
+            var expression = rule.condition;
+            fragments.add(new Fragment(offset(text, expression.getStart().getStartIndex()),
+                    offset(text, expression.getStop().getStopIndex() + 1),
+                    (fragments.isEmpty() ? header.toString() : "") + "if (!(", ")) {}\n"));
+        }
+        var last = fragments.removeLast();
+        fragments.add(new Fragment(last.start(), last.end(), last.prefix(), last.suffix() + "}\n}\n"));
+        result.add(new Block(owner + "Validation", fragments));
     }
 
     private void add(List<Block> result, VernacProject project, FileTypeScope scope, CompilationUnitNode unit,
@@ -75,7 +108,8 @@ public final class BehaviorJavaProjection {
             String returnType = javaType(scope, method.returnType(), true);
             if (returnType == null) return;
             List<String> parameters = new ArrayList<>();
-            if (method.accessModifier().equals("public")) parameters.add(unit.namespace() + ".domain." + owner + " self");
+            if (method.accessModifier().equals("public")) parameters.add(unit.namespace() + ".domain." + owner +
+                    (method.mode() == MethodNode.Mode.DEFAULT ? "" : method.mode() == MethodNode.Mode.READ ? "Read" : "Access") + " self");
             for (var p : method.parameters()) {
                 String type = javaType(scope, p.type(), false);
                 if (type == null) return;
