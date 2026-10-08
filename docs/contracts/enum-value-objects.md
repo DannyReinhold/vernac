@@ -117,8 +117,9 @@ nor `name()` is promised as a stable external code across domain refactorings.
 
 ## Author-defined behavior and API collisions
 
-Authors MAY define methods using Vernac's method declarations and embedded Java
-bodies. Method signatures follow the shared resolved-type and nullness rules;
+Authors MAY define public and private methods in a `behavior` block.
+See the [behavior contract](behavior.md) for `self`, separate implementation
+classes, scoped Java imports and external static implementations. Method signatures follow the shared resolved-type and nullness rules;
 no arbitrary Java types become available through this feature.
 
 This contract does not introduce extra instance fields, constructors, constructor

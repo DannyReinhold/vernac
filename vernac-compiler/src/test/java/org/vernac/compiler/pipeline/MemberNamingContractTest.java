@@ -25,8 +25,8 @@ class MemberNamingContractTest {
                 value Explicit(String value);
                 value Reference(TaskId);
                 value Amount(int);
-                value Behavior(String) {
-                    public String join(String) { return this.string + string; }
+                value Behavior(String) behavior {
+                    public String join(String) { return self.string() + string; }
                 }
                 """));
         assertTrue(output.success(), output.diagnostics().toString());
@@ -84,33 +84,33 @@ class MemberNamingContractTest {
     @Test void checksResolvedCustomSignaturesAndGeneratedFactories() {
         String error = failure("""
                 value Title(String value);
-                value Example(String text) {
+                value Example(String text) behavior {
                     public String accept(Title first) { return text; }
                     public int accept(naming.Title second) { return 0; }
                 }
                 """);
         assertTrue(error.contains("accept(naming.domain.Title)"), error);
         for (String declaration : List.of(
-                "value Example(String text) { public String text() { return text; } }",
-                "value Example(String value) { public String value() { return value; } }",
-                "value Example(String text) { public int toString() { return 0; } }",
-                "value Example(String text) { public String of(String text) { return text; } }",
-                "value Example(String text, Integer? other) { public String of(String text) { return text; } }",
-                "value Example(String text) validates { require(!text.isEmpty(), \"required\"); } { public void validate() {} }",
-                "value Example(String text) { public void wait(long duration, int nanos) {} }",
-                "value Example(String text) { private String clone() { return text; } }",
-                "value Example(String text) { internal void finalize() {} }")) {
+                "value Example(String text) behavior { public String text() { return text; } }",
+                "value Example(String value) behavior { public String value() { return value; } }",
+                "value Example(String text) behavior { public int toString() { return 0; } }",
+                "value Example(String text) behavior { public String of(String text) { return text; } }",
+                "value Example(String text, Integer? other) behavior { public String of(String text) { return text; } }",
+                "value Example(String text) validates { require(!text.isEmpty(), \"required\"); } behavior { public void validate() {} }",
+                "value Example(String text) behavior { public void wait(long duration, int nanos) {} }",
+                "value Example(String text) behavior { private String clone() { return text; } }",
+                "value Example(String text) behavior { private void finalize() {} }")) {
             assertTrue(failure(declaration).contains("conflicts with"), declaration);
         }
     }
 
-    @Test void permitsLegalOverloadsAndPackagePrivateMethods() throws Exception {
+    @Test void permitsLegalOverloadsAndPrivateBehaviorHelpers() throws Exception {
         var output = InMemoryJavaCompiler.compile(compile("""
-                value Example(String equals) {
-                    public boolean equals(String other) { return equals.equals(other); }
-                    public String toString(int ignored) { return equals; }
-                    public String clone() { return equals; }
-                    internal String label() { return equals; }
+                value Example(String equals) behavior {
+                    public boolean equals(String other) { return self.equals().equals(other); }
+                    public String toString(int ignored) { return self.equals(); }
+                    public String clone() { return self.equals(); }
+                    private String label(Example receiver) { return receiver.equals(); }
                 }
                 value CloneField(String clone);
                 """));
@@ -119,18 +119,18 @@ class MemberNamingContractTest {
         Object instance = type.getMethod("of", String.class).invoke(null, "yes");
         assertEquals("yes", type.getMethod("equals").invoke(instance));
         assertEquals(true, type.getMethod("equals", String.class).invoke(instance, "yes"));
-        assertFalse(java.lang.reflect.Modifier.isPublic(type.getDeclaredMethod("label").getModifiers()));
+        assertThrows(NoSuchMethodException.class, () -> type.getDeclaredMethod("label"));
     }
 
     @Test void parameterNamesAndNullabilityDoNotDistinguishSignatures() {
         assertTrue(failure("""
-                value Example(String value) {
+                value Example(String value) behavior {
                     public String accept(String first) { return first; }
                     public String accept(String? second) { return value; }
                 }
                 """).contains("accept(java.lang.String)"));
         assertTrue(failure("""
-                value Example(String value) {
+                value Example(String value) behavior {
                     public String accept(String, String) { return value; }
                 }
                 """).contains("Duplicate parameter name 'string'"));
@@ -144,7 +144,7 @@ class MemberNamingContractTest {
         java.nio.file.Files.writeString(root.resolve("consumer/example.vernac"), """
                 namespace consumer;
                 import model.Title;
-                value Example(Title) {
+                value Example(Title) behavior {
                     public String useTitle(Title first) { return first.value(); }
                     public String useTitle(model.Title second) { return second.value(); }
                 }

@@ -67,7 +67,7 @@ class DomainCollectionGeneratorTest {
     void shouldGenerateCustomCollectionWithMethods() {
         String src = """
                 namespace com.example;
-                value Money(BigDecimal amount) list MoneyTransactions {
+                value Money(BigDecimal amount) list MoneyTransactions behavior {
                     public Money sum() {
                         return null;
                     }

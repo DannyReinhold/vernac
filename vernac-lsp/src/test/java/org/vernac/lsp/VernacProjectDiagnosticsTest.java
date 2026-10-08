@@ -55,6 +55,15 @@ class VernacProjectDiagnosticsTest {
     }
     List<Diagnostic> diagnostics(Path path) { return client.latest.get(path.toUri().toString()).getDiagnostics(); }
 
+    @Test void behaviorImportConflictIsReportedAndCleared() throws Exception {
+        Path model = file("names", "name", "value Name(String) behavior { java imports { foreign.String; } };");
+        open(model);
+        assertTrue(diagnostics(model).stream().anyMatch(d -> d.getMessage().contains("conflicts with")));
+        change(model, "namespace names; value Name(String) behavior { java imports { java.util.Locale; } "
+                + "public String upper() { return self.string().toUpperCase(Locale.ROOT); } };", 2);
+        assertTrue(diagnostics(model).isEmpty(), diagnostics(model).toString());
+    }
+
     @Test
     void unusualEnumConstantsAreAcceptedHighlightedAndNotConfusedWithMethods() throws Exception {
         Path model = file("enums", "status", "value Status = MeinTyp | String | name | values | toString | custom | Größe;");
@@ -73,10 +82,10 @@ class VernacProjectDiagnosticsTest {
                 constants.add(lines[line].substring(column, column + tokens.get(i + 2)));
         }
         assertEquals(List.of("MeinTyp", "String", "name", "values", "toString", "custom", "Größe"), constants);
-        change(model, "namespace enums; value Status = name { public String name() { return \"x\"; } };", 2);
+        change(model, "namespace enums; value Status = name behavior { public String name() { return \"x\"; } };", 2);
         assertTrue(diagnostics(model).stream().anyMatch(d -> d.getMessage().contains("name()")
                 && d.getMessage().contains("conflicts with")));
-        change(model, "namespace enums; value Status = name { public String toString() { return name(); } };", 3);
+        change(model, "namespace enums; value Status = name behavior { public String toString() { return name(); } };", 3);
         assertTrue(diagnostics(model).isEmpty(), diagnostics(model).toString());
     }
 

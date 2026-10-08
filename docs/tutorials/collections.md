@@ -6,9 +6,9 @@ Create `src/main/vernac/example/names/model.vernac`:
 ```vernac
 namespace example.names;
 
-value Name(String value) list Names {
+value Name(String value) list Names behavior {
     public boolean hasDuplicates() {
-        return !duplicates().isEmpty();
+        return !self.duplicates().isEmpty();
     }
 };
 id TaskId set TaskIds;

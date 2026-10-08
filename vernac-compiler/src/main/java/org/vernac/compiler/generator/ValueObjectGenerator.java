@@ -70,7 +70,8 @@ public class ValueObjectGenerator {
         classBuilder.addMethod(buildToString(node, className));
 
         for (MethodNode method : node.methods()) {
-            classBuilder.addMethod(buildCustomMethod(method, project));
+            if (method.accessModifier().equals("public")) classBuilder.addMethod(new BehaviorGenerator().delegate(
+                    ClassName.get(targetPackage, className), method, project));
         }
 
         return JavaFile.builder(targetPackage, classBuilder.build())
@@ -93,7 +94,8 @@ public class ValueObjectGenerator {
         }
 
         for (MethodNode method : node.methods()) {
-            enumBuilder.addMethod(buildCustomMethod(method, project));
+            if (method.accessModifier().equals("public")) enumBuilder.addMethod(new BehaviorGenerator().delegate(
+                    ClassName.get(targetPackage, node.name()), method, project));
         }
 
         return JavaFile.builder(targetPackage, enumBuilder.build())
@@ -258,22 +260,4 @@ public class ValueObjectGenerator {
         return toString.build();
     }
 
-    private MethodSpec buildCustomMethod(MethodNode method, ResolvedProject project) {
-        TypeName returnType = ResolvedJavaTypes.javaType(project.typeOf(method.returnType()));
-        if (method.returnType().isOptional()) {
-            returnType = ParameterizedTypeName.get(ClassName.get(Optional.class), returnType);
-        }
-        MethodSpec.Builder builder = MethodSpec.methodBuilder(method.name()).returns(returnType);
-        // Vernac internal visibility means package-private Java visibility.
-        if (!method.accessModifier().equals("internal")) {
-            builder.addModifiers(Modifier.valueOf(method.accessModifier().toUpperCase(Locale.ROOT)));
-        }
-        for (FieldNode param : method.parameters()) {
-            TypeName parameterType = ResolvedJavaTypes.javaType(project.typeOf(param.type()));
-            if (param.type().isOptional()) parameterType = parameterType.annotated(NULLABLE_ANNOTATION);
-            builder.addParameter(parameterType, param.name());
-        }
-        builder.addCode("$L\n", method.bodyCode());
-        return builder.build();
-    }
 }

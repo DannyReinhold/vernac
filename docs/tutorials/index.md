@@ -22,4 +22,7 @@ Each tutorial starts with a working example and invites you to change it.
 5. [Working with Domain Collections](collections.md)
    Explore lists, sets, immutable transformations and repeated elements.
 
+6. [Give Your Model Domain Behavior](behavior.md)
+   Add inline Java, private helpers, external implementations and null checking.
+
 [Back to the documentation](../index.md)

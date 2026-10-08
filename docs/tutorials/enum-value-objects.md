@@ -11,9 +11,9 @@ Create `src/main/vernac/example/tasks/status.vernac`:
 ```vernac
 namespace example.tasks;
 
-value Status = PENDING | IN_PROGRESS | COMPLETED {
+value Status = PENDING | IN_PROGRESS | COMPLETED behavior {
     public boolean isComplete() {
-        return this == COMPLETED;
+        return self == Status.COMPLETED;
     }
 };
 ```
@@ -85,7 +85,7 @@ Try adding a duplicate `name` constant: Vernac reports it. Restore the declarati
 then add `public String name() { return "custom"; }` in its method block: this
 conflicts with the final Java enum method. The constant `name` itself remains legal.
 
-A custom `public String toString() { return "State: " + name(); }` is legal.
+A custom `public String toString() { return "State: " + self.name(); }` is legal.
 `name()` still returns the declared name while `toString()` uses your presentation.
 
 ## Questions

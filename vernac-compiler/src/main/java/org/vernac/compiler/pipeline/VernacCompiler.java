@@ -66,9 +66,14 @@ public class VernacCompiler {
                 if (definition instanceof IdDeclarationNode id) files.add(idGenerator.generate(id, source.unit().namespace()));
                 else if (definition instanceof ValueObjectNode value) {
                     files.add(valueObjectGenerator.generate(value, source.unit().namespace(), project));
+                    new BehaviorGenerator().generate(com.palantir.javapoet.ClassName.get(source.unit().namespace() + ".domain", value.name()),
+                            value.methods(), value.javaImports(), source.unit(), project).ifPresent(files::add);
                 }
-                CollectionDeclaration.of(definition).ifPresent(collection ->
-                        files.add(domainCollectionGenerator.generate(collection, source.unit().namespace(), project)));
+                CollectionDeclaration.of(definition).ifPresent(collection -> {
+                    files.add(domainCollectionGenerator.generate(collection, source.unit().namespace(), project));
+                    new BehaviorGenerator().generate(com.palantir.javapoet.ClassName.get(source.unit().namespace() + ".domain", collection.name()),
+                            collection.definition().customMethods(), collection.definition().javaImports(), source.unit(), project).ifPresent(files::add);
+                });
             }
         }
         return new VernacProjectCompilationResult(files, project.diagnostics());
@@ -110,12 +115,17 @@ public class VernacCompiler {
 
         // Bestehende Generierungsschleife
         for (TopLevelDefinition definition : unit.definitions()) {
-            CollectionDeclaration.of(definition).ifPresent(collection ->
-                    generatedFiles.add(domainCollectionGenerator.generate(collection, packageName, resolved)));
+            CollectionDeclaration.of(definition).ifPresent(collection -> {
+                generatedFiles.add(domainCollectionGenerator.generate(collection, packageName, resolved));
+                new BehaviorGenerator().generate(com.palantir.javapoet.ClassName.get(packageName + ".domain", collection.name()),
+                        collection.definition().customMethods(), collection.definition().javaImports(), unit, resolved).ifPresent(generatedFiles::add);
+            });
             if (definition instanceof IdDeclarationNode idDef) {
                 generatedFiles.add(idGenerator.generate(idDef, packageName));
             } else if (definition instanceof ValueObjectNode vo) {
                 generatedFiles.add(valueObjectGenerator.generate(vo, packageName, resolved));
+                new BehaviorGenerator().generate(com.palantir.javapoet.ClassName.get(packageName + ".domain", vo.name()),
+                        vo.methods(), vo.javaImports(), unit, resolved).ifPresent(generatedFiles::add);
 
             } else if (definition instanceof EventNode event) {
                 generatedFiles.add(eventGenerator.generate(event, packageName, imports));

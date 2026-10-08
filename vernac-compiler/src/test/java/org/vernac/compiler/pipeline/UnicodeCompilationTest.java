@@ -24,8 +24,8 @@ class UnicodeCompilationTest {
         source("例.注文", "model", """
                 import de.aufträge.Titel;
                 import de.aufträge.AuftragId;
-                value Bestellung(AuftragId id, Titel titel) {
-                    public String beschreibung() { return titel.größe().text(); }
+                value Bestellung(AuftragId id, Titel titel) behavior {
+                    public String beschreibung() { return self.titel().größe().text(); }
                 }
                 value Zustand = GEÖFFNET | 完了;
                 """);
@@ -72,7 +72,7 @@ class UnicodeCompilationTest {
 
     @Test void rejectsInvisibleCharactersWithCodePointDiagnostics() {
         for (String body : new String[]{"id Na\u200Bme;", "value V(String na\u0000me);", "value V = A\u202EB;",
-                "value V(String value) { public String na\u200Dme() { return value; } }"}) {
+                "value V(String value) behavior { public String na\u200Dme() { return value; } }"}) {
             var error = assertThrows(SemanticValidationException.class,
                     () -> new VernacCompiler().compileSource("namespace org.test; " + body));
             assertTrue(error.getMessage().contains("U+"), error.getMessage());

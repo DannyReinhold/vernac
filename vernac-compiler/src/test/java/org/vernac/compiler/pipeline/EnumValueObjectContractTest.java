@@ -22,8 +22,8 @@ class EnumValueObjectContractTest {
                 value MeinTyp(int);
                 id MeineId;
                 value MeinEnum = MeinTyp | MeineId | String | name | values | toString | dbValue
-                        | value | custom | Größe | 𐐀name {
-                    public String label() { return name(); }
+                        | value | custom | Größe | 𐐀name behavior {
+                    public String label() { return self.name(); }
                     public MeinTyp echo(MeinTyp input) { return input; }
                     public String number(int input) { return java.lang.String.valueOf(input); }
                 };
@@ -60,13 +60,13 @@ class EnumValueObjectContractTest {
 
     @Test void allowsCustomToStringOverloadsAndPreviouslyGeneratedHelperNames() throws Exception {
         var output = InMemoryJavaCompiler.compile(compile("""
-                value Status = PENDING | COMPLETED {
-                    public String toString() { return "status:" + name(); }
-                    public String name(int ignored) { return name(); }
-                    public String values(int ignored) { return name(); }
-                    public String of() { return name(); }
+                value Status = PENDING | COMPLETED behavior {
+                    public String toString() { return "status:" + self.name(); }
+                    public String name(int ignored) { return self.name(); }
+                    public String values(int ignored) { return self.name(); }
+                    public String of() { return self.name(); }
                     public String dbValue() { return "author-defined"; }
-                    public boolean equals(String text) { return name().equals(text); }
+                    public boolean equals(String text) { return self.name().equals(text); }
                     public int compareTo(int ignored) { return 0; }
                 };
                 """));
@@ -96,11 +96,11 @@ class EnumValueObjectContractTest {
                 "private String toString() { return \"x\"; }",
                 "public String? toString() { return Optional.empty(); }")) {
             var error = assertThrows(SemanticValidationException.class,
-                    () -> compile("value Status = A { " + method + " };"), method);
+                    () -> compile("value Status = A behavior { " + method + " };"), method);
             assertTrue(error.getMessage().contains("conflicts with"), error.getMessage());
         }
         assertThrows(SemanticValidationException.class, () -> compile("""
-                value Status = A {
+                value Status = A behavior {
                     public int compare(Status first) { return 0; }
                     public String compare(enums.Status second) { return "x"; }
                 };
@@ -111,9 +111,9 @@ class EnumValueObjectContractTest {
         for (String body : List.of("value Status = ;", "value Status = A | A;",
                 "value Status = A | class;", "value String = A;",
                 "value Status = A(\"external-code\");",
-                "value Status = A { package other; };",
-                "value Status = A validates { require(true, \"x\"); };",
-                "value Status = A { String data; };"))
+                "value Status = A behavior { package other; };",
+                "value Status = A validates behavior { require(true, \"x\"); };",
+                "value Status = A behavior { String data; };"))
             assertThrows(SemanticValidationException.class, () -> compile(body), body);
     }
 

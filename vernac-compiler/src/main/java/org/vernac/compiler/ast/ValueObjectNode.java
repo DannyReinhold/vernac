@@ -13,8 +13,14 @@ public record ValueObjectNode(
         List<EnumConstantNode> enumConstants,
         List<ValidationRuleNode> validations,
         List<MethodNode> methods,
-        Optional<CollectionDefinitionNode> collection
+        Optional<CollectionDefinitionNode> collection,
+        List<JavaImportNode> javaImports
 ) implements TopLevelDefinition {
+    public ValueObjectNode(SourceLocation location, String name, List<FieldNode> fields,
+                           List<EnumConstantNode> enumConstants, List<ValidationRuleNode> validations,
+                           List<MethodNode> methods, Optional<CollectionDefinitionNode> collection) {
+        this(location, name, fields, enumConstants, validations, methods, collection, List.of());
+    }
     public boolean isEnum() {
         return !enumConstants.isEmpty();
     }

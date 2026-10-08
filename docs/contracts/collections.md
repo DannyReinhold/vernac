@@ -32,10 +32,10 @@ The list/set clause follows the element definition, including its optional
 validation and method blocks. Its own optional body declares COLLECTION methods:
 
 ```vernac
-value Name(String value) {
-    public boolean isBlank() { return value().isBlank(); }
-} list Names {
-    public boolean hasRepeatedNames() { return !duplicates().isEmpty(); }
+value Name(String value) behavior {
+    public boolean isBlank() { return self.value().isBlank(); }
+} list Names behavior {
+    public boolean hasRepeatedNames() { return !self.duplicates().isEmpty(); }
 };
 ```
 
@@ -226,15 +226,15 @@ use the shared namespace resolver.
 
 ## Custom methods, diagnostics, and tooling
 
-Collection bodies MAY contain public, private, and internal methods. Their signatures
+Collection `behavior` blocks MAY contain public and private methods. Their signatures
 use resolved Vernac/approved scalar types and normal optional/nullness rules. They
 cannot define mutable storage, custom constructors, packages, or collection invariants.
-Private storage is structurally immutable even when accessed by a custom method.
+Implementation code lives in a separate top-level class and cannot access private collection storage. Public implementations receive `self`; private helpers use explicit parameters.
 
 Actual generated/inherited method signature conflicts and invalid member/parameter
 names MUST produce source-located compiler and LSP diagnostics. Legal overloads
 remain permitted. Type names are resolved semantically, never guessed from strings.
-Java-body compilation and Java imports in custom code are a separate review topic.
+See [Behavior](behavior.md) for scoped Java imports, external delegation and null checking.
 
 Compiler and LSP share collection naming and semantic rules. Tests MUST cover
 completion/navigation across namespaces, field eligibility, and generated symbols.

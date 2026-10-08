@@ -1,0 +1,27 @@
+namespace org.example.tasks;
+
+value PersonName(String) validates {
+    require(string.startsWith("Hans"), "Name must start with Hans");
+} behavior {
+    java imports {
+        java.util.Locale;
+    }
+
+    public String upper() {
+        return self.string().toUpperCase(Locale.ROOT) + suffix(1);
+    }
+
+    private String suffix(int count) {
+        return "!".repeat(count);
+    }
+
+    public String? alternative() {
+        return Optional.empty();
+    }
+
+    public int length() implemented by org.example.tasks.PersonNameBehavior;
+} list PersonNames behavior {
+    public boolean hasDuplicates() {
+        return !self.duplicates().isEmpty();
+    }
+};

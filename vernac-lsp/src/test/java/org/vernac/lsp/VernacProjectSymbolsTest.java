@@ -33,6 +33,14 @@ class VernacProjectSymbolsTest {
         return new VernacProjectSymbols(root, files).definition(path, at(path, beforeLastCharacter));
     }
 
+    @Test void behaviorSignaturesNavigateButJavaImportsAreNotVernacImports() {
+        var target = file("model", "name", "value Name(String);");
+        var current = file("view", "label", "import model.Name; value Label(String) behavior { "
+                + "java imports { java.util.Locale; } public Name convert(Name input) { return input; } };");
+        assertEquals(target.toUri().toString(), definition(current, "public Nam").getFirst().getUri());
+        assertEquals(List.of(), definition(current, "java.util.Local"));
+    }
+
     @Test void collectionCompletionAndNavigationWorkAcrossNamespaces() {
         var ids = file("model", "ids", "id TaskId list;");
         var states = file("model", "states", "value State = OPEN | DONE set States;");
@@ -134,7 +142,7 @@ class VernacProjectSymbolsTest {
         file("tasks", "title", "value Title(String value);");
         var current = file("tasks", "draft", """
                 // value Phantom(String value);
-                value Draft(String value) validates { require(!value.isBlank(), "Title"); } {
+                value Draft(String value) validates { require(!value.isBlank(), "Title"); } behavior {
                     public String example() { return "Title"; }
                 }
                 """);

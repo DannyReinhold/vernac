@@ -89,14 +89,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             }
         }
 
-        // 4. Methods
-        List<MethodNode> voMethods = new ArrayList<>();
-
-        if (ctx.valueMember() != null) {
-            for (VernacParser.ValueMemberContext member : ctx.valueMember()) {
-                voMethods.add(toMethodNode(member.methodDefinition()));
-            }
-        }
+        List<MethodNode> voMethods = behaviorMethods(ctx.behaviorBlock());
 
         Optional<CollectionDefinitionNode> collection = collection(ctx.collectionDefinition());
 
@@ -107,8 +100,24 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 enumConstants,
                 validations,
                 voMethods,
-                collection
+                collection,
+                behaviorImports(ctx.behaviorBlock())
         );
+    }
+
+    private List<JavaImportNode> behaviorImports(VernacParser.BehaviorBlockContext ctx) {
+        if (ctx == null || ctx.javaImports() == null) return List.of();
+        return ctx.javaImports().qualifiedName().stream()
+                .map(name -> new JavaImportNode(toLocation(name), name.getText())).toList();
+    }
+
+    private List<MethodNode> behaviorMethods(VernacParser.BehaviorBlockContext ctx) {
+        if (ctx == null) return List.of();
+        return ctx.behaviorMethod().stream().map(method -> new MethodNode(toLocation(method),
+                method.visibility.getText(), toTypeNode(method.returnType), method.name.getText(),
+                method.parameterList() == null ? List.of() : extractParameters(method.parameterList()),
+                method.rawJavaBlock() == null ? "" : extractRawSource(method.rawJavaBlock()),
+                Optional.ofNullable(method.implementation).map(ParserRuleContext::getText))).toList();
     }
 
     private Optional<CollectionDefinitionNode> collection(VernacParser.CollectionDefinitionContext ctx) {
@@ -116,7 +125,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         return Optional.of(new CollectionDefinitionNode(toLocation(ctx),
                 ctx.kind.getText().equals("list") ? CollectionDefinitionNode.Kind.LIST : CollectionDefinitionNode.Kind.SET,
                 Optional.ofNullable(ctx.collectionName).map(ParserRuleContext::getText),
-                ctx.collectionMember().stream().map(member -> toMethodNode(member.methodDefinition())).toList()));
+                behaviorMethods(ctx.behaviorBlock()), behaviorImports(ctx.behaviorBlock())));
     }
 
     @Override

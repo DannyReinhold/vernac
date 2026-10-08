@@ -40,7 +40,7 @@ valueDefinition
         '(' parameterList? ')' ( 'validates' validationBlock )?
       | '=' enumConstantList
       )
-      ( '{' valueMember* '}' )?
+      behaviorBlock?
       collectionDefinition?
       ';'?
     ;
@@ -53,16 +53,21 @@ enumConstant
     : name=qualifiedNameSegment
     ;
 
-valueMember
-    : methodDefinition
-    ;
-
 collectionDefinition
-    : kind=('list' | 'set') collectionName=typeName? ( '{' collectionMember* '}' )?
+    : kind=('list' | 'set') collectionName=typeName? behaviorBlock?
     ;
 
-collectionMember
-    : methodDefinition
+behaviorBlock
+    : 'behavior' '{' javaImports? behaviorMethod* '}'
+    ;
+
+javaImports
+    : 'java' 'imports' '{' (qualifiedName ';')* '}'
+    ;
+
+behaviorMethod
+    : visibility=('public' | 'private') returnType=type name=methodName '(' parameterList? ')'
+      ( '{' rawJavaBlock '}' | 'implemented' 'by' implementation=qualifiedName ';' )
     ;
 
 validationBlock
@@ -373,7 +378,7 @@ qualifiedNameSegment
     | 'aggregate'
     | 'as'
     | 'by'
-    | 'collection'
+    | 'behavior' | 'java' | 'imports' | 'implemented' | 'by' | 'collection'
     | 'list'
     | 'set'
     | 'custom'

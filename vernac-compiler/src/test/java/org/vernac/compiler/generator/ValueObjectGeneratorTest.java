@@ -149,9 +149,9 @@ class ValueObjectGeneratorTest {
         String src = """
                 namespace com.example.climate;
                 
-                value AcMode = ECO | COOL | HEAT | OFF {
+                value AcMode = ECO | COOL | HEAT | OFF behavior {
                     public boolean isActive() {
-                        return this != OFF;
+                        return self != AcMode.OFF;
                     }
                 }
                 """;
@@ -202,12 +202,12 @@ class ValueObjectGeneratorTest {
                     value Floating(float first, double second);
                     value Nested(RequiredText title, Amount amount);
                     value Phase = PENDING | DONE;
-                    value Behavior(String value) {
-                        private boolean hasValue() { return !value().isBlank(); }
-                        public boolean useful() { return hasValue(); }
+                    value Behavior(String value) behavior {
+                        private boolean hasValue(Behavior receiver) { return !receiver.value().isBlank(); }
+                        public boolean useful() { return hasValue(self); }
                         public String priceLabel() { return "$5"; }
-                        public void check() { if (!hasValue()) throw new IllegalStateException(); }
-                        public String? maybe() { return java.util.Optional.of(value()); }
+                        public void check() { if (!hasValue(self)) throw new IllegalStateException(); }
+                        public String? maybe() { return java.util.Optional.of(self.value()); }
                     };
                     """);
             compiled = InMemoryJavaCompiler.compile(result);
@@ -377,7 +377,7 @@ class ValueObjectGeneratorTest {
             var behavior = of("Behavior", new Class<?>[]{String.class}, "hello");
             assertEquals(true, type("Behavior").getMethod("useful").invoke(behavior));
             assertEquals("$5", type("Behavior").getMethod("priceLabel").invoke(behavior));
-            assertTrue(Modifier.isPrivate(type("Behavior").getDeclaredMethod("hasValue").getModifiers()));
+            assertThrows(NoSuchMethodException.class, () -> type("Behavior").getDeclaredMethod("hasValue"));
             assertEquals(Optional.of("hello"), type("Behavior").getMethod("maybe").invoke(behavior));
             type("Behavior").getMethod("check").invoke(behavior);
         }
@@ -388,7 +388,7 @@ class ValueObjectGeneratorTest {
         for (String declaration : List.of(
                 "value Example(String toString);",
                 "value Example(UUID create);",
-                "value Example(String text) { public String text() { return text; } }",
+                "value Example(String text) behavior { public String text() { return text; } }",
                 "value Example(String getClass);")) {
             var error = assertThrows(SemanticValidationException.class, () ->
                     new VernacCompiler().compileSource("namespace contract.collision; " + declaration));
@@ -401,8 +401,8 @@ class ValueObjectGeneratorTest {
     void allowsExplicitConversionMethodsAndDelegatesRequiredOnlyFactory() throws Exception {
         var result = new VernacCompiler().compileSource("""
                 namespace contract.explicit;
-                value Text(String value) {
-                    public String asString() { return value(); }
+                value Text(String value) behavior {
+                    public String asString() { return self.value(); }
                 };
                 value Uuid(UUID asString);
                 value Note(String title, String? detail);

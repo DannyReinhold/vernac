@@ -23,19 +23,19 @@ value ItemSku(String value) validates {
  */
 value Money(BigDecimal amount, Currency currency) validates {
     require(amount.compareTo(BigDecimal.ZERO) >= 0, "Amount cannot be negative");
-} {
+} behavior {
     public Money add(Money other) {
-        if (!this.currency.equals(other.currency)) {
+        if (!self.currency().equals(other.currency())) {
             throw new IllegalStateException("Both Money objects must have the same currency!");
         }
-        return Money.of(this.amount.add(other.amount), this.currency);
+        return Money.of(self.amount().add(other.amount()), self.currency());
     }
 
     public Money multiply(int factor) {
         if (factor < 0) {
             throw new IllegalArgumentException("Factor cannot be negative");
         }
-        return Money.of(this.amount.multiply(java.math.BigDecimal.valueOf(factor)), this.currency);
+        return Money.of(self.amount().multiply(java.math.BigDecimal.valueOf(factor)), self.currency());
     }
 };
 

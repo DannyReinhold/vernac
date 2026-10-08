@@ -123,7 +123,7 @@ class AstBuilderVisitorTest {
         void shouldRejectValueObjectWithPackageOverride() {
             String src = """
                     namespace com.example.domain;
-                    value SharedId(UUID) {
+                    value SharedId(UUID) behavior {
                         package com.example.shared.kernel;
                     }
                     """;
@@ -163,9 +163,9 @@ class AstBuilderVisitorTest {
                     
                     value Money(BigDecimal amount, String? comment) validates {
                         require(amount.compareTo(BigDecimal.ZERO) >= 0, "Amount must be positive");
-                    } list MoneyTransactions {
+                    } list MoneyTransactions behavior {
                         public Money sum() {
-                            return items.stream().reduce(Money.of(BigDecimal.ZERO), (a, b) -> Money.of(a.amount().add(b.amount())));
+                            return self.stream().reduce(Money.of(BigDecimal.ZERO), (a, b) -> Money.of(a.amount().add(b.amount())));
                         }
                     };
                     """;
@@ -192,9 +192,9 @@ class AstBuilderVisitorTest {
             String src = """
                     namespace com.example.domain;
                     
-                    value AcMode = ECO | COOL | HEAT | OFF {
+                    value AcMode = ECO | COOL | HEAT | OFF behavior {
                         public boolean isActive() {
-                            return this != OFF;
+                            return self != AcMode.OFF;
                         }
                     }
                     """;
@@ -515,9 +515,9 @@ class AstBuilderVisitorTest {
                     
                     value CustomType(String value, UUID id) validates {
                         require(value != null && id != null, "value and id missing");
-                    } {
+                    } behavior {
                         public String combine(String id) {
-                            return this.value + id;
+                            return self.value() + id;
                         }
                     };
                     """;

@@ -27,17 +27,15 @@ over Configuration**:
 ### 2.1 File Header
 
 ```vernac
-package com.example.shop;
-
-import java.math.BigDecimal;
-import java.util.UUID;
+namespace com.example.shop;
 import com.example.other.*;
 
 // Top-level declarations...
 ```
 
-- `package <qualifiedName>;` is optional. If omitted, the root package is used.
-- `import <qualifiedName>.*;` or single-type imports are supported and forwarded to generated Java classes.
+- `namespace <qualifiedName>;` is required and matches the source-root-relative directory.
+- File-level imports refer to Vernac types or namespaces. They are not forwarded as arbitrary Java imports.
+- Java implementation imports belong in `java imports` inside `behavior`.
 
 ### 2.2 Default Package Conventions
 
@@ -57,16 +55,11 @@ By default, generated classes are placed into DDD-oriented subpackages based on 
 
 ### 2.3 Package Overrides
 
-Virtually every Vernac declaration supports an inline block override via `package <customPackage>;`:
+Reviewed IDs, value objects, enums and collections do not permit package overrides. Their Java package is `<namespace>.domain`. Other declaration kinds are still being reviewed.
 
 ```vernac
-id SharedId {
-    package com.example.shared.kernel;
-}
-
-value Money(BigDecimal amount) {
-    package com.example.billing;
-}
+id SharedId;
+value Money(BigDecimal amount);
 ```
 
 ---
@@ -195,9 +188,9 @@ aggregate. The default name is the element type name followed by `s`.
 
 ```vernac
 id TaskId set TaskIds;
-value Tag(String name) list Tags {
+value Tag(String name) list Tags behavior {
     public boolean hasDuplicates() {
-        return !duplicates().isEmpty();
+        return !self.duplicates().isEmpty();
     }
 };
 ```
@@ -221,6 +214,11 @@ See the [collection contract](contracts/collections.md) for exact signatures and
 semantics, the [tutorial](tutorials/collections.md) for examples, and the
 [implementation notes](development/collections.md) for current pipeline scope.
 
+For custom code, see the [behavior contract](contracts/behavior.md) and
+[behavior tutorial](tutorials/behavior.md). Public inline implementations use
+`self` and private helpers have explicit parameters. Implementation code cannot
+access private domain fields.
+
 ### 5.5 Enums
 
 Enums are declared as value objects using `=` and pipe `|` separators:
@@ -236,9 +234,9 @@ provided. External codes belong to a separately designed adapter/persistence
 mapping; constant names and ordinals are not automatic storage formats.
 
 ```vernac
-value AcMode = ECO | COOL | HEAT | OFF {
+value AcMode = ECO | COOL | HEAT | OFF behavior {
     public boolean isActive() {
-        return this != OFF;
+        return self != AcMode.OFF;
     }
 };
 value Settings(AcMode, AcMode? previousMode);

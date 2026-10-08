@@ -25,8 +25,8 @@ class CollectionContractTest {
 
     @Test void listsSupportAllOccurrencesQueriesAndOwnMethods() throws Exception {
         var output = compile("""
-                value Name(String value) list Names {
-                    public boolean hasDuplicates() { return !duplicates().isEmpty(); }
+                value Name(String value) list Names behavior {
+                    public boolean hasDuplicates() { return !self.duplicates().isEmpty(); }
                     private int answer() { return 42; }
                 };
                 value Status = OPEN | DONE set Statuses;
@@ -43,7 +43,7 @@ class CollectionContractTest {
         assertEquals(List.of(a, b), call(call(duplicates, "distinct"), "asList"));
         assertEquals(List.of(a, b, c), call(call(list, "distinct"), "asList"));
         assertEquals(true, call(list, "hasDuplicates"));
-        assertFalse(Modifier.isPublic(names.getDeclaredMethod("answer").getModifiers()));
+        assertThrows(NoSuchMethodException.class, () -> names.getDeclaredMethod("answer"));
         assertEquals(2, call(list, "count", name, a));
         assertEquals(true, call(list, "contains", name, a));
         assertEquals(Optional.of(a), call(list, "find", name, a));
@@ -139,14 +139,14 @@ class CollectionContractTest {
         for (String body : List.of(
                 "id TaskId; entity Task[TaskId](int value) list Tasks; value Broken(Tasks);",
                 "id TaskId; aggregate Task[TaskId](int value) set Tasks; value Broken(Tasks);",
-                "id TaskId list { package elsewhere; };",
+                "id TaskId list behavior { package elsewhere; };",
                 "value Name(String) list Names; value Names(String);",
                 "value Name(String) list String;",
                 "value Name(String) collection;",
-                "value Name(String) list { public int size() { return 0; } };",
-                "value Name(String) list { public int count(Name other) { return 0; } };",
-                "value Name(String) list { public String duplicates() { return \"x\"; } };",
-                "id TaskId; entity Task[TaskId](int value) list { public String by(TaskId id) { return \"x\"; } };"))
+                "value Name(String) list behavior { public int size() { return 0; } };",
+                "value Name(String) list behavior { public int count(Name other) { return 0; } };",
+                "value Name(String) list behavior { public String duplicates() { return \"x\"; } };",
+                "id TaskId; entity Task[TaskId](int value) list behavior { public String by(TaskId id) { return \"x\"; } };"))
             assertThrows(SemanticValidationException.class, () -> new VernacCompiler().compileSource("namespace collections; " + body), body);
     }
 }

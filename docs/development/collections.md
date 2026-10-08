@@ -13,8 +13,9 @@ packages or linguistic pluralization rules are applied.
 
 The resolver prevents mutable domain objects from entering value objects through
 collection fields. Custom method signatures are resolved and checked against the
-generated API; embedded Java bodies are compiled by javac. General Java imports
-inside custom code remain a separate design topic.
+generated API; embedded Java bodies are compiled by javac. The
+[behavior contract](../contracts/behavior.md) defines separate implementation
+classes, scoped Java imports and external static delegation.
 
 ## Current scope
 

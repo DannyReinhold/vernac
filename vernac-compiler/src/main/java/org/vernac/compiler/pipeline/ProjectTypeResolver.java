@@ -31,6 +31,8 @@ public final class ProjectTypeResolver {
             boolean validScope = scope.diagnostics().stream()
                     .noneMatch(d -> d.severity() == CompilerDiagnostic.Severity.ERROR);
             for (var value : source.unit().valueObjects()) {
+                if (validScope) diagnostics.addAll(BehaviorImports.validate(project, scope, source.unit().namespace(),
+                        value.name(), value.javaImports(), value.methods()));
 
                 if (!value.isEnum() && value.fields().isEmpty()) {
                     diagnostics.add(CompilerDiagnostic.error(value.location(),
@@ -57,6 +59,8 @@ public final class ProjectTypeResolver {
                 var requested = CollectionDeclaration.of(definition);
                 if (requested.isEmpty()) continue;
                 var collection = requested.get();
+                if (validScope) diagnostics.addAll(BehaviorImports.validate(project, scope, source.unit().namespace(),
+                        collection.name(), collection.definition().javaImports(), collection.definition().customMethods()));
                 if (definition instanceof EntityNode entity && entity.customPackage().isPresent()
                         || definition instanceof AggregateNode aggregate && aggregate.customPackage().isPresent())
                     diagnostics.add(CompilerDiagnostic.error(definition.location(),
@@ -80,11 +84,15 @@ public final class ProjectTypeResolver {
                         resolveField(parameter, scope, fieldTypes, diagnostics, project, true);
                 }
                 diagnostics.addAll(new CollectionApiValidator().validate(collection, fieldTypes, source.unit().namespace()));
+                diagnostics.addAll(BehaviorImports.validateLowered(source.unit().namespace(), collection.name(),
+                        collection.definition().customMethods(), fieldTypes));
             }
         }
         for (var source : project.sources()) {
             for (var value : source.unit().valueObjects()) {
+
                 diagnostics.addAll(new ValueObjectApiValidator().validate(value, fieldTypes, source.unit().namespace()));
+                diagnostics.addAll(BehaviorImports.validateLowered(source.unit().namespace(), value.name(), value.methods(), fieldTypes));
             }
         }
         failOnErrors(diagnostics);

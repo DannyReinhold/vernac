@@ -5,7 +5,7 @@ package org.vernac.compiler.ast;
 
 public sealed interface AstNode permits
         CompilationUnitNode,
-        ImportNode,
+        ImportNode, JavaImportNode,
         TopLevelDefinition,
         CollectionDefinitionNode,
         IdReferenceNode,

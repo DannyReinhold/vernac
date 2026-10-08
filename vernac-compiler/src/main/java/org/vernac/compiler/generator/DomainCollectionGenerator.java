@@ -102,16 +102,7 @@ public final class DomainCollectionGenerator {
         type.addMethod(method("toString", ClassName.get(String.class)).addAnnotation(Override.class)
                 .addStatement("return $S + items", collection.name()).build());
         for (MethodNode custom : collection.definition().customMethods()) {
-            TypeName returnType = ResolvedJavaTypes.javaType(project.typeOf(custom.returnType()));
-            if (custom.returnType().isOptional()) returnType = generic(Optional.class, returnType);
-            MethodSpec.Builder m = MethodSpec.methodBuilder(custom.name()).returns(returnType);
-            if (!custom.accessModifier().equals("internal")) m.addModifiers(Modifier.valueOf(custom.accessModifier().toUpperCase(Locale.ROOT)));
-            for (FieldNode parameter : custom.parameters()) {
-                TypeName parameterType = ResolvedJavaTypes.javaType(project.typeOf(parameter.type()));
-                if (parameter.type().isOptional()) parameterType = parameterType.annotated(AnnotationSpec.builder(Nullable.class).build());
-                m.addParameter(parameterType, parameter.name());
-            }
-            type.addMethod(m.addCode("$L\n", custom.bodyCode()).build());
+            if (custom.accessModifier().equals("public")) type.addMethod(new BehaviorGenerator().delegate(self, custom, project));
         }
         return JavaFile.builder(self.packageName(), type.build()).indent("    ").skipJavaLangImports(true).build();
     }

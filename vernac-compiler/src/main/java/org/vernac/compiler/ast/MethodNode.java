@@ -11,5 +11,11 @@ public record MethodNode(
         TypeNode returnType,
         String name,
         List<FieldNode> parameters,
-        String bodyCode
-) implements AstNode {}
+        String bodyCode,
+        java.util.Optional<String> implementation
+) implements AstNode {
+    public MethodNode(SourceLocation location, String accessModifier, TypeNode returnType,
+                      String name, List<FieldNode> parameters, String bodyCode) {
+        this(location, accessModifier, returnType, name, parameters, bodyCode, java.util.Optional.empty());
+    }
+}

@@ -1,0 +1,19 @@
+namespace org.example.tasks;
+
+value ProductName(String) validates {
+    require(!string.isBlank(), "Product name must not be blank");
+} behavior {
+    java imports {
+        java.util.Locale;
+    }
+
+    public String decorated() implemented by org.example.tasks.ProductNameBehavior;
+
+    public String displayName() {
+        return self.string().toUpperCase(Locale.ROOT) + suffix();
+    }
+
+    private String suffix() {
+        return "!";
+    }
+};
