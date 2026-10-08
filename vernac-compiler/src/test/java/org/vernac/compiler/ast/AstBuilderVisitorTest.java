@@ -163,7 +163,7 @@ class AstBuilderVisitorTest {
                     
                     value Money(BigDecimal amount, String? comment) validates {
                         require(amount.compareTo(BigDecimal.ZERO) >= 0, "Amount must be positive");
-                    } collection MoneyTransactions {
+                    } list MoneyTransactions {
                         public Money sum() {
                             return items.stream().reduce(Money.of(BigDecimal.ZERO), (a, b) -> Money.of(a.amount().add(b.amount())));
                         }

@@ -41,17 +41,45 @@ public final class ProjectTypeResolver {
                         diagnostics.add(CompilerDiagnostic.error(field.location(),
                                 "Value Object '" + value.name() + "' cannot have mutable field '" + field.name() + "'."));
                     }
-                    if (validScope) resolveField(field, scope, fieldTypes, diagnostics);
+                    if (validScope) resolveField(field, scope, fieldTypes, diagnostics, project, false);
                 }
                 for (var method : value.methods()) {
                     TypeNode returnType = method.returnType();
                     if (returnType.name().equals("void") && !returnType.isOptional() && returnType.typeArguments().isEmpty()) {
                         fieldTypes.put(returnType, new ResolvedType.VoidReturn());
                     } else if (validScope) {
-                        resolveField(new FieldNode(method.location(), returnType, method.name()), scope, fieldTypes, diagnostics);
+                        resolveField(new FieldNode(method.location(), returnType, method.name()), scope, fieldTypes, diagnostics, project, false);
                     }
-                    if (validScope) for (var parameter : method.parameters()) resolveField(parameter, scope, fieldTypes, diagnostics);
+                    if (validScope) for (var parameter : method.parameters()) resolveField(parameter, scope, fieldTypes, diagnostics, project, false);
                 }
+            }
+            for (var definition : source.unit().definitions()) {
+                var requested = CollectionDeclaration.of(definition);
+                if (requested.isEmpty()) continue;
+                var collection = requested.get();
+                if (definition instanceof EntityNode entity && entity.customPackage().isPresent()
+                        || definition instanceof AggregateNode aggregate && aggregate.customPackage().isPresent())
+                    diagnostics.add(CompilerDiagnostic.error(definition.location(),
+                            "Collection elements with custom packages are not supported. Use the namespace domain package."));
+                if (validScope) collection.idType().ifPresent(id -> {
+                    var lookup = scope.resolve(id.name(), id.location());
+                    diagnostics.addAll(lookup.diagnostics());
+                    if (lookup.type().orElse(null) instanceof ResolvedType.Declared declared
+                            && declared.symbol().kind() == TypeSymbol.Kind.ID && !id.isOptional() && id.typeArguments().isEmpty())
+                        fieldTypes.put(id, declared);
+                    else if (lookup.type().isPresent()) diagnostics.add(CompilerDiagnostic.error(id.location(),
+                            "Collection ID helpers require a non-optional Vernac id type."));
+                });
+                for (var method : collection.definition().customMethods()) {
+                    if (method.returnType().name().equals("void") && !method.returnType().isOptional()
+                            && method.returnType().typeArguments().isEmpty())
+                        fieldTypes.put(method.returnType(), new ResolvedType.VoidReturn());
+                    else if (validScope) resolveField(new FieldNode(method.location(), method.returnType(), method.name()),
+                            scope, fieldTypes, diagnostics, project, true);
+                    if (validScope) for (var parameter : method.parameters())
+                        resolveField(parameter, scope, fieldTypes, diagnostics, project, true);
+                }
+                diagnostics.addAll(new CollectionApiValidator().validate(collection, fieldTypes, source.unit().namespace()));
             }
         }
         for (var source : project.sources()) {
@@ -62,14 +90,14 @@ public final class ProjectTypeResolver {
         failOnErrors(diagnostics);
         List<TypeSymbol> deferred = namespaces.stream().flatMap(namespace -> project.symbols().inNamespace(namespace).stream())
                 .filter(symbol -> switch (symbol.kind()) {
-                    case ID, VALUE_OBJECT, ENUM -> false;
+                    case ID, VALUE_OBJECT, ENUM, COLLECTION -> false;
                     default -> true;
                 }).toList();
         return new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred);
     }
 
     private void resolveField(FieldNode field, FileTypeScope scope, Map<TypeNode, ResolvedType> resolved,
-                              List<CompilerDiagnostic> diagnostics) {
+                              List<CompilerDiagnostic> diagnostics, VernacProject project, boolean collectionMethod) {
         TypeNode reference = field.type();
         if (!reference.typeArguments().isEmpty()) {
             diagnostics.add(CompilerDiagnostic.error(reference.location(),
@@ -91,10 +119,21 @@ public final class ProjectTypeResolver {
             switch (declared.symbol().kind()) {
                 case ID, VALUE_OBJECT, ENUM -> { }
                 case COLLECTION -> {
-                    diagnostics.add(CompilerDiagnostic.error(reference.location(),
-                            "Collection field '" + field.name() + "' is not supported by this analysis stage yet."
-                                    + " Value-object collection rules will be implemented separately."));
-                    return;
+                    var declaration = CollectionTypes.find(project, declared.symbol().identity());
+                    if (!collectionMethod && (declaration.isEmpty() || !declaration.get().valueElements())) {
+                        diagnostics.add(CompilerDiagnostic.error(reference.location(),
+                                "Value Objects cannot contain collections of Entities or Aggregates."));
+                        return;
+                    }
+                }
+                case ENTITY, AGGREGATE -> {
+                    if (!collectionMethod) {
+                        diagnostics.add(CompilerDiagnostic.error(reference.location(),
+                                "Value Object field '" + field.name() + "' cannot use "
+                                        + declared.symbol().kind().name().toLowerCase(Locale.ROOT) + " type '"
+                                        + declared.symbol().identity().qualifiedName() + "'. Use a value object, enum, or identifier."));
+                        return;
+                    }
                 }
                 default -> {
                     diagnostics.add(CompilerDiagnostic.error(reference.location(),

@@ -46,29 +46,12 @@ public class SemanticAnalyzer {
                 diagnostics.add(CompilerDiagnostic.error(def.location(), "Duplicate type declaration '" + name + "'"));
             }
 
-            // A. Value-Object Collections registrieren & auf Kollision prüfen
-            if (def instanceof ValueObjectNode vo && vo.collection().isPresent()) {
-                String collName = vo.collection().get().customName().orElse(vo.name() + "s");
-                validateIdentifier(collName, vo.collection().get().location(), "collection type", diagnostics);
-                if (!declaredTypes.add(collName)) {
-                    diagnostics.add(CompilerDiagnostic.error(
-                            vo.collection().get().location(),
-                            "Collection type name '" + collName + "' conflicts with an existing type declaration."
-                    ));
-                }
-            }
-
-            // B. Entity Collections registrieren & auf Kollision prüfen
-            if (def instanceof EntityNode entity && entity.collection().isPresent()) {
-                String collName = entity.collection().get().customName().orElse(entity.name() + "s");
-                validateIdentifier(collName, entity.collection().get().location(), "collection type", diagnostics);
-                if (!declaredTypes.add(collName)) {
-                    diagnostics.add(CompilerDiagnostic.error(
-                            entity.collection().get().location(),
-                            "Collection type name '" + collName + "' conflicts with an existing type declaration."
-                    ));
-                }
-            }
+            CollectionDeclaration.of(def).ifPresent(collection -> {
+                String collName = collection.name();
+                validateIdentifier(collName, collection.definition().location(), "collection type", diagnostics);
+                if (!declaredTypes.add(collName)) diagnostics.add(CompilerDiagnostic.error(collection.definition().location(),
+                        "Collection type name '" + collName + "' conflicts with an existing type declaration."));
+            });
         }
         Set<String> availableSymbols = new HashSet<>();
         for (String primitive : TypeUtils.getAllPrimitives()) {
@@ -270,12 +253,7 @@ public class SemanticAnalyzer {
                 diagnostics.add(CompilerDiagnostic.error(vo.location(), "Enum Value Object '" + vo.name() + "' must declare at least one constant."));
             }
 
-            if (vo.collection().isPresent()) {
-                diagnostics.add(CompilerDiagnostic.error(
-                        vo.collection().get().location(),
-                        "Enum Value Object '" + vo.name() + "' cannot define a first-class collection."
-                ));
-            }
+
 
             Set<String> constantNames = new HashSet<>();
 
@@ -291,11 +269,7 @@ public class SemanticAnalyzer {
         } else {
             checkDuplicateFields(vo.fields(), vo.name(), diagnostics);
 
-            if (vo.collection().isPresent()) {
-                vo.collection().get().customPackage().ifPresent(pkg ->
-                        validatePackageName(pkg, vo.collection().get().location(), diagnostics)
-                );
-            }
+
 
             for (FieldNode field : vo.fields()) {
                 validateIdentifier(field.name(), field.location(), "field", diagnostics);
@@ -367,11 +341,7 @@ public class SemanticAnalyzer {
             validatePackageName(entity.customPackage().get(), entity.location(), diagnostics);
         }
 
-        if (entity.collection().isPresent()) {
-            entity.collection().get().customPackage().ifPresent(pkg ->
-                    validatePackageName(pkg, entity.collection().get().location(), diagnostics)
-            );
-        }
+
 
         String idTypeName = entity.idDefinition().type().name();
         if (!declaredIds.contains(idTypeName)) {

@@ -19,4 +19,7 @@ Each tutorial starts with a working example and invites you to change it.
 4. [Closed Domain Values with Enums](enum-value-objects.md)
    Add domain behavior, use enums in value objects, and explore naming collisions.
 
+5. [Working with Domain Collections](collections.md)
+   Explore lists, sets, immutable transformations and repeated elements.
+
 [Back to the documentation](../index.md)

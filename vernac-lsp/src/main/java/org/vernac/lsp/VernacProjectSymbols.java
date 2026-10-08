@@ -23,6 +23,7 @@ final class VernacProjectSymbols {
     private final Map<Path, Parsed> files = new LinkedHashMap<>();
     private final List<TypeSymbol> declarations = new ArrayList<>();
     private final Map<TypeSymbol, Range> declarationRanges = new HashMap<>();
+    private final Set<TypeIdentity> valueCollections = new HashSet<>();
     private final Set<String> namespaces = new TreeSet<>();
     private final ProjectSymbolIndex index;
 
@@ -49,17 +50,19 @@ final class VernacProjectSymbols {
             for (var top : tree.topLevelDeclaration()) {
                 if (top.idDeclaration() != null) {
                     add(path, namespace, top.idDeclaration().name, TypeSymbol.Kind.ID);
+                    collection(path, namespace, top.idDeclaration().name, top.idDeclaration().collectionDefinition(), true);
                 } else if (top.valueDefinition() != null) {
                     var value = top.valueDefinition();
                     add(path, namespace, value.name, value.enumConstantList() == null
                             ? TypeSymbol.Kind.VALUE_OBJECT : TypeSymbol.Kind.ENUM);
-                    collection(path, namespace, value.name, value.collectionDefinition());
+                    collection(path, namespace, value.name, value.collectionDefinition(), true);
                 } else if (top.entityDefinition() != null) {
                     var entity = top.entityDefinition();
                     add(path, namespace, entity.name, TypeSymbol.Kind.ENTITY);
-                    collection(path, namespace, entity.name, entity.collectionDefinition());
+                    collection(path, namespace, entity.name, entity.collectionDefinition(), false);
                 } else if (top.aggregateDefinition() != null) {
                     add(path, namespace, top.aggregateDefinition().name, TypeSymbol.Kind.AGGREGATE);
+                    collection(path, namespace, top.aggregateDefinition().name, top.aggregateDefinition().collectionDefinition(), false);
                 } else if (top.eventDefinition() != null) {
                     add(path, namespace, top.eventDefinition().name, TypeSymbol.Kind.EVENT);
                 } else if (top.portDefinition() != null) {
@@ -81,8 +84,12 @@ final class VernacProjectSymbols {
     }
 
     private void collection(Path path, String namespace, ParserRuleContext owner,
-                            VernacParser.CollectionDefinitionContext collection) {
+                            VernacParser.CollectionDefinitionContext collection, boolean valueElements) {
         if (collection == null) return;
+        if (valueElements && owner != null) {
+            String name = collection.collectionName == null ? owner.getText() + "s" : collection.collectionName.getText();
+            if (VernacNames.isIdentifier(name)) valueCollections.add(new TypeIdentity(namespace, name));
+        }
         if (collection.collectionName != null) add(path, namespace, collection.collectionName, TypeSymbol.Kind.COLLECTION);
         else addDerived(path, namespace, owner, "s", TypeSymbol.Kind.COLLECTION);
     }
@@ -198,9 +205,10 @@ final class VernacProjectSymbols {
         return List.of(new Location(target.sourceFile().toUri().toString(), declarationRanges.get(target)));
     }
 
-    private static boolean valueType(TypeSymbol symbol) {
+    private boolean valueType(TypeSymbol symbol) {
         return switch (symbol.kind()) {
             case ID, VALUE_OBJECT, ENUM -> true;
+            case COLLECTION -> valueCollections.contains(symbol.identity());
             default -> false;
         };
     }

@@ -29,7 +29,7 @@ topLevelDeclaration
 // 0. Identifier Types
 // ==========================================
 idDeclaration
-    : 'id' name=typeName ';'?
+    : 'id' name=typeName collectionDefinition? ';'?
     ;
 
 // ==========================================
@@ -37,10 +37,11 @@ idDeclaration
 // ==========================================
 valueDefinition
     : 'value' name=typeName (
-        '(' parameterList? ')' ( 'validates' validationBlock )? ( collectionDefinition )?
+        '(' parameterList? ')' ( 'validates' validationBlock )?
       | '=' enumConstantList
       )
       ( '{' valueMember* '}' )?
+      collectionDefinition?
       ';'?
     ;
 
@@ -57,12 +58,11 @@ valueMember
     ;
 
 collectionDefinition
-    : 'collection' collectionName=typeName? ( '{' collectionMember* '}' )?
+    : kind=('list' | 'set') collectionName=typeName? ( '{' collectionMember* '}' )?
     ;
 
 collectionMember
-    : packageDeclarationStatement
-    | methodDefinition
+    : methodDefinition
     ;
 
 validationBlock
@@ -98,6 +98,7 @@ aggregateDefinition
     : 'aggregate' name=typeName '[' idReference ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
       ( '{' aggregateMember* '}' )?
+      collectionDefinition?
       ';'?
     ;
 
@@ -373,6 +374,8 @@ qualifiedNameSegment
     | 'as'
     | 'by'
     | 'collection'
+    | 'list'
+    | 'set'
     | 'custom'
     | 'else'
     | 'emit'

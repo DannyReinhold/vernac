@@ -524,7 +524,7 @@ class SemanticAnalyzerTest {
         void shouldRejectDuplicateCollectionTypeName() {
             String dsl = """
                     namespace com.example.domain;
-                    value Tag(String name) collection; // default: Tags
+                    value Tag(String name) list; // default: Tags
                     value Tags(String customHolder);  // Kollision!
                     """;
 
@@ -539,7 +539,7 @@ class SemanticAnalyzerTest {
             String dsl = """
                     namespace com.example.domain;
                     id OrderId;
-                    value OrderLine(String sku) collection OrderLines;
+                    value OrderLine(String sku) list OrderLines;
                     aggregate Order[OrderId](OrderLines lines);
                     """;
 

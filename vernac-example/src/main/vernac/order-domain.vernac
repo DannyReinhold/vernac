@@ -57,7 +57,7 @@ entity OrderLine[OrderLineId](ItemSku sku, Money unitPrice, mut int quantity) va
         }
         quantity(this.quantity + delta);
     }
-} collection;
+} list;
 
 aggregate PurchaseOrder[OrderId](
     CustomerId customer,

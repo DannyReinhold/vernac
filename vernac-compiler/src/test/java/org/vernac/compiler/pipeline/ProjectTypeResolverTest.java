@@ -302,9 +302,9 @@ class ProjectTypeResolverTest {
     }
 
     @Test
-    void doesNotPretendThatCollectionFieldsAreAlreadySupported() throws IOException {
-        source("org.tasks", "model", "value Tag(String value) collection Tags; value Labels(Tags tags);");
-        failure("not supported by this analysis stage yet");
+    void resolvesValueCollectionFields() throws IOException {
+        source("org.tasks", "model", "value Tag(String value) list Tags; value Labels(Tags tags);");
+        assertDoesNotThrow(this::analyze);
     }
 
     @Test

@@ -80,7 +80,7 @@ class RepositoryGeneratorTest {
                 id ProjectId;
                 id TaskId;
                 
-                entity Task[TaskId](String title) collection;
+                entity Task[TaskId](String title) list;
                 aggregate Project[ProjectId](String name, mut Tasks tasks);
                 
                 repository for Project {
@@ -176,7 +176,7 @@ class RepositoryGeneratorTest {
                 id TaskId;
                 value TaskDuration(int hours);
                 
-                entity Task[TaskId](String title, TaskDuration duration) collection;
+                entity Task[TaskId](String title, TaskDuration duration) list;
                 aggregate Project[ProjectId](String name, mut Tasks tasks);
                 
                 repository for Project {

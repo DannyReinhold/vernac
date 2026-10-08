@@ -58,7 +58,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     @Override
     public IdDeclarationNode visitIdDeclaration(VernacParser.IdDeclarationContext ctx) {
         String name = ctx.name.getText();
-        return new IdDeclarationNode(toLocation(ctx), name);
+        return new IdDeclarationNode(toLocation(ctx), name, collection(ctx.collectionDefinition()));
     }
 
     @Override
@@ -98,26 +98,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             }
         }
 
-        // 5. First-Class Collections
-        Optional<CollectionDefinitionNode> collection = Optional.empty();
-        if (ctx.collectionDefinition() != null) {
-            VernacParser.CollectionDefinitionContext collCtx = ctx.collectionDefinition();
-            Optional<String> collectionName = Optional.ofNullable(collCtx.collectionName).map(ParserRuleContext::getText);
-
-            List<MethodNode> collMethods = new ArrayList<>();
-            Optional<String> collPackage = Optional.empty();
-
-            if (collCtx.collectionMember() != null) {
-                for (VernacParser.CollectionMemberContext member : collCtx.collectionMember()) {
-                    if (member.packageDeclarationStatement() != null) {
-                        collPackage = Optional.of(member.packageDeclarationStatement().qualifiedName().getText());
-                    } else if (member.methodDefinition() != null) {
-                        collMethods.add(toMethodNode(member.methodDefinition()));
-                    }
-                }
-            }
-            collection = Optional.of(new CollectionDefinitionNode(toLocation(collCtx), collectionName, collMethods, collPackage));
-        }
+        Optional<CollectionDefinitionNode> collection = collection(ctx.collectionDefinition());
 
         return new ValueObjectNode(
                 toLocation(ctx),
@@ -128,6 +109,14 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 voMethods,
                 collection
         );
+    }
+
+    private Optional<CollectionDefinitionNode> collection(VernacParser.CollectionDefinitionContext ctx) {
+        if (ctx == null) return Optional.empty();
+        return Optional.of(new CollectionDefinitionNode(toLocation(ctx),
+                ctx.kind.getText().equals("list") ? CollectionDefinitionNode.Kind.LIST : CollectionDefinitionNode.Kind.SET,
+                Optional.ofNullable(ctx.collectionName).map(ParserRuleContext::getText),
+                ctx.collectionMember().stream().map(member -> toMethodNode(member.methodDefinition())).toList()));
     }
 
     @Override
@@ -164,7 +153,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             }
         }
 
-        return new AggregateNode(toLocation(ctx), name, idDef, fields, validations, methods, customPackage);
+        return new AggregateNode(toLocation(ctx), name, idDef, fields, validations, methods, customPackage, collection(ctx.collectionDefinition()));
     }
 
     @Override
@@ -201,25 +190,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             }
         }
 
-        Optional<CollectionDefinitionNode> collection = Optional.empty();
-        if (ctx.collectionDefinition() != null) {
-            VernacParser.CollectionDefinitionContext collCtx = ctx.collectionDefinition();
-            Optional<String> collectionName = Optional.ofNullable(collCtx.collectionName).map(ParserRuleContext::getText);
-
-            List<MethodNode> collMethods = new ArrayList<>();
-            Optional<String> collPackage = Optional.empty();
-
-            if (collCtx.collectionMember() != null) {
-                for (VernacParser.CollectionMemberContext member : collCtx.collectionMember()) {
-                    if (member.packageDeclarationStatement() != null) {
-                        collPackage = Optional.of(member.packageDeclarationStatement().qualifiedName().getText());
-                    } else if (member.methodDefinition() != null) {
-                        collMethods.add(toMethodNode(member.methodDefinition()));
-                    }
-                }
-            }
-            collection = Optional.of(new CollectionDefinitionNode(toLocation(collCtx), collectionName, collMethods, collPackage));
-        }
+        Optional<CollectionDefinitionNode> collection = collection(ctx.collectionDefinition());
 
         return new EntityNode(toLocation(ctx), name, idDef, fields, validations, methods, collection, customPackage);
     }

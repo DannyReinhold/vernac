@@ -84,15 +84,9 @@ public final class VernacProjectLoader {
             for (var definition : source.unit().definitions()) {
                 var declaration = describe(definition);
                 addSymbol(source, declaration.name(), declaration.kind(), definition.location(), symbols, diagnostics);
-                if (definition instanceof ValueObjectNode vo && vo.collection().isPresent()) {
-                    var collection = vo.collection().get();
-                    addSymbol(source, collection.customName().orElse(vo.name() + "s"),
-                            TypeSymbol.Kind.COLLECTION, collection.location(), symbols, diagnostics);
-                } else if (definition instanceof EntityNode entity && entity.collection().isPresent()) {
-                    var collection = entity.collection().get();
-                    addSymbol(source, collection.customName().orElse(entity.name() + "s"),
-                            TypeSymbol.Kind.COLLECTION, collection.location(), symbols, diagnostics);
-                }
+                CollectionDeclaration.of(definition).ifPresent(collection ->
+                        addSymbol(source, collection.name(), TypeSymbol.Kind.COLLECTION,
+                                collection.definition().location(), symbols, diagnostics));
             }
         }
         var index = new ProjectSymbolIndex(symbols);

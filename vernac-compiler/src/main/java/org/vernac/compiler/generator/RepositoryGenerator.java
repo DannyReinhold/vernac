@@ -492,12 +492,12 @@ public class RepositoryGenerator {
         mb.addStatement("$T<$T> existingIds = new $T<>(this.jdbcTemplate.query(selectExistingSql, $T.of(\"parentId\", aggregateId.value()), (rs, rowNum) -> rs.getObject(\"id\", $T.class)))",
                 Set.class, UUID.class, HashSet.class, Map.class, UUID.class);
 
-        mb.addStatement("$T<$T> incomingIds = items.elements().stream().map(i -> i.id().value()).collect($T.toSet())",
+        mb.addStatement("$T<$T> incomingIds = items.stream().map(i -> i.id().value()).collect($T.toSet())",
                 Set.class, UUID.class, java.util.stream.Collectors.class);
 
         mb.addStatement("$T<$T> toDelete = existingIds.stream().filter(id -> !incomingIds.contains(id)).toList()", List.class, UUID.class);
-        mb.addStatement("$T<$T> toInsert = items.elements().stream().filter(i -> !existingIds.contains(i.id().value())).toList()", List.class, entityType);
-        mb.addStatement("$T<$T> toUpdate = items.elements().stream().filter(i -> existingIds.contains(i.id().value())).toList()", List.class, entityType);
+        mb.addStatement("$T<$T> toInsert = items.stream().filter(i -> !existingIds.contains(i.id().value())).toList()", List.class, entityType);
+        mb.addStatement("$T<$T> toUpdate = items.stream().filter(i -> existingIds.contains(i.id().value())).toList()", List.class, entityType);
 
         mb.beginControlFlow("if (!toDelete.isEmpty())")
                 .addStatement("this.jdbcTemplate.update(\"DELETE FROM $L WHERE id IN (:ids)\", $T.of(\"ids\", toDelete))", childTable, Map.class)

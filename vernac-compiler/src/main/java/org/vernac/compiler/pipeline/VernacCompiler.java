@@ -52,7 +52,7 @@ public class VernacCompiler {
         return new ProjectTypeResolver().resolve(readProject(sourceRoot));
     }
 
-    /** Compiles the reviewed project slice: IDs, ordinary value objects, and enums. */
+    /** Compiles the reviewed project slice: IDs, value objects, enums and their collections. */
     public VernacProjectCompilationResult compileProject(Path sourceRoot) throws IOException {
         ResolvedProject project = analyzeProject(sourceRoot);
         if (!project.deferredTypes().isEmpty()) {
@@ -67,6 +67,8 @@ public class VernacCompiler {
                 else if (definition instanceof ValueObjectNode value) {
                     files.add(valueObjectGenerator.generate(value, source.unit().namespace(), project));
                 }
+                CollectionDeclaration.of(definition).ifPresent(collection ->
+                        files.add(domainCollectionGenerator.generate(collection, source.unit().namespace(), project)));
             }
         }
         return new VernacProjectCompilationResult(files, project.diagnostics());
@@ -108,22 +110,20 @@ public class VernacCompiler {
 
         // Bestehende Generierungsschleife
         for (TopLevelDefinition definition : unit.definitions()) {
+            CollectionDeclaration.of(definition).ifPresent(collection ->
+                    generatedFiles.add(domainCollectionGenerator.generate(collection, packageName, resolved)));
             if (definition instanceof IdDeclarationNode idDef) {
                 generatedFiles.add(idGenerator.generate(idDef, packageName));
             } else if (definition instanceof ValueObjectNode vo) {
                 generatedFiles.add(valueObjectGenerator.generate(vo, packageName, resolved));
-                if (vo.collection().isPresent()) {
-                    generatedFiles.add(domainCollectionGenerator.generate(vo, packageName, imports));
-                }
+
             } else if (definition instanceof EventNode event) {
                 generatedFiles.add(eventGenerator.generate(event, packageName, imports));
             } else if (definition instanceof AggregateNode agg) {
                 generatedFiles.add(aggregateGenerator.generate(agg, valueObjects, entities, packageName, imports));
             } else if (definition instanceof EntityNode entity) {
                 generatedFiles.add(entityGenerator.generate(entity, valueObjects, entities, packageName, imports));
-                if (entity.collection().isPresent()) {
-                    generatedFiles.add(domainCollectionGenerator.generate(entity, packageName, imports));
-                }
+
             } else if (definition instanceof RepositoryNode repo) {
                 AggregateNode targetAgg = aggregates.get(repo.aggregateName());
                 generatedFiles.addAll(repositoryGenerator.generate(

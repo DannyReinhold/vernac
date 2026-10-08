@@ -33,6 +33,20 @@ class VernacProjectSymbolsTest {
         return new VernacProjectSymbols(root, files).definition(path, at(path, beforeLastCharacter));
     }
 
+    @Test void collectionCompletionAndNavigationWorkAcrossNamespaces() {
+        var ids = file("model", "ids", "id TaskId list;");
+        var states = file("model", "states", "value State = OPEN | DONE set States;");
+        file("model", "entities", "entity Task[TaskId](String title) list Tasks;");
+        var current = file("view", "view", "import model.*; value View(");
+        var available = labels(current, "View(");
+        assertTrue(available.containsAll(List.of("TaskIds", "States")));
+        assertFalse(available.contains("Tasks"));
+        files.put(current, "namespace view; import model.TaskIds; value View(TaskIds);");
+        assertEquals(ids.toUri().toString(), definition(current, "View(TaskId").getFirst().getUri());
+        files.put(current, "namespace view; value View(model.States);");
+        assertEquals(states.toUri().toString(), definition(current, "View(model.State").getFirst().getUri());
+    }
+
     @Test void enumTypeCompletionAndNavigationDoNotExposeConstantsAsTypes() {
         var target = file("states", "status", "value Status = MeinTyp | String | name | values;");
         var current = file("tasks", "draft", "import states.Status; value Draft(Sta");
@@ -131,14 +145,14 @@ class VernacProjectSymbolsTest {
         assertEquals(List.of(), labels(other, "Other(Ph"));
     }
 
-    @Test void valueFieldsDoNotOfferEntitiesOrCollectionsAndRespectTheirNames() {
+    @Test void valueFieldsOfferValueCollectionsButNotEntities() {
         file("people", "title", "value Title(String value);");
-        file("tasks", "entities", "id TaskId; entity Title[TaskId](String value); value Label(String value) collection Labels;");
+        file("tasks", "entities", "id TaskId; entity Title[TaskId](String value); value Label(String value) list Labels;");
         var current = file("tasks", "draft", "import people.*; value Draft(");
         var labels = labels(current, "Draft(");
         assertTrue(labels.containsAll(List.of("TaskId", "Label")));
         assertFalse(labels.contains("Title"));
-        assertFalse(labels.contains("Labels"));
+        assertTrue(labels.contains("Labels"));
     }
 
     @Test void unicodeCompletionReplacesSupplementaryNamesAndNavigatesPrecisely() {

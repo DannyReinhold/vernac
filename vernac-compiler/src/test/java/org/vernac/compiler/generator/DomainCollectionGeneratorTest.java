@@ -34,7 +34,7 @@ class DomainCollectionGeneratorTest {
     void shouldGenerateDefaultPluralizedCollection() {
         String src = """
                 namespace com.example;
-                value Car(String model) collection;
+                value Car(String model) list;
                 """;
 
         CompilationUnitNode cu = parse(src);
@@ -43,24 +43,23 @@ class DomainCollectionGeneratorTest {
                 .map(d -> (ValueObjectNode) d)
                 .findFirst().orElseThrow();
 
-        JavaFile file = generator.generate(node, "com.example", List.of());
+        JavaFile file = new org.vernac.compiler.pipeline.VernacCompiler().compileSource(src).generatedFiles().stream()
+                .filter(f -> f.typeSpec().name().equals(node.collection().orElseThrow().nameFor(node.name()))).findFirst().orElseThrow();
         String code = file.toString();
 
         assertThat(code)
                 .contains("package com.example.domain;")
                 .contains("public final class Cars implements Iterable<Car>")
                 .contains("private final List<Car> items;")
-                .contains("this.items = List.copyOf(items);")
+                .contains("this.items = DomainCollections.list(items);")
                 .contains("public static Cars empty()")
                 .contains("public static Cars of(Car... items)")
-                .contains("public static Cars of(Collection<Car> items)")
-                .contains("public List<Car> toList()")
-                .contains("public List<Car> elements()")
-                .contains("public Set<Car> toSet()")
-                .contains("public Cars plus(Car item)")
-                .contains("public Cars plusAll(Iterable<Car> others)")
-                .contains("public Cars minus(Car item)")
-                .contains("public Cars filter(Predicate<Car> predicate)");
+                .contains("public static Cars of(Iterable<? extends Car> items)")
+                .contains("public List<Car> asList()")
+                .contains("public Cars plus(Car element)")
+                .contains("public Cars plusAll(Iterable<? extends Car> elements)")
+                .contains("public Cars minus(Car element)")
+                .contains("public Cars filter(Predicate<? super Car> predicate)");
     }
 
     @Test
@@ -68,7 +67,7 @@ class DomainCollectionGeneratorTest {
     void shouldGenerateCustomCollectionWithMethods() {
         String src = """
                 namespace com.example;
-                value Money(BigDecimal amount) collection MoneyTransactions {
+                value Money(BigDecimal amount) list MoneyTransactions {
                     public Money sum() {
                         return null;
                     }
@@ -81,7 +80,8 @@ class DomainCollectionGeneratorTest {
                 .map(d -> (ValueObjectNode) d)
                 .findFirst().orElseThrow();
 
-        JavaFile file = generator.generate(node, "com.example", List.of());
+        JavaFile file = new org.vernac.compiler.pipeline.VernacCompiler().compileSource(src).generatedFiles().stream()
+                .filter(f -> f.typeSpec().name().equals(node.collection().orElseThrow().nameFor(node.name()))).findFirst().orElseThrow();
         String code = file.toString();
 
         assertThat(code)
@@ -96,7 +96,7 @@ class DomainCollectionGeneratorTest {
         String src = """
                 namespace com.example;
                 id TaskId;
-                entity Task[TaskId](String title) collection;
+                entity Task[TaskId](String title) list;
                 """;
 
         CompilationUnitNode cu = parse(src);
@@ -105,27 +105,28 @@ class DomainCollectionGeneratorTest {
                 .map(d -> (EntityNode) d)
                 .findFirst().orElseThrow();
 
-        JavaFile file = generator.generate(entity, "com.example", List.of());
+        JavaFile file = new org.vernac.compiler.pipeline.VernacCompiler().compileSource(src).generatedFiles().stream()
+                .filter(f -> f.typeSpec().name().equals(entity.collection().orElseThrow().nameFor(entity.name()))).findFirst().orElseThrow();
         String code = file.toString();
 
         assertThat(code)
                 .contains("package com.example.domain;")
                 .contains("public final class Tasks implements Iterable<Task>")
-                .contains("public Tasks plus(Task item)")
-                .contains("public Tasks minus(Task item)")
+                .contains("public Tasks plus(Task element)")
+                .contains("public Tasks minus(Task element)")
                 .contains("public Tasks minusId(TaskId id)")
-                .contains("return new Tasks(this.items.stream().filter(item -> !item.id().equals(id)).toList());");
+                .contains("return by(id).map(this::minus).orElse(this);");
     }
 
     @Test
-    @DisplayName("Berücksichtigt benutzerdefiniertes Package für Entity-Collection")
-    void shouldRespectCustomPackageForEntityCollection() {
+    @DisplayName("Verhindert benutzerdefiniertes Package für Entity-Collection")
+    void shouldRejectCustomPackageForEntityCollection() {
         String src = """
                 namespace com.example;
                 id LineId;
                 entity OrderLine[LineId](String sku) {
                     package com.example.mycustom.order;
-                } collection OrderLines;
+                } list OrderLines;
                 """;
 
         CompilationUnitNode cu = parse(src);
@@ -135,11 +136,9 @@ class DomainCollectionGeneratorTest {
                 .findFirst().orElseThrow();
 
         assertThat(entity.customPackage()).contains("com.example.mycustom.order");
-        JavaFile file = generator.generate(entity, "com.example", List.of());
-        String code = file.toString();
-
-        assertThat(code)
-                .contains("package com.example.mycustom.order;")
-                .contains("public final class OrderLines implements Iterable<OrderLine>");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                new org.vernac.compiler.pipeline.VernacCompiler().compileSource(src))
+                .isInstanceOf(org.vernac.compiler.analyzer.SemanticValidationException.class)
+                .hasMessageContaining("custom packages");
     }
 }

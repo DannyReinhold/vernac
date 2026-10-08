@@ -78,7 +78,7 @@ class VernacProjectLoaderTest {
 
     @Test
     void includesEnumsAndCollectionsInTheSameCollisionDomain() throws IOException {
-        write("org/example/values.vernac", "namespace org.example; value Tag(String value) collection Tags; value State = NEW | DONE;");
+        write("org/example/values.vernac", "namespace org.example; value Tag(String value) list Tags; value State = NEW | DONE;");
         var index = compiler.readProject(root).symbols();
         assertEquals(TypeSymbol.Kind.COLLECTION, index.find("org.example.Tags").orElseThrow().kind());
         assertEquals(TypeSymbol.Kind.ENUM, index.find("org.example.State").orElseThrow().kind());

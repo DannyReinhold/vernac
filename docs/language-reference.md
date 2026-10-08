@@ -53,7 +53,7 @@ By default, generated classes are placed into DDD-oriented subpackages based on 
 | `usecase`                                     | `<basePackage>.usecase`                              | `com.example.shop.usecase`                                |
 | `service`                                     | `<basePackage>.domain`                               | `com.example.shop.domain`                                 |
 | `listener`                                    | `<basePackage>.domain`                               | `com.example.shop.domain`                                 |
-| `collection`                                  | Same as enclosing entity/value object (or `.domain`) | `com.example.shop.domain`                                 |
+| `list` / `set`                                  | Same as enclosing entity/value object (or `.domain`) | `com.example.shop.domain`                                 |
 
 ### 2.3 Package Overrides
 
@@ -93,8 +93,8 @@ No numbering or silent renaming is used. See the authoritative
 
 ### 3.2 Collection Name Derivation
 
-- When omitting the name in a `collection` clause (e.g. `value LineItem(...) collection;` or
-  `entity Task[...] collection;`), the compiler automatically appends `s` to the element type name (e.g., `LineItems`,
+- When omitting the name in a `list` / `set` clause (e.g. `value LineItem(...) list;` or
+  `entity Task[...] list;`), the compiler automatically appends `s` to the element type name (e.g., `LineItems`,
   `Tasks`, `Cars`).
 
 ### 3.3 Repository Name Derivation
@@ -188,30 +188,38 @@ value Money(BigDecimal amount, String? comment) validates {
 - An overloaded factory `Money.of(amount)` is generated alongside `Money.of(amount, comment)` for ergonomics.
 - *Note:* Primitive types cannot be optional directly (`int?` is invalid; use `Integer?` instead).
 
-### 5.4 First-Class Collections (`collection`)
+### 5.4 First-Class Collections (`list`, `set`)
 
-Vernac supports first-class typed domain collections directly attached to value objects or entities:
+Collections are explicitly requested on an ID, value object, enum, entity or
+aggregate. The default name is the element type name followed by `s`.
 
 ```vernac
-value Tag(String name) collection; // Inferred name: Tags
-value Money(BigDecimal amount) collection MoneyTransactions {
-    public Money sum() {
-        // Custom domain logic in raw Java
-        return null;
+id TaskId set TaskIds;
+value Tag(String name) list Tags {
+    public boolean hasDuplicates() {
+        return !duplicates().isEmpty();
     }
-}
+};
 ```
 
-Generated collection class:
+Generated final classes live in `<namespace>.domain`. Lists preserve order and
+repetitions; sets keep the first encountered instance of each equal element.
+Both copy their input structure and expose unmodifiable views. Transformations
+return collections without changing the original.
 
-- `public final class Tags implements Iterable<Tag>`
-- Immutably wraps `List<Tag>` using `List.copyOf(...)`.
-- Methods generated:
-    - `empty()`, `of(Tag... items)`, `of(Collection<Tag> items)`
-    - `toList()`, `elements()`, `toSet()`
-    - `plus(Tag item)`, `plusAll(Iterable<Tag> others)`
-    - `minus(Tag item)`
-    - `filter(Predicate<Tag> predicate)`
+The API includes factories, iteration, `stream`, `filter`, `matching`, `find`,
+`contains`, `count`, `plus`, `plusAll`, `minus` and `minusAll`. Lists additionally
+provide indexed access, `first`, `last`, `distinct` and `duplicates`.
+**`duplicates()` includes every occurrence of a repeated element, including its
+first occurrence.** Use `duplicates().distinct()` for one representative per group.
+
+Value objects may contain collections of IDs, enums or other value objects,
+never collections of entities or aggregates. Entity/aggregate collections offer
+identity helpers `by(id)`, `contains(id)`, `minusId(id)` and `minusAllId(id)`.
+
+See the [collection contract](contracts/collections.md) for exact signatures and
+semantics, the [tutorial](tutorials/collections.md) for examples, and the
+[implementation notes](development/collections.md) for current pipeline scope.
 
 ### 5.5 Enums
 
@@ -264,7 +272,7 @@ entity OrderLine[OrderLineId](
     String sku,
     mut int quantity,
     Money unitPrice
-) collection OrderLines;
+) list OrderLines;
 
 aggregate Order[OrderId](
     CustomerId customer,
@@ -304,7 +312,7 @@ aggregate Order[OrderId](
     - Inside methods, call `registerEvent(event)` to queue events.
     - Repositories or infrastructure pull and dispatch events via `pullDomainEvents()`.
 - **Entity Collections (`minusId`)**:
-    - If a collection is defined on an `entity` (e.g. `entity OrderLine[...] collection OrderLines;`), the collection
+    - If a collection is defined on an `entity` (e.g. `entity OrderLine[...] list OrderLines;`), the collection
       includes an additional `minusId(OrderLineId id)` method for identity-based removal.
 - **SQL Schema Constants**:
     - Aggregates and entities generate `public static final String TABLE_NAME = "..."` (snake_case) and
@@ -343,7 +351,7 @@ automatically wrap arbitrary Java method bodies in validation or rollback logic.
 
 - Aggregates **cannot** be directly embedded inside other Aggregates/Entities as fields; reference them by their
   `IdType`.
-- Raw collections (`List`, `Set`, `Map`) are forbidden as aggregate/entity fields; use first-class `collection` types.
+- Raw collections (`List`, `Set`, `Map`) are forbidden as aggregate/entity fields; use first-class `list` / `set` types.
 
 ---
 
@@ -551,7 +559,7 @@ For quick reference, this table summarizes everything you can omit in Vernac:
 | `value Name(T)`       | Parameter name (single field)     | Same type-based derivation as every other field; write `T value` explicitly for `value()`.                                                                              |
 | `value Name(T1, T2)`  | Parameter names (multi-field)     | Inferred via the shared naming rule (e.g., `UUID` $\to$ `uuid`, `String` $\to$ `string`, `int` $\to$ `intValue`). |
 | `entity`, `aggregate` | Field names                       | Inferred via the shared naming rule (e.g. `String` $\to$ `string`).                                               |
-| `collection`          | Collection name                   | Pluralized type name (e.g. `Car collection;` $\to$ `Cars`).                                                  |
+| `list` / `set`          | Collection name                   | Pluralized type name (e.g. `Car list;` $\to$ `Cars`).                                                  |
 | `event`               | Dispatch mode                     | Defaults to `outbox`.                                                                                        |
 | `event`               | Parameter names                   | Inferred via the shared naming rule.                                                                              |
 | `repository`          | Repository name                   | `<AggregateName>Repository`.                                                                                 |
