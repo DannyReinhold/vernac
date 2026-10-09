@@ -46,7 +46,7 @@ mvn test -Dvernac.test.database=true
 
 The test database uses port 55434 and tmpfs. Tests verify persisted rows, shared
 identity, list order, orphan cleanup, transaction requirements, optimistic conflicts,
-and rollback behavior. Ordinary `mvn test` skips these five database tests explicitly.
+and rollback behavior. Ordinary `mvn test` skips these eight database tests explicitly.
 
 ## Concurrent requests
 
@@ -66,8 +66,20 @@ A fresh transaction loads the complete aggregate and verifies the winning child
 change, list order, shared identities and unchanged losing child. Direct SQL checks
 also rule out leaked entity/link rows. Coordination and lock waits have deadlines.
 This test requires a real PostgreSQL server; a single-backend emulator cannot prove
-these concurrency semantics. It covers one deliberately coordinated interleaving,
-not concurrent deletion, every isolation level or a general load/stress test.
+these concurrency semantics. It covers four deliberately coordinated interleavings:
+concurrent saves, deletion winning against a save, a save winning against deletion,
+and a commit between a reader's root and child queries.
+The delete/save cases also check every model table for retained or removed rows. These are
+not tests of every isolation level or a general load/stress test.
+
+The READ COMMITTED reader test uses a **test-only** exclusive lock on the Stop table
+as a scheduling gate. The reader can read the root, but pauses at the child SELECT.
+After the writer commits, the reader must reject the changed root version. A fresh
+read then restores the complete new state. Production repositories do not use this
+table lock and do not silently retry failed reads.
+
+READ COMMITTED gives each SELECT its own snapshot, not one snapshot for an entire
+multi-query aggregate load. See [PostgreSQL transaction isolation](https://www.postgresql.org/docs/17/transaction-iso.html).
 
 ## Next migration
 

@@ -127,7 +127,7 @@ docker compose --profile test up -d --wait postgres-test
 mvn test -Dvernac.test.database=true
 ```
 
-The five integration tests use a separate database on port 55434 and inspect actual
+The eight integration tests use a separate database on port 55434 and inspect actual
 rows. A regular build does not require Docker; it explicitly skips these tests unless
 you enable them. Enable them in CI against a disposable PostgreSQL database.
 
