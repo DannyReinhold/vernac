@@ -46,7 +46,28 @@ mvn test -Dvernac.test.database=true
 
 The test database uses port 55434 and tmpfs. Tests verify persisted rows, shared
 identity, list order, orphan cleanup, transaction requirements, optimistic conflicts,
-and rollback behavior. Ordinary `mvn test` skips these four database tests explicitly.
+and rollback behavior. Ordinary `mvn test` skips these five database tests explicitly.
+
+## Concurrent requests
+
+With the separate test database running, execute only the concurrency test:
+
+```text
+mvn test -Dvernac.test.database=true -Dtest=PersistenceConcurrencyTest
+```
+
+The test uses two independent READ COMMITTED transactions and a third connection
+observing `pg_blocking_pids`. Both writers load the same root version and change
+different children. The first saves but holds its transaction open. Only after
+PostgreSQL reports that the competing UPDATE is blocked does the first commit.
+The second must then fail with optimistic locking and roll back.
+
+A fresh transaction loads the complete aggregate and verifies the winning child
+change, list order, shared identities and unchanged losing child. Direct SQL checks
+also rule out leaked entity/link rows. Coordination and lock waits have deadlines.
+This test requires a real PostgreSQL server; a single-backend emulator cannot prove
+these concurrency semantics. It covers one deliberately coordinated interleaving,
+not concurrent deletion, every isolation level or a general load/stress test.
 
 ## Next migration
 

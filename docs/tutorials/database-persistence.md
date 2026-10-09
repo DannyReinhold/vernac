@@ -127,8 +127,12 @@ docker compose --profile test up -d --wait postgres-test
 mvn test -Dvernac.test.database=true
 ```
 
-The four integration tests use a separate database on port 55434 and inspect actual
+The five integration tests use a separate database on port 55434 and inspect actual
 rows. A regular build does not require Docker; it explicitly skips these tests unless
 you enable them. Enable them in CI against a disposable PostgreSQL database.
+
+The concurrency test coordinates two real transactions and waits for a PostgreSQL
+lock conflict before allowing the winner to commit. See the example README for the
+focused `PersistenceConcurrencyTest` command.
 
 Next: [evolve the schema with Flyway](flyway-workflow.md).
