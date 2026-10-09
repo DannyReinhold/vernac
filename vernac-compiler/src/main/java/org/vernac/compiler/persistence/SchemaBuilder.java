@@ -129,7 +129,11 @@ public final class SchemaBuilder {
                 project.typeOf(f.type()), f.type().isOptional(), active, f.location())));
         // No stray optional children are allowed when the containing object is absent.
         List<String> children = t.columns.keySet().stream().filter(n -> !before.contains(n) && !n.equals("@present:" + path + ":" + identity)).toList();
-        if (!children.isEmpty() && !active.equals("TRUE")) t.check("absent:" + path + ":" + identity,
+        // A sole column witnessing its own presence needs no absence constraint:
+        // column IS NOT NULL OR column IS NULL is always true. Retain guards
+        // involving an outer owner or any additional flattened component.
+        boolean soleWitness = children.size() == 1 && active.equals(name(children.getFirst()) + " IS NOT NULL");
+        if (!children.isEmpty() && !active.equals("TRUE") && !soleWitness) t.check("absent:" + path + ":" + identity,
                 "(" + active + ") OR (" + String.join(" AND ", children.stream().map(n -> name(n) + " IS NULL").toList()) + ")");
         return new StoragePlan.Value(type, optional, presence, markerName, List.of(), nested, null, null, null, false);
     }
@@ -174,7 +178,7 @@ public final class SchemaBuilder {
         // column has no partial representation; the enclosing VO owns absence checks.
         if (parent.equals("TRUE")) {
             if (optional && names.size() > 1) t.check("shape:" + path, "(" + notNull + ") OR (" + allNull + ")");
-        } else if (!optional) {
+        } else if (!optional && !(names.size() == 1 && parent.equals(notNull))) {
             t.check("shape:" + path, "((" + parent + ") AND (" + notNull
                     + ")) OR ((NOT (" + parent + ")) AND (" + allNull + "))");
         } else if (names.size() > 1) {
@@ -182,7 +186,7 @@ public final class SchemaBuilder {
         }
     }
     private static String and(String parent, String condition) {
-        return parent.equals("TRUE") ? condition : "(" + parent + ") AND " + condition;
+        return parent.equals("TRUE") || parent.equals(condition) ? condition : "(" + parent + ") AND " + condition;
     }
     private String aggregateColumn(MutableTable owner) {
         return owner == root ? "id" : "@aggregateId";

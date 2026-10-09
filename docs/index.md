@@ -182,12 +182,17 @@ SNAPSHOT artifacts. See the tutorial for setup instructions.
 
 ## 🔍 Example Projects
 
-Check out the example applications in the repository for full working setups:
+Start with the examples using the reviewed language:
 
-- **`vernac-example`**: Complete e-commerce ordering system with REST outbound ports, domain events, entities, and
-  repositories.
-- **`vernac-example-home-energy`**: Home energy management system demonstrating aggregate invariant enforcement,
-  mutation tracking, domain services, and use case orchestration.
+- **`examples/namespace-values`**: Namespaces, value objects and Java interoperability.
+- **`examples/persistence-demo`**: Standalone Spring Boot, PostgreSQL and Flyway walkthrough
+  with complete aggregate graphs and a prepared migration exercise.
+
+`vernac-example` and `vernac-example-home-energy` are older showcases awaiting migration
+to the reviewed language. They are not currently a green end-to-end build reference.
+
+See the [consolidation status and next steps](development/consolidation-status.md)
+for implemented, deferred and planned areas.
 
 ---
 

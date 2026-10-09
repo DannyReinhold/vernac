@@ -156,6 +156,62 @@ class SchemaTest {
             aggregate Root[RootId](A); repository Roots for Root { }
             """));
     }
+    @Test void optionalSingleColumnWrappersNeedNoPresenceChecksAndMigrationOnlyAddsColumn() throws Exception {
+        String source = """
+            id RootId; id ExternalId;
+            value Title(String); value Reference(String);
+            value Nested(Reference reference);
+            value External(ExternalId);
+            value Status = READY | DONE;
+            value WrappedStatus(Status);
+            aggregate Root[RootId](Title%s);
+            repository Roots for Root { }
+            """;
+        var previous = build(source.formatted(""));
+        var next = build(source.formatted(", Reference? reference"));
+        var sql = new MigrationPlanner().plan(previous, next, MigrationPlanner.Options.safe()).sql();
+        assertTrue(sql.contains("ADD COLUMN \"reference\" TEXT;"));
+        assertFalse(sql.contains("ADD CONSTRAINT"), sql);
+
+        // Already committed snapshots remain valid; a normal subsequent candidate
+        // drops obsolete checks without dropping their column or rewriting history.
+        var target = table(next, "Root");
+        var oldChecks = new ArrayList<>(target.constraints());
+        oldChecks.add(new SchemaModel.Constraint("@check:absent:reference:model.Reference",
+                "CHECK ((\"reference\" IS NOT NULL) OR (\"reference\" IS NULL))"));
+        oldChecks.add(new SchemaModel.Constraint("@check:shape:reference",
+                "CHECK (((\"reference\" IS NOT NULL) AND (\"reference\" IS NOT NULL)) OR ((NOT (\"reference\" IS NOT NULL)) AND (\"reference\" IS NULL)))"));
+        var oldTable = new SchemaModel.Table(target.namespace(), target.name(), target.origin(),
+                target.columns(), target.primaryKey(), oldChecks);
+        var oldModel = new SchemaModel(1, 1, List.of(oldTable), next.enumCodes());
+        var cleanup = new MigrationPlanner().plan(oldModel, next, MigrationPlanner.Options.safe()).sql();
+        assertTrue(cleanup.contains("DROP CONSTRAINT \"@check:shape:reference\""));
+        assertTrue(cleanup.contains("DROP CONSTRAINT \"@check:absent:reference:model.Reference\""));
+        assertFalse(cleanup.contains("DROP COLUMN"));
+
+        var wrappers = build(source.formatted(", Nested? nested, External? external, WrappedStatus? status"));
+        var checks = table(wrappers, "Root").constraints();
+        assertFalse(checks.stream().anyMatch(c -> c.name().startsWith("@check:shape:")
+                || c.name().startsWith("@check:absent:")));
+        assertTrue(checks.stream().anyMatch(c -> c.name().equals("@check:enum:status")));
+    }
+    @Test void outerPresenceAndMultiColumnScalarsStillRequireChecks() throws Exception {
+        var model = build("""
+            id RootId; value Reference(String); value Amount(BigDecimal);
+            value Details(String code, Reference? reference);
+            value Notes(String? first, String? second);
+            aggregate Root[RootId](Details? details, Amount? amount, Notes? notes);
+            repository Roots for Root { }
+            """);
+        var checks = table(model, "Root").constraints();
+        assertTrue(checks.stream().anyMatch(c -> c.name().equals("@check:absent:details:model.Details")
+                && c.clause().contains("\"details.reference\" IS NULL")));
+        assertTrue(checks.stream().anyMatch(c -> c.name().equals("@check:shape:details.reference")
+                && c.clause().contains("\"details.code\" IS NOT NULL")));
+        assertTrue(checks.stream().anyMatch(c -> c.name().equals("@check:shape:amount")
+                && c.clause().contains("\"@scale:amount\" IS NOT NULL")));
+        assertTrue(checks.stream().anyMatch(c -> c.name().equals("@check:absent:notes:model.Notes")));
+    }
     private static SchemaModel.Table table(SchemaModel model, String name) {
         return model.tables().stream().filter(t -> t.name().equals(name)).findFirst().orElseThrow();
     }
