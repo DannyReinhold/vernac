@@ -1,0 +1,46 @@
+package org.example.delivery.demo;
+
+import java.math.BigDecimal;
+import java.util.Currency;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.example.delivery.domain.*;
+
+/** Usecases own transactions; the generated repository requires one. */
+@Service
+@Transactional
+public class DeliveryDemoUseCases {
+    private final TourRepository tours;
+    public DeliveryDemoUseCases(TourRepository tours) { this.tours=tours; }
+
+    public TourId create() {
+        Parcel shared=Parcel.create(TrackingNumber.of("SHARED"),Weight.of(new BigDecimal("1.250")));
+        Stop first=Stop.create(Address.of("First Street","Bremen"),Parcels.of(shared));
+        Stop second=Stop.create(Address.of("Second Street","Bremen"),Parcels.of(shared));
+        Tour tour=Tour.create(Title.of("Delivery demo"),Money.of(new BigDecimal("12.30"),Currency.getInstance("EUR")),
+                Tags.of(Tag.of("fragile"),Tag.of("fragile")),TourStatus.PLANNED,
+                Stops.of(first,first,second),Stops.of(first));
+        tour.prefer(first.id());
+        tours.save(tour);
+        return tour.id();
+    }
+    @Transactional(readOnly = true)
+    public Tour load(TourId id) { return tours.byId(id); }
+    public void changeAndReorder(TourId id) {
+        Tour tour=tours.byId(id);
+        tour.changeAddress(tour.allStops().get(0).id(),Address.of("Changed Street","Bremen"));
+        tour.reverseStops();
+        tours.save(tour);
+    }
+    public void recordNotes(TourId id) { Tour tour=tours.byId(id);tour.recordNotes(Notes.of(null,null));tours.save(tour); }
+    public void clearRecommendations(TourId id) { Tour tour=tours.byId(id);tour.clearRecommendations();tours.save(tour); }
+    public void removeStop(TourId id,StopId stopId) { Tour tour=tours.byId(id);tour.removeStop(stopId);tours.save(tour); }
+    public void saveDetached(Tour tour) { tours.save(tour); }
+    public void delete(TourId id) { tours.delete(tours.byId(id)); }
+    public void conflictingInstances(TourId id) {
+        Tour tour=tours.byId(id); Stop first=tour.allStops().get(0);
+        Stop competing=Stop.reconstitute(first.id(),Address.of("Conflicting snapshot","Bremen"),first.parcels());
+        tour.addStop(competing);
+        tours.save(tour);
+    }
+}

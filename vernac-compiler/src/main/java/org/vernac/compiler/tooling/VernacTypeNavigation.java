@@ -32,10 +32,10 @@ public final class VernacTypeNavigation {
                 if (!symbol.sourceFile().equals(source.path()) || !reviewed(symbol.kind())) continue;
                 String generated = JavaTypeNames.canonicalName(new ResolvedType.Declared(symbol));
                 boolean access = (symbol.kind() == TypeSymbol.Kind.ENTITY || symbol.kind() == TypeSymbol.Kind.AGGREGATE)
-                        && List.of("Read", "Write", "Access").stream().anyMatch(suffix -> (generated + suffix).equals(javaName));
-                boolean valueRead = symbol.kind() == TypeSymbol.Kind.VALUE_OBJECT && (generated + "Read").equals(javaName)
+                        && List.of("Read", "Write", "Access").stream().anyMatch(suffix -> (source.unit().namespace() + ".domain.access." + symbol.identity().name() + suffix).equals(javaName));
+                boolean valueRead = symbol.kind() == TypeSymbol.Kind.VALUE_OBJECT && (source.unit().namespace() + ".domain.access." + symbol.identity().name() + "Read").equals(javaName)
                         && source.unit().valueObjects().stream().anyMatch(v -> v.name().equals(symbol.identity().name()) && !v.validations().isEmpty());
-                if (!generated.equals(javaName) && !access && !valueRead) continue;
+                if (!generated.equals(javaName) && !(member.isPresent() && (access || valueRead))) continue;
                 String text = texts.get(source.path());
                 return text == null ? Optional.empty() : locate(project, source, text, symbol, member);
             }

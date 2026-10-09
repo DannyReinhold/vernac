@@ -139,7 +139,7 @@ public final class ProjectTypeResolver {
         failOnErrors(diagnostics);
         List<TypeSymbol> deferred = namespaces.stream().flatMap(namespace -> project.symbols().inNamespace(namespace).stream())
                 .filter(symbol -> switch (symbol.kind()) {
-                    case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE -> false;
+                    case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, REPOSITORY -> false;
                     default -> true;
                 }).toList();
         return new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred);

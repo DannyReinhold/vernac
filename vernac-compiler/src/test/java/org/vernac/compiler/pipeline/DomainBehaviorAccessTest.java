@@ -58,9 +58,9 @@ class DomainBehaviorAccessTest {
             var label = output.loadClass("test.domain.Label");
             var text = label.getMethod("of", String.class).invoke(null, "tour");
             Object instance = type.getMethod("create", label, point, point).invoke(null, text, point(output, 10), point(output, 20));
-            assertFalse(output.loadClass("test.domain.RangeRead").isInstance(instance));
-            assertFalse(output.loadClass("test.domain.RangeWrite").isInstance(instance));
-            assertFalse(output.loadClass("test.domain.RangeAccess").isInstance(instance));
+            assertFalse(output.loadClass("test.domain.access.RangeRead").isInstance(instance));
+            assertFalse(output.loadClass("test.domain.access.RangeWrite").isInstance(instance));
+            assertFalse(output.loadClass("test.domain.access.RangeAccess").isInstance(instance));
             assertThrows(NoSuchMethodException.class, () -> type.getMethod("start", point));
             assertThrows(NoSuchMethodException.class, () -> type.getMethod("suffix"));
             assertEquals("TOUR!", type.getMethod("labelText").invoke(instance));
@@ -91,6 +91,7 @@ class DomainBehaviorAccessTest {
         sources.put("external.RangeLogic", """
             package external;
             import test.domain.*;
+            import test.domain.access.*;
             public class RangeLogic {
                 private static RangeAccess retained;
                 public static int externalRead(RangeRead self) {
@@ -133,6 +134,7 @@ class DomainBehaviorAccessTest {
         sources.put("test.Scenario", """
             package test;
             import test.domain.*;
+            import test.domain.access.*;
             public class Scenario {
                 public static void run() {
                     Stop stop = Stop.create(Units.of(30));
@@ -154,10 +156,13 @@ class DomainBehaviorAccessTest {
     @Test void rejectsContractCollisionsAndUnclassifiedMethods() {
         for (String declarations : List.of(
                 "id XId; value NumberValue(int); entity X[XId](mut NumberValue n) behavior { read int n() { return 0; } };",
-                "id XId; value NumberValue(int); value XRead(String); entity X[XId](NumberValue n);",
                 "id XId; value NumberValue(int); entity X[XId](NumberValue n) behavior { public int f() { return 0; } };",
                 "id XId; value NumberValue(int); entity X[XId](NumberValue n) behavior { read int f(int self) { return 0; } };"))
             assertThrows(SemanticValidationException.class, () -> generate(declarations));
+    }
+
+    @Test void domainAccessNamesAreLegalInTheDomainPackage() throws Exception {
+        compile(generate("id XId; value NumberValue(int); value XRead(String); entity X[XId](NumberValue n);"));
     }
 
     @Test void resolvesEntityFieldsAndExternalViewSignaturesAcrossNamespaces() throws Exception {

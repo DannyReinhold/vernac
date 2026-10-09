@@ -73,14 +73,14 @@ public final class BehaviorJavaProjection {
         visible.values().stream().filter(n -> n.contains(".")).distinct()
                 .forEach(n -> header.append("import ").append(n).append(";\n"));
         header.append("@org.jspecify.annotations.NullMarked final class __VernacEditorValidation_")
-                .append(owner).append(" { static void validate(").append(unit.namespace()).append(".domain.")
+                .append(owner).append(" { static void validate(").append(unit.namespace()).append(".domain.access.")
                 .append(owner).append("Read self) {\n");
         List<Fragment> fragments = new ArrayList<>();
         for (var rule : context.validationStatement()) {
             var expression = rule.condition;
             fragments.add(new Fragment(offset(text, expression.getStart().getStartIndex()),
                     offset(text, expression.getStop().getStopIndex() + 1),
-                    (fragments.isEmpty() ? header.toString() : "") + "if (!(", ")) {}\n"));
+                    (fragments.isEmpty() ? header.toString() : "") + "if (", ") {}\n"));
         }
         var last = fragments.removeLast();
         fragments.add(new Fragment(last.start(), last.end(), last.prefix(), last.suffix() + "}\n}\n"));
@@ -108,7 +108,7 @@ public final class BehaviorJavaProjection {
             String returnType = javaType(scope, method.returnType(), true);
             if (returnType == null) return;
             List<String> parameters = new ArrayList<>();
-            if (method.accessModifier().equals("public")) parameters.add(unit.namespace() + ".domain." + owner +
+            if (method.accessModifier().equals("public")) parameters.add(unit.namespace() + (method.mode() == MethodNode.Mode.DEFAULT ? ".domain." : ".domain.access.") + owner +
                     (method.mode() == MethodNode.Mode.DEFAULT ? "" : method.mode() == MethodNode.Mode.READ ? "Read" : "Access") + " self");
             for (var p : method.parameters()) {
                 String type = javaType(scope, p.type(), false);

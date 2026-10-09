@@ -98,6 +98,9 @@
 ]]></description>
 
     <change-notes><![CDATA[
+        <h3>Generated API readability</h3>
+        <p>Access interfaces now use domain.access. Go to Declaration on technical interface
+        types keeps standard Java navigation. Validation injection no longer adds an artificial negation.</p>
         <h3>Entity and aggregate contracts</h3>
         <p>Added domain-field and containment-cycle diagnostics, including optional fields
         and collections across namespaces. Aggregate metadata is isolated from write behavior.</p>

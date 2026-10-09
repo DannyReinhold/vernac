@@ -205,10 +205,11 @@ class VernacTypeNavigationTest {
             };
             """);
         String text = Files.readString(file);
-        for (String suffix : List.of("", "Read", "Write", "Access")) {
-            assertEquals(text.indexOf("Task["), find("model.domain.Task" + suffix, Map.of()).orElseThrow().start());
+        assertEquals(text.indexOf("Task["), find("model.domain.Task", Map.of()).orElseThrow().start());
+        for (String suffix : List.of("Read", "Write", "Access")) {
+            assertTrue(find("model.domain.access.Task" + suffix, Map.of()).isEmpty());
         }
-        assertEquals(text.indexOf("current()"), member("model.domain.TaskRead", "current", List.of(), Map.of()).orElseThrow().start());
-        assertEquals(text.indexOf("increase()"), member("model.domain.TaskAccess", "increase", List.of(), Map.of()).orElseThrow().start());
+        assertEquals(text.indexOf("current()"), member("model.domain.access.TaskRead", "current", List.of(), Map.of()).orElseThrow().start());
+        assertEquals(text.indexOf("increase()"), member("model.domain.access.TaskAccess", "increase", List.of(), Map.of()).orElseThrow().start());
     }
 }

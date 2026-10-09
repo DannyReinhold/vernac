@@ -22,7 +22,6 @@ public class EntityGenerator {
                 : ResolvedJavaTypes.javaType(project.typeOf(type));
     }
 
-
     private static final ClassName ENTITY_INTERFACE = ClassName.get(Entity.class);
     private static final ClassName NULLABLE_ANNOTATION = ClassName.get(Nullable.class);
 
@@ -95,7 +94,7 @@ public class EntityGenerator {
 
         for (FieldNode field : node.fields()) {
             if (project == null && field.isMutable() && !explicitMethodNames.contains(field.name())) {
-                classBuilder.addMethod(buildDomainMutator(field, targetPackage));
+                classBuilder.addMethod(buildDomainMutator(field, targetPackage, className));
             }
         }
 
@@ -117,7 +116,7 @@ public class EntityGenerator {
         // 11. equals, hashCode (auf ID-Basis) & toString
         classBuilder.addMethod(buildEquals(selfType, idFieldName));
         classBuilder.addMethod(buildHashCode(idFieldName));
-        classBuilder.addMethod(buildToString(className, idFieldName));
+        classBuilder.addMethod(buildToString(node, className, idFieldName));
 
         return JavaFile.builder(targetPackage, classBuilder.build())
                 .skipJavaLangImports(true)
@@ -139,11 +138,8 @@ public class EntityGenerator {
             constructor.addParameter(param.build());
         }
 
-        constructor.addParameter(boolean.class, "validate");
-
-        constructor.beginControlFlow("if ($N == null)", idFieldName)
-                .addStatement("throw new $T($S)", DomainValidationException.class, node.name() + ".id must not be null")
-                .endControlFlow().addStatement("this.$N = $N", idFieldName, idFieldName);
+        constructor.addStatement("this.$N = $T.requireNonNull($N, $S)", idFieldName,
+                org.vernac.runtime.DomainChecks.class, idFieldName, node.name() + ".id");
 
         for (FieldNode field : node.fields()) {
             if (field.type().isOptional()) {
@@ -151,15 +147,12 @@ public class EntityGenerator {
             } else if (TypeUtils.isPrimitive(field.type().name())) {
                 constructor.addStatement("this.$N = $N", field.name(), field.name());
             } else {
-                constructor.beginControlFlow("if ($N == null)", field.name())
-                        .addStatement("throw new $T($S)", DomainValidationException.class, node.name() + "." + field.name() + " must not be null")
-                        .endControlFlow().addStatement("this.$N = $N", field.name(), field.name());
+                constructor.addStatement("this.$N = $T.requireNonNull($N, $S)", field.name(),
+                        org.vernac.runtime.DomainChecks.class, field.name(), node.name() + "." + field.name());
             }
         }
 
-        constructor.beginControlFlow("if (validate)");
         constructor.addStatement("validate()");
-        constructor.endControlFlow();
 
         return constructor.build();
     }
@@ -169,7 +162,7 @@ public class EntityGenerator {
                 .addModifiers(Modifier.PRIVATE);
 
         for (ValidationRuleNode rule : node.validations()) {
-            validate.beginControlFlow("if (!($L))", rule.condition());
+            validate.beginControlFlow("if ($L)", ValidationConditions.failure(rule.condition()));
             validate.addStatement("throw new $T($S)", DomainValidationException.class, rule.message());
             validate.endControlFlow();
         }
@@ -195,7 +188,6 @@ public class EntityGenerator {
             passArgs.add(field.name());
         }
 
-        passArgs.add("true");
         create.addStatement("$T $N = $T.create()", idType, idFieldName, idType);
         create.addStatement("return new $T(" + String.join(", ", passArgs) + ")", selfType);
         return create.build();
@@ -220,12 +212,11 @@ public class EntityGenerator {
             passArgs.add(field.name());
         }
 
-        passArgs.add(project == null ? "false" : "true");
         reconstitute.addStatement("return new $T(" + String.join(", ", passArgs) + ")", selfType);
         return reconstitute.build();
     }
 
-    private MethodSpec buildDomainMutator(FieldNode field, String targetPackage) {
+    private MethodSpec buildDomainMutator(FieldNode field, String targetPackage, String ownerName) {
         TypeName type = resolve(field.type(), targetPackage);
         MethodSpec.Builder setter = MethodSpec.methodBuilder(field.name())
                 .addModifiers(Modifier.PUBLIC);
@@ -247,7 +238,7 @@ public class EntityGenerator {
             setter.addStatement("this.$N = $N", field.name(), field.name());
         } else {
             setter.addParameter(param.build());
-            setter.addStatement("$T.requireNonNull($N, $S)", Objects.class, field.name(), field.name() + " must not be null");
+            setter.addStatement("$T.requireNonNull($N, $S)", org.vernac.runtime.DomainChecks.class, field.name(), ownerName + "." + field.name());
             setter.beginControlFlow("if ($T.equals(this.$N, $N))", Objects.class, field.name(), field.name());
             setter.addStatement("return");
             setter.endControlFlow();
@@ -281,7 +272,6 @@ public class EntityGenerator {
                 .addStatement("return this.$N", idFieldName)
                 .build();
     }
-
 
     private MethodSpec buildFieldGetter(FieldNode field, String targetPackage) {
         TypeName baseType = resolve(field.type(), targetPackage);
@@ -322,13 +312,12 @@ public class EntityGenerator {
                 .build();
     }
 
-    private MethodSpec buildToString(String className, String idFieldName) {
-        return MethodSpec.methodBuilder("toString")
-                .addModifiers(Modifier.PUBLIC)
-                .addAnnotation(Override.class)
-                .returns(String.class)
-                .addStatement("return $S + this.$N + \"]\"", className + "[id=", idFieldName)
-                .build();
+    private MethodSpec buildToString(EntityNode node, String className, String idFieldName) {
+        CodeBlock.Builder text = CodeBlock.builder().add("$S + this.$N", className + "[id=", idFieldName);
+        for (FieldNode field : node.fields()) text.add(" + $S + this.$N", ", " + field.name() + "=", field.name());
+        text.add(" + $S", "]");
+        return MethodSpec.methodBuilder("toString").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
+                .returns(String.class).addStatement("return $L", text.build()).build();
     }
 
     private MethodSpec buildFromExternalFactory(EntityNode node, String targetPackage, ClassName selfType, TypeName idType, String idFieldName) {
@@ -349,8 +338,6 @@ public class EntityGenerator {
             fromExternal.addParameter(param.build());
             passArgs.add(field.name());
         }
-
-        passArgs.add("true");
 
         fromExternal.addStatement("return new $T(" + String.join(", ", passArgs) + ")", selfType);
         return fromExternal.build();

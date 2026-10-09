@@ -27,10 +27,6 @@ final class DomainAccessValidator {
             }
             signatures.add("create(" + parameters(model.fields().stream().filter(f -> !f.type().isOptional()).toList(), types) + ")");
         }
-        for (var suffix : List.of("Read", "Write", "Access")) {
-            var collision = project.symbols().find(namespace + "." + model.name() + suffix);
-            collision.ifPresent(symbol -> errors.add(CompilerDiagnostic.error(symbol.location(), "Type '" + symbol.identity().name() + "' conflicts with a generated behavior access interface.")));
-        }
         errors.addAll(MemberNames.duplicates(model.fields(), "field", ""));
         for (var f : model.fields()) {
             if (!VernacNames.isIdentifier(f.name()) || f.name().startsWith("__") || Set.of("id", "createdAt", "updatedAt", "version", "persistenceState", "domainEvents", "TABLE_NAME", "SCHEMA_DDL").contains(f.name()))

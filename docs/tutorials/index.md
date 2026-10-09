@@ -26,3 +26,11 @@ Each tutorial starts with a working example and invites you to change it.
    Add inline Java, private helpers, external implementations and null checking.
 
 [Back to the documentation](../index.md)
+## PostgreSQL persistence and migrations
+
+1. [Persist a complete aggregate](database-persistence.md): run the standalone Spring
+   Boot example, inspect shared entities, transaction boundaries and orphan cleanup.
+2. [Evolve the database with Flyway](flyway-workflow.md): generate and review a second
+   migration, verify it and apply it while retaining the existing data.
+3. [Schema tooling reference](postgresql-migrations.md): mapping, snapshots, explicit
+   backfills, conversion options and schema verification.

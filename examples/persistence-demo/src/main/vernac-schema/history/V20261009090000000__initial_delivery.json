@@ -1,0 +1,348 @@
+{
+  "formatVersion" : 1,
+  "migration" : "V20261009090000000__initial_delivery.sql",
+  "previousFingerprint" : "80a947793d1802db05dd3d1246d9b9534a6c51dd00f17d796277da3e0441da66",
+  "modelFingerprint" : "3ad6cac985d551da8b7001f112fe4c894996abc1b659f53e257feaa1acc9370c",
+  "model" : {
+    "formatVersion" : 1,
+    "mappingVersion" : 1,
+    "tables" : [ {
+      "namespace" : "org.example.delivery",
+      "name" : "Tour",
+      "origin" : "org.example.delivery.Tour",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.example.delivery.Tour"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.example.delivery.Tour"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.example.delivery.Tour"
+      }, {
+        "name" : "@present:notes:org.example.delivery.Notes",
+        "sqlType" : "BOOLEAN",
+        "nullable" : false,
+        "codec" : "presence",
+        "origin" : "org.example.delivery.Notes"
+      }, {
+        "name" : "@scale:price.amount",
+        "sqlType" : "INTEGER",
+        "nullable" : false,
+        "codec" : "BigDecimal:scale",
+        "origin" : "org.example.delivery.Tour.price.amount"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.example.delivery.Tour"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.example.delivery.Tour"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.example.delivery.Tour.id"
+      }, {
+        "name" : "notes.comment",
+        "sqlType" : "TEXT",
+        "nullable" : true,
+        "codec" : "String:",
+        "origin" : "org.example.delivery.Tour.notes.comment"
+      }, {
+        "name" : "notes.description",
+        "sqlType" : "TEXT",
+        "nullable" : true,
+        "codec" : "String:",
+        "origin" : "org.example.delivery.Tour.notes.description"
+      }, {
+        "name" : "preferredStop",
+        "sqlType" : "UUID",
+        "nullable" : true,
+        "codec" : "entity-reference:org.example.delivery.Stop",
+        "origin" : "org.example.delivery.Stop"
+      }, {
+        "name" : "price.amount",
+        "sqlType" : "NUMERIC",
+        "nullable" : false,
+        "codec" : "BigDecimal:",
+        "origin" : "org.example.delivery.Tour.price.amount"
+      }, {
+        "name" : "price.currency",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "Currency:",
+        "origin" : "org.example.delivery.Tour.price.currency"
+      }, {
+        "name" : "status",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.example.delivery.TourStatus"
+      }, {
+        "name" : "title",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.example.delivery.Tour.title"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:absent:notes:org.example.delivery.Notes",
+        "clause" : "CHECK ((\"@present:notes:org.example.delivery.Notes\" IS TRUE) OR (\"notes.comment\" IS NULL AND \"notes.description\" IS NULL))"
+      }, {
+        "name" : "@check:enum:status",
+        "clause" : "CHECK (\"status\" IN ('COMPLETED', 'PLANNED'))"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:price.amount",
+        "clause" : "CHECK (\"price.amount\" NOT IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric))"
+      }, {
+        "name" : "@fk:entity:preferredStop",
+        "clause" : "FOREIGN KEY (\"id\", \"preferredStop\") REFERENCES \"org.example.delivery\".\"Tour.@entity:org.example.delivery.Stop\" (\"@aggregateId\", \"id\") DEFERRABLE INITIALLY DEFERRED"
+      } ]
+    }, {
+      "namespace" : "org.example.delivery",
+      "name" : "Tour.@entity:org.example.delivery.Parcel",
+      "origin" : "org.example.delivery.Parcel",
+      "columns" : [ {
+        "name" : "@aggregateId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "aggregate-owner",
+        "origin" : "org.example.delivery.Tour"
+      }, {
+        "name" : "@scale:weight",
+        "sqlType" : "INTEGER",
+        "nullable" : false,
+        "codec" : "BigDecimal:scale",
+        "origin" : "org.example.delivery.Parcel.weight"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.example.delivery.Parcel.id"
+      }, {
+        "name" : "trackingNumber",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.example.delivery.Parcel.trackingNumber"
+      }, {
+        "name" : "weight",
+        "sqlType" : "NUMERIC",
+        "nullable" : false,
+        "codec" : "BigDecimal:",
+        "origin" : "org.example.delivery.Parcel.weight"
+      } ],
+      "primaryKey" : [ "@aggregateId", "id" ],
+      "constraints" : [ {
+        "name" : "@check:range:weight",
+        "clause" : "CHECK (\"weight\" NOT IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric))"
+      }, {
+        "name" : "@fk:aggregate",
+        "clause" : "FOREIGN KEY (\"@aggregateId\") REFERENCES \"org.example.delivery\".\"Tour\" (\"id\")"
+      } ]
+    }, {
+      "namespace" : "org.example.delivery",
+      "name" : "Tour.@entity:org.example.delivery.Stop",
+      "origin" : "org.example.delivery.Stop",
+      "columns" : [ {
+        "name" : "@aggregateId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "aggregate-owner",
+        "origin" : "org.example.delivery.Tour"
+      }, {
+        "name" : "address.city",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.example.delivery.Stop.address.city"
+      }, {
+        "name" : "address.street",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.example.delivery.Stop.address.street"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.example.delivery.Stop.id"
+      } ],
+      "primaryKey" : [ "@aggregateId", "id" ],
+      "constraints" : [ {
+        "name" : "@fk:aggregate",
+        "clause" : "FOREIGN KEY (\"@aggregateId\") REFERENCES \"org.example.delivery\".\"Tour\" (\"id\")"
+      } ]
+    }, {
+      "namespace" : "org.example.delivery",
+      "name" : "Tour.@entity:org.example.delivery.Stop.parcels",
+      "origin" : "org.example.delivery.Stop.parcels",
+      "columns" : [ {
+        "name" : "@aggregateId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "aggregate-owner",
+        "origin" : "org.example.delivery.Tour"
+      }, {
+        "name" : "@entityId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "entity-reference:org.example.delivery.Parcel",
+        "origin" : "org.example.delivery.Parcel"
+      }, {
+        "name" : "@ownerId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "entity-owner",
+        "origin" : "org.example.delivery.Stop"
+      } ],
+      "primaryKey" : [ "@aggregateId", "@ownerId", "@entityId" ],
+      "constraints" : [ {
+        "name" : "@fk:entity",
+        "clause" : "FOREIGN KEY (\"@aggregateId\", \"@entityId\") REFERENCES \"org.example.delivery\".\"Tour.@entity:org.example.delivery.Parcel\" (\"@aggregateId\", \"id\") DEFERRABLE INITIALLY DEFERRED"
+      }, {
+        "name" : "@fk:owner",
+        "clause" : "FOREIGN KEY (\"@aggregateId\", \"@ownerId\") REFERENCES \"org.example.delivery\".\"Tour.@entity:org.example.delivery.Stop\" (\"@aggregateId\", \"id\")"
+      } ]
+    }, {
+      "namespace" : "org.example.delivery",
+      "name" : "Tour.allStops",
+      "origin" : "org.example.delivery.Tour.allStops",
+      "columns" : [ {
+        "name" : "@aggregateId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "aggregate-owner",
+        "origin" : "org.example.delivery.Tour"
+      }, {
+        "name" : "@entityId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "entity-reference:org.example.delivery.Stop",
+        "origin" : "org.example.delivery.Stop"
+      }, {
+        "name" : "@position",
+        "sqlType" : "INTEGER",
+        "nullable" : false,
+        "codec" : "list-position",
+        "origin" : "allStops"
+      } ],
+      "primaryKey" : [ "@aggregateId", "@position" ],
+      "constraints" : [ {
+        "name" : "@check:position",
+        "clause" : "CHECK (\"@position\" >= 0)"
+      }, {
+        "name" : "@fk:entity",
+        "clause" : "FOREIGN KEY (\"@aggregateId\", \"@entityId\") REFERENCES \"org.example.delivery\".\"Tour.@entity:org.example.delivery.Stop\" (\"@aggregateId\", \"id\") DEFERRABLE INITIALLY DEFERRED"
+      }, {
+        "name" : "@fk:owner",
+        "clause" : "FOREIGN KEY (\"@aggregateId\") REFERENCES \"org.example.delivery\".\"Tour\" (\"id\")"
+      } ]
+    }, {
+      "namespace" : "org.example.delivery",
+      "name" : "Tour.niceStops",
+      "origin" : "org.example.delivery.Tour.niceStops",
+      "columns" : [ {
+        "name" : "@aggregateId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "aggregate-owner",
+        "origin" : "org.example.delivery.Tour"
+      }, {
+        "name" : "@entityId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "entity-reference:org.example.delivery.Stop",
+        "origin" : "org.example.delivery.Stop"
+      }, {
+        "name" : "@position",
+        "sqlType" : "INTEGER",
+        "nullable" : false,
+        "codec" : "list-position",
+        "origin" : "niceStops"
+      } ],
+      "primaryKey" : [ "@aggregateId", "@position" ],
+      "constraints" : [ {
+        "name" : "@check:position",
+        "clause" : "CHECK (\"@position\" >= 0)"
+      }, {
+        "name" : "@fk:entity",
+        "clause" : "FOREIGN KEY (\"@aggregateId\", \"@entityId\") REFERENCES \"org.example.delivery\".\"Tour.@entity:org.example.delivery.Stop\" (\"@aggregateId\", \"id\") DEFERRABLE INITIALLY DEFERRED"
+      }, {
+        "name" : "@fk:owner",
+        "clause" : "FOREIGN KEY (\"@aggregateId\") REFERENCES \"org.example.delivery\".\"Tour\" (\"id\")"
+      } ]
+    }, {
+      "namespace" : "org.example.delivery",
+      "name" : "Tour.tags",
+      "origin" : "org.example.delivery.Tags",
+      "columns" : [ {
+        "name" : "@ownerId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "collection-owner",
+        "origin" : "tags"
+      }, {
+        "name" : "@position",
+        "sqlType" : "INTEGER",
+        "nullable" : false,
+        "codec" : "list-position",
+        "origin" : "tags"
+      }, {
+        "name" : "@rowId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "collection-row",
+        "origin" : "tags"
+      }, {
+        "name" : "value",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.example.delivery.Tags.value"
+      } ],
+      "primaryKey" : [ "@ownerId", "@position" ],
+      "constraints" : [ {
+        "name" : "@check:position",
+        "clause" : "CHECK (\"@position\" >= 0)"
+      }, {
+        "name" : "@fk:owner",
+        "clause" : "FOREIGN KEY (\"@ownerId\") REFERENCES \"org.example.delivery\".\"Tour\" (\"id\")"
+      }, {
+        "name" : "@unique:row:Tour.tags",
+        "clause" : "UNIQUE (\"@rowId\")"
+      } ]
+    } ],
+    "enumCodes" : {
+      "org.example.delivery.TourStatus" : {
+        "COMPLETED" : "COMPLETED",
+        "PLANNED" : "PLANNED"
+      }
+    }
+  }
+}

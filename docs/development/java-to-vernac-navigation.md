@@ -109,3 +109,10 @@ tests verify registration and packaged classes.
 For the IDE integration check, navigate from a real Java reference to a generated
 model type. Also check that a normal Java type still navigates normally and that
 the generated `.java` file can still be opened directly from the project tree.
+
+## Technical interfaces
+
+Access interfaces now live in `<namespace>.domain.access`. Navigating to the type
+`TourRead`, `TourWrite`, or `TourAccess` opens its generated Java declaration. These
+technical types are not aliases for the domain declaration. Source-backed members can
+still navigate to Vernac, including getters resolved through an injected `self` receiver.

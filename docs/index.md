@@ -30,6 +30,11 @@ Java types and behavior.
 For field rules, factories and lifecycle metadata, see the
 [Entity and aggregate contract](contracts/entities-and-aggregates.md).
 
+Follow the [database tutorial](tutorials/database-persistence.md) for a runnable
+Spring Boot/PostgreSQL example, then [evolve its schema with Flyway](tutorials/flyway-workflow.md).
+The [PostgreSQL mapping contract](contracts/postgresql-persistence.md) defines the
+storage and repository behavior.
+
 ---
 
 ## 🚀 Key Highlights

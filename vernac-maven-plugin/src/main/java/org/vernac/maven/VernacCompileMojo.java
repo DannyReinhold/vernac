@@ -51,6 +51,22 @@ public class VernacCompileMojo extends AbstractMojo {
     @Parameter(property = "vernac.skip", defaultValue = "false")
     private boolean skip;
 
+    @Parameter(property="vernac.schemaHistory", defaultValue="${project.basedir}/src/main/vernac-schema/history")
+    private File historyDirectory;
+    @Parameter(property="vernac.migrations", defaultValue="${project.basedir}/src/main/resources/db/migration")
+    private File migrationDirectory;
+    @Parameter(property="vernac.enumCodes")
+    private File enumCodes;
+
+    private org.vernac.compiler.persistence.SchemaModel previousSchema() throws java.io.IOException {
+        if (historyDirectory == null || migrationDirectory == null) return org.vernac.compiler.persistence.SchemaModel.empty();
+        return new org.vernac.compiler.persistence.SchemaHistory(historyDirectory.toPath(),migrationDirectory.toPath()).read();
+    }
+    private java.util.Map<String,java.util.Map<String,String>> enumOverrides() throws java.io.IOException {
+        return enumCodes == null ? java.util.Map.of() : org.vernac.compiler.persistence.SchemaModel.JSON.readValue(
+                java.nio.file.Files.readString(enumCodes.toPath()),new com.fasterxml.jackson.core.type.TypeReference<>() { });
+    }
+
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         if (skip) {
@@ -66,7 +82,7 @@ public class VernacCompileMojo extends AbstractMojo {
         try {
             // Resolve the entire source tree before writing any generated Java.
             VernacProjectCompilationResult result = sourceDirectory.exists()
-                    ? compiler.compileProject(sourceDirectory.toPath())
+                    ? compiler.compileProject(sourceDirectory.toPath(),previousSchema(),enumOverrides())
                     : new VernacProjectCompilationResult(List.of(), List.of());
             result.diagnostics().forEach(diagnostic -> getLog().warn(diagnostic.toString()));
             Files.createDirectories(outputPath);

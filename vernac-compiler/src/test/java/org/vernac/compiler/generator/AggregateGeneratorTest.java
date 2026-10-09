@@ -81,7 +81,7 @@ class AggregateGeneratorTest {
                 .contains("this.domainEvents.clear();")
                 .contains("return Objects.equals(this.id, that.id);")
                 .contains("return Objects.hash(this.id);")
-                .contains("return \"Project[id=\" + this.id + \"]\";");
+                .contains("return \"Project[id=\" + this.id + \", name=\" + this.name + \", budget=\" + this.budget + \", createdAt=\" + this.createdAt + \", updatedAt=\" + this.updatedAt + \"]\";");
 
         assertThat(normalizedCode)
                 .contains("public static Project create(ProjectName name, Money budget)")
@@ -129,7 +129,7 @@ class AggregateGeneratorTest {
         assertThat(code)
                 .contains("private final String string;")
                 .contains("private String customAlias;")
-                .contains("private Customer(CustomerId id, String string, String customAlias, Instant createdAt, Instant updatedAt, long version, boolean validate)")
+                .contains("private Customer(CustomerId id, String string, String customAlias, Instant createdAt, Instant updatedAt, long version)")
                 .contains("public static Customer create(String string, String customAlias)")
                 .contains("public static Customer reconstitute(CustomerId id, String string, String customAlias, Instant createdAt, Instant updatedAt, long version)")
                 .contains("public void customAlias(String customAlias) {")
@@ -183,7 +183,7 @@ class AggregateGeneratorTest {
             """);
         String owner = result.generatedFiles().stream().filter(f -> f.typeSpec().name().equals("Counter")).findFirst().orElseThrow().toString();
         assertThat(owner).contains("private class __ReadView", "private final class __AccessView", "implements CounterRead", "implements CounterAccess");
-        assertThat(owner.substring(0, owner.indexOf("{"))).doesNotContain("CounterRead", "CounterAccess");
+        assertThat(owner.substring(owner.indexOf("public class Counter"), owner.indexOf("{", owner.indexOf("public class Counter")))).doesNotContain("CounterRead", "CounterAccess");
         assertThat(result.generatedFiles()).anyMatch(f -> f.typeSpec().name().equals("CounterWrite"));
         var compiled = org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(result);
         assertThat(compiled.success()).as(compiled.diagnostics().toString()).isTrue();

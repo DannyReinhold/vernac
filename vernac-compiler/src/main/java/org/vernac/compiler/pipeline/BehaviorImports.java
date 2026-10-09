@@ -85,7 +85,7 @@ public final class BehaviorImports {
         for (var method : methods) {
             if (method.parameters().stream().anyMatch(p -> !types.containsKey(p.type()))) continue;
             List<String> parameters = new ArrayList<>();
-            if (method.accessModifier().equals("public")) parameters.add(namespace + ".domain." + owner + (method.mode() == MethodNode.Mode.DEFAULT ? "" : method.mode() == MethodNode.Mode.READ ? "Read" : "Access"));
+            if (method.accessModifier().equals("public")) parameters.add(namespace + (method.mode() == MethodNode.Mode.DEFAULT ? ".domain." : ".domain.access.") + owner + (method.mode() == MethodNode.Mode.DEFAULT ? "" : method.mode() == MethodNode.Mode.READ ? "Read" : "Access"));
             method.parameters().forEach(p -> parameters.add(JavaTypeNames.canonicalName(types.get(p.type()))));
             String signature = method.name() + "(" + String.join(",", parameters) + ")";
             if (!signatures.add(signature)) errors.add(CompilerDiagnostic.error(method.location(),

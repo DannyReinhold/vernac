@@ -114,7 +114,7 @@ class ValueObjectGeneratorTest {
                 .contains("private final String emailAddress;")
                 .contains("private final boolean isVerified;")
                 .contains("private UserEmail(String emailAddress, boolean isVerified)")
-                .contains("throw new DomainValidationException(\"UserEmail.emailAddress must not be null\")")
+                .contains("DomainChecks.requireNonNull(emailAddress, \"UserEmail.emailAddress\")")
                 .contains("public static UserEmail of(String emailAddress, boolean isVerified)")
                 .contains("public String emailAddress() { return this.emailAddress; }")
                 .contains("public boolean isVerified() { return this.isVerified; }");

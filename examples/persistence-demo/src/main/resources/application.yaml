@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: vernac-persistence-demo
+  main:
+    web-application-type: none
+  datasource:
+    url: ${DEMO_DB_URL:jdbc:postgresql://localhost:55433/delivery}
+    username: ${DEMO_DB_USER:delivery}
+    password: ${DEMO_DB_PASSWORD:local-demo-only}
+  docker:
+    compose:
+      file: compose.yaml
+      lifecycle-management: start-only
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  sql:
+    init:
+      mode: never

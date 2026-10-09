@@ -24,7 +24,6 @@ public class AggregateGenerator {
                 : ResolvedJavaTypes.javaType(project.typeOf(type));
     }
 
-
     private static final ClassName AGGREGATE_ROOT_INTERFACE = ClassName.get(AggregateRoot.class);
     private static final ClassName DOMAIN_EVENT_INTERFACE = ClassName.get(DomainEvent.class);
     private static final ClassName NULLABLE_ANNOTATION = ClassName.get(Nullable.class);
@@ -99,7 +98,6 @@ public class AggregateGenerator {
         // 7. reconstitute(...) Factory
         classBuilder.addMethod(buildReconstituteFactory(node, targetPackage, selfType, idType, idFieldName));
 
-
         // 8. fromExternal(...) Factory
         if (project == null) classBuilder.addMethod(buildFromExternalFactory(node, targetPackage, selfType, idType, idFieldName));
 
@@ -119,7 +117,7 @@ public class AggregateGenerator {
 
         for (FieldNode field : node.fields()) {
             if (project == null && field.isMutable() && !explicitMethodNames.contains(field.name())) {
-                classBuilder.addMethod(buildDomainMutator(field, targetPackage));
+                classBuilder.addMethod(buildDomainMutator(field, targetPackage, className));
             }
         }
 
@@ -162,7 +160,7 @@ public class AggregateGenerator {
         // 13. equals, hashCode (auf ID-Basis) & toString
         classBuilder.addMethod(buildEquals(selfType, idFieldName));
         classBuilder.addMethod(buildHashCode(idFieldName));
-        classBuilder.addMethod(buildToString(className, idFieldName));
+        classBuilder.addMethod(buildToString(node, className, idFieldName));
 
         return JavaFile.builder(targetPackage, classBuilder.build())
                 .skipJavaLangImports(true)
@@ -187,11 +185,9 @@ public class AggregateGenerator {
         constructor.addParameter(Instant.class, "createdAt");
         constructor.addParameter(Instant.class, "updatedAt");
         constructor.addParameter(long.class, "version");
-        constructor.addParameter(boolean.class, "validate");
 
-        constructor.beginControlFlow("if ($N == null)", idFieldName)
-                .addStatement("throw new $T($S)", DomainValidationException.class, node.name() + ".id must not be null")
-                .endControlFlow().addStatement("this.$N = $N", idFieldName, idFieldName);
+        constructor.addStatement("this.$N = $T.requireNonNull($N, $S)", idFieldName,
+                org.vernac.runtime.DomainChecks.class, idFieldName, node.name() + ".id");
 
         for (FieldNode field : node.fields()) {
             if (field.type().isOptional()) {
@@ -199,9 +195,8 @@ public class AggregateGenerator {
             } else if (TypeUtils.isPrimitive(field.type().name())) {
                 constructor.addStatement("this.$N = $N", field.name(), field.name());
             } else {
-                constructor.beginControlFlow("if ($N == null)", field.name())
-                        .addStatement("throw new $T($S)", DomainValidationException.class, node.name() + "." + field.name() + " must not be null")
-                        .endControlFlow().addStatement("this.$N = $N", field.name(), field.name());
+                constructor.addStatement("this.$N = $T.requireNonNull($N, $S)", field.name(),
+                        org.vernac.runtime.DomainChecks.class, field.name(), node.name() + "." + field.name());
             }
         }
 
@@ -209,9 +204,7 @@ public class AggregateGenerator {
         constructor.addStatement("this.updatedAt = $T.requireNonNull(updatedAt, $S)", Objects.class, "updatedAt must not be null");
         constructor.addStatement("this.persistenceState = new $T(version)", org.vernac.runtime.PersistenceState.class);
 
-        constructor.beginControlFlow("if (validate)");
         constructor.addStatement("validate()");
-        constructor.endControlFlow();
 
         return constructor.build();
     }
@@ -221,7 +214,7 @@ public class AggregateGenerator {
                 .addModifiers(Modifier.PRIVATE);
 
         for (ValidationRuleNode rule : node.validations()) {
-            validate.beginControlFlow("if (!($L))", rule.condition());
+            validate.beginControlFlow("if ($L)", ValidationConditions.failure(rule.condition()));
             validate.addStatement("throw new $T($S)", DomainValidationException.class, rule.message());
             validate.endControlFlow();
         }
@@ -251,7 +244,6 @@ public class AggregateGenerator {
         passArgs.add(now);
         passArgs.add(now);
         passArgs.add("0L");
-        passArgs.add("true");
 
         create.addStatement("$T $N = $T.now()", Instant.class, now, Instant.class);
         create.addStatement("$T $N = $T.create()", idType, idFieldName, idType);
@@ -286,7 +278,6 @@ public class AggregateGenerator {
         passArgs.add("createdAt");
         passArgs.add("updatedAt");
         passArgs.add("version");
-        passArgs.add(project == null ? "false" : "true");
 
         reconstitute.addStatement("return new $T(" + String.join(", ", passArgs) + ")", selfType);
         return reconstitute.build();
@@ -320,7 +311,7 @@ public class AggregateGenerator {
                 .build();
     }
 
-    private MethodSpec buildDomainMutator(FieldNode field, String targetPackage) {
+    private MethodSpec buildDomainMutator(FieldNode field, String targetPackage, String ownerName) {
         TypeName type = resolve(field.type(), targetPackage);
         MethodSpec.Builder setter = MethodSpec.methodBuilder(field.name())
                 .addModifiers(Modifier.PUBLIC);
@@ -342,7 +333,7 @@ public class AggregateGenerator {
             setter.addStatement("this.$N = $N", field.name(), field.name());
         } else {
             setter.addParameter(param.build());
-            setter.addStatement("$T.requireNonNull($N, $S)", Objects.class, field.name(), field.name() + " must not be null");
+            setter.addStatement("$T.requireNonNull($N, $S)", org.vernac.runtime.DomainChecks.class, field.name(), ownerName + "." + field.name());
             setter.beginControlFlow("if ($T.equals(this.$N, $N))", Objects.class, field.name(), field.name());
             setter.addStatement("return");
             setter.endControlFlow();
@@ -417,13 +408,13 @@ public class AggregateGenerator {
                 .build();
     }
 
-    private MethodSpec buildToString(String className, String idFieldName) {
-        return MethodSpec.methodBuilder("toString")
-                .addModifiers(Modifier.PUBLIC)
-                .addAnnotation(Override.class)
-                .returns(String.class)
-                .addStatement("return $S + this.$N + \"]\"", className + "[id=", idFieldName)
-                .build();
+    private MethodSpec buildToString(AggregateNode node, String className, String idFieldName) {
+        CodeBlock.Builder text = CodeBlock.builder().add("$S + this.$N", className + "[id=", idFieldName);
+        for (FieldNode field : node.fields()) text.add(" + $S + this.$N", ", " + field.name() + "=", field.name());
+        text.add(" + $S + this.createdAt + $S + this.updatedAt", ", createdAt=", ", updatedAt=");
+        text.add(" + $S", "]");
+        return MethodSpec.methodBuilder("toString").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
+                .returns(String.class).addStatement("return $L", text.build()).build();
     }
 
     private MethodSpec buildFromExternalFactory(AggregateNode node, String targetPackage, ClassName selfType, TypeName idType, String idFieldName) {
@@ -448,7 +439,6 @@ public class AggregateGenerator {
         passArgs.add("Instant.now()");
         passArgs.add("Instant.now()");
         passArgs.add("0L");
-        passArgs.add("true");
 
         fromExternal.addStatement("return new $T(" + String.join(", ", passArgs) + ")", selfType);
         return fromExternal.build();

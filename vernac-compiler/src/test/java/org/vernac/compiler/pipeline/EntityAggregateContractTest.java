@@ -41,6 +41,7 @@ class EntityAggregateContractTest {
             """, """
             package test;
             import test.domain.*;
+            import test.domain.access.*;
             import java.time.Instant;
             import java.util.List;
             public class Scenario {
@@ -96,7 +97,7 @@ class EntityAggregateContractTest {
         assertThrows(NoSuchMethodException.class, () -> tour.getMethod("withVersion", long.class));
         assertThrows(NoSuchMethodException.class, () -> stop.getMethod("createdAt"));
         assertThrows(NoSuchMethodException.class, () -> stop.getMethod("persistenceState"));
-        assertThrows(NoSuchMethodException.class, () -> result.loadClass("test.domain.TourRead").getMethod("persistenceState"));
+        assertThrows(NoSuchMethodException.class, () -> result.loadClass("test.domain.access.TourRead").getMethod("persistenceState"));
     }
     @Test void directAndCollectionCyclesAcrossNamespacesAreDiagnosed(@TempDir Path root) throws Exception {
         Files.createDirectories(root.resolve("a")); Files.createDirectories(root.resolve("b"));

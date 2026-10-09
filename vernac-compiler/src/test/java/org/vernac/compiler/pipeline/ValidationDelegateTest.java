@@ -28,6 +28,7 @@ class ValidationDelegateTest {
         sources.put("model.Scenario", """
             package model;
             import model.domain.*;
+            import model.domain.access.*;
             public class Scenario {
                 public static void run() {
                     Name name = Name.of("hello");
@@ -59,7 +60,6 @@ class ValidationDelegateTest {
         for (String declaration : List.of(
                 "value Name(String) validates { require(!string.isBlank(), \"blank\"); };",
                 "value Name(String) validates { require(helper(), \"bad\"); } behavior { private boolean helper() { return true; } };",
-                "value NameRead(int); value Name(String) validates { require(true, \"ok\"); };",
                 "value __VernacValidation_Name(int); value Name(String) validates { require(true, \"ok\"); };")) {
             assertThrows(SemanticValidationException.class, () -> sources(declaration));
         }

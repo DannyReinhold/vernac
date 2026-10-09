@@ -15,7 +15,7 @@ import java.nio.file.Path;
 /** Isolates inline Java in a separate top-level class without private domain access. */
 public final class BehaviorGenerator {
     public static ClassName receiver(ClassName owner, MethodNode method) {
-        return method.mode() == MethodNode.Mode.DEFAULT ? owner : ClassName.get(owner.packageName(),
+        return method.mode() == MethodNode.Mode.DEFAULT ? owner : ClassName.get(owner.packageName() + ".access",
                 owner.simpleName() + (method.mode() == MethodNode.Mode.READ ? "Read" : "Access"));
     }
 

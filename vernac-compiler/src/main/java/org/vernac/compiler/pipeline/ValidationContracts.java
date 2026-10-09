@@ -25,7 +25,7 @@ final class ValidationContracts {
         if (rules.isEmpty()) return List.of();
         var errors = new ArrayList<CompilerDiagnostic>();
         Set<String> generated = new HashSet<>(List.of("__VernacValidation_" + name));
-        if (value) generated.add(name + "Read");
+
         for (String type : generated) {
             project.symbols().find(namespace + "." + type).ifPresent(symbol -> errors.add(CompilerDiagnostic.error(symbol.location(),
                     "Type '" + type + "' conflicts with a generated validation type.")));

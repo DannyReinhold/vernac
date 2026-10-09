@@ -26,7 +26,7 @@ public final class DomainAccessGenerator {
             if (field.isMutable()) write.addMethod(abstractMethod(setter(field, project)));
         }
         if (model.aggregate()) for (var name : List.of("createdAt", "updatedAt"))
-            read.addMethod(abstractMethod(getter(name, name.equals("version") ? TypeName.LONG : ClassName.get(java.time.Instant.class), false)));
+            read.addMethod(abstractMethod(getter(name, ClassName.get(java.time.Instant.class), false)));
         for (var method : model.methods()) if (method.accessModifier().equals("public"))
             (method.mode() == MethodNode.Mode.READ ? read : write).addMethod(abstractMethod(behavior.signature(method, project)));
         var access = TypeSpec.interfaceBuilder(owner.simpleName() + "Access").addModifiers(Modifier.PUBLIC)
@@ -48,9 +48,8 @@ public final class DomainAccessGenerator {
                 var setter = setter(field, project).addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
                         .addStatement("this.guard.run()");
                 if (!field.type().isOptional() && !type(field, project).isPrimitive())
-                    setter.beginControlFlow("if ($N == null)", field.name())
-                            .addStatement("throw new $T($S)", org.vernac.runtime.DomainValidationException.class, owner.simpleName() + "." + field.name() + " must not be null")
-                            .endControlFlow();
+                    setter.addStatement("$T.requireNonNull($N, $S)", org.vernac.runtime.DomainChecks.class,
+                            field.name(), owner.simpleName() + "." + field.name());
                 setter.beginControlFlow("if (!($L))", sameValue(field, owner, project))
                         .addStatement("$L.this.$N = $N", owner.simpleName(), field.name(), field.name());
                 setter.addStatement("$T.changed($L.this)", BehaviorModification.class, owner.simpleName());
@@ -59,7 +58,7 @@ public final class DomainAccessGenerator {
             }
         }
         if (model.aggregate()) for (String name : List.of("createdAt", "updatedAt"))
-            forwardGetter(read, getter(name, name.equals("version") ? TypeName.LONG : ClassName.get(java.time.Instant.class), false), owner, name);
+            forwardGetter(read, getter(name, ClassName.get(java.time.Instant.class), false), owner, name);
         for (var method : model.methods()) {
             if (!method.accessModifier().equals("public")) continue;
             var forward = behavior.signature(method, project).addModifiers(Modifier.PUBLIC).addAnnotation(Override.class);
@@ -119,9 +118,9 @@ public final class DomainAccessGenerator {
         return wrapper.build();
     }
     private static String arguments(MethodNode method) { return String.join(", ", method.parameters().stream().map(FieldNode::name).toList()); }
-    private static ClassName view(ClassName owner, String suffix) { return ClassName.get(owner.packageName(), owner.simpleName() + suffix); }
+    private static ClassName view(ClassName owner, String suffix) { return ClassName.get(owner.packageName() + ".access", owner.simpleName() + suffix); }
     private static TypeName type(FieldNode field, ResolvedProject project) { return ResolvedJavaTypes.javaType(project.typeOf(field.type())); }
-    private static JavaFile file(ClassName owner, TypeSpec type) { return JavaFile.builder(owner.packageName(), type).indent("    ").skipJavaLangImports(true).build(); }
+    private static JavaFile file(ClassName owner, TypeSpec type) { return JavaFile.builder(owner.packageName() + ".access", type).indent("    ").skipJavaLangImports(true).build(); }
     private static MethodSpec abstractMethod(MethodSpec.Builder method) { return method.addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT).build(); }
     private static MethodSpec.Builder getter(String name, TypeName type, boolean optional) {
         return MethodSpec.methodBuilder(name).returns(optional ? ParameterizedTypeName.get(ClassName.get(Optional.class), type) : type);

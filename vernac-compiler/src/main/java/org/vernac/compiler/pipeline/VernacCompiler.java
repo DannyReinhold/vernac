@@ -9,6 +9,7 @@ import org.vernac.compiler.analyzer.SemanticAnalyzer;
 import org.vernac.compiler.analyzer.SemanticValidationException;
 import org.vernac.compiler.ast.*;
 import org.vernac.compiler.generator.*;
+import org.vernac.compiler.persistence.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -27,7 +28,6 @@ public class VernacCompiler {
     private final AggregateGenerator aggregateGenerator = new AggregateGenerator();
     private final EntityGenerator entityGenerator = new EntityGenerator();
     private final DomainCollectionGenerator domainCollectionGenerator = new DomainCollectionGenerator(); // <-- NEU
-    private final RepositoryGenerator repositoryGenerator = new RepositoryGenerator();
     private final PortGenerator portGenerator = new PortGenerator();
     private final UseCaseGenerator useCaseGenerator = new UseCaseGenerator();
     private final DomainServiceGenerator domainServiceGenerator = new DomainServiceGenerator();
@@ -52,8 +52,12 @@ public class VernacCompiler {
         return new ProjectTypeResolver().resolve(readProject(sourceRoot));
     }
 
-    /** Compiles the reviewed project slice: IDs, value objects, enums and their collections. */
+    /** Compiles reviewed domain types, collections and explicit JDBC repositories. */
     public VernacProjectCompilationResult compileProject(Path sourceRoot) throws IOException {
+        return compileProject(sourceRoot, SchemaModel.empty(), Map.of());
+    }
+    public VernacProjectCompilationResult compileProject(Path sourceRoot, SchemaModel previous,
+            Map<String,Map<String,String>> enumCodes) throws IOException {
         ResolvedProject project = analyzeProject(sourceRoot);
         if (!project.deferredTypes().isEmpty()) {
             throw new SemanticValidationException(project.deferredTypes().stream().map(symbol ->
@@ -78,6 +82,10 @@ public class VernacCompiler {
                 });
             }
         }
+        SchemaBuilder persistence = new SchemaBuilder(project, previous, enumCodes);
+        SchemaModel schema = persistence.build();
+        for (StoragePlan plan : persistence.plans()) files.addAll(new JdbcRepositoryGenerator(project,schema).generate(plan));
+        GeneratedTypeNames.check(files);
         return new VernacProjectCompilationResult(files, project.diagnostics());
     }
 
@@ -171,10 +179,10 @@ public class VernacCompiler {
                 generatedFiles.addAll(generateMutable(MutableDomain.of(entity).orElseThrow(), unit, resolved));
 
             } else if (definition instanceof RepositoryNode repo) {
-                AggregateNode targetAgg = aggregates.get(repo.aggregateName());
-                generatedFiles.addAll(repositoryGenerator.generate(
-                        repo, targetAgg, entities, valueObjects, packageName, imports
-                ));
+                SchemaBuilder persistence = new SchemaBuilder(resolved, SchemaModel.empty());
+                SchemaModel schema = persistence.build();
+                for (StoragePlan plan : persistence.plans()) if (plan.repository().name().equals(repo.name()))
+                    generatedFiles.addAll(new JdbcRepositoryGenerator(resolved,schema).generate(plan));
             } else if (definition instanceof PortNode port) {
                 generatedFiles.addAll(portGenerator.generate(port, packageName, imports));
             } else if (definition instanceof UseCaseNode useCase) {
@@ -186,6 +194,7 @@ public class VernacCompiler {
             }
         }
 
+        GeneratedTypeNames.check(generatedFiles);
         return new VernacCompilationResult(packageName, generatedFiles);
     }
 

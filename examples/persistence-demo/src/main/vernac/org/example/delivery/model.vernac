@@ -1,0 +1,42 @@
+namespace org.example.delivery;
+
+id TourId;
+id StopId;
+id ParcelId;
+value Title(String) validates { require(!self.string().isBlank(), "Title must not be blank"); };
+value Money(BigDecimal amount, Currency currency);
+value Notes(String? description, String? comment);
+value Tag(String) list Tags;
+value Address(String street, String city);
+value TrackingNumber(String);
+value Weight(BigDecimal);
+value TourStatus = PLANNED | COMPLETED;
+
+entity Parcel[ParcelId](TrackingNumber, mut Weight) set Parcels;
+entity Stop[StopId](mut Address, Parcels) behavior {
+    modify void changeAddress(Address address) { self.address(address); }
+} list Stops;
+
+aggregate Tour[TourId](
+    Title title,
+    Money price,
+    mut Notes? notes,
+    Tags tags,
+    TourStatus status,
+    mut Stops allStops,
+    mut Stops niceStops,
+    mut Stop? preferredStop
+) behavior {
+    modify void recordNotes(Notes notes) { self.notes(notes); }
+    modify void prefer(StopId id) { self.preferredStop(self.allStops().by(id).orElseThrow()); }
+    modify void changeAddress(StopId id, Address address) { self.allStops().by(id).orElseThrow().changeAddress(address); }
+    modify void reverseStops() { self.allStops(Stops.of(self.allStops().asList().reversed())); }
+    modify void clearRecommendations() { self.niceStops(Stops.empty()); self.preferredStop(null); }
+    modify void removeStop(StopId id) {
+        self.allStops(self.allStops().minusAllId(id));
+        self.niceStops(self.niceStops().minusAllId(id));
+        if (self.preferredStop().map(stop -> stop.id().equals(id)).orElse(false)) self.preferredStop(null);
+    }
+    modify void addStop(Stop stop) { self.allStops(self.allStops().plus(stop)); }
+};
+repository TourRepository for Tour { }

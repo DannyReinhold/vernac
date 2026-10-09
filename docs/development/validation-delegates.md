@@ -26,8 +26,9 @@ has not been redesigned. Collection behavior is also unchanged.
 
 ## Generated structure
 
-For the example, the compiler generates `Name`, `NameRead`, and
-`__VernacValidation_Name` in `example.domain`. The latter contains
+For the example, the compiler generates `Name` and `__VernacValidation_Name` in
+`example.domain`, and the public `NameRead` interface in `example.domain.access`.
+The validation companion contains
 `static void validate(NameRead self)`. `Name` delegates from its private `validate()`
 method with a new private inner `__ReadView` instance. The value object itself does not
 implement `NameRead`. Unvalidated value objects do not need this additional interface.
@@ -80,3 +81,13 @@ Generated read types can navigate back to the corresponding Vernac definition.
 Tests compile generated Java to check read-view isolation, Optional getters, public
 behavior delegation, imports and invalid member access. Existing lifecycle tests cover
 reconstitution, nested modifications, validation failures and retained mutations.
+
+## Readability and editor context
+
+The failure branch removes one clearly outermost `!`: `require(!self.string().isBlank(), ...)`
+generates `if (self.string().isBlank())`. Other conditions retain their structure inside
+`if (!(condition))`. There are no De Morgan rewrites or comparison inversions.
+
+The injected editor fragment uses the original expression in `if (condition) {}`.
+It deliberately does not inject the generated failure negation, so inspections do not
+report a double negation which the user did not write.

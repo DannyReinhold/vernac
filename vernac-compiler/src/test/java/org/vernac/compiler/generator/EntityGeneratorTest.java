@@ -72,7 +72,7 @@ class EntityGeneratorTest {
                 .contains("public TaskStatus status()")
                 .contains("return Objects.equals(this.id, that.id);")
                 .contains("return Objects.hash(this.id);")
-                .contains("return \"Task[id=\" + this.id + \"]\";");
+                .contains("return \"Task[id=\" + this.id + \", title=\" + this.title + \", status=\" + this.status + \"]\";");
 
         assertThat(normalizedCode)
                 .contains("public static Task create(TaskTitle title, TaskStatus status)")
@@ -155,7 +155,7 @@ class EntityGeneratorTest {
             """);
         String owner = result.generatedFiles().stream().filter(f -> f.typeSpec().name().equals("Counter")).findFirst().orElseThrow().toString();
         assertThat(owner).contains("private class __ReadView", "private final class __AccessView", "implements CounterRead", "implements CounterAccess");
-        assertThat(owner.substring(0, owner.indexOf("{"))).doesNotContain("CounterRead", "CounterAccess");
+        assertThat(owner.substring(owner.indexOf("public class Counter"), owner.indexOf("{", owner.indexOf("public class Counter")))).doesNotContain("CounterRead", "CounterAccess");
         assertThat(result.generatedFiles()).anyMatch(f -> f.typeSpec().name().equals("CounterWrite"));
         var compiled = org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(result);
         assertThat(compiled.success()).as(compiled.diagnostics().toString()).isTrue();

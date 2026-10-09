@@ -112,16 +112,14 @@ public class ValueObjectGenerator {
             TypeName type = ResolvedJavaTypes.javaType(project.typeOf(field.type()));
             ParameterSpec.Builder param = ParameterSpec.builder(
                     field.type().isOptional() ? type.annotated(NULLABLE_ANNOTATION) : type, field.name());
-            if (!field.type().isOptional() && !type.isPrimitive()) {
-                constructor.beginControlFlow("if ($N == null)", field.name())
-                        .addStatement("throw new $T($S)", VALIDATION_EXCEPTION,
-                                node.name() + "." + field.name() + " must not be null")
-                        .endControlFlow();
-            }
             constructor.addParameter(param.build());
         }
         for (FieldNode field : node.fields()) {
-            constructor.addStatement("this.$N = $N", field.name(), field.name());
+            TypeName type = ResolvedJavaTypes.javaType(project.typeOf(field.type()));
+            if (!field.type().isOptional() && !type.isPrimitive())
+                constructor.addStatement("this.$N = $T.requireNonNull($N, $S)", field.name(),
+                        org.vernac.runtime.DomainChecks.class, field.name(), node.name() + "." + field.name());
+            else constructor.addStatement("this.$N = $N", field.name(), field.name());
         }
         if (!node.validations().isEmpty()) constructor.addStatement("validate()");
         return constructor.build();

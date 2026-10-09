@@ -25,11 +25,11 @@ public final class ValueReadGenerator {
     public JavaFile generate(ValueObjectNode value, ClassName owner, ResolvedProject project) {
         var read = TypeSpec.interfaceBuilder(owner.simpleName() + "Read").addModifiers(Modifier.PUBLIC)
                 .addAnnotation(NullMarked.class).addMethods(signatures(value, project));
-        return JavaFile.builder(owner.packageName(), read.build()).indent("    ").skipJavaLangImports(true).build();
+        return JavaFile.builder(owner.packageName() + ".access", read.build()).indent("    ").skipJavaLangImports(true).build();
     }
     public void addView(TypeSpec.Builder ownerType, ValueObjectNode value, ClassName owner, ResolvedProject project) {
         var view = TypeSpec.classBuilder("__ReadView").addModifiers(Modifier.PRIVATE, Modifier.FINAL)
-                .addSuperinterface(ClassName.get(owner.packageName(), owner.simpleName() + "Read"));
+                .addSuperinterface(ClassName.get(owner.packageName() + ".access", owner.simpleName() + "Read"));
         for (var method : signatures(value, project)) {
             var forward = MethodSpec.methodBuilder(method.name()).returns(method.returnType())
                     .addModifiers(Modifier.PUBLIC).addParameters(method.parameters());

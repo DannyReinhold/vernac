@@ -120,6 +120,10 @@ public final class VernacProjectLoader {
     private void addSymbol(VernacSourceFile source, String name, TypeSymbol.Kind kind,
                            SourceLocation location, List<TypeSymbol> symbols,
                            List<CompilerDiagnostic> diagnostics) {
+        if (name.startsWith("__Vernac")) {
+            diagnostics.add(CompilerDiagnostic.error(location, "Type prefix '__Vernac' is reserved for generated implementation types."));
+            return;
+        }
         try {
             var identity = new TypeIdentity(source.unit().namespace(), name);
             symbols.add(new TypeSymbol(identity, kind, source.path(), location));

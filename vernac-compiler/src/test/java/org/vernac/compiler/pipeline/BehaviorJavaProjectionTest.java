@@ -40,7 +40,9 @@ class BehaviorJavaProjectionTest {
         assertEquals("GrößeValidation", block.owner());
         assertEquals("!self.string().isBlank()", text.substring(block.fragments().getFirst().start(), block.fragments().getFirst().end()));
         String code = java(text, block);
-        assertTrue(code.contains("model.domain.GrößeRead self"));
+        assertTrue(code.contains("model.domain.access.GrößeRead self"));
+        assertTrue(code.contains("if (!self.string().isBlank()) {}"));
+        assertFalse(code.contains("if (!(!"));
         Map<String,String> sources = new LinkedHashMap<>();
         new VernacCompiler().compileSource(text).generatedFiles().forEach(f -> sources.put(f.packageName()+"."+f.typeSpec().name(), f.toString()));
         sources.put("model.domain.__VernacEditorValidation_Größe", code);
@@ -145,8 +147,8 @@ class BehaviorJavaProjectionTest {
             """;
         var block = project(source).getFirst();
         String code = java(source, block);
-        assertTrue(code.contains("current(model.domain.TaskRead self)"));
-        assertTrue(code.contains("increase(model.domain.TaskAccess self)"));
+        assertTrue(code.contains("current(model.domain.access.TaskRead self)"));
+        assertTrue(code.contains("increase(model.domain.access.TaskAccess self)"));
         Map<String, String> sources = new LinkedHashMap<>();
         new VernacCompiler().compileSource(source).generatedFiles().forEach(f -> sources.put(f.packageName() + "." + f.typeSpec().name(), f.toString()));
         sources.put("model.domain.__VernacEditorBehavior_Task", code);

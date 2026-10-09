@@ -199,3 +199,28 @@ The dedicated persistence step will cover schema generation, enum/ACL mapping, m
 transaction boundaries and complete aggregate optimistic locking. Events and aggregate
 ownership remain separate topics. The candidate-state design remains postponed; see
 [the planning record](../development/entity-behavior-and-change-contexts.md).
+
+## Generated API layout and readability
+
+Public `<Type>Read`, `<Type>Write`, and `<Type>Access` interfaces live in
+`<namespace>.domain.access`. Domain classes stay in `<namespace>.domain`. This allows
+user-defined domain types such as `StopAccess` without colliding with access interfaces.
+External implementations must import the technical receiver from the `.domain.access`
+package. Generated behavior and validation companions remain package-private alongside
+the domain class. Type names starting with `__Vernac` are reserved, including explicit
+collection names. Generated fully qualified output names are checked for collisions
+before any files are passed to the writer. No additional namespace is reserved.
+
+The private constructor always validates; it has no validation-toggle parameter.
+Required domain references use `DomainChecks.requireNonNull(value, "Type.field")`.
+The helper returns the non-null reference or throws `DomainValidationException`.
+Optional values remain nullable and are not passed through this helper.
+
+`toString()` includes the id and all domain fields in declaration order. Aggregates also
+include creation and update timestamps. Internal implementation views, events buffers,
+and persistence state are omitted. This is a debugging representation, not a serialization
+format. Identity-only equality and hashing remain unchanged.
+
+Navigation to a technical access **type** stays in Java. Navigation to domain types and
+source-backed getters/behavior methods, including `self.field()` in injected Java,
+continues to target Vernac. Private implementation companions are not redirected.

@@ -1,7 +1,7 @@
 namespace org.example.tasks;
 
 value ProductName(String) validates {
-    require(!string.isBlank(), "Product name must not be blank");
+    require(!self.string().isBlank(), "Product name must not be blank");
 } behavior {
     java imports {
         java.util.Locale;

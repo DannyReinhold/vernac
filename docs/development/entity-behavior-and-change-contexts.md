@@ -91,7 +91,7 @@ ordinary Java code, not Spring beans.
 ## 3. Generated contracts and forwarding classes
 
 For `Interval`, the compiler emits `IntervalRead`, `IntervalWrite`, and `IntervalAccess`
-in `<namespace>.domain`:
+in `<namespace>.domain.access`:
 
 ```java
 public interface IntervalRead {

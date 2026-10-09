@@ -249,3 +249,9 @@ checks. A failed rule throws `DomainValidationException`; other exceptions propa
 
 The owner's behavior Java imports are available to validation expressions. See
 [validation delegates](../development/validation-delegates.md) for examples and limits.
+
+Validated value objects place `<Type>Read` in `<namespace>.domain.access`.
+The domain object and its package-private validation companion stay in `<namespace>.domain`.
+Required reference fields use `DomainChecks.requireNonNull(value, "Type.field")`;
+its exception remains `DomainValidationException`. Primitive and optional fields are
+assigned directly. Generated type names beginning with `__Vernac` are reserved.
