@@ -1,6 +1,8 @@
 package org.example.delivery.demo;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Optional;
 import java.util.Currency;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,12 +15,14 @@ public class DeliveryDemoUseCases {
     private final TourRepository tours;
     public DeliveryDemoUseCases(TourRepository tours) { this.tours=tours; }
 
-    public TourId create() {
+    public TourId create() { return create(Title.of("Delivery demo"),TourStatus.PLANNED); }
+
+    public TourId create(Title title,TourStatus status) {
         Parcel shared=Parcel.create(TrackingNumber.of("SHARED"),Weight.of(new BigDecimal("1.250")));
         Stop first=Stop.create(Address.of("First Street","Bremen"),Parcels.of(shared));
         Stop second=Stop.create(Address.of("Second Street","Bremen"),Parcels.of(shared));
-        Tour tour=Tour.create(Title.of("Delivery demo"),Money.of(new BigDecimal("12.30"),Currency.getInstance("EUR")),
-                Tags.of(Tag.of("fragile"),Tag.of("fragile")),TourStatus.PLANNED,
+        Tour tour=Tour.create(title,Money.of(new BigDecimal("12.30"),Currency.getInstance("EUR")),
+                Tags.of(Tag.of("fragile"),Tag.of("fragile")),status,
                 Stops.of(first,first,second),Stops.of(first));
         tour.prefer(first.id());
         tours.save(tour);
@@ -26,6 +30,15 @@ public class DeliveryDemoUseCases {
     }
     @Transactional(readOnly = true)
     public Tour load(TourId id) { return tours.byId(id); }
+    @Transactional(readOnly = true)
+    public Tours withStatus(TourStatus status) { return tours.withStatus(status); }
+    @Transactional(readOnly = true)
+    public Tours otherStatus(TourStatus status) { return tours.otherStatus(status); }
+    @Transactional(readOnly = true)
+    public Tours createdSince(Instant cutoff) { return tours.createdSince(cutoff); }
+    @Transactional(readOnly = true)
+    public Optional<Tour> titled(Title title) { return tours.titled(title); }
+
     public void changeAndReorder(TourId id) {
         Tour tour=tours.byId(id);
         tour.changeAddress(tour.allStops().get(0).id(),Address.of("Changed Street","Bremen"));

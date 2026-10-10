@@ -26,13 +26,16 @@ The runner checks:
 
 1. Creating and saving a Tour with repeated/shared Stops and a shared Parcel.
 2. Loading a complete graph with identical Java instances for repeated identities.
-3. BigDecimal scale preservation, entity updates and list reordering.
-4. Rejection of stale optimistic versions and conflicting Java entity instances.
-5. Removing individual links without deleting shared state; removing the final links
+3. Declarative equality/inequality searches, title/timestamp ordering, Optional results
+   and complete graphs returned by searches.
+4. BigDecimal scale preservation, entity updates and list reordering.
+5. Rejection of stale optimistic versions and conflicting Java entity instances.
+6. Removing individual links without deleting shared state; removing the final links
    deletes unreachable entities and subentities.
 
 It leaves a Tour in the database for the migration exercise. Each run creates its own
-Tour; it does not delete earlier demonstration data.
+Tour; it does not delete earlier demonstration data. Two additional query fixtures
+are removed in `finally` blocks. The retained Tour has a unique per-run title.
 
 ## Database integration tests
 
@@ -102,3 +105,38 @@ and requires permission to create temporary databases, not permission on product
 
 See [database tutorial](../../docs/tutorials/database-persistence.md) and
 [persistence contract](../../docs/contracts/postgresql-persistence.md).
+
+## Declarative search walkthrough
+
+The aggregate explicitly declares `list Tours`. Its repository now contains:
+
+```vernac
+find Tours withStatus(TourStatus status) where status = :status order by title;
+find Tours otherStatus(TourStatus status) where status != :status order by title;
+find Tours createdSince(Instant cutoff) where createdAt >= :cutoff order by createdAt desc;
+find Tour? titled(Title title) where title = :title;
+```
+
+`DeliveryDemoUseCases` exposes each query through a read-only transaction. The
+runner demonstrates them before removing any children, so search results can also
+verify repeated list entries and the direct reference share the same Stop instance.
+
+Watch for `Query withStatus(PLANNED)`, `Query otherStatus(PLANNED)`,
+`Query createdSince(...)` and `Optional queries` in the log. The A and C tours are
+planned; B is completed. Status searches cover the whole database. Only the runner's
+assertions and displayed subsets filter to the three IDs created by this run, so
+previous demonstration data does not invalidate the checks. The repository itself
+performs the status predicate and the ordering in PostgreSQL.
+
+The timestamp query includes the exact cutoff (`>=`). Tied timestamps have no
+implicit tie-breaker; the runner checks descending order without demanding a
+particular order for ties. The title query illustrates both one match and no match.
+Multiple matches still raise `NonUniqueQueryResultException`, as covered by the
+repository integration tests; titles do not become unique database columns.
+
+No migration is needed for these search declarations or the root result collection.
+The prepared V2 model includes the same methods, so replacing the model for the
+Flyway exercise retains the runner's Java API.
+
+See [the query tutorial](../../docs/tutorials/repository-queries.md) for the supported
+operators, scalar semantics and current boundaries.

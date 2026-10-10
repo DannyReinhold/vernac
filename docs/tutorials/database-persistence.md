@@ -136,3 +136,30 @@ lock conflict before allowing the winner to commit. See the example README for t
 focused `PersistenceConcurrencyTest` command.
 
 Next: [evolve the schema with Flyway](flyway-workflow.md).
+
+## 8. Observe declarative searches
+
+The runner now demonstrates repository searches while the complete graph still
+exists. It creates three uniquely named tours: A and C are planned, B is completed.
+Look for these log entries:
+
+- `Query withStatus(PLANNED)`: A and C, sorted by title.
+- `Query otherStatus(PLANNED)`: B, demonstrating `!=`.
+- `Query createdSince(...)`: the three tours, newest first, with the cutoff included.
+- `Optional queries`: an existing title is found and a missing title returns empty.
+
+Queries execute inside read-only usecase transactions. Results contain complete
+aggregate graphs, not projections. The runner checks shared child identity in a
+search result just as it does for `byId`.
+
+These repository searches include all matching rows in the database. The runner
+filters only its displayed/asserted subset to this run's IDs; it never assumes an
+empty database. Two helper tours are deleted afterward, while A remains for the
+migration exercise. Searches do not change the schema or introduce uniqueness.
+
+Try reversing `order by title` to `order by title desc`, and update the runner's
+expected A/C order accordingly. This is a source-only experiment: no Flyway migration
+is required. Restore the example afterward if you want to retain its standard output.
+
+Continue with [the declarative query tutorial](repository-queries.md) for exact
+equality, range predicates, absence and the result collection contract.

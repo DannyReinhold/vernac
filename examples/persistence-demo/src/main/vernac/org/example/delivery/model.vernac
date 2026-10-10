@@ -38,5 +38,10 @@ aggregate Tour[TourId](
         if (self.preferredStop().map(stop -> stop.id().equals(id)).orElse(false)) self.preferredStop(null);
     }
     modify void addStop(Stop stop) { self.allStops(self.allStops().plus(stop)); }
-};
-repository TourRepository for Tour { }
+} list Tours;
+repository TourRepository for Tour {
+    find Tours withStatus(TourStatus status) where status = :status order by title;
+    find Tours otherStatus(TourStatus status) where status != :status order by title;
+    find Tours createdSince(Instant cutoff) where createdAt >= :cutoff order by createdAt desc;
+    find Tour? titled(Title title) where title = :title;
+}
