@@ -96,7 +96,7 @@ From the Vernac repository root, use these IntelliJ Maven arguments:
 
 Use the disposable PostgreSQL test server and the existing environment variables
 `VERNAC_PG_TEST_URL`, `VERNAC_PG_TEST_USER`, `VERNAC_PG_TEST_PASSWORD`.
-Without the URL the two database test methods are skipped. The generated repository
+Without the URL the database test methods are skipped. The generated repository
 test creates and drops its own uniquely named database; the scalar test uses temporary
 tables. Use the disposable test server, not an application database.
 
@@ -105,3 +105,10 @@ cardinality, transactions and concurrent updates/deletes between root selection 
 relation loading. The scalar matrix tests equality and inequality against Java's
 results, plus range predicates for representative ordered types, in pgjdbc text and
 binary transport configurations.
+
+## Literal text versus patterns
+
+See [the runnable text-search walkthrough](database-persistence.md#9-try-literal-text-and-like-patterns)
+for all four operations, including escaped LIKE patterns. For the precise rules
+on empty strings, absent values and Unicode, see the
+[text-search contract](../contracts/repository-queries.md#text-searches).

@@ -43,6 +43,11 @@ aggregate Tour[TourId](
     modify void addStop(Stop stop) { self.allStops(self.allStops().plus(stop)); }
 } list Tours;
 repository TourRepository for Tour {
+    find Tours titledLike(String pattern) where title like :pattern order by title;
+    find Tours titleContains(String text) where title contains :text order by title;
+    find Tours titleStartsWith(String text) where title starts with :text order by title;
+    find Tours titleEndsWith(String text) where title ends with :text order by title;
+
     find Tours withStatus(TourStatus status) where status = :status order by title;
     find Tours otherStatus(TourStatus status) where status != :status order by title;
     find Tours createdSince(Instant cutoff) where createdAt >= :cutoff order by createdAt desc;

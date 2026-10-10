@@ -39,6 +39,15 @@ public class DeliveryDemoUseCases {
     @Transactional(readOnly = true)
     public Optional<Tour> titled(Title title) { return tours.titled(title); }
 
+    @Transactional(readOnly = true)
+    public Tours titledLike(String pattern) { return tours.titledLike(pattern); }
+    @Transactional(readOnly = true)
+    public Tours titleContains(String text) { return tours.titleContains(text); }
+    @Transactional(readOnly = true)
+    public Tours titleStartsWith(String text) { return tours.titleStartsWith(text); }
+    @Transactional(readOnly = true)
+    public Tours titleEndsWith(String text) { return tours.titleEndsWith(text); }
+
     public void changeAndReorder(TourId id) {
         Tour tour=tours.byId(id);
         tour.changeAddress(tour.allStops().get(0).id(),Address.of("Changed Street","Bremen"));

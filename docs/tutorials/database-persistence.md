@@ -163,3 +163,27 @@ is required. Restore the example afterward if you want to retain its standard ou
 
 Continue with [the declarative query tutorial](repository-queries.md) for exact
 equality, range predicates, absence and the result collection contract.
+
+## 9. Try literal text and LIKE patterns
+
+The runner also creates a temporary title ending in `50%_` followed by a backslash.
+Look for `Text queries passed`. It verifies all four operations and deletes that
+extra tour afterward; the original Tour remains available for the migration tutorial.
+
+```vernac
+find Tours titledLike(String pattern) where title like :pattern order by title;
+find Tours titleContains(String text) where title contains :text order by title;
+find Tours titleStartsWith(String text) where title starts with :text order by title;
+find Tours titleEndsWith(String text) where title ends with :text order by title;
+```
+
+Use String parameters for fragments and patterns, rather than constructing a Title.
+Only `like` interprets `%` and `_` as wildcards. The other three operators search
+literally. The runner contrasts `titleContains(runName + "%")` (no match) with
+`titledLike(runName + "%")` (all four tours). A pattern ending in ` _` finds only
+A, B and C, because `_` matches exactly one character.
+
+Inspect the escaped-pattern call in `PersistenceDemoRunner`: Java string literals
+escape backslashes once for Java and again where required by the LIKE pattern.
+Searches are case-sensitive and do not normalize Unicode. No schema migration is
+needed. The migration-demo model contains the same query declarations.

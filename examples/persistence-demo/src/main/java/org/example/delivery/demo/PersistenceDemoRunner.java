@@ -87,8 +87,36 @@ public class PersistenceDemoRunner implements ApplicationRunner {
                 require(usecases.titled(Title.of(runName + " missing")).isEmpty(),
                         "Optional title query returns empty for no match");
                 log.info("Optional queries: existing title found; missing title returned Optional.empty()");
+                demonstrateTextQueries(runName,initial.id(),completed,planned);
             } finally { usecases.delete(planned); }
         } finally { usecases.delete(completed); }
+    }
+    private void demonstrateTextQueries(String runName,TourId first,TourId second,TourId third) {
+        String suffix=" 50%_\\";
+        TourId special=usecases.create(Title.of(runName+suffix),TourStatus.PLANNED);
+        try {
+            Set<TourId> expected=Set.of(first,second,third,special);
+            require(usecases.titleContains(runName).stream().map(Tour::id)
+                            .collect(java.util.stream.Collectors.toSet()).equals(expected),
+                    "contains finds the literal run name");
+            require(usecases.titleStartsWith(runName).stream().map(Tour::id)
+                            .collect(java.util.stream.Collectors.toSet()).equals(expected),
+                    "starts with finds the run's four tours");
+            require(usecases.titleEndsWith(suffix).stream().anyMatch(tour -> tour.id().equals(special)),
+                    "ends with treats percent, underscore and backslash literally");
+            require(usecases.titleContains(runName+"%").isEmpty(),
+                    "contains does not interpret percent as a wildcard");
+            require(usecases.titledLike(runName+" _").stream().map(Tour::id).toList()
+                            .equals(List.of(first,second,third)),
+                    "LIKE underscore matches exactly one character: A, B and C");
+            require(usecases.titledLike(runName+"%").stream().map(Tour::id)
+                            .collect(java.util.stream.Collectors.toSet()).equals(expected),
+                    "LIKE percent matches arbitrary suffixes");
+            require(usecases.titledLike(runName+" 50\\%\\_\\\\").stream().map(Tour::id).toList()
+                            .equals(List.of(special)),
+                    "LIKE escapes match literal percent, underscore and backslash");
+            log.info("Text queries passed: contains, starts with, ends with and LIKE (including escaped patterns)");
+        } finally { usecases.delete(special); }
     }
     private static void require(boolean condition,String message) {
         if(!condition) throw new IllegalStateException(message);
