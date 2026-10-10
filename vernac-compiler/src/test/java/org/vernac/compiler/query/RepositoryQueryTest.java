@@ -76,6 +76,16 @@ class RepositoryQueryTest {
         rejects("find Tours matching(String pattern) where price contains :pattern;", "String-backed");
         rejects("find Tours matching(String text) where title = :text;", "same Vernac type");
     }
+    @Test void booleanTreePreservesPrecedenceAndChecksEveryBranch() throws Exception {
+        source(MODEL,"find Tours matching(Title a, Title b) where title = :a or not (reference = :b and not title = :a) order by title;");
+        var query = new VernacCompiler().analyzeProject(root).queries().values().iterator().next();
+        var tree = (org.vernac.compiler.ast.RepositoryMethodNode.Junction) query.method().condition();
+        assertEquals("or", tree.operator());
+        assertEquals(2, tree.children().size());
+        assertEquals(3, query.predicates().size());
+        rejects("find Tours bad(Title a) where title = :a or not (missing = :a);", "Unknown aggregate query field");
+        rejects("find Tours bad(Title a, OtherTitle b) where title = :a or title = :b;", "same Vernac type");
+    }
     @Test void validatesListAndSetOrdering() throws Exception {
         source(MODEL,"find Tours all();");
         assertTrue(new VernacCompiler().analyzeProject(root).diagnostics().stream().anyMatch(d->d.message().contains("order is unspecified")));

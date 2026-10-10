@@ -109,8 +109,8 @@ public final class JdbcRepositoryGenerator {
             }
             List<CodeBlock> orders=new ArrayList<>();
             for(var o:query.orders()) orders.add(CodeBlock.of("$T.order($S, $L, $L)",queryType,o.field().scalar(),strings(queryColumns(plan,o.field())),o.descending()));
-            impl.addStatement("var __vernacResults = store.find($T.join($S, $L), $T.join($S, $L), __vernacQuery.parameters(), $L, $S)",
-                    String.class," AND ",list(clauses),String.class,", ",list(orders),query.singleton(),plan.repositoryNamespace()+"."+plan.repository().name()+"."+method.name());
+            impl.addStatement("var __vernacResults = store.find($L, $T.join($S, $L), __vernacQuery.parameters(), $L, $S)",
+                    queryCondition(method.condition(), method.predicates(), clauses),String.class,", ",list(orders),query.singleton(),plan.repositoryNamespace()+"."+plan.repository().name()+"."+method.name());
             if(query.singleton()) impl.addStatement("return __vernacResults.stream().findFirst()");
             else impl.addStatement("return $T.of(__vernacResults)",result);
             contract.addMethod(api.build()); adapter.addMethod(impl.build());
@@ -190,4 +190,16 @@ public final class JdbcRepositoryGenerator {
     private static CodeBlock strings(List<String> values) { return list(values.stream().map(s->CodeBlock.of("$S",SqlNames.physical(s))).toList()); }
     private static CodeBlock list(List<CodeBlock> values) { if(values.isEmpty()) return CodeBlock.of("$T.of()",List.class);
         return CodeBlock.builder().add("$T.of(\n",List.class).indent().add(CodeBlock.join(values,",\n")).unindent().add("\n)").build(); }
+    private CodeBlock queryCondition(RepositoryMethodNode.Expression expression,
+            List<RepositoryMethodNode.Predicate> leaves, List<CodeBlock> clauses) {
+        if (expression instanceof RepositoryMethodNode.Predicate leaf) return clauses.get(leaves.indexOf(leaf));
+        if (expression instanceof RepositoryMethodNode.Negation not)
+            return CodeBlock.of("($S + $L + $S)", "NOT (", queryCondition(not.child(), leaves, clauses), ")");
+        var group = (RepositoryMethodNode.Junction) expression;
+        if (group.children().isEmpty()) return CodeBlock.of("$S", "");
+        if (group.children().size() == 1) return queryCondition(group.children().getFirst(), leaves, clauses);
+        var parts = group.children().stream().map(child -> queryCondition(child, leaves, clauses)).toList();
+        return CodeBlock.of("($S + $T.join($S, $L) + $S)", "(", String.class,
+                group.operator().equals("and") ? " AND " : " OR ", list(parts), ")");
+    }
 }

@@ -5,7 +5,7 @@
 Implemented in the project compiler, JDBC runtime and LSP. PostgreSQL integration
 tests are opt-in and must be run against the supported PostgreSQL deployment.
 Existing `byId`, `save` and `delete` remain available. Custom JDBC searches,
-pagination, OR expressions and query projections remain deferred.
+pagination and query projections remain deferred.
 
 ## Declaration and result contract
 
@@ -57,7 +57,7 @@ version is not a query field in this increment.
 
 ## Initial expression scope
 
-Explicit `=`, `!=`, `<`, `<=`, `>` and `>=` comparisons combined with `and`; `is absent` / `is present` for
+Explicit `=`, `!=`, `<`, `<=`, `>` and `>=` comparisons combined with `and`, `or`, `not` and parentheses; `is absent` / `is present` for
 optional root fields supported by this increment. Range predicates apply to the types with ordering support in the table below,
 including root `createdAt` and `updatedAt` (Instant).
 No implicit conversion between distinct Vernac types, even if their scalar
@@ -258,3 +258,21 @@ string. Parameters are bound, never inserted as SQL text.
 No schema migration is needed. Leading wildcard searches may scan many rows;
 there is no index or performance guarantee. Case-insensitive searches, regular
 expressions and configurable collations remain deferred.
+
+## Boolean expressions
+
+Predicates can be composed with `and`, `or`, prefix `not` and parentheses.
+Precedence is `not`, then `and`, then `or`. Repeated `not` is allowed.
+All branches are type-checked; SQL evaluation order and short-circuiting are not guaranteed.
+
+```vernac
+find Tours selected(TourStatus status, Title title)
+    where (status = :status or title = :title) and not (reference is absent)
+    order by title;
+```
+
+SQL three-valued logic applies: a comparison against an absent field is unknown,
+including under `not`. Only true matches are returned. To include absent references,
+write `reference is absent or not (reference = :value)`. `not (reference is absent)`
+is equivalent to `reference is present`. Grouping changes neither result cardinality
+nor sorting rules. Values remain bound parameters. No schema migration is needed.

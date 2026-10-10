@@ -245,10 +245,13 @@ packageDeclarationStatement
 
 repositoryFindMethod
     : 'find' returnType=type name=qualifiedNameSegment '(' parameterList? ')'
-      ('where' repositoryPredicate ('and' repositoryPredicate)*)?
+      ('where' repositoryExpression)?
       ('order' 'by' repositoryOrder (',' repositoryOrder)*)? ';'
     ;
 
+repositoryExpression : repositoryAnd ('or' repositoryAnd)* ;
+repositoryAnd : repositoryNot ('and' repositoryNot)* ;
+repositoryNot : 'not' repositoryNot | '(' repositoryExpression ')' | repositoryPredicate ;
 repositoryPredicate
     : field=qualifiedNameSegment ((operator=('=' | '!=' | '<' | '<=' | '>' | '>=' | 'like' | 'contains') | operator=('starts' | 'ends') 'with') ':' parameterName=variableName
         | 'is' presence=('absent' | 'present'))
@@ -419,7 +422,7 @@ qualifiedNameSegment
     | 'private'
     | 'public'
     | 'repository'
-    | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
+    | 'or' | 'not' | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
     | 'require'
     | 'rest'
     | 'return'

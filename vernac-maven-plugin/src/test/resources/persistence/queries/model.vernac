@@ -9,6 +9,12 @@ value Status = ACTIVE | CLOSED;
 entity Stop[StopId](Title) list Stops;
 aggregate Tour[TourId](Title title, Title? reference, Price price, Status status, Stops stops) list Tours;
 repository TourRepository for Tour {
+    find Tours precedence(Title a, Title b, Status status) where title = :a or title = :b and status = :status order by title;
+    find Tours grouped(Title a, Title b, Status status) where (title = :a or title = :b) and status = :status order by title;
+    find Tours negated(Title a) where not not (title = :a) order by title;
+    find Tours notReference(Title r) where not (reference = :r) order by title;
+    find Tours absentOrNot(Title r) where reference is absent or not (reference = :r) order by title;
+    find Tours booleanText(String pattern) where not (title like :pattern or reference is absent) order by title;
     find Tours matching(String pattern) where title like :pattern order by title;
     find Tours containing(String text) where reference contains :text order by title;
     find Tours beginning(String text) where title starts with :text order by title;

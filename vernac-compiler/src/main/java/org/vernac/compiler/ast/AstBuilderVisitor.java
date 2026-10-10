@@ -220,17 +220,19 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 customPackage = Optional.of(member.packageDeclarationStatement().qualifiedName().getText());
             } else if (member.repositoryFindMethod() != null) {
                 VernacParser.RepositoryFindMethodContext findCtx = member.repositoryFindMethod();
+                var predicates = new ArrayList<RepositoryMethodNode.Predicate>();
+                var condition = findCtx.repositoryExpression() == null
+                        ? new RepositoryMethodNode.Junction("and", List.of())
+                        : queryExpression(findCtx.repositoryExpression(), predicates);
                 methods.add(new RepositoryMethodNode(
                         toLocation(findCtx),
                         toTypeNode(findCtx.returnType),
                         findCtx.name.getText(),
                         Optional.ofNullable(findCtx.parameterList()).map(p -> extractParameters(p)).orElse(Collections.emptyList()),
                         false,
-                        findCtx.repositoryPredicate().stream().map(p -> new RepositoryMethodNode.Predicate(
-                                toLocation(p), p.field.getText(), p.operator != null ? p.operator.getText() : p.presence.getText(),
-                                p.parameterName == null ? "" : p.parameterName.getText())).toList(),
+                        predicates,
                         findCtx.repositoryOrder().stream().map(o -> new RepositoryMethodNode.Order(
-                                toLocation(o), o.field.getText(), o.direction != null && o.direction.getText().equals("desc"))).toList()
+                                toLocation(o), o.field.getText(), o.direction != null && o.direction.getText().equals("desc"))).toList(), condition
                 ));
             } else if (member.repositoryCustomMethod() != null) {
                 VernacParser.RepositoryCustomMethodContext customCtx = member.repositoryCustomMethod();
@@ -698,5 +700,22 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 statements,
                 customPackage
         );
+    }
+    private RepositoryMethodNode.Expression queryExpression(VernacParser.RepositoryExpressionContext ctx,
+            List<RepositoryMethodNode.Predicate> leaves) {
+        return new RepositoryMethodNode.Junction("or", ctx.repositoryAnd().stream().map(and ->
+                (RepositoryMethodNode.Expression) new RepositoryMethodNode.Junction("and",
+                        and.repositoryNot().stream().map(n -> queryNot(n, leaves)).toList())).toList());
+    }
+    private RepositoryMethodNode.Expression queryNot(VernacParser.RepositoryNotContext ctx,
+            List<RepositoryMethodNode.Predicate> leaves) {
+        if (ctx.repositoryNot() != null) return new RepositoryMethodNode.Negation(queryNot(ctx.repositoryNot(), leaves));
+        if (ctx.repositoryExpression() != null) return queryExpression(ctx.repositoryExpression(), leaves);
+        var p = ctx.repositoryPredicate();
+        var leaf = new RepositoryMethodNode.Predicate(toLocation(p), p.field.getText(),
+                p.operator != null ? p.operator.getText() : p.presence.getText(),
+                p.parameterName == null ? "" : p.parameterName.getText());
+        leaves.add(leaf);
+        return leaf;
     }
 }

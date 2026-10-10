@@ -24,6 +24,14 @@ public final class QueryProbe {
             var a=Tour.create(Title.of("A"),null,Price.of(new BigDecimal("1.0")),Status.ACTIVE,Stops.of(stop,stop));
             var b=Tour.create(Title.of("B"),Title.of("R"),Price.of(new BigDecimal("1.00")),Status.CLOSED,Stops.of(Stop.reconstitute(stop.id(),Title.of("Other aggregate"))));
             repo.save(a); repo.save(b);
+            assertEquals(2,repo.precedence(Title.of("A"),Title.of("B"),Status.CLOSED).size());
+            assertEquals(b.id(),repo.grouped(Title.of("A"),Title.of("B"),Status.CLOSED).get(0).id());
+            assertEquals(1,repo.grouped(Title.of("A"),Title.of("B"),Status.CLOSED).size());
+            assertEquals(a.id(),repo.negated(Title.of("A")).get(0).id());
+            assertEquals(0,repo.notReference(Title.of("R")).size());
+            assertEquals(1,repo.notReference(Title.of("X")).size());
+            assertEquals(2,repo.absentOrNot(Title.of("X")).size());
+            assertEquals(b.id(),repo.booleanText("A%").get(0).id());
             var all=repo.all();
             assertEquals(2,all.size()); assertEquals("A",all.get(0).title().string());
             assertSame(all.get(0).stops().get(0),all.get(0).stops().get(1));

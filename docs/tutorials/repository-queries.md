@@ -112,3 +112,17 @@ See [the runnable text-search walkthrough](database-persistence.md#9-try-literal
 for all four operations, including escaped LIKE patterns. For the precise rules
 on empty strings, absent values and Unicode, see the
 [text-search contract](../contracts/repository-queries.md#text-searches).
+
+## Combine conditions
+
+```vernac
+find Tours selected(TourStatus status, Title title)
+    where (status = :status or title = :title) and not (reference is absent)
+    order by title;
+```
+
+Without parentheses, `not` binds before `and`, and `and` before `or`.
+Negating a comparison does not include absent values: use an explicit `is absent`
+branch when they should match. All branches receive the same field and parameter
+checks as individual predicates. PostgreSQL tests contrast grouped and ungrouped
+expressions, repeated negation, text patterns and absent values.

@@ -24,6 +24,12 @@ class RepositoryQuerySymbolsTest {
         String params=prefix+"where title = :tit; }";
         assertTrue(symbols(params).complete(repo,at(params,":tit")).stream().anyMatch(c->c.getLabel().equals("title")));
     }
+    @Test void completesInsideNestedNegation() {
+        String text="namespace api; import model.*; repository TourRepository for Tour { find Tours named(Title title) where title = :title or not (tit); }";
+        assertTrue(symbols(text).complete(repo,at(text,"not (tit")).stream().anyMatch(c -> c.getLabel().equals("title")));
+        String parameter=text.replace("not (tit)","not (title = :tit)");
+        assertTrue(symbols(parameter).complete(repo,at(parameter,"not (title = :tit")).stream().anyMatch(c -> c.getLabel().equals("title")));
+    }
     @Test void navigatesFieldAndParameterWithoutConfusingSameNames() {
         String text="namespace api; import model.*; repository TourRepository for Tour { find Tours named(Title title) where title = :title order by title; }";
         var symbols=symbols(text);
