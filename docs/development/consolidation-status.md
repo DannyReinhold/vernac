@@ -43,8 +43,10 @@ not exhaustive concurrency, platform, historical-data or deployment verification
 
 1. Finish the persistence slice: run schema-check and integration tests on PostgreSQL,
    cover concurrent updates, useful schema transitions, enum changes and explicit backfills.
-2. Define a small consistent repository query API and the extension point for handwritten
-   JDBC conditions, while continuing to return complete aggregates.
+2. Finish the [scalar persistence audit](scalar-persistence-audit.md) prerequisites
+   and implement the [declarative repository queries](../contracts/repository-queries.md),
+   returning complete aggregates. Add LIKE-like searches next, before alternative
+   locale-aware sorting. Handwritten JDBC search extensions remain deferred.
 3. Review usecases and services: transaction ownership, domain behavior, inputs/results,
    errors and the same Java interoperability conventions as other reviewed features.
 4. Review events, listeners and outbox behavior including their schema and transaction needs.

@@ -235,16 +235,11 @@ belongs to `<namespace>.adapter.outbound.jdbc`. Shared execution code lives in
 - All operations require a surrounding usecase transaction (MANDATORY).
 - No lazy loading. Errors do not restore object state automatically.
 
-Planned query extension, not part of this runtime increment:
-
-- Explicitly requested domain collection types will represent search results.
-- Custom infrastructure code will supply conditions or IDs to the shared aggregate
-  loader. No arbitrary SELECT projection language is planned.
-- Proposed `loadAll(ids)` preserves first-occurrence input order, deduplicates IDs,
-  returns empty for empty input and fails if a requested ID is missing.
-
-The `query ... where ... order by ...` syntax discussed during design is not yet
-part of the grammar. Existing repository declarations suffice to select schema roots.
+The planned declarative search API is specified in
+[Repository queries](repository-queries.md). It returns explicit aggregate
+collections or an optional singleton; custom JDBC searches are deferred.
+The search syntax is not implemented yet. Unsupported query declarations continue
+to fail explicitly rather than producing partially implemented repositories.
 
 ## Runtime boundaries
 
