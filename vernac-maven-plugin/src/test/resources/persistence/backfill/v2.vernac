@@ -1,0 +1,13 @@
+// Copyright 2026 Danny Reinhold
+// SPDX-License-Identifier: Apache-2.0
+namespace backfill;
+id TourId;
+id StopId;
+value Title(String);
+value Address(String);
+value DispatchReference(String) validates {
+    require(!self.string().isBlank(), "Reference must not be blank");
+};
+entity Stop[StopId](Address) list Stops;
+aggregate Tour[TourId](Title, Stops, DispatchReference reference);
+repository TourRepository for Tour { }

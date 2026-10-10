@@ -1,0 +1,43 @@
+// Copyright 2026 Danny Reinhold
+// SPDX-License-Identifier: Apache-2.0
+package backfill;
+
+import backfill.domain.*;
+import backfill.adapter.outbound.jdbc.JdbcTourRepository;
+import java.util.UUID;
+import javax.sql.DataSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import static org.junit.jupiter.api.Assertions.*;
+
+public final class RepositoryProbe {
+    private static JdbcTourRepository repository(DataSource source) {
+        return new JdbcTourRepository(new NamedParameterJdbcTemplate(source),
+                (type, id, events) -> assertTrue(events.isEmpty()));
+    }
+
+    public static UUID seed(DataSource source) {
+        var repository = repository(source);
+        return new TransactionTemplate(new DataSourceTransactionManager(source)).execute(status -> {
+            Stop stop = Stop.create(Address.of("Old address"));
+            Tour tour = Tour.create(Title.of("Existing tour"), Stops.of(stop, stop)/*REFERENCE_ARGUMENT*/);
+            repository.save(tour);
+            return tour.id().value();
+        });
+    }
+
+    public static void verify(DataSource source, UUID id) {
+        var repository = repository(source);
+        new TransactionTemplate(new DataSourceTransactionManager(source)).executeWithoutResult(status -> {
+            Tour tour = repository.byId(TourId.of(id));
+            assertEquals(id, tour.id().value());
+            assertEquals("Existing tour", tour.title().string());
+            assertEquals(2, tour.stops().size());
+            assertSame(tour.stops().get(0), tour.stops().get(1));
+            assertEquals("Old address", tour.stops().get(0).address().string());
+            assertEquals(1L, tour.persistenceState().version());
+            /*REFERENCE_ASSERTION*/
+        });
+    }
+}

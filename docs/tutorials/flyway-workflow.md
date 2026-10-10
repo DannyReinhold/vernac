@@ -132,3 +132,52 @@ of the accepted history and review it again. Never silently rewrite published hi
 A suitable CI gate is model compilation, `schema-check` against disposable PostgreSQL,
 and the database integration tests. The goal is available explicitly; Vernac does not
 silently require a running database for every ordinary Maven build.
+
+## Automated regression: adding a required field to existing data
+
+`RequiredFieldBackfillTest` in `vernac-maven-plugin` keeps its own V1/V2 models
+under test resources. It does not modify the persistence demo or its migration
+history. Both versions are generated and compiled independently. The ordinary
+(non-database) test also verifies that migration generation refuses a new required
+column without an explicit backfill expression.
+
+The PostgreSQL test creates a uniquely named disposable database, applies only V1,
+and saves a complete aggregate through the generated V1 repository. It then uses
+Flyway to apply the generated V2 candidate with the reviewed test expression
+`'LEGACY-' || "id"::text`. It checks the stored reference, the NOT NULL constraint,
+and loading through the generated V2 repository, including the original fields,
+persistence version, list multiplicity and shared entity identity. A repeat Flyway
+run must apply no additional migrations. The temporary database is dropped afterward.
+
+Start the existing test server from the repository root in PowerShell:
+
+```powershell
+docker compose -f examples/persistence-demo/compose.yaml --profile test up -d --wait postgres-test
+```
+
+Set these environment variables in the IntelliJ Maven run configuration:
+
+```text
+VERNAC_PG_TEST_URL=jdbc:postgresql://localhost:55434/postgres
+VERNAC_PG_TEST_USER=delivery
+VERNAC_PG_TEST_PASSWORD=local-demo-only
+```
+
+These are the supplied local test credentials. The connection is used to create
+and drop a separate database; the role needs CREATEDB. Run from the repository root:
+
+```text
+mvn -pl vernac-maven-plugin -am test -Dtest=RequiredFieldBackfillTest -Dsurefire.failIfNoSpecifiedTests=false
+```
+
+Expect two tests without skips when the database environment is configured.
+Without `VERNAC_PG_TEST_URL`, the compilation test still runs and the PostgreSQL
+test is explicitly skipped. This test exercises a populated V1 database, whereas
+`schema-check` replays migrations into empty databases to compare schema structure.
+Neither substitutes for reviewing and testing a migration against representative
+application data and deployment conditions; approval remains your responsibility.
+
+When undoing a local tutorial experiment, remember that reverting source files
+also leaves the previously migrated database unchanged. Use a matching disposable
+database state and a Maven `clean` to remove obsolete copied migrations from
+`target/classes`. Never rewrite shared migration history to reconcile experiments.
