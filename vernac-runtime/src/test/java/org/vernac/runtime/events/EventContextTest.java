@@ -59,6 +59,49 @@ class EventContextTest {
             new Thread(task).start(); task.get();
         }
     }
+    @Test void storesBeforeSynchronousHandlingAndDoesNotExecuteDeferredHandlers() {
+        var manager=new Manager(); var calls=new ArrayList<String>();
+        EventStorage storage=new EventStorage() {
+            public String listenerId(){return "@storage:Ping";}
+            public Class<? extends DomainEvent> eventClass(){return Ping.class;}
+            public void persist(DomainEvent event,List<String> recipients){calls.add("store:"+recipients);}
+            public DomainEvent load(EventId id){throw new UnsupportedOperationException();}
+        };
+        EventHandler deferred=new EventHandler() {
+            public String listenerId(){return "later";}
+            public Class<? extends DomainEvent> eventClass(){return Ping.class;}
+            public boolean deferred(){return true;}
+            public void handle(DomainEvent event){fail("Deferred handler ran during emit");}
+        };
+        new TransactionTemplate(manager).executeWithoutResult(tx->{
+            try(var context=EventContext.open(()->List.of(handler("now",e->calls.add("sync")),deferred,storage))) {
+                EventContext.emit(new Ping());
+            }
+        });
+        assertEquals(List.of("store:[later]","sync"),calls);
+        assertThrows(IllegalStateException.class,()->new TransactionTemplate(manager).executeWithoutResult(tx->{
+            try(var context=EventContext.open(()->List.of(deferred))) { EventContext.emit(new Ping()); }
+        }));
+        assertEquals(1,manager.commits); assertEquals(1,manager.rollbacks);
+    }
+    @Test void recordedEventRequiresStorageEvenWithoutListeners() {
+        record RecordedPing(EventId eventId,Instant occurredAt) implements RecordedEvent {}
+        var event=new RecordedPing(EventId.create(),Instant.now());
+        var manager=new Manager(); var stored=new ArrayList<DomainEvent>();
+        EventStorage storage=new EventStorage() {
+            public String listenerId(){return "@storage:RecordedPing";}
+            public Class<? extends DomainEvent> eventClass(){return RecordedPing.class;}
+            public void persist(DomainEvent e,List<String> recipients){assertTrue(recipients.isEmpty());stored.add(e);}
+            public DomainEvent load(EventId id){throw new UnsupportedOperationException();}
+        };
+        new TransactionTemplate(manager).executeWithoutResult(tx->{
+            try(var context=EventContext.open(()->List.of(storage))) { EventContext.emit(event); }
+        });
+        assertEquals(List.of(event),stored);
+        assertThrows(IllegalStateException.class,()->new TransactionTemplate(manager).executeWithoutResult(tx->{
+            try(var context=EventContext.open(List::of)) { EventContext.emit(event); }
+        }));
+    }
     static final class Manager extends AbstractPlatformTransactionManager {
         int commits,rollbacks;
         protected Object doGetTransaction() { return new Object(); }

@@ -89,6 +89,7 @@ public class VernacCompiler {
         SchemaBuilder persistence = new SchemaBuilder(project, previous, enumCodes);
         SchemaModel schema = persistence.build();
         for (StoragePlan plan : persistence.plans()) files.addAll(new JdbcRepositoryGenerator(project,schema).generate(plan));
+        for (var plan : persistence.eventPlans()) files.add(new JdbcRepositoryGenerator(project,schema).generate(plan));
         GeneratedTypeNames.check(files);
         return new VernacProjectCompilationResult(files, project.diagnostics());
     }
@@ -198,6 +199,9 @@ public class VernacCompiler {
             }
         }
 
+        var eventPersistence = new SchemaBuilder(resolved, SchemaModel.empty());
+        var eventSchema = eventPersistence.build();
+        for (var plan : eventPersistence.eventPlans()) generatedFiles.add(new JdbcRepositoryGenerator(resolved,eventSchema).generate(plan));
         GeneratedTypeNames.check(generatedFiles);
         return new VernacCompilationResult(packageName, generatedFiles);
     }

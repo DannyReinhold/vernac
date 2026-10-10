@@ -30,7 +30,7 @@ class EventGeneratorTest {
     @Test void recordingAndDeliveryAreNotDomainConstants() {
         assertThat(generate("event Ping();", "Ping")).contains("create()", "reconstitute(EventId eventId, Instant occurredAt)")
                 .doesNotContain("TABLE_NAME", "DDL", "OUTBOX");
-        assertThatThrownBy(() -> generate("recorded event Ping();", "Ping")).hasMessageContaining("recorded events require");
+        assertThat(generate("recorded event Ping();", "Ping")).contains("implements RecordedEvent").doesNotContain("TABLE_NAME", "DDL");
     }
     @Test void rejectsMutableAndNonValuePayloadsAndReservedMetadata() {
         for(String fields: new String[]{"String text", "mut Title title", "Title eventId", "Title occurredAt"})

@@ -1,9 +1,9 @@
 # Domain events
 
-Status: event classes and synchronous listeners are implemented. Durable delivery
-and explicit recording follow the [delivery plan](../development/event-delivery.md).
-The compiler rejects `recorded event` and `deferred listener` until that implementation
-exists. It never silently substitutes in-memory handling for requested persistence.
+Status: event classes, synchronous listeners, relational event storage and durable
+per-listener jobs are implemented. **Deferred workers are not implemented yet:**
+`deferred listener` creates PENDING jobs; it does not execute after commit in this
+increment. See the [delivery plan](../development/event-delivery.md).
 
 ## Definition and payload
 
@@ -49,7 +49,7 @@ A final, @NullMarked class is generated in `<namespace>.domain` and implements
   requirements on the domain class.
 
 Identity equality does not authorize changing an existing stored event payload.
-The planned event store must reject conflicting representations of one occurrence.
+The event store rejects conflicting payloads or occurrence times for one stored occurrence.
 
 An optional `validates` block uses `self` and a generated read interface, as for
 value objects. It runs for both factories. It exposes payload and metadata getters,
@@ -105,23 +105,77 @@ a successful transaction commit even if application code catches the exception.
 A failed context cannot continue emitting. Recursive publication of the same active
 event, duplicate listener identities, and excessive nested dispatch are rejected.
 There is no ordering guarantee between independent listeners. Without listeners,
-publication performs no further action in this first increment.
+publication stores only events explicitly declared `recorded`.
 
 Repository save never publishes buffered events. The previous registerEvent /
 pullDomainEvents / EventDispatcher mechanism and its generic JSON outbox have been
 removed. Previously unreviewed examples using that syntax need deliberate migration.
 
 Database rollback does not restore Java objects or undo remote calls. Use synchronous
-listeners for work belonging to the current transaction. Durable external work will
-use deferred listeners; synchronous handling is not a durability substitute.
+listeners for work belonging to the current transaction. Durable external work uses deferred listeners; synchronous handling is not a durability
+substitute. Worker execution is a subsequent implementation stage.
+
+## Recording and durable delivery jobs
+
+```vernac
+recorded event StopMoved(StopId, TourId sourceTourId, TourId targetTourId, Reason?);
+deferred listener NotifyDriver on StopMoved behavior {
+    execute { /* delivery implementation */ }
+}
+```
+
+Recording is optional. A normal event is also persisted when at least one deferred
+listener is registered. A recorded event implements the runtime RecordedEvent marker
+(which extends DomainEvent); this requests storage even without listeners.
+
+The compiler generates `Jdbc<EventName>Events` in
+`<namespace>.adapter.outbound.jdbc.event`. It is a Spring component implementing the
+technical EventStorage interface, discovered with the EventHandler beans. It requires
+NamedParameterJdbcTemplate, the JDBC runtime and the generated Flyway migration.
+Include these components in application component scanning. Missing or duplicate
+storage adapters cause publication to fail; storage is never silently skipped.
+
+EventContext persists the immutable payload and one job per deferred listener before
+calling synchronous listeners. All writes participate in the publisher's transaction.
+A synchronous listener failure rolls back the event, jobs and other transactional
+application writes. Deferred bodies do not run during emit.
+
+The event table is `<namespace>."@event:<EventName>"`; `@eventId` is its primary key,
+`@occurredAt` and its nanosecond remainder retain the original time. Payload fields
+reuse the normal scalar, flattened value-object and collection mappings. A payload
+field named `id` remains independent of event identity. Domain VOs do not need Java
+serialization or Jackson annotations.
+
+The common `"vernac"."@delivery"` table stores event identity, listener identity,
+status, attempts, scheduling timestamps, claim token, lease and last error. The unique
+key is (eventType, eventId, listenerId). New jobs are PENDING with zero attempts and
+no claim. Worker-related columns are reserved for the next stage. There is no
+polymorphic SQL foreign key from delivery to the different event tables; generated
+storage creates both atomically. Direct changes to owned tables are unsupported.
+
+Republishing an identical stored occurrence creates neither another payload nor new
+jobs, including for listeners added later. A different payload or time with the same
+event identity fails. Synchronous listeners still run on every emit: this is durable
+storage deduplication, not global suppression of publication. Payload comparison uses
+value equality, not the event class's identity-based equals method.
+
+No automatic deletion, retention or replay runs in this increment. All stored payloads
+remain, including those stored only for deferred delivery. Renaming event/listener
+identities, removing the last deferred listener, changing payload types or changing
+nested VO validations requires deliberate deployment and migration review. The schema
+and migration goals include event and delivery tables; a generated migration candidate
+does not guarantee that old payloads can still be reconstructed and validated.
 
 ## Tooling and verification
 
 Namespace resolution, payload diagnostics, event/listener completion, definition
-navigation, and Java projection of listener bodies/event validations use the same
-compiler model. Generated technical interfaces remain navigable as Java interfaces.
-Tests compile and execute generated events and listeners, exercise external code,
-multiple consumers, validation, REQUIRED participation, context cleanup and failure
-handling. These tests use Spring transaction infrastructure and a counting manager;
-they do not claim PostgreSQL outbox concurrency coverage, which belongs to the next
-increment.
+navigation, and Java projection share the compiler model. Tests compile generated
+storage adapters and listeners and check recording selection, collection ownership,
+schema changes and synchronous/deferred routing.
+
+`EventStoragePostgresTest` additionally verifies payload round trips, nanoseconds,
+BigDecimal scale, nested lists, duplicate occurrences, two listener jobs and transactional
+rollback. Its database test requires VERNAC_PG_TEST_URL, VERNAC_PG_TEST_USER and
+VERNAC_PG_TEST_PASSWORD; without a URL that test is explicitly skipped. Compilation
+coverage runs independently. Worker concurrency and crash recovery are not yet tested
+because workers are not implemented in this increment.

@@ -3,13 +3,16 @@
 ## Status
 
 Implemented: immutable domain events, EventId, validation, named synchronous listeners,
-scoped publication, generated access interfaces and rollback protection. See the
+scoped publication, generated access interfaces and rollback protection; relational
+recorded/deferred event storage, generated JDBC adapters, per-listener PENDING jobs,
+and integration with the existing schema and migration pipeline. See the
 [event contract](../contracts/events.md).
 
-Not implemented yet: `recorded event`, deferred dispatch, event tables, delivery jobs,
-workers, retry configuration, retention, or event evolution migrations. The compiler
-rejects the two persistence-dependent declarations explicitly. This document defines
-the target behavior, not a claim that those mechanisms already run.
+Not implemented yet: worker execution, claiming/leases, retry configuration, retention,
+or automated event evolution/upcasting. Deferred declarations currently enqueue only.
+The worker sections below define the target behavior, not existing runtime guarantees.
+Schema migrations cover physical tables; they cannot guarantee payload compatibility
+with changed constructors or validations.
 
 ## Domain facts and subscribers
 

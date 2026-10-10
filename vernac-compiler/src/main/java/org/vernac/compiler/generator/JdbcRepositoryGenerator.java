@@ -71,6 +71,52 @@ public final class JdbcRepositoryGenerator {
         return List.of(JavaFile.builder(api.packageName(),contract.build()).indent("    ").skipJavaLangImports(true).build(),
                 JavaFile.builder(plan.repositoryNamespace()+".adapter.outbound.jdbc",adapter.build()).indent("    ").skipJavaLangImports(true).build());
     }
+    /** Event values reuse the exact same binding emitter as aggregate fields. */
+    public JavaFile generate(EventStoragePlan plan) {
+        ClassName event=ClassName.get(plan.namespace()+".domain",plan.event().name());
+        ClassName store=ClassName.get("org.vernac.runtime.jdbc","JdbcEventStore");
+        ClassName storage=ClassName.get("org.vernac.runtime.events","EventStorage");
+        ClassName eventId=ClassName.get("org.vernac.runtime","EventId");
+        var adapter=TypeSpec.classBuilder("Jdbc"+event.simpleName()+"Events").addModifiers(Modifier.PUBLIC)
+                .addAnnotation(NullMarked.class).addAnnotation(ClassName.get("org.springframework.stereotype","Component"))
+                .addSuperinterface(storage).addJavadoc("Generated immutable event storage. Do not edit.\n");
+        currentAdapter=adapter; bindingNumber=0;
+        var relation=plan.relations().stream().filter(r->r.table().primaryKey().equals(List.of("@eventId"))).findFirst().orElseThrow();
+        List<CodeBlock> fields=new ArrayList<>(),args=new ArrayList<>();
+        args.add(CodeBlock.of("$T.of(id)",eventId));
+        args.add(CodeBlock.of("($T) values[0]",java.time.Instant.class));
+        fields.add(CodeBlock.of("new $T.Field(value -> (($T) value).occurredAt(), $T.scalar($S, false, $S, $S))",
+                M,event,M,"Instant","@occurredAt","@nanoRemainder:@occurredAt"));
+        for(int i=0;i<relation.properties().size();i++) {
+            var property=relation.properties().get(i);fields.add(property(event,property));
+            args.add(CodeBlock.of("($T) values[$L]",ResolvedJavaTypes.javaType(property.value().type()).box(),i+1));
+        }
+        var mapping=CodeBlock.of("new $T.Domain($S, value -> (($T) value).eventId().value(), $L, (id, values) -> $T.reconstitute($L))",
+                M,relation.table().sqlName(),event,list(fields),event,CodeBlock.join(args,", "));
+        adapter.addMethod(MethodSpec.methodBuilder("mapping").addModifiers(Modifier.PRIVATE,Modifier.STATIC).returns(M.nestedClass("Domain"))
+                .addStatement("return $L",mapping).build());
+        List<CodeBlock> tables=new ArrayList<>();
+        for(var r:plan.relations()) {
+            var columns=r.table().columns().stream().map(c->CodeBlock.of("new $T.Column($S, $S)",M,SqlNames.physical(c.name()),c.sqlType())).toList();
+            tables.add(CodeBlock.of("new $T.Table($S, $S, $L, $L, $L)",M,r.table().sqlName(),r.predicate(),r.depth(),list(columns),strings(r.table().primaryKey())));
+        }
+        adapter.addMethod(MethodSpec.methodBuilder("tables").addModifiers(Modifier.PRIVATE,Modifier.STATIC)
+                .returns(ParameterizedTypeName.get(ClassName.get(List.class),M.nestedClass("Table"))).addStatement("return $L",list(tables)).build());
+        adapter.addField(ParameterizedTypeName.get(store,event),"store",Modifier.PRIVATE,Modifier.FINAL);
+        adapter.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC).addParameter(JDBC,"jdbc")
+                .addStatement("this.store = new $T<>(jdbc, $T.class, $S, mapping(), tables())",store,event,plan.namespace()+"."+plan.event().name()).build());
+        adapter.addMethod(MethodSpec.methodBuilder("listenerId").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(String.class)
+                .addStatement("return $S","@storage:"+plan.namespace()+"."+plan.event().name()).build());
+        adapter.addMethod(MethodSpec.methodBuilder("eventClass").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
+                .returns(ParameterizedTypeName.get(ClassName.get(Class.class),WildcardTypeName.subtypeOf(org.vernac.runtime.DomainEvent.class)))
+                .addStatement("return $T.class",event).build());
+        adapter.addMethod(MethodSpec.methodBuilder("persist").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
+                .addParameter(org.vernac.runtime.DomainEvent.class,"event").addParameter(ParameterizedTypeName.get(List.class,String.class),"listenerIds")
+                .addStatement("store.persist(($T) event, listenerIds)",event).build());
+        adapter.addMethod(MethodSpec.methodBuilder("load").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(event).addParameter(eventId,"id")
+                .addStatement("return store.load(id)").build());
+        return JavaFile.builder(plan.namespace()+".adapter.outbound.jdbc.event",adapter.build()).indent("    ").skipJavaLangImports(true).build();
+    }
     private void queryMethods(StoragePlan plan, TypeSpec.Builder contract, TypeSpec.Builder adapter) {
         ClassName queryType=ClassName.get("org.vernac.runtime.jdbc","ScalarQuery");
         for(var method:plan.repository().findMethods()) {

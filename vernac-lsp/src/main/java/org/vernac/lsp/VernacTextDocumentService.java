@@ -305,6 +305,8 @@ public class VernacTextDocumentService implements TextDocumentService {
         addKeywordCompletion(items, "value (enum)", "value ${1:Name} = ${2:CONST1} | ${3:CONST2};");
         addKeywordCompletion(items, "entity", "entity ${1:Name}[${2:IdType} id](\n    $0\n);");
         addKeywordCompletion(items, "event", "event ${1:Name}(${2:Type} value);");
+        addKeywordCompletion(items, "recorded event", "recorded event ${1:Name}(${2:Payload});");
+        addKeywordCompletion(items, "deferred listener", "deferred listener ${1:Name} on ${2:EventType} behavior {\n    execute { $0 }\n}");
         addKeywordCompletion(items, "listener", "synchronous listener ${1:Name} on ${2:EventType} behavior {\n    execute { $0 }\n}");
         addKeywordCompletion(items, "port", "port ${1:Name} {\n    $0\n}");
         addKeywordCompletion(items, "repository", "repository ${1:Name} for ${2:Aggregate} {\n    table: \"${3:table_name}\";\n    $0\n};");

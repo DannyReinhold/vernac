@@ -23,6 +23,8 @@ public final class SchemaBuilder {
     private MutableTable root;
     private final List<StoragePlan> plans = new ArrayList<>();
     private final List<StoragePlan.Relation> relations = new ArrayList<>();
+    private final List<EventStoragePlan> eventPlans = new ArrayList<>();
+    public List<EventStoragePlan> eventPlans() { return List.copyOf(eventPlans); }
     public List<StoragePlan> plans() { return List.copyOf(plans); }
     private void publish(MutableTable table) {
         var schema = table.freeze();
@@ -69,8 +71,46 @@ public final class SchemaBuilder {
                 plans.add(new StoragePlan(repo, source.unit().namespace(), a, type.symbol().identity().namespace(), List.copyOf(relations)));
             } else fail(repo.location(), "Repository requires a resolved aggregate: " + repo.aggregateName());
         }
+        buildEvents();
         if (!codes.keySet().containsAll(enumOverrides.keySet())) throw new IllegalArgumentException("Enum-code override names an enum not used by persistence.");
         return new SchemaModel(1, 1, tables, codes);
+    }
+    private void buildEvents() {
+        Set<String> deferredEvents = new HashSet<>();
+        for(var source:project.project().sources()) for(var definition:source.unit().definitions()) {
+            if(definition instanceof ListenerNode listener && listener.deferred()) {
+                var type=(ResolvedType.Declared)project.typeOf(listener.eventType());
+                deferredEvents.add(type.symbol().identity().qualifiedName());
+            }
+        }
+        for(var source:project.project().sources()) for(var definition:source.unit().definitions()) {
+            if(!(definition instanceof EventNode event)) continue;
+            String identity=source.unit().namespace()+"."+event.name();
+            if(!event.recorded() && !deferredEvents.contains(identity)) continue;
+            MutableTable t=new MutableTable(source.unit().namespace(),"@event:"+event.name(),identity,List.of("@eventId"));
+            root=t; relations.clear(); entities.clear(); expandingEntities.clear();
+            t.predicate=name("@eventId")+" = :aggregateId";
+            t.column("@eventId","UUID",false,"EventId",identity);
+            scalar(t,"@occurredAt","Instant","TRUE",false,identity);
+            for(var f:event.fields()) t.properties.add(new StoragePlan.Property(f.name(),field(t,f.name(),project.typeOf(f.type()),f.type().isOptional(),"TRUE",f.location())));
+            publish(t);
+            eventPlans.add(new EventStoragePlan(source.unit().namespace(),event,List.copyOf(relations)));
+        }
+        if(!deferredEvents.isEmpty()) {
+            MutableTable t=new MutableTable("vernac","@delivery","@event-delivery",List.of("id"));
+            for(String c:List.of("id","eventId")) t.column(c,"UUID",false,"UUID",t.origin);
+            for(String c:List.of("eventType","listenerId","status")) t.column(c,"TEXT",false,"String",t.origin);
+            t.column("attempts","INTEGER",false,"int",t.origin);
+            for(String c:List.of("createdAt","nextAttemptAt")) t.column(c,"TIMESTAMPTZ(6)",false,"delivery-time",t.origin);
+            for(String c:List.of("lastAttemptAt","leaseUntil","completedAt")) t.column(c,"TIMESTAMPTZ(6)",true,"delivery-time",t.origin);
+            t.column("claimToken","UUID",true,"UUID",t.origin);
+            t.column("lastError","TEXT",true,"String",t.origin);
+            t.constraints.add(new Constraint("@unique:delivery","UNIQUE ("+sqlNames(List.of("eventType","eventId","listenerId"))+")"));
+            t.check("attempts",name("attempts")+" >= 0");
+            t.check("status",name("status")+" IN ('PENDING', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'BLOCKED')");
+            t.check("claim","("+name("status")+" = 'PROCESSING' AND "+name("claimToken")+" IS NOT NULL AND "+name("leaseUntil")+" IS NOT NULL) OR ("+name("status")+" <> 'PROCESSING' AND "+name("claimToken")+" IS NULL AND "+name("leaseUntil")+" IS NULL)");
+            tables.add(t.freeze());
+        }
     }
     private StoragePlan.Value field(MutableTable t, String path, ResolvedType type, boolean optional, String parent, SourceLocation loc) {
         if (type instanceof ResolvedType.Builtin builtin) {
@@ -275,7 +315,7 @@ public final class SchemaBuilder {
             child.check("position", name("@position") + " >= 0");
             child.constraints.add(new Constraint("@unique:row:" + tableName, "UNIQUE (" + name("@rowId") + ")"));
         }
-        String ownerKey = owner.primaryKey.equals(List.of("id")) ? "id" : "@rowId";
+        String ownerKey = owner == root ? root.primaryKey.getFirst() : "@rowId";
         if (owner.primaryKey.equals(List.of("@aggregateId", "id"))) {
             child.column("@aggregateId", "UUID", false, "aggregate-owner", root.origin);
             child.constraints.add(new Constraint("@fk:owner", "FOREIGN KEY (" + sqlNames(List.of("@aggregateId", "@ownerId"))

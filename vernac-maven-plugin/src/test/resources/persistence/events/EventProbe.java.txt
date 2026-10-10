@@ -1,0 +1,69 @@
+package eventdemo;
+import eventdemo.domain.*;
+import eventdemo.adapter.outbound.jdbc.event.*;
+import eventdemo.adapter.inbound.event.*;
+import java.time.Instant;
+import java.math.BigDecimal;
+import java.util.*;
+import javax.sql.DataSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.vernac.runtime.*;
+import org.vernac.runtime.events.*;
+import static org.junit.jupiter.api.Assertions.*;
+public final class EventProbe {
+ public static void run(DataSource data) {
+  var jdbc=new NamedParameterJdbcTemplate(data);
+  var tx=new TransactionTemplate(new DataSourceTransactionManager(data));
+  var store=new JdbcChangedEvents(jdbc);
+  var archived=new JdbcArchivedEvents(jdbc);
+  List<EventHandler> handlers=List.of(store,archived,new First(new org.springframework.beans.factory.support.DefaultListableBeanFactory().getBeanProvider(EventHandler.class)),new Second(new org.springframework.beans.factory.support.DefaultListableBeanFactory().getBeanProvider(EventHandler.class)));
+  var labels=Labels.of(List.of(Label.of("same"),Label.of("same")));
+  var event=Changed.reconstitute(EventId.create(),Instant.parse("2026-10-10T12:00:00.123456789Z"),
+    TaskId.create(),labels,Detail.of(null,Amount.of(new BigDecimal("12.300"))),
+    Batches.of(List.of(Batch.of(labels),Batch.of(Labels.of(List.of())))),Status.OPEN);
+  var recording=Archived.create();
+  tx.executeWithoutResult(s->{try(var scope=EventContext.open(()->handlers)) {
+   EventContext.emit(event); EventContext.emit(event); EventContext.emit(recording); EventContext.emit(Transient.create());
+  }});
+  tx.executeWithoutResult(s->store.persist(event,List.of("new.listener")));
+  assertEquals(1,count(jdbc,"\"eventdemo\".\"@event:Changed\""));
+  assertEquals(1,count(jdbc,"\"eventdemo\".\"@event:Archived\""));
+  assertEquals(2,count(jdbc,"\"vernac\".\"@delivery\""));
+  assertEquals(List.of("eventdemo.First","eventdemo.Second"),jdbc.queryForList(
+   "SELECT \"listenerId\" FROM \"vernac\".\"@delivery\" ORDER BY \"listenerId\"",Map.of(),String.class));
+  assertEquals(2,jdbc.queryForObject("SELECT count(*) FROM \"vernac\".\"@delivery\" WHERE status='PENDING' AND attempts=0 AND \"claimToken\" IS NULL",Map.of(),Integer.class));
+  tx.executeWithoutResult(s->{
+   var loaded=store.load(event.eventId());
+   assertEquals(event.eventId(),loaded.eventId()); assertEquals(event.occurredAt(),loaded.occurredAt());
+   assertEquals(event.id(),loaded.id()); assertEquals(event.labels(),loaded.labels());
+   assertEquals(event.detail(),loaded.detail()); assertEquals(event.batches(),loaded.batches());
+   assertEquals(event.status(),loaded.status());
+   assertEquals(recording.occurredAt(),archived.load(recording.eventId()).occurredAt());
+  });
+  var conflict=Changed.reconstitute(event.eventId(),event.occurredAt(),event.id(),Labels.of(List.of()),
+   null,event.batches(),Status.CLOSED);
+  assertThrows(IllegalStateException.class,()->tx.executeWithoutResult(s->{try(var scope=EventContext.open(()->handlers)) {
+   try { EventContext.emit(conflict); } catch(VernacTechnicalException expected) { }
+  }}));
+  assertEquals(2,count(jdbc,"\"vernac\".\"@delivery\""));
+  jdbc.getJdbcTemplate().execute("CREATE TABLE application_work(id INTEGER)");
+  EventHandler failing=new EventHandler() {
+   public String listenerId(){return "failing";}
+   public Class<? extends DomainEvent> eventClass(){return Changed.class;}
+   public void handle(DomainEvent e){throw new IllegalArgumentException("failure");}
+  };
+  var withFailure=new ArrayList<>(handlers); withFailure.add(failing);
+  assertThrows(IllegalArgumentException.class,()->tx.executeWithoutResult(s->{try(var scope=EventContext.open(()->withFailure)) {
+   jdbc.getJdbcTemplate().update("INSERT INTO application_work VALUES (1)");
+   EventContext.emit(Changed.create(TaskId.create(),labels,null,event.batches(),Status.OPEN));
+  }}));
+  assertEquals(0,count(jdbc,"application_work"));
+  assertEquals(1,count(jdbc,"\"eventdemo\".\"@event:Changed\""));
+  assertEquals(2,count(jdbc,"\"vernac\".\"@delivery\""));
+ }
+ static int count(NamedParameterJdbcTemplate jdbc,String table) {
+  return jdbc.queryForObject("SELECT count(*) FROM "+table,Map.of(),Integer.class);
+ }
+}

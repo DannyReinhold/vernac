@@ -1,0 +1,1058 @@
+diff --git a/docs/contracts/events.md b/docs/contracts/events.md
+index dc1bbfb..779434a 100644
+--- a/docs/contracts/events.md
++++ b/docs/contracts/events.md
+@@ -1,9 +1,9 @@
+ # Domain events
+ 
+-Status: event classes and synchronous listeners are implemented. Durable delivery
+-and explicit recording follow the [delivery plan](../development/event-delivery.md).
+-The compiler rejects `recorded event` and `deferred listener` until that implementation
+-exists. It never silently substitutes in-memory handling for requested persistence.
++Status: event classes, synchronous listeners, relational event storage and durable
++per-listener jobs are implemented. **Deferred workers are not implemented yet:**
++`deferred listener` creates PENDING jobs; it does not execute after commit in this
++increment. See the [delivery plan](../development/event-delivery.md).
+ 
+ ## Definition and payload
+ 
+@@ -49,7 +49,7 @@ A final, @NullMarked class is generated in `<namespace>.domain` and implements
+   requirements on the domain class.
+ 
+ Identity equality does not authorize changing an existing stored event payload.
+-The planned event store must reject conflicting representations of one occurrence.
++The event store rejects conflicting payloads or occurrence times for one stored occurrence.
+ 
+ An optional `validates` block uses `self` and a generated read interface, as for
+ value objects. It runs for both factories. It exposes payload and metadata getters,
+@@ -105,23 +105,77 @@ a successful transaction commit even if application code catches the exception.
+ A failed context cannot continue emitting. Recursive publication of the same active
+ event, duplicate listener identities, and excessive nested dispatch are rejected.
+ There is no ordering guarantee between independent listeners. Without listeners,
+-publication performs no further action in this first increment.
++publication stores only events explicitly declared `recorded`.
+ 
+ Repository save never publishes buffered events. The previous registerEvent /
+ pullDomainEvents / EventDispatcher mechanism and its generic JSON outbox have been
+ removed. Previously unreviewed examples using that syntax need deliberate migration.
+ 
+ Database rollback does not restore Java objects or undo remote calls. Use synchronous
+-listeners for work belonging to the current transaction. Durable external work will
+-use deferred listeners; synchronous handling is not a durability substitute.
++listeners for work belonging to the current transaction. Durable external work uses deferred listeners; synchronous handling is not a durability
++substitute. Worker execution is a subsequent implementation stage.
++
++## Recording and durable delivery jobs
++
++```vernac
++recorded event StopMoved(StopId, TourId sourceTourId, TourId targetTourId, Reason?);
++deferred listener NotifyDriver on StopMoved behavior {
++    execute { /* delivery implementation */ }
++}
++```
++
++Recording is optional. A normal event is also persisted when at least one deferred
++listener is registered. A recorded event implements the runtime RecordedEvent marker
++(which extends DomainEvent); this requests storage even without listeners.
++
++The compiler generates `Jdbc<EventName>Events` in
++`<namespace>.adapter.outbound.jdbc.event`. It is a Spring component implementing the
++technical EventStorage interface, discovered with the EventHandler beans. It requires
++NamedParameterJdbcTemplate, the JDBC runtime and the generated Flyway migration.
++Include these components in application component scanning. Missing or duplicate
++storage adapters cause publication to fail; storage is never silently skipped.
++
++EventContext persists the immutable payload and one job per deferred listener before
++calling synchronous listeners. All writes participate in the publisher's transaction.
++A synchronous listener failure rolls back the event, jobs and other transactional
++application writes. Deferred bodies do not run during emit.
++
++The event table is `<namespace>."@event:<EventName>"`; `@eventId` is its primary key,
++`@occurredAt` and its nanosecond remainder retain the original time. Payload fields
++reuse the normal scalar, flattened value-object and collection mappings. A payload
++field named `id` remains independent of event identity. Domain VOs do not need Java
++serialization or Jackson annotations.
++
++The common `"vernac"."@delivery"` table stores event identity, listener identity,
++status, attempts, scheduling timestamps, claim token, lease and last error. The unique
++key is (eventType, eventId, listenerId). New jobs are PENDING with zero attempts and
++no claim. Worker-related columns are reserved for the next stage. There is no
++polymorphic SQL foreign key from delivery to the different event tables; generated
++storage creates both atomically. Direct changes to owned tables are unsupported.
++
++Republishing an identical stored occurrence creates neither another payload nor new
++jobs, including for listeners added later. A different payload or time with the same
++event identity fails. Synchronous listeners still run on every emit: this is durable
++storage deduplication, not global suppression of publication. Payload comparison uses
++value equality, not the event class's identity-based equals method.
++
++No automatic deletion, retention or replay runs in this increment. All stored payloads
++remain, including those stored only for deferred delivery. Renaming event/listener
++identities, removing the last deferred listener, changing payload types or changing
++nested VO validations requires deliberate deployment and migration review. The schema
++and migration goals include event and delivery tables; a generated migration candidate
++does not guarantee that old payloads can still be reconstructed and validated.
+ 
+ ## Tooling and verification
+ 
+ Namespace resolution, payload diagnostics, event/listener completion, definition
+-navigation, and Java projection of listener bodies/event validations use the same
+-compiler model. Generated technical interfaces remain navigable as Java interfaces.
+-Tests compile and execute generated events and listeners, exercise external code,
+-multiple consumers, validation, REQUIRED participation, context cleanup and failure
+-handling. These tests use Spring transaction infrastructure and a counting manager;
+-they do not claim PostgreSQL outbox concurrency coverage, which belongs to the next
+-increment.
++navigation, and Java projection share the compiler model. Tests compile generated
++storage adapters and listeners and check recording selection, collection ownership,
++schema changes and synchronous/deferred routing.
++
++`EventStoragePostgresTest` additionally verifies payload round trips, nanoseconds,
++BigDecimal scale, nested lists, duplicate occurrences, two listener jobs and transactional
++rollback. Its database test requires VERNAC_PG_TEST_URL, VERNAC_PG_TEST_USER and
++VERNAC_PG_TEST_PASSWORD; without a URL that test is explicitly skipped. Compilation
++coverage runs independently. Worker concurrency and crash recovery are not yet tested
++because workers are not implemented in this increment.
+diff --git a/docs/development/event-delivery.md b/docs/development/event-delivery.md
+index bacc913..61b334f 100644
+--- a/docs/development/event-delivery.md
++++ b/docs/development/event-delivery.md
+@@ -3,13 +3,16 @@
+ ## Status
+ 
+ Implemented: immutable domain events, EventId, validation, named synchronous listeners,
+-scoped publication, generated access interfaces and rollback protection. See the
++scoped publication, generated access interfaces and rollback protection; relational
++recorded/deferred event storage, generated JDBC adapters, per-listener PENDING jobs,
++and integration with the existing schema and migration pipeline. See the
+ [event contract](../contracts/events.md).
+ 
+-Not implemented yet: `recorded event`, deferred dispatch, event tables, delivery jobs,
+-workers, retry configuration, retention, or event evolution migrations. The compiler
+-rejects the two persistence-dependent declarations explicitly. This document defines
+-the target behavior, not a claim that those mechanisms already run.
++Not implemented yet: worker execution, claiming/leases, retry configuration, retention,
++or automated event evolution/upcasting. Deferred declarations currently enqueue only.
++The worker sections below define the target behavior, not existing runtime guarantees.
++Schema migrations cover physical tables; they cannot guarantee payload compatibility
++with changed constructors or validations.
+ 
+ ## Domain facts and subscribers
+ 
+diff --git a/docs/tutorials/domain-events.md b/docs/tutorials/domain-events.md
+index 5e54341..41b3906 100644
+--- a/docs/tutorials/domain-events.md
++++ b/docs/tutorials/domain-events.md
+@@ -1,7 +1,8 @@
+ # Publish a domain event
+ 
+-This walkthrough uses the synchronous event increment. Deferred delivery and explicit
+-recording are not implemented yet; see the [delivery plan](../development/event-delivery.md).
++This walkthrough starts with synchronous events, then introduces recording and queued
++delivery. Deferred worker execution is the next stage; see the
++[delivery plan](../development/event-delivery.md).
+ 
+ In a Spring Boot application with Vernac generation enabled, create
+ `src/main/vernac/example/tasks/events.vernac`:
+@@ -80,3 +81,33 @@ See the [event contract](../contracts/events.md) for factories, identity and nul
+ Next: durable relational event storage and per-listener delivery jobs, with a separate
+ PostgreSQL walkthrough. Do not simulate durability by switching this example to an
+ asynchronous thread or by catching and ignoring listener failures.
++
++## Next stage: recording and queued delivery
++
++Replace `event Changed(...)` with `recorded event Changed(...)` to retain occurrences
++without a deferred consumer. Alternatively, declare a `deferred listener` to request
++storage and a delivery job for that listener. Keep synchronous listeners where their
++work belongs to the caller's transaction.
++
++Run the normal Vernac migration goal, review the candidate, then apply it through
++Flyway before publishing. Event tables use the same schema history as aggregates.
++Never edit an already applied migration to add these tables. Review and test every
++candidate yourself; generation is not an approval or a guarantee of data compatibility.
++
++After committing a publication, inspect the event table and `"vernac"."@delivery"`.
++Two deferred listeners produce two jobs pointing to one payload. A rolled-back
++publication produces neither. `recorded` without deferred listeners stores only the
++payload. **In this implementation stage jobs remain PENDING: no worker runs yet.**
++
++The generated-code and PostgreSQL demonstration tests are in
++`vernac-maven-plugin/src/test/resources/persistence/events` and
++`EventStoragePostgresTest`. From the reactor root, with the existing PostgreSQL test
++environment variables configured, run this in IntelliJ's Maven command window:
++
++```text
++-pl vernac-maven-plugin -am test -Dtest=EventStoragePostgresTest -Dsurefire.failIfNoSpecifiedTests=false
++```
++
++Expect two tests and zero skipped tests when PostgreSQL is configured. The compilation
++test always runs; the database test is skipped when VERNAC_PG_TEST_URL is absent.
++The configured PostgreSQL account must be able to create and drop disposable databases.
+diff --git a/vernac-compiler/src/main/java/org/vernac/compiler/generator/EventGenerator.java b/vernac-compiler/src/main/java/org/vernac/compiler/generator/EventGenerator.java
+index 8eec490..3a0f075 100644
+--- a/vernac-compiler/src/main/java/org/vernac/compiler/generator/EventGenerator.java
++++ b/vernac-compiler/src/main/java/org/vernac/compiler/generator/EventGenerator.java
+@@ -13,7 +13,7 @@ import org.vernac.runtime.*;
+ public final class EventGenerator {
+     public List<JavaFile> generate(EventNode event, CompilationUnitNode unit, ResolvedProject project) {
+         ClassName owner = ClassName.get(unit.namespace()+".domain",event.name());
+-        var type = TypeSpec.classBuilder(owner).addModifiers(Modifier.PUBLIC,Modifier.FINAL).addAnnotation(NullMarked.class).addSuperinterface(DomainEvent.class)
++        var type = TypeSpec.classBuilder(owner).addModifiers(Modifier.PUBLIC,Modifier.FINAL).addAnnotation(NullMarked.class).addSuperinterface(event.recorded() ? org.vernac.runtime.events.RecordedEvent.class : DomainEvent.class)
+                 .addJavadoc("Domain event generated by Vernac. Do not edit.\n");
+         // Metadata uses runtime types directly; payload types always come from semantic resolution.
+         type.addField(EventId.class,"eventId",Modifier.PRIVATE,Modifier.FINAL).addField(Instant.class,"occurredAt",Modifier.PRIVATE,Modifier.FINAL);
+diff --git a/vernac-compiler/src/main/java/org/vernac/compiler/generator/JdbcRepositoryGenerator.java b/vernac-compiler/src/main/java/org/vernac/compiler/generator/JdbcRepositoryGenerator.java
+index 7275fe5..fb684fe 100644
+--- a/vernac-compiler/src/main/java/org/vernac/compiler/generator/JdbcRepositoryGenerator.java
++++ b/vernac-compiler/src/main/java/org/vernac/compiler/generator/JdbcRepositoryGenerator.java
+@@ -71,6 +71,52 @@ public final class JdbcRepositoryGenerator {
+         return List.of(JavaFile.builder(api.packageName(),contract.build()).indent("    ").skipJavaLangImports(true).build(),
+                 JavaFile.builder(plan.repositoryNamespace()+".adapter.outbound.jdbc",adapter.build()).indent("    ").skipJavaLangImports(true).build());
+     }
++    /** Event values reuse the exact same binding emitter as aggregate fields. */
++    public JavaFile generate(EventStoragePlan plan) {
++        ClassName event=ClassName.get(plan.namespace()+".domain",plan.event().name());
++        ClassName store=ClassName.get("org.vernac.runtime.jdbc","JdbcEventStore");
++        ClassName storage=ClassName.get("org.vernac.runtime.events","EventStorage");
++        ClassName eventId=ClassName.get("org.vernac.runtime","EventId");
++        var adapter=TypeSpec.classBuilder("Jdbc"+event.simpleName()+"Events").addModifiers(Modifier.PUBLIC)
++                .addAnnotation(NullMarked.class).addAnnotation(ClassName.get("org.springframework.stereotype","Component"))
++                .addSuperinterface(storage).addJavadoc("Generated immutable event storage. Do not edit.\n");
++        currentAdapter=adapter; bindingNumber=0;
++        var relation=plan.relations().stream().filter(r->r.table().primaryKey().equals(List.of("@eventId"))).findFirst().orElseThrow();
++        List<CodeBlock> fields=new ArrayList<>(),args=new ArrayList<>();
++        args.add(CodeBlock.of("$T.of(id)",eventId));
++        args.add(CodeBlock.of("($T) values[0]",java.time.Instant.class));
++        fields.add(CodeBlock.of("new $T.Field(value -> (($T) value).occurredAt(), $T.scalar($S, false, $S, $S))",
++                M,event,M,"Instant","@occurredAt","@nanoRemainder:@occurredAt"));
++        for(int i=0;i<relation.properties().size();i++) {
++            var property=relation.properties().get(i);fields.add(property(event,property));
++            args.add(CodeBlock.of("($T) values[$L]",ResolvedJavaTypes.javaType(property.value().type()).box(),i+1));
++        }
++        var mapping=CodeBlock.of("new $T.Domain($S, value -> (($T) value).eventId().value(), $L, (id, values) -> $T.reconstitute($L))",
++                M,relation.table().sqlName(),event,list(fields),event,CodeBlock.join(args,", "));
++        adapter.addMethod(MethodSpec.methodBuilder("mapping").addModifiers(Modifier.PRIVATE,Modifier.STATIC).returns(M.nestedClass("Domain"))
++                .addStatement("return $L",mapping).build());
++        List<CodeBlock> tables=new ArrayList<>();
++        for(var r:plan.relations()) {
++            var columns=r.table().columns().stream().map(c->CodeBlock.of("new $T.Column($S, $S)",M,SqlNames.physical(c.name()),c.sqlType())).toList();
++            tables.add(CodeBlock.of("new $T.Table($S, $S, $L, $L, $L)",M,r.table().sqlName(),r.predicate(),r.depth(),list(columns),strings(r.table().primaryKey())));
++        }
++        adapter.addMethod(MethodSpec.methodBuilder("tables").addModifiers(Modifier.PRIVATE,Modifier.STATIC)
++                .returns(ParameterizedTypeName.get(ClassName.get(List.class),M.nestedClass("Table"))).addStatement("return $L",list(tables)).build());
++        adapter.addField(ParameterizedTypeName.get(store,event),"store",Modifier.PRIVATE,Modifier.FINAL);
++        adapter.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC).addParameter(JDBC,"jdbc")
++                .addStatement("this.store = new $T<>(jdbc, $T.class, $S, mapping(), tables())",store,event,plan.namespace()+"."+plan.event().name()).build());
++        adapter.addMethod(MethodSpec.methodBuilder("listenerId").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(String.class)
++                .addStatement("return $S","@storage:"+plan.namespace()+"."+plan.event().name()).build());
++        adapter.addMethod(MethodSpec.methodBuilder("eventClass").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
++                .returns(ParameterizedTypeName.get(ClassName.get(Class.class),WildcardTypeName.subtypeOf(org.vernac.runtime.DomainEvent.class)))
++                .addStatement("return $T.class",event).build());
++        adapter.addMethod(MethodSpec.methodBuilder("persist").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
++                .addParameter(org.vernac.runtime.DomainEvent.class,"event").addParameter(ParameterizedTypeName.get(List.class,String.class),"listenerIds")
++                .addStatement("store.persist(($T) event, listenerIds)",event).build());
++        adapter.addMethod(MethodSpec.methodBuilder("load").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(event).addParameter(eventId,"id")
++                .addStatement("return store.load(id)").build());
++        return JavaFile.builder(plan.namespace()+".adapter.outbound.jdbc.event",adapter.build()).indent("    ").skipJavaLangImports(true).build();
++    }
+     private void queryMethods(StoragePlan plan, TypeSpec.Builder contract, TypeSpec.Builder adapter) {
+         ClassName queryType=ClassName.get("org.vernac.runtime.jdbc","ScalarQuery");
+         for(var method:plan.repository().findMethods()) {
+diff --git a/vernac-compiler/src/main/java/org/vernac/compiler/generator/ListenerGenerator.java b/vernac-compiler/src/main/java/org/vernac/compiler/generator/ListenerGenerator.java
+index 6a5c985..bd9d93b 100644
+--- a/vernac-compiler/src/main/java/org/vernac/compiler/generator/ListenerGenerator.java
++++ b/vernac-compiler/src/main/java/org/vernac/compiler/generator/ListenerGenerator.java
+@@ -7,6 +7,6 @@ import org.vernac.compiler.ast.*;
+ import org.vernac.compiler.pipeline.ResolvedProject;
+ public final class ListenerGenerator {
+     public List<JavaFile> generate(ListenerNode listener, CompilationUnitNode unit, ResolvedProject project) {
+-        return new UseCaseGenerator().generate(listener.operation(), unit, project, true);
++        return new UseCaseGenerator().generate(listener.operation(), unit, project, true,listener.deferred());
+     }
+ }
+diff --git a/vernac-compiler/src/main/java/org/vernac/compiler/generator/UseCaseGenerator.java b/vernac-compiler/src/main/java/org/vernac/compiler/generator/UseCaseGenerator.java
+index a4f69bc..3989052 100644
+--- a/vernac-compiler/src/main/java/org/vernac/compiler/generator/UseCaseGenerator.java
++++ b/vernac-compiler/src/main/java/org/vernac/compiler/generator/UseCaseGenerator.java
+@@ -20,6 +20,9 @@ public final class UseCaseGenerator {
+         return generate(u, unit, project, false);
+     }
+     public List<JavaFile> generate(UseCaseNode u,CompilationUnitNode unit,ResolvedProject project, boolean listener) {
++        return generate(u,unit,project,listener,false);
++    }
++    public List<JavaFile> generate(UseCaseNode u,CompilationUnitNode unit,ResolvedProject project, boolean listener, boolean deferred) {
+         ClassName owner=ClassName.get(unit.namespace()+(listener?".adapter.inbound.event":".usecase"),u.name());
+         ClassName access=ClassName.get(owner.packageName()+".access",u.name()+"Access");
+         var accessSpec=TypeSpec.interfaceBuilder(access).addModifiers(Modifier.PUBLIC).addAnnotation(NullMarked.class);
+@@ -32,7 +35,7 @@ public final class UseCaseGenerator {
+         ClassName validator=ClassName.get(owner.packageName(),"__VernacValidation_"+u.name());
+         var bean=TypeSpec.classBuilder(owner).addModifiers(Modifier.PUBLIC).addAnnotation(NullMarked.class)
+                 .addAnnotation(ClassName.get("org.springframework.stereotype","Service"))
+-                .addJavadoc(listener ? "Generated synchronous event listener. Do not edit.\n" : "Generated usecase. Do not edit.\n");
++                .addJavadoc(listener ? "Generated event listener. Do not edit.\n" : "Generated usecase. Do not edit.\n");
+         var constructor=MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC);
+         TypeName providers=ParameterizedTypeName.get(ClassName.get("org.springframework.beans.factory","ObjectProvider"), ClassName.get(org.vernac.runtime.events.EventHandler.class));
+         bean.addField(providers,"__vernacHandlers",Modifier.PRIVATE,Modifier.FINAL);
+@@ -94,6 +97,8 @@ public final class UseCaseGenerator {
+         if(listener) {
+             var event=raw(u.parameters().getFirst().type(),project,owner);
+             bean.addSuperinterface(org.vernac.runtime.events.EventHandler.class);
++            if(deferred) bean.addMethod(MethodSpec.methodBuilder("deferred").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
++                    .returns(boolean.class).addStatement("return true").build());
+             bean.addMethod(MethodSpec.methodBuilder("listenerId").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(String.class)
+                     .addStatement("return $S",unit.namespace()+"."+u.name()).build());
+             bean.addMethod(MethodSpec.methodBuilder("eventClass").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
+diff --git a/vernac-compiler/src/main/java/org/vernac/compiler/persistence/EventStoragePlan.java b/vernac-compiler/src/main/java/org/vernac/compiler/persistence/EventStoragePlan.java
+new file mode 100644
+index 0000000..cfe2204
+--- /dev/null
++++ b/vernac-compiler/src/main/java/org/vernac/compiler/persistence/EventStoragePlan.java
+@@ -0,0 +1,7 @@
++// Copyright 2026 Danny Reinhold
++// SPDX-License-Identifier: Apache-2.0
++package org.vernac.compiler.persistence;
++import java.util.List;
++import org.vernac.compiler.ast.EventNode;
++/** Immutable payload mapping plus emit-time listener identities. */
++public record EventStoragePlan(String namespace, EventNode event, List<StoragePlan.Relation> relations) { }
+diff --git a/vernac-compiler/src/main/java/org/vernac/compiler/persistence/SchemaBuilder.java b/vernac-compiler/src/main/java/org/vernac/compiler/persistence/SchemaBuilder.java
+index 1973a19..3e52a2b 100644
+--- a/vernac-compiler/src/main/java/org/vernac/compiler/persistence/SchemaBuilder.java
++++ b/vernac-compiler/src/main/java/org/vernac/compiler/persistence/SchemaBuilder.java
+@@ -23,6 +23,8 @@ public final class SchemaBuilder {
+     private MutableTable root;
+     private final List<StoragePlan> plans = new ArrayList<>();
+     private final List<StoragePlan.Relation> relations = new ArrayList<>();
++    private final List<EventStoragePlan> eventPlans = new ArrayList<>();
++    public List<EventStoragePlan> eventPlans() { return List.copyOf(eventPlans); }
+     public List<StoragePlan> plans() { return List.copyOf(plans); }
+     private void publish(MutableTable table) {
+         var schema = table.freeze();
+@@ -69,9 +71,47 @@ public final class SchemaBuilder {
+                 plans.add(new StoragePlan(repo, source.unit().namespace(), a, type.symbol().identity().namespace(), List.copyOf(relations)));
+             } else fail(repo.location(), "Repository requires a resolved aggregate: " + repo.aggregateName());
+         }
++        buildEvents();
+         if (!codes.keySet().containsAll(enumOverrides.keySet())) throw new IllegalArgumentException("Enum-code override names an enum not used by persistence.");
+         return new SchemaModel(1, 1, tables, codes);
+     }
++    private void buildEvents() {
++        Set<String> deferredEvents = new HashSet<>();
++        for(var source:project.project().sources()) for(var definition:source.unit().definitions()) {
++            if(definition instanceof ListenerNode listener && listener.deferred()) {
++                var type=(ResolvedType.Declared)project.typeOf(listener.eventType());
++                deferredEvents.add(type.symbol().identity().qualifiedName());
++            }
++        }
++        for(var source:project.project().sources()) for(var definition:source.unit().definitions()) {
++            if(!(definition instanceof EventNode event)) continue;
++            String identity=source.unit().namespace()+"."+event.name();
++            if(!event.recorded() && !deferredEvents.contains(identity)) continue;
++            MutableTable t=new MutableTable(source.unit().namespace(),"@event:"+event.name(),identity,List.of("@eventId"));
++            root=t; relations.clear(); entities.clear(); expandingEntities.clear();
++            t.predicate=name("@eventId")+" = :aggregateId";
++            t.column("@eventId","UUID",false,"EventId",identity);
++            scalar(t,"@occurredAt","Instant","TRUE",false,identity);
++            for(var f:event.fields()) t.properties.add(new StoragePlan.Property(f.name(),field(t,f.name(),project.typeOf(f.type()),f.type().isOptional(),"TRUE",f.location())));
++            publish(t);
++            eventPlans.add(new EventStoragePlan(source.unit().namespace(),event,List.copyOf(relations)));
++        }
++        if(!deferredEvents.isEmpty()) {
++            MutableTable t=new MutableTable("vernac","@delivery","@event-delivery",List.of("id"));
++            for(String c:List.of("id","eventId")) t.column(c,"UUID",false,"UUID",t.origin);
++            for(String c:List.of("eventType","listenerId","status")) t.column(c,"TEXT",false,"String",t.origin);
++            t.column("attempts","INTEGER",false,"int",t.origin);
++            for(String c:List.of("createdAt","nextAttemptAt")) t.column(c,"TIMESTAMPTZ(6)",false,"delivery-time",t.origin);
++            for(String c:List.of("lastAttemptAt","leaseUntil","completedAt")) t.column(c,"TIMESTAMPTZ(6)",true,"delivery-time",t.origin);
++            t.column("claimToken","UUID",true,"UUID",t.origin);
++            t.column("lastError","TEXT",true,"String",t.origin);
++            t.constraints.add(new Constraint("@unique:delivery","UNIQUE ("+sqlNames(List.of("eventType","eventId","listenerId"))+")"));
++            t.check("attempts",name("attempts")+" >= 0");
++            t.check("status",name("status")+" IN ('PENDING', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'BLOCKED')");
++            t.check("claim","("+name("status")+" = 'PROCESSING' AND "+name("claimToken")+" IS NOT NULL AND "+name("leaseUntil")+" IS NOT NULL) OR ("+name("status")+" <> 'PROCESSING' AND "+name("claimToken")+" IS NULL AND "+name("leaseUntil")+" IS NULL)");
++            tables.add(t.freeze());
++        }
++    }
+     private StoragePlan.Value field(MutableTable t, String path, ResolvedType type, boolean optional, String parent, SourceLocation loc) {
+         if (type instanceof ResolvedType.Builtin builtin) {
+             scalar(t, path, builtin.javaType().getSimpleName(), parent, optional, t.origin + "." + path);
+@@ -275,7 +315,7 @@ public final class SchemaBuilder {
+             child.check("position", name("@position") + " >= 0");
+             child.constraints.add(new Constraint("@unique:row:" + tableName, "UNIQUE (" + name("@rowId") + ")"));
+         }
+-        String ownerKey = owner.primaryKey.equals(List.of("id")) ? "id" : "@rowId";
++        String ownerKey = owner == root ? root.primaryKey.getFirst() : "@rowId";
+         if (owner.primaryKey.equals(List.of("@aggregateId", "id"))) {
+             child.column("@aggregateId", "UUID", false, "aggregate-owner", root.origin);
+             child.constraints.add(new Constraint("@fk:owner", "FOREIGN KEY (" + sqlNames(List.of("@aggregateId", "@ownerId"))
+diff --git a/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/EventContracts.java b/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/EventContracts.java
+index 6ef3b23..d4a2a46 100644
+--- a/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/EventContracts.java
++++ b/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/EventContracts.java
+@@ -10,7 +10,6 @@ import org.vernac.language.VernacNames;
+ 
+ final class EventContracts {
+     void validate(EventNode e,FileTypeScope scope,Map<TypeNode,ResolvedType> types,List<CompilerDiagnostic> errors,VernacProject project,String namespace) {
+-        if(e.recorded()) errors.add(CompilerDiagnostic.error(e.location(),"recorded events require the upcoming relational event persistence implementation; no silent in-memory fallback."));
+         errors.addAll(MemberNames.duplicates(e.fields(),"event field",""));
+         for(var f:e.fields()) {
+             if(!VernacNames.isIdentifier(f.name()) || f.isMutable() || f.name().startsWith("__") || Set.of("create","reconstitute","eventId","occurredAt","getClass","hashCode","toString","notify","notifyAll","wait","clone","finalize","validate").contains(f.name()))
+@@ -25,7 +24,6 @@ final class EventContracts {
+         }
+     }
+     void validate(ListenerNode l,FileTypeScope scope,Map<TypeNode,ResolvedType> types,List<CompilerDiagnostic> errors,VernacProject project,String namespace) {
+-        if(l.deferred()) errors.add(CompilerDiagnostic.error(l.location(),"deferred listeners require the upcoming durable delivery implementation; no synchronous fallback."));
+         var lookup=scope.resolve(l.eventType().name(),l.location());errors.addAll(lookup.diagnostics());
+         if(l.eventType().isOptional() || !l.eventType().typeArguments().isEmpty() || !(lookup.type().orElse(null) instanceof ResolvedType.Declared d) || d.symbol().kind()!=TypeSymbol.Kind.EVENT)
+             errors.add(CompilerDiagnostic.error(l.location(),"Listener on requires a non-optional Event type."));
+diff --git a/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/VernacCompiler.java b/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/VernacCompiler.java
+index 918f3c7..90df85f 100644
+--- a/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/VernacCompiler.java
++++ b/vernac-compiler/src/main/java/org/vernac/compiler/pipeline/VernacCompiler.java
+@@ -89,6 +89,7 @@ public class VernacCompiler {
+         SchemaBuilder persistence = new SchemaBuilder(project, previous, enumCodes);
+         SchemaModel schema = persistence.build();
+         for (StoragePlan plan : persistence.plans()) files.addAll(new JdbcRepositoryGenerator(project,schema).generate(plan));
++        for (var plan : persistence.eventPlans()) files.add(new JdbcRepositoryGenerator(project,schema).generate(plan));
+         GeneratedTypeNames.check(files);
+         return new VernacProjectCompilationResult(files, project.diagnostics());
+     }
+@@ -198,6 +199,9 @@ public class VernacCompiler {
+             }
+         }
+ 
++        var eventPersistence = new SchemaBuilder(resolved, SchemaModel.empty());
++        var eventSchema = eventPersistence.build();
++        for (var plan : eventPersistence.eventPlans()) generatedFiles.add(new JdbcRepositoryGenerator(resolved,eventSchema).generate(plan));
+         GeneratedTypeNames.check(generatedFiles);
+         return new VernacCompilationResult(packageName, generatedFiles);
+     }
+diff --git a/vernac-compiler/src/test/java/org/vernac/compiler/generator/EventGeneratorTest.java b/vernac-compiler/src/test/java/org/vernac/compiler/generator/EventGeneratorTest.java
+index b64ee3c..197a730 100644
+--- a/vernac-compiler/src/test/java/org/vernac/compiler/generator/EventGeneratorTest.java
++++ b/vernac-compiler/src/test/java/org/vernac/compiler/generator/EventGeneratorTest.java
+@@ -30,7 +30,7 @@ class EventGeneratorTest {
+     @Test void recordingAndDeliveryAreNotDomainConstants() {
+         assertThat(generate("event Ping();", "Ping")).contains("create()", "reconstitute(EventId eventId, Instant occurredAt)")
+                 .doesNotContain("TABLE_NAME", "DDL", "OUTBOX");
+-        assertThatThrownBy(() -> generate("recorded event Ping();", "Ping")).hasMessageContaining("recorded events require");
++        assertThat(generate("recorded event Ping();", "Ping")).contains("implements RecordedEvent").doesNotContain("TABLE_NAME", "DDL");
+     }
+     @Test void rejectsMutableAndNonValuePayloadsAndReservedMetadata() {
+         for(String fields: new String[]{"String text", "mut Title title", "Title eventId", "Title occurredAt"})
+diff --git a/vernac-compiler/src/test/java/org/vernac/compiler/generator/ListenerGeneratorTest.java b/vernac-compiler/src/test/java/org/vernac/compiler/generator/ListenerGeneratorTest.java
+index e557150..e327c9b 100644
+--- a/vernac-compiler/src/test/java/org/vernac/compiler/generator/ListenerGeneratorTest.java
++++ b/vernac-compiler/src/test/java/org/vernac/compiler/generator/ListenerGeneratorTest.java
+@@ -22,10 +22,10 @@ class ListenerGeneratorTest {
+                 "return \"example.energy.Alert\"", "return Overheated.class", "AlertAccess")
+                 .doesNotContain("TransactionalEventListener", "@Transactional", "AFTER_COMMIT");
+     }
+-    @Test void rejectsCustomPackageAndUnsupportedDeferredDelivery() {
++    @Test void rejectsCustomPackageAndGeneratesDeferredDelivery() {
+         var compiler=new VernacCompiler();
+         assertThatThrownBy(() -> compiler.compileSource("namespace example; event Ping(); synchronous listener Alert on Ping behavior { package custom; execute {} }"));
+-        assertThatThrownBy(() -> compiler.compileSource("namespace example; event Ping(); deferred listener Alert on Ping behavior { execute {} }"))
+-                .hasMessageContaining("deferred listeners require");
++        assertThat(compiler.compileSource("namespace example; event Ping(); deferred listener Alert on Ping behavior { execute {} }").generatedFiles().toString())
++                .contains("boolean deferred()", "return true", "JdbcPingEvents");
+     }
+ }
+diff --git a/vernac-compiler/src/test/java/org/vernac/compiler/persistence/EventSchemaTest.java b/vernac-compiler/src/test/java/org/vernac/compiler/persistence/EventSchemaTest.java
+new file mode 100644
+index 0000000..3339de6
+--- /dev/null
++++ b/vernac-compiler/src/test/java/org/vernac/compiler/persistence/EventSchemaTest.java
+@@ -0,0 +1,53 @@
++// Copyright 2026 Danny Reinhold
++// SPDX-License-Identifier: Apache-2.0
++package org.vernac.compiler.persistence;
++
++import java.nio.file.*;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.io.TempDir;
++import org.vernac.compiler.pipeline.VernacCompiler;
++import static org.assertj.core.api.Assertions.*;
++
++class EventSchemaTest {
++    @TempDir Path directory;
++    private SchemaModel schema(String definitions) throws Exception {
++        Path ns=Files.createDirectories(directory.resolve("demo"));
++        Files.writeString(ns.resolve("model.vernac"),"namespace demo; "+definitions);
++        return new SchemaBuilder(new VernacCompiler().analyzeProject(directory),SchemaModel.empty()).build();
++    }
++    @Test void recordingIsExplicitAndFieldlessEventsHaveMetadataOnly() throws Exception {
++        assertThat(schema("event Ping();").tables()).isEmpty();
++        var model=schema("recorded event Ping();");
++        assertThat(model.tables()).hasSize(1);
++        var table=model.tables().getFirst();
++        assertThat(table.name()).isEqualTo("@event:Ping");
++        assertThat(table.primaryKey()).containsExactly("@eventId");
++        assertThat(table.columns()).extracting(SchemaModel.Column::name)
++                .containsExactly("@eventId","@nanoRemainder:@occurredAt","@occurredAt");
++    }
++    @Test void crossNamespaceSubscriberCreatesOneEventGraphAndDeliverySchema() throws Exception {
++        Path other=Files.createDirectories(directory.resolve("consumer"));
++        Files.writeString(other.resolve("listeners.vernac"),"""
++            namespace consumer;
++            import demo.Changed;
++            deferred listener First on Changed behavior { execute {} }
++            deferred listener Second on Changed behavior { execute {} }
++            """);
++        var model=schema("id ItemId; value Tag(String) list Tags; event Changed(ItemId id, Tags);");
++        assertThat(model.tables()).extracting(SchemaModel.Table::name)
++                .containsExactlyInAnyOrder("@event:Changed","@event:Changed.tags","@delivery");
++        var child=model.tables().stream().filter(t->t.name().endsWith(".tags")).findFirst().orElseThrow();
++        assertThat(child.constraints().toString()).contains("REFERENCES \"demo\".\"@event:Changed\" (\"@eventId\")");
++        var delivery=model.tables().stream().filter(t->t.name().equals("@delivery")).findFirst().orElseThrow();
++        assertThat(delivery.constraints().toString()).contains("UNIQUE (\"eventType\", \"eventId\", \"listenerId\")");
++        assertThat(new VernacCompiler().compileProject(directory).generatedFiles().toString()).contains("JdbcChangedEvents");
++    }
++    @Test void eventPayloadChangesParticipateInNormalMigrationPlanning() throws Exception {
++        var before=schema("value Note(String); recorded event Changed();");
++        var after=schema("value Note(String); recorded event Changed(Note?);");
++        String sql=new MigrationPlanner().plan(before,after,MigrationPlanner.Options.safe()).sql();
++        assertThat(sql).contains("ADD COLUMN \"note\" TEXT");
++        assertThatThrownBy(()->new MigrationPlanner().plan(after,before,MigrationPlanner.Options.safe()));
++        assertThat(after.fingerprint()).isEqualTo(SchemaModel.parse(after.json()).fingerprint());
++    }
++}
+diff --git a/vernac-lsp/src/main/java/org/vernac/lsp/VernacTextDocumentService.java b/vernac-lsp/src/main/java/org/vernac/lsp/VernacTextDocumentService.java
+index 6780e99..65f6311 100644
+--- a/vernac-lsp/src/main/java/org/vernac/lsp/VernacTextDocumentService.java
++++ b/vernac-lsp/src/main/java/org/vernac/lsp/VernacTextDocumentService.java
+@@ -305,6 +305,8 @@ public class VernacTextDocumentService implements TextDocumentService {
+         addKeywordCompletion(items, "value (enum)", "value ${1:Name} = ${2:CONST1} | ${3:CONST2};");
+         addKeywordCompletion(items, "entity", "entity ${1:Name}[${2:IdType} id](\n    $0\n);");
+         addKeywordCompletion(items, "event", "event ${1:Name}(${2:Type} value);");
++        addKeywordCompletion(items, "recorded event", "recorded event ${1:Name}(${2:Payload});");
++        addKeywordCompletion(items, "deferred listener", "deferred listener ${1:Name} on ${2:EventType} behavior {\n    execute { $0 }\n}");
+         addKeywordCompletion(items, "listener", "synchronous listener ${1:Name} on ${2:EventType} behavior {\n    execute { $0 }\n}");
+         addKeywordCompletion(items, "port", "port ${1:Name} {\n    $0\n}");
+         addKeywordCompletion(items, "repository", "repository ${1:Name} for ${2:Aggregate} {\n    table: \"${3:table_name}\";\n    $0\n};");
+diff --git a/vernac-maven-plugin/src/test/java/org/vernac/maven/EventStoragePostgresTest.java b/vernac-maven-plugin/src/test/java/org/vernac/maven/EventStoragePostgresTest.java
+new file mode 100644
+index 0000000..aca2173
+--- /dev/null
++++ b/vernac-maven-plugin/src/test/java/org/vernac/maven/EventStoragePostgresTest.java
+@@ -0,0 +1,84 @@
++// Copyright 2026 Danny Reinhold
++// SPDX-License-Identifier: Apache-2.0
++package org.vernac.maven;
++import java.nio.file.*;
++import java.nio.charset.StandardCharsets;
++import java.net.URLClassLoader;
++import java.util.*;
++import java.sql.*;
++import javax.tools.*;
++import javax.sql.DataSource;
++import org.junit.jupiter.api.*;
++import org.junit.jupiter.api.io.TempDir;
++import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
++import org.springframework.jdbc.datasource.DriverManagerDataSource;
++import org.vernac.compiler.pipeline.VernacCompiler;
++import org.vernac.compiler.persistence.*;
++import static org.junit.jupiter.api.Assertions.*;
++
++class EventStoragePostgresTest {
++    @TempDir Path directory;
++    private Path model() throws Exception {
++        Path root=Files.createDirectories(directory.resolve("model"));
++        Files.createDirectories(root.resolve("eventdemo"));
++        Files.writeString(root.resolve("eventdemo/model.vernac"),resource("model.vernac"));
++        return root;
++    }
++    @Test void generatedEventStorageCompiles() throws Exception {
++        try(var code=compile(model())) { assertNotNull(code.loadClass("eventdemo.EventProbe")); }
++    }
++    @Test @EnabledIfEnvironmentVariable(named="VERNAC_PG_TEST_URL",matches=".+")
++    void eventGraphsAndDeliveriesCommitOrRollbackTogether() throws Exception {
++        Path root=model();
++        var schema=new SchemaBuilder(new VernacCompiler().analyzeProject(root),SchemaModel.empty()).build();
++        String ddl=new MigrationPlanner().plan(SchemaModel.empty(),schema,MigrationPlanner.Options.safe()).sql();
++        Properties credentials=new Properties();
++        for(String key:List.of("user","password")) {
++            String value=System.getenv("VERNAC_PG_TEST_"+key.toUpperCase(Locale.ROOT));
++            if(value!=null) credentials.setProperty(key,value);
++        }
++        String database="vernac_events_"+UUID.randomUUID().toString().replace("-","");
++        String url=System.getenv("VERNAC_PG_TEST_URL");
++        try(var admin=DriverManager.getConnection(url,credentials);var code=compile(root)) {
++            try(var stmt=admin.createStatement()) { stmt.execute("CREATE DATABASE "+database); }
++            try {
++                var data=new DriverManagerDataSource(SchemaCheckMojo.databaseUrl(url,database));
++                data.setConnectionProperties(credentials);
++                try(var connection=data.getConnection();var statement=connection.createStatement()) { statement.execute(ddl); }
++                try {
++                    var probe=code.loadClass("eventdemo.EventProbe");
++                    probe.getMethod("run",DataSource.class).invoke(null,data);
++                }
++                catch(java.lang.reflect.InvocationTargetException e) {
++                    if(e.getCause() instanceof Error error) throw error;
++                    if(e.getCause() instanceof Exception error) throw error;
++                    throw e;
++                }
++            } finally { try(var stmt=admin.createStatement()) { stmt.execute("DROP DATABASE "+database+" WITH (FORCE)"); } }
++        }
++    }
++    private URLClassLoader compile(Path model) throws Exception {
++        Path sources = Files.createDirectories(directory.resolve("java"));
++        Path classes = Files.createDirectories(directory.resolve("classes"));
++        new VernacCompiler().compileProject(model).writeTo(sources);
++        Files.createDirectories(sources.resolve("eventdemo"));
++        Files.writeString(sources.resolve("eventdemo/EventProbe.java"), resource("EventProbe.java.txt"));
++        var compiler = Objects.requireNonNull(ToolProvider.getSystemJavaCompiler(), "A JDK is required");
++        var diagnostics = new DiagnosticCollector<JavaFileObject>();
++        try (var manager = compiler.getStandardFileManager(diagnostics, null, StandardCharsets.UTF_8);
++             var paths = Files.walk(sources)) {
++            var files = paths.filter(path -> path.toString().endsWith(".java")).toList();
++            var options = List.of("--release", "21", "-encoding", "UTF-8", "-proc:none",
++                    "-classpath", System.getProperty("java.class.path"), "-d", classes.toString());
++            assertTrue(compiler.getTask(null, manager, diagnostics, options, null,
++                    manager.getJavaFileObjectsFromPaths(files)).call(), () -> diagnostics.getDiagnostics().toString());
++        }
++        return new URLClassLoader(new java.net.URL[]{classes.toUri().toURL()}, getClass().getClassLoader());
++    }
++
++    private static String resource(String name) throws Exception {
++        try(var stream=EventStoragePostgresTest.class.getResourceAsStream("/persistence/events/"+name)) {
++            return new String(Objects.requireNonNull(stream).readAllBytes(),StandardCharsets.UTF_8);
++        }
++    }
++}
+diff --git a/vernac-maven-plugin/src/test/resources/persistence/events/EventProbe.java.txt b/vernac-maven-plugin/src/test/resources/persistence/events/EventProbe.java.txt
+new file mode 100644
+index 0000000..ce3ed8d
+--- /dev/null
++++ b/vernac-maven-plugin/src/test/resources/persistence/events/EventProbe.java.txt
+@@ -0,0 +1,69 @@
++package eventdemo;
++import eventdemo.domain.*;
++import eventdemo.adapter.outbound.jdbc.event.*;
++import eventdemo.adapter.inbound.event.*;
++import java.time.Instant;
++import java.math.BigDecimal;
++import java.util.*;
++import javax.sql.DataSource;
++import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
++import org.springframework.jdbc.datasource.DataSourceTransactionManager;
++import org.springframework.transaction.support.TransactionTemplate;
++import org.vernac.runtime.*;
++import org.vernac.runtime.events.*;
++import static org.junit.jupiter.api.Assertions.*;
++public final class EventProbe {
++ public static void run(DataSource data) {
++  var jdbc=new NamedParameterJdbcTemplate(data);
++  var tx=new TransactionTemplate(new DataSourceTransactionManager(data));
++  var store=new JdbcChangedEvents(jdbc);
++  var archived=new JdbcArchivedEvents(jdbc);
++  List<EventHandler> handlers=List.of(store,archived,new First(new org.springframework.beans.factory.support.DefaultListableBeanFactory().getBeanProvider(EventHandler.class)),new Second(new org.springframework.beans.factory.support.DefaultListableBeanFactory().getBeanProvider(EventHandler.class)));
++  var labels=Labels.of(List.of(Label.of("same"),Label.of("same")));
++  var event=Changed.reconstitute(EventId.create(),Instant.parse("2026-10-10T12:00:00.123456789Z"),
++    TaskId.create(),labels,Detail.of(null,Amount.of(new BigDecimal("12.300"))),
++    Batches.of(List.of(Batch.of(labels),Batch.of(Labels.of(List.of())))),Status.OPEN);
++  var recording=Archived.create();
++  tx.executeWithoutResult(s->{try(var scope=EventContext.open(()->handlers)) {
++   EventContext.emit(event); EventContext.emit(event); EventContext.emit(recording); EventContext.emit(Transient.create());
++  }});
++  tx.executeWithoutResult(s->store.persist(event,List.of("new.listener")));
++  assertEquals(1,count(jdbc,"\"eventdemo\".\"@event:Changed\""));
++  assertEquals(1,count(jdbc,"\"eventdemo\".\"@event:Archived\""));
++  assertEquals(2,count(jdbc,"\"vernac\".\"@delivery\""));
++  assertEquals(List.of("eventdemo.First","eventdemo.Second"),jdbc.queryForList(
++   "SELECT \"listenerId\" FROM \"vernac\".\"@delivery\" ORDER BY \"listenerId\"",Map.of(),String.class));
++  assertEquals(2,jdbc.queryForObject("SELECT count(*) FROM \"vernac\".\"@delivery\" WHERE status='PENDING' AND attempts=0 AND \"claimToken\" IS NULL",Map.of(),Integer.class));
++  tx.executeWithoutResult(s->{
++   var loaded=store.load(event.eventId());
++   assertEquals(event.eventId(),loaded.eventId()); assertEquals(event.occurredAt(),loaded.occurredAt());
++   assertEquals(event.id(),loaded.id()); assertEquals(event.labels(),loaded.labels());
++   assertEquals(event.detail(),loaded.detail()); assertEquals(event.batches(),loaded.batches());
++   assertEquals(event.status(),loaded.status());
++   assertEquals(recording.occurredAt(),archived.load(recording.eventId()).occurredAt());
++  });
++  var conflict=Changed.reconstitute(event.eventId(),event.occurredAt(),event.id(),Labels.of(List.of()),
++   null,event.batches(),Status.CLOSED);
++  assertThrows(IllegalStateException.class,()->tx.executeWithoutResult(s->{try(var scope=EventContext.open(()->handlers)) {
++   try { EventContext.emit(conflict); } catch(VernacTechnicalException expected) { }
++  }}));
++  assertEquals(2,count(jdbc,"\"vernac\".\"@delivery\""));
++  jdbc.getJdbcTemplate().execute("CREATE TABLE application_work(id INTEGER)");
++  EventHandler failing=new EventHandler() {
++   public String listenerId(){return "failing";}
++   public Class<? extends DomainEvent> eventClass(){return Changed.class;}
++   public void handle(DomainEvent e){throw new IllegalArgumentException("failure");}
++  };
++  var withFailure=new ArrayList<>(handlers); withFailure.add(failing);
++  assertThrows(IllegalArgumentException.class,()->tx.executeWithoutResult(s->{try(var scope=EventContext.open(()->withFailure)) {
++   jdbc.getJdbcTemplate().update("INSERT INTO application_work VALUES (1)");
++   EventContext.emit(Changed.create(TaskId.create(),labels,null,event.batches(),Status.OPEN));
++  }}));
++  assertEquals(0,count(jdbc,"application_work"));
++  assertEquals(1,count(jdbc,"\"eventdemo\".\"@event:Changed\""));
++  assertEquals(2,count(jdbc,"\"vernac\".\"@delivery\""));
++ }
++ static int count(NamedParameterJdbcTemplate jdbc,String table) {
++  return jdbc.queryForObject("SELECT count(*) FROM "+table,Map.of(),Integer.class);
++ }
++}
+diff --git a/vernac-maven-plugin/src/test/resources/persistence/events/model.vernac b/vernac-maven-plugin/src/test/resources/persistence/events/model.vernac
+new file mode 100644
+index 0000000..af59f00
+--- /dev/null
++++ b/vernac-maven-plugin/src/test/resources/persistence/events/model.vernac
+@@ -0,0 +1,12 @@
++namespace eventdemo;
++id TaskId;
++value Label(String) list Labels;
++value Amount(BigDecimal);
++value Detail(Label? note, Amount? amount);
++value Batch(Labels labels) list Batches;
++value Status = OPEN | CLOSED;
++event Changed(TaskId id, Labels labels, Detail? detail, Batches batches, Status status);
++recorded event Archived();
++event Transient();
++deferred listener First on Changed behavior { execute { throw new AssertionError("Must not run on emit"); } }
++deferred listener Second on Changed behavior { execute { throw new AssertionError("Must not run on emit"); } }
+diff --git a/vernac-runtime-jdbc/src/main/java/org/vernac/runtime/jdbc/JdbcAggregateStore.java b/vernac-runtime-jdbc/src/main/java/org/vernac/runtime/jdbc/JdbcAggregateStore.java
+index 4b7502a..9298af9 100644
+--- a/vernac-runtime-jdbc/src/main/java/org/vernac/runtime/jdbc/JdbcAggregateStore.java
++++ b/vernac-runtime-jdbc/src/main/java/org/vernac/runtime/jdbc/JdbcAggregateStore.java
+@@ -15,6 +15,7 @@ import org.springframework.transaction.IllegalTransactionStateException;
+ import org.springframework.transaction.support.TransactionSynchronizationManager;
+ import org.vernac.runtime.*;
+ import static org.vernac.runtime.jdbc.JdbcMapping.*;
++import static org.vernac.runtime.jdbc.JdbcRows.*;
+ 
+ /** Transaction-scoped complete aggregate persistence using explicit generated bindings. */
+ @NullMarked
+@@ -131,20 +132,6 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
+                 +" FROM "+table.name()+" WHERE "+table.predicate(),Map.of("aggregateId",id),(rs,n)->readRow(table,rs)));
+         return rows;
+     }
+-    private static Map<String,@Nullable Object> readRow(Table table,ResultSet rs) throws SQLException {
+-        Map<String,@Nullable Object> row=new LinkedHashMap<>();
+-        for(Column c:table.columns()) {
+-            Object value=switch(c.sqlType()) {
+-                case "DATE" -> rs.getObject(c.name(),LocalDate.class);
+-                case "TIME(6)" -> rs.getObject(c.name(),LocalTime.class);
+-                case "TIMESTAMP(6)" -> rs.getObject(c.name(),LocalDateTime.class);
+-                case "TIMESTAMPTZ(6)" -> rs.getObject(c.name(),OffsetDateTime.class);
+-                default -> rs.getObject(c.name());
+-            };
+-            row.put(c.name(),value);
+-        }
+-        return row;
+-    }
+     private static boolean replacedValueRow(Map<String,@Nullable Object> old,Map<String,@Nullable Object> next) {
+         return old.containsKey("@rowId") && !Objects.equals(old.get("@rowId"),next.get("@rowId"));
+     }
+@@ -165,32 +152,12 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
+         for(int i=0;i<t.columns().size();i++) if(t.key().contains(t.columns().get(i).name())) clauses.add(q(t.columns().get(i).name())+"=:p"+i);
+         return String.join(" AND ",clauses);
+     }
+-    private static MapSqlParameterSource params(Table t,Map<String,@Nullable Object> row) {
+-        var p=new MapSqlParameterSource();
+-        for(int i=0;i<t.columns().size();i++) {
+-            var c=t.columns().get(i); Object value=row.get(c.name());
+-            // Non-null JDBC 4.2 values retain their native Java time type. NULL needs a declared SQL type.
+-            if(value==null) p.addValue("p"+i,null,jdbcType(c.sqlType())); else p.addValue("p"+i,value);
+-        }
+-        return p;
+-    }
+-    private static int jdbcType(String type) {
+-        return switch(type) {
+-            case "UUID" -> Types.OTHER; case "TEXT" -> Types.VARCHAR; case "BOOLEAN" -> Types.BOOLEAN;
+-            case "SMALLINT" -> Types.SMALLINT; case "INTEGER" -> Types.INTEGER; case "BIGINT" -> Types.BIGINT;
+-            case "NUMERIC" -> Types.NUMERIC; case "REAL" -> Types.REAL; case "DOUBLE PRECISION" -> Types.DOUBLE;
+-            case "DATE" -> Types.DATE; case "TIME(6)" -> Types.TIME; case "TIMESTAMP(6)" -> Types.TIMESTAMP;
+-            case "TIMESTAMPTZ(6)" -> Types.TIMESTAMP_WITH_TIMEZONE;
+-            default -> throw new IllegalArgumentException("Unsupported JDBC column type "+type);
+-        };
+-    }
+     private static Map<List<Object>,Map<String,@Nullable Object>> index(Table table,List<Map<String,@Nullable Object>> rows) {
+         Map<List<Object>,Map<String,@Nullable Object>> result=new HashMap<>();
+         for(var row:rows) if(result.put(key(table,row),row)!=null) throw malformed("Duplicate row key: "+table.name());
+         return result;
+     }
+     private static List<Object> key(Table t,Map<String,@Nullable Object> row) { return t.key().stream().map(row::get).toList(); }
+-    private static String q(String identifier) { return "\""+identifier.replace("\"","\"\"")+"\""; }
+     private static void requireTransaction() {
+         if(!TransactionSynchronizationManager.isActualTransactionActive()) throw new IllegalTransactionStateException("Vernac repositories require an active usecase transaction");
+     }
+diff --git a/vernac-runtime-jdbc/src/main/java/org/vernac/runtime/jdbc/JdbcEventStore.java b/vernac-runtime-jdbc/src/main/java/org/vernac/runtime/jdbc/JdbcEventStore.java
+new file mode 100644
+index 0000000..0dc250c
+--- /dev/null
++++ b/vernac-runtime-jdbc/src/main/java/org/vernac/runtime/jdbc/JdbcEventStore.java
+@@ -0,0 +1,93 @@
++// Copyright 2026 Danny Reinhold
++// SPDX-License-Identifier: Apache-2.0
++package org.vernac.runtime.jdbc;
++
++import java.time.*;
++import java.time.temporal.ChronoUnit;
++import java.util.*;
++import org.jspecify.annotations.*;
++import org.springframework.jdbc.core.namedparam.*;
++import org.springframework.transaction.support.TransactionSynchronizationManager;
++import org.vernac.runtime.*;
++import static org.vernac.runtime.jdbc.JdbcMapping.*;
++import static org.vernac.runtime.jdbc.JdbcRows.*;
++
++/** Append-only event graphs and per-listener jobs, in the caller's transaction. No worker. */
++@NullMarked
++public final class JdbcEventStore<E extends DomainEvent> {
++    public static final String DELIVERY_TABLE = "\"vernac\".\"@delivery\"";
++    private final NamedParameterJdbcTemplate jdbc;
++    private final Class<E> type;
++    private final String eventType;
++    private final Domain root;
++    private final Map<String,Table> tables = new LinkedHashMap<>();
++    private final List<Table> order;
++
++    public JdbcEventStore(NamedParameterJdbcTemplate jdbc, Class<E> type, String eventType, Domain root, List<Table> tables) {
++        this.jdbc=Objects.requireNonNull(jdbc); this.type=type; this.eventType=eventType; this.root=root;
++        tables.forEach(t -> this.tables.put(t.name(),t));
++        order=tables.stream().sorted(Comparator.comparingInt(Table::depth).thenComparing(Table::name)).toList();
++    }
++
++    public void persist(E event, List<String> listenerIds) {
++        requireTransaction(); Objects.requireNonNull(event);
++        if(new HashSet<>(listenerIds).size()!=listenerIds.size()) throw new IllegalArgumentException("Duplicate delivery recipient");
++        var graph=new WriteGraph();
++        var row=graph.row(root.table());
++        row.put("@eventId",event.eventId().value());
++        for(var field:root.fields()) field.value().write(field.getter().apply(event),row,graph,true);
++        int inserted=insert(tables.get(root.table()),row,true);
++        if(inserted==0) {
++            E existing=load(event.eventId());
++            for(var field:root.fields()) if(!Objects.equals(field.getter().apply(existing),field.getter().apply(event)))
++                throw new VernacTechnicalException("Conflicting payload for stored event "+eventType+" / "+event.eventId());
++            // Subscriber set is fixed by the first publication; never replay to newly added listeners.
++            return;
++        }
++        for(var table:order) if(!table.name().equals(root.table()))
++            for(var child:graph.rows.getOrDefault(table.name(),List.of())) insert(table,child,false);
++        var now=Instant.now().truncatedTo(ChronoUnit.MICROS).atOffset(ZoneOffset.UTC);
++        for(String listener:listenerIds) {
++            jdbc.update("INSERT INTO "+DELIVERY_TABLE+" (\"id\", \"eventType\", \"eventId\", \"listenerId\", \"status\", \"attempts\", \"createdAt\", \"nextAttemptAt\") "
++                    +"VALUES (:id, :type, :event, :listener, 'PENDING', 0, :now, :now)",
++                    new MapSqlParameterSource().addValue("id",UUID.randomUUID()).addValue("type",eventType)
++                            .addValue("event",event.eventId().value()).addValue("listener",listener).addValue("now",now));
++        }
++    }
++
++    public E load(EventId id) {
++        requireTransaction(); Objects.requireNonNull(id);
++        var graph=new LinkedHashMap<String,List<Map<String,@Nullable Object>>>();
++        for(var table:order) graph.put(table.name(),jdbc.query("SELECT "+String.join(", ",table.columns().stream().map(c->q(c.name())).toList())
++                +" FROM "+table.name()+" WHERE "+table.predicate(),Map.of("aggregateId",id.value()),(rs,n)->readRow(table,rs)));
++        var roots=graph.get(root.table());
++        if(roots.size()!=1) throw new VernacTechnicalException("Stored event not found: "+eventType+" / "+id);
++        Reader reader=new Reader() {
++            public Object entity(String table,UUID entityId) { throw new IllegalStateException("Events cannot contain entities"); }
++            public List<Map<String,@Nullable Object>> rows(String table) { return graph.getOrDefault(table,List.of()); }
++        };
++        Object[] values=root.fields().stream().map(f->f.value().read(roots.getFirst(),reader)).toArray();
++        return type.cast(root.restore().apply(id.value(),values));
++    }
++
++    private int insert(Table table,Map<String,@Nullable Object> row,boolean ignoreExisting) {
++        return jdbc.update("INSERT INTO "+table.name()+" ("+String.join(", ",table.columns().stream().map(c->q(c.name())).toList())+") VALUES ("
++                +String.join(", ",java.util.stream.IntStream.range(0,table.columns().size()).mapToObj(i->":p"+i).toList())+")"
++                +(ignoreExisting?" ON CONFLICT (\"@eventId\") DO NOTHING":""),params(table,row));
++    }
++    private static void requireTransaction() {
++        if(!TransactionSynchronizationManager.isActualTransactionActive() || !TransactionSynchronizationManager.isSynchronizationActive())
++            throw new IllegalStateException("Event persistence requires an active synchronized transaction");
++    }
++    private final class WriteGraph implements Writer {
++        final Map<String,List<Map<String,@Nullable Object>>> rows=new LinkedHashMap<>();
++        public UUID entity(String table,Object value) { throw new IllegalStateException("Events cannot contain entities"); }
++        public Map<String,@Nullable Object> row(String table) {
++            Map<String,@Nullable Object> row=new LinkedHashMap<>();
++            for(var column:tables.get(table).columns()) row.put(column.name(),null);
++            if(row.containsKey("@rowId")) row.put("@rowId",UUID.randomUUID());
++            rows.computeIfAbsent(table,k->new ArrayList<>()).add(row);
++            return row;
++        }
++    }
++}
+diff --git a/vernac-runtime-jdbc/src/main/java/org/vernac/runtime/jdbc/JdbcRows.java b/vernac-runtime-jdbc/src/main/java/org/vernac/runtime/jdbc/JdbcRows.java
+new file mode 100644
+index 0000000..5b3588e
+--- /dev/null
++++ b/vernac-runtime-jdbc/src/main/java/org/vernac/runtime/jdbc/JdbcRows.java
+@@ -0,0 +1,48 @@
++// Copyright 2026 Danny Reinhold
++// SPDX-License-Identifier: Apache-2.0
++package org.vernac.runtime.jdbc;
++import java.sql.*;
++import java.time.*;
++import java.util.*;
++import org.jspecify.annotations.*;
++import org.springframework.jdbc.core.namedparam.*;
++import static org.vernac.runtime.jdbc.JdbcMapping.*;
++/** Shared SQL component conversion for aggregate and immutable event storage. */
++@NullMarked
++final class JdbcRows {
++    private JdbcRows() { }
++    static String q(String identifier) { return "\""+identifier.replace("\"","\"\"")+"\""; }
++    static Map<String,@Nullable Object> readRow(Table table,ResultSet rs) throws SQLException {
++        Map<String,@Nullable Object> row=new LinkedHashMap<>();
++        for(Column c:table.columns()) {
++            Object value=switch(c.sqlType()) {
++                case "DATE" -> rs.getObject(c.name(),LocalDate.class);
++                case "TIME(6)" -> rs.getObject(c.name(),LocalTime.class);
++                case "TIMESTAMP(6)" -> rs.getObject(c.name(),LocalDateTime.class);
++                case "TIMESTAMPTZ(6)" -> rs.getObject(c.name(),OffsetDateTime.class);
++                default -> rs.getObject(c.name());
++            };
++            row.put(c.name(),value);
++        }
++        return row;
++    }
++    static MapSqlParameterSource params(Table t,Map<String,@Nullable Object> row) {
++        var p=new MapSqlParameterSource();
++        for(int i=0;i<t.columns().size();i++) {
++            var c=t.columns().get(i); Object value=row.get(c.name());
++            // Non-null JDBC 4.2 values retain their native Java time type. NULL needs a declared SQL type.
++            if(value==null) p.addValue("p"+i,null,jdbcType(c.sqlType())); else p.addValue("p"+i,value);
++        }
++        return p;
++    }
++    static int jdbcType(String type) {
++        return switch(type) {
++            case "UUID" -> Types.OTHER; case "TEXT" -> Types.VARCHAR; case "BOOLEAN" -> Types.BOOLEAN;
++            case "SMALLINT" -> Types.SMALLINT; case "INTEGER" -> Types.INTEGER; case "BIGINT" -> Types.BIGINT;
++            case "NUMERIC" -> Types.NUMERIC; case "REAL" -> Types.REAL; case "DOUBLE PRECISION" -> Types.DOUBLE;
++            case "DATE" -> Types.DATE; case "TIME(6)" -> Types.TIME; case "TIMESTAMP(6)" -> Types.TIMESTAMP;
++            case "TIMESTAMPTZ(6)" -> Types.TIMESTAMP_WITH_TIMEZONE;
++            default -> throw new IllegalArgumentException("Unsupported JDBC column type "+type);
++        };
++    }
++}
+diff --git a/vernac-runtime/src/main/java/org/vernac/runtime/events/EventContext.java b/vernac-runtime/src/main/java/org/vernac/runtime/events/EventContext.java
+index b614056..1a24e97 100644
+--- a/vernac-runtime/src/main/java/org/vernac/runtime/events/EventContext.java
++++ b/vernac-runtime/src/main/java/org/vernac/runtime/events/EventContext.java
+@@ -67,7 +67,14 @@ public final class EventContext implements AutoCloseable {
+                         throw new IllegalStateException("Duplicate event listener identity: " + handler.listenerId());
+                     }
+                 }
+-                for (var handler : selected) handler.handle(event);
++                var listeners = selected.stream().filter(handler -> !(handler instanceof EventStorage)).toList();
++                var deferred = listeners.stream().filter(EventHandler::deferred).map(EventHandler::listenerId).sorted().toList();
++                if (event instanceof RecordedEvent || !deferred.isEmpty()) {
++                    var storage = selected.stream().filter(EventStorage.class::isInstance).map(EventStorage.class::cast).toList();
++                    if (storage.size() != 1) throw new IllegalStateException("Exactly one event storage adapter is required for " + event.getClass().getName());
++                    storage.getFirst().persist(event, deferred);
++                }
++                for (var handler : listeners) if (!handler.deferred()) handler.handle(event);
+             } finally {
+                 state.active.remove(event.eventId());
+             }
+diff --git a/vernac-runtime/src/main/java/org/vernac/runtime/events/EventHandler.java b/vernac-runtime/src/main/java/org/vernac/runtime/events/EventHandler.java
+index c50a604..2cb2524 100644
+--- a/vernac-runtime/src/main/java/org/vernac/runtime/events/EventHandler.java
++++ b/vernac-runtime/src/main/java/org/vernac/runtime/events/EventHandler.java
+@@ -2,10 +2,11 @@
+ // SPDX-License-Identifier: Apache-2.0
+ package org.vernac.runtime.events;
+ import org.vernac.runtime.DomainEvent;
+-/** Generated synchronous receiver; identity is the qualified Vernac listener name. */
++/** Generated receiver; identity is the qualified Vernac listener name. */
+ @org.jspecify.annotations.NullMarked
+ public interface EventHandler {
+     String listenerId();
+     Class<? extends DomainEvent> eventClass();
++    default boolean deferred() { return false; }
+     void handle(DomainEvent event);
+ }
+diff --git a/vernac-runtime/src/main/java/org/vernac/runtime/events/EventStorage.java b/vernac-runtime/src/main/java/org/vernac/runtime/events/EventStorage.java
+new file mode 100644
+index 0000000..d2f1c7a
+--- /dev/null
++++ b/vernac-runtime/src/main/java/org/vernac/runtime/events/EventStorage.java
+@@ -0,0 +1,16 @@
++// Copyright 2026 Danny Reinhold
++// SPDX-License-Identifier: Apache-2.0
++package org.vernac.runtime.events;
++import java.util.List;
++import org.jspecify.annotations.NullMarked;
++import org.vernac.runtime.DomainEvent;
++import org.vernac.runtime.EventId;
++/** Generated relational adapter, discovered through the same scoped handler provider. */
++@NullMarked
++public interface EventStorage extends EventHandler {
++    void persist(DomainEvent event, List<String> listenerIds);
++    DomainEvent load(EventId id);
++    @Override default void handle(DomainEvent event) {
++        throw new IllegalStateException("Event storage is not a synchronous listener");
++    }
++}
+diff --git a/vernac-runtime/src/main/java/org/vernac/runtime/events/RecordedEvent.java b/vernac-runtime/src/main/java/org/vernac/runtime/events/RecordedEvent.java
+new file mode 100644
+index 0000000..ab21a64
+--- /dev/null
++++ b/vernac-runtime/src/main/java/org/vernac/runtime/events/RecordedEvent.java
+@@ -0,0 +1,5 @@
++// Copyright 2026 Danny Reinhold
++// SPDX-License-Identifier: Apache-2.0
++package org.vernac.runtime.events;
++/** Explicit opt-in recording of a domain fact, independent of subscriptions. */
++public interface RecordedEvent extends org.vernac.runtime.DomainEvent { }
+diff --git a/vernac-runtime/src/test/java/org/vernac/runtime/events/EventContextTest.java b/vernac-runtime/src/test/java/org/vernac/runtime/events/EventContextTest.java
+index 215f402..54d03bc 100644
+--- a/vernac-runtime/src/test/java/org/vernac/runtime/events/EventContextTest.java
++++ b/vernac-runtime/src/test/java/org/vernac/runtime/events/EventContextTest.java
+@@ -59,6 +59,49 @@ class EventContextTest {
+             new Thread(task).start(); task.get();
+         }
+     }
++    @Test void storesBeforeSynchronousHandlingAndDoesNotExecuteDeferredHandlers() {
++        var manager=new Manager(); var calls=new ArrayList<String>();
++        EventStorage storage=new EventStorage() {
++            public String listenerId(){return "@storage:Ping";}
++            public Class<? extends DomainEvent> eventClass(){return Ping.class;}
++            public void persist(DomainEvent event,List<String> recipients){calls.add("store:"+recipients);}
++            public DomainEvent load(EventId id){throw new UnsupportedOperationException();}
++        };
++        EventHandler deferred=new EventHandler() {
++            public String listenerId(){return "later";}
++            public Class<? extends DomainEvent> eventClass(){return Ping.class;}
++            public boolean deferred(){return true;}
++            public void handle(DomainEvent event){fail("Deferred handler ran during emit");}
++        };
++        new TransactionTemplate(manager).executeWithoutResult(tx->{
++            try(var context=EventContext.open(()->List.of(handler("now",e->calls.add("sync")),deferred,storage))) {
++                EventContext.emit(new Ping());
++            }
++        });
++        assertEquals(List.of("store:[later]","sync"),calls);
++        assertThrows(IllegalStateException.class,()->new TransactionTemplate(manager).executeWithoutResult(tx->{
++            try(var context=EventContext.open(()->List.of(deferred))) { EventContext.emit(new Ping()); }
++        }));
++        assertEquals(1,manager.commits); assertEquals(1,manager.rollbacks);
++    }
++    @Test void recordedEventRequiresStorageEvenWithoutListeners() {
++        record RecordedPing(EventId eventId,Instant occurredAt) implements RecordedEvent {}
++        var event=new RecordedPing(EventId.create(),Instant.now());
++        var manager=new Manager(); var stored=new ArrayList<DomainEvent>();
++        EventStorage storage=new EventStorage() {
++            public String listenerId(){return "@storage:RecordedPing";}
++            public Class<? extends DomainEvent> eventClass(){return RecordedPing.class;}
++            public void persist(DomainEvent e,List<String> recipients){assertTrue(recipients.isEmpty());stored.add(e);}
++            public DomainEvent load(EventId id){throw new UnsupportedOperationException();}
++        };
++        new TransactionTemplate(manager).executeWithoutResult(tx->{
++            try(var context=EventContext.open(()->List.of(storage))) { EventContext.emit(event); }
++        });
++        assertEquals(List.of(event),stored);
++        assertThrows(IllegalStateException.class,()->new TransactionTemplate(manager).executeWithoutResult(tx->{
++            try(var context=EventContext.open(List::of)) { EventContext.emit(event); }
++        }));
++    }
+     static final class Manager extends AbstractPlatformTransactionManager {
+         int commits,rollbacks;
+         protected Object doGetTransaction() { return new Object(); }

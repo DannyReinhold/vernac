@@ -15,6 +15,7 @@ import org.springframework.transaction.IllegalTransactionStateException;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.vernac.runtime.*;
 import static org.vernac.runtime.jdbc.JdbcMapping.*;
+import static org.vernac.runtime.jdbc.JdbcRows.*;
 
 /** Transaction-scoped complete aggregate persistence using explicit generated bindings. */
 @NullMarked
@@ -131,20 +132,6 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
                 +" FROM "+table.name()+" WHERE "+table.predicate(),Map.of("aggregateId",id),(rs,n)->readRow(table,rs)));
         return rows;
     }
-    private static Map<String,@Nullable Object> readRow(Table table,ResultSet rs) throws SQLException {
-        Map<String,@Nullable Object> row=new LinkedHashMap<>();
-        for(Column c:table.columns()) {
-            Object value=switch(c.sqlType()) {
-                case "DATE" -> rs.getObject(c.name(),LocalDate.class);
-                case "TIME(6)" -> rs.getObject(c.name(),LocalTime.class);
-                case "TIMESTAMP(6)" -> rs.getObject(c.name(),LocalDateTime.class);
-                case "TIMESTAMPTZ(6)" -> rs.getObject(c.name(),OffsetDateTime.class);
-                default -> rs.getObject(c.name());
-            };
-            row.put(c.name(),value);
-        }
-        return row;
-    }
     private static boolean replacedValueRow(Map<String,@Nullable Object> old,Map<String,@Nullable Object> next) {
         return old.containsKey("@rowId") && !Objects.equals(old.get("@rowId"),next.get("@rowId"));
     }
@@ -165,32 +152,12 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
         for(int i=0;i<t.columns().size();i++) if(t.key().contains(t.columns().get(i).name())) clauses.add(q(t.columns().get(i).name())+"=:p"+i);
         return String.join(" AND ",clauses);
     }
-    private static MapSqlParameterSource params(Table t,Map<String,@Nullable Object> row) {
-        var p=new MapSqlParameterSource();
-        for(int i=0;i<t.columns().size();i++) {
-            var c=t.columns().get(i); Object value=row.get(c.name());
-            // Non-null JDBC 4.2 values retain their native Java time type. NULL needs a declared SQL type.
-            if(value==null) p.addValue("p"+i,null,jdbcType(c.sqlType())); else p.addValue("p"+i,value);
-        }
-        return p;
-    }
-    private static int jdbcType(String type) {
-        return switch(type) {
-            case "UUID" -> Types.OTHER; case "TEXT" -> Types.VARCHAR; case "BOOLEAN" -> Types.BOOLEAN;
-            case "SMALLINT" -> Types.SMALLINT; case "INTEGER" -> Types.INTEGER; case "BIGINT" -> Types.BIGINT;
-            case "NUMERIC" -> Types.NUMERIC; case "REAL" -> Types.REAL; case "DOUBLE PRECISION" -> Types.DOUBLE;
-            case "DATE" -> Types.DATE; case "TIME(6)" -> Types.TIME; case "TIMESTAMP(6)" -> Types.TIMESTAMP;
-            case "TIMESTAMPTZ(6)" -> Types.TIMESTAMP_WITH_TIMEZONE;
-            default -> throw new IllegalArgumentException("Unsupported JDBC column type "+type);
-        };
-    }
     private static Map<List<Object>,Map<String,@Nullable Object>> index(Table table,List<Map<String,@Nullable Object>> rows) {
         Map<List<Object>,Map<String,@Nullable Object>> result=new HashMap<>();
         for(var row:rows) if(result.put(key(table,row),row)!=null) throw malformed("Duplicate row key: "+table.name());
         return result;
     }
     private static List<Object> key(Table t,Map<String,@Nullable Object> row) { return t.key().stream().map(row::get).toList(); }
-    private static String q(String identifier) { return "\""+identifier.replace("\"","\"\"")+"\""; }
     private static void requireTransaction() {
         if(!TransactionSynchronizationManager.isActualTransactionActive()) throw new IllegalTransactionStateException("Vernac repositories require an active usecase transaction");
     }

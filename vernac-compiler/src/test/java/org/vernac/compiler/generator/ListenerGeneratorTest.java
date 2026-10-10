@@ -22,10 +22,10 @@ class ListenerGeneratorTest {
                 "return \"example.energy.Alert\"", "return Overheated.class", "AlertAccess")
                 .doesNotContain("TransactionalEventListener", "@Transactional", "AFTER_COMMIT");
     }
-    @Test void rejectsCustomPackageAndUnsupportedDeferredDelivery() {
+    @Test void rejectsCustomPackageAndGeneratesDeferredDelivery() {
         var compiler=new VernacCompiler();
         assertThatThrownBy(() -> compiler.compileSource("namespace example; event Ping(); synchronous listener Alert on Ping behavior { package custom; execute {} }"));
-        assertThatThrownBy(() -> compiler.compileSource("namespace example; event Ping(); deferred listener Alert on Ping behavior { execute {} }"))
-                .hasMessageContaining("deferred listeners require");
+        assertThat(compiler.compileSource("namespace example; event Ping(); deferred listener Alert on Ping behavior { execute {} }").generatedFiles().toString())
+                .contains("boolean deferred()", "return true", "JdbcPingEvents");
     }
 }

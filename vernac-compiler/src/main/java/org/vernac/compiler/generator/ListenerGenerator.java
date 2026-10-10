@@ -7,6 +7,6 @@ import org.vernac.compiler.ast.*;
 import org.vernac.compiler.pipeline.ResolvedProject;
 public final class ListenerGenerator {
     public List<JavaFile> generate(ListenerNode listener, CompilationUnitNode unit, ResolvedProject project) {
-        return new UseCaseGenerator().generate(listener.operation(), unit, project, true);
+        return new UseCaseGenerator().generate(listener.operation(), unit, project, true,listener.deferred());
     }
 }

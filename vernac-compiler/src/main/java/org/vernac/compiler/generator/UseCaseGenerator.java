@@ -20,6 +20,9 @@ public final class UseCaseGenerator {
         return generate(u, unit, project, false);
     }
     public List<JavaFile> generate(UseCaseNode u,CompilationUnitNode unit,ResolvedProject project, boolean listener) {
+        return generate(u,unit,project,listener,false);
+    }
+    public List<JavaFile> generate(UseCaseNode u,CompilationUnitNode unit,ResolvedProject project, boolean listener, boolean deferred) {
         ClassName owner=ClassName.get(unit.namespace()+(listener?".adapter.inbound.event":".usecase"),u.name());
         ClassName access=ClassName.get(owner.packageName()+".access",u.name()+"Access");
         var accessSpec=TypeSpec.interfaceBuilder(access).addModifiers(Modifier.PUBLIC).addAnnotation(NullMarked.class);
@@ -32,7 +35,7 @@ public final class UseCaseGenerator {
         ClassName validator=ClassName.get(owner.packageName(),"__VernacValidation_"+u.name());
         var bean=TypeSpec.classBuilder(owner).addModifiers(Modifier.PUBLIC).addAnnotation(NullMarked.class)
                 .addAnnotation(ClassName.get("org.springframework.stereotype","Service"))
-                .addJavadoc(listener ? "Generated synchronous event listener. Do not edit.\n" : "Generated usecase. Do not edit.\n");
+                .addJavadoc(listener ? "Generated event listener. Do not edit.\n" : "Generated usecase. Do not edit.\n");
         var constructor=MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC);
         TypeName providers=ParameterizedTypeName.get(ClassName.get("org.springframework.beans.factory","ObjectProvider"), ClassName.get(org.vernac.runtime.events.EventHandler.class));
         bean.addField(providers,"__vernacHandlers",Modifier.PRIVATE,Modifier.FINAL);
@@ -94,6 +97,8 @@ public final class UseCaseGenerator {
         if(listener) {
             var event=raw(u.parameters().getFirst().type(),project,owner);
             bean.addSuperinterface(org.vernac.runtime.events.EventHandler.class);
+            if(deferred) bean.addMethod(MethodSpec.methodBuilder("deferred").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
+                    .returns(boolean.class).addStatement("return true").build());
             bean.addMethod(MethodSpec.methodBuilder("listenerId").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(String.class)
                     .addStatement("return $S",unit.namespace()+"."+u.name()).build());
             bean.addMethod(MethodSpec.methodBuilder("eventClass").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)

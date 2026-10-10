@@ -1,7 +1,8 @@
 # Publish a domain event
 
-This walkthrough uses the synchronous event increment. Deferred delivery and explicit
-recording are not implemented yet; see the [delivery plan](../development/event-delivery.md).
+This walkthrough starts with synchronous events, then introduces recording and queued
+delivery. Deferred worker execution is the next stage; see the
+[delivery plan](../development/event-delivery.md).
 
 In a Spring Boot application with Vernac generation enabled, create
 `src/main/vernac/example/tasks/events.vernac`:
@@ -80,3 +81,33 @@ See the [event contract](../contracts/events.md) for factories, identity and nul
 Next: durable relational event storage and per-listener delivery jobs, with a separate
 PostgreSQL walkthrough. Do not simulate durability by switching this example to an
 asynchronous thread or by catching and ignoring listener failures.
+
+## Next stage: recording and queued delivery
+
+Replace `event Changed(...)` with `recorded event Changed(...)` to retain occurrences
+without a deferred consumer. Alternatively, declare a `deferred listener` to request
+storage and a delivery job for that listener. Keep synchronous listeners where their
+work belongs to the caller's transaction.
+
+Run the normal Vernac migration goal, review the candidate, then apply it through
+Flyway before publishing. Event tables use the same schema history as aggregates.
+Never edit an already applied migration to add these tables. Review and test every
+candidate yourself; generation is not an approval or a guarantee of data compatibility.
+
+After committing a publication, inspect the event table and `"vernac"."@delivery"`.
+Two deferred listeners produce two jobs pointing to one payload. A rolled-back
+publication produces neither. `recorded` without deferred listeners stores only the
+payload. **In this implementation stage jobs remain PENDING: no worker runs yet.**
+
+The generated-code and PostgreSQL demonstration tests are in
+`vernac-maven-plugin/src/test/resources/persistence/events` and
+`EventStoragePostgresTest`. From the reactor root, with the existing PostgreSQL test
+environment variables configured, run this in IntelliJ's Maven command window:
+
+```text
+-pl vernac-maven-plugin -am test -Dtest=EventStoragePostgresTest -Dsurefire.failIfNoSpecifiedTests=false
+```
+
+Expect two tests and zero skipped tests when PostgreSQL is configured. The compilation
+test always runs; the database test is skipped when VERNAC_PG_TEST_URL is absent.
+The configured PostgreSQL account must be able to create and drop disposable databases.

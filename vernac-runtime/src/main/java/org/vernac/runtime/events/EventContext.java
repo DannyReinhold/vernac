@@ -67,7 +67,14 @@ public final class EventContext implements AutoCloseable {
                         throw new IllegalStateException("Duplicate event listener identity: " + handler.listenerId());
                     }
                 }
-                for (var handler : selected) handler.handle(event);
+                var listeners = selected.stream().filter(handler -> !(handler instanceof EventStorage)).toList();
+                var deferred = listeners.stream().filter(EventHandler::deferred).map(EventHandler::listenerId).sorted().toList();
+                if (event instanceof RecordedEvent || !deferred.isEmpty()) {
+                    var storage = selected.stream().filter(EventStorage.class::isInstance).map(EventStorage.class::cast).toList();
+                    if (storage.size() != 1) throw new IllegalStateException("Exactly one event storage adapter is required for " + event.getClass().getName());
+                    storage.getFirst().persist(event, deferred);
+                }
+                for (var handler : listeners) if (!handler.deferred()) handler.handle(event);
             } finally {
                 state.active.remove(event.eventId());
             }
