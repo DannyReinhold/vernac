@@ -1,0 +1,14 @@
+namespace org.example.delivery;
+
+usecase RecordTourNotes(TourId, Notes)
+    returns (TourId, Notes)
+    uses TourRepository tours
+behavior {
+    execute {
+        var tour = tours.byId(tourId);
+        tour.recordNotes(notes);
+        tours.save(tour);
+
+        return Result.of(tour.id(), tour.notes().orElseThrow());
+    }
+}
