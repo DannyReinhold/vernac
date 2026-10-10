@@ -129,6 +129,21 @@ final class VernacProjectSymbols {
         List<VernacParser.QualifiedNameContext> contexts = new ArrayList<>();
         // Match by the injected token's code-point offset, not by text alone.
         int marker = file.text().codePointCount(0, start);
+        var query=queryReference(probe,marker);
+        if(query!=null) {
+            List<CompletionItem> result=new ArrayList<>();
+            Range queryRange=new Range(position(file.text(),start),position(file.text(),end));
+            queryChoices(path,file,query).forEach((name,target)->{
+                if(name.startsWith(prefix)) {
+                    var item=new CompletionItem(name);
+                    item.setKind(query.parameter()?CompletionItemKind.Variable:CompletionItemKind.Field);
+                    item.setTextEdit(Either.forLeft(new TextEdit(queryRange,name)));
+                    result.add(item);
+                }
+            });
+            return result;
+        }
+
         walk(probe, node -> {
             if (node instanceof VernacParser.QualifiedNameContext name && CURSOR.equals(name.getText())
                     && name.getStart().getStartIndex() == marker) contexts.add(name);
@@ -182,6 +197,12 @@ final class VernacProjectSymbols {
         int offset = offset(file.text(), position);
         if (offset < 0) return List.of();
         int point = file.text().codePointCount(0, offset);
+        var query=queryReference(file.tree(),point);
+        if(query!=null) {
+            var target=queryChoices(path,file,query).get(query.name().getText());
+            return target==null?List.of():List.of(target);
+        }
+
         List<String> references = new ArrayList<>();
         walk(file.tree(), node -> {
             if (node instanceof VernacParser.QualifiedNameContext name
@@ -205,6 +226,58 @@ final class VernacProjectSymbols {
         return List.of(new Location(target.sourceFile().toUri().toString(), declarationRanges.get(target)));
     }
 
+    private record QueryReference(ParserRuleContext name, VernacParser.RepositoryFindMethodContext method,
+                                  VernacParser.RepositoryDefinitionContext repository, boolean parameter) { }
+    private static QueryReference queryReference(ParseTree tree, int point) {
+        List<QueryReference> found=new ArrayList<>();
+        walk(tree,node->{
+            ParserRuleContext name=null; boolean parameter=false;
+            if(node instanceof VernacParser.RepositoryPredicateContext p) {
+                if(contains(p.parameterName,point)) { name=p.parameterName; parameter=true; }
+                else if(contains(p.field,point)) name=p.field;
+            } else if(node instanceof VernacParser.RepositoryOrderContext o && contains(o.field,point)) name=o.field;
+            if(name==null) return;
+            ParseTree parent=node;
+            while(parent!=null && !(parent instanceof VernacParser.RepositoryFindMethodContext)) parent=parent.getParent();
+            if(!(parent instanceof VernacParser.RepositoryFindMethodContext method)) return;
+            while(parent!=null && !(parent instanceof VernacParser.RepositoryDefinitionContext)) parent=parent.getParent();
+            if(parent instanceof VernacParser.RepositoryDefinitionContext repo) found.add(new QueryReference(name,method,repo,parameter));
+        });
+        return found.size()==1?found.getFirst():null;
+    }
+    private static boolean contains(ParserRuleContext node,int point) {
+        return node!=null && node.getStop()!=null && node.getStart().getStartIndex()<=point && point<=node.getStop().getStopIndex();
+    }
+    private Location queryLocation(Path path,Parsed file,ParserRuleContext node) {
+        int start=utf16(file.text(),node.getStart().getStartIndex());
+        int end=utf16(file.text(),node.getStop().getStopIndex()+1);
+        return new Location(path.toUri().toString(),new Range(position(file.text(),start),position(file.text(),end)));
+    }
+    private Map<String,Location> queryChoices(Path path,Parsed file,QueryReference reference) {
+        Map<String,Location> choices=new TreeMap<>();
+        if(reference.parameter()) {
+            if(reference.method().parameterList()!=null) for(var p:reference.method().parameterList().parameter())
+                if(p.name!=null) choices.put(p.name.getText(),queryLocation(path,file,p.name));
+            return choices;
+        }
+        var scope=new FileTypeScope(file.unit(),index,namespaces);
+        var target=scope.resolve(reference.repository().aggregateName.getText(),file.unit().location()).type().orElse(null);
+        if(!(target instanceof ResolvedType.Declared d) || d.symbol().kind()!=TypeSymbol.Kind.AGGREGATE) return choices;
+        var source=files.get(d.symbol().sourceFile());
+        if(source==null) return choices;
+        for(var top:source.tree().topLevelDeclaration()) {
+            var a=top.aggregateDefinition();
+            if(a==null || !a.name.getText().equals(d.symbol().identity().name())) continue;
+            Location root=queryLocation(d.symbol().sourceFile(),source,a.name);
+            choices.put("id",queryLocation(d.symbol().sourceFile(),source,a.idReference()));
+            choices.put("createdAt",root); choices.put("updatedAt",root);
+            if(a.parameterList()!=null) for(var p:a.parameterList().parameter()) {
+                String name=p.name==null?VernacNames.defaultMemberName(p.paramType.rawType.getText()):p.name.getText();
+                choices.put(name,queryLocation(d.symbol().sourceFile(),source,p.name==null?p.paramType:p.name));
+            }
+        }
+        return choices;
+    }
     private boolean valueType(TypeSymbol symbol) {
         return switch (symbol.kind()) {
             case ID, VALUE_OBJECT, ENUM -> true;

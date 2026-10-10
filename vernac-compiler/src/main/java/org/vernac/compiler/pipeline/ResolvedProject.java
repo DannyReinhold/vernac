@@ -19,13 +19,18 @@ public record ResolvedProject(VernacProject project,
                               Map<Path, FileTypeScope> scopes,
                               Map<TypeNode, ResolvedType> types,
                               List<CompilerDiagnostic> diagnostics,
-                              List<TypeSymbol> deferredTypes) {
+                              List<TypeSymbol> deferredTypes,
+                              Map<org.vernac.compiler.ast.RepositoryMethodNode, org.vernac.compiler.query.ResolvedQuery> queries) {
+    public ResolvedProject(VernacProject project, Map<Path, FileTypeScope> scopes, Map<TypeNode, ResolvedType> types, List<CompilerDiagnostic> diagnostics, List<TypeSymbol> deferredTypes) {
+        this(project, scopes, types, diagnostics, deferredTypes, Map.of());
+    }
     public ResolvedProject {
         Objects.requireNonNull(project);
         scopes = Collections.unmodifiableMap(new LinkedHashMap<>(scopes));
         types = Collections.unmodifiableMap(new LinkedHashMap<>(types));
         diagnostics = List.copyOf(diagnostics);
         deferredTypes = List.copyOf(deferredTypes);
+        queries = Map.copyOf(queries);
     }
 
     public ResolvedType typeOf(TypeNode fieldType) {

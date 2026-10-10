@@ -1,6 +1,6 @@
 # Vernac consolidation status
 
-Status: 2026-10-09. This separates reviewed functionality from older implementations
+Status: 2026-10-10. This separates reviewed functionality from older implementations
 and future plans. It is not a claim that every language feature is production-ready.
 
 ## Reviewed and implemented
@@ -17,7 +17,7 @@ and future plans. It is not a claim that every language feature is production-re
 | Generated sources | Manifest-owned Java output and orphan cleanup; class files and JARs remain build-tool responsibilities |
 | IntelliJ/LSP | Project/file/namespace creation, Maven import, project diagnostics, completion, navigation and embedded Java support |
 | PostgreSQL mapping | Namespace-safe quoted names, recursive flattening, optional presence, scalar components and shared entity graphs |
-| JDBC repositories | Explicit repository declaration, byId/save/delete, complete graph loads, list order, reachability cleanup and optimistic locking |
+| JDBC repositories | Explicit repository declaration, byId/save/delete, declarative comparisons and ordering, complete graph loads, list order, reachability cleanup and optimistic locking |
 | Schema tooling | Versioned source snapshots, initial/next migration candidates, explicit transformations, risk gates and Flyway replay checks |
 
 Reviewed areas have contracts and automated tests; depth and integration coverage
@@ -30,7 +30,8 @@ not exhaustive concurrency, platform, historical-data or deployment verification
 - Validation failures and transaction rollbacks do not restore Java object state.
   Candidate-state atomic mutation remains a documented design, not an implementation.
 - Repositories require a usecase transaction. They do not start transactions or lazy-load.
-- Repository query/custom methods are not yet supported by the reviewed generator.
+- Declarative root queries are implemented; handwritten JDBC/custom query extensions,
+  nested predicates, multi-value equality, pagination and LIKE remain deferred.
 - Domain-event dispatch is wired to the existing dispatcher, but the new schema tool
   does not generate outbox infrastructure DDL. The demo emits no events.
 - The reviewed multi-file compiler accepts IDs, values, enums, collections, entities,
@@ -44,7 +45,7 @@ not exhaustive concurrency, platform, historical-data or deployment verification
 1. Finish the persistence slice: run schema-check and integration tests on PostgreSQL,
    cover concurrent updates, useful schema transitions, enum changes and explicit backfills.
 2. Finish the [scalar persistence audit](scalar-persistence-audit.md) prerequisites
-   and implement the [declarative repository queries](../contracts/repository-queries.md),
+   and verify the [declarative repository queries](../contracts/repository-queries.md) on PostgreSQL,
    returning complete aggregates. Add LIKE-like searches next, before alternative
    locale-aware sorting. Handwritten JDBC search extensions remain deferred.
 3. Review usecases and services: transaction ownership, domain behavior, inputs/results,
@@ -79,3 +80,13 @@ can drop them normally. Review that candidate like any other migration.
 Git rollback does not roll back Flyway or the database. After reverting the tutorial
 V2 files, the database still contains V2. Restore matching source history or deliberately
 reset only the disposable demo database before repeating a fresh-baseline exercise.
+
+## Declarative repository query increment
+
+The initial query implementation includes exact scalar equality/inequality, range
+comparisons for ordered types, root metadata, Optional cardinality checks, batched
+graph loading and LSP field/parameter support. See the
+[query contract](../contracts/repository-queries.md). Real PostgreSQL acceptance
+remains an explicit opt-in test step; local generated-Java compilation alone is
+not proof of database semantics. LIKE-like predicates follow this increment,
+before alternative locale-aware sort orders.

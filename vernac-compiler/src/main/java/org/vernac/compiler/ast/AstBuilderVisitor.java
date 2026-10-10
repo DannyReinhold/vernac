@@ -225,7 +225,12 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                         toTypeNode(findCtx.returnType),
                         findCtx.name.getText(),
                         Optional.ofNullable(findCtx.parameterList()).map(p -> extractParameters(p)).orElse(Collections.emptyList()),
-                        false
+                        false,
+                        findCtx.repositoryPredicate().stream().map(p -> new RepositoryMethodNode.Predicate(
+                                toLocation(p), p.field.getText(), p.operator != null ? p.operator.getText() : p.presence.getText(),
+                                p.parameterName == null ? "" : p.parameterName.getText())).toList(),
+                        findCtx.repositoryOrder().stream().map(o -> new RepositoryMethodNode.Order(
+                                toLocation(o), o.field.getText(), o.direction != null && o.direction.getText().equals("desc"))).toList()
                 ));
             } else if (member.repositoryCustomMethod() != null) {
                 VernacParser.RepositoryCustomMethodContext customCtx = member.repositoryCustomMethod();

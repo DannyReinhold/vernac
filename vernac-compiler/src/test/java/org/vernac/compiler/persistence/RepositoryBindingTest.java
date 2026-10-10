@@ -63,7 +63,7 @@ class RepositoryBindingTest {
                     id RootId; value Text(String); aggregate Root[RootId](Text);
                     repository Roots for Root { find List<Root> findByText(String text); }
                     """));
-        assertTrue(error.getMessage().contains("Repository query/custom methods"));
-        assertTrue(error.getMessage().contains("Roots"));
+        assertTrue(error.getMessage().contains("not Java generics"));
+        assertTrue(error.getMessage().contains("explicitly declared"));
     }
 }

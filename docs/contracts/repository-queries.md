@@ -2,11 +2,10 @@
 
 ## Status
 
-Design contract, not yet implemented. Existing `byId`, `save` and `delete`
-remain available. The syntax and general rules below reflect the agreed design.
-The detailed scalar capability table is a proposal for the first implementation
-and must pass the listed semantic tests before being advertised as supported.
-Custom JDBC searches, pagination and query projections are deferred.
+Implemented in the project compiler, JDBC runtime and LSP. PostgreSQL integration
+tests are opt-in and must be run against the supported PostgreSQL deployment.
+Existing `byId`, `save` and `delete` remain available. Custom JDBC searches,
+pagination, OR expressions and query projections remain deferred.
 
 ## Declaration and result contract
 
@@ -41,7 +40,7 @@ version is not a query field in this increment.
 
 - A declared aggregate collection returns zero or more complete aggregates.
 - `Tour?` generates `Optional<Tour>`: zero gives empty, one gives the aggregate,
-  more than one gives a technical `NonUniqueQueryResultException` (planned name).
+  more than one gives a technical `NonUniqueQueryResultException` .
   Include repository and method in the diagnostic; do not expose parameter values.
 - This cardinality expectation is not a uniqueness constraint and cannot prevent
   concurrent inserts. Unique modelling and schema constraints are a separate feature.
@@ -58,15 +57,15 @@ version is not a query field in this increment.
 
 ## Initial expression scope
 
-Explicit `=` comparisons combined with `and`; `is absent` / `is present` for
-optional root fields supported by this increment. Range predicates `<`, `<=`,
-`>` and `>=` initially apply only to root `createdAt` and `updatedAt` (Instant).
+Explicit `=`, `!=`, `<`, `<=`, `>` and `>=` comparisons combined with `and`; `is absent` / `is present` for
+optional root fields supported by this increment. Range predicates apply to the types with ordering support in the table below,
+including root `createdAt` and `updatedAt` (Instant).
 No implicit conversion between distinct Vernac types, even if their scalar
 representations match. A non-optional parameter may compare to an optional field;
-absence does not match that parameter. Optional query parameters are deferred.
+absence does not match that parameter, for either `=` or `!=`. Optional query parameters are deferred.
 
-Initial value predicates address root IDs, enums and single-value objects directly
-wrapping a supported scalar. Multi-value equality, nested field paths, nested VO
+Value predicates address root IDs, enums and single-value objects directly
+wrapping one required supported scalar. Multi-value equality, nested field paths, nested VO
 wrappers, entity traversal and collection predicates are deferred with explicit
 compiler diagnostics. Arbitrary Java types, expressions, SQL and projections are
 not accepted. `is absent` refers to model presence, not to an arbitrary nullable
@@ -106,13 +105,14 @@ primitive arguments. Consequently floating-point equality is wrapper equality,
 not primitive `==`. `BigDecimal` equality includes scale. A comparison must cover
 all identity-relevant components, not only the main column.
 
-### Proposed scalar capability table
+### Scalar capability table
 
 This table concerns the scalar inside a single-value object. Primitive and boxed
 forms share the policy. Ordering is deliberately a narrower capability than storage.
-`=` denotes equality predicates; the table does not grant range predicates.
+`=` describes equality; `!=` negates that comparison for present values.
+Range comparisons use the same order as `order by`.
 
-| Scalar | `=` implementation | Initial `order by` proposal |
+| Scalar | `=` implementation | `order by` and range comparisons |
 | --- | --- | --- |
 | boolean / Boolean | Boolean equality | Deferred |
 | byte, short, int, long and wrappers | Exact integral equality | Numeric |
@@ -137,7 +137,7 @@ forms share the policy. Ordering is deliberately a narrower capability than stor
 | Period | Years AND months AND days, without normalization | Deferred |
 | YearMonth | Year AND month | Lexicographic year and month |
 | MonthDay | Month AND day | Lexicographic month and day |
-| float / Float, double / Double | Java wrapper equality including NaNs and signed zero; implementation must be verified | Deferred |
+| float / Float, double / Double | Java wrapper equality: binary floating representation, with all NaNs treated as equal | Deferred |
 | Vernac enum | Equality using the persisted code mapping | Deferred |
 
 String sorting under `C` is a defined technical order, not linguistic sorting and
@@ -146,13 +146,12 @@ performs no case folding, whitespace trimming or Unicode normalization. Textual
 components of composite scalars and enum codes require the same exact equality.
 These rules do not expand PostgreSQL TEXT's supported character repertoire.
 
-Floating-point support must distinguish positive and negative zero while treating
-NaN representations according to Java wrapper equality. Plain SQL numeric `=` is
-not sufficient. Do not exclude these types as a product decision merely because
-they need special handling: verify storage and implement the exact comparison.
-Until verified, diagnose unsupported queries rather than generate approximate SQL.
-See the [scalar mapping audit](../development/scalar-persistence-audit.md) for
-identified storage limits and required PostgreSQL regression coverage.
+Floating-point equality uses `float4send` / `float8send` to distinguish signed zero
+and explicitly matches NaN against NaN, independent of its payload. Float ordering
+and range comparisons are deferred. This is not an approximate comparison.
+See the [scalar mapping audit](../development/scalar-persistence-audit.md) and
+[storage limits](scalar-storage-limits.md). Query parameters use the same codec
+and representation checks as writes.
 
 For metadata Instant range comparisons and ordering, compare the complete tuple
 (microsecond timestamp, nano remainder). A predicate that only compares the first
@@ -202,8 +201,31 @@ Implementation inspected: `ScalarMappings`, `ScalarCodec`, `StoragePlan` and
 - [Java Double equality](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Double.html)
 - [PostgreSQL collation semantics](https://www.postgresql.org/docs/17/collation.html)
 
-Confirm the proposed capability table, then implement declarations/resolution and
-source-located diagnostics before JDBC execution and PostgreSQL regression tests.
+The implementation acceptance tests include real generated Java compilation,
+PostgreSQL equality/inequality across scalar families, selected range comparisons,
+complete graph loading and interleaved update/delete detection. Run them as shown
+in the [repository query tutorial](../tutorials/repository-queries.md).
+
+Result membership is determined by the initial root SELECT. At READ COMMITTED,
+concurrent inserts can be absent from this result; a change/delete of a selected
+root detected during graph loading raises an optimistic-lock exception. There is
+no promise of a global serializable snapshot. Root versions are checked after
+loading the relations. Readers do not lock every matching root.
+
+Relations are fetched in batches of up to 1000 aggregate IDs per table. Each root
+has its own entity identity map, including when different roots contain equal
+entity IDs. Optional singleton searches select at most two roots and reject
+multiple matches before graph reconstruction.
+
+Parameters must have explicit, unique, non-optional names and must be used. Names
+beginning with `__vernac` are reserved for generated query locals. Generated helper
+method names are also rejected. Java generics are not repository result syntax.
+`find Tours all() order by title;` explicitly selects every root; no WHERE clause
+is required when no restriction is intended.
+
+The editor completes root fields and parameters and navigates their references.
+Metadata fields navigate to the aggregate declaration. SQL identifiers and raw SQL
+are never accepted as query expressions.
 
 LIKE-like operations follow basic equality/range searches and precede alternative
 locale-aware sort orders. Literal versus pattern input, escaping and case behavior

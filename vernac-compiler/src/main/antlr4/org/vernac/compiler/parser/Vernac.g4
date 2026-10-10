@@ -244,7 +244,17 @@ packageDeclarationStatement
     ;
 
 repositoryFindMethod
-    : 'find' returnType=type name=methodName '(' parameterList? ')' ';'
+    : 'find' returnType=type name=qualifiedNameSegment '(' parameterList? ')'
+      ('where' repositoryPredicate ('and' repositoryPredicate)*)?
+      ('order' 'by' repositoryOrder (',' repositoryOrder)*)? ';'
+    ;
+
+repositoryPredicate
+    : field=qualifiedNameSegment (operator=('=' | '!=' | '<' | '<=' | '>' | '>=') ':' parameterName=variableName
+        | 'is' presence=('absent' | 'present'))
+    ;
+repositoryOrder
+    : field=qualifiedNameSegment direction=('asc' | 'desc')?
     ;
 
 repositoryCustomMethod
@@ -409,6 +419,7 @@ qualifiedNameSegment
     | 'private'
     | 'public'
     | 'repository'
+    | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present'
     | 'require'
     | 'rest'
     | 'return'
@@ -465,13 +476,15 @@ typeName
     ;
 
 methodName
-    : IDENTIFIER
+    : 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present'
+    | IDENTIFIER
     | 'value'
     | 'id'
     ;
 
 variableName
-    : IDENTIFIER
+    : 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present'
+    | IDENTIFIER
     | 'value'
     | 'id'
     ;

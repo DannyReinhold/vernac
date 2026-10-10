@@ -1,0 +1,72 @@
+// Copyright 2026 Danny Reinhold
+// SPDX-License-Identifier: Apache-2.0
+package querydemo;
+import querydemo.domain.*;
+import querydemo.adapter.outbound.jdbc.JdbcTourRepository;
+import java.math.BigDecimal;
+import java.time.Instant;
+import javax.sql.DataSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.IllegalTransactionStateException;
+import org.vernac.runtime.NonUniqueQueryResultException;
+import static org.junit.jupiter.api.Assertions.*;
+
+public final class QueryProbe {
+    public static void run(DataSource data) {
+        var repo=new JdbcTourRepository(new NamedParameterJdbcTemplate(data),(type,id,events)->{});
+        assertThrows(IllegalTransactionStateException.class,repo::all);
+        var tx=new TransactionTemplate(new DataSourceTransactionManager(data));
+        tx.executeWithoutResult(s->{
+            assertTrue(repo.unique(Title.of("missing")).isEmpty());
+            var stop=Stop.create(Title.of("Shared"));
+            var a=Tour.create(Title.of("A"),null,Price.of(new BigDecimal("1.0")),Status.ACTIVE,Stops.of(stop,stop));
+            var b=Tour.create(Title.of("B"),Title.of("R"),Price.of(new BigDecimal("1.00")),Status.CLOSED,Stops.of(Stop.reconstitute(stop.id(),Title.of("Other aggregate"))));
+            repo.save(a); repo.save(b);
+            var all=repo.all();
+            assertEquals(2,all.size()); assertEquals("A",all.get(0).title().string());
+            assertSame(all.get(0).stops().get(0),all.get(0).stops().get(1));
+            assertNotSame(all.get(0).stops().get(0),all.get(1).stops().get(0));
+            assertEquals("Other aggregate",all.get(1).stops().get(0).title().string());
+            assertEquals(1,repo.priced(Price.of(new BigDecimal("1.0"))).size());
+            assertEquals(2,repo.range(Price.of(BigDecimal.ONE),Price.of(BigDecimal.TEN)).size());
+            assertEquals(1,repo.absent().size());
+            assertEquals(0,repo.other(Title.of("R")).size()); // absent does not satisfy !=
+            assertEquals(1,repo.other(Title.of("X")).size());
+            assertEquals(1,repo.active(Status.ACTIVE).size());
+            assertEquals(2,repo.before(Instant.now()).size());
+            assertEquals(a.id(),repo.unique(Title.of("A")).orElseThrow().id());
+            repo.save(Tour.create(Title.of("A"),null,Price.of(BigDecimal.ZERO),Status.ACTIVE,Stops.of()));
+            assertThrows(NonUniqueQueryResultException.class,()->repo.unique(Title.of("A")));
+            assertEquals(2,repo.titled(Title.of("A")).size());
+        });
+    }
+    public static void concurrent(DataSource data, boolean delete) {
+        var manager=new DataSourceTransactionManager(data);
+        var writer=new JdbcTourRepository(new NamedParameterJdbcTemplate(data),(type,id,events)->{});
+        var tx=new TransactionTemplate(manager);
+        var id=tx.execute(s->writer.save(Tour.create(Title.of("Concurrent"),null,Price.of(BigDecimal.ONE),Status.ACTIVE,Stops.of())).id());
+        var once=new java.util.concurrent.atomic.AtomicBoolean();
+        var jdbc=new NamedParameterJdbcTemplate(data) {
+            @Override public <T> java.util.List<T> query(String sql,
+                    org.springframework.jdbc.core.namedparam.SqlParameterSource parameters,
+                    org.springframework.jdbc.core.RowMapper<T> mapper) {
+                var rows=super.query(sql,parameters,mapper);
+                if(sql.contains("ORDER BY") && once.compareAndSet(false,true)) {
+                    var other=new TransactionTemplate(manager);
+                    other.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+                    other.executeWithoutResult(s->{
+                        var tour=writer.byId(id);
+                        if(delete) writer.delete(tour); else writer.save(tour);
+                    });
+                }
+                return rows;
+            }
+        };
+        var reader=new JdbcTourRepository(jdbc,(type,identifier,events)->{});
+        assertThrows(org.springframework.dao.OptimisticLockingFailureException.class,
+                ()->tx.execute(s->reader.all()));
+        assertTrue(once.get());
+    }
+}

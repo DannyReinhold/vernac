@@ -23,7 +23,6 @@ public final class JdbcRepositoryGenerator {
     public JdbcRepositoryGenerator(ResolvedProject project,SchemaModel schema) { this.project=project; this.schema=schema; }
 
     public List<JavaFile> generate(StoragePlan plan) {
-        if(!plan.repository().methods().isEmpty()) throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(org.vernac.compiler.analyzer.CompilerDiagnostic.error(plan.repository().location(), "Repository query/custom methods are not supported by the reviewed JDBC generator yet: "+plan.repository().name())));
         ClassName aggregate=ClassName.get(plan.aggregateNamespace()+".domain",plan.aggregate().name());
         ClassName id=(ClassName)ResolvedJavaTypes.javaType(project.typeOf(plan.aggregate().idDefinition().type()));
         ClassName api=ClassName.get(plan.repositoryNamespace()+".domain",plan.repository().name());
@@ -51,6 +50,7 @@ public final class JdbcRepositoryGenerator {
                 .addStatement("return aggregate").build());
         adapter.addMethod(MethodSpec.methodBuilder("delete").addAnnotation(Override.class).addModifiers(Modifier.PUBLIC).addParameter(aggregate,"aggregate")
                 .addStatement("store.delete(aggregate)").build());
+        queryMethods(plan, contract, adapter);
         List<CodeBlock> entities=new ArrayList<>(),tables=new ArrayList<>();
         for(var relation:plan.relations()) {
             var table=relation.table();
@@ -74,6 +74,56 @@ public final class JdbcRepositoryGenerator {
                 .returns(ParameterizedTypeName.get(ClassName.get(List.class),M.nestedClass("Table"))).addStatement("return $L",list(tables)).build());
         return List.of(JavaFile.builder(api.packageName(),contract.build()).indent("    ").skipJavaLangImports(true).build(),
                 JavaFile.builder(plan.repositoryNamespace()+".adapter.outbound.jdbc",adapter.build()).indent("    ").skipJavaLangImports(true).build());
+    }
+    private void queryMethods(StoragePlan plan, TypeSpec.Builder contract, TypeSpec.Builder adapter) {
+        ClassName queryType=ClassName.get("org.vernac.runtime.jdbc","ScalarQuery");
+        for(var method:plan.repository().findMethods()) {
+            var query=Objects.requireNonNull(project.queries().get(method),"Unresolved repository query");
+            TypeName result=ResolvedJavaTypes.javaType(query.result());
+            TypeName returns=query.singleton()?ParameterizedTypeName.get(ClassName.get(Optional.class),result):result;
+            var api=MethodSpec.methodBuilder(method.name()).addModifiers(Modifier.PUBLIC,Modifier.ABSTRACT).returns(returns);
+            var impl=MethodSpec.methodBuilder(method.name()).addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(returns);
+            for(var p:method.parameters()) {
+                TypeName type=ResolvedJavaTypes.javaType(project.typeOf(p.type()));
+                api.addParameter(type,p.name()); impl.addParameter(type,p.name());
+                if(!type.isPrimitive()) impl.addStatement("$T.requireNonNull($L, $S)",Objects.class,p.name(),"Query parameter "+p.name()+" must not be null");
+            }
+            impl.addStatement("$T __vernacQuery = new $T()",queryType,queryType);
+            List<CodeBlock> clauses=new ArrayList<>();
+            for(var predicate:query.predicates()) {
+                var f=predicate.field(); var columns=queryColumns(plan,f);
+                if(predicate.parameter()==null) {
+                    clauses.add(CodeBlock.of("$T.presence($S, $L)",queryType,SqlNames.physical(columns.getFirst()),predicate.operator().equals("present")));
+                } else {
+                    String scalar=f.scalar();
+                    CodeBlock value=CodeBlock.of("$L$L",predicate.parameter().name(),f.accessor().isEmpty()?"":"."+f.accessor()+"()");
+                    if(scalar.equals("enum")) {
+                        scalar="String";
+                        var symbol=((ResolvedType.Declared)f.type()).symbol();
+                        var cases=CodeBlock.builder().add("switch ($L) {\n",predicate.parameter().name());
+                        schema.enumCodes().get(symbol.identity().qualifiedName()).forEach((constant,code)->cases.add("case $L -> $S;\n",constant,code));
+                        value=cases.add("}").build();
+                    }
+                    clauses.add(CodeBlock.of("__vernacQuery.compare($S, $L, $S, $L)",scalar,strings(columns),predicate.operator(),value));
+                }
+            }
+            List<CodeBlock> orders=new ArrayList<>();
+            for(var o:query.orders()) orders.add(CodeBlock.of("$T.order($S, $L, $L)",queryType,o.field().scalar(),strings(queryColumns(plan,o.field())),o.descending()));
+            impl.addStatement("var __vernacResults = store.find($T.join($S, $L), $T.join($S, $L), __vernacQuery.parameters(), $L, $S)",
+                    String.class," AND ",list(clauses),String.class,", ",list(orders),query.singleton(),plan.repositoryNamespace()+"."+plan.repository().name()+"."+method.name());
+            if(query.singleton()) impl.addStatement("return __vernacResults.stream().findFirst()");
+            else impl.addStatement("return $T.of(__vernacResults)",result);
+            contract.addMethod(api.build()); adapter.addMethod(impl.build());
+        }
+    }
+    private List<String> queryColumns(StoragePlan plan, org.vernac.compiler.query.ResolvedQuery.Field field) {
+        if(field.name().equals("id")) return List.of("id");
+        if(field.name().equals("createdAt") || field.name().equals("updatedAt"))
+            return List.of("@"+field.name(),"@nanoRemainder:@"+field.name());
+        var root=plan.relations().stream().filter(r->r.table().primaryKey().equals(List.of("id"))).findFirst().orElseThrow();
+        var value=root.properties().stream().filter(p->p.name().equals(field.name())).findFirst().orElseThrow().value();
+        if(!value.children().isEmpty()) value=value.children().getFirst().value();
+        return value.columns();
     }
     private CodeBlock domain(StoragePlan.Relation relation,ClassName owner,ClassName id,boolean root) {
         List<CodeBlock> fields=new ArrayList<>(),args=new ArrayList<>();

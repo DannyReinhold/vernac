@@ -1,0 +1,21 @@
+// Copyright 2026 Danny Reinhold
+// SPDX-License-Identifier: Apache-2.0
+namespace querydemo;
+id TourId;
+id StopId;
+value Title(String);
+value Price(BigDecimal);
+value Status = ACTIVE | CLOSED;
+entity Stop[StopId](Title) list Stops;
+aggregate Tour[TourId](Title title, Title? reference, Price price, Status status, Stops stops) list Tours;
+repository TourRepository for Tour {
+    find Tours all() order by title;
+    find Tours titled(Title title) where title = :title order by title;
+    find Tours other(Title title) where reference != :title order by title;
+    find Tour? unique(Title title) where title = :title;
+    find Tours range(Price low, Price high) where price >= :low and price < :high order by price desc;
+    find Tours priced(Price price) where price = :price order by title;
+    find Tours absent() where reference is absent order by title;
+    find Tours active(Status status) where status = :status order by title;
+    find Tours before(Instant time) where createdAt <= :time order by createdAt;
+}

@@ -42,6 +42,45 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
         if(current.size()!=1 || current.getFirst()!=version) throw conflict(id);
         return type.cast(new ReadGraph(rows).entity(root.table(),id));
     }
+    /** Loads roots selected in one statement, then batches each relation and checks root versions. */
+    public List<A> find(String where, String ordering, SqlParameterSource parameters, boolean singleton, String queryName) {
+        requireTransaction();
+        Table rootTable=tables.get(root.table());
+        String sql="SELECT "+String.join(", ",rootTable.columns().stream().map(c->q(c.name())).toList())
+                +" FROM "+root.table()+(where.isEmpty()?"":" WHERE "+where)
+                +(ordering.isEmpty()?"":" ORDER BY "+ordering)+(singleton?" LIMIT 2":"");
+        var roots=jdbc.query(sql,parameters,(rs,n)->readRow(rootTable,rs));
+        if(singleton && roots.size()>1) throw new NonUniqueQueryResultException(queryName);
+        if(roots.isEmpty()) return List.of();
+        var ids=roots.stream().map(r->(UUID)r.get("id")).toList();
+        Map<UUID,Map<String,List<Map<String,@Nullable Object>>>> graphs=new LinkedHashMap<>();
+        for(var row:roots) {
+            var graph=new LinkedHashMap<String,List<Map<String,@Nullable Object>>>();
+            for(var table:order) graph.put(table.name(),new ArrayList<>());
+            graph.get(root.table()).add(row);
+            graphs.put((UUID)row.get("id"),graph);
+        }
+        // Bound IN lists in chunks; no per-root or per-entity query loop.
+        for(int offset=0;offset<ids.size();offset+=1000) {
+            var batch=ids.subList(offset,Math.min(offset+1000,ids.size()));
+            for(Table table:order) if(!table.name().equals(root.table())) {
+                String owner=table.columns().stream().anyMatch(c->c.name().equals("@aggregateId"))?"@aggregateId":"@ownerId";
+                var rows=jdbc.query("SELECT "+String.join(", ",table.columns().stream().map(c->q(c.name())).toList())
+                        +" FROM "+table.name()+" WHERE "+q(owner)+" IN (:ids)",Map.of("ids",batch),(rs,n)->readRow(table,rs));
+                for(var row:rows) graphs.get((UUID)row.get(owner)).get(table.name()).add(row);
+            }
+            var versions=jdbc.query("SELECT "+q("id")+", "+q("@version")+" FROM "+root.table()+" WHERE "+q("id")+" IN (:ids)",
+                    Map.of("ids",batch),(rs,n)->Map.entry(rs.getObject(1,UUID.class),rs.getLong(2)));
+            Map<UUID,Long> current=new HashMap<>(); versions.forEach(e->current.put(e.getKey(),e.getValue()));
+            for(UUID id:batch) {
+                long expected=((Number)graphs.get(id).get(root.table()).getFirst().get("@version")).longValue();
+                if(!Objects.equals(current.get(id),expected)) throw conflict(id);
+            }
+        }
+        List<A> result=new ArrayList<>();
+        for(UUID id:ids) result.add(type.cast(new ReadGraph(graphs.get(id)).entity(root.table(),id)));
+        return List.copyOf(result);
+    }
     public A save(A aggregate) {
         requireTransaction(); Objects.requireNonNull(aggregate);
         UUID id=root.id().apply(aggregate);

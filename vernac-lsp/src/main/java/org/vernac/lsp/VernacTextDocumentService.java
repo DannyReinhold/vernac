@@ -24,6 +24,7 @@ import java.util.regex.Pattern;
 public class VernacTextDocumentService implements TextDocumentService {
 
     private static final Set<String> DSL_KEYWORDS = Set.of(
+            "where", "and", "order", "asc", "desc", "is", "absent", "present",
             "namespace", "package", "import", "as", "id",
             "aggregate", "value", "entity", "event", "outbox", "memory", "service", "external", "schema",
             "repository", "for", "table", "find", "custom", "validates", "require",
@@ -240,9 +241,7 @@ public class VernacTextDocumentService implements TextDocumentService {
         }
         // Context C2: Inside a repository { ... } block
         if (isInsideRepositoryBlock(prefix)) {
-            addKeywordCompletion(items, "table", "table: \"${1:table_name}\";");
-            addKeywordCompletion(items, "find", "find ${1:ReturnType} ${2:methodName}(${3:params});");
-            addKeywordCompletion(items, "custom", "custom ${1:ReturnType} ${2:methodName}(${3:params});");
+            addKeywordCompletion(items, "find", "find ${1:ResultCollection} ${2:methodName}(${3:params}) where ${4:field} = :${5:parameter} order by ${6:field};");
             return CompletableFuture.completedFuture(Either.forLeft(items));
         }
 
