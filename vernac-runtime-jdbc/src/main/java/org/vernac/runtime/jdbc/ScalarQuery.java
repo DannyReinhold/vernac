@@ -15,6 +15,17 @@ public final class ScalarQuery {
 
     public String compare(String scalar, List<String> columns, String operator, Object value) {
         Objects.requireNonNull(value, "Query parameter must not be null");
+        if (Set.of("like", "contains", "starts", "ends").contains(operator)) {
+            if (!scalar.equals("String") || columns.size() != 1 || !(value instanceof String))
+                throw new IllegalArgumentException("Text search requires one String column and a String parameter");
+            String text = (String) ScalarCodec.encode("String", value)[0];
+            String pattern = operator.equals("like") ? text : literalPattern(text);
+            if (operator.equals("contains") || operator.equals("ends")) pattern = "%" + pattern;
+            if (operator.equals("contains") || operator.equals("starts")) pattern = pattern + "%";
+            String parameter = "q" + next++;
+            parameters.addValue(parameter, pattern);
+            return q(columns.getFirst()) + " COLLATE \"C\" LIKE :" + parameter + " ESCAPE chr(92)";
+        }
         if (!Set.of("=", "!=", "<", "<=", ">", ">=").contains(operator)) throw new IllegalArgumentException("Unknown comparison");
         Object[] parts=ScalarCodec.encode(scalar,value);
         if(parts.length!=columns.size()) throw new IllegalArgumentException("Scalar component mismatch");
@@ -47,6 +58,9 @@ public final class ScalarQuery {
         // Decimal scale participates in equality, not numeric order.
         if(scalar.equals("BigDecimal")) return left.getFirst()+" "+operator+" "+right.getFirst();
         return tuple(left)+" "+operator+" "+tuple(right);
+    }
+    private static String literalPattern(String text) {
+        return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
     public static String order(String scalar,List<String> columns,boolean descending) {
         List<String> keys=scalar.equals("BigDecimal") ? columns.subList(0,1) : columns;

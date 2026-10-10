@@ -250,7 +250,7 @@ repositoryFindMethod
     ;
 
 repositoryPredicate
-    : field=qualifiedNameSegment (operator=('=' | '!=' | '<' | '<=' | '>' | '>=') ':' parameterName=variableName
+    : field=qualifiedNameSegment ((operator=('=' | '!=' | '<' | '<=' | '>' | '>=' | 'like' | 'contains') | operator=('starts' | 'ends') 'with') ':' parameterName=variableName
         | 'is' presence=('absent' | 'present'))
     ;
 repositoryOrder
@@ -419,7 +419,7 @@ qualifiedNameSegment
     | 'private'
     | 'public'
     | 'repository'
-    | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present'
+    | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
     | 'require'
     | 'rest'
     | 'return'
@@ -476,14 +476,14 @@ typeName
     ;
 
 methodName
-    : 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present'
+    : 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
     | IDENTIFIER
     | 'value'
     | 'id'
     ;
 
 variableName
-    : 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present'
+    : 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
     | IDENTIFIER
     | 'value'
     | 'id'

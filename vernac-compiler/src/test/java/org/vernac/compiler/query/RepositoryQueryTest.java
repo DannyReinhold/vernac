@@ -60,6 +60,22 @@ class RepositoryQueryTest {
         rejects("find Tours save();","reserved repository method");
         rejects("find Tours all(Title? title) where title = :title;","non-optional");
     }
+    @Test void textSearchUsesStringParametersWithoutUnwrappingThem() throws Exception {
+        source(MODEL, """
+            find Tours matching(String pattern) where title like :pattern order by title;
+            find Tours containing(String text) where reference contains :text order by title;
+            find Tours beginning(String text) where title starts with :text order by title;
+            find Tours ending(String text) where title ends with :text order by title;
+            """);
+        var result = new VernacCompiler().compileProject(root);
+        String java = result.generatedFiles().stream().map(Object::toString).reduce("", String::concat);
+        assertFalse(java.contains("pattern.string()"));
+        assertFalse(java.contains("text.string()"));
+        assertEquals(4, new VernacCompiler().analyzeProject(root).queries().size());
+        rejects("find Tours matching(Title pattern) where title like :pattern;", "String parameter");
+        rejects("find Tours matching(String pattern) where price contains :pattern;", "String-backed");
+        rejects("find Tours matching(String text) where title = :text;", "same Vernac type");
+    }
     @Test void validatesListAndSetOrdering() throws Exception {
         source(MODEL,"find Tours all();");
         assertTrue(new VernacCompiler().analyzeProject(root).diagnostics().stream().anyMatch(d->d.message().contains("order is unspecified")));

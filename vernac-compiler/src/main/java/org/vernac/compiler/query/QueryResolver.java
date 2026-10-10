@@ -78,8 +78,14 @@ public final class QueryResolver {
                     } else {
                         param=params.get(p.parameter()); used.add(p.parameter());
                         if(param==null) error(p.location(),"Unknown query parameter: "+p.parameter());
+                        else if(Set.of("like","contains","starts","ends").contains(p.operator())) {
+                            if(!f.scalar().equals("String"))
+                                error(p.location(),"Text search requires a String-backed value object: "+p.field());
+                            if(!new ResolvedType.Builtin(String.class).equals(types.get(param.type())))
+                                error(p.location(),"Text search requires a String parameter, not a domain value object.");
+                        }
                         else if(!Objects.equals(f.type(),types.get(param.type()))) error(p.location(),"Query field and parameter must have the same Vernac type: "+p.field()+" and :"+p.parameter());
-                        if(!Set.of("=","!=").contains(p.operator()) && !ORDERED.contains(f.scalar()))
+                        if(!Set.of("=","!=","like","contains","starts","ends").contains(p.operator()) && !ORDERED.contains(f.scalar()))
                             error(p.location(),"Range comparison is not supported for "+p.field()+" ("+f.scalar()+").");
                     }
                     predicates.add(new ResolvedQuery.Predicate(f,p.operator(),param));

@@ -227,6 +227,34 @@ The editor completes root fields and parameters and navigates their references.
 Metadata fields navigate to the aggregate declaration. SQL identifiers and raw SQL
 are never accepted as query expressions.
 
-LIKE-like operations follow basic equality/range searches and precede alternative
-locale-aware sort orders. Literal versus pattern input, escaping and case behavior
-need their own explicit contract. They are not part of the first increment.
+Text searches are supported as specified below. Alternative locale-aware sort
+orders remain deferred.
+
+## Text searches
+
+```vernac
+find Tours matching(String pattern) where title like :pattern order by title;
+find Tours containing(String text) where title contains :text order by title;
+find Tours beginning(String text) where title starts with :text order by title;
+find Tours ending(String text) where title ends with :text order by title;
+```
+
+These operators require a String-backed single-value field and a required
+`String` parameter. A fragment or pattern need not satisfy the field's domain
+invariants. Equality and inequality still require the exact domain type.
+
+`contains`, `starts with` and `ends with` treat percent signs, underscores and
+backslashes literally. `like` matches the entire string: `%` matches zero or
+more characters; `_` matches one PostgreSQL character, not one UTF-16 code unit.
+In the actual parameter use `\%`, `\_` and `\\` for literal percent, underscore
+and backslash. Java string literals require the usual additional escaping.
+A trailing unpaired escape is an invalid PostgreSQL LIKE pattern.
+
+Searches are case-sensitive with deterministic PostgreSQL `C` collation and
+no Unicode normalization. Absent fields never match. An empty literal fragment
+matches every present string; an empty LIKE pattern matches only the empty
+string. Parameters are bound, never inserted as SQL text.
+
+No schema migration is needed. Leading wildcard searches may scan many rows;
+there is no index or performance guarantee. Case-insensitive searches, regular
+expressions and configurable collations remain deferred.

@@ -96,7 +96,7 @@ public final class JdbcRepositoryGenerator {
                     clauses.add(CodeBlock.of("$T.presence($S, $L)",queryType,SqlNames.physical(columns.getFirst()),predicate.operator().equals("present")));
                 } else {
                     String scalar=f.scalar();
-                    CodeBlock value=CodeBlock.of("$L$L",predicate.parameter().name(),f.accessor().isEmpty()?"":"."+f.accessor()+"()");
+                    CodeBlock value=CodeBlock.of("$L$L",predicate.parameter().name(),(Set.of("like","contains","starts","ends").contains(predicate.operator()) || f.accessor().isEmpty())?"":"."+f.accessor()+"()");
                     if(scalar.equals("enum")) {
                         scalar="String";
                         var symbol=((ResolvedType.Declared)f.type()).symbol();

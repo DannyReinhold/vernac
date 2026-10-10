@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
 public class VernacTextDocumentService implements TextDocumentService {
 
     private static final Set<String> DSL_KEYWORDS = Set.of(
-            "where", "and", "order", "asc", "desc", "is", "absent", "present",
+            "where", "and", "order", "asc", "desc", "is", "absent", "present", "like", "contains", "starts", "ends", "with",
             "namespace", "package", "import", "as", "id",
             "aggregate", "value", "entity", "event", "outbox", "memory", "service", "external", "schema",
             "repository", "for", "table", "find", "custom", "validates", "require",
