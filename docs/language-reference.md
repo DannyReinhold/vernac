@@ -101,14 +101,10 @@ No numbering or silent renaming is used. See the authoritative
 
 ### 3.5 UseCase Dependency & Variable Derivations
 
-- `use OrderRepository;` derives the field/instance name as `orderRepository` (decapitalized type name).
-- `load Order;` derives instance variable `order`, queries repository `orderRepository` (or the single matching repo in
-  `use`), and defaults the ID lookup parameter to `orderId`.
-- `save order;` automatically targets `orderRepository`.
-- `return (order.id(), order.status());` in tuples automatically derives component names from the property name after
-  the dot (`id`, `status`).
-
----
+- `uses OrderRepository` derives `orderRepository` using the shared naming convention.
+- Input and result names follow the same convention, with explicit overrides.
+- Java repository calls replace the former load/save DSL statements.
+- Return types/fields are explicitly declared; no Java-expression inference is performed.
 
 ## 4. Typed Identifiers (`id`)
 
@@ -465,48 +461,31 @@ port InvoiceGenerator {
 
 ## 10. Use Cases (`usecase`)
 
-Use Cases represent transactional application services orchestrating domain logic. For an in-depth guide on parameter
-validation, dependency injection, repository conventions, load/save semantics, and tuple returns,
-see [Use Cases & Application Layer Documentation](usecase-application-layer.md).
+One operation with typed domain inputs, explicit results and REQUIRED transaction propagation:
 
 ```vernac
-usecase CancelOrder(OrderId id, String reason) validates {
-    require(!reason.isBlank(), "Reason required");
-} {
-    use OrderRepository;
-    use NotificationPort notifications;
-
-    load Order by id;
-    order.cancel(reason);
-    save order;
-
-    return (order.id(), reason as cancellationReason);
+usecase CancelOrder(OrderId id, CancellationReason reason)
+    returns (OrderId id, CancellationReason reason)
+    uses OrderRepository
+behavior {
+    execute {
+        var order = orderRepository.byId(id);
+        order.cancel(reason);
+        orderRepository.save(order);
+        return Result.of(order.id(), reason);
+    }
 }
 ```
 
-### Generated Artifacts:
+The types and domain method used above must be declared. Java implementation bodies
+can use private helpers or delegate through `execute implemented by ...;`.
+The generated bean resides in `<namespace>.usecase`; dependencies use constructor
+injection. Optional input parameters are nullable at the public boundary and Optional
+inside implementation code. Composite results are records with checked components
+and generated of factories. Optional preconditions use an input-only Read interface.
 
-- Spring `@Service` annotated with `@Transactional`.
-- Constructor with Spring dependency injection for all `use` declarations (with null-checks).
-- `execute(...)` method matching usecase parameters and pre-condition validation.
-- Embedded static `Result` record for tuple returns:
-  `public static record Result(OrderId id, String cancellationReason) {}`
-- Automatic type inference: Types of `Result` record components are inferred automatically from parameter types,
-  aggregate getters, or literal expressions.
-- High-level DSL statements:
-    - `use <Dependency> [varName];`
-    - `load <Aggregate> [varName] [from <repoVar>] [by <idExpr>];`
-    - `save <varName> [to <repoVar>];`
-    - `return (<expr> [as <alias>], ...);` (Tuple return)
-    - `return [expr];` (Single return)
-    - Raw Java statements can be intermixed freely.
-
-### DDD Constraints:
-
-- Use cases cannot accept aggregate roots directly as input parameters or return aggregate roots directly in results
-  (pass IDs, DTOs, or Value Objects instead).
-
----
+See the [usecase contract](contracts/usecases.md) and [tutorial](tutorials/usecases.md).
+The former custom-package and load/save syntax is removed.
 
 ## 11. Domain Services (`service`)
 

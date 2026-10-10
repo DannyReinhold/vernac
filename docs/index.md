@@ -202,3 +202,5 @@ for implemented, deferred and planned areas.
 - **License**: [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
 
 [Search complete aggregates with declarative repository queries →](tutorials/repository-queries.md)
+
+- [Usecases: one operation, one transaction](tutorials/usecases.md)

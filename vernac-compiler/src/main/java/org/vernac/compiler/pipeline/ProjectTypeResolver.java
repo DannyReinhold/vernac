@@ -58,6 +58,8 @@ public final class ProjectTypeResolver {
             }
             for (var definition : source.unit().definitions()) {
                 diagnostics.addAll(ValidationContracts.validate(definition, source.unit().namespace(), project));
+                if (definition instanceof UseCaseNode usecase && validScope)
+                    new UseCaseContracts().validate(usecase, scope, fieldTypes, diagnostics, project, source.unit().namespace());
                 var mutable = MutableDomain.of(definition);
                 if (mutable.isPresent()) {
                     var model = mutable.get();
@@ -140,7 +142,7 @@ public final class ProjectTypeResolver {
         failOnErrors(diagnostics);
         List<TypeSymbol> deferred = namespaces.stream().flatMap(namespace -> project.symbols().inNamespace(namespace).stream())
                 .filter(symbol -> switch (symbol.kind()) {
-                    case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, REPOSITORY -> false;
+                    case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, REPOSITORY, USE_CASE -> false;
                     default -> true;
                 }).toList();
         return new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries);

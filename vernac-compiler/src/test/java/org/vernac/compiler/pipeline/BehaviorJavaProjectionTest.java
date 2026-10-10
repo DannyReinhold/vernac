@@ -27,6 +27,19 @@ class BehaviorJavaProjectionTest {
         return result.toString();
     }
 
+    @Test void usecaseFragmentsExposeInputsDependenciesAndReadOnlyValidation() {
+        String source="""
+            namespace model; id TourId;
+            usecase Echo(TourId? id) returns TourId? validates { require(self.id().isPresent(), "id"); }
+            behavior { execute { return helper(id); } private TourId? helper(TourId? id) { return id; } }
+            """;
+        var blocks=project(source);
+        assertEquals(2,blocks.size());
+        String implementation=java(source,blocks.getFirst());
+        assertTrue(implementation.contains("java.util.Optional<model.domain.TourId> id"));
+        assertTrue(implementation.contains("return helper(id);"));
+        assertTrue(java(source,blocks.getLast()).contains("model.usecase.access.EchoRead self"));
+    }
     @Test void validationFragmentsUseReadSelfAndUtf16Ranges() {
         String text = """
             // 😀 before validation

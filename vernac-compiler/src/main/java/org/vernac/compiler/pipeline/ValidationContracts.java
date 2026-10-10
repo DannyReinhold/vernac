@@ -16,6 +16,8 @@ final class ValidationContracts {
         List<JavaImportNode> imports; String name; boolean value;
         if (definition instanceof ValueObjectNode v) {
             fields=v.fields(); methods=v.methods(); rules=v.validations(); imports=v.javaImports(); name=v.name(); value=true;
+        } else if (definition instanceof UseCaseNode u) {
+            fields=u.parameters(); methods=u.methods(); rules=u.validations(); imports=u.javaImports(); name=u.name(); value=true;
         } else {
             var mutable = MutableDomain.of(definition);
             if (mutable.isEmpty()) return List.of();

@@ -30,7 +30,7 @@ public class VernacTextDocumentService implements TextDocumentService {
             "repository", "for", "table", "find", "custom", "validates", "require",
             "read", "modify", "behavior", "java", "imports", "implemented", "by", "mut", "invariant", "mapping", "list", "set",
             "port", "adapter", "rest", "on", "throw", "throws",
-            "usecase", "use", "load", "save", "listener"
+            "usecase", "use", "uses", "returns", "execute", "listener"
     );
 
     private static final Set<String> JAVA_KEYWORDS = Set.of(
@@ -233,10 +233,8 @@ public class VernacTextDocumentService implements TextDocumentService {
 
         // Context C1: Inside a usecase { ... } block
         if (isInsideUseCaseBlock(prefix)) {
-            addKeywordCompletion(items, "use", "use ${1:Repository};");
-            addKeywordCompletion(items, "load", "load ${1:Aggregate} by ${2:id};");
-            addKeywordCompletion(items, "save", "save ${1:instance};");
-            addKeywordCompletion(items, "return", "return ($1);");
+            addKeywordCompletion(items, "execute", "execute {\n    $0\n}");
+            addKeywordCompletion(items, "return", "return ${1:result};");
             return CompletableFuture.completedFuture(Either.forLeft(items));
         }
         // Context C2: Inside a repository { ... } block
@@ -312,7 +310,7 @@ public class VernacTextDocumentService implements TextDocumentService {
         addKeywordCompletion(items, "port", "port ${1:Name} {\n    $0\n}");
         addKeywordCompletion(items, "repository", "repository ${1:Name} for ${2:Aggregate} {\n    table: \"${3:table_name}\";\n    $0\n};");
         addKeywordCompletion(items, "id", "id ${1:Name}Id;");
-        addKeywordCompletion(items, "usecase", "usecase ${1:Name}(${2:params}) {\n    $0\n}");
+        addKeywordCompletion(items, "usecase", "usecase ${1:Name}(${2:params}) behavior {\n    execute {\n        $0\n    }\n}");
         addKeywordCompletion(items, "service", "service ${1:Name}(${2:params}) : ${3:ReturnType} {\n    $0\n}");
     }
 

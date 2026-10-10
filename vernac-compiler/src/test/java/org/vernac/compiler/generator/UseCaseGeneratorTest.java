@@ -1,55 +1,48 @@
 // Copyright 2026 Danny Reinhold
 // SPDX-License-Identifier: Apache-2.0
-
 package org.vernac.compiler.generator;
-
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.vernac.compiler.pipeline.VernacCompilationResult;
 import org.vernac.compiler.pipeline.VernacCompiler;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.*;
 
 class UseCaseGeneratorTest {
-
-    private final VernacCompiler compiler = new VernacCompiler();
-
-    @Test
-    @DisplayName("Generiert vollständigen Spring-Service für UseCase mit Conventions")
-    void shouldGenerateUseCaseService() {
-        String dsl = """
-                namespace com.example.shop;
-                
-                id OrderId;
-                value Status(String); aggregate Order[OrderId](Status status);
-                repository for Order {}
-                
-                usecase CancelOrder(OrderId id, String reason) validates {
-                    require(!reason.isBlank(), "Reason required");
-                } {
-                    use OrderRepository;
-                    load Order by id;
-                    order.status();
-                    save order;
-                    return (order.id(), reason as cancellationReason);
-                }
-                """;
-
-        VernacCompilationResult result = compiler.compileSource(dsl);
-
-        // Prüfen, ob UseCase im usecase-Package liegt
-        var useCaseFile = result.generatedFiles().stream()
-                .filter(f -> f.typeSpec().name().equals("CancelOrder"))
-                .findFirst();
-
-        assertThat(useCaseFile).isPresent();
-        assertThat(useCaseFile.get().packageName()).isEqualTo("com.example.shop.usecase");
-
-        String code = useCaseFile.get().toString();
-        assertThat(code).contains("@Service");
-        assertThat(code).contains("@Transactional");
-        assertThat(code).contains("public static record Result(OrderId id, String cancellationReason)");
-        assertThat(code).contains("this.orderRepository.byId(id)");
-        assertThat(code).contains("this.orderRepository.save(order)");
+    @Test void shouldGenerateUseCaseService() {
+        var result=new VernacCompiler().compileSource("""
+            namespace demo;
+            id TourId; value Title(String);
+            usecase Rename(TourId, Title? title) returns (TourId, Title? title)
+            validates { require(self.title().isPresent(), "Title needed"); }
+            behavior {
+                execute { return resultFor(tourId, title.orElseThrow()); }
+                private Result resultFor(TourId id, Title title) { return Result.of(id,title); }
+            }
+            """);
+        String code=result.generatedFiles().stream().map(Object::toString).reduce("",String::concat);
+        assertThat(code).contains("Propagation.REQUIRED", "Optional<Title>", "interface RenameRead", "private static Rename.Result resultFor", "@NullMarked");
+        assertThat(code).doesNotContain("Object execute", "titleRaw");
+    }
+    @Test void resolvesDependencyAndExternalOperation() {
+        var result=new VernacCompiler().compileSource("""
+            namespace demo;
+            id TourId;
+            usecase Inner(TourId) returns TourId behavior { execute { return tourId; } }
+            usecase Outer(TourId) returns TourId uses Inner
+            behavior { execute implemented by custom.OuterImplementation; }
+            """);
+        String code=result.generatedFiles().stream().map(Object::toString).reduce("",String::concat);
+        assertThat(code).contains("private final Inner inner", "custom.OuterImplementation.execute(tourId, inner)", "requireResult");
+    }
+    @Test void rejectsInvalidContracts() {
+        String prefix="namespace demo; id TourId; value Title(String); ";
+        for(String declaration: java.util.List.of(
+                "usecase Bad(String) behavior { execute {} }",
+                "usecase Bad(TourId, TourId) behavior { execute {} }",
+                "usecase Bad(Title getClass) behavior { execute {} }",
+                "usecase Bad() behavior {}",
+                "usecase Bad() behavior { execute {} execute {} }",
+                "usecase Bad() behavior { execute {} public void extra() {} }",
+                "usecase Bad(TourId) uses TourId behavior { execute {} }"))
+            assertThatThrownBy(() -> new VernacCompiler().compileSource(prefix+declaration))
+                    .isInstanceOf(org.vernac.compiler.analyzer.SemanticValidationException.class);
     }
 }

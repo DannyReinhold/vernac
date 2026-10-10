@@ -72,20 +72,17 @@ repository for EnergyStorage {
 }
 
 // --- 6. UseCases ---
-usecase OptimizeEnergyFlow(StorageId storageId) validates {
-    require(storageId != null, "StorageId required");
-} {
-    use EnergyStorageRepository;
-    use SolarForecastProvider solarProvider;
-
-    load EnergyStorage by storageId;
-
-    var forecast = this.solarProvider.fetchExpectedYield(storageId);
-    if (forecast.isPresent() && forecast.get().value() > 0) {
-        energyStorage.charge(forecast.get());
+usecase OptimizeEnergyFlow(StorageId storageId)
+    returns (StorageId id, BatterySoc soc, WattHours storedEnergy)
+    uses EnergyStorageRepository, SolarForecastProvider solarProvider
+behavior {
+    execute {
+        var energyStorage = energyStorageRepository.byId(storageId);
+        var forecast = solarProvider.fetchExpectedYield(storageId);
+        if (forecast.isPresent() && forecast.get().value() > 0) {
+            energyStorage.charge(forecast.get());
+        }
+        energyStorageRepository.save(energyStorage);
+        return Result.of(energyStorage.id(), energyStorage.soc(), energyStorage.storedEnergy());
     }
-
-    save energyStorage;
-
-    return (energyStorage.id(), energyStorage.soc(), energyStorage.storedEnergy());
 }

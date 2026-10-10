@@ -268,38 +268,19 @@ repositoryCustomMethod
 // 6. Use Cases
 // ==========================================
 usecaseDefinition
-    : 'usecase' name=typeName '(' parameterList? ')'
-      ( 'validates' validationBlock )?
-      '{' usecaseMember* '}'
-      ';'?
+    : 'usecase' name=typeName '(' inputs=parameterList? ')'
+      ('returns' (resultType=type | '(' results=parameterList ')'))?
+      ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
+      ('validates' validationBlock)?
+      'behavior' '{' javaImports? usecaseBehaviorMember* '}' ';'?
     ;
-
-usecaseMember
-    : packageDeclarationStatement
-    | useDependencyStatement
-    | usecaseStatement
+usecaseBehaviorMember
+    : 'execute' ('{' rawJavaBlock '}' | 'implemented' 'by' implementation=qualifiedName ';')
+    | behaviorMethod
     ;
 
 useDependencyStatement
     : 'use' typeName (variableName)? ';'
-    ;
-
-usecaseStatement
-    : loadStatement
-    | saveStatement
-    | tupleReturnStatement
-    | singleReturnStatement
-    | rawJavaStatement
-    ;
-
-loadStatement
-    : 'load' aggregateType=typeName (instanceName=variableName)?
-      ('from' repositoryName=variableName)?
-      ('by' idExpression=expression)? ';'
-    ;
-
-saveStatement
-    : 'save' instanceName=variableName ('to' repositoryName=variableName)? ';'
     ;
 
 singleReturnStatement
@@ -422,7 +403,7 @@ qualifiedNameSegment
     | 'private'
     | 'public'
     | 'repository'
-    | 'or' | 'not' | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
+    | 'returns' | 'uses' | 'execute' | 'or' | 'not' | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
     | 'require'
     | 'rest'
     | 'return'

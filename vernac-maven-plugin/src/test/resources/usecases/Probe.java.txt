@@ -1,0 +1,54 @@
+package operations;
+import operations.domain.*;
+import operations.usecase.*;
+import java.util.Optional;
+import org.springframework.aop.framework.ProxyFactory;
+import org.springframework.transaction.annotation.AnnotationTransactionAttributeSource;
+import org.springframework.transaction.interceptor.TransactionInterceptor;
+import org.springframework.transaction.support.*;
+import org.springframework.transaction.TransactionDefinition;
+import static org.junit.jupiter.api.Assertions.*;
+
+public final class Probe {
+    public static void run() {
+        TaskId id=TaskId.create();
+        var echo=new Echo();
+        var result=echo.execute(id,null);
+        assertTrue(result.title().isEmpty());
+        assertEquals(result,Echo.Result.of(id));
+        assertEquals(result.hashCode(),Echo.Result.of(id).hashCode());
+        assertTrue(result.toString().contains("taskId"));
+        assertThrows(org.vernac.runtime.DomainValidationException.class,()->new Echo.Result(id,null));
+        assertThrows(org.vernac.runtime.DomainValidationException.class,()->echo.execute(id,Title.of("")));
+        assertThrows(org.vernac.runtime.DomainValidationException.class,()->echo.execute(null,null));
+        assertThrows(org.vernac.runtime.BehaviorContractException.class,()->new External().execute(id,Title.of("NULL")));
+        assertTrue(new External().execute(id,null).isEmpty());
+        assertEquals(Title.of("ok"),new External().execute(id,Title.of("ok")).orElseThrow());
+        assertEquals(2,operations.usecase.access.EchoRead.class.getDeclaredMethods().length);
+        var manager=new Manager();
+        Inner inner=proxy(new Inner(),manager);
+        Outer outer=proxy(new Outer(inner),manager);
+        assertEquals(id,outer.execute(id));
+        assertEquals(1,manager.begins); assertEquals(1,manager.commits);
+        Echo transactional=proxy(new Echo(),manager);
+        assertThrows(org.vernac.runtime.DomainValidationException.class,()->transactional.execute(null,null));
+        assertEquals(1,manager.rollbacks);
+        External external=proxy(new External(),manager);
+        assertThrows(org.vernac.runtime.BehaviorContractException.class,()->external.execute(id,Title.of("NULL")));
+        assertEquals(2,manager.rollbacks);
+    }
+    @SuppressWarnings("unchecked") static <T> T proxy(T target,Manager manager) {
+        var factory=new ProxyFactory(target); factory.setProxyTargetClass(true);
+        factory.addAdvice(new TransactionInterceptor(manager,new AnnotationTransactionAttributeSource()));
+        return (T)factory.getProxy(target.getClass().getClassLoader());
+    }
+    static final class Manager extends AbstractPlatformTransactionManager {
+        boolean active; int begins,commits,rollbacks;
+        protected Object doGetTransaction() { return new Object(); }
+        protected boolean isExistingTransaction(Object tx) { return active; }
+        protected void doBegin(Object tx,TransactionDefinition definition) { active=true; begins++; }
+        protected void doCommit(DefaultTransactionStatus status) { commits++; }
+        protected void doRollback(DefaultTransactionStatus status) { rollbacks++; }
+        protected void doCleanupAfterCompletion(Object tx) { active=false; }
+    }
+}

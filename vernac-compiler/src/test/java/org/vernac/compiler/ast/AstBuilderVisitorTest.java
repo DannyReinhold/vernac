@@ -568,109 +568,27 @@ class AstBuilderVisitorTest {
     @Nested
     @DisplayName("8. Use Cases")
     class UseCaseTests {
-
-        @Test
-        @DisplayName("Parst UseCase mit Conventions, Validierung, Java-Fragment und Tuple-Return")
-        void shouldParseUseCaseWithConventionsAndStatements() {
-            String src = """
-                    namespace com.example.application;
-                    
-                    usecase CancelOrder(OrderId, String reason) validates {
-                        require(!reason.isBlank(), "Reason must not be blank");
-                    } {
-                        use OrderRepository;
-                        use NotificationPort notifications;
-                    
-                        load Order by orderId;
-                    
-                        if (order.isShipped()) {
-                            throw new IllegalStateException("Already shipped");
-                        }
-                    
-                        order.cancel(reason);
-                        save order;
-                    
-                        return (order.id() as myOrderId, order.status());
-                    }
-                    """;
-
-            CompilationUnitNode cu = parse(src);
-            assertThat(cu.useCases()).hasSize(1);
-
-            UseCaseNode useCase = cu.useCases().getFirst();
-            assertThat(useCase.name()).isEqualTo("CancelOrder");
-
-            // Parameter
-            assertThat(useCase.parameters()).hasSize(2);
-            assertThat(useCase.parameters().get(0).name()).isEqualTo("orderId");
-            assertThat(useCase.parameters().get(0).type().name()).isEqualTo("OrderId");
-            assertThat(useCase.parameters().get(1).name()).isEqualTo("reason");
-
-            // Validierung
-            assertThat(useCase.validations()).hasSize(1);
-            assertThat(useCase.validations().getFirst().condition()).isEqualTo("!reason.isBlank()");
-
-            // Dependencies (use)
-            assertThat(useCase.dependencies()).hasSize(2);
-            assertThat(useCase.dependencies().get(0).typeName()).isEqualTo("OrderRepository");
-            assertThat(useCase.dependencies().get(0).instanceName()).isEmpty(); // Greift Default
-            assertThat(useCase.dependencies().get(1).typeName()).isEqualTo("NotificationPort");
-            assertThat(useCase.dependencies().get(1).instanceName()).contains("notifications");
-
-            // Statements
-            assertThat(useCase.statements()).hasSize(4);
-
-            // Statement 1: load
-            assertThat(useCase.statements().get(0)).isInstanceOf(LoadStatementNode.class);
-            LoadStatementNode loadStmt = (LoadStatementNode) useCase.statements().get(0);
-            assertThat(loadStmt.aggregateType()).isEqualTo("Order");
-            assertThat(loadStmt.idExpressionCode()).contains("orderId");
-
-            // Statement 2: Java if-statement
-            assertThat(useCase.statements().get(1)).isInstanceOf(RawJavaStatementNode.class);
-
-            // Statement 3: order.cancel(reason); (geparst als RawJavaStatement)
-            assertThat(useCase.statements().get(2)).isInstanceOf(RawJavaStatementNode.class);
-
-            // Statement 4: save
-            assertThat(useCase.statements().get(3)).isInstanceOf(SaveStatementNode.class);
-            SaveStatementNode saveStmt = (SaveStatementNode) useCase.statements().get(3);
-            assertThat(saveStmt.instanceName()).isEqualTo("order");
-
-            // Return Statement (Tuple)
-            assertThat(useCase.returnStatement()).isPresent();
-            assertThat(useCase.returnStatement().get()).isInstanceOf(TupleReturnNode.class);
-            TupleReturnNode tuple = (TupleReturnNode) useCase.returnStatement().get();
-            assertThat(tuple.elements()).hasSize(2);
-            assertThat(tuple.elements().get(0).expressionCode()).isEqualTo("order.id()");
-            assertThat(tuple.elements().get(0).alias()).contains("myOrderId");
-            assertThat(tuple.elements().get(1).expressionCode()).isEqualTo("order.status()");
-            assertThat(tuple.elements().get(1).alias()).isEmpty();
+        @Test void shouldParseUseCaseWithConventionsAndStatements() {
+            var u=parse("""
+                namespace demo;
+                usecase Rename(TourId, Title title) returns (TourId, Title)
+                    uses TourRepository, NotificationPort notifications
+                    validates { require(self.title().string().length() > 0, "Required"); }
+                behavior { execute { return Result.of(tourId,title); } }
+                """).useCases().getFirst();
+            assertThat(u.parameters().getFirst().name()).isEqualTo("tourId");
+            assertThat(u.injections().getFirst().name()).isEqualTo("tourRepository");
+            assertThat(u.injections().get(1).name()).isEqualTo("notifications");
+            assertThat(u.resultFields()).hasSize(2);
+            assertThat(u.validations().getFirst().condition()).contains("self.title()");
+            assertThat(u.bodyCode()).contains("return Result.of");
+            assertThat(u.executeCount()).isEqualTo(1);
         }
-
-        @Test
-        @DisplayName("Unterstützt package-Override und Single Return Statement")
-        void shouldParseUseCaseWithCustomPackageAndSingleReturn() {
-            String src = """
-                    namespace com.example.application;
-                    
-                    usecase CreateOrder(CustomerId customerId) {
-                        package com.example.mycustom.ordering;
-                        use OrderRepository;
-                    
-                        save order;
-                        return order.id();
-                    }
-                    """;
-
-            CompilationUnitNode cu = parse(src);
-            UseCaseNode useCase = cu.useCases().getFirst();
-
-            assertThat(useCase.customPackage()).contains("com.example.mycustom.ordering");
-            assertThat(useCase.returnStatement()).isPresent();
-            assertThat(useCase.returnStatement().get()).isInstanceOf(SingleReturnNode.class);
-            SingleReturnNode single = (SingleReturnNode) useCase.returnStatement().get();
-            assertThat(single.expressionCode()).contains("order.id()");
+        @Test void shouldParseExplicitSingleReturnAndExternalImplementation() {
+            var u=parse("namespace demo; usecase Find(TourId) returns Title? behavior { execute implemented by custom.Find; }").useCases().getFirst();
+            assertThat(u.resultType().orElseThrow().name()).isEqualTo("Title");
+            assertThat(u.resultType().orElseThrow().isOptional()).isTrue();
+            assertThat(u.implementation()).contains("custom.Find");
         }
     }
 

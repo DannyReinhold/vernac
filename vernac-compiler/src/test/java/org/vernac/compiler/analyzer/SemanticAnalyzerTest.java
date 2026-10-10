@@ -160,65 +160,24 @@ class SemanticAnalyzerTest {
                 .hasMessageContaining("Primitive type 'int' cannot be optional. Use the wrapper type 'Integer?' instead.");
     }
 
-    @Test
-    @DisplayName("Verhindert doppelte Dependency-Typen in use-Klauseln")
-    void shouldRejectDuplicateDependencyTypes() {
-        String dsl = """
-                namespace com.example.app;
-                id OrderId;
-                aggregate Order[OrderId](String status);
-                repository for Order {}
-                
-                usecase CancelOrder(OrderId id) {
-                    use OrderRepository repo1;
-                    use OrderRepository repo2;
-                }
-                """;
-
-        assertThatThrownBy(() -> compiler.compileSource(dsl))
-                .isInstanceOf(SemanticValidationException.class)
-                .hasMessageContaining("Duplicate dependency type 'OrderRepository' in usecase 'CancelOrder'");
+    @Test void shouldRejectDuplicateDependencyNames() {
+        assertThatThrownBy(() -> compiler.compileSource("""
+            namespace demo; id OrderId;
+            usecase Inner() behavior { execute {} }
+            usecase Outer(OrderId) uses Inner, Inner behavior { execute {} }
+            """)).isInstanceOf(SemanticValidationException.class).hasMessageContaining("Duplicate");
     }
-
-    @Test
-    @DisplayName("Meldet Fehler, wenn 'from' den Repository-Typ statt der Variablen nutzt")
-    void shouldRejectRepositoryTypeInFromClause() {
-        String dsl = """
-                namespace com.example.app;
-                id OrderId;
-                aggregate Order[OrderId](String status);
-                repository for Order {}
-                
-                usecase CancelOrder(OrderId id) {
-                    use OrderRepository myRepo;
-                    load Order from OrderRepository by id;
-                }
-                """;
-
-        assertThatThrownBy(() -> compiler.compileSource(dsl))
-                .isInstanceOf(SemanticValidationException.class)
-                .hasMessageContaining("Repository variable 'OrderRepository' used in 'from' clause is not declared with 'use'");
+    @Test void shouldRejectNonBeanDependency() {
+        assertThatThrownBy(() -> compiler.compileSource("""
+            namespace demo; id OrderId;
+            usecase Outer(OrderId) uses OrderId dep behavior { execute {} }
+            """)).isInstanceOf(SemanticValidationException.class).hasMessageContaining("uses requires");
     }
-
-    @Test
-    @DisplayName("Verhindert Rückgabe von Aggregat-Instanzen im Tuple-Return")
-    void shouldRejectAggregateInTupleReturn() {
-        String dsl = """
-                namespace com.example.app;
-                id OrderId;
-                aggregate Order[OrderId](String status);
-                repository for Order {}
-                
-                usecase CancelOrder(OrderId id) {
-                    use OrderRepository;
-                    load Order by id;
-                    return (Order, id);
-                }
-                """;
-
-        assertThatThrownBy(() -> compiler.compileSource(dsl))
-                .isInstanceOf(SemanticValidationException.class)
-                .hasMessageContaining("Direct return of aggregate root 'Order' in tuple is forbidden");
+    @Test void shouldRejectAggregateInTupleReturn() {
+        assertThatThrownBy(() -> compiler.compileSource("""
+            namespace demo; id OrderId; value Title(String); aggregate Order[OrderId](Title);
+            usecase Outer(OrderId) returns (Order order) behavior { execute { return null; } }
+            """)).isInstanceOf(SemanticValidationException.class).hasMessageContaining("Usecase inputs/results");
     }
 
     @Nested

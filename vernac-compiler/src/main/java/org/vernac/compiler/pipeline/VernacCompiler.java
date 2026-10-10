@@ -74,6 +74,7 @@ public class VernacCompiler {
                     new BehaviorGenerator().generate(com.palantir.javapoet.ClassName.get(source.unit().namespace() + ".domain", value.name()),
                             value.methods(), value.javaImports(), source.unit(), project).ifPresent(files::add);
                 }
+                if (definition instanceof UseCaseNode u) files.addAll(useCaseGenerator.generate(u,source.unit(),project));
                 MutableDomain.of(definition).ifPresent(model -> files.addAll(generateMutable(model, source.unit(), project)));
                 CollectionDeclaration.of(definition).ifPresent(collection -> {
                     files.add(domainCollectionGenerator.generate(collection, source.unit().namespace(), project));
@@ -186,7 +187,7 @@ public class VernacCompiler {
             } else if (definition instanceof PortNode port) {
                 generatedFiles.addAll(portGenerator.generate(port, packageName, imports));
             } else if (definition instanceof UseCaseNode useCase) {
-                generatedFiles.add(useCaseGenerator.generate(useCase, aggregates, repositories, packageName, imports));
+                generatedFiles.addAll(useCaseGenerator.generate(useCase, unit, resolved));
             } else if (definition instanceof DomainServiceNode service) { // <-- DIESER ZWEIG FEHLT
                 generatedFiles.add(domainServiceGenerator.generate(service, aggregates, packageName, imports));
             } else if (definition instanceof ListenerNode listener) { // <-- NEU

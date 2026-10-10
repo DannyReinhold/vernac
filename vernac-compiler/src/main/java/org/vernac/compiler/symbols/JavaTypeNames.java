@@ -18,6 +18,7 @@ public final class JavaTypeNames {
             case ResolvedType.Declared declared -> switch (declared.symbol().kind()) {
                 case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE -> domainPackage(declared.symbol().identity())
                         + "." + declared.symbol().identity().name();
+                case USE_CASE -> declared.symbol().identity().namespace()+".usecase."+declared.symbol().identity().name();
                 default -> throw new IllegalArgumentException("No reviewed Java mapping for " + declared.symbol().kind());
             };
         };

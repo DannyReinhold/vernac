@@ -45,7 +45,7 @@ public final class VernacTypeNavigation {
 
     private boolean reviewed(TypeSymbol.Kind kind) {
         return switch (kind) {
-            case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE -> true;
+            case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, USE_CASE -> true;
             default -> false;
         };
     }
@@ -78,6 +78,7 @@ public final class VernacTypeNavigation {
                 name = syntax.aggregateDefinition().name;
                 collection = syntax.aggregateDefinition().collectionDefinition();
             }
+            if (syntax.usecaseDefinition() != null) name=syntax.usecaseDefinition().name;
             if (name == null) continue;
             if (symbol.kind() != TypeSymbol.Kind.COLLECTION && name.getText().equals(symbol.identity().name())) {
                 if (member.isEmpty()) return target(source.path(), text, symbol.identity().name(), name.getStart(), name.getStop());
@@ -85,6 +86,8 @@ public final class VernacTypeNavigation {
                 if (definition instanceof IdDeclarationNode && key.name().equals("value") && key.parameterTypes().isEmpty())
                     return target(source.path(), text, "value", name.getStart(), name.getStop());
                 List<Target> candidates = new ArrayList<>();
+                if (definition instanceof UseCaseNode u && key.name().equals("execute") && key.parameterTypes().size()==u.parameters().size())
+                    return target(source.path(),text,"execute",name.getStart(),name.getStop());
                 if (definition instanceof ValueObjectNode value) {
                     var valueSyntax = syntax.valueDefinition();
                     if (key.parameterTypes().isEmpty() && valueSyntax.parameterList() != null) {

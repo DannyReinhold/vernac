@@ -1,0 +1,14 @@
+namespace operations;
+id TaskId;
+value Title(String);
+usecase Echo(TaskId, Title? title) returns (TaskId, Title? title)
+validates { require(self.title().isEmpty() || !self.title().orElseThrow().string().isBlank(), "Blank title"); }
+behavior {
+    execute { return result(taskId,title); }
+    private Result result(TaskId id, Title? title) { return Result.of(id,title.orElse(null)); }
+}
+usecase External(TaskId, Title? title) returns Title?
+behavior { execute implemented by operations.ExternalImplementation; }
+usecase Inner(TaskId) returns TaskId behavior { execute { return taskId; } }
+usecase Outer(TaskId) returns TaskId uses Inner behavior { execute { return inner.execute(taskId); } }
+usecase NoResult(TaskId) behavior { execute { java.util.Objects.requireNonNull(taskId); } }
