@@ -94,7 +94,7 @@ Explore the detailed architecture and reference manuals for every area of Vernac
 | Guide                                                                       | Description                                    | Key Topics                                                                                               |
 |:----------------------------------------------------------------------------|:-----------------------------------------------|:---------------------------------------------------------------------------------------------------------|
 | 📖 **[Language Reference](./language-reference.md)**                        | Complete DSL syntax, keywords, and conventions | `id`, `value`, `entity`, `aggregate`, `collection`, `mut`, inference rules, DDD validation               |
-| 🏛️ **[Use Cases & Application Layer](./usecase-application-layer.md)**      | Application services and orchestration         | `usecase`, `service`, `@Transactional`, dependency injection (`use`), `load`, `save`, tuple returns      |
+| 🏛️ **[Use Cases & Application Layer](./usecase-application-layer.md)**      | Application services and orchestration         | `usecase`, `service`, `@Transactional`, dependency injection (`uses`), explicit Java repository calls, declared results      |
 | 🗄️ **[Database & Repository Mapping](./repository-db-mapping.md)**          | PostgreSQL persistence and Spring JDBC         | Table DDL, column flattening, 1:N child entities, optimistic locking, custom repository beans            |
 | 🌐 **[Outbound Ports & REST Adapters](./outbound-port-mapping.md)**         | Hexagonal architecture and external APIs       | `port`, Spring `RestClient` generation, schema DTOs, Anti-Corruption Layer, error status handling        |
 | ⚡ **[Event-Driven Architecture & Outbox](./event-driven-architecture.md)** | Domain events and Transactional Outbox         | `event`, `vernac_outbox` DDL, `JdbcEventDispatcher`, `@TransactionalEventListener(phase = AFTER_COMMIT)` |
@@ -204,3 +204,5 @@ for implemented, deferred and planned areas.
 [Search complete aggregates with declarative repository queries →](tutorials/repository-queries.md)
 
 - [Usecases: one operation, one transaction](tutorials/usecases.md)
+
+- [Domain services: planning a stop transfer](tutorials/domain-services.md)

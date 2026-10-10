@@ -39,6 +39,21 @@ class VernacTypeNavigationTest {
         return text.substring(target.start(), target.end());
     }
 
+    @Test void mapsServiceAndOverloadedOperations() throws Exception {
+        source("model", "services", """
+                value Title(String);
+                service Planning behavior {
+                    public Title choose(Title) { return title; }
+                    public String choose(String text) { return text; }
+                }
+                """);
+        assertEquals("Planning", selected(find("model.domain.Planning", Map.of()).orElseThrow(), Map.of()));
+        var domain = member("model.domain.Planning", "choose", List.of("model.domain.Title"), Map.of()).orElseThrow();
+        var scalar = member("model.domain.Planning", "choose", List.of("java.lang.String"), Map.of()).orElseThrow();
+        assertEquals("choose", selected(domain, Map.of()));
+        assertNotEquals(domain.start(), scalar.start());
+    }
+
     @Test void mapsIdsValuesEnumsAndNamedOrImplicitCollections() throws Exception {
         source("model", "types", """
                 id TaskId set;

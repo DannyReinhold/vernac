@@ -309,17 +309,15 @@ javaBlockStatement
 // 7. Domain Services
 // ==========================================
 domainServiceDefinition
-    : 'service' name=typeName '(' parameterList? ')' (':' returnType=type)?
-      ( 'validates' validationBlock )?
-      '{' domainServiceMember* '}'
-      ';'?
+    : 'service' name=typeName
+      ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
+      'behavior' '{' javaImports? serviceMethod* '}' ';'?
     ;
 
-domainServiceMember
-    : packageDeclarationStatement
-    | singleReturnStatement
-    | tupleReturnStatement
-    | rawJavaStatement
+serviceMethod
+    : visibility=('public' | 'private') returnType=type name=methodName '(' parameterList? ')'
+      ('validates' validationBlock)?
+      ('{' rawJavaBlock '}' | 'implemented' 'by' implementation=qualifiedName ';')
     ;
 
 // ==========================================

@@ -104,7 +104,7 @@ public class SemanticAnalyzer {
             } else if (def instanceof UseCaseNode useCase) {
                 // Usecase contracts are validated by the project-wide resolver.
             } else if (def instanceof DomainServiceNode service) {
-                validateDomainService(service, unit, availableSymbols, diagnostics);
+                // Reviewed by the project resolver.
             } else if (def instanceof ListenerNode listener) {
                 validateListener(listener, unit, declaredEvents, diagnostics);
             }
@@ -494,35 +494,6 @@ public class SemanticAnalyzer {
         if (def instanceof DomainServiceNode service) return service.name();
         if (def instanceof ListenerNode listener) return listener.listenerName();
         throw new IllegalArgumentException("Unknown definition: " + def);
-    }
-
-    private void validateDomainService(
-            DomainServiceNode service,
-            CompilationUnitNode unit,
-            Set<String> availableSymbols,
-            List<CompilerDiagnostic> diagnostics
-    ) {
-        if (service.customPackage().isPresent()) {
-            validatePackageName(service.customPackage().get(), service.location(), diagnostics);
-        }
-
-        // 1. Parameter prüfen
-        checkDuplicateFields(service.parameters(), service.name(), diagnostics);
-        for (FieldNode param : service.parameters()) {
-            validateIdentifier(param.name(), param.location(), "parameter", diagnostics);
-            if (param.isMutable()) {
-                diagnostics.add(CompilerDiagnostic.error(
-                        param.location(),
-                        "Domain service parameter '" + param.name() + "' cannot be mutable. Services operate on immutable inputs."
-                ));
-            }
-            validateTypeResolvable(param.type(), availableSymbols, unit.imports(), diagnostics);
-        }
-
-        // 2. Return-Type prüfen
-        service.returnType().ifPresent(retType ->
-                validateTypeResolvable(retType, availableSymbols, unit.imports(), diagnostics)
-        );
     }
 
     private void validateListener(

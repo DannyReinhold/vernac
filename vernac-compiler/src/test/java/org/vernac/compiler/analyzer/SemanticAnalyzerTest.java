@@ -518,14 +518,14 @@ class SemanticAnalyzerTest {
                     namespace com.example.domain;
                     value WattHours(int value);
                     
-                    service TariffCalculator(mut WattHours capacity) : WattHours {
+                    service TariffCalculator behavior { public WattHours calculate(mut WattHours capacity) {
                         return capacity;
-                    }
+                    } }
                     """;
 
             assertThatThrownBy(() -> compiler.compileSource(dsl))
                     .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Domain service parameter 'capacity' cannot be mutable");
+                    .hasMessageContaining("Invalid service parameter/dependency");
         }
 
         @Test
@@ -535,14 +535,14 @@ class SemanticAnalyzerTest {
                     namespace com.example.domain;
                     value WattHours(int value);
                     
-                    service TariffCalculator(WattHours capacity) : UnknownType {
+                    service TariffCalculator behavior { public UnknownType calculate(WattHours capacity) {
                         return capacity;
-                    }
+                    } }
                     """;
 
             assertThatThrownBy(() -> compiler.compileSource(dsl))
                     .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Cannot resolve type 'UnknownType'");
+                    .hasMessageContaining("Unknown type 'UnknownType'");
         }
 
         @Test
@@ -550,7 +550,7 @@ class SemanticAnalyzerTest {
         void shouldRejectJavaKeywordAsServiceName() {
             String dsl = """
                     namespace com.example.domain;
-                    service final() {}
+                    service final behavior { public void run() {} }
                     """;
 
             assertThatThrownBy(() -> compiler.compileSource(dsl))

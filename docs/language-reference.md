@@ -489,20 +489,24 @@ The former custom-package and load/save syntax is removed.
 
 ## 11. Domain Services (`service`)
 
-Domain Services represent domain logic that does not naturally belong to a single entity or value object.
+Domain services expose named operations in a `behavior` block, with optional
+`uses` dependencies, per-operation `validates`, private helpers and external
+implementations. They are stateless Spring beans in `<namespace>.domain` and do
+not start transactions. See the [domain service contract](contracts/domain-services.md)
+and [stop-transfer tutorial](tutorials/domain-services.md).
 
 ```vernac
-service TariffCalculator(WattHours capacity, WattHours storedEnergy, WattHours) : WattHours validates {
-    require(capacity.value() > 0, "Capacity must be positive");
-} {
-    int available = Math.max(0, storedEnergy.value() - wattHours.value());
-    return WattHours.of(Math.max(0, capacity.value() - available));
+service TourPlanning behavior {
+    public void moveStop(Tour source, Tour target, StopId)
+    validates {
+        require(!self.source().id().equals(self.target().id()), "Different tours required");
+    } {
+        var stop = source.allStops().by(stopId).orElseThrow();
+        source.removeStop(stopId);
+        target.addStop(stop);
+    }
 }
 ```
-
-- Generated as a Spring `@Service` with a `public <ReturnType> execute(<params>)` method.
-- Parameter names can be omitted and are derived automatically.
-- Inputs are strictly immutable (no `mut` parameters).
 
 ---
 

@@ -1,0 +1,10 @@
+package operations;
+import java.util.Optional;
+import operations.domain.*;
+import operations.domain.access.PlanningAccess;
+public final class ExternalImplementation {
+    public static Optional<Title> external(PlanningAccess self, Optional<Title> title) {
+        if (title.map(t -> t.string().equals("NULL")).orElse(false)) return null;
+        return title.map(self::decorate);
+    }
+}

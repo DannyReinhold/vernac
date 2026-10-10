@@ -46,7 +46,7 @@ final class UseCaseJavaProjection {
             return blocks;
         } catch(IllegalArgumentException | NoSuchElementException incomplete) { return List.of(); }
     }
-    private String type(TypeNode t,FileTypeScope scope,String owner) {
+    String type(TypeNode t,FileTypeScope scope,String owner) {
         String name;
         if(t.name().equals("Result")) name=owner+".Result";
         else if(t.name().equals("void")) name="void";
@@ -57,13 +57,13 @@ final class UseCaseJavaProjection {
         }
         return t.isOptional()?"java.util.Optional<"+name+">":name;
     }
-    private void add(List<Fragment> fragments,ParserRuleContext node,String text,String prefix,String suffix) {
+    void add(List<Fragment> fragments,ParserRuleContext node,String text,String prefix,String suffix) {
         int start=node.getStart().getStartIndex(),end=node.getStop().getStopIndex()+1;
         if(end<start) end=start;
         fragments.add(new Fragment(text.offsetByCodePoints(0,start),text.offsetByCodePoints(0,end),prefix,suffix));
     }
-    private void close(List<Block> blocks,String name,List<Fragment> fragments,String header) { close(blocks,name,fragments,header,"}\n"); }
-    private void close(List<Block> blocks,String name,List<Fragment> fragments,String header,String footer) {
+    void close(List<Block> blocks,String name,List<Fragment> fragments,String header) { close(blocks,name,fragments,header,"}\n"); }
+    void close(List<Block> blocks,String name,List<Fragment> fragments,String header,String footer) {
         if(fragments.isEmpty()) return;
         var first=fragments.getFirst();fragments.set(0,new Fragment(first.start(),first.end(),header+first.prefix(),first.suffix()));
         var last=fragments.getLast();fragments.set(fragments.size()-1,new Fragment(last.start(),last.end(),last.prefix(),last.suffix()+footer));

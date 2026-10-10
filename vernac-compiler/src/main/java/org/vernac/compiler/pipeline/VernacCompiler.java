@@ -75,6 +75,7 @@ public class VernacCompiler {
                             value.methods(), value.javaImports(), source.unit(), project).ifPresent(files::add);
                 }
                 if (definition instanceof UseCaseNode u) files.addAll(useCaseGenerator.generate(u,source.unit(),project));
+                if (definition instanceof DomainServiceNode s) files.addAll(domainServiceGenerator.generate(s,source.unit(),project));
                 MutableDomain.of(definition).ifPresent(model -> files.addAll(generateMutable(model, source.unit(), project)));
                 CollectionDeclaration.of(definition).ifPresent(collection -> {
                     files.add(domainCollectionGenerator.generate(collection, source.unit().namespace(), project));
@@ -189,7 +190,7 @@ public class VernacCompiler {
             } else if (definition instanceof UseCaseNode useCase) {
                 generatedFiles.addAll(useCaseGenerator.generate(useCase, unit, resolved));
             } else if (definition instanceof DomainServiceNode service) { // <-- DIESER ZWEIG FEHLT
-                generatedFiles.add(domainServiceGenerator.generate(service, aggregates, packageName, imports));
+                generatedFiles.addAll(domainServiceGenerator.generate(service, unit, resolved));
             } else if (definition instanceof ListenerNode listener) { // <-- NEU
                 generatedFiles.add(listenerGenerator.generate(listener, packageName, imports));
             }

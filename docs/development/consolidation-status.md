@@ -18,6 +18,8 @@ and future plans. It is not a claim that every language feature is production-re
 | IntelliJ/LSP | Project/file/namespace creation, Maven import, project diagnostics, completion, navigation and embedded Java support |
 | PostgreSQL mapping | Namespace-safe quoted names, recursive flattening, optional presence, scalar components and shared entity graphs |
 | JDBC repositories | Explicit repository declaration, byId/save/delete, declarative comparisons and ordering, complete graph loads, list order, reachability cleanup and optimistic locking |
+| Usecases | Named application operations, REQUIRED transactions, explicit results and external implementations |
+| Domain services | Named methods, injected dependencies through self, per-operation preconditions and external implementations |
 | Schema tooling | Versioned source snapshots, initial/next migration candidates, explicit transformations, risk gates and Flyway replay checks |
 
 Reviewed areas have contracts and automated tests; depth and integration coverage
@@ -31,28 +33,29 @@ not exhaustive concurrency, platform, historical-data or deployment verification
   Candidate-state atomic mutation remains a documented design, not an implementation.
 - Repositories require a usecase transaction. They do not start transactions or lazy-load.
 - Declarative root queries are implemented; handwritten JDBC/custom query extensions,
-  nested predicates, multi-value equality, pagination and LIKE remain deferred.
+  nested collection predicates, multi-value equality and pagination remain deferred.
+  Boolean OR/NOT/parentheses and literal/pattern text searches are implemented.
 - Domain-event dispatch is wired to the existing dispatcher, but the new schema tool
   does not generate outbox infrastructure DDL. The demo emits no events.
 - The reviewed multi-file compiler accepts IDs, values, enums, collections, entities,
-  aggregates and repositories. Usecases, services, ports/adapters, events and listeners
+  aggregates, repositories, usecases and domain services. Ports/adapters, events and listeners
   still need their dedicated review and migration to the new pipeline.
 - Old examples still contain pre-refactoring syntax; the complete root reactor is not
   yet a green integration gate. Use the documented targeted builds during consolidation.
 
 ## Next work
 
-1. Finish the persistence slice: run schema-check and integration tests on PostgreSQL,
-   cover concurrent updates, useful schema transitions, enum changes and explicit backfills.
-2. Finish the [scalar persistence audit](scalar-persistence-audit.md) prerequisites
-   and verify the [declarative repository queries](../contracts/repository-queries.md) on PostgreSQL,
-   returning complete aggregates. Add LIKE-like searches next, before alternative
-   locale-aware sorting. Handwritten JDBC search extensions remain deferred.
-3. Review usecases and services: transaction ownership, domain behavior, inputs/results,
-   errors and the same Java interoperability conventions as other reviewed features.
-4. Review events, listeners and outbox behavior including their schema and transaction needs.
-5. Review ports, adapters and ACL mappings; then align all examples, templates, documentation,
-   diagnostics and IDE support with the reviewed language.
+1. Complete the domain service walkthrough, then review events, listeners and outbox
+   behavior including schema and transaction needs.
+2. Review ports, adapters and ACL mappings.
+3. Revisit and **unify dependency delivery for usecases and domain services**:
+   usecases currently pass dependencies as trailing implementation arguments;
+   services expose them through self Access. The difference is documented but
+   uniformity is the desired direction.
+4. Evaluate recursively read-only validation views only if their implementation
+   cost is proportionate. Current input views offer shallow protection.
+5. Align all examples, templates, documentation, diagnostics and IDE support;
+   keep extending focused PostgreSQL migration/concurrency regression coverage.
 
 API/endpoints, MCP tools, messaging adapters and AI authoring assistance remain later
 extensions. They should build on the consolidated core.

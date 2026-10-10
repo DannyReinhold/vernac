@@ -35,6 +35,9 @@ public final class BehaviorJavaProjection {
         for (int i = 0; i < unit.definitions().size(); i++) {
             var definition = unit.definitions().get(i);
             var syntax = tree.topLevelDeclaration(i);
+            if (definition instanceof DomainServiceNode service) {
+                result.addAll(new ServiceJavaProjection().build(project, scope, unit, service, syntax.domainServiceDefinition(), text));
+            }
             if (definition instanceof UseCaseNode usecase) {
                 result.addAll(new UseCaseJavaProjection().build(project,scope,unit,usecase,syntax.usecaseDefinition(),text));
             }

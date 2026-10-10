@@ -16,7 +16,7 @@ public final class JavaTypeNames {
             case ResolvedType.Builtin builtin -> builtin.javaType().getName();
             case ResolvedType.VoidReturn ignored -> "void";
             case ResolvedType.Declared declared -> switch (declared.symbol().kind()) {
-                case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE -> domainPackage(declared.symbol().identity())
+                case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, DOMAIN_SERVICE, REPOSITORY, PORT -> domainPackage(declared.symbol().identity())
                         + "." + declared.symbol().identity().name();
                 case USE_CASE -> declared.symbol().identity().namespace()+".usecase."+declared.symbol().identity().name();
                 default -> throw new IllegalArgumentException("No reviewed Java mapping for " + declared.symbol().kind());

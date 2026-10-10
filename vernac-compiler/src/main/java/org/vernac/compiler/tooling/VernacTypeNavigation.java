@@ -33,9 +33,11 @@ public final class VernacTypeNavigation {
                 String generated = JavaTypeNames.canonicalName(new ResolvedType.Declared(symbol));
                 boolean access = (symbol.kind() == TypeSymbol.Kind.ENTITY || symbol.kind() == TypeSymbol.Kind.AGGREGATE)
                         && List.of("Read", "Write", "Access").stream().anyMatch(suffix -> (source.unit().namespace() + ".domain.access." + symbol.identity().name() + suffix).equals(javaName));
+                boolean serviceAccess = symbol.kind() == TypeSymbol.Kind.DOMAIN_SERVICE
+                        && (source.unit().namespace() + ".domain.access." + symbol.identity().name() + "Access").equals(javaName);
                 boolean valueRead = symbol.kind() == TypeSymbol.Kind.VALUE_OBJECT && (source.unit().namespace() + ".domain.access." + symbol.identity().name() + "Read").equals(javaName)
                         && source.unit().valueObjects().stream().anyMatch(v -> v.name().equals(symbol.identity().name()) && !v.validations().isEmpty());
-                if (!generated.equals(javaName) && !(member.isPresent() && (access || valueRead))) continue;
+                if (!generated.equals(javaName) && !(member.isPresent() && (access || valueRead || serviceAccess))) continue;
                 String text = texts.get(source.path());
                 return text == null ? Optional.empty() : locate(project, source, text, symbol, member);
             }
@@ -45,7 +47,7 @@ public final class VernacTypeNavigation {
 
     private boolean reviewed(TypeSymbol.Kind kind) {
         return switch (kind) {
-            case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, USE_CASE -> true;
+            case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, USE_CASE, DOMAIN_SERVICE -> true;
             default -> false;
         };
     }
@@ -79,6 +81,7 @@ public final class VernacTypeNavigation {
                 collection = syntax.aggregateDefinition().collectionDefinition();
             }
             if (syntax.usecaseDefinition() != null) name=syntax.usecaseDefinition().name;
+            if (syntax.domainServiceDefinition() != null) name=syntax.domainServiceDefinition().name;
             if (name == null) continue;
             if (symbol.kind() != TypeSymbol.Kind.COLLECTION && name.getText().equals(symbol.identity().name())) {
                 if (member.isEmpty()) return target(source.path(), text, symbol.identity().name(), name.getStart(), name.getStop());
@@ -88,6 +91,20 @@ public final class VernacTypeNavigation {
                 List<Target> candidates = new ArrayList<>();
                 if (definition instanceof UseCaseNode u && key.name().equals("execute") && key.parameterTypes().size()==u.parameters().size())
                     return target(source.path(),text,"execute",name.getStart(),name.getStop());
+                if (definition instanceof DomainServiceNode service) {
+                    var namespaces = new HashSet<String>();
+                    project.sources().forEach(s -> namespaces.add(s.unit().namespace()));
+                    var scope = new FileTypeScope(source.unit(), project.symbols(), namespaces);
+                    for (int m = 0; m < service.methods().size(); m++) {
+                        var operation = service.methods().get(m).method();
+                        if (!operation.accessModifier().equals("public") || !operation.name().equals(key.name())) continue;
+                        var types = operation.parameters().stream().map(p -> scope.resolve(p.type().name(), p.location()).type()
+                                .map(JavaTypeNames::canonicalName).orElse("?")).toList();
+                        if (!types.equals(key.parameterTypes())) continue;
+                        var anchor = syntax.domainServiceDefinition().serviceMethod(m).name;
+                        target(source.path(), text, key.name(), anchor.getStart(), anchor.getStop()).ifPresent(candidates::add);
+                    }
+                }
                 if (definition instanceof ValueObjectNode value) {
                     var valueSyntax = syntax.valueDefinition();
                     if (key.parameterTypes().isEmpty() && valueSyntax.parameterList() != null) {

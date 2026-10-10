@@ -27,6 +27,24 @@ class BehaviorJavaProjectionTest {
         return result.toString();
     }
 
+    @Test void serviceProjectionUsesAccessAndSeparateInputViews() {
+        String text = """
+                namespace model; value Title(String);
+                // 😀 verifies UTF-16 offsets
+                service Planning behavior {
+                    public Title? choose(Title? title)
+                    validates { require(self.title().isPresent(), "required"); } { return title; }
+                }
+                """;
+        var blocks = project(text);
+        assertEquals(2, blocks.size());
+        String all = blocks.stream().map(b -> java(text, b)).reduce("", String::concat);
+        assertTrue(all.contains("model.domain.access.PlanningAccess self"));
+        assertTrue(all.contains("PlanningAccess.Input0 self"));
+        assertTrue(all.contains("java.util.Optional<model.domain.Title> title"));
+        assertTrue(all.contains("return title;"));
+    }
+
     @Test void usecaseFragmentsExposeInputsDependenciesAndReadOnlyValidation() {
         String source="""
             namespace model; id TourId;

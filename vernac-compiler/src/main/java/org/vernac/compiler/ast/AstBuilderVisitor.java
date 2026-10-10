@@ -554,63 +554,22 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     }
 
     public DomainServiceNode visitDomainServiceDefinition(VernacParser.DomainServiceDefinitionContext ctx) {
-        String name = ctx.name.getText();
-
-        List<FieldNode> parameters = Optional.ofNullable(ctx.parameterList())
-                .map(p -> extractParameters(p))
-                .orElse(Collections.emptyList());
-
-        Optional<TypeNode> returnType = Optional.ofNullable(ctx.returnType)
-                .map(this::toTypeNode);
-
-        List<ValidationRuleNode> validations = new ArrayList<>();
-        if (ctx.validationBlock() != null) {
-            for (VernacParser.ValidationStatementContext valCtx : ctx.validationBlock().validationStatement()) {
-                String condition = valCtx.condition.getText();
-                String message = valCtx.message != null ? unquote(valCtx.message.getText()) : "";
-                validations.add(new ValidationRuleNode(toLocation(valCtx), condition, message));
-            }
-        }
-
-        Optional<String> customPackage = Optional.empty();
-        List<UseCaseStatementNode> statements = new ArrayList<>();
-        Optional<ReturnStatementNode> returnStatement = Optional.empty();
-
-        if (ctx.domainServiceMember() != null) {
-            for (VernacParser.DomainServiceMemberContext member : ctx.domainServiceMember()) {
-                if (member.packageDeclarationStatement() != null) {
-                    customPackage = Optional.of(member.packageDeclarationStatement().qualifiedName().getText());
-                } else if (member.singleReturnStatement() != null) {
-                    VernacParser.SingleReturnStatementContext retCtx = member.singleReturnStatement();
-                    Optional<String> expr = Optional.ofNullable(retCtx.expression()).map(RuleContext::getText);
-                    returnStatement = Optional.of(new SingleReturnNode(toLocation(retCtx), expr));
-                } else if (member.tupleReturnStatement() != null) {
-                    VernacParser.TupleReturnStatementContext retCtx = member.tupleReturnStatement();
-                    List<TupleElementNode> elements = retCtx.tupleElement().stream()
-                            .map(te -> new TupleElementNode(
-                                    toLocation(te),
-                                    te.expression().getText(),
-                                    Optional.ofNullable(te.alias).map(RuleContext::getText)
-                            ))
-                            .toList();
-                    returnStatement = Optional.of(new TupleReturnNode(toLocation(retCtx), elements));
-                } else if (member.rawJavaStatement() != null) {
-                    String code = extractRawSource(member.rawJavaStatement());
-                    statements.add(new RawJavaStatementNode(toLocation(member.rawJavaStatement()), code));
-                }
-            }
-        }
-
-        return new DomainServiceNode(
-                toLocation(ctx),
-                name,
-                parameters,
-                returnType,
-                validations,
-                statements,
-                returnStatement,
-                customPackage
-        );
+        var dependencies = ctx.dependencies.stream().map(p -> {
+            var type = toTypeNode(p.type());
+            var name = p.name == null ? org.vernac.language.VernacNames.defaultMemberName(type.name()) : p.name.getText();
+            return new FieldNode(toLocation(p), type, name, p.isMut != null, p.name != null);
+        }).toList();
+        var imports = ctx.javaImports() == null ? List.<JavaImportNode>of() : ctx.javaImports().qualifiedName().stream()
+                .map(n -> new JavaImportNode(toLocation(n), n.getText())).toList();
+        var methods = ctx.serviceMethod().stream().map(m -> new ServiceMethodNode(
+                new MethodNode(toLocation(m), m.visibility.getText(), toTypeNode(m.returnType), m.name.getText(),
+                        m.parameterList() == null ? List.of() : extractParameters(m.parameterList()),
+                        m.rawJavaBlock() == null ? "" : extractRawSource(m.rawJavaBlock()),
+                        Optional.ofNullable(m.implementation).map(ParserRuleContext::getText)),
+                m.validationBlock() == null ? List.of() : m.validationBlock().validationStatement().stream()
+                        .map(v -> new ValidationRuleNode(toLocation(v), extractRawSource(v.condition),
+                                v.message == null ? "" : unquote(v.message.getText()))).toList())).toList();
+        return new DomainServiceNode(toLocation(ctx), ctx.name.getText(), dependencies, imports, methods);
     }
 
     public ListenerNode visitListenerDefinition(VernacParser.ListenerDefinitionContext ctx) {

@@ -311,7 +311,7 @@ public class VernacTextDocumentService implements TextDocumentService {
         addKeywordCompletion(items, "repository", "repository ${1:Name} for ${2:Aggregate} {\n    table: \"${3:table_name}\";\n    $0\n};");
         addKeywordCompletion(items, "id", "id ${1:Name}Id;");
         addKeywordCompletion(items, "usecase", "usecase ${1:Name}(${2:params}) behavior {\n    execute {\n        $0\n    }\n}");
-        addKeywordCompletion(items, "service", "service ${1:Name}(${2:params}) : ${3:ReturnType} {\n    $0\n}");
+        addKeywordCompletion(items, "service", "service ${1:Name} behavior {\n    public ${2:void} ${3:operation}(${4:params}) {\n        $0\n    }\n}");
     }
 
     private void addKeywordCompletion(List<CompletionItem> list, String label, String insertSnippet) {

@@ -137,8 +137,8 @@ The editor recognizes the new keywords and projects execute/private bodies and
 validation expressions into Java contexts. Java usecase type/execute navigation
 points to the declaration. Result-component navigation is not added in this increment.
 
-Services, ports and events retain their separately deferred project-generation
-status. Declaring a usecase dependency does not silently migrate those generators.
+Ports and events retain their separately deferred project-generation
+status. Domain services are supported with their own reviewed contract. Declaring a usecase dependency does not silently migrate those generators.
 Repository and usecase dependencies work with the reviewed project pipeline.
 
 ## Verification
@@ -148,3 +148,7 @@ real generated Java, runs Optional and validation contracts, and uses Spring pro
 with a counting transaction manager to verify shared REQUIRED transactions and
 rollback on validation/result failures. It needs no PostgreSQL server. Existing
 persistence tests remain responsible for database transaction behavior.
+
+Implementation dependency delivery currently differs: usecases receive trailing
+arguments, while domain services receive self Access getters. Unification is tracked
+in the consolidation roadmap.

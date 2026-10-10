@@ -601,37 +601,24 @@ class AstBuilderVisitorTest {
         void shouldParseDomainService() {
             String src = """
                     namespace com.example.domain;
-                    
-                    service TariffCalculator(WattHours capacity, WattHours storedEnergy, WattHours) : WattHours validates {
-                        require(capacity.value() > 0, "Capacity must be positive");
-                    } {
-                        int available = Math.max(0, storedEnergy.value() - wattHours.value());
-                        return WattHours.of(Math.max(0, capacity.value() - available));
+                    service TariffCalculator uses PricingPolicy behavior {
+                        public WattHours calculate(WattHours capacity, WattHours storedEnergy, WattHours)
+                        validates { require(self.capacity().value() > 0, "Capacity must be positive"); } {
+                            return capacity;
+                        }
                     }
                     """;
-
-            CompilationUnitNode cu = parse(src);
-            assertThat(cu.domainServices()).hasSize(1);
-
-            DomainServiceNode service = cu.domainServices().getFirst();
+            var service = parse(src).domainServices().getFirst();
             assertThat(service.name()).isEqualTo("TariffCalculator");
-
-            // Parameter prüfen (2x expliziter Name, 1x Konvention abgeleitet)
-            assertThat(service.parameters()).hasSize(3);
-            assertThat(service.parameters().get(0).name()).isEqualTo("capacity");
-            assertThat(service.parameters().get(1).name()).isEqualTo("storedEnergy");
-            assertThat(service.parameters().get(2).name()).isEqualTo("wattHours");
-
-            // ReturnType & Validierung
-            assertThat(service.returnType()).isPresent();
-            assertThat(service.returnType().get().name()).isEqualTo("WattHours");
-            assertThat(service.validations()).hasSize(1);
-            assertThat(service.validations().getFirst().condition()).isEqualTo("capacity.value()>0");
-
-            // Rumpf & Return-Statement
-            assertThat(service.statements()).hasSize(1);
-            assertThat(service.returnStatement()).isPresent();
-            assertThat(service.returnStatement().get()).isInstanceOf(SingleReturnNode.class);
+            assertThat(service.injections().getFirst().name()).isEqualTo("pricingPolicy");
+            var operation = service.methods().getFirst();
+            assertThat(operation.method().name()).isEqualTo("calculate");
+            assertThat(operation.method().parameters()).extracting(FieldNode::name)
+                    .containsExactly("capacity", "storedEnergy", "wattHours");
+            assertThat(operation.method().returnType().name()).isEqualTo("WattHours");
+            assertThat(operation.validations()).hasSize(1);
+            assertThat(operation.validations().getFirst().condition()).contains("self.capacity().value()");
+            assertThat(operation.method().bodyCode()).contains("return capacity;");
         }
     }
 }

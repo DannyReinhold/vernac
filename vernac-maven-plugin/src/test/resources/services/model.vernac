@@ -1,0 +1,31 @@
+namespace operations;
+id TourId;
+id StopId;
+value Title(String);
+entity Stop[StopId](Title) list Stops;
+aggregate Tour[TourId](mut Stops) behavior {
+    modify void addStop(Stop stop) { self.stops(self.stops().plus(stop)); }
+    modify void removeStop(StopId) { self.stops(self.stops().minusAllId(stopId)); }
+};
+service Policy behavior {
+    public Title decorate(Title) { return Title.of(title.string() + "!"); }
+}
+service Planning uses Policy behavior {
+    public void moveStop(Tour source, Tour target, StopId)
+    validates { require(!self.source().id().equals(self.target().id()), "Different tours required"); } {
+        var stop = source.stops().by(stopId).orElseThrow();
+        source.removeStop(stopId);
+        target.addStop(stop);
+    }
+    public Title decorate(Title title) { return self.policy().decorate(title); }
+    public Title twice(Title title) { return self.decorate(self.decorate(title)); }
+    public Title? optional(Title? title) validates { require(self.title().isEmpty() || !self.title().orElseThrow().string().isBlank(), "Blank"); } {
+        return identity(title);
+    }
+    private Title? identity(Title? title) { return title; }
+    public Title? external(Title? title) implemented by operations.ExternalImplementation;
+    public Title badResult() { return null; }
+}
+usecase Decorate(Title) returns Title uses Planning behavior {
+    execute { return planning.twice(title); }
+}

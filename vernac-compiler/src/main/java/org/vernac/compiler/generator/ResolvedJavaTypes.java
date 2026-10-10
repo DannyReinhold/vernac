@@ -21,7 +21,7 @@ public final class ResolvedJavaTypes {
             case ResolvedType.Builtin builtin -> TypeName.get(builtin.javaType());
             case ResolvedType.VoidReturn ignored -> TypeName.VOID;
             case ResolvedType.Declared declared -> switch (declared.symbol().kind()) {
-                case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE -> domainClass(declared.symbol().identity());
+                case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, DOMAIN_SERVICE, REPOSITORY, PORT -> domainClass(declared.symbol().identity());
                 default -> throw new IllegalArgumentException("No reviewed Java mapping for " + declared.symbol().kind());
             };
         };
