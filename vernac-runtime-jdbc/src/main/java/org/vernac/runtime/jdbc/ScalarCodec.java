@@ -15,6 +15,7 @@ import java.util.*;
 public final class ScalarCodec {
     private ScalarCodec() { }
     public static Object[] encode(String type, Object value) {
+        ScalarStorageLimits.validate(type, value);
         return switch (type) {
             case "BigDecimal" -> new Object[]{value, ((BigDecimal)value).scale()};
             case "BigInteger" -> new Object[]{new BigDecimal((BigInteger)value)};

@@ -34,11 +34,20 @@ public final class JdbcMapping {
         void write(@Nullable Object value, Map<String,@Nullable Object> row, Writer writer, boolean ownerPresent);
         @Nullable Object read(Map<String,@Nullable Object> row, Reader reader);
     }
+    private static Object[] encodeScalar(String type, Object value, String column) {
+        try {
+            return ScalarCodec.encode(type, value);
+        } catch (org.vernac.runtime.VernacTechnicalException failure) {
+            throw new org.vernac.runtime.VernacTechnicalException(
+                    "Column " + column + ": " + failure.getMessage(), failure);
+        }
+    }
+
     public static Value scalar(String type, boolean optional, String... columns) {
         return new Value() {
             public void write(@Nullable Object value, Map<String,@Nullable Object> row, Writer w, boolean owner) {
                 if(value==null && owner && !optional) throw new IllegalArgumentException("Required scalar is null: " + columns[0]);
-                Object[] parts=value==null ? new Object[columns.length] : ScalarCodec.encode(type,value);
+                Object[] parts=value==null ? new Object[columns.length] : encodeScalar(type,value,columns[0]);
                 for(int i=0;i<columns.length;i++) row.put(columns[i],parts[i]);
             }
             public @Nullable Object read(Map<String,@Nullable Object> row, Reader r) {
