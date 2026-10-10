@@ -12,7 +12,7 @@ class BuiltinTypesTest {
         assertEquals(Set.of(
                 "boolean", "byte", "short", "int", "long", "float", "double", "char",
                 "Boolean", "Byte", "Short", "Integer", "Long", "Float", "Double", "Character",
-                "String", "BigInteger", "BigDecimal", "UUID", "Instant", "LocalDate", "LocalTime",
+                "EventId", "String", "BigInteger", "BigDecimal", "UUID", "Instant", "LocalDate", "LocalTime",
                 "LocalDateTime", "OffsetDateTime", "OffsetTime", "ZonedDateTime", "Duration",
                 "Period", "Year", "YearMonth", "MonthDay", "Month", "DayOfWeek", "ZoneId",
                 "ZoneOffset", "Currency"), BuiltinTypes.names());

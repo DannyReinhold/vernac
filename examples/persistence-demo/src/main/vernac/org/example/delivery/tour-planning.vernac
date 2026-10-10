@@ -17,10 +17,10 @@ usecase MoveStopToTour(TourId sourceTourId, TourId targetTourId, StopId)
     uses TourRepository tours, TourPlanning
 behavior {
     execute {
-        var source = tours.byId(sourceTourId);
-        var target = tours.byId(targetTourId);
-        tourPlanning.moveStop(source, target, stopId);
-        tours.save(source);
-        tours.save(target);
+        var source = self.tours().byId(sourceTourId);
+        var target = self.tours().byId(targetTourId);
+        self.tourPlanning().moveStop(source, target, stopId);
+        self.tours().save(source);
+        self.tours().save(target);
     }
 }

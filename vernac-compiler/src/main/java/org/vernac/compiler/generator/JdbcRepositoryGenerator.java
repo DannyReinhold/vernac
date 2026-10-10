@@ -37,16 +37,12 @@ public final class JdbcRepositoryGenerator {
         currentAdapter=adapter; bindingNumber=0;
         TypeName storeType=ParameterizedTypeName.get(STORE,aggregate);
         adapter.addField(storeType,"store",Modifier.PRIVATE,Modifier.FINAL);
-        ClassName dispatcher=ClassName.get("org.vernac.runtime.outbox","EventDispatcher");
-        adapter.addField(dispatcher,"events",Modifier.PRIVATE,Modifier.FINAL);
-        adapter.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC).addParameter(JDBC,"jdbc").addParameter(dispatcher,"events")
-                .addStatement("this.store = new $T<>(jdbc, $T.class, rootMapping(), entityMappings(), tables())",STORE,aggregate)
-                .addStatement("this.events = $T.requireNonNull(events)",Objects.class).build());
+        adapter.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC).addParameter(JDBC,"jdbc")
+                .addStatement("this.store = new $T<>(jdbc, $T.class, rootMapping(), entityMappings(), tables())",STORE,aggregate).build());
         adapter.addMethod(MethodSpec.methodBuilder("byId").addAnnotation(Override.class).addModifiers(Modifier.PUBLIC).returns(aggregate).addParameter(id,"id")
                 .addStatement("return store.byId(id.value())").build());
         adapter.addMethod(MethodSpec.methodBuilder("save").addAnnotation(Override.class).addModifiers(Modifier.PUBLIC).returns(aggregate).addParameter(aggregate,"aggregate")
                 .addStatement("store.save(aggregate)")
-                .addStatement("events.dispatch($S, aggregate.id().asString(), aggregate.pullDomainEvents())",aggregate.canonicalName())
                 .addStatement("return aggregate").build());
         adapter.addMethod(MethodSpec.methodBuilder("delete").addAnnotation(Override.class).addModifiers(Modifier.PUBLIC).addParameter(aggregate,"aggregate")
                 .addStatement("store.delete(aggregate)").build());

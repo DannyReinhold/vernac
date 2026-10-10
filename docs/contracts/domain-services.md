@@ -103,11 +103,11 @@ large refactoring. This is a design aid, not a Java purity/security proof.
 
 ## Consistency and follow-up
 
-Service implementations receive dependencies through self; usecase implementations
-currently receive dependencies as trailing parameters. Both use constructor
-injection on the generated bean and separate implementation classes. Unifying
-these implementation protocols is an explicit roadmap item, not a settled permanent
-difference. We keep this increment focused and do not rewrite usecases again.
+Services and usecases now both expose dependencies through self Access. Service
+Access also offers emit, which requires the surrounding transaction and EventContext
+normally established by a usecase. Services still do not open transactions themselves.
+Revisit service read/modify classification later, so explicitly read-only operations
+can lose this capability without rewriting the whole access model.
 
 ## Tooling and tests
 

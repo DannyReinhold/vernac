@@ -13,8 +13,12 @@ import org.vernac.compiler.tooling.BehaviorJavaProjection.*;
 final class UseCaseJavaProjection {
     List<Block> build(VernacProject project,FileTypeScope scope,CompilationUnitNode unit,UseCaseNode u,
             VernacParser.UsecaseDefinitionContext syntax,String text) {
+        return build(project,scope,unit,u,syntax.usecaseBehaviorMember(),syntax.validationBlock(),text,".usecase");
+    }
+    List<Block> build(VernacProject project,FileTypeScope scope,CompilationUnitNode unit,UseCaseNode u,
+            List<VernacParser.UsecaseBehaviorMemberContext> members,VernacParser.ValidationBlockContext validation,String text,String suffix) {
         try {
-            String pkg=unit.namespace()+".usecase", owner=pkg+"."+u.name();
+            String pkg=unit.namespace()+suffix, owner=pkg+"."+u.name();
             var imports=new TreeMap<>(BehaviorImports.visible(project,scope));
             u.javaImports().forEach(i -> imports.put(i.target().substring(i.target().lastIndexOf('.')+1),i.target()));
             StringBuilder header=new StringBuilder("package "+pkg+";\n");
@@ -22,12 +26,12 @@ final class UseCaseJavaProjection {
             if(!u.resultFields().isEmpty()) header.append("import ").append(owner).append(".Result;\n");
             header.append("@org.jspecify.annotations.NullMarked final class __VernacEditorBehavior_").append(u.name()).append(" {\n");
             List<Fragment> fragments=new ArrayList<>();
-            for(var member:syntax.usecaseBehaviorMember()) {
+            for(var member:members) {
                 if(member.rawJavaBlock()!=null) {
                     String result=u.resultFields().isEmpty()?u.resultType().map(t -> type(t,scope,owner)).orElse("void"):owner+".Result";
                     var params=new ArrayList<String>();
+                    params.add(pkg+".access."+u.name()+"Access self");
                     u.parameters().forEach(p -> params.add(type(p.type(),scope,owner)+" "+p.name()));
-                    u.injections().forEach(p -> params.add(type(p.type(),scope,owner)+" "+p.name()));
                     add(fragments,member.rawJavaBlock(),text,"static "+result+" execute("+String.join(", ",params)+") {\n","}\n");
                 } else if(member.behaviorMethod()!=null && member.behaviorMethod().rawJavaBlock()!=null) {
                     var m=member.behaviorMethod();
@@ -38,9 +42,9 @@ final class UseCaseJavaProjection {
             }
             List<Block> blocks=new ArrayList<>();
             close(blocks,u.name(),fragments,header.toString());
-            if(syntax.validationBlock()!=null) {
+            if(validation!=null) {
                 List<Fragment> validations=new ArrayList<>();
-                for(var v:syntax.validationBlock().validationStatement()) add(validations,v.condition,text,"if (",") {}\n");
+                for(var v:validation.validationStatement()) add(validations,v.condition,text,"if (",") {}\n");
                 close(blocks,u.name()+"Validation",validations,header.toString().replace("__VernacEditorBehavior_","__VernacEditorValidation_")+"static void validate("+pkg+".access."+u.name()+"Read self) {\n", "}\n}\n");
             }
             return blocks;

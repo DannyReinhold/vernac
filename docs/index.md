@@ -32,6 +32,7 @@ For field rules, factories and lifecycle metadata, see the
 
 Follow the [database tutorial](tutorials/database-persistence.md) for a runnable
 Spring Boot/PostgreSQL example, then [evolve its schema with Flyway](tutorials/flyway-workflow.md).
+For application notifications, start with [domain events](tutorials/domain-events.md).
 The [PostgreSQL mapping contract](contracts/postgresql-persistence.md) defines the
 storage and repository behavior.
 

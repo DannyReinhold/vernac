@@ -48,14 +48,15 @@ execute implemented by custom.DescribeTaskImplementation;
 For the original result contract that class supplies:
 
 ```java
-public static DescribeTask.Result execute(TaskId taskId, Optional<Title> title) {
+public static DescribeTask.Result execute(tasks.usecase.access.DescribeTaskAccess self, TaskId taskId, Optional<Title> title) {
     return DescribeTask.Result.of(taskId, title.orElse(null));
 }
 ```
 
 Place the class in package custom and import tasks.domain.TaskId, tasks.domain.Title,
 tasks.usecase.DescribeTask and java.util.Optional. It does not need @Component.
-Any uses dependencies follow the inputs in the static method signature.
+The first parameter is the generated Access self; declared uses dependencies are
+available through its getters. Use your actual namespace for DescribeTaskAccess.
 The generated validation and transaction wrapper remain in force.
 
 Read the [complete usecase contract](../contracts/usecases.md) for optional results,

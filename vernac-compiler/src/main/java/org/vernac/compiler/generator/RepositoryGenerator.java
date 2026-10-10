@@ -20,7 +20,6 @@ public class RepositoryGenerator {
     private static final ClassName MAP_PARAM_SOURCE = ClassName.get("org.springframework.jdbc.core.namedparam", "MapSqlParameterSource");
     private static final ClassName NOT_FOUND_EX = ClassName.get("org.vernac.runtime", "AggregateNotFoundException");
     private static final ClassName OPTIMISTIC_LOCK_EX = ClassName.get("org.springframework.dao", "OptimisticLockingFailureException");
-    private static final ClassName EVENT_DISPATCHER = ClassName.get("org.vernac.runtime.outbox", "EventDispatcher");
 
     public List<JavaFile> generate(
             RepositoryNode repo,
@@ -133,9 +132,6 @@ public class RepositoryGenerator {
             }
         }
 
-        jdbcClass.addField(EVENT_DISPATCHER, "eventDispatcher", Modifier.PRIVATE, Modifier.FINAL);
-        ctor.addParameter(EVENT_DISPATCHER, "eventDispatcher");
-        ctor.addStatement("this.eventDispatcher = $T.requireNonNull(eventDispatcher, \"eventDispatcher must not be null\")", Objects.class);
 
         jdbcClass.addMethod(ctor.build());
 
@@ -191,7 +187,6 @@ public class RepositoryGenerator {
                 .nextControlFlow("else")
                 .addStatement("saved = update(aggregate)")
                 .endControlFlow()
-                .addStatement("this.eventDispatcher.dispatch($S, aggregate.id().value().toString(), aggregate.pullDomainEvents())", agg.name())
                 .addStatement("return saved")
                 .build();
     }

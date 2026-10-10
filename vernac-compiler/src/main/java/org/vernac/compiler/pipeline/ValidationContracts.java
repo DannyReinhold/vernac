@@ -16,6 +16,8 @@ final class ValidationContracts {
         List<JavaImportNode> imports; String name; boolean value;
         if (definition instanceof ValueObjectNode v) {
             fields=v.fields(); methods=v.methods(); rules=v.validations(); imports=v.javaImports(); name=v.name(); value=true;
+        } else if (definition instanceof EventNode e) {
+            fields=e.fields(); methods=List.of(); rules=e.validations(); imports=List.of(); name=e.name(); value=true;
         } else if (definition instanceof UseCaseNode u) {
             fields=u.parameters(); methods=u.methods(); rules=u.validations(); imports=u.javaImports(); name=u.name(); value=true;
         } else {
@@ -36,6 +38,7 @@ final class ValidationContracts {
         }
         Set<String> members = new HashSet<>();
         fields.forEach(f -> members.add(f.name())); methods.forEach(m -> members.add(m.name()));
+        if (definition instanceof EventNode) members.addAll(List.of("eventId","occurredAt"));
         if (!value) members.addAll(List.of("id", "createdAt", "updatedAt", "version"));
         for (var rule : rules) {
             var lexer = new VernacLexer(CharStreams.fromString(rule.condition())); lexer.removeErrorListeners();

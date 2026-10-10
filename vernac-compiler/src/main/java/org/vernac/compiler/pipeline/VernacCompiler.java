@@ -74,6 +74,8 @@ public class VernacCompiler {
                     new BehaviorGenerator().generate(com.palantir.javapoet.ClassName.get(source.unit().namespace() + ".domain", value.name()),
                             value.methods(), value.javaImports(), source.unit(), project).ifPresent(files::add);
                 }
+                if (definition instanceof EventNode e) files.addAll(eventGenerator.generate(e,source.unit(),project));
+                if (definition instanceof ListenerNode l) files.addAll(listenerGenerator.generate(l,source.unit(),project));
                 if (definition instanceof UseCaseNode u) files.addAll(useCaseGenerator.generate(u,source.unit(),project));
                 if (definition instanceof DomainServiceNode s) files.addAll(domainServiceGenerator.generate(s,source.unit(),project));
                 MutableDomain.of(definition).ifPresent(model -> files.addAll(generateMutable(model, source.unit(), project)));
@@ -174,7 +176,7 @@ public class VernacCompiler {
                         vo.methods(), vo.javaImports(), unit, resolved).ifPresent(generatedFiles::add);
 
             } else if (definition instanceof EventNode event) {
-                generatedFiles.add(eventGenerator.generate(event, packageName, imports));
+                generatedFiles.addAll(eventGenerator.generate(event, unit, resolved));
             } else if (definition instanceof AggregateNode agg) {
                 generatedFiles.addAll(generateMutable(MutableDomain.of(agg).orElseThrow(), unit, resolved));
             } else if (definition instanceof EntityNode entity) {
@@ -192,7 +194,7 @@ public class VernacCompiler {
             } else if (definition instanceof DomainServiceNode service) { // <-- DIESER ZWEIG FEHLT
                 generatedFiles.addAll(domainServiceGenerator.generate(service, unit, resolved));
             } else if (definition instanceof ListenerNode listener) { // <-- NEU
-                generatedFiles.add(listenerGenerator.generate(listener, packageName, imports));
+                generatedFiles.addAll(listenerGenerator.generate(listener, unit, resolved));
             }
         }
 

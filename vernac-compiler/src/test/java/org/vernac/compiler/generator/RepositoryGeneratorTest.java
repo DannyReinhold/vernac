@@ -62,7 +62,7 @@ class RepositoryGeneratorTest {
         String normalizedJdbc = normalize(jdbcRepo.toString());
         assertThat(normalizedJdbc)
                 .contains("@Transactional(propagation = Propagation.MANDATORY)")
-                .contains("events.dispatch(\"com.example.domain.domain.Order\", aggregate.id().asString(), aggregate.pullDomainEvents());")
+                .doesNotContain("events.dispatch", "EventDispatcher")
                 .contains("JdbcAggregateStore<Order>")
                 .contains("store.byId(id.value())")
                 .contains("store.save(aggregate)")

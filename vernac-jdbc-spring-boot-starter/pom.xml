@@ -19,7 +19,7 @@
 
     <name>Vernac JDBC Spring Boot Starter</name>
     <description>
-        Spring Boot starter for Vernac JDBC repositories and PostgreSQL outbox support
+        Spring Boot starter for Vernac JDBC repositories and PostgreSQL
     </description>
 
     <dependencies>

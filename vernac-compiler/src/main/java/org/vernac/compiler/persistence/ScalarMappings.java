@@ -22,7 +22,7 @@ public final class ScalarMappings {
             case "double", "Double" -> List.of(p("DOUBLE PRECISION"));
             case "char", "Character" -> List.of(range("", "INTEGER", "%s BETWEEN 0 AND 65535"));
             case "String", "Currency", "ZoneId" -> List.of(p("TEXT"));
-            case "UUID" -> List.of(p("UUID"));
+            case "UUID", "EventId" -> List.of(p("UUID"));
             case "BigInteger" -> List.of(range("", "NUMERIC", "%1$s = trunc(%1$s) AND %1$s NOT IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric)"));
             case "BigDecimal" -> List.of(range("", "NUMERIC", "%s NOT IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric)"), p("scale", "INTEGER"));
             case "LocalDate" -> List.of(p("DATE"));

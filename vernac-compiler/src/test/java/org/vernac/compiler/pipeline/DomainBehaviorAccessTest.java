@@ -59,6 +59,8 @@ class DomainBehaviorAccessTest {
             var text = label.getMethod("of", String.class).invoke(null, "tour");
             Object instance = type.getMethod("create", label, point, point).invoke(null, text, point(output, 10), point(output, 20));
             assertFalse(output.loadClass("test.domain.access.RangeRead").isInstance(instance));
+            assertThrows(NoSuchMethodException.class, () -> output.loadClass("test.domain.access.RangeRead").getMethod("emit", org.vernac.runtime.DomainEvent.class));
+            assertNotNull(output.loadClass("test.domain.access.RangeWrite").getMethod("emit", org.vernac.runtime.DomainEvent.class));
             assertFalse(output.loadClass("test.domain.access.RangeWrite").isInstance(instance));
             assertFalse(output.loadClass("test.domain.access.RangeAccess").isInstance(instance));
             assertThrows(NoSuchMethodException.class, () -> type.getMethod("start", point));

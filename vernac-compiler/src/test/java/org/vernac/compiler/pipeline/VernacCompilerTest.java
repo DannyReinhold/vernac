@@ -32,7 +32,7 @@ class VernacCompilerTest {
                 };
                 value Money(BigDecimal amount, Currency currency);
                 
-                outbox event ProjectCreated(ProjectId projectId, ProjectName name);
+                event ProjectCreated(ProjectId projectId, ProjectName name);
                 
                 aggregate Project[ProjectId](ProjectName name, mut Money budget) validates {
                     require(self.budget().amount().compareTo(BigDecimal.ZERO) >= 0, "Budget cannot be negative");

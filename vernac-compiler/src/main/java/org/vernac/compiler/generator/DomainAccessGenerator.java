@@ -20,6 +20,7 @@ public final class DomainAccessGenerator {
     public List<JavaFile> interfaces(MutableDomain model, ClassName owner, ResolvedProject project) {
         var read = TypeSpec.interfaceBuilder(owner.simpleName() + "Read").addModifiers(Modifier.PUBLIC).addAnnotation(NullMarked.class);
         var write = TypeSpec.interfaceBuilder(owner.simpleName() + "Write").addModifiers(Modifier.PUBLIC).addAnnotation(NullMarked.class);
+        write.addMethod(abstractMethod(MethodSpec.methodBuilder("emit").addParameter(org.vernac.runtime.DomainEvent.class,"event")));
         read.addMethod(abstractMethod(getter("id", ResolvedJavaTypes.javaType(project.typeOf(model.id().type())), false)));
         for (var field : model.fields()) {
             read.addMethod(abstractMethod(getter(field.name(), type(field, project), field.type().isOptional())));
@@ -41,6 +42,9 @@ public final class DomainAccessGenerator {
                 .superclass(ClassName.get("", "__ReadView")).addSuperinterface(view(owner, "Access"))
                 .addField(FieldSpec.builder(Runnable.class, "guard", Modifier.PRIVATE, Modifier.FINAL)
                         .initializer("$T.accessGuard()", BehaviorModification.class).build());
+        access.addMethod(MethodSpec.methodBuilder("emit").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
+                .addParameter(org.vernac.runtime.DomainEvent.class,"event").addStatement("this.guard.run()")
+                .addStatement("$T.emit(event)",org.vernac.runtime.events.EventContext.class).build());
         forwardGetter(read, getter("id", ResolvedJavaTypes.javaType(project.typeOf(model.id().type())), false), owner, "id");
         for (var field : model.fields()) {
             forwardGetter(read, getter(field.name(), type(field, project), field.type().isOptional()), owner, field.name());

@@ -23,6 +23,9 @@ public final class DomainServiceGenerator {
                 .addJavadoc("Generated domain service. Do not edit.\n");
         var api = TypeSpec.interfaceBuilder(access).addModifiers(Modifier.PUBLIC).addAnnotation(NullMarked.class);
         var delegate = TypeSpec.classBuilder("__AccessView").addModifiers(Modifier.PRIVATE, Modifier.FINAL).addSuperinterface(access);
+        api.addMethod(MethodSpec.methodBuilder("emit").addModifiers(Modifier.PUBLIC,Modifier.ABSTRACT).addParameter(DomainEvent.class,"event").build());
+        delegate.addMethod(MethodSpec.methodBuilder("emit").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).addParameter(DomainEvent.class,"event")
+                .addStatement("$T.emit(event)",org.vernac.runtime.events.EventContext.class).build());
         var constructor = MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC);
         for (var dependency : service.injections()) {
             var type = raw(dependency.type(), project);

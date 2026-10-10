@@ -18,7 +18,7 @@ public final class BuiltinTypes {
                 long.class, float.class, double.class, char.class,
                 Boolean.class, Byte.class, Short.class, Integer.class,
                 Long.class, Float.class, Double.class, Character.class,
-                String.class, BigInteger.class, BigDecimal.class, UUID.class,
+                org.vernac.runtime.EventId.class, String.class, BigInteger.class, BigDecimal.class, UUID.class,
                 Instant.class, LocalDate.class, LocalTime.class, LocalDateTime.class,
                 OffsetDateTime.class, OffsetTime.class, ZonedDateTime.class,
                 Duration.class, Period.class, Year.class, YearMonth.class,

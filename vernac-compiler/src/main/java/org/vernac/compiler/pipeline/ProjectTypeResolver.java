@@ -62,6 +62,8 @@ public final class ProjectTypeResolver {
                     new UseCaseContracts().validate(usecase, scope, fieldTypes, diagnostics, project, source.unit().namespace());
                 if (definition instanceof DomainServiceNode service && validScope)
                     new ServiceContracts().validate(service, scope, fieldTypes, diagnostics, project, source.unit().namespace());
+                if(definition instanceof EventNode event && validScope) new EventContracts().validate(event,scope,fieldTypes,diagnostics,project,source.unit().namespace());
+                if(definition instanceof ListenerNode listener && validScope) new EventContracts().validate(listener,scope,fieldTypes,diagnostics,project,source.unit().namespace());
                 var mutable = MutableDomain.of(definition);
                 if (mutable.isPresent()) {
                     var model = mutable.get();
@@ -144,7 +146,7 @@ public final class ProjectTypeResolver {
         failOnErrors(diagnostics);
         List<TypeSymbol> deferred = namespaces.stream().flatMap(namespace -> project.symbols().inNamespace(namespace).stream())
                 .filter(symbol -> switch (symbol.kind()) {
-                    case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, REPOSITORY, USE_CASE, DOMAIN_SERVICE -> false;
+                    case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, REPOSITORY, USE_CASE, DOMAIN_SERVICE, EVENT, LISTENER -> false;
                     default -> true;
                 }).toList();
         return new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries);

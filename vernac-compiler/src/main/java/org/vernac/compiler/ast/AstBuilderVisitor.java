@@ -9,7 +9,6 @@ import org.antlr.v4.runtime.Token;
 import org.vernac.compiler.parser.VernacBaseVisitor;
 import org.vernac.compiler.parser.VernacParser;
 import org.vernac.compiler.util.TypeUtils;
-import org.vernac.runtime.DispatchMode;
 
 import java.util.*;
 
@@ -251,30 +250,10 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
 
     @Override
     public EventNode visitEventDefinition(VernacParser.EventDefinitionContext ctx) {
-        String name = ctx.name.getText();
-        DispatchMode dispatchMode = DispatchMode.OUTBOX; // Default ist Outbox
-
-        if (ctx.dispatchKind != null) {
-            String kindText = ctx.dispatchKind.getText();
-            if ("memory".equalsIgnoreCase(kindText)) {
-                dispatchMode = DispatchMode.MEMORY;
-            }
-        }
-
-        Optional<String> customPackage = Optional.empty();
-        if (ctx.eventMember() != null) {
-            for (VernacParser.EventMemberContext member : ctx.eventMember()) {
-                if (member.packageDeclarationStatement() != null) {
-                    customPackage = Optional.of(member.packageDeclarationStatement().qualifiedName().getText());
-                }
-            }
-        }
-
-        List<FieldNode> fields = Optional.ofNullable(ctx.parameterList())
-                .map(p -> extractParameters(p))
-                .orElse(Collections.emptyList());
-
-        return new EventNode(toLocation(ctx), name, dispatchMode, customPackage, fields);
+        return new EventNode(toLocation(ctx), ctx.name.getText(), ctx.recorded != null,
+                ctx.parameterList() == null ? List.of() : extractParameters(ctx.parameterList()),
+                ctx.validationBlock() == null ? List.of() : ctx.validationBlock().validationStatement().stream()
+                    .map(v -> new ValidationRuleNode(toLocation(v), extractRawSource(v.condition), v.message == null ? "" : unquote(v.message.getText()))).toList());
     }
 
     @Override
@@ -573,36 +552,23 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     }
 
     public ListenerNode visitListenerDefinition(VernacParser.ListenerDefinitionContext ctx) {
-        String eventName = ctx.eventName.getText();
-        Optional<String> customPackage = Optional.empty();
-        List<UseDependencyNode> dependencies = new ArrayList<>();
-        List<RawJavaStatementNode> statements = new ArrayList<>();
-
-        if (ctx.listenerMember() != null) {
-            for (VernacParser.ListenerMemberContext member : ctx.listenerMember()) {
-                if (member.packageDeclarationStatement() != null) {
-                    customPackage = Optional.of(member.packageDeclarationStatement().qualifiedName().getText());
-                } else if (member.useDependencyStatement() != null) {
-                    VernacParser.UseDependencyStatementContext depCtx = member.useDependencyStatement();
-                    String typeName = depCtx.typeName().getText();
-                    Optional<String> instanceName = depCtx.variableName() != null
-                            ? Optional.of(depCtx.variableName().getText())
-                            : Optional.empty();
-                    dependencies.add(new UseDependencyNode(toLocation(depCtx), typeName, instanceName));
-                } else if (member.rawJavaStatement() != null) {
-                    String code = extractRawSource(member.rawJavaStatement());
-                    statements.add(new RawJavaStatementNode(toLocation(member.rawJavaStatement()), code));
-                }
-            }
+        var eventType = toTypeNode(ctx.eventType);
+        var dependencies = ctx.dependencies.stream().map(p -> {
+            var type = toTypeNode(p.type());
+            return new FieldNode(toLocation(p), type, p.name == null ? org.vernac.language.VernacNames.defaultMemberName(type.name()) : p.name.getText(), p.isMut != null, p.name != null);
+        }).toList();
+        var imports = ctx.javaImports() == null ? List.<JavaImportNode>of() : ctx.javaImports().qualifiedName().stream().map(n -> new JavaImportNode(toLocation(n), n.getText())).toList();
+        List<MethodNode> helpers = new ArrayList<>(); String body = ""; Optional<String> implementation = Optional.empty(); int count = 0;
+        for (var member : ctx.usecaseBehaviorMember()) {
+            if (member.behaviorMethod() != null) {
+                var m = member.behaviorMethod();
+                helpers.add(new MethodNode(toLocation(m), m.visibility == null ? "public" : m.visibility.getText(), toTypeNode(m.returnType), m.name.getText(),
+                    m.parameterList() == null ? List.of() : extractParameters(m.parameterList()), m.rawJavaBlock() == null ? "" : extractRawSource(m.rawJavaBlock()), Optional.ofNullable(m.implementation).map(ParserRuleContext::getText)));
+            } else { count++; body = member.rawJavaBlock() == null ? "" : extractRawSource(member.rawJavaBlock()); implementation = Optional.ofNullable(member.implementation).map(ParserRuleContext::getText); }
         }
-
-        return new ListenerNode(
-                toLocation(ctx),
-                eventName,
-                dependencies,
-                statements,
-                customPackage
-        );
+        var operation = new UseCaseNode(toLocation(ctx), ctx.name.getText(), List.of(new FieldNode(toLocation(ctx), eventType, "event")), List.of(), dependencies,
+                Optional.empty(), List.of(), imports, helpers, body, implementation, count);
+        return new ListenerNode(toLocation(ctx), ctx.name.getText(), ctx.deliveryMode.getText().equals("deferred"), eventType, operation);
     }
     private RepositoryMethodNode.Expression queryExpression(VernacParser.RepositoryExpressionContext ctx,
             List<RepositoryMethodNode.Predicate> leaves) {

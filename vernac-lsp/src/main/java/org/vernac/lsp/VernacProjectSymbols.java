@@ -76,7 +76,7 @@ final class VernacProjectSymbols {
                     if (repository.name != null) add(path, namespace, repository.name, TypeSymbol.Kind.REPOSITORY);
                     else addDerived(path, namespace, repository.aggregateName, "Repository", TypeSymbol.Kind.REPOSITORY);
                 } else if (top.listenerDefinition() != null) {
-                    addDerived(path, namespace, top.listenerDefinition().eventName, "Listener", TypeSymbol.Kind.LISTENER);
+                    add(path, namespace, top.listenerDefinition().name, TypeSymbol.Kind.LISTENER);
                 }
             }
         });
@@ -154,6 +154,12 @@ final class VernacProjectSymbols {
         if (!importing && !(context.getParent() instanceof VernacParser.TypeContext)) return null;
         boolean valueField = context.getParent().getParent() instanceof VernacParser.ParameterContext parameter
                 && parameter.getParent().getParent() instanceof VernacParser.ValueDefinitionContext;
+        boolean eventField = context.getParent().getParent() instanceof VernacParser.ParameterContext parameter
+                && parameter.getParent().getParent() instanceof VernacParser.EventDefinitionContext;
+        boolean eventTarget = context.getParent().getParent() instanceof VernacParser.ListenerDefinitionContext;
+        java.util.function.Predicate<TypeSymbol> allowed = symbol -> accepted(symbol)
+                && (!(valueField || eventField) || valueType(symbol))
+                && (!eventTarget || symbol.kind() == TypeSymbol.Kind.EVENT);
         var scope = new FileTypeScope(file.unit(), index, namespaces);
         Map<String, String> choices = new TreeMap<>();
         if (importing) {
@@ -165,12 +171,13 @@ final class VernacProjectSymbols {
                     choices.put(symbol.identity().qualifiedName(), symbol.kind().toString());
             }
         } else if (prefix.contains(".")) {
-            for (var symbol : declarations) if (accepted(symbol) && (!valueField || valueType(symbol)))
+            for (var symbol : declarations) if (allowed.test(symbol))
                 choices.put(symbol.identity().qualifiedName(), symbol.kind().toString());
         } else if (!scope.hasErrors() && index.problems().isEmpty()) {
-            BuiltinTypes.names().forEach(name -> choices.put(name, "Vernac built-in type"));
+            if (!eventTarget) BuiltinTypes.names().stream().filter(name -> !eventField || name.equals("EventId"))
+                    .forEach(name -> choices.put(name, "Vernac built-in type"));
             for (var symbol : declarations) {
-                if (valueField && !valueType(symbol)) continue;
+                if (!allowed.test(symbol)) continue;
                 String name = symbol.identity().name();
                 var resolved = scope.resolve(name, file.unit().location()).type();
                 if (resolved.orElse(null) instanceof ResolvedType.Declared declared

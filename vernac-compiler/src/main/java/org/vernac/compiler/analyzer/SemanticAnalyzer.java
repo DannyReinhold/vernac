@@ -96,7 +96,7 @@ public class SemanticAnalyzer {
             } else if (def instanceof EntityNode entity) {
                 validateEntity(entity, declaredIds, declaredAggregates, availableSymbols, unit.imports(), diagnostics);
             } else if (def instanceof EventNode event) {
-                validateEvent(event, availableSymbols, unit.imports(), diagnostics);
+                // Event contract is resolved project-wide.
             } else if (def instanceof RepositoryNode repo) {
                 validateRepository(repo, unit, availableSymbols, diagnostics);
             } else if (def instanceof PortNode port) {
@@ -106,7 +106,7 @@ public class SemanticAnalyzer {
             } else if (def instanceof DomainServiceNode service) {
                 // Reviewed by the project resolver.
             } else if (def instanceof ListenerNode listener) {
-                validateListener(listener, unit, declaredEvents, diagnostics);
+                // Listener contract is resolved project-wide.
             }
         }
 
@@ -389,20 +389,6 @@ public class SemanticAnalyzer {
         }
     }
 
-    private void validateEvent(EventNode event, Set<String> availableSymbols, List<ImportNode> imports, List<CompilerDiagnostic> diagnostics) {
-        if (event.customPackage().isPresent())
-            validatePackageName(event.customPackage().get(), event.location(), diagnostics);
-
-        checkDuplicateFields(event.fields(), event.name(), diagnostics);
-        for (FieldNode field : event.fields()) {
-            validateIdentifier(field.name(), field.location(), "field", diagnostics);
-            if (field.isMutable()) {
-                diagnostics.add(CompilerDiagnostic.error(field.location(), "Domain Event '" + event.name() + "' cannot have mutable field '" + field.name() + "'. Events must represent past facts and be strictly immutable."));
-            }
-            validateTypeResolvable(field.type(), availableSymbols, imports, diagnostics);
-        }
-    }
-
     private void validateRepository(RepositoryNode repo, CompilationUnitNode unit, Set<String> availableSymbols, List<CompilerDiagnostic> diagnostics) {
         if (repo.customPackage().isPresent())
             validatePackageName(repo.customPackage().get(), repo.location(), diagnostics);
@@ -496,49 +482,4 @@ public class SemanticAnalyzer {
         throw new IllegalArgumentException("Unknown definition: " + def);
     }
 
-    private void validateListener(
-            ListenerNode listener,
-            CompilationUnitNode unit,
-            Set<String> declaredEvents,
-            List<CompilerDiagnostic> diagnostics
-    ) {
-        if (listener.customPackage().isPresent()) {
-            validatePackageName(listener.customPackage().get(), listener.location(), diagnostics);
-        }
-
-        // 1. Prüfen, ob das Event deklariert ist
-        if (!declaredEvents.contains(listener.eventName())) {
-            diagnostics.add(CompilerDiagnostic.error(
-                    listener.location(),
-                    "Listener target '" + listener.eventName() + "' must be an existing event declaration."
-            ));
-        }
-
-        // 2. Dependencies (use ...) prüfen
-        Set<String> depTypes = new HashSet<>();
-        Set<String> depInstances = new HashSet<>();
-
-        for (UseDependencyNode dep : listener.dependencies()) {
-            validateIdentifier(dep.typeName(), dep.location(), "dependency type", diagnostics);
-
-            if (!depTypes.add(dep.typeName())) {
-                diagnostics.add(CompilerDiagnostic.error(
-                        dep.location(),
-                        "Duplicate dependency type '" + dep.typeName() + "' in listener '" + listener.listenerName() + "'."
-                ));
-            }
-
-            String instanceName = dep.instanceName().orElseGet(() -> {
-                String type = dep.typeName();
-                return VernacNames.lowerFirst(type);
-            });
-
-            if (!depInstances.add(instanceName)) {
-                diagnostics.add(CompilerDiagnostic.error(
-                        dep.location(),
-                        "Duplicate dependency instance variable '" + instanceName + "' in listener '" + listener.listenerName() + "'."
-                ));
-            }
-        }
-    }
 }

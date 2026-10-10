@@ -12,7 +12,8 @@ import static org.junit.jupiter.api.Assertions.*;
 public final class Probe {
     public static void run() {
         TaskId id=TaskId.create();
-        var echo=new Echo();
+        var handlers = new org.springframework.beans.factory.support.DefaultListableBeanFactory().getBeanProvider(org.vernac.runtime.events.EventHandler.class);
+        var echo=new Echo(handlers);
         var result=echo.execute(id,null);
         assertTrue(result.title().isEmpty());
         assertEquals(result,Echo.Result.of(id));
@@ -21,19 +22,19 @@ public final class Probe {
         assertThrows(org.vernac.runtime.DomainValidationException.class,()->new Echo.Result(id,null));
         assertThrows(org.vernac.runtime.DomainValidationException.class,()->echo.execute(id,Title.of("")));
         assertThrows(org.vernac.runtime.DomainValidationException.class,()->echo.execute(null,null));
-        assertThrows(org.vernac.runtime.BehaviorContractException.class,()->new External().execute(id,Title.of("NULL")));
-        assertTrue(new External().execute(id,null).isEmpty());
-        assertEquals(Title.of("ok"),new External().execute(id,Title.of("ok")).orElseThrow());
+        assertThrows(org.vernac.runtime.BehaviorContractException.class,()->new External(handlers).execute(id,Title.of("NULL")));
+        assertTrue(new External(handlers).execute(id,null).isEmpty());
+        assertEquals(Title.of("ok"),new External(handlers).execute(id,Title.of("ok")).orElseThrow());
         assertEquals(2,operations.usecase.access.EchoRead.class.getDeclaredMethods().length);
         var manager=new Manager();
-        Inner inner=proxy(new Inner(),manager);
-        Outer outer=proxy(new Outer(inner),manager);
+        Inner inner=proxy(new Inner(handlers),manager);
+        Outer outer=proxy(new Outer(handlers,inner),manager);
         assertEquals(id,outer.execute(id));
         assertEquals(1,manager.begins); assertEquals(1,manager.commits);
-        Echo transactional=proxy(new Echo(),manager);
+        Echo transactional=proxy(new Echo(handlers),manager);
         assertThrows(org.vernac.runtime.DomainValidationException.class,()->transactional.execute(null,null));
         assertEquals(1,manager.rollbacks);
-        External external=proxy(new External(),manager);
+        External external=proxy(new External(handlers),manager);
         assertThrows(org.vernac.runtime.BehaviorContractException.class,()->external.execute(id,Title.of("NULL")));
         assertEquals(2,manager.rollbacks);
     }

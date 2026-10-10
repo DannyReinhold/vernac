@@ -1,0 +1,10 @@
+package operations;
+import operations.domain.Changed;
+import operations.adapter.inbound.event.access.ExternalAccess;
+public final class ExternalImplementation {
+    public static void execute(ExternalAccess self, Changed event) {
+        Probe.observed.add(event);
+        if(event.title().map(t -> t.string().equals("FAIL")).orElse(false))
+            throw new IllegalArgumentException("Rejected by external listener");
+    }
+}

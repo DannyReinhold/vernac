@@ -1,0 +1,55 @@
+package operations;
+import operations.domain.*;
+import operations.usecase.*;
+import operations.adapter.inbound.event.*;
+import org.vernac.runtime.*;
+import org.vernac.runtime.events.*;
+import org.springframework.context.annotation.*;
+import org.springframework.transaction.*;
+import org.springframework.transaction.annotation.*;
+import org.springframework.transaction.support.*;
+import java.util.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+public final class Probe {
+    public static final List<DomainEvent> observed = new ArrayList<>();
+    public static void run() {
+        TaskId id=TaskId.create();
+        var event=Changed.create(id);
+        assertTrue(event.title().isEmpty());
+        var restored=Changed.reconstitute(event.eventId(),event.occurredAt(),id,null);
+        assertEquals(event,restored); assertEquals(event.hashCode(),restored.hashCode());
+        assertEquals(event.occurredAt(),restored.occurredAt());
+        assertNotEquals(event,Changed.create(id));
+        assertNotEquals(event,Ping.reconstitute(event.eventId(),event.occurredAt()));
+        assertTrue(event.toString().contains(id.asString()));
+        assertThrows(DomainValidationException.class,()->Changed.create(null));
+        assertThrows(DomainValidationException.class,()->Changed.create(id,Title.of("")));
+        assertThrows(DomainValidationException.class,()->Changed.reconstitute(event.eventId(),event.occurredAt(),id,Title.of("")));
+        try(var context=new AnnotationConfigApplicationContext()) {
+            context.setClassLoader(Probe.class.getClassLoader());
+            context.register(Config.class,Publish.class,Outer.class,CatchFailure.class,Observe.class,External.class);
+            context.refresh();
+            var manager=context.getBean(Manager.class);
+            context.getBean(Outer.class).execute(id);
+            assertEquals(1,manager.begins); assertEquals(1,manager.commits);
+            assertEquals(2,observed.size()); assertSame(observed.get(0),observed.get(1));
+            assertThrows(UnexpectedRollbackException.class,()->context.getBean(CatchFailure.class).execute(id));
+            assertEquals(1,manager.commits); assertEquals(1,manager.rollbacks);
+        }
+        assertThrows(IllegalStateException.class,()->EventContext.emit(event));
+    }
+    @Configuration @EnableTransactionManagement(proxyTargetClass=true)
+    public static class Config { @Bean public Manager transactionManager() { return new Manager(); } }
+    public static final class Manager extends AbstractPlatformTransactionManager {
+        State state; int begins,commits,rollbacks;
+        static final class State implements SmartTransactionObject { boolean active,rollback; public boolean isRollbackOnly(){return rollback;} }
+        protected Object doGetTransaction() { return state==null?(state=new State()):state; }
+        protected boolean isExistingTransaction(Object tx) { return ((State)tx).active; }
+        protected void doBegin(Object tx,TransactionDefinition definition) { ((State)tx).active=true; begins++; }
+        protected void doCommit(DefaultTransactionStatus status) { commits++; }
+        protected void doRollback(DefaultTransactionStatus status) { rollbacks++; }
+        protected void doSetRollbackOnly(DefaultTransactionStatus status) { ((State)status.getTransaction()).rollback=true; }
+        protected void doCleanupAfterCompletion(Object tx) { state=null; }
+    }
+}

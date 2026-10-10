@@ -22,7 +22,7 @@ public final class BehaviorImports {
             if (lookup.type().isPresent()) {
                 var type = lookup.type().get();
                 if (type instanceof ResolvedType.Builtin || type instanceof ResolvedType.Declared d && switch (d.symbol().kind()) {
-                    case ID, VALUE_OBJECT, ENUM, ENTITY, AGGREGATE, COLLECTION -> true;
+                    case EVENT, ID, VALUE_OBJECT, ENUM, ENTITY, AGGREGATE, COLLECTION -> true;
                     default -> false;
                 }) result.put(name, JavaTypeNames.canonicalName(type));
             }

@@ -34,3 +34,8 @@ Each tutorial starts with a working example and invites you to change it.
    migration, verify it and apply it while retaining the existing data.
 3. [Schema tooling reference](postgresql-migrations.md): mapping, snapshots, explicit
    backfills, conversion options and schema verification.
+
+## Domain events
+
+[Publish an event and invoke synchronous listeners](domain-events.md), including
+external Java implementations and transaction boundaries.

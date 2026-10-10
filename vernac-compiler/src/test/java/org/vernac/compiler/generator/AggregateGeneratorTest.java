@@ -61,7 +61,6 @@ class AggregateGeneratorTest {
 
         assertThat(code)
                 .contains("public class Project implements AggregateRoot<ProjectId>")
-                .contains("private final transient List<DomainEvent> domainEvents = new ArrayList<>();")
                 .contains("private final Instant createdAt;")
                 .contains("private Instant updatedAt;")
                 .contains("private final PersistenceState persistenceState;")
@@ -76,9 +75,6 @@ class AggregateGeneratorTest {
                 .contains("public Instant createdAt()")
                 .contains("public Instant updatedAt()")
                 .contains("public PersistenceState persistenceState()")
-                .contains("public List<DomainEvent> pullDomainEvents()")
-                .contains("List<DomainEvent> events = List.copyOf(this.domainEvents);")
-                .contains("this.domainEvents.clear();")
                 .contains("return Objects.equals(this.id, that.id);")
                 .contains("return Objects.hash(this.id);")
                 .contains("return \"Project[id=\" + this.id + \", name=\" + this.name + \", budget=\" + this.budget + \", createdAt=\" + this.createdAt + \", updatedAt=\" + this.updatedAt + \"]\";");
@@ -89,28 +85,25 @@ class AggregateGeneratorTest {
     }
 
     @Test
-    @DisplayName("Übernimmt Java-Block mit Event-Emitting (registerEvent) fehlerfrei")
+    @DisplayName("Publishes explicitly through modify Access, independently of repository save")
     void shouldGenerateAggregateWithEventEmitting() {
-        String src = """
-                namespace com.example.domain;
-                
-                aggregate Project[ProjectId](ProjectName name) {
-                    public void rename(ProjectName newName) {
-                        this.name = newName;
-                        registerEvent(ProjectRenamed.create(this.id, newName));
+        var result = new org.vernac.compiler.pipeline.VernacCompiler().compileSource("""
+                namespace example;
+                id ProjectId; value ProjectName(String);
+                event ProjectRenamed(ProjectId, ProjectName);
+                aggregate Project[ProjectId](mut ProjectName name) behavior {
+                    modify void rename(ProjectName newName) {
+                        self.name(newName);
+                        self.emit(ProjectRenamed.create(self.id(), newName));
                     }
                 };
-                """;
-
-        CompilationUnitNode cu = parse(src);
-        AggregateNode node = cu.aggregates().getFirst();
-        JavaFile file = generator.generate(node, Map.of(), Map.of(), "com.example.domain", List.of());
-        String code = file.toString().replaceAll("\\s+", " ");
-
-        assertThat(code)
-                .contains("public void rename(ProjectName newName)")
-                .contains("this.name = newName;")
-                .contains("registerEvent(ProjectRenamed.create(this.id, newName));");
+                """);
+        String code=result.generatedFiles().stream().map(Object::toString).reduce("",String::concat);
+        assertThat(code).contains("public void rename(ProjectName newName)", "self.name(newName)",
+                "self.emit(ProjectRenamed.create(self.id(), newName))", "EventContext.emit(event)")
+                .doesNotContain("registerEvent", "pullDomainEvents", "domainEvents");
+        var compiled=org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(result.generatedFiles());
+        assertThat(compiled.success()).withFailMessage(compiled.diagnostics().toString()).isTrue();
     }
 
     @Test

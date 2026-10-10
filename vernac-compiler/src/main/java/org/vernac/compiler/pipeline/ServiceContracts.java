@@ -11,7 +11,7 @@ import org.vernac.language.VernacNames;
 
 /** Domain service boundaries are checked before Java generation. */
 final class ServiceContracts {
-    private static final Set<String> RESERVED = Set.of("getClass", "toString", "hashCode", "equals", "notify", "notifyAll", "wait", "clone", "finalize");
+    private static final Set<String> RESERVED = Set.of("emit","getClass", "toString", "hashCode", "equals", "notify", "notifyAll", "wait", "clone", "finalize");
     void validate(DomainServiceNode service, FileTypeScope scope, Map<TypeNode, ResolvedType> types,
             List<CompilerDiagnostic> errors, VernacProject project, String namespace) {
         names(service.injections(), errors);

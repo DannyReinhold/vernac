@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.vernac.compiler.parser.VernacLexer;
 import org.vernac.compiler.parser.VernacParser;
-import org.vernac.runtime.DispatchMode;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -226,10 +225,8 @@ class AstBuilderVisitorTest {
                 String src = """
                         namespace com.example.energy;
                         
-                        listener StorageOverheated {
-                            use NotificationPort notifications;
-                        
-                            notifications.sendAlert("Overheated");
+                        synchronous listener Alert on StorageOverheated uses NotificationPort notifications behavior {
+                            execute { self.notifications().sendAlert("Overheated"); }
                         }
                         """;
 
@@ -237,13 +234,12 @@ class AstBuilderVisitorTest {
                 assertThat(cu.listeners()).hasSize(1);
 
                 ListenerNode listener = cu.listeners().getFirst();
-                assertThat(listener.eventName()).isEqualTo("StorageOverheated");
-                assertThat(listener.listenerName()).isEqualTo("StorageOverheatedListener");
-                assertThat(listener.dependencies()).hasSize(1);
-                assertThat(listener.dependencies().getFirst().typeName()).isEqualTo("NotificationPort");
-                assertThat(listener.dependencies().getFirst().instanceName()).contains("notifications");
-                assertThat(listener.statements()).hasSize(1);
-                assertThat(listener.statements().getFirst().javaCode()).contains("notifications.sendAlert(\"Overheated\");");
+                assertThat(listener.eventType().name()).isEqualTo("StorageOverheated");
+                assertThat(listener.listenerName()).isEqualTo("Alert");
+                assertThat(listener.operation().injections()).hasSize(1);
+                assertThat(listener.operation().injections().getFirst().type().name()).isEqualTo("NotificationPort");
+                assertThat(listener.operation().injections().getFirst().name()).isEqualTo("notifications");
+                assertThat(listener.operation().bodyCode()).contains("self.notifications()");
             }
         }
     }
@@ -330,13 +326,13 @@ class AstBuilderVisitorTest {
     class EventTests {
 
         @Test
-        @DisplayName("Parst outbox, memory und unpräfigierte Events mit DispatchMode")
+        @DisplayName("Parses explicit recording independently of listeners")
         void shouldParseEventsWithDispatchKind() {
             String src = """
                     namespace com.example.domain;
                     
-                    outbox event ProjectBudgetExceeded(ProjectId projectId, Money currentCost, Money budget);
-                    memory event ProjectValidated(ProjectId projectId);
+                    recorded event ProjectBudgetExceeded(ProjectId projectId, Money currentCost, Money budget);
+                    event ProjectValidated(ProjectId projectId);
                     event TaskCompleted(ProjectId projectId, TaskId taskId);
                     """;
 
@@ -345,16 +341,16 @@ class AstBuilderVisitorTest {
 
             EventNode outboxEvent = cu.events().get(0);
             assertThat(outboxEvent.name()).isEqualTo("ProjectBudgetExceeded");
-            assertThat(outboxEvent.dispatchMode()).isEqualTo(DispatchMode.OUTBOX);
+            assertThat(outboxEvent.recorded()).isTrue();
             assertThat(outboxEvent.fields()).hasSize(3);
 
             EventNode memoryEvent = cu.events().get(1);
             assertThat(memoryEvent.name()).isEqualTo("ProjectValidated");
-            assertThat(memoryEvent.dispatchMode()).isEqualTo(DispatchMode.MEMORY);
+            assertThat(memoryEvent.recorded()).isFalse();
 
             EventNode defaultEvent = cu.events().get(2);
             assertThat(defaultEvent.name()).isEqualTo("TaskCompleted");
-            assertThat(defaultEvent.dispatchMode()).isEqualTo(DispatchMode.OUTBOX);
+            assertThat(defaultEvent.recorded()).isFalse();
         }
     }
 

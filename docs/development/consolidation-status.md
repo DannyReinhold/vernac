@@ -20,6 +20,7 @@ and future plans. It is not a claim that every language feature is production-re
 | JDBC repositories | Explicit repository declaration, byId/save/delete, declarative comparisons and ordering, complete graph loads, list order, reachability cleanup and optimistic locking |
 | Usecases | Named application operations, REQUIRED transactions, explicit results and external implementations |
 | Domain services | Named methods, injected dependencies through self, per-operation preconditions and external implementations |
+| Events | Immutable occurrences, shared EventId, validation and synchronous listeners with scoped publication |
 | Schema tooling | Versioned source snapshots, initial/next migration candidates, explicit transformations, risk gates and Flyway replay checks |
 
 Reviewed areas have contracts and automated tests; depth and integration coverage
@@ -35,23 +36,20 @@ not exhaustive concurrency, platform, historical-data or deployment verification
 - Declarative root queries are implemented; handwritten JDBC/custom query extensions,
   nested collection predicates, multi-value equality and pagination remain deferred.
   Boolean OR/NOT/parentheses and literal/pattern text searches are implemented.
-- Domain-event dispatch is wired to the existing dispatcher, but the new schema tool
-  does not generate outbox infrastructure DDL. The demo emits no events.
-- The reviewed multi-file compiler accepts IDs, values, enums, collections, entities,
-  aggregates, repositories, usecases and domain services. Ports/adapters, events and listeners
-  still need their dedicated review and migration to the new pipeline.
+- Events and synchronous listeners are reviewed and supported. Relational recording,
+  durable delivery, workers and event-evolution migrations remain the next increment;
+  recorded/deferred declarations currently fail explicitly. See [the plan](event-delivery.md).
+- Ports/adapters still need their dedicated review and project-pipeline migration.
 - Old examples still contain pre-refactoring syntax; the complete root reactor is not
   yet a green integration gate. Use the documented targeted builds during consolidation.
 
 ## Next work
 
-1. Complete the domain service walkthrough, then review events, listeners and outbox
-   behavior including schema and transaction needs.
+1. Complete relational event storage, delivery jobs, claim tokens/leases, PostgreSQL
+   concurrency tests and the event-evolution tutorial. No silent durability fallback.
 2. Review ports, adapters and ACL mappings.
-3. Revisit and **unify dependency delivery for usecases and domain services**:
-   usecases currently pass dependencies as trailing implementation arguments;
-   services expose them through self Access. The difference is documented but
-   uniformity is the desired direction.
+3. Revisit **service read/modify classification** and consistency with usecases/domain
+   behavior. Dependency access through self is now unified for services and usecases.
 4. Evaluate recursively read-only validation views only if their implementation
    cost is proportionate. Current input views offer shallow protection.
 5. Align all examples, templates, documentation, diagnostics and IDE support;

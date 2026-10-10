@@ -4,7 +4,6 @@
 package org.vernac.runtime;
 
 import java.time.Instant;
-import java.util.List;
 
 public interface AggregateRoot<ID> {
     ID id();
@@ -16,8 +15,4 @@ public interface AggregateRoot<ID> {
     /** Technical persistence access; not part of generated behavior views. */
     PersistenceState persistenceState();
 
-    /**
-     * Returns all collected domain events and clears the internal buffer.
-     */
-    List<DomainEvent> pullDomainEvents();
 }

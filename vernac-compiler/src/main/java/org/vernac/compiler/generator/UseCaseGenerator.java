@@ -17,26 +17,44 @@ public final class UseCaseGenerator {
     private static final ClassName TRANSACTIONAL=ClassName.get("org.springframework.transaction.annotation","Transactional");
     private static final ClassName PROPAGATION=ClassName.get("org.springframework.transaction.annotation","Propagation");
     public List<JavaFile> generate(UseCaseNode u,CompilationUnitNode unit,ResolvedProject project) {
-        ClassName owner=ClassName.get(unit.namespace()+".usecase",u.name());
+        return generate(u, unit, project, false);
+    }
+    public List<JavaFile> generate(UseCaseNode u,CompilationUnitNode unit,ResolvedProject project, boolean listener) {
+        ClassName owner=ClassName.get(unit.namespace()+(listener?".adapter.inbound.event":".usecase"),u.name());
+        ClassName access=ClassName.get(owner.packageName()+".access",u.name()+"Access");
+        var accessSpec=TypeSpec.interfaceBuilder(access).addModifiers(Modifier.PUBLIC).addAnnotation(NullMarked.class);
+        accessSpec.addMethod(MethodSpec.methodBuilder("emit").addModifiers(Modifier.PUBLIC,Modifier.ABSTRACT).addParameter(DomainEvent.class,"event").build());
+        var accessView=TypeSpec.classBuilder("__AccessView").addModifiers(Modifier.PRIVATE,Modifier.FINAL).addSuperinterface(access);
+        accessView.addMethod(MethodSpec.methodBuilder("emit").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).addParameter(DomainEvent.class,"event")
+                .addStatement("$T.emit(event)",org.vernac.runtime.events.EventContext.class).build());
         ClassName companion=BehaviorGenerator.companion(owner);
         ClassName read=ClassName.get(owner.packageName()+".access",u.name()+"Read");
         ClassName validator=ClassName.get(owner.packageName(),"__VernacValidation_"+u.name());
         var bean=TypeSpec.classBuilder(owner).addModifiers(Modifier.PUBLIC).addAnnotation(NullMarked.class)
                 .addAnnotation(ClassName.get("org.springframework.stereotype","Service"))
-                .addJavadoc("Generated usecase. Do not edit.\n");
+                .addJavadoc(listener ? "Generated synchronous event listener. Do not edit.\n" : "Generated usecase. Do not edit.\n");
         var constructor=MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC);
+        TypeName providers=ParameterizedTypeName.get(ClassName.get("org.springframework.beans.factory","ObjectProvider"), ClassName.get(org.vernac.runtime.events.EventHandler.class));
+        bean.addField(providers,"__vernacHandlers",Modifier.PRIVATE,Modifier.FINAL);
+        constructor.addParameter(providers,"__vernacHandlers").addStatement("this.__vernacHandlers = $T.requireNonNull(__vernacHandlers)",Objects.class);
         for(var f:u.injections()) {
             TypeName type=raw(f.type(),project,owner);
+            accessSpec.addMethod(MethodSpec.methodBuilder(f.name()).addModifiers(Modifier.PUBLIC,Modifier.ABSTRACT).returns(type).build());
+            accessView.addMethod(MethodSpec.methodBuilder(f.name()).addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(type)
+                    .addStatement("return $L.this.$N",owner.simpleName(),f.name()).build());
             bean.addField(type,f.name(),Modifier.PRIVATE,Modifier.FINAL);
             constructor.addParameter(type,f.name()).addStatement("this.$N = $T.requireNonNull($N)",f.name(),Objects.class,f.name());
         }
         bean.addMethod(constructor.build());
         TypeName returns=returnType(u,project,owner);
         if(!u.resultFields().isEmpty()) bean.addType(result(u,project,owner));
-        var execute=MethodSpec.methodBuilder("execute").addModifiers(Modifier.PUBLIC).returns(returns)
-                .addAnnotation(AnnotationSpec.builder(TRANSACTIONAL).addMember("propagation","$T.REQUIRED",PROPAGATION).build());
+        var execute=MethodSpec.methodBuilder("execute").addModifiers(Modifier.PUBLIC).returns(returns);
+        if(!listener) execute.addAnnotation(AnnotationSpec.builder(TRANSACTIONAL).addMember("propagation","$T.REQUIRED",PROPAGATION).build());
+        execute.beginControlFlow("try (var __vernacContext = $T.open(() -> this.__vernacHandlers.stream().toList()))",org.vernac.runtime.events.EventContext.class);
         var bridge=MethodSpec.methodBuilder("execute").addModifiers(Modifier.STATIC).returns(returns);
-        List<CodeBlock> call=new ArrayList<>(); List<String> names=new ArrayList<>();
+        bridge.addParameter(access,"self");
+        List<CodeBlock> call=new ArrayList<>(); call.add(CodeBlock.of("new __AccessView()"));
+        List<String> names=new ArrayList<>(); names.add("self");
         for(var f:u.parameters()) {
             TypeName type=raw(f.type(),project,owner);
             execute.addParameter(f.type().isOptional()?type.annotated(AnnotationSpec.builder(Nullable.class).build()):type,f.name());
@@ -66,13 +84,24 @@ public final class UseCaseGenerator {
             new BehaviorGenerator().addBodyImports(validation,owner,u.javaImports(),unit,project,u.validations().toString());
             files.add(file(read.packageName(),readSpec)); files.add(file(owner.packageName(),validation));
         }
-        for(var f:u.injections()) {
-            bridge.addParameter(raw(f.type(),project,owner),f.name());names.add(f.name());call.add(CodeBlock.of("this.$N",f.name()));
-        }
         var invocation=CodeBlock.of("$T.execute($L)",companion,CodeBlock.join(call,", "));
         if(returns.equals(TypeName.VOID)) execute.addStatement("$L",invocation);
         else execute.addStatement("return $T.requireResult($L, $S)",BehaviorContractException.class,invocation,owner.canonicalName()+".execute");
+        execute.endControlFlow();
         bean.addMethod(execute.build());
+        bean.addType(accessView.build());
+        files.add(file(access.packageName(),accessSpec));
+        if(listener) {
+            var event=raw(u.parameters().getFirst().type(),project,owner);
+            bean.addSuperinterface(org.vernac.runtime.events.EventHandler.class);
+            bean.addMethod(MethodSpec.methodBuilder("listenerId").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(String.class)
+                    .addStatement("return $S",unit.namespace()+"."+u.name()).build());
+            bean.addMethod(MethodSpec.methodBuilder("eventClass").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
+                    .returns(ParameterizedTypeName.get(ClassName.get(Class.class),WildcardTypeName.subtypeOf(DomainEvent.class)))
+                    .addStatement("return $T.class",event).build());
+            bean.addMethod(MethodSpec.methodBuilder("handle").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).addParameter(DomainEvent.class,"event")
+                    .addStatement("execute(($T) event)",event).build());
+        }
         var implementation=TypeSpec.classBuilder(companion).addModifiers(Modifier.FINAL).addAnnotation(NullMarked.class)
                 .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
         if(!u.resultFields().isEmpty()) implementation.addJavadoc("@see $T\n",owner.nestedClass("Result"));

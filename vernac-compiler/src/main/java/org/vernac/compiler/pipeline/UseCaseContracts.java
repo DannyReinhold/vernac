@@ -11,18 +11,22 @@ import org.vernac.language.VernacNames;
 
 /** Resolves usecase contracts before Java generation. No expression-based result inference. */
 final class UseCaseContracts {
-    private static final Set<String> GETTERS=Set.of("getClass","toString","hashCode","notify","notifyAll","wait","clone","finalize");
+    private static final Set<String> GETTERS=Set.of("emit","getClass","toString","hashCode","notify","notifyAll","wait","clone","finalize");
     void validate(UseCaseNode u, FileTypeScope scope, Map<TypeNode,ResolvedType> types,
             List<CompilerDiagnostic> errors, VernacProject project, String namespace) {
+        validate(u,scope,types,errors,project,namespace,false);
+    }
+    void validate(UseCaseNode u, FileTypeScope scope, Map<TypeNode,ResolvedType> types,
+            List<CompilerDiagnostic> errors, VernacProject project, String namespace, boolean listener) {
         if(u.name().equals("Result") && !u.resultFields().isEmpty()) error(errors,u.location(),"Usecase name Result conflicts with its nested Result record.");
         if(u.executeCount()!=1) error(errors,u.location(),"A usecase requires exactly one execute implementation.");
         var arguments=new ArrayList<>(u.parameters()); arguments.addAll(u.injections());
         names(arguments,errors); names(u.resultFields(),errors);
-        for(var f:u.parameters()) { domain(f.type(),scope,types,errors,project); field(f,errors,true); }
+        for(var f:u.parameters()) { if(listener) resolve(f.type(),scope,types,errors); else domain(f.type(),scope,types,errors,project); field(f,errors,true); }
         for(var f:u.resultFields()) { domain(f.type(),scope,types,errors,project); field(f,errors,true); }
         u.resultType().ifPresent(t -> domain(t,scope,types,errors,project));
         for(var f:u.injections()) {
-            field(f,errors,false);
+            field(f,errors,true);
             var t=resolve(f.type(),scope,types,errors);
             if(f.type().isOptional() || !(t instanceof ResolvedType.Declared d)
                     || !Set.of(TypeSymbol.Kind.REPOSITORY,TypeSymbol.Kind.PORT,TypeSymbol.Kind.DOMAIN_SERVICE,TypeSymbol.Kind.USE_CASE).contains(d.symbol().kind()))

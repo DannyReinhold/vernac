@@ -27,6 +27,23 @@ class BehaviorJavaProjectionTest {
         return result.toString();
     }
 
+    @Test void eventAndListenerProjectionMatchesGeneratedAccess() {
+        String source="""
+            namespace model; value Title(String);
+            event Changed(Title) validates { require(!self.title().string().isBlank(), "blank"); };
+            synchronous listener Observe on Changed behavior {
+                execute { System.out.println(event.title()); }
+                private String suffix() { return "!"; }
+            }
+            """;
+        var blocks=project(source);
+        assertEquals(2,blocks.size());
+        String code=blocks.stream().map(b -> java(source,b)).reduce("",String::concat);
+        assertTrue(code.contains("model.domain.access.ChangedRead self"));
+        assertTrue(code.contains("model.adapter.inbound.event.access.ObserveAccess self, model.domain.Changed event"));
+        assertTrue(code.contains("private static java.lang.String suffix()"));
+    }
+
     @Test void serviceProjectionUsesAccessAndSeparateInputViews() {
         String text = """
                 namespace model; value Title(String);
@@ -56,6 +73,7 @@ class BehaviorJavaProjectionTest {
         String implementation=java(source,blocks.getFirst());
         assertTrue(implementation.contains("java.util.Optional<model.domain.TourId> id"));
         assertTrue(implementation.contains("return helper(id);"));
+        assertTrue(implementation.contains("model.usecase.access.EchoAccess self"));
         assertTrue(java(source,blocks.getLast()).contains("model.usecase.access.EchoRead self"));
     }
     @Test void validationFragmentsUseReadSelfAndUtf16Ranges() {

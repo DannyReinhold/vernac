@@ -27,5 +27,5 @@ service Planning uses Policy behavior {
     public Title badResult() { return null; }
 }
 usecase Decorate(Title) returns Title uses Planning behavior {
-    execute { return planning.twice(title); }
+    execute { return self.planning().twice(title); }
 }

@@ -41,6 +41,13 @@ public final class BehaviorJavaProjection {
             if (definition instanceof UseCaseNode usecase) {
                 result.addAll(new UseCaseJavaProjection().build(project,scope,unit,usecase,syntax.usecaseDefinition(),text));
             }
+            if (definition instanceof ListenerNode listener) {
+                result.addAll(new UseCaseJavaProjection().build(project,scope,unit,listener.operation(),
+                        syntax.listenerDefinition().usecaseBehaviorMember(),null,text,".adapter.inbound.event"));
+            }
+            if (definition instanceof EventNode event && syntax.eventDefinition().validationBlock()!=null) {
+                addValidation(result,project,scope,unit,event.name(),List.of(),syntax.eventDefinition().validationBlock(),text);
+            }
             if (definition instanceof ValueObjectNode value) {
                 add(result, project, scope, unit, value.name(), value.methods(), value.javaImports(),
                         syntax.valueDefinition().behaviorBlock(), text);

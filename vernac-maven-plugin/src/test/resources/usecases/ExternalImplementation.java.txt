@@ -2,5 +2,5 @@ package operations;
 import java.util.Optional;
 import operations.domain.*;
 public final class ExternalImplementation {
-    public static Optional<Title> execute(TaskId taskId,Optional<Title> title) { return title.filter(t -> t.string().equals("NULL")).isPresent() ? null : title; }
+    public static Optional<Title> execute(operations.usecase.access.ExternalAccess self, TaskId taskId,Optional<Title> title) { return title.filter(t -> t.string().equals("NULL")).isPresent() ? null : title; }
 }

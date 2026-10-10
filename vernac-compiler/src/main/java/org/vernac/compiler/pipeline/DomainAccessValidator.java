@@ -16,7 +16,7 @@ final class DomainAccessValidator {
         var errors = new ArrayList<CompilerDiagnostic>();
         var signatures = new HashSet<String>(List.of("id()", "validate()", "toString()", "hashCode()", "equals(java.lang.Object)",
                 "getClass()", "notify()", "notifyAll()", "wait()", "wait(long)", "wait(long,int)", "clone()", "finalize()"));
-        if (model.aggregate()) signatures.addAll(List.of("createdAt()", "updatedAt()", "persistenceState()", "pullDomainEvents()", "markAsUpdated()"));
+        if (model.aggregate()) signatures.addAll(List.of("createdAt()", "updatedAt()", "persistenceState()", "markAsUpdated()"));
         if (model.fields().stream().allMatch(f -> types.containsKey(f.type()))) {
             signatures.add("create(" + parameters(model.fields(), types) + ")");
             if (types.containsKey(model.id().type())) {
@@ -29,13 +29,13 @@ final class DomainAccessValidator {
         }
         errors.addAll(MemberNames.duplicates(model.fields(), "field", ""));
         for (var f : model.fields()) {
-            if (!VernacNames.isIdentifier(f.name()) || f.name().startsWith("__") || Set.of("id", "createdAt", "updatedAt", "version", "persistenceState", "domainEvents", "TABLE_NAME", "SCHEMA_DDL").contains(f.name()))
+            if (!VernacNames.isIdentifier(f.name()) || f.name().startsWith("__") || Set.of("id", "createdAt", "updatedAt", "version", "persistenceState", "TABLE_NAME", "SCHEMA_DDL").contains(f.name()))
                 errors.add(CompilerDiagnostic.error(f.location(), "Field name '" + f.name() + "' conflicts with the generated entity API or is not a Java identifier."));
             add(f.name() + "()", f.location(), signatures, errors);
             if (f.isMutable() && types.containsKey(f.type())) add(f.name() + "(" + JavaTypeNames.canonicalName(types.get(f.type())) + ")", f.location(), signatures, errors);
         }
         for (var m : model.methods()) {
-            if (!VernacNames.isIdentifier(m.name()) || m.name().startsWith("__")) errors.add(CompilerDiagnostic.error(m.location(), "Invalid or reserved behavior method name '" + m.name() + "'."));
+            if (m.name().equals("emit") || !VernacNames.isIdentifier(m.name()) || m.name().startsWith("__")) errors.add(CompilerDiagnostic.error(m.location(), "Invalid or reserved behavior method name '" + m.name() + "'."));
             errors.addAll(MemberNames.duplicates(m.parameters(), "parameter", ""));
             for (var p : m.parameters()) if (!VernacNames.isIdentifier(p.name())) errors.add(CompilerDiagnostic.error(p.location(), "Invalid Java parameter name '" + p.name() + "'."));
             if (m.parameters().stream().allMatch(p -> types.containsKey(p.type())) && m.accessModifier().equals("public"))

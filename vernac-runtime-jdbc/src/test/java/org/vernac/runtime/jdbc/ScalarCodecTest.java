@@ -1,3 +1,5 @@
+// Copyright 2026 Danny Reinhold
+// SPDX-License-Identifier: Apache-2.0
 package org.vernac.runtime.jdbc;
 
 import org.junit.jupiter.api.Test;
@@ -9,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ScalarCodecTest {
     @Test void preservesEqualityForSupportedScalarFamilies() {
         List<Object[]> cases=List.of(
+            new Object[]{"EventId",org.vernac.runtime.EventId.create()},
             new Object[]{"BigDecimal",new BigDecimal("120.00")},new Object[]{"BigDecimal",new BigDecimal("1E+9")},
             new Object[]{"BigInteger",new BigInteger("123456789012345678901234567890")},
             new Object[]{"Instant",Instant.parse("1969-12-31T23:59:59.123456789Z")},

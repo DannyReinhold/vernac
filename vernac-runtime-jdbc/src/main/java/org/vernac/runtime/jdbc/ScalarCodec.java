@@ -23,6 +23,7 @@ public final class ScalarCodec {
             case "Currency" -> new Object[]{((Currency)value).getCurrencyCode()};
             case "ZoneId" -> new Object[]{((ZoneId)value).getId()};
             case "Year" -> new Object[]{((Year)value).getValue()};
+            case "EventId" -> new Object[]{((org.vernac.runtime.EventId)value).value()};
             case "Month" -> new Object[]{((Month)value).getValue()};
             case "DayOfWeek" -> new Object[]{((DayOfWeek)value).getValue()};
             case "ZoneOffset" -> new Object[]{((ZoneOffset)value).getTotalSeconds()};
@@ -56,6 +57,7 @@ public final class ScalarCodec {
             case "Currency" -> Currency.getInstance((String)v);
             case "ZoneId" -> ZoneId.of((String)v);
             case "Year" -> Year.of(n(p,0));
+            case "EventId" -> org.vernac.runtime.EventId.of((java.util.UUID)v);
             case "Month" -> Month.of(n(p,0));
             case "DayOfWeek" -> DayOfWeek.of(n(p,0));
             case "ZoneOffset" -> ZoneOffset.ofTotalSeconds(n(p,0));

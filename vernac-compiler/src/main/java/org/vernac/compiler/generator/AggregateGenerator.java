@@ -8,7 +8,6 @@ import org.jspecify.annotations.Nullable;
 import org.vernac.compiler.ast.*;
 import org.vernac.compiler.util.TypeUtils;
 import org.vernac.runtime.AggregateRoot;
-import org.vernac.runtime.DomainEvent;
 import org.vernac.runtime.DomainValidationException;
 
 import javax.lang.model.element.Modifier;
@@ -25,7 +24,6 @@ public class AggregateGenerator {
     }
 
     private static final ClassName AGGREGATE_ROOT_INTERFACE = ClassName.get(AggregateRoot.class);
-    private static final ClassName DOMAIN_EVENT_INTERFACE = ClassName.get(DomainEvent.class);
     private static final ClassName NULLABLE_ANNOTATION = ClassName.get(Nullable.class);
 
     public JavaFile generate(AggregateNode node, Map<String, ValueObjectNode> valueObjects, Map<String, EntityNode> entities, String basePackage, List<String> imports) {
@@ -57,11 +55,6 @@ public class AggregateGenerator {
         }
 
         // 1. Metadaten-Felder
-        TypeName listOfEvents = ParameterizedTypeName.get(ClassName.get(List.class), DOMAIN_EVENT_INTERFACE);
-        classBuilder.addField(FieldSpec.builder(listOfEvents, "domainEvents", Modifier.PRIVATE, Modifier.FINAL, Modifier.TRANSIENT)
-                .initializer("new $T<>()", ArrayList.class)
-                .build());
-
         classBuilder.addField(FieldSpec.builder(Instant.class, "createdAt", Modifier.PRIVATE, Modifier.FINAL).build());
         classBuilder.addField(FieldSpec.builder(Instant.class, "updatedAt", Modifier.PRIVATE).build());
         classBuilder.addField(FieldSpec.builder(org.vernac.runtime.PersistenceState.class, "persistenceState", Modifier.PRIVATE, Modifier.FINAL).build());
@@ -101,9 +94,6 @@ public class AggregateGenerator {
         // 8. fromExternal(...) Factory
         if (project == null) classBuilder.addMethod(buildFromExternalFactory(node, targetPackage, selfType, idType, idFieldName));
 
-        // 9. Event Management
-        classBuilder.addMethod(buildRegisterEventMethod());
-        classBuilder.addMethod(buildPullDomainEventsMethod());
 
         // 10. markAsUpdated & automatische Setter ohne set-Präfix
         boolean hasMutableFields = node.fields().stream().anyMatch(FieldNode::isMutable);
@@ -281,27 +271,6 @@ public class AggregateGenerator {
 
         reconstitute.addStatement("return new $T(" + String.join(", ", passArgs) + ")", selfType);
         return reconstitute.build();
-    }
-
-    private MethodSpec buildRegisterEventMethod() {
-        return MethodSpec.methodBuilder("registerEvent")
-                .addModifiers(Modifier.PROTECTED)
-                .addParameter(DOMAIN_EVENT_INTERFACE, "event")
-                .addStatement("$T.requireNonNull(event, $S)", Objects.class, "event must not be null")
-                .addStatement("this.domainEvents.add(event)")
-                .build();
-    }
-
-    private MethodSpec buildPullDomainEventsMethod() {
-        TypeName listOfEvents = ParameterizedTypeName.get(ClassName.get(List.class), DOMAIN_EVENT_INTERFACE);
-        return MethodSpec.methodBuilder("pullDomainEvents")
-                .addModifiers(Modifier.PUBLIC)
-                .addAnnotation(Override.class)
-                .returns(listOfEvents)
-                .addStatement("$T events = $T.copyOf(this.domainEvents)", listOfEvents, List.class)
-                .addStatement("this.domainEvents.clear()")
-                .addStatement("return events")
-                .build();
     }
 
     private MethodSpec buildMarkAsUpdatedMethod() {

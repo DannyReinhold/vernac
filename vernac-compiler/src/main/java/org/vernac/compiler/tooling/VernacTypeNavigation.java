@@ -47,7 +47,7 @@ public final class VernacTypeNavigation {
 
     private boolean reviewed(TypeSymbol.Kind kind) {
         return switch (kind) {
-            case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, USE_CASE, DOMAIN_SERVICE -> true;
+            case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, USE_CASE, DOMAIN_SERVICE, EVENT, LISTENER -> true;
             default -> false;
         };
     }
@@ -80,6 +80,8 @@ public final class VernacTypeNavigation {
                 name = syntax.aggregateDefinition().name;
                 collection = syntax.aggregateDefinition().collectionDefinition();
             }
+            if (syntax.eventDefinition() != null) name=syntax.eventDefinition().name;
+            if (syntax.listenerDefinition() != null) name=syntax.listenerDefinition().name;
             if (syntax.usecaseDefinition() != null) name=syntax.usecaseDefinition().name;
             if (syntax.domainServiceDefinition() != null) name=syntax.domainServiceDefinition().name;
             if (name == null) continue;
@@ -103,6 +105,15 @@ public final class VernacTypeNavigation {
                         if (!types.equals(key.parameterTypes())) continue;
                         var anchor = syntax.domainServiceDefinition().serviceMethod(m).name;
                         target(source.path(), text, key.name(), anchor.getStart(), anchor.getStop()).ifPresent(candidates::add);
+                    }
+                }
+                if (definition instanceof EventNode event && key.parameterTypes().isEmpty()) {
+                    var parameters=syntax.eventDefinition().parameterList();
+                    if(parameters!=null) for(int f=0;f<event.fields().size();f++) {
+                        if(!event.fields().get(f).name().equals(key.name())) continue;
+                        var field=parameters.parameter(f);
+                        var anchor=field.name==null?field.paramType:field.name;
+                        target(source.path(),text,key.name(),anchor.getStart(),anchor.getStop()).ifPresent(candidates::add);
                     }
                 }
                 if (definition instanceof ValueObjectNode value) {

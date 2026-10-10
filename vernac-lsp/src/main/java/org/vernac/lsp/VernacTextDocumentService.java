@@ -26,7 +26,7 @@ public class VernacTextDocumentService implements TextDocumentService {
     private static final Set<String> DSL_KEYWORDS = Set.of(
             "where", "and", "or", "not", "order", "asc", "desc", "is", "absent", "present", "like", "contains", "starts", "ends", "with",
             "namespace", "package", "import", "as", "id",
-            "aggregate", "value", "entity", "event", "outbox", "memory", "service", "external", "schema",
+            "aggregate", "value", "entity", "event", "recorded", "synchronous", "deferred", "service", "external", "schema",
             "repository", "for", "table", "find", "custom", "validates", "require",
             "read", "modify", "behavior", "java", "imports", "implemented", "by", "mut", "invariant", "mapping", "list", "set",
             "port", "adapter", "rest", "on", "throw", "throws",
@@ -225,8 +225,8 @@ public class VernacTextDocumentService implements TextDocumentService {
             return CompletableFuture.completedFuture(Either.forLeft(items));
         }
 
-        // Context A2: After "listener" -> Only declared events
-        if (prefix.matches("(?s).*\\blistener\\s+[\\p{L}\\p{N}\\p{M}_$]*$")) {
+        // Context A2: After "listener Name on" -> Only declared events
+        if (prefix.matches("(?s).*\\blistener\\s+[\\p{L}\\p{N}\\p{M}_$]+\\s+on\\s+[\\p{L}\\p{N}\\p{M}_$]*$")) {
             addEventCompletions(items, content);
             return CompletableFuture.completedFuture(Either.forLeft(items));
         }
@@ -304,9 +304,8 @@ public class VernacTextDocumentService implements TextDocumentService {
         addKeywordCompletion(items, "value", "value ${1:Name}(${2:Type} value);");
         addKeywordCompletion(items, "value (enum)", "value ${1:Name} = ${2:CONST1} | ${3:CONST2};");
         addKeywordCompletion(items, "entity", "entity ${1:Name}[${2:IdType} id](\n    $0\n);");
-        addKeywordCompletion(items, "event (outbox)", "outbox event ${1:Name}(${2:Type} value);");
-        addKeywordCompletion(items, "event (memory)", "memory event ${1:Name}(${2:Type} value);");
-        addKeywordCompletion(items, "listener", "listener ${1:EventName} {\n    $0\n}");
+        addKeywordCompletion(items, "event", "event ${1:Name}(${2:Type} value);");
+        addKeywordCompletion(items, "listener", "synchronous listener ${1:Name} on ${2:EventType} behavior {\n    execute { $0 }\n}");
         addKeywordCompletion(items, "port", "port ${1:Name} {\n    $0\n}");
         addKeywordCompletion(items, "repository", "repository ${1:Name} for ${2:Aggregate} {\n    table: \"${3:table_name}\";\n    $0\n};");
         addKeywordCompletion(items, "id", "id ${1:Name}Id;");
@@ -352,7 +351,7 @@ public class VernacTextDocumentService implements TextDocumentService {
     // ==========================================
 
     private void addEventCompletions(List<CompletionItem> items, String content) {
-        Pattern pattern = Pattern.compile("\\b(?:outbox\\s+|memory\\s+)?event\\s+(\\p{javaJavaIdentifierStart}\\p{javaJavaIdentifierPart}*)");
+        Pattern pattern = Pattern.compile("\\b(?:recorded\\s+)?event\\s+(\\p{javaJavaIdentifierStart}\\p{javaJavaIdentifierPart}*)");
         Matcher matcher = pattern.matcher(content);
 
         while (matcher.find()) {

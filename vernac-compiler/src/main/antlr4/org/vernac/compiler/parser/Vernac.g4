@@ -79,21 +79,11 @@ validationStatement
     ;
 
 // ==========================================
-// 2. Events (outbox | memory | default)
+// 2. Domain events
 // ==========================================
 eventDefinition
-    : (dispatchKind=eventDispatchKind)? 'event' name=typeName '(' parameterList? ')'
-      ( '{' eventMember* '}' )?
-      ';'?
-    ;
-
-eventDispatchKind
-    : 'outbox'
-    | 'memory'
-    ;
-
-eventMember
-    : packageDeclarationStatement
+    : recorded='recorded'? 'event' name=typeName '(' parameterList? ')'
+      ('validates' validationBlock)? ';'?
     ;
 
 // ==========================================
@@ -324,16 +314,9 @@ serviceMethod
 // 8. Event Listeners
 // ==========================================
 listenerDefinition
-    : 'listener' eventName=typeName '{'
-        listenerMember*
-      '}'
-      ';'?
-    ;
-
-listenerMember
-    : packageDeclarationStatement
-    | useDependencyStatement
-    | rawJavaStatement
+    : deliveryMode=('synchronous' | 'deferred') 'listener' name=typeName 'on' eventType=type
+      ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
+      'behavior' '{' javaImports? usecaseBehaviorMember* '}' ';'?
     ;
 
 // ==========================================
@@ -389,12 +372,15 @@ qualifiedNameSegment
     | 'internal'
     | 'invariant'
     | 'listener'
+    | 'recorded'
+    | 'synchronous'
+    | 'deferred'
+    | 'on'
     | 'load'
     | 'mapping'
     | 'memory'
     | 'mut'
     | 'namespace'
-    | 'on'
     | 'outbox'
     | 'package'
     | 'port'

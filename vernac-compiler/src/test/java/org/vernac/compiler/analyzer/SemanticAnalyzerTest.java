@@ -103,7 +103,7 @@ class SemanticAnalyzerTest {
 
         assertThatThrownBy(() -> compiler.compileSource(dsl))
                 .isInstanceOf(SemanticValidationException.class)
-                .hasMessageContaining("Domain Event 'SomethingHappened' cannot have mutable field 'status'");
+                .hasMessageContaining("Invalid, mutable or reserved event field: status");
     }
 
     @Test
@@ -613,13 +613,12 @@ class SemanticAnalyzerTest {
             String dsl = """
                     namespace com.example.energy;
                     
-                    listener UnknownEvent {
-                    }
+                    synchronous listener Alert on UnknownEvent behavior { execute {} }
                     """;
 
             assertThatThrownBy(() -> compiler.compileSource(dsl))
                     .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Listener target 'UnknownEvent' must be an existing event declaration");
+                    .hasMessageContaining("Listener on requires a non-optional Event type");
         }
 
         @Test
@@ -628,17 +627,14 @@ class SemanticAnalyzerTest {
             String dsl = """
                     namespace com.example.energy;
                     
-                    event OrderShipped(String orderId);
-                    
-                    listener OrderShipped {
-                        use NotificationPort port1;
-                        use NotificationPort port2;
-                    }
+                    event OrderShipped();
+                    service NotificationPort behavior { public void send() {} }
+                    synchronous listener Alert on OrderShipped uses NotificationPort port1, NotificationPort port1 behavior { execute {} }
                     """;
 
             assertThatThrownBy(() -> compiler.compileSource(dsl))
                     .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Duplicate dependency type 'NotificationPort' in listener 'OrderShippedListener'");
+                    .hasMessageContaining("port1");
         }
 
         @Test
@@ -648,11 +644,8 @@ class SemanticAnalyzerTest {
                     namespace com.example.energy;
                     
                     port NotificationPort {}
-                    event OrderShipped(String orderId);
-                    
-                    listener OrderShipped {
-                        use NotificationPort;
-                    }
+                    event OrderShipped();
+                    synchronous listener Alert on OrderShipped behavior { execute {} }
                     """;
 
             assertThat(compiler.compileSource(dsl)).isNotNull();

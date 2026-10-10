@@ -97,9 +97,9 @@ class VernacProjectCompilationTest {
 
     @Test
     void refusesPartialGenerationOfUnreviewedDeclarationKinds() throws Exception {
-        source("org.model", "types", "event Item(String name);");
+        source("org.model", "types", "port Item {}");
         var error = assertThrows(SemanticValidationException.class, () -> compiler.compileProject(root));
-        assertTrue(error.getMessage().contains("Project generation for EVENT"));
+        assertTrue(error.getMessage().contains("Project generation for PORT"));
     }
 
     @Test

@@ -30,7 +30,7 @@ class UseCaseGeneratorTest {
             behavior { execute implemented by custom.OuterImplementation; }
             """);
         String code=result.generatedFiles().stream().map(Object::toString).reduce("",String::concat);
-        assertThat(code).contains("private final Inner inner", "custom.OuterImplementation.execute(tourId, inner)", "requireResult");
+        assertThat(code).contains("private final Inner inner", "custom.OuterImplementation.execute(self, tourId)", "requireResult");
     }
     @Test void rejectsInvalidContracts() {
         String prefix="namespace demo; id TourId; value Title(String); ";

@@ -13,8 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public final class RepositoryProbe {
     private static JdbcTourRepository repository(DataSource source) {
-        return new JdbcTourRepository(new NamedParameterJdbcTemplate(source),
-                (type, id, events) -> assertTrue(events.isEmpty()));
+        return new JdbcTourRepository(new NamedParameterJdbcTemplate(source));
     }
 
     public static UUID seed(DataSource source) {

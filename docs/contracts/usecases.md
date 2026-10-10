@@ -15,9 +15,9 @@ validates {
 }
 behavior {
     execute {
-        var tour = tours.byId(tourId);
+        var tour = self.tours().byId(tourId);
         tour.rename(title);
-        tours.save(tour);
+        self.tours().save(tour);
         return resultFor(tour.id(), tour.title());
     }
     private Result resultFor(TourId id, Title title) {
@@ -85,8 +85,9 @@ an API boundary, not a Java purity checker or security sandbox.
 
 The Spring bean delegates through a generated top-level implementation class.
 Inline bodies and private static helpers live there, without access to bean fields.
-Parameters and declared dependencies are ordinary Java parameters of its execute
-method. Helpers receive any required values/dependencies explicitly.
+The first implementation argument is self of type `<Usecase>Access`, followed by
+inputs in declaration order. Dependencies are accessed through self getters; self
+also exposes emit. Helpers receive required values or Access explicitly.
 
 Use the existing `java imports { java.util.Locale; }` block first inside behavior.
 Imports may not shadow visible Vernac types, built-ins or the generated Result.
@@ -102,8 +103,7 @@ behavior {
 ```
 
 The external class is not required to be a Spring bean. It supplies a public static
-execute method. Arguments are inputs in declaration order, then dependencies in
-uses order. Optional inputs are Optional<T>. Its result matches the declared Java
+execute method. Arguments are self Access followed by inputs in declaration order. Optional inputs are Optional<T>. Its result matches the declared Java
 result exactly. The generated bridge remains present for external implementations.
 A qualified implementation name is used directly. An unqualified name resolves to
 an explicit Java import, otherwise the usecase's Java package. Java compilation
@@ -130,6 +130,7 @@ restored on rollback. Cyclic Spring dependency graphs are not supported magicall
 
 * `<namespace>.usecase.<Name>`: public bean and optional nested Result.
 * `<namespace>.usecase.__VernacBehavior_<Name>`: internal implementation.
+* `<namespace>.usecase.access.<Name>Access`: dependencies and emit for execution.
 * `<namespace>.usecase.access.<Name>Read`: input view when validations exist.
 * `<namespace>.usecase.__VernacValidation_<Name>`: validation delegate when needed.
 
@@ -137,8 +138,8 @@ The editor recognizes the new keywords and projects execute/private bodies and
 validation expressions into Java contexts. Java usecase type/execute navigation
 points to the declaration. Result-component navigation is not added in this increment.
 
-Ports and events retain their separately deferred project-generation
-status. Domain services are supported with their own reviewed contract. Declaring a usecase dependency does not silently migrate those generators.
+Ports retain their separately deferred project-generation status. Events and
+synchronous listeners have a [reviewed contract](events.md). Domain services are supported with their own reviewed contract. Declaring a usecase dependency does not silently migrate those generators.
 Repository and usecase dependencies work with the reviewed project pipeline.
 
 ## Verification
@@ -149,6 +150,6 @@ with a counting transaction manager to verify shared REQUIRED transactions and
 rollback on validation/result failures. It needs no PostgreSQL server. Existing
 persistence tests remain responsible for database transaction behavior.
 
-Implementation dependency delivery currently differs: usecases receive trailing
-arguments, while domain services receive self Access getters. Unification is tracked
-in the consolidation roadmap.
+Usecases and services now both expose dependencies through self Access. Usecase
+execution additionally establishes the scoped event context inside its REQUIRED
+transaction. Read views and validation cannot publish events.
