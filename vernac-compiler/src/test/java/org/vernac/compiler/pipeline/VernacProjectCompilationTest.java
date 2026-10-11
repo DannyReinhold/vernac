@@ -96,10 +96,10 @@ class VernacProjectCompilationTest {
     }
 
     @Test
-    void refusesPartialGenerationOfUnreviewedDeclarationKinds() throws Exception {
+    void rejectsEmptyPortBeforeGeneration() throws Exception {
         source("org.model", "types", "port Item {}");
         var error = assertThrows(SemanticValidationException.class, () -> compiler.compileProject(root));
-        assertTrue(error.getMessage().contains("Project generation for PORT"));
+        assertTrue(error.getMessage().contains("requires at least one operation"));
     }
 
     @Test

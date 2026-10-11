@@ -1,0 +1,25 @@
+namespace dtodemo;
+port Remote { void ping(); }
+adapter Client implements Remote {
+    schema Envelope naming snake_case(
+        String requestId,
+        int count,
+        list<Item> items,
+        BigDecimal amount,
+        Instant timestamp,
+        String? comment,
+        String? reason absent as null,
+        String URLValue named "url"
+    );
+    behavior { java imports { dtodemo.adapter.outbound.dto.ClientDtos.Empty; } public void ping() { Empty.of(); } }
+    schema Item(String productCode, list<String> labels);
+    schema Update(patch String name, patch String? comment, patch list<Item>? items);
+    schema Matrices(list<list<String>> values);
+    schema OptionalNumber(int? count);
+    schema Floating(double value);
+    schema Empty();
+}
+adapter OtherClient implements Remote {
+    behavior { public void ping() {} }
+    schema Item(int count);
+}

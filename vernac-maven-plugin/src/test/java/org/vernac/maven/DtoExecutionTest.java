@@ -1,0 +1,52 @@
+// Copyright 2026 Danny Reinhold
+// SPDX-License-Identifier: Apache-2.0
+package org.vernac.maven;
+import java.nio.file.*;
+import java.nio.charset.StandardCharsets;
+import java.net.URLClassLoader;
+import java.util.*;
+import javax.tools.*;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.io.TempDir;
+import org.vernac.compiler.pipeline.VernacCompiler;
+import static org.junit.jupiter.api.Assertions.*;
+
+class DtoExecutionTest {
+    @TempDir Path directory;
+    private Path model() throws Exception {
+        Path root=Files.createDirectories(directory.resolve("model"));
+        Files.createDirectories(root.resolve("dtodemo"));
+        Files.writeString(root.resolve("dtodemo/model.vernac"),resource("model.vernac"));
+        return root;
+    }
+    @Test void generatedDtosEnforceJsonAndPatchContracts() throws Exception {
+        try(var code=compile(model())) {
+            try { code.loadClass("dtodemo.Probe").getMethod("run").invoke(null); }
+            catch(java.lang.reflect.InvocationTargetException ex) { throw new AssertionError(ex.getCause()); }
+        }
+    }
+    private URLClassLoader compile(Path model) throws Exception {
+        Path sources = Files.createDirectories(directory.resolve("java"));
+        Path classes = Files.createDirectories(directory.resolve("classes"));
+        new VernacCompiler().compileProject(model).writeTo(sources);
+        Files.createDirectories(sources.resolve("dtodemo"));
+        Files.writeString(sources.resolve("dtodemo/Probe.java"),resource("Probe.java.txt"));
+        var compiler = Objects.requireNonNull(ToolProvider.getSystemJavaCompiler(), "A JDK is required");
+        var diagnostics = new DiagnosticCollector<JavaFileObject>();
+        try (var manager = compiler.getStandardFileManager(diagnostics, null, StandardCharsets.UTF_8);
+             var paths = Files.walk(sources)) {
+            var files = paths.filter(path -> path.toString().endsWith(".java")).toList();
+            var options = List.of("--release", "21", "-encoding", "UTF-8", "-proc:none",
+                    "-classpath", System.getProperty("java.class.path"), "-d", classes.toString());
+            assertTrue(compiler.getTask(null, manager, diagnostics, options, null,
+                    manager.getJavaFileObjectsFromPaths(files)).call(), () -> diagnostics.getDiagnostics().toString());
+        }
+        return new URLClassLoader(new java.net.URL[]{classes.toUri().toURL()}, getClass().getClassLoader());
+    }
+
+    private static String resource(String name) throws Exception {
+        try(var stream=DtoExecutionTest.class.getResourceAsStream("/dtos/"+name)) {
+            return new String(Objects.requireNonNull(stream).readAllBytes(),StandardCharsets.UTF_8);
+        }
+    }
+}

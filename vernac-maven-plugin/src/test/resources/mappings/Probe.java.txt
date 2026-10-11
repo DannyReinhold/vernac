@@ -1,0 +1,45 @@
+package mapdemo;
+import java.util.*;
+import mapdemo.domain.*;
+import mapdemo.adapter.outbound.dto.ClientDtos.*;
+import mapdemo.adapter.outbound.mapping.ClientMappings;
+import org.vernac.runtime.ports.PatchField;
+import org.vernac.runtime.json.MappingContractException;
+import org.vernac.runtime.DomainValidationException;
+public final class Probe {
+    public static void run() {
+        UUID id=UUID.randomUUID();
+        Payload input=Payload.of("Box",List.of(Row.of("A",2),Row.of("A",2)),null,id);
+        var model=ClientMappings.toPackage(input);
+        check(model.title().equals(Title.of("Box")),"SV wrap");
+        check(model.productId().value().equals(id),"ID wrap");
+        check(model.items().size()==2 && model.items().get(0).quantity().intValue()==2,"element mapping, order, duplicates");
+        check(model.note().isEmpty(),"optional absence");
+        check(ClientMappings.toPayload(model).equals(input),"domain and DTO roundtrip");
+        check(ClientMappings.toPackage(Payload.of("Box",List.of(),"note",id)).note().orElseThrow().equals(Title.of("note")),"optional set conversion");
+        check(ClientMappings.nested(WithNested.of(null)).text().isEmpty(),"absent ancestor lifted");
+        check(ClientMappings.nested(WithNested.of(Row.of("X",1))).text().orElseThrow().equals("X"),"present nested path");
+        for(var state:List.of(PatchField.<String>unchanged(),PatchField.<String>clear(),PatchField.set("  value  "))) {
+            var converted=ClientMappings.change(Change.of(state,PatchField.unchanged()));
+            check(converted.text().equals(state.map(String::strip)),"patch intent");
+            check(converted.rows().isUnchanged(),"unchanged collection");
+        }
+        check(ClientMappings.change(Change.of(PatchField.unchanged(),PatchField.clear())).rows().isClear(),"clear collection retained");
+        var rows=ClientMappings.change(Change.of(PatchField.unchanged(),PatchField.set(List.of(Row.of("x",3))))).rows().value().orElseThrow();
+        check(rows.equals(List.of(RowCopy.of("x",3))),"patch collection element mapping");
+        check(ClientMappings.defaults(Row.of("x",1)).note().isEmpty() && ClientMappings.defaults(Row.of("x",1)).update().isUnchanged(),"omitted optional and patch targets");
+        check(ClientMappings.manualRow(Item.of(Title.of("x"),Quantity.of(2))).equals(Row.of("x",2)),"inline DTO import");
+        check(ClientMappings.normalized("hello").equals(Title.of("HELLO")),"inline Java imports");
+        check(ClientMappings.external("hello").equals(Title.of("hello!")),"implemented by");
+        try { ClientMappings.toPackage(Payload.of("Box",List.of(Row.of("",2)),null,id)); throw new AssertionError("invalid domain accepted"); }
+        catch(MappingContractException ex) {
+            check(ex.path().equals("$.items[0].title"),"caller path");
+            Throwable cause=ex;boolean index=false,validation=false;
+            while(cause!=null) {if(cause instanceof MappingContractException m && m.path().equals("$.items[0].title"))index=true;if(cause instanceof DomainValidationException)validation=true;cause=cause.getCause();}
+            check(index && validation,"element index and domain cause retained");
+        }
+        try {ClientMappings.nullResult("x");throw new AssertionError("null result accepted");}catch(MappingContractException expected){}
+        try {ClientMappings.broken("x");throw new AssertionError("programming error hidden");}catch(IllegalStateException expected){}
+    }
+    private static void check(boolean ok,String message){if(!ok)throw new AssertionError(message);}
+}

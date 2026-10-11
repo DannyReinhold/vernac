@@ -47,7 +47,8 @@ By default, generated classes are placed into DDD-oriented subpackages based on 
 | `repository` (Interface)                      | `<basePackage>.domain`                               | `com.example.shop.domain`                                 |
 | `repository` (JDBC Implementation)            | `<basePackage>.adapter.db`                           | `com.example.shop.adapter.db`                             |
 | `port` (Interface)                            | `<basePackage>.domain`                               | `com.example.shop.domain`                                 |
-| `port` (REST Adapter, Schemas, Delegates)     | `<basePackage>.infrastructure.outbound.<portname>`   | `com.example.shop.infrastructure.outbound.paymentgateway` |
+| `port` | `<namespace>.domain` | `com.example.shop.domain` |
+| `adapter` | `<namespace>.adapter.outbound` | `com.example.shop.adapter.outbound` |
 | `usecase`                                     | `<basePackage>.usecase`                              | `com.example.shop.usecase`                                |
 | `service`                                     | `<basePackage>.domain`                               | `com.example.shop.domain`                                 |
 | `listener`                                    | `<basePackage>.domain`                               | `com.example.shop.domain`                                 |
@@ -404,58 +405,49 @@ repository for Order {
 
 ---
 
-## 9. Ports and Adapters (`port`)
+## 9. Ports and Adapters (port, adapter)
 
-Ports define outbound boundaries (Hexagonal Architecture / Clean Architecture). For an in-depth guide on mapping rules,
-conventions, and code generation details, see [Outbound Port Mapping Documentation](outbound-port-mapping.md).
-
-### 9.1 REST Adapters and Schemas
-
-```vernac
-port WeatherProvider {
-    schema WeatherApiResponse {
-        String description;
-        BigDecimal tempCelsius;
-    }
-
-    Optional<Temperature> getCurrentTemperature(CityName city) {
-        adapter rest {
-            GET "/api/v1/weather";
-            on 404 return Optional.empty();
-            on 5xx throw ServiceUnavailableException;
-        }
-        mapping {
-            response.tempCelsius -> Temperature.celsius;
-        }
-    }
-}
-```
-
-### Generated Artifacts:
-
-- **Port Interface**: Domain interface with method signature.
-- **Schema DTO**: DTO class suitable for Jackson JSON mapping.
-- **REST Adapter** (`RestWeatherProviderGetCurrentTemperatureAdapter`):
-    - Spring `@Component` using `org.springframework.web.client.RestClient`.
-    - Base URL injected via Spring `@Value("${vernac.outbound.weather-provider.base-url:http://localhost:8080}")`.
-    - Automatic query parameter interpolation: Method parameters like `CityName city` are automatically added as query
-      parameters (e.g. `?city={city}`), unwrapping typed IDs via `.value()`.
-    - Status code matching: `on 404 return Optional.empty();`, `on 5xx throw ...`.
-    - Catch-all fallback error handling on status errors.
-    - Response mapping via `mapping { ... }`: Instantiates domain types via `.of(...)` (Value Objects) or
-      `.fromExternal(...)` (Entities).
-
-### 9.2 Custom Adapters
+A port declares a domain interface. A separate adapter implements all operations:
 
 ```vernac
 port InvoiceGenerator {
-    PdfDocument generate(InvoiceData data) {
-        adapter custom InvoiceGeneratorDelegate;
+    PdfDocument generate(InvoiceData);
+}
+
+adapter LocalInvoiceGenerator implements InvoiceGenerator {
+    behavior {
+        public PdfDocument generate(InvoiceData)
+            implemented by com.example.invoice.InvoiceBehavior;
     }
 }
 ```
 
-- Generates interface `InvoiceGeneratorDelegate` for you to implement in your infrastructure package.
+The payload types must be declared Vernac values. Port signatures also accept IDs,
+enums and their collections, optional values and void results. Raw Java payloads,
+entities and aggregates are rejected.
+
+The port is generated in <namespace>.domain; the Spring adapter in
+<namespace>.adapter.outbound. Both inline and external static implementations
+receive the same self access view. Domain dependencies use uses, technical Java
+dependencies use java uses inside behavior. Each call has an immutable invocation
+context. No transaction or retry is automatically introduced.
+
+See the [working tutorial](tutorials/outbound-ports.md) and
+[target contract](contracts/ports-adapters-and-acl.md). Adapter-local `schema`
+declarations generate records in `<namespace>.adapter.outbound.dto.<Adapter>Dtos`.
+Supported forms include `list<T>`, ordinary optional fields, `naming snake_case`,
+`named "wire-name"`, `absent as null` and explicit `patch` fields. Applications add
+`vernac-runtime-json` for strict Jackson codecs. See the [DTO tutorial](tutorials/adapter-dtos.md)
+and [exact contract](contracts/adapter-dtos.md).
+
+Adapter-local `mapping name: Target <- Source { field <- source.path; }` declarations
+support exact single-value wrapping/unwrapping, explicit `using` mappings and
+collection conversion. An alternative `java { ... }` body (with optional `java imports`)
+or `implemented by` class handles deliberate custom conversions. See the
+[mapping tutorial](tutorials/adapter-mappings.md) and [contract](contracts/adapter-mappings.md).
+
+REST and error translation remain the next slice; the former nested per-method
+adapter syntax is no longer supported.
 
 ---
 

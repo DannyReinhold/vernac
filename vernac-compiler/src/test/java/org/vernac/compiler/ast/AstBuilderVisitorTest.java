@@ -383,119 +383,33 @@ class AstBuilderVisitorTest {
     }
 
     @Nested
-    @DisplayName("5. Ports (Outbound Adapters & Mappings)")
+    @DisplayName("5. Ports and separate adapters")
     class PortTests {
-
-        @Test
-        @DisplayName("Parst Port mit Schema, REST Adapter, Config, Error Handling und Mapping")
-        void shouldParsePortWithRestAdapterAndMapping() {
-            String src = """
-                    namespace com.example.domain;
-                    
-                    port HolidayCalendarProvider {
-                    
-                        schema HolidayResponseDto {
-                            LocalDate date;
-                            String name;
-                        }
-                    
-                        Optional<HolidayCalendar> loadCalendar(CountryCode country, Year year) throws ServiceUnavailableException {
-                            adapter rest {
-                                GET "/api/v1/holidays/{country}/{year}";
-                                accept: "application/json";
-                    
-                                on 404 return Optional.empty();
-                                on 401 return HolidayCalendarAccessNotAllowed.of(year, country);
-                                on 5xx throw ExternalServiceException;
-                            }
-                            mapping {
-                                response.body[*].date -> HolidayCalendar.holidays;
-                                country -> HolidayCalendar.country;
-                                year -> HolidayCalendar.year;
-                            }
-                        }
-                    }
-                    """;
-
-            CompilationUnitNode cu = parse(src);
-            assertThat(cu.ports()).hasSize(1);
-
-            PortNode port = cu.ports().getFirst();
-            assertThat(port.name()).isEqualTo("HolidayCalendarProvider");
-
-            assertThat(port.schemas()).hasSize(1);
-            SchemaNode schema = port.schemas().getFirst();
-            assertThat(schema.name()).isEqualTo("HolidayResponseDto");
-            assertThat(schema.fields()).hasSize(2);
-            assertThat(schema.fields().getFirst().type().name()).isEqualTo("LocalDate");
-            assertThat(schema.fields().getFirst().name()).isEqualTo("date");
-
-            assertThat(port.methods()).hasSize(1);
-            PortMethodNode method = port.methods().getFirst();
-            assertThat(method.name()).isEqualTo("loadCalendar");
-            assertThat(method.returnType().name()).isEqualTo("Optional");
-            assertThat(method.parameters()).hasSize(2);
-            assertThat(method.thrownExceptions()).contains("ServiceUnavailableException");
-
-            assertThat(method.adapter()).isInstanceOf(RestAdapterNode.class);
-            RestAdapterNode restAdapter = (RestAdapterNode) method.adapter();
-
-            assertThat(restAdapter.configs()).hasSize(2);
-            assertThat(restAdapter.configs().get(0).key()).isEqualTo("GET");
-            assertThat(restAdapter.configs().get(0).value()).isEqualTo("/api/v1/holidays/{country}/{year}");
-            assertThat(restAdapter.configs().get(1).key()).isEqualTo("accept");
-            assertThat(restAdapter.configs().get(1).value()).isEqualTo("application/json");
-
-            assertThat(restAdapter.errorRules()).hasSize(3);
-            assertThat(restAdapter.errorRules().get(0).statusCode()).isEqualTo("404");
-            assertThat(restAdapter.errorRules().get(0).returnExpression()).contains("Optional.empty()");
-            assertThat(restAdapter.errorRules().get(2).statusCode()).isEqualTo("5xx");
-            assertThat(restAdapter.errorRules().get(2).throwExceptionType()).contains("ExternalServiceException");
-
-            assertThat(method.mapping()).isPresent();
-            MappingBlockNode mapping = method.mapping().get();
-            assertThat(mapping.statements()).hasSize(3);
-            assertThat(mapping.statements().get(0).sourcePath()).isEqualTo("response.body[*].date");
-            assertThat(mapping.statements().get(0).targetPath()).isEqualTo("HolidayCalendar.holidays");
-            assertThat(mapping.statements().get(0).direction()).isEqualTo("->");
-        }
-
-        @Test
-        @DisplayName("Parst Port mit Custom Adaptern (Delegate und Inline Java)")
-        void shouldParsePortWithCustomAdapters() {
-            String src = """
-                    namespace com.example.domain;
-                    
-                    port InvoiceGenerator {
-                        PdfDocument generate(InvoiceData data) {
-                            adapter custom InvoiceGeneratorDelegate;
-                        }
-                    
-                        LegacyId syncCustomer(CustomerId id) {
-                            adapter custom {
-                                return LegacyId.of(id.value());
-                            }
-                        }
-                    }
-                    """;
-
-            CompilationUnitNode cu = parse(src);
-            PortNode port = cu.ports().getFirst();
+        @Test void parsesDomainPortSignatures() {
+            var unit=parse("namespace example; port Archive { Text? read(Text?); void store(Text); }");
+            var port=unit.ports().getFirst();
             assertThat(port.methods()).hasSize(2);
-
-            // 1. Delegate Custom Adapter
-            PortMethodNode delegateMethod = port.methods().get(0);
-            assertThat(delegateMethod.adapter()).isInstanceOf(CustomAdapterNode.class);
-            CustomAdapterNode delegateAdapter = (CustomAdapterNode) delegateMethod.adapter();
-            assertThat(delegateAdapter.delegateName()).contains("InvoiceGeneratorDelegate");
-            assertThat(delegateAdapter.inlineCode()).isEmpty();
-
-            // 2. Inline Custom Adapter
-            PortMethodNode inlineMethod = port.methods().get(1);
-            assertThat(inlineMethod.adapter()).isInstanceOf(CustomAdapterNode.class);
-            CustomAdapterNode inlineAdapter = (CustomAdapterNode) inlineMethod.adapter();
-            assertThat(inlineAdapter.delegateName()).isEmpty();
-            assertThat(inlineAdapter.inlineCode().get().trim()).contains("return LegacyId.of(id.value());");
+            assertThat(port.methods().getFirst().returnType().isOptional()).isTrue();
+            assertThat(port.methods().getFirst().parameters().getFirst().name()).isEqualTo("text");
+        }
+        @Test void parsesInlineAndExternalAdapterBehavior() {
+            var unit=parse("""
+                namespace example;
+                adapter LocalArchive implements Archive uses Policy {
+                    behavior {
+                        java imports { java.util.Locale; }
+                        java uses { java.lang.StringBuilder buffer; }
+                        public Text read(Text) implemented by example.External;
+                        public void store(Text) { self.buffer().append(text.string()); }
+                    }
+                }
+                """);
+            var adapter=(OutboundAdapterNode)unit.definitions().getFirst();
+            assertThat(adapter.portType().name()).isEqualTo("Archive");
+            assertThat(adapter.dependencies().getFirst().name()).isEqualTo("policy");
+            assertThat(adapter.javaDependencies().getFirst().name()).isEqualTo("buffer");
+            assertThat(adapter.methods().getFirst().method().implementation()).contains("example.External");
+            assertThat(adapter.methods().get(1).method().bodyCode()).contains("self.buffer()");
         }
     }
 

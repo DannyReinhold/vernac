@@ -11,7 +11,7 @@ public record TypeSymbol(TypeIdentity identity, Kind kind, Path sourceFile,
                          SourceLocation location) {
     public enum Kind {
         ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE,
-        EVENT, REPOSITORY, PORT, USE_CASE, DOMAIN_SERVICE, LISTENER
+        EVENT, REPOSITORY, PORT, OUTBOUND_ADAPTER, USE_CASE, DOMAIN_SERVICE, LISTENER
     }
 
     public TypeSymbol {

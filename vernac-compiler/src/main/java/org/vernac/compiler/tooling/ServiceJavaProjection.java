@@ -13,9 +13,13 @@ import org.vernac.compiler.tooling.BehaviorJavaProjection.*;
 final class ServiceJavaProjection {
     List<Block> build(VernacProject project, FileTypeScope scope, CompilationUnitNode unit,
             DomainServiceNode service, VernacParser.DomainServiceDefinitionContext syntax, String text) {
+        return build(project,scope,unit,service,syntax.serviceMethod(),text,".domain");
+    }
+    List<Block> build(VernacProject project, FileTypeScope scope, CompilationUnitNode unit,
+            DomainServiceNode service, List<VernacParser.ServiceMethodContext> syntax, String text, String suffix) {
         try {
             var helper = new UseCaseJavaProjection();
-            String pkg = unit.namespace() + ".domain", access = pkg + ".access." + service.name() + "Access";
+            String pkg = unit.namespace() + suffix, access = pkg + ".access." + service.name() + "Access";
             var imports = new TreeMap<>(BehaviorImports.visible(project, scope));
             service.javaImports().forEach(i -> imports.put(i.target().substring(i.target().lastIndexOf('.') + 1), i.target()));
             var header = new StringBuilder("package " + pkg + ";\n");
@@ -24,7 +28,7 @@ final class ServiceJavaProjection {
             List<Block> blocks = new ArrayList<>();
             List<Fragment> bodies = new ArrayList<>();
             for (int i = 0; i < service.methods().size(); i++) {
-                var operation = service.methods().get(i); var method = operation.method(); var node = syntax.serviceMethod(i);
+                var operation = service.methods().get(i); var method = operation.method(); var node = syntax.get(i);
                 if (node.rawJavaBlock() != null) {
                     List<String> parameters = new ArrayList<>();
                     if (method.accessModifier().equals("public")) parameters.add(access + " self");

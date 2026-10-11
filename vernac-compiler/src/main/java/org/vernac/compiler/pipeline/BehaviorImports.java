@@ -102,14 +102,8 @@ public final class BehaviorImports {
                 result.add(ns + "." + repository.name());
                 result.add(PackageResolver.resolveDomainPackage(ns, repository.customPackage()) + "." + repository.name());
                 result.add(PackageResolver.resolveAdapterPackage(ns, repository.customPackage()) + ".Jdbc" + repository.name());
-            } else if (definition instanceof PortNode port) {
-                for (var method : port.methods()) if (method.adapter() != null) {
-                    String pkg = PackageResolver.resolveOutboundAdapterPackage(ns, port.name(), method.adapter().customPackage());
-                    String suffix = Character.toUpperCase(method.name().charAt(0)) + method.name().substring(1);
-                    if (method.adapter() instanceof RestAdapterNode) result.add(pkg + ".Rest" + port.name() + suffix + "Adapter");
-                    if (method.adapter() instanceof CustomAdapterNode custom)
-                        result.add(pkg + "." + custom.delegateName().orElse(port.name() + suffix + "Delegate"));
-                }
+            } else if (definition instanceof OutboundAdapterNode adapter) {
+                result.add(ns + ".adapter.outbound." + adapter.name());
             }
         }
         return result;

@@ -1,5 +1,11 @@
 # Outbound Port Mapping Rules in Vernac
 
+> Historical design only: the experimental nested adapter syntax below has been
+> removed. See the [current target contract](contracts/ports-adapters-and-acl.md)
+> and [implemented port/adapter tutorial](tutorials/outbound-ports.md). DTO/REST
+> mapping is being rebuilt in subsequent slices.
+
+
 This document describes the architecture, conventions, semantics, and code generation rules for **Outbound Ports**, **Schemas (DTOs)**, and **Adapter Mappings** in the Vernac DSL (derived from `Vernac.g4`, `AstBuilderVisitor`, `SemanticAnalyzer`, and `PortGenerator`).
 
 ---

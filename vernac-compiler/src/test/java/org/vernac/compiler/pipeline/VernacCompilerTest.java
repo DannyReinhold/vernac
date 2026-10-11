@@ -46,14 +46,11 @@ class VernacCompilerTest {
                 entity Task[TaskId](Title title, mut Completed completed);
                 
                 port ProjectExternalService {
-                    schema ExternalProjectDto {
-                        String title;
-                    }
-                    Optional<String> fetchExternalData() {
-                        adapter rest {
-                            GET "/external/data";
-                            on 404 return Optional.empty();
-                        }
+                    ProjectName? fetchExternalData();
+                }
+                adapter LocalProjectService implements ProjectExternalService {
+                    behavior {
+                        public ProjectName? fetchExternalData() { return Optional.empty(); }
                     }
                 }
                 """;
@@ -65,7 +62,7 @@ class VernacCompilerTest {
                 .map(f -> f.typeSpec().name())
                 .toList();
 
-        // 4 Value Objects + 1 Event + 1 Aggregate + 1 Entity + 1 Port + 1 Schema + 1 Adapter = 10 Klassen
+        // Domain types, a port, and its separate adapter are generated together.
         assertThat(generatedTypeNames).contains(
                 "ProjectId",
                 "TaskId",
@@ -75,8 +72,7 @@ class VernacCompilerTest {
                 "Project",
                 "Task",
                 "ProjectExternalService",
-                "ExternalProjectDto",
-                "RestProjectExternalServiceFetchExternalDataAdapter"
+                "LocalProjectService"
         );
 
         // Teste das Schreiben auf das Dateisystem (Domänen- und Infrastruktur-Packages)
@@ -87,8 +83,7 @@ class VernacCompilerTest {
         assertThat(Files.exists(domainDir.resolve("Project.java"))).isTrue();
         assertThat(Files.exists(domainDir.resolve("ProjectExternalService.java"))).isTrue();
 
-        Path outboundDir = tempDir.resolve("com/example/infrastructure/outbound/projectexternalservice");
-        assertThat(Files.exists(outboundDir.resolve("ExternalProjectDto.java"))).isTrue();
-        assertThat(Files.exists(outboundDir.resolve("RestProjectExternalServiceFetchExternalDataAdapter.java"))).isTrue();
+        Path outboundDir = tempDir.resolve("com/example/adapter/outbound");
+        assertThat(Files.exists(outboundDir.resolve("LocalProjectService.java"))).isTrue();
     }
 }

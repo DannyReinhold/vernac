@@ -35,6 +35,32 @@ public final class BehaviorJavaProjection {
         for (int i = 0; i < unit.definitions().size(); i++) {
             var definition = unit.definitions().get(i);
             var syntax = tree.topLevelDeclaration(i);
+            if (definition instanceof OutboundAdapterNode adapter) {
+                result.addAll(new ServiceJavaProjection().build(project,scope,unit,adapter.behavior(),
+                    syntax.outboundAdapterDefinition().serviceMethod(),text,".adapter.outbound"));
+                if(adapter.mappings().stream().anyMatch(m->m.javaBody().isPresent())) {
+                    try {
+                        var model=new MappingEditorModel(project);var resolver=model.resolver(source.path(),adapter.name());
+                        var helper=new UseCaseJavaProjection();
+                        for(int m=0;m<adapter.mappings().size();m++) {
+                            var mapping=adapter.mappings().get(m);var body=syntax.outboundAdapterDefinition().mappingDefinition(m).rawJavaBlock();
+                            if(body==null)continue;
+                            var input=resolver.resolveType(mapping.sourceType());var output=resolver.resolveType(mapping.targetType());
+                            if(input==null || output==null)continue;
+                            var imports=new TreeMap<>(BehaviorImports.visible(project,scope));
+                            mapping.javaImports().forEach(imp->imports.put(imp.target().substring(imp.target().lastIndexOf('.')+1),imp.target()));
+                            StringBuilder header=new StringBuilder("package "+unit.namespace()+".adapter.outbound.mapping;\n");
+                            imports.values().stream().filter(n->n.contains(".")).distinct().forEach(n->header.append("import ").append(n).append(";\n"));
+                            header.append("@org.jspecify.annotations.NullMarked final class __VernacEditorMapping_").append(adapter.name()).append('_').append(mapping.name())
+                                .append(" { static ").append(output.javaType()).append(' ').append(mapping.name()).append('(').append(input.javaType()).append(" source) {\n");
+                            List<Fragment> fragments=new ArrayList<>();helper.add(fragments,body,text,"","");
+                            helper.close(result,adapter.name()+"Mapping"+mapping.name(),fragments,header.toString(),"}\n}\n");
+                        }
+                    } catch(IllegalArgumentException | NoSuchElementException | org.vernac.compiler.analyzer.SemanticValidationException incomplete) {
+                        // Diagnostics own invalid surrounding declarations; never inject guessed Java types.
+                    }
+                }
+            }
             if (definition instanceof DomainServiceNode service) {
                 result.addAll(new ServiceJavaProjection().build(project, scope, unit, service, syntax.domainServiceDefinition(), text));
             }

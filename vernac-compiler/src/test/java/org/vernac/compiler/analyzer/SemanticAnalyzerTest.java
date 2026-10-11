@@ -253,176 +253,39 @@ class SemanticAnalyzerTest {
     }
 
     @Nested
-    @DisplayName("Port & Adapter Analysen")
+    @DisplayName("Port and adapter contracts")
     class PortAndAdapterTests {
-
-        @Test
-        @DisplayName("Verhindert ungültige HTTP-Statuscodes im REST Adapter")
-        void shouldRejectInvalidHttpStatusCodes() {
-            String dsl = """
-                    namespace com.example.domain;
-                    port MyPort {
-                        Optional<String> fetch() {
-                            adapter rest {
-                                on 999 return Optional.empty();
-                                on 404 return Optional.empty();
-                                on 600 return Optional.empty();
-                            }
-                        }
-                    }
-                    """;
-
-            assertThatThrownBy(() -> compiler.compileSource(dsl))
-                    .isInstanceOf(SemanticValidationException.class)
-                    .satisfies(e -> {
-                        SemanticValidationException sve = (SemanticValidationException) e;
-                        assertThat(sve.diagnostics()).hasSize(2);
-                        assertThat(sve.diagnostics().get(0).message()).contains("Invalid HTTP status code or family '999'");
-                        assertThat(sve.diagnostics().get(1).message()).contains("Invalid HTTP status code or family '600'");
-                    });
+        @Test void rejectsRawJavaPayloads() {
+            assertThatThrownBy(()->compiler.compileSource("namespace example; port P { String fetch(); }"))
+                .hasMessageContaining("Port signatures require");
         }
-
-        @Test
-        @DisplayName("Verhindert 'return empty', wenn die Methode kein Optional zurückgibt")
-        void shouldRejectReturnEmptyForNonOptionalMethod() {
-            String dsl = """
-                    namespace com.example.domain;
-                    port MyPort {
-                        String fetch() {
-                            adapter rest {
-                                on 404 return empty;
-                            }
-                        }
-                    }
-                    """;
-
-            assertThatThrownBy(() -> compiler.compileSource(dsl))
-                    .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Cannot 'return empty' on status '404' because method 'fetch' does not return an Optional");
+        @Test void rejectsAdapterOptionalityMismatch() {
+            assertThatThrownBy(()->compiler.compileSource("namespace example; value Text(String); port P { Text? fetch(); } adapter A implements P { behavior { public Text fetch() { return Text.of(\"x\"); } } }"))
+                .hasMessageContaining("optionality");
         }
-
-        @Test
-        @DisplayName("Verhindert das Werfen von Exceptions, die nicht in der throws-Klausel stehen")
-        void shouldRejectUndeclaredExceptions() {
-            String dsl = """
-                    namespace com.example.domain;
-                    port MyPort {
-                        String fetch() throws NetworkException {
-                            adapter rest {
-                                on 5xx throw ServerException;
-                            }
-                        }
-                    }
-                    """;
-
-            assertThatThrownBy(() -> compiler.compileSource(dsl))
-                    .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Thrown exception 'ServerException' on status '5xx' is not declared in method signature's throws clause");
+        @Test void rejectsLegacyThrowsSyntax() {
+            assertThatThrownBy(()->compiler.compileSource("namespace example; port P { void run() throws Failure; }"))
+                .hasMessageContaining("Syntax error");
         }
-
-        @Test
-        @DisplayName("Verhindert Mappings auf nicht-existierende Felder im Schema")
-        void shouldRejectMappingToUnknownSchemaField() {
-            String dsl = """
-                    namespace com.example.domain;
-                    port MyPort {
-                        schema MyDto {
-                            String validName;
-                        }
-                        String fetch() {
-                            adapter rest {}
-                            mapping {
-                                domainValue -> MyDto.invalidName;
-                            }
-                        }
-                    }
-                    """;
-
-            assertThatThrownBy(() -> compiler.compileSource(dsl))
-                    .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Field 'invalidName' does not exist in schema 'MyDto'");
+        @Test void rejectsTransportSchemasInsideDomainPorts() {
+            assertThatThrownBy(()->compiler.compileSource("namespace example; port P { schema Dto { String name; } }"))
+                .hasMessageContaining("Syntax error");
         }
-
-        @Test
-        @DisplayName("Verhindert Mappings auf nicht-existierende Felder in der Domäne")
-        void shouldRejectMappingToUnknownDomainField() {
-            String dsl = """
-                    namespace com.example.domain;
-                    value Profile(String validName);
-                    
-                    port MyPort {
-                        Profile fetch() {
-                            adapter rest {}
-                            mapping {
-                                response.body -> Profile.invalidName;
-                            }
-                        }
-                    }
-                    """;
-
-            assertThatThrownBy(() -> compiler.compileSource(dsl))
-                    .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Field 'invalidName' does not exist in domain type 'Profile'");
+        @Test void adapterMustImplementAPort() {
+            assertThatThrownBy(()->compiler.compileSource("namespace example; value Text(String); adapter A implements Text { behavior {} }"))
+                .hasMessageContaining("must implement");
         }
-
-        @Test
-        @DisplayName("Verhindert doppelte Schema-Namen in einem Port")
-        void shouldRejectDuplicateSchemaNames() {
-            String dsl = """
-                    namespace com.example.domain;
-                    port MyPort {
-                        schema MyDto {
-                            String id;
-                        }
-                        schema MyDto {
-                            String name;
-                        }
-                        String fetch() {
-                            adapter rest {}
-                        }
-                    }
-                    """;
-
-            assertThatThrownBy(() -> compiler.compileSource(dsl))
-                    .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Duplicate schema name 'MyDto' in port 'MyPort'");
+        @Test void rejectsDuplicatePortSignatures() {
+            assertThatThrownBy(()->compiler.compileSource("namespace example; port P { void run(); void run(); }"))
+                .hasMessageContaining("Duplicate port operation");
         }
-
-        @Test
-        @DisplayName("Verhindert Java-Keywords im benutzerdefinierten Adapter-Package")
-        void shouldRejectJavaKeywordsInAdapterPackage() {
-            String dsl = """
-                    namespace com.example.domain;
-                    port MyPort {
-                        String fetch() {
-                            adapter rest {
-                                package com.example.int.myadapter;
-                            }
-                        }
-                    }
-                    """;
-
-            assertThatThrownBy(() -> compiler.compileSource(dsl))
-                    .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Java keyword 'int' cannot be used in package name 'com.example.int.myadapter'");
+        @Test void rejectsJavaKeywordInNamespace() {
+            assertThatThrownBy(()->compiler.compileSource("namespace example.int; port P { void run(); }"))
+                .isInstanceOf(SemanticValidationException.class);
         }
-
-        @Test
-        @DisplayName("Erlaubt Vernac-Keywords im benutzerdefinierten Adapter-Package")
-        void shouldAllowVernacKeywordsInAdapterPackage() {
-            String dsl = """
-                    namespace com.example.domain;
-                    port MyPort {
-                        String fetch() {
-                            adapter rest {
-                                package com.example.infra.adapter;
-                            }
-                        }
-                    }
-                    """;
-
-            assertThat(compiler.compileSource(dsl).generatedFiles())
-                    .anySatisfy(file -> assertThat(file.packageName()).isEqualTo("com.example.infra.adapter"));
+        @Test void acceptsVernacKeywordInNamespace() {
+            assertThat(compiler.compileSource("namespace example.adapter; port P { void run(); } adapter A implements P { behavior { public void run() {} } }").generatedFiles())
+                .anySatisfy(file->assertThat(file.packageName()).isEqualTo("example.adapter.adapter.outbound"));
         }
     }
 
@@ -643,7 +506,7 @@ class SemanticAnalyzerTest {
             String dsl = """
                     namespace com.example.energy;
                     
-                    port NotificationPort {}
+                    port NotificationPort { void notifyUser(); }
                     event OrderShipped();
                     synchronous listener Alert on OrderShipped behavior { execute {} }
                     """;

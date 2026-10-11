@@ -308,10 +308,9 @@ class ProjectTypeResolverTest {
     }
 
     @Test
-    void reportsDeferredDeclarationKindsExplicitly() throws IOException {
-        source("org.tasks", "model", "port Task {} value Name(String value);");
+    void portsAreReviewedDeclarations() throws IOException {
+        source("org.tasks", "model", "port Task { Name name(); } value Name(String value);");
         var project = analyze();
-        assertEquals(1, project.deferredTypes().size());
-        assertEquals("org.tasks.Task", project.deferredTypes().getFirst().identity().qualifiedName());
+        assertEquals(0, project.deferredTypes().size());
     }
 }

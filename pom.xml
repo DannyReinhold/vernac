@@ -47,6 +47,7 @@
 
     <modules>
         <module>vernac-runtime</module>
+        <module>vernac-runtime-json</module>
         <module>vernac-compiler</module>
         <module>vernac-maven-plugin</module>
         <module>examples/namespace-values</module>
@@ -87,6 +88,12 @@
             <dependency>
                 <groupId>org.vernac</groupId>
                 <artifactId>vernac-jdbc-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.vernac</groupId>
+                <artifactId>vernac-runtime-json</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

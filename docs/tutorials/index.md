@@ -39,3 +39,9 @@ Each tutorial starts with a working example and invites you to change it.
 
 [Publish an event and invoke synchronous listeners](domain-events.md), including
 external Java implementations and transaction boundaries.
+
+- [Outbound ports and Java-backed adapters](outbound-ports.md) — domain interfaces, dependency injection and isolated behavior.
+
+- [Adapter DTOs and PATCH](adapter-dtos.md) — strict JSON, explicit names and three-state updates.
+
+- [Map adapter DTOs to domain values](adapter-mappings.md) — explicit conversions, validated factories and optional values.

@@ -19,6 +19,7 @@ topLevelDeclaration
     | aggregateDefinition
     | entityDefinition
     | portDefinition
+    | outboundAdapterDefinition
     | repositoryDefinition
     | usecaseDefinition
     | domainServiceDefinition
@@ -137,81 +138,39 @@ accessModifier
 // 4. Ports (Outbound Adapters & Mapping)
 // ==========================================
 portDefinition
-    : 'port' name=typeName '{' portMember* '}'
+    : 'port' name=typeName '{' portMethodDefinition* '}'
     ;
 
-portMember
-    : schemaDefinition
-    | portMethodDefinition
+outboundAdapterDefinition
+    : 'adapter' name=typeName 'implements' portType=type
+      ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
+      '{' (schemaDefinition | mappingDefinition)* 'behavior' '{' javaImports? javaUses? serviceMethod* '}' (schemaDefinition | mappingDefinition)* '}' ';'?
+    ;
+
+mappingDefinition
+    : 'mapping' name=methodName ':' targetType=type '<-' sourceType=type
+      ('{' (mappingAssignment* | javaImports? 'java' '{' rawJavaBlock '}') '}'
+       | 'implemented' 'by' implementation=qualifiedName ';')
+    ;
+mappingAssignment
+    : target=variableName '<-' path=qualifiedName ('using' mapper=methodName)? ';'
     ;
 
 schemaDefinition
-    : 'schema' name=typeName '{' schemaField* '}'
+    : 'schema' name=typeName ('naming' strategy=variableName)? '(' (schemaField (',' schemaField)*)? ')' ';'
     ;
 
 schemaField
-    : fieldType=type name=variableName ';'
+    : patch='patch'? fieldType=type name=variableName? ('named' externalName=STRING_LITERAL)?
+      ('absent' 'as' explicitNull='null')?
+    ;
+
+javaUses
+    : 'java' 'uses' '{' (dependencies+=parameter ';')* '}'
     ;
 
 portMethodDefinition
-    : returnType=type name=methodName '(' parameterList? ')' throwsClause? '{'
-        adapterDefinition
-        mappingBlock?
-      '}'
-    ;
-
-throwsClause
-    : 'throws' qualifiedName (',' qualifiedName)*
-    ;
-
-adapterDefinition
-    : adapterCustom
-    | adapterRest
-    ;
-
-adapterRest
-    : 'adapter' 'rest' '{' packageDeclarationStatement? restConfig* restErrorRule* '}'
-    ;
-
-adapterCustom
-    : 'adapter' 'custom' delegateName=qualifiedName? ';'
-    | 'adapter' 'custom' '{' packageDeclarationStatement? rawJavaBlock '}'
-    | 'adapter' 'custom' delegateName=qualifiedName '{' packageDeclarationStatement? '}' ';'?
-    ;
-
-restConfig
-    : httpMethod STRING_LITERAL ';'
-    | variableName ':' STRING_LITERAL ';'
-    ;
-
-httpMethod
-    : 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
-    ;
-
-restErrorRule
-    : 'on' statusCode ( 'return' expression | 'throw' type ) ';'
-    ;
-
-statusCode
-    : INT_LITERAL
-    | INT_LITERAL '..' INT_LITERAL
-    | STATUS_FAMILY
-    ;
-
-mappingBlock
-    : 'mapping' '{' mappingStatement* '}'
-    ;
-
-mappingStatement
-    : sourcePath ( '<-' | '->' ) targetPath ';'
-    ;
-
-sourcePath
-    : variableName ( '.' variableName | '[' ( '*' | INT_LITERAL ) ']' )* ( ':' type )?
-    ;
-
-targetPath
-    : variableName ( '.' variableName )*
+    : returnType=type name=methodName '(' parameterList? ')' ';'
     ;
 
 // ==========================================
@@ -346,6 +305,7 @@ qualifiedName
 qualifiedNameSegment
     : IDENTIFIER
     | BOOLEAN_LITERAL
+    | 'null'
     | 'DELETE'
     | 'GET'
     | 'PATCH'
@@ -355,7 +315,7 @@ qualifiedNameSegment
     | 'aggregate'
     | 'as'
     | 'by'
-    | 'read' | 'modify' | 'behavior' | 'java' | 'imports' | 'implemented' | 'by' | 'collection'
+    | 'using' | 'naming' | 'named' | 'patch' | 'as' | 'null' | 'implements' | 'read' | 'modify' | 'behavior' | 'java' | 'imports' | 'implemented' | 'by' | 'collection'
     | 'list'
     | 'set'
     | 'custom'
@@ -429,6 +389,7 @@ primaryExpression
     | INT_LITERAL
     | DECIMAL_LITERAL
     | BOOLEAN_LITERAL
+    | 'null'
     | '(' expression ')'
     ;
 
@@ -444,14 +405,17 @@ typeName
     ;
 
 methodName
-    : 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
+    : 'using' | 'naming' | 'named' | 'patch'
+    | 'read' | 'modify' | 'load' | 'save'
+    | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
     | IDENTIFIER
     | 'value'
     | 'id'
     ;
 
 variableName
-    : 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
+    : 'using' | 'naming' | 'named' | 'patch'
+    | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
     | IDENTIFIER
     | 'value'
     | 'id'

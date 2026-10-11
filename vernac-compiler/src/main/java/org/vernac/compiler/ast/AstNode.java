@@ -14,13 +14,8 @@ public sealed interface AstNode permits
         ValidationRuleNode,
         InvariantNode,
         MethodNode,
-        SchemaNode,
         PortMethodNode,
-        AdapterNode,
-        RestConfigNode,
-        RestErrorRuleNode,
-        MappingBlockNode,
-        MappingStatementNode,
+        SchemaNode, SchemaFieldNode, MappingNode, MappingAssignmentNode,
         EnumConstantNode {
 
     SourceLocation location();

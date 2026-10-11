@@ -26,6 +26,7 @@ public final class ProjectTypeResolver {
         // Import errors only prevent lookups in the affected file.
 
         Map<TypeNode, ResolvedType> fieldTypes = new LinkedHashMap<>();
+        Map<OutboundAdapterNode,List<org.vernac.compiler.dto.ResolvedSchema>> schemas = new LinkedHashMap<>();
         for (var source : project.sources()) {
             FileTypeScope scope = scopes.get(source.path());
             boolean validScope = scope.diagnostics().stream()
@@ -60,6 +61,12 @@ public final class ProjectTypeResolver {
                 diagnostics.addAll(ValidationContracts.validate(definition, source.unit().namespace(), project));
                 if (definition instanceof UseCaseNode usecase && validScope)
                     new UseCaseContracts().validate(usecase, scope, fieldTypes, diagnostics, project, source.unit().namespace());
+                if (definition instanceof PortNode port && validScope)
+                    new PortContracts().validate(port,scope,fieldTypes,diagnostics,project);
+                if (definition instanceof OutboundAdapterNode adapter && validScope) {
+                    new PortContracts().validate(adapter,scope,fieldTypes,diagnostics,project,source.unit().namespace());
+                    schemas.put(adapter,new org.vernac.compiler.dto.SchemaContracts().resolve(adapter,diagnostics));
+                }
                 if (definition instanceof DomainServiceNode service && validScope)
                     new ServiceContracts().validate(service, scope, fieldTypes, diagnostics, project, source.unit().namespace());
                 if(definition instanceof EventNode event && validScope) new EventContracts().validate(event,scope,fieldTypes,diagnostics,project,source.unit().namespace());
@@ -143,13 +150,20 @@ public final class ProjectTypeResolver {
         }
         diagnostics.addAll(new ContainmentValidator().validate(project, fieldTypes));
         var queries = new org.vernac.compiler.query.QueryResolver(project, fieldTypes, diagnostics).resolve(project, scopes);
+        Set<String> invalidSources=diagnostics.stream().filter(d -> d.severity()==CompilerDiagnostic.Severity.ERROR)
+            .map(d -> d.location().sourceName()).collect(java.util.stream.Collectors.toSet());
+        Map<OutboundAdapterNode,List<org.vernac.compiler.mapping.ResolvedMapping>> mappings=new LinkedHashMap<>();
+        for(var source:project.sources()) for(var definition:source.unit().definitions())
+            if(definition instanceof OutboundAdapterNode adapter && !invalidSources.contains(source.path().toString()))
+                mappings.put(adapter,new org.vernac.compiler.mapping.MappingResolver(project,fieldTypes,diagnostics)
+                    .resolve(adapter,source.unit().namespace(),scopes.get(source.path()),schemas.getOrDefault(adapter,List.of())));
         failOnErrors(diagnostics);
         List<TypeSymbol> deferred = namespaces.stream().flatMap(namespace -> project.symbols().inNamespace(namespace).stream())
                 .filter(symbol -> switch (symbol.kind()) {
-                    case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, REPOSITORY, USE_CASE, DOMAIN_SERVICE, EVENT, LISTENER -> false;
+                    case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, REPOSITORY, USE_CASE, DOMAIN_SERVICE, EVENT, LISTENER, PORT, OUTBOUND_ADAPTER -> false;
                     default -> true;
                 }).toList();
-        return new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries);
+        return new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries, schemas, mappings);
     }
 
     private void resolveField(FieldNode field, FileTypeScope scope, Map<TypeNode, ResolvedType> resolved,

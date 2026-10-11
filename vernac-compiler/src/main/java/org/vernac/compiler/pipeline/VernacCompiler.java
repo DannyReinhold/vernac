@@ -77,6 +77,8 @@ public class VernacCompiler {
                 if (definition instanceof EventNode e) files.addAll(eventGenerator.generate(e,source.unit(),project));
                 if (definition instanceof ListenerNode l) files.addAll(listenerGenerator.generate(l,source.unit(),project));
                 if (definition instanceof UseCaseNode u) files.addAll(useCaseGenerator.generate(u,source.unit(),project));
+                if (definition instanceof PortNode p) files.addAll(portGenerator.generate(p,source.unit(),project));
+                if (definition instanceof OutboundAdapterNode a) files.addAll(new OutboundAdapterGenerator().generate(a,source.unit(),project));
                 if (definition instanceof DomainServiceNode s) files.addAll(domainServiceGenerator.generate(s,source.unit(),project));
                 MutableDomain.of(definition).ifPresent(model -> files.addAll(generateMutable(model, source.unit(), project)));
                 CollectionDeclaration.of(definition).ifPresent(collection -> {
@@ -189,7 +191,9 @@ public class VernacCompiler {
                 for (StoragePlan plan : persistence.plans()) if (plan.repository().name().equals(repo.name()))
                     generatedFiles.addAll(new JdbcRepositoryGenerator(resolved,schema).generate(plan));
             } else if (definition instanceof PortNode port) {
-                generatedFiles.addAll(portGenerator.generate(port, packageName, imports));
+                generatedFiles.addAll(portGenerator.generate(port, unit, resolved));
+            } else if (definition instanceof OutboundAdapterNode adapter) {
+                generatedFiles.addAll(new OutboundAdapterGenerator().generate(adapter, unit, resolved));
             } else if (definition instanceof UseCaseNode useCase) {
                 generatedFiles.addAll(useCaseGenerator.generate(useCase, unit, resolved));
             } else if (definition instanceof DomainServiceNode service) { // <-- DIESER ZWEIG FEHLT

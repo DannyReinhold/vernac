@@ -28,6 +28,8 @@ public final class VernacTypeNavigation {
 
     private Optional<Target> find(VernacProject project, Map<Path, String> texts, String javaName, Optional<Member> member) {
         for (var source : project.sources()) {
+            var dto = dtoTarget(source,texts.get(source.path()),javaName,member);
+            if(dto.isPresent()) return dto;
             for (var symbol : project.symbols().inNamespace(source.unit().namespace())) {
                 if (!symbol.sourceFile().equals(source.path()) || !reviewed(symbol.kind())) continue;
                 String generated = JavaTypeNames.canonicalName(new ResolvedType.Declared(symbol));
@@ -45,9 +47,40 @@ public final class VernacTypeNavigation {
         return Optional.empty();
     }
 
+    private Optional<Target> dtoTarget(VernacSourceFile source, String text, String javaName, Optional<Member> member) {
+        if(text==null || !(javaName.startsWith(source.unit().namespace()+".adapter.outbound.dto.") || javaName.startsWith(source.unit().namespace()+".adapter.outbound.mapping."))) return Optional.empty();
+        var lexer=new VernacLexer(CharStreams.fromString(text));lexer.removeErrorListeners();
+        var parser=new VernacParser(new CommonTokenStream(lexer));parser.removeErrorListeners();
+        var tree=parser.compilationUnit();
+        if(parser.getNumberOfSyntaxErrors()!=0) return Optional.empty();
+        for(var top:tree.topLevelDeclaration()) {
+            var adapter=top.outboundAdapterDefinition(); if(adapter==null)continue;
+            String mappings=source.unit().namespace()+".adapter.outbound.mapping."+adapter.name.getText()+"Mappings";
+            if(javaName.equals(mappings)) {
+                if(member.isEmpty())return target(source.path(),text,adapter.name.getText(),adapter.name.getStart(),adapter.name.getStop());
+                if(member.get().parameterTypes().size()==1)for(var mapping:adapter.mappingDefinition())
+                    if(mapping.name.getText().equals(member.get().name()))return target(source.path(),text,mapping.name.getText(),mapping.name.getStart(),mapping.name.getStop());
+            }
+            String holder=source.unit().namespace()+".adapter.outbound.dto."+adapter.name.getText()+"Dtos";
+            if(javaName.equals(holder) && member.isEmpty()) return target(source.path(),text,adapter.name.getText(),adapter.name.getStart(),adapter.name.getStop());
+            for(var schema:adapter.schemaDefinition()) {
+                if(!javaName.equals(holder+"."+schema.name.getText()))continue;
+                if(member.isEmpty())return target(source.path(),text,schema.name.getText(),schema.name.getStart(),schema.name.getStop());
+                if(!member.get().parameterTypes().isEmpty())return Optional.empty();
+                for(var field:schema.schemaField()) {
+                    String name=field.name==null?org.vernac.language.VernacNames.defaultMemberName(field.fieldType.rawType.getText()):field.name.getText();
+                    if(!name.equals(member.get().name()))continue;
+                    var anchor=field.name==null?field.fieldType:field.name;
+                    return target(source.path(),text,name,anchor.getStart(),anchor.getStop());
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
     private boolean reviewed(TypeSymbol.Kind kind) {
         return switch (kind) {
-            case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, USE_CASE, DOMAIN_SERVICE, EVENT, LISTENER -> true;
+            case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, USE_CASE, DOMAIN_SERVICE, EVENT, LISTENER, PORT, OUTBOUND_ADAPTER -> true;
             default -> false;
         };
     }
@@ -84,6 +117,8 @@ public final class VernacTypeNavigation {
             if (syntax.listenerDefinition() != null) name=syntax.listenerDefinition().name;
             if (syntax.usecaseDefinition() != null) name=syntax.usecaseDefinition().name;
             if (syntax.domainServiceDefinition() != null) name=syntax.domainServiceDefinition().name;
+            if (syntax.portDefinition() != null) name=syntax.portDefinition().name;
+            if (syntax.outboundAdapterDefinition() != null) name=syntax.outboundAdapterDefinition().name;
             if (name == null) continue;
             if (symbol.kind() != TypeSymbol.Kind.COLLECTION && name.getText().equals(symbol.identity().name())) {
                 if (member.isEmpty()) return target(source.path(), text, symbol.identity().name(), name.getStart(), name.getStop());
@@ -93,6 +128,23 @@ public final class VernacTypeNavigation {
                 List<Target> candidates = new ArrayList<>();
                 if (definition instanceof UseCaseNode u && key.name().equals("execute") && key.parameterTypes().size()==u.parameters().size())
                     return target(source.path(),text,"execute",name.getStart(),name.getStop());
+                if (definition instanceof PortNode port || definition instanceof OutboundAdapterNode) {
+                    var namespaces = new HashSet<String>();
+                    project.sources().forEach(s -> namespaces.add(s.unit().namespace()));
+                    var scope = new FileTypeScope(source.unit(),project.symbols(),namespaces);
+                    List<MethodNode> operations = definition instanceof PortNode p ? p.methods().stream().map(PortMethodNode::method).toList()
+                        : ((OutboundAdapterNode)definition).methods().stream().map(ServiceMethodNode::method).toList();
+                    for(int m=0;m<operations.size();m++) {
+                        var operation=operations.get(m);
+                        if(!operation.accessModifier().equals("public") || !operation.name().equals(key.name())) continue;
+                        var types=operation.parameters().stream().map(f->scope.resolve(f.type().name(),f.location()).type()
+                            .map(JavaTypeNames::canonicalName).orElse("?")).toList();
+                        if(!types.equals(key.parameterTypes())) continue;
+                        var anchor=definition instanceof PortNode ? syntax.portDefinition().portMethodDefinition(m).name
+                            : syntax.outboundAdapterDefinition().serviceMethod(m).name;
+                        target(source.path(),text,key.name(),anchor.getStart(),anchor.getStop()).ifPresent(candidates::add);
+                    }
+                }
                 if (definition instanceof DomainServiceNode service) {
                     var namespaces = new HashSet<String>();
                     project.sources().forEach(s -> namespaces.add(s.unit().namespace()));
