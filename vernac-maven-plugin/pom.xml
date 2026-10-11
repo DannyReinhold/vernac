@@ -67,6 +67,7 @@
             <groupId>org.postgresql</groupId><artifactId>postgresql</artifactId>
         </dependency>
         <!-- Testing -->
+        <dependency><groupId>org.vernac</groupId><artifactId>vernac-runtime-http</artifactId><scope>test</scope></dependency>
         <dependency><groupId>org.vernac</groupId><artifactId>vernac-runtime-json</artifactId><scope>test</scope></dependency>
         <dependency>
             <groupId>org.vernac</groupId>

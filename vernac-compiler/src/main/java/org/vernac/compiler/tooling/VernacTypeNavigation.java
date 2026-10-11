@@ -141,7 +141,9 @@ public final class VernacTypeNavigation {
                             .map(JavaTypeNames::canonicalName).orElse("?")).toList();
                         if(!types.equals(key.parameterTypes())) continue;
                         var anchor=definition instanceof PortNode ? syntax.portDefinition().portMethodDefinition(m).name
-                            : syntax.outboundAdapterDefinition().serviceMethod(m).name;
+                            : syntax.outboundAdapterDefinition().restBlock() != null
+                                ? syntax.outboundAdapterDefinition().restBlock().restOperation(m).name
+                                : syntax.outboundAdapterDefinition().serviceMethod(m).name;
                         target(source.path(),text,key.name(),anchor.getStart(),anchor.getStop()).ifPresent(candidates::add);
                     }
                 }

@@ -144,7 +144,26 @@ portDefinition
 outboundAdapterDefinition
     : 'adapter' name=typeName 'implements' portType=type
       ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
-      '{' (schemaDefinition | mappingDefinition)* 'behavior' '{' javaImports? javaUses? serviceMethod* '}' (schemaDefinition | mappingDefinition)* '}' ';'?
+      '{' (schemaDefinition | mappingDefinition)*
+      ('behavior' '{' javaImports? javaUses? serviceMethod* '}' | restBlock)
+      (schemaDefinition | mappingDefinition)* '}' ';'?
+    ;
+
+restBlock
+    : 'rest' '{' 'client' client=variableName ';' 'base' base=variableName ';' restOperation* '}'
+    ;
+restOperation
+    : returnType=type name=methodName '(' parameterList? ')' '{'
+      verb=('GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE') route=STRING_LITERAL ';'
+      restBinding*
+      ('body' '<-' requestPath=qualifiedName 'using' requestMapping=methodName ';')?
+      ('response' responseType=type 'using' responseMapping=methodName ';')?
+      ('on' absentStatus=INT_LITERAL 'absent' ';')?
+      ('errors' 'implemented' 'by' errorImplementation=qualifiedName ';')?
+      '}'
+    ;
+restBinding
+    : kind=('path' | 'query' | 'header') target=STRING_LITERAL '<-' source=qualifiedName ';'
     ;
 
 mappingDefinition
@@ -303,7 +322,8 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : IDENTIFIER
+    : 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    | IDENTIFIER
     | BOOLEAN_LITERAL
     | 'null'
     | 'DELETE'
@@ -405,7 +425,8 @@ typeName
     ;
 
 methodName
-    : 'using' | 'naming' | 'named' | 'patch'
+    : 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    | 'using' | 'naming' | 'named' | 'patch'
     | 'read' | 'modify' | 'load' | 'save'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
     | IDENTIFIER
@@ -414,7 +435,8 @@ methodName
     ;
 
 variableName
-    : 'using' | 'naming' | 'named' | 'patch'
+    : 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    | 'using' | 'naming' | 'named' | 'patch'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
     | IDENTIFIER
     | 'value'

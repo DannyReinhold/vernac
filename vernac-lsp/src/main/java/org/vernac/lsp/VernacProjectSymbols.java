@@ -135,6 +135,15 @@ final class VernacProjectSymbols {
         List<VernacParser.QualifiedNameContext> contexts = new ArrayList<>();
         // Match by the injected token's code-point offset, not by text alone.
         int marker = file.text().codePointCount(0, start);
+        var restReference = restReference(probe, marker);
+        if (restReference != null) {
+            var choices = restChoices(path, restReference, prefix);
+            Range range = new Range(position(file.text(), start), position(file.text(), end));
+            return choices.keySet().stream().filter(name -> name.startsWith(prefix)).map(name -> {
+                var item = new CompletionItem(name); item.setKind(CompletionItemKind.Reference);
+                item.setTextEdit(Either.forLeft(new TextEdit(range, name))); return item;
+            }).toList();
+        }
         var mappingReference=mappingReference(probe,marker);
         if(mappingReference!=null) {
             var choices=mappingChoices(path,mappingReference,prefix);
@@ -187,7 +196,7 @@ final class VernacProjectSymbols {
                 && context.getParent() == a.portType;
         boolean portSignature = false;
         for (var ancestor=context.getParent(); ancestor!=null; ancestor=ancestor.getParent())
-            if(ancestor instanceof VernacParser.PortMethodDefinitionContext) portSignature=true;
+            if(ancestor instanceof VernacParser.PortMethodDefinitionContext || ancestor instanceof VernacParser.RestOperationContext) portSignature=true;
         final boolean portValue=portSignature;
         final boolean mappingType=mappingAncestor(context)!=null;
         java.util.function.Predicate<TypeSymbol> allowed = symbol -> accepted(symbol)
@@ -243,6 +252,15 @@ final class VernacProjectSymbols {
         int offset = offset(file.text(), position);
         if (offset < 0) return List.of();
         int point = file.text().codePointCount(0, offset);
+        var restReference = restReference(file.tree(), point);
+        if (restReference != null) {
+            String name = restReference.name().getText();
+            if (restReference.name() instanceof VernacParser.QualifiedNameContext qualified)
+                name = qualified.qualifiedNameSegment().stream().filter(n -> n.getStart().getStartIndex() <= point)
+                    .map(n -> n.getText()).collect(java.util.stream.Collectors.joining("."));
+            var target = restChoices(path, restReference, name).get(name);
+            return target == null ? List.of() : List.of(target);
+        }
         var mappingReference=mappingReference(file.tree(),point);
         if(mappingReference!=null) {
             String name=mappingReference.name().getText();
@@ -319,16 +337,7 @@ final class VernacProjectSymbols {
             return choices;
         }
         try {
-            if(!mappingModelAttempted) {
-                mappingModelAttempted=true;
-                List<org.vernac.compiler.pipeline.VernacSourceFile> sources=new ArrayList<>();
-                for(var entry:files.entrySet()) {
-                    try {sources.add(new org.vernac.compiler.pipeline.VernacSourceFile(entry.getKey(),new org.vernac.compiler.pipeline.VernacSourceParser().parse(entry.getKey().toString(),entry.getValue().text())));}
-                    catch(org.vernac.compiler.analyzer.SemanticValidationException incomplete) { }
-                }
-                var project=new org.vernac.compiler.pipeline.VernacProjectLoader().index(root,sources);
-                mappingModel=new org.vernac.compiler.tooling.MappingEditorModel(project);
-            }
+            ensureMappingModel();
             if(mappingModel==null)return choices;
             var syntax=reference.kind().equals("target")?reference.mapping().targetType:reference.mapping().sourceType;
             if(syntax==null || syntax.rawType==null)return choices;
@@ -356,10 +365,90 @@ final class VernacProjectSymbols {
         return choices;
     }
 
+    private void ensureMappingModel() {
+            if(!mappingModelAttempted) {
+                mappingModelAttempted=true;
+                List<org.vernac.compiler.pipeline.VernacSourceFile> sources=new ArrayList<>();
+                for(var entry:files.entrySet()) {
+                    try {sources.add(new org.vernac.compiler.pipeline.VernacSourceFile(entry.getKey(),new org.vernac.compiler.pipeline.VernacSourceParser().parse(entry.getKey().toString(),entry.getValue().text())));}
+                    catch(org.vernac.compiler.analyzer.SemanticValidationException incomplete) { }
+                }
+                var project=new org.vernac.compiler.pipeline.VernacProjectLoader().index(root,sources);
+                mappingModel=new org.vernac.compiler.tooling.MappingEditorModel(project);
+            }
+    }
+
+    private record RestReference(ParserRuleContext name, String kind, VernacParser.RestOperationContext operation,
+                                 VernacParser.OutboundAdapterDefinitionContext adapter) { }
+    private static RestReference restReference(ParseTree tree, int point) {
+        List<RestReference> found = new ArrayList<>();
+        walk(tree, node -> {
+            if (!(node instanceof VernacParser.RestOperationContext op)) return;
+            ParserRuleContext name = null; String kind = "source";
+            if (contains(op.requestMapping, point)) { name = op.requestMapping; kind = "using"; }
+            else if (contains(op.responseMapping, point)) { name = op.responseMapping; kind = "using"; }
+            else if (contains(op.requestPath, point)) name = op.requestPath;
+            else for (var binding : op.restBinding()) if (contains(binding.source, point)) name = binding.source;
+            if (name != null) found.add(new RestReference(name, kind, op, adapterAncestor(op)));
+        });
+        return found.size() == 1 ? found.getFirst() : null;
+    }
+    private Map<String, Location> restChoices(Path path, RestReference ref, String prefix) {
+        var file = files.get(path);
+        Map<String, Location> choices = new TreeMap<>();
+        if (ref.kind().equals("using")) {
+            ref.adapter().mappingDefinition().forEach(m -> {
+                if (m.name != null) choices.put(m.name.getText(), queryLocation(path, file, m.name));
+            });
+            return choices;
+        }
+        try {
+            // The AST supplies inferred names too; no second naming convention in the LSP.
+            var ast = new AstBuilderVisitor(path.toString()).visitOutboundAdapterDefinition(ref.adapter());
+            var operation = ast.rest().orElseThrow().operations().stream()
+                    .filter(o -> o.method().location().line() == ref.operation().getStart().getLine()
+                            && o.method().location().column() == ref.operation().getStart().getCharPositionInLine() + 1)
+                    .findFirst().orElseThrow();
+            int dot = prefix.lastIndexOf('.');
+            for (var parameter : operation.method().parameters()) {
+                if (dot < 0) {
+                    var at = parameter.location();
+                    choices.put(parameter.name(), location(path, file, at));
+                    continue;
+                }
+                String[] segments = prefix.substring(0, dot).split("\\.");
+                if (!segments[0].equals(parameter.name())) continue;
+                ensureMappingModel();
+                if (mappingModel == null) continue;
+                var raw = new org.vernac.compiler.ast.TypeNode(parameter.type().location(), parameter.type().name(),
+                        parameter.type().typeArguments(), false);
+                var fields = mappingModel.fields(path, ast.name(), raw,
+                        Arrays.asList(segments).subList(1, segments.length));
+                String qualifier = prefix.substring(0, dot + 1);
+                for (var field : fields.entrySet()) {
+                    Path targetPath = Path.of(field.getValue().sourceName());
+                    var target = files.get(targetPath);
+                    if (target != null) choices.put(qualifier + field.getKey(), location(targetPath, target, field.getValue()));
+                }
+            }
+        } catch (IllegalArgumentException | NoSuchElementException | org.vernac.compiler.analyzer.SemanticValidationException incomplete) {
+            // Tolerate partially typed declarations, just like mapping completion.
+        }
+        return choices;
+    }
+    private Location location(Path path, Parsed file, org.vernac.compiler.ast.SourceLocation at) {
+        String line = file.text().lines().skip(at.line() - 1).findFirst().orElse("");
+        int column = line.offsetByCodePoints(0, Math.min(at.column() - 1, line.codePointCount(0, line.length())));
+        Position start = new Position(at.line() - 1, column);
+        return new Location(path.toUri().toString(), new Range(start, start));
+    }
+
     private static VernacParser.OutboundAdapterDefinitionContext schemaAdapter(ParseTree node) {
         boolean field = false;
         for(var ancestor=node;ancestor!=null;ancestor=ancestor.getParent()) {
             if(ancestor instanceof VernacParser.SchemaFieldContext) field=true;
+            if(ancestor instanceof VernacParser.TypeContext type && type.getParent() instanceof VernacParser.RestOperationContext op
+                    && op.responseType == type) field = true;
             if(ancestor instanceof VernacParser.OutboundAdapterDefinitionContext adapter) return field ? adapter : null;
         }
         return null;

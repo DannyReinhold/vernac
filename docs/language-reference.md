@@ -446,8 +446,13 @@ collection conversion. An alternative `java { ... }` body (with optional `java i
 or `implemented by` class handles deliberate custom conversions. See the
 [mapping tutorial](tutorials/adapter-mappings.md) and [contract](contracts/adapter-mappings.md).
 
-REST and error translation remain the next slice; the former nested per-method
-adapter syntax is no longer supported.
+An adapter may use `rest` instead of `behavior`, declaring named `client` and
+`base` dependencies followed by typed operations. Operations bind `path`, `query`
+and `header` values, optionally map a request `body`, and map DTO `response` values
+back into domain results. `on 404 absent` is explicit; custom error translation uses
+`errors implemented by`. See the [REST tutorial](tutorials/declarative-rest.md) and
+[exact contract](contracts/declarative-rest.md). Ordered declarative error rules
+remain the next slice. The former nested per-method adapter syntax is not supported.
 
 ---
 

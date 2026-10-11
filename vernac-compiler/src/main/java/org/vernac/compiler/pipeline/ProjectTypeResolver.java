@@ -157,13 +157,21 @@ public final class ProjectTypeResolver {
             if(definition instanceof OutboundAdapterNode adapter && !invalidSources.contains(source.path().toString()))
                 mappings.put(adapter,new org.vernac.compiler.mapping.MappingResolver(project,fieldTypes,diagnostics)
                     .resolve(adapter,source.unit().namespace(),scopes.get(source.path()),schemas.getOrDefault(adapter,List.of())));
+        Map<MethodNode, org.vernac.compiler.rest.ResolvedRestOperation> restOperations = new LinkedHashMap<>();
+        for (var source : project.sources()) for (var definition : source.unit().definitions())
+            if (definition instanceof OutboundAdapterNode adapter && adapter.rest().isPresent()
+                    && !invalidSources.contains(source.path().toString())) {
+                restOperations.putAll(new org.vernac.compiler.rest.RestResolver(project, fieldTypes, diagnostics,
+                    adapter, source.unit().namespace(), scopes.get(source.path()), schemas.getOrDefault(adapter, List.of()),
+                    mappings.getOrDefault(adapter, List.of())).resolve(adapter.rest().get()));
+            }
         failOnErrors(diagnostics);
         List<TypeSymbol> deferred = namespaces.stream().flatMap(namespace -> project.symbols().inNamespace(namespace).stream())
                 .filter(symbol -> switch (symbol.kind()) {
                     case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, REPOSITORY, USE_CASE, DOMAIN_SERVICE, EVENT, LISTENER, PORT, OUTBOUND_ADAPTER -> false;
                     default -> true;
                 }).toList();
-        return new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries, schemas, mappings);
+        return new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries, schemas, mappings, restOperations);
     }
 
     private void resolveField(FieldNode field, FileTypeScope scope, Map<TypeNode, ResolvedType> resolved,

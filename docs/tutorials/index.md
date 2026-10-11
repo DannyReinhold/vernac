@@ -45,3 +45,7 @@ external Java implementations and transaction boundaries.
 - [Adapter DTOs and PATCH](adapter-dtos.md) — strict JSON, explicit names and three-state updates.
 
 - [Map adapter DTOs to domain values](adapter-mappings.md) — explicit conversions, validated factories and optional values.
+
+- [Use the HTTP adapter runtime](http-adapter-runtime.md) — real calls, typed errors and explicit absence.
+
+- [Declare an outbound REST adapter](declarative-rest.md) — HTTP bindings, DTO mappings and external error translation.

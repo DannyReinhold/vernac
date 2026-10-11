@@ -75,6 +75,8 @@ final class BeanBehaviorGenerator {
                 String arguments = "self" + (method.parameters().isEmpty() ? "" : ", " + names(method));
                 implementation.addStatement((result.equals(TypeName.VOID) ? "" : "return ") + "$L.$N($L)",
                         method.implementation().get(), method.name(), arguments);
+            } else if (adapter != null && project.restOperations().containsKey(method)) {
+                implementation.addCode(new RestOperationGenerator().body(adapter, unit, project.restOperations().get(method)));
             } else implementation.addCode("$L\n", method.bodyCode());
             impl.addMethod(implementation.build());
             if (!exposed) { index++; continue; }

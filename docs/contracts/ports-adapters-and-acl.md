@@ -249,5 +249,9 @@ AdapterInvocation. See [the tutorial](../tutorials/outbound-ports.md).
 Adapter-local DTO records, strict JSON handling, naming strategies and PATCH are
 implemented in the [DTO contract](adapter-dtos.md) and [tutorial](../tutorials/adapter-dtos.md).
 Typed declarative/Java mappings are implemented; see the [mapping contract](adapter-mappings.md).
-REST and the proposed port exception subtypes remain target contract, not implemented
-features. Manual behavior propagates exceptions as-is.
+The shared port exception hierarchy and synchronous HTTP execution are implemented
+in [the HTTP runtime contract](http-adapter-runtime.md). Existing Java adapter
+behavior can use them now. REST request/response declarations and external Java error translation are implemented
+in [the REST contract](declarative-rest.md). Ordered declarative error rules remain
+target contract. Manual behavior still propagates exceptions as-is unless it
+explicitly invokes an integration boundary.

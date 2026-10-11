@@ -1,9 +1,9 @@
 # A domain port with a Java-backed adapter
 
-This tutorial covers the first implemented slice: port interfaces and manual
-adapters. DTO schemas, declarative mappings, REST and declarative error translation
-are specified in [the target contract](../contracts/ports-adapters-and-acl.md), but
-are not implemented by this slice.
+This tutorial introduces port interfaces and Java-backed adapters. Continue with
+DTO schemas, mappings and the [HTTP runtime](http-adapter-runtime.md) for the
+implemented integration foundations. [REST declarations](declarative-rest.md) now cover request/response bindings;
+ordered declarative error translation remains the next step in [the target contract](../contracts/ports-adapters-and-acl.md).
 
 ## Declare the capability
 

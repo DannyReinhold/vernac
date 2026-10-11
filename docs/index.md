@@ -207,3 +207,7 @@ for implemented, deferred and planned areas.
 - [Usecases: one operation, one transaction](tutorials/usecases.md)
 
 - [Domain services: planning a stop transfer](tutorials/domain-services.md)
+
+- [HTTP adapters and structured failures](tutorials/http-adapter-runtime.md)
+
+- [Declarative outbound REST adapters](tutorials/declarative-rest.md)

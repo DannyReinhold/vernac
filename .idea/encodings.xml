@@ -19,6 +19,8 @@
     <file url="file://$PROJECT_DIR$/vernac-lsp/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/vernac-maven-plugin/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/vernac-maven-plugin/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/vernac-runtime-http/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/vernac-runtime-http/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/vernac-runtime-jdbc/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/vernac-runtime-jdbc/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/vernac-runtime-json/src/main/java" charset="UTF-8" />

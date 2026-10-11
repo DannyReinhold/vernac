@@ -7,7 +7,12 @@ The foundation patch implements slice 1 and its basic IDE support.
 The DTO patch implements the records/JSON/PATCH portion of slice 2, including
 local completion/navigation. The mapping patch completes typed declarative/Java
 conversion, nested/list conversions, PATCH preservation and basic mapping IDE support.
-REST requests and error translation are next.
+The HTTP foundation adds transport-independent structured exceptions and a separate
+vernac-runtime-http module, with strict JSON/mapping boundaries, explicit 404
+absence, bounded response buffering, full-response deadlines and real HTTP tests.
+REST request/response declarations, external Java error hooks, encoded bindings,
+LSP references and an executable REST tutorial are now implemented. Ordered
+`errors { when ... }` rules and their tooling are the next slice.
 
 ## Implementation slices
 
@@ -32,10 +37,11 @@ verification until the end.
 - Mapping scopes and generated technical subpackages. DTOs are adapter-local nested
   records in <namespace>.adapter.outbound.dto.<Adapter>Dtos; see the DTO contract.
 - Mapping invocation API, Java hook signatures and approved technical field types.
-- Error-category inventory and typed domain-code access on exceptions.
-- Missing error-body operand semantics under and/or/not; no accidental match
-  because a missing value was treated as a normal unequal value.
-- Response success/status/body combinations, including empty responses.
+- Error-category inventory and typed domain-code access: settled in the HTTP runtime contract.
+- Missing error-body operands: three-valued ErrorCondition; only TRUE matches.
+  Compiler conditions must use this shared truth model.
+- Runtime success/status/body combinations are documented in the HTTP contract;
+  the compiler must validate operation-specific absence/void/result declarations.
 - Explicit request diagnostics syntax and external correlation header configuration.
 - Exception wrapping boundaries: user programming defects must not masquerade
   indiscriminately as remote contract errors.

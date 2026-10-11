@@ -277,9 +277,32 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 m.validationBlock() == null ? List.of() : m.validationBlock().validationStatement().stream()
                     .map(v -> new ValidationRuleNode(toLocation(v), extractRawSource(v.condition),
                         v.message == null ? "" : unquote(v.message.getText()))).toList())).toList();
+        Optional<RestAdapterNode> rest = Optional.ofNullable(ctx.restBlock()).map(this::rest);
+        if (rest.isPresent()) {
+            var http = rest.get();
+            technical = List.of(
+                new FieldNode(http.location(), new TypeNode(http.location(), "org.vernac.runtime.http.HttpAdapterClient"), http.client(), false),
+                new FieldNode(http.location(), new TypeNode(http.location(), "java.net.URI"), http.base(), false));
+            methods = http.operations().stream().map(o -> new ServiceMethodNode(o.method(), List.of())).toList();
+        }
         return new OutboundAdapterNode(toLocation(ctx),ctx.name.getText(),toTypeNode(ctx.portType),
                 dependencies,technical,imports,methods,ctx.schemaDefinition().stream().map(this::visitSchemaDefinition).toList(),
-                ctx.mappingDefinition().stream().map(this::visitMappingDefinition).toList());
+                ctx.mappingDefinition().stream().map(this::visitMappingDefinition).toList(), rest);
+    }
+    private RestAdapterNode rest(VernacParser.RestBlockContext ctx) {
+        return new RestAdapterNode(toLocation(ctx), ctx.client.getText(), ctx.base.getText(),
+            ctx.restOperation().stream().map(o -> {
+                var method = new MethodNode(toLocation(o), "public", toTypeNode(o.returnType), o.name.getText(),
+                    o.parameterList() == null ? List.of() : extractParameters(o.parameterList()), "");
+                return new RestAdapterNode.Operation(method, o.verb.getText(), unquote(o.route.getText()),
+                    o.restBinding().stream().map(b -> new RestAdapterNode.Binding(toLocation(b), b.kind.getText(),
+                        unquote(b.target.getText()), List.of(b.source.getText().split("\\.")))).toList(),
+                    Optional.ofNullable(o.requestPath).map(path -> new RestAdapterNode.Body(toLocation(path),
+                        List.of(path.getText().split("\\.")), o.requestMapping.getText())),
+                    Optional.ofNullable(o.responseType).map(type -> new RestAdapterNode.Response(toTypeNode(type), o.responseMapping.getText())),
+                    Optional.ofNullable(o.absentStatus).map(t -> t.getText()),
+                    Optional.ofNullable(o.errorImplementation).map(ParserRuleContext::getText));
+            }).toList());
     }
     public MappingNode visitMappingDefinition(VernacParser.MappingDefinitionContext ctx) {
         var imports=ctx.javaImports()==null?List.<JavaImportNode>of():ctx.javaImports().qualifiedName().stream()

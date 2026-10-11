@@ -36,7 +36,7 @@ public final class BehaviorJavaProjection {
             var definition = unit.definitions().get(i);
             var syntax = tree.topLevelDeclaration(i);
             if (definition instanceof OutboundAdapterNode adapter) {
-                result.addAll(new ServiceJavaProjection().build(project,scope,unit,adapter.behavior(),
+                if (adapter.rest().isEmpty()) result.addAll(new ServiceJavaProjection().build(project,scope,unit,adapter.behavior(),
                     syntax.outboundAdapterDefinition().serviceMethod(),text,".adapter.outbound"));
                 if(adapter.mappings().stream().anyMatch(m->m.javaBody().isPresent())) {
                     try {
