@@ -62,6 +62,7 @@ class EventContextTest {
     @Test void storesBeforeSynchronousHandlingAndDoesNotExecuteDeferredHandlers() {
         var manager=new Manager(); var calls=new ArrayList<String>();
         EventStorage storage=new EventStorage() {
+            public String eventType(){return "test.Ping";}
             public String listenerId(){return "@storage:Ping";}
             public Class<? extends DomainEvent> eventClass(){return Ping.class;}
             public void persist(DomainEvent event,List<String> recipients){calls.add("store:"+recipients);}
@@ -89,6 +90,7 @@ class EventContextTest {
         var event=new RecordedPing(EventId.create(),Instant.now());
         var manager=new Manager(); var stored=new ArrayList<DomainEvent>();
         EventStorage storage=new EventStorage() {
+            public String eventType(){return "test.Ping";}
             public String listenerId(){return "@storage:RecordedPing";}
             public Class<? extends DomainEvent> eventClass(){return RecordedPing.class;}
             public void persist(DomainEvent e,List<String> recipients){assertTrue(recipients.isEmpty());stored.add(e);}

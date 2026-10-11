@@ -105,6 +105,8 @@ public final class JdbcRepositoryGenerator {
         adapter.addField(ParameterizedTypeName.get(store,event),"store",Modifier.PRIVATE,Modifier.FINAL);
         adapter.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC).addParameter(JDBC,"jdbc")
                 .addStatement("this.store = new $T<>(jdbc, $T.class, $S, mapping(), tables())",store,event,plan.namespace()+"."+plan.event().name()).build());
+        adapter.addMethod(MethodSpec.methodBuilder("eventType").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(String.class)
+                .addStatement("return $S",plan.namespace()+"."+plan.event().name()).build());
         adapter.addMethod(MethodSpec.methodBuilder("listenerId").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(String.class)
                 .addStatement("return $S","@storage:"+plan.namespace()+"."+plan.event().name()).build());
         adapter.addMethod(MethodSpec.methodBuilder("eventClass").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)

@@ -18,8 +18,8 @@ mvn -f examples/persistence-demo/pom.xml spring-boot:run
 ```
 
 The Boot Maven plugin sets the working directory to this example. Boot starts
-`compose.yaml`, waits for PostgreSQL, and Flyway applies the committed initial
-migration before the runner starts. There is no `schema.sql`, DROP-on-start or
+`compose.yaml`, waits for PostgreSQL, and Flyway applies the committed migrations
+before the runners start. There is no `schema.sql`, DROP-on-start or
 automatic destructive schema synchronization. Stop/restart retains the named volume.
 
 The runner checks:
@@ -49,7 +49,7 @@ mvn test -Dvernac.test.database=true
 
 The test database uses port 55434 and tmpfs. Tests verify persisted rows, shared
 identity, list order, orphan cleanup, transaction requirements, optimistic conflicts,
-and rollback behavior. Ordinary `mvn test` skips these eight database tests explicitly.
+and rollback behavior. Ordinary `mvn test` skips database tests explicitly.
 
 ## Concurrent requests
 
@@ -140,3 +140,54 @@ Flyway exercise retains the runner's Java API.
 
 See [the query tutorial](../../docs/tutorials/repository-queries.md) for the supported
 operators, scalar semantics and current boundaries.
+
+## Event walkthrough
+
+After the persistence runner, `EventDemoRunner` executes a second walkthrough using
+`src/main/vernac/org/example/delivery/events.vernac`:
+
+1. Publish a recorded DemoNotice through the generated transactional PublishDemoNotice
+   usecase. The synchronous listener runs before publisher commit.
+2. Inspect the two still-PENDING delivery jobs inside that same transaction.
+3. Commit, then wait outside the transaction for the automatically scheduled worker.
+4. DeliverDemoNotice succeeds on its first attempt. RetryDemoNotice deliberately fails
+   once, then succeeds on its second attempt. The other listener is not repeated.
+5. Publish another event and roll back its transaction. Its synchronous observation
+   occurred, but neither the event row nor its delivery jobs remain.
+
+The successful event and both SUCCEEDED jobs remain for inspection:
+
+```sql
+SELECT * FROM "org.example.delivery"."@event:DemoNotice";
+SELECT "eventId", "listenerId", status, attempts, "lastError"
+FROM "vernac"."@delivery"
+WHERE "eventType" = 'org.example.delivery.DemoNotice'
+ORDER BY "createdAt", id;
+```
+
+Expect `Event walkthrough passed` in the log. The runner waits up to 30 seconds and
+fails visibly for FAILED/BLOCKED jobs or timeout. Keep automatic event delivery enabled.
+The example shortens polling and initial retry backoff in application.yaml; runtime
+production defaults are unchanged.
+
+EventDemoProbe is demonstration instrumentation: its attempt counter lives in memory
+and deliberately fails once per event per application process. It is not a production
+idempotency mechanism. Restarting during a retry may cause another deliberate failure.
+The log output is an external side effect and cannot be rolled back.
+
+The additional event migration and matching schema-history snapshot are committed.
+Existing demo databases at the original schema can advance normally; no volume reset
+is required. Databases still containing uncommitted migration experiments must first
+be reconciled with the committed example, as in the migration tutorial. Never alter
+an already applied migration. Review all migration candidates before application;
+you remain responsible for their suitability and effects.
+
+Run the same walkthrough as an opt-in database test, from this example directory:
+
+```text
+mvn test -Dvernac.test.database=true -Dtest=EventDemoTest
+```
+
+This uses the separate test database on port 55434. It exercises actual generated
+listeners, Boot auto-configuration, Flyway and the automatic worker, rather than
+invoking the worker directly. The persistent application database uses port 55433.

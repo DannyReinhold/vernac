@@ -1,9 +1,9 @@
 # Domain events
 
-Status: event classes, synchronous listeners, relational event storage and durable
-per-listener jobs are implemented. **Deferred workers are not implemented yet:**
-`deferred listener` creates PENDING jobs; it does not execute after commit in this
-increment. See the [delivery plan](../development/event-delivery.md).
+Status: the first event implementation includes synchronous listeners, relational
+recording, durable jobs, deferred execution, bounded retries and token-fenced lease
+recovery. Administrative replay, retention and automatic payload evolution are not
+included. See the [delivery plan](../development/event-delivery.md).
 
 ## Definition and payload
 
@@ -113,7 +113,7 @@ removed. Previously unreviewed examples using that syntax need deliberate migrat
 
 Database rollback does not restore Java objects or undo remote calls. Use synchronous
 listeners for work belonging to the current transaction. Durable external work uses deferred listeners; synchronous handling is not a durability
-substitute. Worker execution is a subsequent implementation stage.
+substitute. Deferred execution follows the worker contract below.
 
 ## Recording and durable delivery jobs
 
@@ -149,7 +149,7 @@ serialization or Jackson annotations.
 The common `"vernac"."@delivery"` table stores event identity, listener identity,
 status, attempts, scheduling timestamps, claim token, lease and last error. The unique
 key is (eventType, eventId, listenerId). New jobs are PENDING with zero attempts and
-no claim. Worker-related columns are reserved for the next stage. There is no
+no claim. Worker-related columns support claiming, recovery and acknowledgement. There is no
 polymorphic SQL foreign key from delivery to the different event tables; generated
 storage creates both atomically. Direct changes to owned tables are unsupported.
 
@@ -159,7 +159,7 @@ event identity fails. Synchronous listeners still run on every emit: this is dur
 storage deduplication, not global suppression of publication. Payload comparison uses
 value equality, not the event class's identity-based equals method.
 
-No automatic deletion, retention or replay runs in this increment. All stored payloads
+No automatic deletion, retention or replay runs. All stored payloads
 remain, including those stored only for deferred delivery. Renaming event/listener
 identities, removing the last deferred listener, changing payload types or changing
 nested VO validations requires deliberate deployment and migration review. The schema
@@ -177,5 +177,85 @@ schema changes and synchronous/deferred routing.
 BigDecimal scale, nested lists, duplicate occurrences, two listener jobs and transactional
 rollback. Its database test requires VERNAC_PG_TEST_URL, VERNAC_PG_TEST_USER and
 VERNAC_PG_TEST_PASSWORD; without a URL that test is explicitly skipped. Compilation
-coverage runs independently. Worker concurrency and crash recovery are not yet tested
-because workers are not implemented in this increment.
+coverage runs independently. `EventWorkerPostgresTest` tests concurrent claims, expired leases, stale processing
+rollback, retries, independent listener results, terminal failures, missing handlers
+and automatic polling. These PostgreSQL tests must run without skips before claiming
+database verification in a particular environment.
+
+## Deferred worker contract
+
+The JDBC runtime registers Spring Boot auto-configuration. With an EventStorage bean,
+NamedParameterJdbcTemplate and PlatformTransactionManager, it creates a worker. It
+starts one polling thread per application instance when a deferred listener is
+registered. Database initialization (including Flyway) must finish first. Multiple
+application instances can use the same queue. All instances sharing it must run a
+compatible set of event storage adapters and listeners; an incompatible instance may
+block a job whose listener it does not know. Use dedicated application databases.
+
+Each job uses three transaction boundaries:
+
+1. A short REQUIRES_NEW transaction selects the oldest due job (createdAt, then job ID)
+   using FOR UPDATE SKIP LOCKED, increments attempts, assigns a fresh claim token and
+   lease expiry, and commits. Expired processing jobs are eligible for recovery.
+2. A new transaction reconstructs and validates the event, opens EventContext, invokes
+   the deferred handler and acknowledges success. REQUIRED usecases join this transaction.
+   Application database writes, newly emitted events and acknowledgement commit together.
+3. On processing failure, the processing transaction rolls back. A separate transaction
+   records the exception class and retry time, conditional on the same claim token.
+
+Successful acknowledgement requires the current token and an unexpired lease. A stale
+worker cannot commit its database effects or overwrite another worker's outcome.
+If a worker dies, the lease eventually permits retry. An expired final attempt becomes
+FAILED, so no job remains PROCESSING forever merely because it exhausted its attempts.
+Reducing max-attempts also terminates pending jobs already at that limit.
+
+Only database effects participating in the same transaction manager/data source have
+this atomicity. Remote HTTP requests, emails and messages can happen more than once;
+use eventId plus listener identity for downstream idempotency. No exactly-once external
+execution is promised. A long-running handler is not interrupted at lease expiry and
+may overlap its replacement; token fencing protects database commit, not external work.
+There is no automatic heartbeat. Choose a lease longer than the expected processing
+time and configure sensible external-call timeouts.
+
+Runtime exceptions roll back processing and schedule retry. A process failure or fatal
+Error may leave the claim until lease recovery. If recording the failure itself fails,
+the infrastructure error is reported and the claim likewise expires for recovery.
+Exception messages and payloads are not copied into lastError; it stores an exception
+class, or an explicit missing-handler/attempt-limit explanation.
+
+Due jobs are preferred by creation time, not domain occurredAt. Failed jobs waiting for
+backoff do not block later jobs. There is no completion ordering guarantee with parallel
+workers and no aggregate-specific ordering. Each listener has its own independent job.
+
+Missing, ambiguous or incompatible listeners/storage adapters produce BLOCKED jobs
+without consuming a processing attempt. FAILED and BLOCKED are retained and not retried
+automatically. Diagnose and repair the deployment before deliberately re-enabling jobs;
+a managed retry/replay API is a later feature. No records are automatically deleted.
+
+## Operational configuration
+
+```yaml
+vernac:
+  events:
+    enabled: true
+    poll-interval: PT1S
+    lease: PT5M
+    max-attempts: 5
+    initial-backoff: PT1S
+    max-backoff: PT5M
+```
+
+These are the defaults. Durations use ISO-8601 and must be at least one millisecond.
+Backoff doubles after each failed attempt up to max-backoff; max-attempts includes the
+initial attempt. One polling cycle processes at most one job. Poll interval is the
+pause after the previous processing cycle finishes. Database time controls leases and
+due dates, avoiding differences between application-host clocks. No maximum event age
+is imposed in this version.
+
+`enabled: false` disables automatic worker creation and polling, **not event storage**.
+This is useful while inspecting queued jobs. Non-Boot applications can construct
+JdbcEventWorker and call runOnce from their own scheduler outside an application
+transaction. An application-provided JdbcEventWorker replaces the default worker bean.
+A recorded-only application does not start polling and needs no delivery table.
+Graceful shutdown waits for the current work through Spring's lifecycle shutdown phase;
+forced termination is handled by lease recovery.

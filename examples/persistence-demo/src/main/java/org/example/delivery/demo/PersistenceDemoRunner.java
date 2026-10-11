@@ -10,9 +10,11 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Component;
+import org.springframework.core.annotation.Order;
 import org.example.delivery.domain.*;
 
 @Component
+@Order(0)
 @ConditionalOnProperty(name="demo.run",havingValue="true",matchIfMissing=true)
 public class PersistenceDemoRunner implements ApplicationRunner {
     private static final Logger log=LoggerFactory.getLogger(PersistenceDemoRunner.class);

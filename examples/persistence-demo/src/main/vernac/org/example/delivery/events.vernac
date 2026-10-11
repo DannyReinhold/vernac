@@ -1,0 +1,22 @@
+namespace org.example.delivery;
+
+recorded event DemoNotice(Title);
+
+usecase PublishDemoNotice(Title) behavior {
+    execute { self.emit(DemoNotice.create(title)); }
+}
+
+synchronous listener ObserveDemoNotice on DemoNotice behavior {
+    java imports { org.example.delivery.demo.EventDemoProbe; }
+    execute { EventDemoProbe.observe(event); }
+}
+
+deferred listener DeliverDemoNotice on DemoNotice behavior {
+    java imports { org.example.delivery.demo.EventDemoProbe; }
+    execute { EventDemoProbe.deliver(event); }
+}
+
+deferred listener RetryDemoNotice on DemoNotice behavior {
+    java imports { org.example.delivery.demo.EventDemoProbe; }
+    execute { EventDemoProbe.deliverWithRetry(event); }
+}

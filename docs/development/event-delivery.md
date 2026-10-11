@@ -2,17 +2,14 @@
 
 ## Status
 
-Implemented: immutable domain events, EventId, validation, named synchronous listeners,
-scoped publication, generated access interfaces and rollback protection; relational
-recorded/deferred event storage, generated JDBC adapters, per-listener PENDING jobs,
-and integration with the existing schema and migration pipeline. See the
-[event contract](../contracts/events.md).
+Implemented: domain events, recording, synchronous and deferred listeners, relational
+storage and schema migrations, per-listener jobs, automatic Boot polling, bounded retry,
+SKIP LOCKED claims, token-fenced acknowledgement and lease recovery. Defaults and
+operational limits are defined in the [event contract](../contracts/events.md).
 
-Not implemented yet: worker execution, claiming/leases, retry configuration, retention,
-or automated event evolution/upcasting. Deferred declarations currently enqueue only.
-The worker sections below define the target behavior, not existing runtime guarantees.
-Schema migrations cover physical tables; they cannot guarantee payload compatibility
-with changed constructors or validations.
+Still deferred: management UI/API, manual retry/replay tooling, retention, heartbeat,
+strict ordering and automated event evolution/upcasting. Physical schema migrations do
+not prove that historical payloads pass changed constructors or validation rules.
 
 ## Domain facts and subscribers
 
@@ -22,7 +19,7 @@ remains appropriate when an operation explicitly depends on another operation; e
 are not a mandatory substitute for straightforward orchestration.
 
 Synchronous listeners run immediately in the existing transaction. Deferred listeners
-will be inbound adapters invoked by a transactional delivery runtime. A deferred
+are inbound adapters invoked by a transactional delivery runtime. A deferred
 listener does not itself introduce an extra nested transaction. The runtime owns a
 processing transaction so that application DB effects and acknowledgement are atomic;
 a called REQUIRED usecase joins it. This differs from an ordinary HTTP controller,
@@ -93,7 +90,7 @@ last attempt, next attempt, and completion/failure timestamps as applicable. Man
 retry must be explicit and observable. Failure for listener A does not prevent listener
 B's own delivery job from succeeding.
 
-Exact column names, retry defaults and administrative API remain implementation design
+Column names and retry defaults are implemented; an administrative API remains future
 work. No automatic event/job cleanup is introduced initially. Recording and operational
 retention need separate policies before any cleanup is enabled.
 
@@ -121,14 +118,14 @@ historical events remain processable.
 
 ## Implementation sequence and acceptance evidence
 
-1. Current increment: event classes and synchronous execution, generated Java tests,
-   precise unsupported diagnostics instead of a partial persistence fallback.
-2. Event storage and owned-schema integration; emission and per-listener job insertion
+1. Implemented: event classes and synchronous execution, including generated Java tests.
+2. Implemented: event storage and owned-schema integration; emission and per-listener job insertion
    commit/rollback together with the publisher. Add recorded-only and multi-listener tests.
-3. Claim/processing/failure transactions, token fencing and leases. Test with PostgreSQL:
+3. Implemented: claim/processing/failure transactions, token fencing and leases. PostgreSQL coverage:
    concurrent workers, crash after claim, expired lease, stale acknowledgement, processing
    rollback, duplicate external delivery and independent listener outcomes.
-4. Visible failure administration, retry/retention policies and a runnable demonstration.
+4. Next: administration tooling and deliberate retention/replay policies. FAILED and
+   BLOCKED jobs are already visible through SQL; defaults provide bounded retries.
 5. Migration/evolution tutorial and explicit historical-payload tests.
 
 Revisit service operation read/modify classification and shallow read views separately.

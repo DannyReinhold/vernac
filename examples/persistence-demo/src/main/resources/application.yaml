@@ -17,3 +17,9 @@ spring:
   sql:
     init:
       mode: never
+
+# Short waits keep the event walkthrough interactive; production defaults remain unchanged.
+vernac:
+  events:
+    poll-interval: PT0.1S
+    initial-backoff: PT0.2S

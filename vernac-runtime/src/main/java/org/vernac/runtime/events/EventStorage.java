@@ -8,6 +8,7 @@ import org.vernac.runtime.EventId;
 /** Generated relational adapter, discovered through the same scoped handler provider. */
 @NullMarked
 public interface EventStorage extends EventHandler {
+    String eventType();
     void persist(DomainEvent event, List<String> listenerIds);
     DomainEvent load(EventId id);
     @Override default void handle(DomainEvent event) {
