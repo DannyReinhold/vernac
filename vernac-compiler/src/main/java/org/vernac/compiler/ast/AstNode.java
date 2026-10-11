@@ -5,6 +5,7 @@ package org.vernac.compiler.ast;
 
 public sealed interface AstNode permits
         CompilationUnitNode,
+        ImportNode, JavaImportNode,
         TopLevelDefinition,
         CollectionDefinitionNode,
         IdReferenceNode,
@@ -13,13 +14,8 @@ public sealed interface AstNode permits
         ValidationRuleNode,
         InvariantNode,
         MethodNode,
-        SchemaNode,
         PortMethodNode,
-        AdapterNode,
-        RestConfigNode,
-        RestErrorRuleNode,
-        MappingBlockNode,
-        MappingStatementNode,
+        SchemaNode, SchemaFieldNode, MappingNode, MappingAssignmentNode,
         EnumConstantNode {
 
     SourceLocation location();

@@ -1,0 +1,59 @@
+namespace mapdemo;
+id ProductId;
+value Title(String) validates { require(!self.string().isBlank(), "Title is required"); };
+value Quantity(int);
+value Item(Title, Quantity) list Items;
+value Package(Title title, Items items, Title? note, ProductId productId);
+port Remote { void ping(); }
+adapter Client implements Remote {
+    mapping toPackage: Package <- Payload {
+        title <- source.label;
+        items <- source.rows using toItem;
+        note <- source.note;
+        productId <- source.identifier;
+    }
+    mapping toPayload: Payload <- Package {
+        label <- source.title;
+        rows <- source.items using toRow;
+        note <- source.note;
+        identifier <- source.productId;
+    }
+    behavior { public void ping() {} }
+    schema Payload(String label, list<Row> rows, String? note, UUID identifier);
+    schema Row(String text, int amount);
+    schema Change(patch String? text, patch list<Row>? rows);
+    schema Changed(patch String? text, patch list<RowCopy>? rows);
+    schema RowCopy(String text, int amount);
+    schema Defaults(String? note, patch String? update);
+    schema WithNested(Row? row);
+    schema OptionalText(String? text);
+    mapping toItem: Item <- Row {
+        title <- source.text;
+        quantity <- source.amount;
+    }
+    mapping toRow: Row <- Item {
+        text <- source.title;
+        amount <- source.quantity;
+    }
+    mapping change: Changed <- Change {
+        text <- source.text using trim;
+        rows <- source.rows using copyRow;
+    }
+    mapping copyRow: RowCopy <- Row { text <- source.text; amount <- source.amount; }
+    mapping defaults: Defaults <- Row { }
+    mapping manualRow: Row <- Item {
+        java imports { mapdemo.adapter.outbound.dto.ClientDtos.Row; }
+        java { return Row.of(source.title().string(),source.quantity().intValue()); }
+    }
+    mapping trim: String <- String {
+        java { return source.strip(); }
+    }
+    mapping nested: OptionalText <- WithNested { text <- source.row.text; }
+    mapping normalized: Title <- String {
+        java imports { java.util.Locale; }
+        java { return Title.of(source.toUpperCase(Locale.ROOT)); }
+    }
+    mapping external: Title <- String implemented by mapdemo.External;
+    mapping nullResult: Title <- String { java { return null; } }
+    mapping broken: Title <- String { java { throw new IllegalStateException("programming failure"); } }
+}

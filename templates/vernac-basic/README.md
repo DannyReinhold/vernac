@@ -6,11 +6,11 @@ No database, Docker, or running Spring application is required.
 
 ## Requirements
 
-- JDK 21 or a compatible newer JDK.
+- JDK 25 (the generated application targets Java 21).
 - Internet access for the initial download of Maven and dependencies.
 
 <!-- vernac-dependency-note:start -->
-This example uses Vernac `0.1.0-SNAPSHOT`. Install the matching artifacts
+This example uses Vernac `0.2.0-SNAPSHOT`. Install the matching artifacts
 in your local Maven repository first by running `mvn clean install`
 from the Vernac repository root with the JDK required by that build.
 <!-- vernac-dependency-note:end -->
@@ -34,18 +34,18 @@ Linux or macOS:
 ./mvnw clean test
 ```
 
-The build generates Java classes from `src/main/vernac/tasks.vernac`
+The build generates Java classes from `src/main/vernac/org/example/tasks/tasks.vernac`
 and runs `TaskTest`.
 
 ## Explore the Model
 
 Start with:
 
-- `src/main/vernac/tasks.vernac` — the domain model.
+- `src/main/vernac/org/example/tasks/tasks.vernac` — the domain model.
 - `src/test/java/org/example/tasks/TaskTest.java` — its use from Java.
 
-Try adding a `start()` method that changes the task status to
-`IN_PROGRESS`, then add a test for it.
+Try adding a `modify void start()` method in the `behavior` block that changes the task status to
+`IN_PROGRESS` using `self.status(Status.IN_PROGRESS)`, then add a test for it.
 
 Change the Vernac source and rebuild. Do not edit generated Java files.
 

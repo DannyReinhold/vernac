@@ -43,7 +43,8 @@
         <li>Code completion and snippets</li>
         <li>Hover documentation</li>
         <li>Go to Declaration for definitions within Vernac</li>
-        <li>File templates for new Vernac models</li>
+        <li>New Namespace creates the Vernac directory structure</li>
+        <li>New Vernac File derives its namespace automatically from the selected directory</li>
     </ul>
 
     <p><b>Language server and code generation</b></p>
@@ -97,6 +98,57 @@
 ]]></description>
 
     <change-notes><![CDATA[
+        <p>Typed adapter configuration: diagnostics, configuration-type completion,
+        and navigation from a REST base to its configuration declaration.</p>
+        <h3>Generated API readability</h3>
+        <p>Access interfaces now use domain.access. Go to Declaration on technical interface
+        types keeps standard Java navigation. Validation injection no longer adds an artificial negation.</p>
+        <h3>Entity and aggregate contracts</h3>
+        <p>Added domain-field and containment-cycle diagnostics, including optional fields
+        and collections across namespaces. Aggregate metadata is isolated from write behavior.</p>
+        <h3>Validation delegates</h3>
+        <p>Java support inside validates expressions now uses a read-only self interface,
+        including Optional getters, read behavior, and shared Java imports.</p>
+        <h3>Entity and aggregate behavior</h3>
+        <ul>
+            <li>Added read/modify behavior with Read, Write, and Access contracts.</li>
+            <li>Injected Java uses the matching self interface for completion and analysis.</li>
+            <li>Java navigation now includes entity and aggregate contracts and behavior.</li>
+        </ul>
+
+    <p><b>Java to Vernac member navigation</b></p>
+    <ul>
+        <li>Generated VO getters navigate to their field declarations; ID value() navigates to the ID declaration.</li>
+        <li>Public inline and implemented-by behavior methods navigate to their Vernac contracts.</li>
+        <li>Overloads use exact resolved parameter types; ambiguous or stale signatures keep normal Java navigation.</li>
+    </ul>
+    <p><b>Java to Vernac type navigation</b></p>
+    <ul>
+        <li>Go to Declaration on generated ID, value-object, enum and collection type references now opens the Vernac definition.</li>
+        <li>Uses compiler ownership metadata and exact type identities; ordinary Java classes keep normal navigation.</li>
+        <li>Reads current model content, including unsaved changes, in the referenced type's Maven module.</li>
+    </ul>
+    <p><b>Inline Java behavior — first integration</b></p>
+    <ul>
+        <li>Added Java language injection for inline behavior method bodies.</li>
+        <li>Private helpers share a Java context; method declarations retain Vernac source positions.</li>
+        <li>Uses the compiler's namespace/import rules and includes unsaved model changes.</li>
+        <li>Generate the domain Java sources first for receiver and model API resolution.</li>
+    </ul>
+    <p><b>Project-wide type assistance</b></p>
+    <ul>
+        <li>Type and import completion use namespace visibility across Vernac files.</li>
+        <li>Go to Declaration follows resolved type references and explicit imports.</li>
+        <li>Unsaved edits are included; ambiguous names have no arbitrary navigation target.</li>
+        <li>Grouped namespace/file actions near the top of New and hid duplicate generic template entries.</li>
+    </ul>
+    <p><b>Namespace creation</b></p>
+    <ul>
+        <li>Added New → Vernac Namespace with namespace-name validation.</li>
+        <li>New → Vernac File now derives the namespace from its target directory.</li>
+        <li>Updated file templates to the namespace syntax and an ID/VO example.</li>
+    </ul>
+
     <p><b>0.1.0-dev.3 — Project creation</b></p>
     <ul>
         <li>Added the New Project → Vernac wizard.</li>
@@ -125,6 +177,11 @@
     <depends>com.intellij.java</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <gotoDeclarationHandler implementation="org.vernac.intellij.VernacJavaDeclarationHandler" order="first"/>
+        <lang.parserDefinition language="Vernac" implementationClass="org.vernac.intellij.VernacParserDefinition"/>
+        <multiHostInjector implementation="org.vernac.intellij.VernacJavaInjector"/>
+        <lang.elementManipulator forClass="org.vernac.intellij.VernacInjectionHost"
+                                 implementationClass="org.vernac.intellij.VernacHostManipulator"/>
         <newProjectWizard.generator
                 implementation="org.vernac.intellij.VernacNewProjectWizard"/>
         <fileType
@@ -135,10 +192,21 @@
                 extensions="vernac"/>
         <postStartupActivity
                 implementation="org.vernac.intellij.VernacProjectOpenActivity"/>
+        <createFromTemplateHandler implementation="org.vernac.intellij.VernacFileTemplateHandler" order="first"/>
+        <internalFileTemplate name="Vernac File"/>
+        <internalFileTemplate name="Vernac Getting Started"/>
     </extensions>
 
     <extensions defaultExtensionNs="com.intellij.platform.lsp">
         <integrationProvider
                 implementation="org.vernac.intellij.VernacLspIntegrationProvider"/>
     </extensions>
+    <actions>
+        <group id="org.vernac.NewActions" popup="false">
+            <add-to-group group-id="NewGroup" anchor="first"/>
+            <action id="org.vernac.NewNamespace" class="org.vernac.intellij.VernacNewNamespaceAction"
+                    text="Vernac Namespace" description="Create a namespace below the Vernac source root"/>
+            <action id="org.vernac.NewFile" class="org.vernac.intellij.VernacNewFileAction"/>
+        </group>
+    </actions>
 </idea-plugin>

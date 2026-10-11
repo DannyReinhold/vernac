@@ -1,0 +1,26 @@
+namespace org.example.delivery;
+
+id StopId;
+id TourId;
+
+value Address(String);
+value Units(int);
+value TourName(String);
+
+entity Stop[StopId](Address, mut Units)
+validates {
+    require(self.units().intValue() >= 0,
+            "Units must not be negative");
+}
+behavior {
+    modify void changeUnits(Units units) {
+        self.units(units);
+    }
+} list Stops;
+
+aggregate Tour[TourId](TourName, mut Stops, TourName? note)
+behavior {
+    modify void changeDelivery(StopId id, Units units) {
+        self.stops().by(id).orElseThrow().changeUnits(units);
+    }
+};

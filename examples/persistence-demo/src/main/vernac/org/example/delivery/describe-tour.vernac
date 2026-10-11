@@ -1,0 +1,20 @@
+namespace org.example.delivery;
+
+usecase DescribeTour(TourId, Title? title)
+    returns (TourId, Title? title)
+validates {
+    require(
+        self.title().isEmpty()
+            || !self.title().orElseThrow().string().isBlank(),
+        "A supplied title must not be blank"
+    );
+}
+behavior {
+    execute {
+        return describe(tourId, title);
+    }
+
+    private Result describe(TourId id, Title? title) {
+        return Result.of(id, title.orElse(null));
+    }
+}

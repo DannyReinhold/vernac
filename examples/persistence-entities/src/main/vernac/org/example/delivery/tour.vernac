@@ -1,0 +1,21 @@
+namespace org.example.delivery;
+
+id TourId;
+value Title(String);
+value Money(BigDecimal amount, Currency currency);
+value Notes(String? description, String? comment);
+value Tag(String) list Tags;
+value TourStatus = PLANNED | COMPLETED;
+
+aggregate Tour[TourId](
+    Title title,
+    Money price,
+    Notes? notes,
+    Tags tags,
+    TourStatus status,
+    Stops allStops,
+    Stops niceStops,
+    Stop? preferredStop
+);
+
+repository TourRepository for Tour { }

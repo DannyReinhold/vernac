@@ -22,6 +22,6 @@ class TaskTest {
         task.complete();
 
         assertThat(task.status()).isEqualTo(Status.COMPLETED);
-        assertThat(task.title().value()).isEqualTo("Try Vernac");
+        assertThat(task.title().string()).isEqualTo("Try Vernac");
     }
 }

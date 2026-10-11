@@ -4,12 +4,20 @@ This guide describes local Maven Central releases and IntelliJ plugin
 distribution through GitHub Releases and JetBrains Marketplace.
 It also records the current scope of release automation.
 
+The current development target is 0.2.0-SNAPSHOT. Follow the
+[0.2.0 release plan](../development/release-0.2.0.md) before publishing: this guide's
+commands below illustrate 0.2.0. The automated route is described under
+[GitHub Actions](#github-actions); its first real dry run and installed-plugin
+acceptance remain release gates.
+
 ## Release scope
 
-The following components are published to Maven Central:
+The 0.2.0 Maven Central publication scope is:
 
 - `org.vernac:vernac` — parent POM
 - `org.vernac:vernac-runtime`
+- `org.vernac:vernac-runtime-json`
+- `org.vernac:vernac-runtime-http`
 - `org.vernac:vernac-runtime-jdbc`
 - `org.vernac:vernac-jdbc-spring-boot-starter`
 - `org.vernac:vernac-compiler`
@@ -89,17 +97,17 @@ The project uses the Maven property `revision` as its central version input.
 Supply the release version on the command line:
 
 ```text
--Drevision=0.1.0
+-Drevision=0.2.0
 ```
 
 This overrides the development version for that invocation without editing
-every module POM. Replace `0.1.0` in the commands below when publishing
+every module POM. Replace `0.2.0` in the commands below when publishing
 another release.
 
 A Maven Central release version must not end in `-SNAPSHOT`.
 
-Published versions are immutable. A correction to a published `0.1.0`
-must use a new version, such as `0.1.1`.
+Published versions are immutable. A correction to a published `0.2.0`
+must use a new version, such as `0.2.1`.
 
 ## 1. Prepare the source state
 
@@ -121,10 +129,11 @@ or private signing material.
 Start Docker Desktop and run:
 
 ```text
-mvn -Drevision=0.1.0 clean verify
+mvn -Drevision=0.2.0 clean verify
 ```
 
-This includes the example modules and IntelliJ plugin checks.
+This includes the reactor modules and IntelliJ plugin checks. Standalone applications
+under `examples` have their own acceptance commands and are not all part of the reactor.
 
 Investigate failures before proceeding. If a test is deliberately disabled,
 record the specific test and its reason in the release notes. A successful
@@ -141,7 +150,7 @@ Replace `YOUR_SIGNING_KEY_FINGERPRINT` with the full fingerprint of the
 release signing key:
 
 ```text
-mvn -Prelease -Drevision=0.1.0 -pl vernac-runtime-jdbc,vernac-jdbc-spring-boot-starter,vernac-maven-plugin -am -Dgpg.keyname=YOUR_SIGNING_KEY_FINGERPRINT clean verify
+mvn -Prelease -Drevision=0.2.0 -pl vernac-runtime-http,vernac-runtime-jdbc,vernac-jdbc-spring-boot-starter,vernac-maven-plugin -am -Dgpg.keyname=YOUR_SIGNING_KEY_FINGERPRINT clean verify
 ```
 
 The `-am` option includes required reactor projects, including the parent,
@@ -180,7 +189,7 @@ resolved appropriately by the flattening step.
 Run the same selected-module build with `deploy`:
 
 ```text
-mvn -Prelease -Drevision=0.1.0 -pl vernac-runtime-jdbc,vernac-jdbc-spring-boot-starter,vernac-maven-plugin -am -Dgpg.keyname=YOUR_SIGNING_KEY_FINGERPRINT clean deploy
+mvn -Prelease -Drevision=0.2.0 -pl vernac-runtime-http,vernac-runtime-jdbc,vernac-jdbc-spring-boot-starter,vernac-maven-plugin -am -Dgpg.keyname=YOUR_SIGNING_KEY_FINGERPRINT clean deploy
 ```
 
 This command uploads the release artifacts.
@@ -212,7 +221,7 @@ Portal validation.
 Before clicking **Publish**, verify:
 
 - The deployment status is **Validated**.
-- All six intended artifact names are present.
+- All eight intended artifact names listed in Release scope are present.
 - Every component has the intended version.
 - No example or IntelliJ plugin artifact is included.
 
@@ -242,7 +251,7 @@ For example:
 3. Build it with a new, empty Maven repository directory:
 
 ```text
-mvn -U -Dmaven.repo.local=C:/temp/vernac-central-check-0.1.0 clean verify
+mvn -U -Dmaven.repo.local=C:/temp/vernac-central-check-0.2.0 clean verify
 ```
 
 Run this command in the standalone project's directory. Choose a different
@@ -267,8 +276,8 @@ After successful publication and consumption verification, tag the exact
 commit used to build the release:
 
 ```text
-git tag -a maven-v0.1.0 RELEASE_COMMIT_SHA -m "Maven Central release 0.1.0"
-git push origin maven-v0.1.0
+git tag -a maven-v0.2.0 RELEASE_COMMIT_SHA -m "Maven Central release 0.2.0"
+git push origin maven-v0.2.0
 ```
 
 Replace `RELEASE_COMMIT_SHA` with the previously recorded commit ID.
@@ -292,7 +301,7 @@ SNAPSHOT version, for example:
 
 ```xml
 
-<revision>0.1.1-SNAPSHOT</revision>
+<revision>0.2.1-SNAPSHOT</revision>
 ```
 
 Commit this development-version change separately.
@@ -328,7 +337,7 @@ mvn -version
 Build from the repository root:
 
 ```powershell
-$releaseVersion = "0.1.0"
+$releaseVersion = "0.2.0"
 mvn "-Drevision=$releaseVersion" -pl vernac-intellij -am clean verify
 ```
 
@@ -481,17 +490,9 @@ strategies and their underlying exceptions.
 A working Docker CLI does not guarantee compatibility between the Docker
 Engine API and the Docker client embedded in Testcontainers.
 
-The temporary workaround used with Testcontainers 1.20.4 and Docker 29 was:
-
-```text
-vernac-example/src/test/resources/docker-java.properties
-```
-
-```properties
-api.version=1.44
-```
-
-Reassess this workaround when updating Testcontainers. It addresses
+Historically, the now-removed legacy example used docker-java.properties with
+`api.version=1.44` for Testcontainers 1.20.4 and Docker 29. This is not a current
+project-wide requirement. Reassess any such workaround when updating Testcontainers. It addresses
 connection compatibility, not failures in repository or schema behavior.
 
 ### Portal authentication fails
@@ -506,31 +507,155 @@ Check that:
 
 Never include token values in issue reports or build-log excerpts.
 
-## GitHub Actions automation
+## GitHub Actions
 
-The release workflow is located at `.github/workflows/release.yml` and is
-started manually with a release version and a dry-run option.
+Two workflows share the same verified plugin artifact:
 
-The successful dry run verified the CI build and signing path. An actual
-publication through this workflow is a separate verification step.
+- **Vernac Release** (`.github/workflows/release.yml`): verify the reactor with
+  PostgreSQL, retain the plugin ZIP, sign the eight publication coordinates,
+  upload to Central when requested, then invoke the plugin workflow.
+- **Publish IntelliJ Plugin** (`.github/workflows/publish-plugin.yml`): verify an
+  archived candidate, wait for Central availability, build a fresh consumer,
+  and upload the original ZIP to the existing Marketplace listing.
 
-The current workflow verifies the project and builds the selected publication
-artifacts. In dry-run mode it does not deploy them. In deployment mode it
-uploads to the Central Publisher Portal for validation; final publication
-remains a manual Portal action.
+There is no scheduled publication, push-triggered release, automatic Git tag or
+GitHub Release creation. Source selection is the branch selected for the manual
+workflow run; record its exact commit from the summary. Do not change that source
+between building, Central publication and plugin submission.
 
-CI signing uses the Maven GPG plugin's Bouncy Castle signer. Local releases
-in this guide use GnuPG. CI credentials and private signing material are
-provided through GitHub Actions secrets, never repository files.
+### One-time secret setup
 
-After a CI deployment, perform the Portal review, publication and independent
-consumer checks described above. Record the workflow's source commit when
-creating the release tag.
+In **Repository Settings → Secrets and variables → Actions → Repository secrets**,
+retain the existing signing/Central secrets and add the Marketplace token:
 
-The workflow does not currently publish the IntelliJ plugin, create release
-tags or create GitHub Releases. Those steps remain manual.
+| Secret name | Purpose |
+| --- | --- |
+| `CENTRAL_USERNAME` | Central Portal token username |
+| `CENTRAL_PASSWORD` | Central Portal token password |
+| `GPG_PRIVATE_KEY` | Private signing key for the CI Bouncy Castle signer |
+| `GPG_PASSPHRASE` | Signing-key passphrase |
+| `JETBRAINS_MARKETPLACE_TOKEN` | Permanent token for an account permitted to update `org.vernac` |
 
-Future plugin automation should retain the tested ZIP and use that same
-artifact for GitHub Releases and Marketplace. Any Marketplace upload token
-must be stored as a secret. Never include credentials, private keys or
-passphrases in commands, release notes, screenshots or shared build logs.
+Create the last token under **My Tokens** in the JetBrains Marketplace account.
+The existing listing is reused via its XML ID `org.vernac`; no numeric ID needs to
+be copied into the workflow. A token's descriptive label (for example a label in
+a password manager) is independent of its GitHub secret name.
+
+Never paste tokens into this guide, workflow inputs, source code or shared logs.
+The Marketplace token is supplied only to the actual upload step. CI signing uses
+Bouncy Castle; the local instructions above still use GnuPG. Dry runs need the GPG
+secrets but do not need a Marketplace token or perform external publication.
+
+### First dry run
+
+1. Push the reviewed changes on `feature/redefining_the_language`.
+2. Open **Actions → Vernac Release → Run workflow**.
+3. Select that branch, enter `0.2.0`, and leave **dry_run = true**.
+4. Check that the reactor, PostgreSQL tests, plugin distribution checks, signing,
+   artifact archive and plugin provenance checks pass.
+5. Download `vernac-plugin-0.2.0-<attempt>` from the run's Artifacts section. It contains
+   the installable ZIP and `release.json`. Install the inner plugin ZIP, not GitHub's
+   outer artifact-download archive. Keep the manifest with the tested ZIP.
+
+The workflow remains manually dispatched. GitHub's manual launcher requires the
+workflow to exist on the default branch. The existing release workflow can select
+the feature branch and call the new reusable workflow from that same revision.
+The separate new plugin launcher becomes available once its definition is on main.
+
+The release job starts an ephemeral PostgreSQL 17 service and sets all three
+`VERNAC_PG_TEST_*` variables. Its documented CI password is only for this disposable
+runner service, not a production secret. The release gate requires the named schema,
+backfill, scalar, repository, event and plugin-distribution suites and rejects
+skipped/failed reports. This does not replace the standalone Dispatch acceptance
+profile or an installed-IDE smoke test.
+
+Dry-run mode builds/signs but never deploys to Central or Marketplace. It does not
+wait for an unpublished version on Central or run the fresh Central consumer.
+A dry-run candidate is marked accordingly and cannot later be submitted using the
+plugin-only upload workflow. Start a real release run from the same reviewed source.
+
+### Real release
+
+After the release checklist and merge to main:
+
+1. Run **Vernac Release** on main with `version = 0.2.0`, **dry_run = false**.
+2. The workflow rejects existing release tags and versions already visible on
+   Central. It does not attempt to replace immutable artifacts.
+3. When the Central step reports validation success, open the existing deployment
+   in the [Central Portal](https://central.sonatype.com/publishing/deployments),
+   verify its coordinates and click **Publish**. `autoPublish=false` remains deliberate.
+4. The Marketplace job waits up to 30 minutes for the parent POM and all seven
+   module POMs/JARs at that version. This includes runtime-json and runtime-http.
+5. It extracts the template from the archived plugin, sets its Vernac dependency
+   version exactly as the project wizard does, adds HTTP and JDBC starter dependencies,
+   and runs `clean verify` with a fresh Maven repository. It cannot use locally
+   installed Vernac artifacts to conceal missing Central dependencies.
+6. Only after this succeeds does the job submit the original ZIP to Marketplace
+   Stable. The update is not hidden and declares no advertising.
+7. Monitor JetBrains review. Upload acceptance does not mean approval or public
+   availability. Verify installation/update through IntelliJ after approval.
+
+The summary records version, source commit, ZIP SHA-256, source run ID, candidate
+attempt and destination. `release.json` binds these to the archived ZIP. These
+checks establish consistency with the retained candidate; they are not a signing
+certificate or a proof that arbitrary artifacts bearing the same version are identical.
+
+### Retry only the plugin publication
+
+If Central publication takes longer than the polling window, the fresh-consumer
+check encounters a temporary failure, or Marketplace rejects the upload:
+
+1. Inspect the existing Central deployment and Marketplace update first.
+2. Choose **Publish IntelliJ Plugin → Run workflow**.
+3. Enter the version, original release **run ID**, and original candidate **attempt**
+   shown in its summary. The run ID is the number after `/actions/runs/` in its URL.
+4. Use `dry_run = true` to check artifact identity and provenance without uploading.
+5. When ready, run with `dry_run = false`.
+
+This path does not run Maven deploy, rebuild the plugin or require Central/GPG
+secrets. It verifies the original repository, commit, workflow, attempt and successful
+candidate build/test/archive steps, even if a later Central step failed after upload.
+It repeats Central availability and fresh-consumer checks before Marketplace upload.
+Never select **Re-run all jobs** on a real release after uploading to Central.
+
+Uploads have no automatic HTTP retry. A timeout can mean Marketplace accepted the
+ZIP but the response was lost. Inspect the listing before manually retrying. An
+existing update/version should be resolved in Marketplace rather than submitted
+blindly again. All Marketplace response bodies are omitted from CI logs.
+
+Artifacts are retained for 90 days, subject to repository policy. Download the ZIP
+and manifest and attach them to the manually created GitHub Release for durable
+retention. After expiry, the automated retry cannot recover its original artifact;
+use the preserved, verified ZIP for a reviewed manual upload. Do not silently rebuild
+a replacement and present it as the previously verified binary.
+
+### Finish and next bugfix
+
+Follow the Git and plugin tag conventions above (`maven-v0.2.0` and `plugin-v0.2.0`)
+and attach the same ZIP/manifest to the plugin's GitHub Release. Do not move old tags.
+Advance the development revision separately. For the next bugfix, supply `0.2.1` to
+the workflow; `revision` drives Maven and plugin artifact versions. The shared
+plugin/template version still requires the matching Maven release.
+
+The first GitHub dry run, real publication, Marketplace review and installed-plugin
+acceptance must be recorded separately. Offline script tests or a local workflow
+lint do not establish success of those external steps.
+
+### Automation maintenance
+
+Run the secret-free checks locally with Python 3.11 or newer:
+
+```text
+python -m unittest discover -s tools/tests -v -b
+```
+
+`tools/release.py` is the shared publication inventory, candidate verification,
+Central gate and upload implementation. Its tests mock the network; they never
+publish. The workflows use read-only GitHub permissions, and publisher credentials
+are scoped to the relevant steps.
+
+API references:
+
+- [JetBrains plugin upload API](https://plugins.jetbrains.com/docs/marketplace/plugin-upload.html)
+- [GitHub artifact download action](https://github.com/actions/download-artifact)
+- [Central Publishing Maven plugin](https://central.sonatype.org/publish/publish-portal-maven/)

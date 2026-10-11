@@ -18,21 +18,19 @@ class RepositoryGeneratorTest {
     private final VernacCompiler compiler = new VernacCompiler();
 
     @Test
-    @DisplayName("Generiert Interface, Custom-Fragment und Jdbc-Repository")
+    @DisplayName("Generiert Domain-Interface und transaktionspflichtiges JDBC-Repository")
     void shouldGenerateCompleteRepositoryStructure() {
         String dsl = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
-                import java.math.BigDecimal;
                 
                 id OrderId;
                 id CustomerId;
                 
-                aggregate Order[OrderId](CustomerId customer, mut String status);
+                value Status(String);
+                aggregate Order[OrderId](CustomerId customer, mut Status status);
                 
                 repository OrderRepository for Order {
-                    find List<Order> findByStatus(String status);
-                    custom List<Order> findTopOrders(BigDecimal threshold);
                 };
                 """;
 
@@ -44,7 +42,7 @@ class RepositoryGeneratorTest {
 
         assertThat(typeNames).contains(
                 "OrderId", "CustomerId", "Order",
-                "OrderRepository", "OrderRepositoryCustom", "JdbcOrderRepository"
+                "OrderRepository", "JdbcOrderRepository"
         );
 
         JavaFile repoInterface = result.generatedFiles().stream()
@@ -55,9 +53,7 @@ class RepositoryGeneratorTest {
         assertThat(normalizedInterface)
                 .contains("Order byId(OrderId id);")
                 .contains("Order save(Order aggregate);")
-                .contains("void delete(Order aggregate);")
-                .contains("List<Order> findByStatus(String status);")
-                .contains("interface OrderRepository extends OrderRepositoryCustom");
+                .contains("void delete(Order aggregate);");
 
         JavaFile jdbcRepo = result.generatedFiles().stream()
                 .filter(f -> f.typeSpec().name().equals("JdbcOrderRepository"))
@@ -66,23 +62,26 @@ class RepositoryGeneratorTest {
         String normalizedJdbc = normalize(jdbcRepo.toString());
         assertThat(normalizedJdbc)
                 .contains("@Transactional(propagation = Propagation.MANDATORY)")
-                .contains("this.eventDispatcher = Objects.requireNonNull(eventDispatcher, \"eventDispatcher must not be null\");")
-                .contains("this.eventDispatcher.dispatch(\"Order\", aggregate.id().value().toString(), aggregate.pullDomainEvents());")
-                .contains("throw new AggregateNotFoundException")
-                .contains("throw new OptimisticLockingFailureException");
+                .doesNotContain("events.dispatch", "EventDispatcher")
+                .contains("JdbcAggregateStore<Order>")
+                .contains("store.byId(id.value())")
+                .contains("store.save(aggregate)")
+                .contains("store.delete(aggregate)")
+                .doesNotContain("withVersion(");
     }
 
     @Test
-    @DisplayName("Generiert 1:N Entity-Mapping Methoden (sync und fetch) in JDBC Repositories")
+    @DisplayName("Generates shared entity state and collection bindings")
     void shouldGenerateJdbcRepositoryWithOneToManyEntityMapping() {
         String dsl = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 id ProjectId;
                 id TaskId;
                 
-                entity Task[TaskId](String title) collection;
-                aggregate Project[ProjectId](String name, mut Tasks tasks);
+                value Title(String); value ProjectName(String);
+                entity Task[TaskId](Title title) list;
+                aggregate Project[ProjectId](ProjectName name, mut Tasks tasks);
                 
                 repository for Project {
                 };
@@ -97,26 +96,25 @@ class RepositoryGeneratorTest {
         String code = jdbcRepo.toString().replaceAll("\\s+", " ");
 
         assertThat(code)
-                .contains("private Tasks fetchTasks(ProjectId aggregateId)")
-                .contains("private void syncTasks(ProjectId aggregateId, Tasks items)")
-                .contains("private MapSqlParameterSource buildTaskParamSource(ProjectId aggregateId, Task item)");
-
-        assertThat(code).contains("fetchTasks(id)");
+                .contains("JdbcMapping.entity(", "Project.@entity:com.example.domain.Task")
+                .contains("JdbcMapping.collection(", "Project.tasks")
+                .contains("Tasks.of(items.stream().map(Task.class::cast).toList())")
+                .contains("Task.reconstitute(");
     }
 
     @Test
-    @DisplayName("Flacht Multi-Value-Objects und geschachtelte Value-Objects in SQL und Parametern rekursiv ab")
+    @DisplayName("Recursively flattens nested value objects using the schema layout")
     void shouldFlattenNestedValueObjectsInSqlStatementsAndParams() {
         String dsl = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
-                import java.math.BigDecimal;
                 
                 id AccountId;
-                value Currency(String isoCode);
-                value Money(BigDecimal amount, Currency currency);
+                value MoneyCurrency(String isoCode);
+                value Money(BigDecimal amount, MoneyCurrency currency);
                 
-                aggregate Account[AccountId](String owner, mut Money balance);
+                value Owner(String);
+                aggregate Account[AccountId](Owner owner, mut Money balance);
                 
                 repository for Account {
                 };
@@ -131,18 +129,17 @@ class RepositoryGeneratorTest {
         String code = jdbcRepo.toString().replaceAll("\\s+", " ");
 
         assertThat(code)
-                .contains("INSERT INTO account (id, created_at, updated_at, version, owner, balance_amount, balance_currency) VALUES (:id, :createdAt, :updatedAt, :version, :owner, :balanceAmount, :balanceCurrency)")
-                .contains("params.addValue(\"balanceAmount\", aggregate.balance().amount())")
-                .contains("params.addValue(\"balanceCurrency\", aggregate.balance().currency().isoCode())")
-                .contains("balance_amount = :balanceAmount")
-                .contains("balance_currency = :balanceCurrency");
+                .contains("JdbcMapping.scalar(\"BigDecimal\", false, \"balance.amount\", \"@scale:balance.amount\")")
+                .contains("JdbcMapping.scalar(\"String\", false, \"balance.currency\")")
+                .contains("Money.of(", "MoneyCurrency.of(")
+                .contains("((Money) value).amount()", "((Money) value).currency()");
     }
 
     @Test
-    @DisplayName("Liest primitive Attribute in Value Objects mit Boxed Types (Integer.class) und rekonstruiert verschachtelte VOs im RowMapper")
+    @DisplayName("Reconstructs primitive-backed value objects with typed factories")
     void shouldMapRowUsingBoxedTypesAndReconstructValueObjects() {
         String dsl = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 id StorageId;
                 value WattHours(int value);
@@ -163,23 +160,26 @@ class RepositoryGeneratorTest {
         String code = jdbcRepo.toString().replaceAll("\\s+", " ");
 
         assertThat(code)
-                .contains("WattHours capacity = WattHours.of(rs.getObject(\"capacity\", java.lang.Integer.class));")
-                .contains("BatterySoc currentSoc = BatterySoc.of(rs.getObject(\"current_soc\", java.lang.Integer.class));")
-                .contains("return EnergyStorage.reconstitute(id, capacity, currentSoc, createdAt, updatedAt, version);");
+                .contains("WattHours.of((Integer) values[0])")
+                .contains("BatterySoc.of((Integer) values[0])")
+                .contains("EnergyStorage.reconstitute(")
+                .contains("JdbcMapping.scalar(\"int\", false, \"capacity\")")
+                .contains("JdbcMapping.scalar(\"int\", false, \"currentSoc\")");
     }
 
     @Test
-    @DisplayName("Flacht Value Objects auch in 1:N Child-Entity Sync-Statements sauber ab")
+    @DisplayName("Flattens value objects inside entity state mappings")
     void shouldFlattenValueObjectsInChildEntitySync() {
         String dsl = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 id ProjectId;
                 id TaskId;
                 value TaskDuration(int hours);
                 
-                entity Task[TaskId](String title, TaskDuration duration) collection;
-                aggregate Project[ProjectId](String name, mut Tasks tasks);
+                value Title(String); value ProjectName(String);
+                entity Task[TaskId](Title title, TaskDuration duration) list;
+                aggregate Project[ProjectId](ProjectName name, mut Tasks tasks);
                 
                 repository for Project {
                 };
@@ -194,9 +194,10 @@ class RepositoryGeneratorTest {
         String code = jdbcRepo.toString().replaceAll("\\s+", " ");
 
         assertThat(code)
-                .contains("params.addValue(\"duration\", item.duration().hours())")
-                .contains("INSERT INTO task (id, project_id, title, duration) VALUES (:id, :parentId, :title, :duration)")
-                .contains("TaskDuration duration = TaskDuration.of(rs.getObject(\"duration\", java.lang.Integer.class));");
+                .contains("((TaskDuration) value).hours()")
+                .contains("TaskDuration.of((Integer) values[0])")
+                .contains("JdbcMapping.scalar(\"int\", false, \"duration\")")
+                .contains("Project.@entity:com.example.domain.Task");
     }
 
     private String normalize(String source) {

@@ -1,0 +1,140 @@
+package eventdemo;
+import eventdemo.domain.*;
+import eventdemo.adapter.outbound.jdbc.event.*;
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import javax.sql.DataSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.vernac.runtime.*;
+import org.vernac.runtime.events.*;
+import org.vernac.runtime.jdbc.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+public final class WorkerProbe {
+ private static final String JOBS="\"vernac\".\"@delivery\"";
+ private final NamedParameterJdbcTemplate jdbc;
+ private final DataSourceTransactionManager manager;
+ private final TransactionTemplate tx;
+ private final JdbcChangedEvents store;
+ private final JdbcArchivedEvents archive;
+ WorkerProbe(DataSource data) {
+  jdbc=new NamedParameterJdbcTemplate(data); manager=new DataSourceTransactionManager(data);
+  tx=new TransactionTemplate(manager);store=new JdbcChangedEvents(jdbc);archive=new JdbcArchivedEvents(jdbc);
+  jdbc.getJdbcTemplate().execute("CREATE TABLE effects(event UUID, who TEXT)");
+ }
+ public static void run(DataSource data) throws Exception {
+  var test=new WorkerProbe(data);
+  test.successAndIndependentRetries(); test.parallelClaim(); test.expiredWorkerCannotCommit();
+  test.crashRecoveryAndExhaustion();test.missingListenerIsBlocked();test.automaticPolling();
+ }
+ EventHandler listener(String name,Consumer<DomainEvent> action) {
+  return new EventHandler() {
+   public String listenerId(){return name;}
+   public Class<? extends DomainEvent> eventClass(){return Changed.class;}
+   public boolean deferred(){return true;}
+   public void handle(DomainEvent event){action.accept(event);}
+  };
+ }
+ JdbcEventWorker worker(List<EventHandler> listeners) {
+  var all=new ArrayList<EventHandler>(listeners);all.add(store);all.add(archive);
+  return new JdbcEventWorker(jdbc,manager,()->all,new EventDeliveryOptions(2,Duration.ofMinutes(1),Duration.ofSeconds(1),Duration.ofSeconds(2)));
+ }
+ Changed publish(EventHandler... listeners) {
+  var event=Changed.create(TaskId.create(),Labels.of(List.of()),null,Batches.of(List.of()),Status.OPEN);
+  List<EventHandler> all=new ArrayList<>(List.of(listeners));all.add(store);all.add(archive);
+  tx.executeWithoutResult(s->{try(var scope=EventContext.open(()->all)){EventContext.emit(event);}});
+  return event;
+ }
+ void effect(DomainEvent event,String who) {
+  jdbc.update("INSERT INTO effects VALUES (:id,:who)",Map.of("id",event.eventId().value(),"who",who));
+ }
+ String status(Changed event,String listener) {
+  return jdbc.queryForObject("SELECT status FROM "+JOBS+" WHERE \"eventId\"=:id AND \"listenerId\"=:listener",
+    Map.of("id",event.eventId().value(),"listener",listener),String.class);
+ }
+ int attempts(Changed event) {return jdbc.queryForObject("SELECT attempts FROM "+JOBS+" WHERE \"eventId\"=:id",Map.of("id",event.eventId().value()),Integer.class);}
+ int effects(Changed event) {return jdbc.queryForObject("SELECT count(*) FROM effects WHERE event=:id",Map.of("id",event.eventId().value()),Integer.class);}
+ void due() {jdbc.getJdbcTemplate().update("UPDATE "+JOBS+" SET \"nextAttemptAt\"=clock_timestamp()-interval '1 second' WHERE status='PENDING'");}
+ void expire(Changed event) {jdbc.update("UPDATE "+JOBS+" SET \"leaseUntil\"=clock_timestamp()-interval '1 second' WHERE \"eventId\"=:id",Map.of("id",event.eventId().value()));}
+ void successAndIndependentRetries() {
+  var calls=new AtomicInteger();var nested=Archived.create();
+  var good=listener("good",e->effect(e,"good"));
+  var flaky=listener("flaky",e->{effect(e,"flaky");EventContext.emit(nested);if(calls.incrementAndGet()==1)throw new IllegalArgumentException("retry");});
+  var event=publish(good,flaky);var worker=worker(List.of(good,flaky));
+  assertTrue(worker.runOnce());assertTrue(worker.runOnce());
+  assertEquals("SUCCEEDED",status(event,"good"));assertEquals("PENDING",status(event,"flaky"));assertEquals(1,effects(event));
+  assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM \"eventdemo\".\"@event:Archived\"",Map.of(),Integer.class));
+  due();assertTrue(worker.runOnce());assertFalse(worker.runOnce());
+  assertEquals("SUCCEEDED",status(event,"flaky"));assertEquals(2,effects(event));
+  tx.executeWithoutResult(s->assertEquals(nested.eventId(),archive.load(nested.eventId()).eventId()));
+ }
+ void parallelClaim() throws Exception {
+  var entered=new CountDownLatch(1);var release=new CountDownLatch(1);var calls=new AtomicInteger();
+  var listener=listener("parallel",e->{calls.incrementAndGet();entered.countDown();await(release);effect(e,"only");});
+  var event=publish(listener);var worker=worker(List.of(listener));
+  try(var pool=Executors.newFixedThreadPool(2)) {
+   var first=pool.submit(worker::runOnce);
+   try {assertTrue(entered.await(10,TimeUnit.SECONDS));assertFalse(pool.submit(worker::runOnce).get(10,TimeUnit.SECONDS));}
+   finally {release.countDown();}
+   assertTrue(first.get(10,TimeUnit.SECONDS));
+  }
+  assertEquals(1,calls.get());assertEquals(1,effects(event));assertEquals(1,attempts(event));
+ }
+ void expiredWorkerCannotCommit() throws Exception {
+  var entered=new CountDownLatch(1);var release=new CountDownLatch(1);var calls=new AtomicInteger();
+  var listener=listener("fenced",e->{int call=calls.incrementAndGet();if(call==1){entered.countDown();await(release);}effect(e,call==1?"stale":"current");});
+  var event=publish(listener);var worker=worker(List.of(listener));
+  try(var pool=Executors.newFixedThreadPool(2)) {
+   var first=pool.submit(worker::runOnce);
+   try {assertTrue(entered.await(10,TimeUnit.SECONDS));expire(event);assertTrue(pool.submit(worker::runOnce).get(10,TimeUnit.SECONDS));}
+   finally {release.countDown();}
+   assertTrue(first.get(10,TimeUnit.SECONDS));
+  }
+  assertEquals("SUCCEEDED",status(event,"fenced"));assertEquals(2,attempts(event));assertEquals(1,effects(event));
+  assertEquals("current",jdbc.queryForObject("SELECT who FROM effects WHERE event=:id",Map.of("id",event.eventId().value()),String.class));
+ }
+ void crashRecoveryAndExhaustion() {
+  var listener=listener("crash",e->effect(e,"recovered"));var event=publish(listener);
+  jdbc.update("UPDATE "+JOBS+" SET status='PROCESSING',attempts=1,\"claimToken\"=:token,\"leaseUntil\"=clock_timestamp()-interval '1 second' WHERE \"eventId\"=:id",
+    Map.of("id",event.eventId().value(),"token",UUID.randomUUID()));
+  assertTrue(worker(List.of(listener)).runOnce());assertEquals(2,attempts(event));assertEquals(1,effects(event));
+  var failed=listener("fails",e->{effect(e,"rollback");throw new IllegalStateException("not ready");});
+  var bad=publish(failed);var worker=worker(List.of(failed));
+  assertTrue(worker.runOnce());due();assertTrue(worker.runOnce());assertFalse(worker.runOnce());
+  assertEquals("FAILED",status(bad,"fails"));assertEquals(2,attempts(bad));assertEquals(0,effects(bad));
+  var crash=publish(listener);
+  jdbc.update("UPDATE "+JOBS+" SET status='PROCESSING',attempts=2,\"claimToken\"=:token,\"leaseUntil\"=clock_timestamp()-interval '1 second' WHERE \"eventId\"=:id",
+    Map.of("id",crash.eventId().value(),"token",UUID.randomUUID()));
+  assertFalse(worker(List.of(listener)).runOnce());assertEquals("FAILED",status(crash,"crash"));
+ }
+ void missingListenerIsBlocked() {
+  var event=publish(listener("removed",e->fail("not called")));
+  assertTrue(worker(List.of()).runOnce());assertEquals("BLOCKED",status(event,"removed"));assertEquals(0,attempts(event));
+ }
+ void automaticPolling() throws Exception {
+  var delivered=new CountDownLatch(1);
+  var listener=listener("automatic",e->{effect(e,"automatic");delivered.countDown();});
+  var event=publish(listener);
+  try(var context=new org.springframework.context.annotation.AnnotationConfigApplicationContext()) {
+   context.getEnvironment().getPropertySources().addFirst(new org.springframework.core.env.MapPropertySource("test",Map.of("vernac.events.poll-interval","PT0.01S")));
+   context.registerBean("jdbc",NamedParameterJdbcTemplate.class,()->jdbc);
+   context.registerBean("transactions",org.springframework.transaction.PlatformTransactionManager.class,()->manager);
+   context.registerBean("store",EventStorage.class,()->store);
+   context.registerBean("archive",EventStorage.class,()->archive);
+   context.registerBean("listener",EventHandler.class,()->listener);
+   context.register(org.vernac.runtime.jdbc.autoconfigure.EventDeliveryAutoConfiguration.class);
+   context.refresh();
+   assertTrue(delivered.await(10,TimeUnit.SECONDS));
+  }
+  assertEquals("SUCCEEDED",status(event,"automatic"));assertEquals(1,effects(event));
+ }
+ static void await(CountDownLatch latch) {
+  try {if(!latch.await(15,TimeUnit.SECONDS))throw new IllegalStateException("Test synchronization timed out");}
+  catch(InterruptedException e){Thread.currentThread().interrupt();throw new IllegalStateException(e);}
+ }
+}

@@ -1,0 +1,22 @@
+package portsdemo;
+import portsdemo.domain.*;
+import portsdemo.adapter.outbound.access.LocalArchiveAccess;
+import java.util.concurrent.CyclicBarrier;
+import org.vernac.runtime.VernacDomainException;
+public final class ExternalImplementation {
+    static final CyclicBarrier barrier=new CyclicBarrier(2);
+    static final VernacDomainException REJECTION=new VernacDomainException("rejected");
+    public static Text context(LocalArchiveAccess self, Text text) {
+        if (!self.decoration().equals("!") || !self.endpoint().equals(java.net.URI.create("https://example.org/api"))
+            || !self.timeout().equals(java.time.Duration.ofSeconds(3)) || !self.directory().equals(java.nio.file.Path.of("archive"))
+            || self.batchSize() != 25 || self.byteLimit() != Long.MAX_VALUE || !self.enabled()) throw new AssertionError("Configuration access differs");
+        var invocation=self.invocation();
+        var enriched=invocation.withDetail("request",text.string());
+        try { barrier.await(5,java.util.concurrent.TimeUnit.SECONDS); }
+        catch(Exception e) { throw new AssertionError(e); }
+        if(invocation != self.invocation() || !invocation.details().isEmpty()) throw new AssertionError("Context changed");
+        if(!enriched.details().get("request").equals(text.string())) throw new AssertionError("Request changed");
+        return Text.of(text.string()+":"+invocation.invocationId());
+    }
+    public static Text fail(LocalArchiveAccess self) { throw REJECTION; }
+}

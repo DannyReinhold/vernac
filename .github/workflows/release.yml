@@ -1,34 +1,53 @@
-name: Maven Central Release
+name: Vernac Release
 
-run-name: Maven Central ${{ inputs.version }} (dry-run=${{ inputs.dry_run }})
+run-name: Vernac ${{ inputs.version }} (dry-run=${{ inputs.dry_run }})
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version, e.g. 0.1.1"
+        description: "Release version, e.g. 0.2.0"
         required: true
         type: string
       dry_run:
-        description: "Build and sign without uploading"
+        description: "Build and sign; no Central or Marketplace upload"
         required: true
         default: true
         type: boolean
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
-  group: maven-central-release
+  group: vernac-release
   cancel-in-progress: false
 
 jobs:
   release:
+    name: Build and release
     runs-on: ubuntu-latest
     timeout-minutes: 60
-
+    outputs:
+      attempt: ${{ steps.candidate.outputs.attempt }}
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: vernac
+          POSTGRES_PASSWORD: ephemeral-ci-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vernac -d postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
     env:
       RELEASE_VERSION: ${{ inputs.version }}
+      DRY_RUN: ${{ inputs.dry_run }}
+      VERNAC_PG_TEST_URL: jdbc:postgresql://localhost:5432/postgres
+      VERNAC_PG_TEST_USER: vernac
+      VERNAC_PG_TEST_PASSWORD: ephemeral-ci-only
 
     steps:
       - name: Check out source
@@ -37,29 +56,23 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Check release version and tag
+      - name: Check release version and history
         shell: bash
         run: |
           set -euo pipefail
-
-          if [[ ! "$RELEASE_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-            echo "::error::Use a release version such as 0.1.1, without SNAPSHOT."
-            exit 1
-          fi
-
-          for tag in "v$RELEASE_VERSION" "maven-v$RELEASE_VERSION"; do
+          python3 tools/release.py version
+          for tag in "v$RELEASE_VERSION" "maven-v$RELEASE_VERSION" "plugin-v$RELEASE_VERSION"; do
             if git show-ref --verify --quiet "refs/tags/$tag"; then
-              echo "::error::Tag $tag already exists. Check the release history."
+              echo "::error::Release tag already exists. Inspect history; do not redeploy."
               exit 1
             fi
           done
+          if [[ "$DRY_RUN" == "false" ]]; then
+            python3 tools/release.py unpublished
+          fi
 
-          {
-            echo "## Release candidate"
-            echo "- Version: $RELEASE_VERSION"
-            echo "- Commit: $(git rev-parse HEAD)"
-            echo "- Dry run: ${{ inputs.dry_run }}"
-          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Check release tooling
+        run: python3 -m unittest discover -s tools/tests -v -b
 
       - name: Set up Java and Maven credentials
         uses: actions/setup-java@v6
@@ -73,39 +86,58 @@ jobs:
       - name: Verify complete project
         run: mvn -B -ntp -Drevision="$RELEASE_VERSION" clean verify
 
+      - name: Require release test execution
+        run: python3 tools/release.py tests
+
+      - name: Prepare plugin candidate
+        id: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/release.py candidate
+          echo "attempt=$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+
+      - name: Archive plugin candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: vernac-plugin-${{ inputs.version }}-${{ github.run_attempt }}
+          path: release-candidate/
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Build and sign or upload
         shell: bash
         env:
-          DRY_RUN: ${{ inputs.dry_run }}
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
           MAVEN_GPG_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           set -euo pipefail
-
           goal=verify
-          if [[ "$DRY_RUN" == "false" ]]; then
-            goal=deploy
-          fi
+          if [[ "$DRY_RUN" == "false" ]]; then goal=deploy; fi
+          modules=$(python3 tools/release.py modules)
+          mvn -B -ntp -Prelease -Drevision="$RELEASE_VERSION" \
+            -Dgpg.signer=bc -pl "$modules" -am clean "$goal"
 
-          mvn -B -ntp \
-            -Prelease \
-            -Drevision="$RELEASE_VERSION" \
-            -Dgpg.signer=bc \
-            -pl vernac-runtime-jdbc,vernac-jdbc-spring-boot-starter,vernac-maven-plugin \
-            -am \
-            clean "$goal"
-
-      - name: Record result
+      - name: Record Central result
         shell: bash
-        env:
-          DRY_RUN: ${{ inputs.dry_run }}
         run: |
           if [[ "$DRY_RUN" == "true" ]]; then
-            echo "Build and signing succeeded. Nothing was uploaded." \
-              >> "$GITHUB_STEP_SUMMARY"
+            echo "Build/signing passed. Nothing uploaded. Plugin ZIP is available as a workflow artifact." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "Upload and validation succeeded. Review and publish in the Central Portal." \
-              >> "$GITHUB_STEP_SUMMARY"
+            echo "Central validation passed. Publish the EXISTING deployment in the Central Portal now. The plugin job waits up to 30 minutes for repository availability." >> "$GITHUB_STEP_SUMMARY"
+            echo "If publication takes longer, run Publish IntelliJ Plugin with this run ID and candidate attempt; do not rerun Maven deployment." >> "$GITHUB_STEP_SUMMARY"
           fi
+
+  marketplace:
+    name: Marketplace
+    needs: release
+    uses: ./.github/workflows/publish-plugin.yml
+    with:
+      version: ${{ inputs.version }}
+      source_run_id: ${{ github.run_id }}
+      source_attempt: ${{ needs.release.outputs.attempt }}
+      dry_run: ${{ inputs.dry_run }}
+    secrets:
+      JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}

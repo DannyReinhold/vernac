@@ -1,0 +1,70 @@
+package dtodemo;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.*;
+import com.fasterxml.jackson.databind.*;
+import dtodemo.adapter.outbound.dto.ClientDtos.*;
+import org.vernac.runtime.ports.PatchField;
+import org.vernac.runtime.json.DtoContractException;
+public final class Probe {
+    private static final ObjectMapper JSON=new ObjectMapper();
+    public static void run() throws Exception {
+        String raw="""
+            {"request_id":"r-1","count":2,"items":[{"productCode":"x","labels":[],"future":true}],
+             "amount":12345678901234567890.1200,"timestamp":"2026-10-11T00:00:00.123456789Z",
+             "url":"https://example.invalid","unexpected":{"anything":true}}
+            """;
+        Envelope dto=JSON.readValue(raw,Envelope.class);
+        check(dto.comment().isEmpty() && dto.reason().isEmpty(),"optional absent");
+        check(dto.amount().equals(new BigDecimal("12345678901234567890.1200")),"decimal precision and scale");
+        check(dto.timestamp().equals(Instant.parse("2026-10-11T00:00:00.123456789Z")),"instant nanoseconds");
+        String encoded=JSON.writeValueAsString(dto);
+        JsonNode tree=JSON.readTree(encoded);
+        check(!tree.has("comment") && tree.get("reason").isNull(),"explicit outgoing absence policy");
+        check(tree.has("request_id") && tree.has("url") && !tree.has("requestId"),"wire naming");
+        check(JSON.readValue(encoded,Envelope.class).equals(dto),"JSON roundtrip");
+        check(JSON.readValue(raw.replace("\"count\":2","\"count\":2,\"comment\":null"),Envelope.class).equals(dto),"null means optional absence");
+        var mutable=new ArrayList<String>();mutable.add("a");
+        Item item=Item.of("x",mutable);mutable.add("b");check(item.labels().equals(List.of("a")),"defensive list copy");
+        try { item.labels().add("c");throw new AssertionError("mutable DTO list"); } catch(UnsupportedOperationException expected) {}
+        var inner=new ArrayList<>(List.of("x"));Matrices matrix=Matrices.of(List.of(inner));inner.add("y");
+        check(matrix.values().equals(List.of(List.of("x"))),"deep nested list copy");
+        check(JSON.readValue(JSON.writeValueAsString(matrix),Matrices.class).equals(matrix),"nested list codec");
+        failJson(raw.replace("\"count\":2,",""),Envelope.class,"$.count");
+        failJson(raw.replace("\"count\":2","\"count\":null"),Envelope.class,"$.count");
+        failJson(raw.replace("\"count\":2","\"count\":\"2\""),Envelope.class,"$.count");
+        failJson(raw.replace("\"count\":2","\"count\":2.0"),Envelope.class,"$.count");
+        failJson(raw.replace("\"count\":2","\"count\":2147483648"),Envelope.class,"$.count");
+        failJson(raw.replace("\"labels\":[]","\"labels\":[null]"),Envelope.class,"$.items[0].labels[0]");
+        failJson(raw.replace("\"productCode\":\"x\"","\"productCode\":99"),Envelope.class,"$.items[0].productCode");
+        failJson("null",Envelope.class,"$");
+        failJson("[]",Envelope.class,"$");
+        check(JSON.readValue("{}",OptionalNumber.class).count().isEmpty(),"optional primitive has no implicit zero");
+        check(OptionalNumber.of(null).count().isEmpty(),"nullable optional factory");
+        check(JSON.readValue("{\"count\":0}",OptionalNumber.class).count().orElseThrow()==0,"explicit zero present");
+        check(Double.doubleToLongBits(JSON.readValue("{\"value\":-0.0}",Floating.class).value())==Double.doubleToLongBits(-0.0d),"floating signed zero");
+        check(JSON.readValue(JSON.writeValueAsString(Floating.of(-0.0d)),Floating.class).equals(Floating.of(-0.0d)),"signed zero roundtrip");
+        failJson("{\"count\":1,\"count\":2}",OptionalNumber.class,"$.count");
+        Update unchanged=JSON.readValue("{}",Update.class);
+        check(unchanged.name().isUnchanged() && unchanged.comment().isUnchanged(),"patch omitted");
+        check(JSON.writeValueAsString(unchanged).equals("{}"),"patch unchanged omitted");
+        Update clear=JSON.readValue("{\"comment\":null,\"items\":[]}",Update.class);
+        check(clear.comment().isClear() && clear.items().isSet() && clear.items().value().orElseThrow().isEmpty(),"clear vs empty list");
+        check(JSON.readValue(JSON.writeValueAsString(clear),Update.class).equals(clear),"clear roundtrip");
+        Update set=Update.of(PatchField.set("name"),PatchField.set(""),PatchField.unchanged());
+        check(JSON.readValue(JSON.writeValueAsString(set),Update.class).equals(set),"set roundtrip");
+        failJson("{\"name\":null}",Update.class,"$.name");
+        try { Update.of(PatchField.clear(),PatchField.unchanged(),PatchField.unchanged());throw new AssertionError("required clear accepted"); }
+        catch(DtoContractException expected) { check(expected.path().equals("Update.name"),"local patch path"); }
+        try { Item.of("x",Arrays.asList((String)null));throw new AssertionError("null item accepted"); }
+        catch(DtoContractException expected) { check(expected.path().equals("Item.labels[0]"),"list error path"); }
+        check(JSON.readValue("{\"ignored\":true}",Empty.class).equals(Empty.of()),"empty object schema");
+    }
+    private static void failJson(String json,Class<?> type,String path) throws Exception {
+        try { JSON.readValue(json,type);throw new AssertionError("Invalid JSON accepted for "+path); }
+        catch(com.fasterxml.jackson.core.JsonProcessingException | DtoContractException ex) {
+            check(ex.getMessage().contains(path),"error path "+path+": "+ex.getMessage());
+        }
+    }
+    private static void check(boolean ok,String message) { if(!ok)throw new AssertionError(message); }
+}

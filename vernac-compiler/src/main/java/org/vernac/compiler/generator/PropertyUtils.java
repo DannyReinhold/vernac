@@ -15,6 +15,6 @@ public class PropertyUtils {
 
     private static String toKebabCase(String name) {
         if (name == null || name.isBlank()) return "";
-        return name.replaceAll("([a-z])([A-Z]+)", "$1-$2").toLowerCase(Locale.ROOT);
+        return name.replaceAll("(\\p{Ll})(\\p{Lu}+)", "$1-$2").toLowerCase(Locale.ROOT);
     }
 }

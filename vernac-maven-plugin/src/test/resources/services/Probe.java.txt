@@ -1,0 +1,39 @@
+package operations;
+import operations.domain.*;
+import operations.domain.access.PlanningAccess;
+import operations.usecase.Decorate;
+import org.vernac.runtime.*;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import static org.junit.jupiter.api.Assertions.*;
+
+public final class Probe {
+    public static void run() throws Exception {
+        try (var context = new AnnotationConfigApplicationContext()) {
+            context.register(Policy.class, Planning.class, Decorate.class);
+            context.refresh();
+            var planning = context.getBean(Planning.class);
+            assertFalse(PlanningAccess.class.isAssignableFrom(Planning.class));
+            assertThrows(NoSuchMethodException.class, () -> Planning.class.getMethod("policy"));
+            assertEquals(Title.of("x!!"), context.getBean(Decorate.class).execute(Title.of("x")));
+            assertTrue(planning.optional(null).isEmpty());
+            assertEquals(Title.of("x"), planning.optional(Title.of("x")).orElseThrow());
+            assertThrows(DomainValidationException.class, () -> planning.optional(Title.of(" ")));
+            assertTrue(planning.external(null).isEmpty());
+            assertEquals(Title.of("x!"), planning.external(Title.of("x")).orElseThrow());
+            assertThrows(BehaviorContractException.class, () -> planning.external(Title.of("NULL")));
+            assertThrows(BehaviorContractException.class, planning::badResult);
+            assertThrows(DomainValidationException.class, () -> planning.decorate(null));
+            var stop = Stop.create(Title.of("Stop"));
+            var source = Tour.create(Stops.of(stop, stop));
+            var target = Tour.create(Stops.empty());
+            assertThrows(DomainValidationException.class, () -> planning.moveStop(source, source, stop.id()));
+            assertEquals(2, source.stops().size());
+            planning.moveStop(source, target, stop.id());
+            assertTrue(source.stops().isEmpty());
+            assertSame(stop, target.stops().by(stop.id()).orElseThrow());
+            assertEquals(stop.id(), target.stops().get(0).id());
+            assertEquals(3, PlanningAccess.Input0.class.getDeclaredMethods().length);
+            assertThrows(NoSuchMethodException.class, () -> PlanningAccess.Input0.class.getMethod("policy"));
+        }
+    }
+}

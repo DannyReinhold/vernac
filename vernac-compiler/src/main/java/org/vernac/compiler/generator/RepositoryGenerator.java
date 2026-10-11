@@ -20,7 +20,6 @@ public class RepositoryGenerator {
     private static final ClassName MAP_PARAM_SOURCE = ClassName.get("org.springframework.jdbc.core.namedparam", "MapSqlParameterSource");
     private static final ClassName NOT_FOUND_EX = ClassName.get("org.vernac.runtime", "AggregateNotFoundException");
     private static final ClassName OPTIMISTIC_LOCK_EX = ClassName.get("org.springframework.dao", "OptimisticLockingFailureException");
-    private static final ClassName EVENT_DISPATCHER = ClassName.get("org.vernac.runtime.outbox", "EventDispatcher");
 
     public List<JavaFile> generate(
             RepositoryNode repo,
@@ -133,9 +132,6 @@ public class RepositoryGenerator {
             }
         }
 
-        jdbcClass.addField(EVENT_DISPATCHER, "eventDispatcher", Modifier.PRIVATE, Modifier.FINAL);
-        ctor.addParameter(EVENT_DISPATCHER, "eventDispatcher");
-        ctor.addStatement("this.eventDispatcher = $T.requireNonNull(eventDispatcher, \"eventDispatcher must not be null\")", Objects.class);
 
         jdbcClass.addMethod(ctor.build());
 
@@ -186,12 +182,11 @@ public class RepositoryGenerator {
                 .returns(aggType)
                 .addParameter(aggType, "aggregate")
                 .addStatement("$T saved", aggType)
-                .beginControlFlow("if (aggregate.version() == 0L)")
+                .beginControlFlow("if (aggregate.persistenceState().version() == 0L)")
                 .addStatement("saved = insert(aggregate)")
                 .nextControlFlow("else")
                 .addStatement("saved = update(aggregate)")
                 .endControlFlow()
-                .addStatement("this.eventDispatcher.dispatch($S, aggregate.id().value().toString(), aggregate.pullDomainEvents())", agg.name())
                 .addStatement("return saved")
                 .build();
     }
@@ -237,7 +232,8 @@ public class RepositoryGenerator {
             }
         }
 
-        mb.addStatement("return aggregate.withVersion(nextVersion)");
+        mb.addStatement("aggregate.persistenceState().version(nextVersion)");
+        mb.addStatement("return aggregate");
         return mb.build();
     }
 
@@ -253,7 +249,7 @@ public class RepositoryGenerator {
                 .addModifiers(Modifier.PRIVATE)
                 .returns(aggType)
                 .addParameter(aggType, "aggregate")
-                .addStatement("long currentVersion = aggregate.version()")
+                .addStatement("long currentVersion = aggregate.persistenceState().version()")
                 .addStatement("long nextVersion = currentVersion + 1L")
                 .addStatement("$T params = new $T()", MAP_PARAM_SOURCE, MAP_PARAM_SOURCE)
                 .addStatement("params.addValue(\"id\", aggregate.id().value())")
@@ -285,7 +281,8 @@ public class RepositoryGenerator {
             }
         }
 
-        mb.addStatement("return aggregate.withVersion(nextVersion)");
+        mb.addStatement("aggregate.persistenceState().version(nextVersion)");
+        mb.addStatement("return aggregate");
         return mb.build();
     }
 
@@ -295,7 +292,7 @@ public class RepositoryGenerator {
                 .addModifiers(Modifier.PUBLIC)
                 .addParameter(aggType, "aggregate")
                 .addStatement("String sql = \"DELETE FROM $L WHERE id = :id AND version = :version\"", tableName)
-                .addStatement("int rows = this.jdbcTemplate.update(sql, $T.of(\"id\", aggregate.id().value(), \"version\", aggregate.version()))", Map.class)
+                .addStatement("int rows = this.jdbcTemplate.update(sql, $T.of(\"id\", aggregate.id().value(), \"version\", aggregate.persistenceState().version()))", Map.class)
                 .beginControlFlow("if (rows == 0)")
                 .addStatement("throw new $T(\"Optimistic lock conflict deleting $L: [\" + aggregate.id().value() + \"]\")", OPTIMISTIC_LOCK_EX, agg.name())
                 .endControlFlow()
@@ -492,12 +489,12 @@ public class RepositoryGenerator {
         mb.addStatement("$T<$T> existingIds = new $T<>(this.jdbcTemplate.query(selectExistingSql, $T.of(\"parentId\", aggregateId.value()), (rs, rowNum) -> rs.getObject(\"id\", $T.class)))",
                 Set.class, UUID.class, HashSet.class, Map.class, UUID.class);
 
-        mb.addStatement("$T<$T> incomingIds = items.elements().stream().map(i -> i.id().value()).collect($T.toSet())",
+        mb.addStatement("$T<$T> incomingIds = items.stream().map(i -> i.id().value()).collect($T.toSet())",
                 Set.class, UUID.class, java.util.stream.Collectors.class);
 
         mb.addStatement("$T<$T> toDelete = existingIds.stream().filter(id -> !incomingIds.contains(id)).toList()", List.class, UUID.class);
-        mb.addStatement("$T<$T> toInsert = items.elements().stream().filter(i -> !existingIds.contains(i.id().value())).toList()", List.class, entityType);
-        mb.addStatement("$T<$T> toUpdate = items.elements().stream().filter(i -> existingIds.contains(i.id().value())).toList()", List.class, entityType);
+        mb.addStatement("$T<$T> toInsert = items.stream().filter(i -> !existingIds.contains(i.id().value())).toList()", List.class, entityType);
+        mb.addStatement("$T<$T> toUpdate = items.stream().filter(i -> existingIds.contains(i.id().value())).toList()", List.class, entityType);
 
         mb.beginControlFlow("if (!toDelete.isEmpty())")
                 .addStatement("this.jdbcTemplate.update(\"DELETE FROM $L WHERE id IN (:ids)\", $T.of(\"ids\", toDelete))", childTable, Map.class)

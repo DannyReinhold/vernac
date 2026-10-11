@@ -31,18 +31,18 @@ generates and compiles Java sources. Editor diagnostics do not replace a success
 
 ## 1. Prepare your environment
 
-This guide describes the development plugin version `0.1.0-dev.3`.
+This guide describes the 0.2.0-SNAPSHOT development plugin.
 
 - Use a compatible IntelliJ IDEA installation. The current plugin descriptor targets build `262.10968.63` through the
   `262.*` series.
 - Keep IntelliJ's Java and Maven plugins enabled. The plugin also requires IntelliJ's LSP support.
-- Register a JDK with Java 21 or newer in **Project Structure → SDKs**. The wizard currently selects registered JDKs; it
+- Register a JDK with Java 25 in **Project Structure → SDKs**. The wizard currently selects registered JDKs; it
   does not download a new JDK for you.
 - Allow internet access for the initial Maven Wrapper and dependency downloads.
 
 ### Current development-version requirement
 
-The generated project uses Vernac `0.1.0-SNAPSHOT` artifacts. These must currently be installed in your local Maven
+The generated project uses Vernac `0.2.0-SNAPSHOT` artifacts. These must currently be installed in your local Maven
 repository.
 
 Build the Vernac source repository with JDK 25, as required by its IntelliJ module:
@@ -82,13 +82,13 @@ Open **New Project** and choose **Vernac**. Enter, for example:
 | GroupId      | `com.example`                          |
 | ArtifactId   | `task-manager`                         |
 | Java package | `com.example.taskmanager`              |
-| JDK          | A registered JDK with Java 21 or newer |
+| JDK          | A registered JDK with Java 25 |
 
 The artifact ID is suggested from the project name: `TaskManager` becomes `task-manager`. You can edit it independently.
 GroupId and Java package are separate settings; set both explicitly as needed.
 
 Choose **Create**. The wizard writes the project, sets its project JDK, and configures Maven executions to use that JDK.
-After the project opens, it starts the Maven import and opens `src/main/vernac/tasks.vernac`.
+After the project opens, it starts the Maven import and opens `src/main/vernac/com/example/taskmanager/tasks.vernac`.
 
 The generated POM contains your coordinates and display name:
 
@@ -108,14 +108,14 @@ The POM's Java target remains 21, even if you select a newer JDK.
 | File                                                        | Purpose                                                  |
 |-------------------------------------------------------------|----------------------------------------------------------|
 | `pom.xml`                                                   | Dependencies and Vernac source-generation configuration. |
-| `src/main/vernac/tasks.vernac`                              | Your initial domain model.                               |
+| `src/main/vernac/com/example/taskmanager/tasks.vernac`                              | Your initial domain model.                               |
 | `src/test/java/com/example/taskmanager/TaskTest.java`       | An example of using the generated model from Java.       |
 | `mvnw`, `mvnw.cmd`, `.mvn/wrapper/maven-wrapper.properties` | Maven Wrapper files.                                     |
 | `README.md`                                                 | Project-specific build instructions and pointers.        |
 | `.gitignore`, `.gitattributes`                              | Initial Git configuration files.                         |
 
-The Java test's path, package declaration, and domain imports follow the package you selected. The Vernac file stays
-under `src/main/vernac/`; its package declaration is updated accordingly.
+Both source paths follow the namespace you selected. The Vernac file declares
+`namespace com.example.taskmanager;`; Java test imports refer to its `.domain` package.
 
 ## 5. Build and run the example
 
@@ -155,8 +155,9 @@ supplies language-aware highlighting; exact colors depend on your IntelliJ theme
 
 ### Syntax diagnostics
 
-Temporarily remove the semicolon from the `id TaskId;` declaration. Look for a diagnostic near the invalid declaration.
-Restore the semicolon before continuing.
+Temporarily remove the closing parenthesis in `value Title(String)`. Inspect the
+syntax diagnostic, then restore it. Removing the optional terminator from an ID
+declaration is not a reliable syntax-error exercise.
 
 ### Semantic diagnostics
 
@@ -175,37 +176,81 @@ snippets. Compare this with completion while entering a type reference inside a 
 Suggestions depend on the cursor position and the language server's supported contexts. Invoke completion explicitly if
 automatic suggestions do not appear. Use IntelliJ's action search if your keymap differs.
 
+For namespace-based ID/VO models, completion includes visible types from other
+`.vernac` files in the same source root. Types in the same namespace need no
+import; other namespaces use explicit imports, wildcard imports, or qualified
+references. Import completion also suggests available namespaces and types.
+Suggestions track unsaved edits. Ambiguous names are not resolved arbitrarily.
+
 ### Hover information and navigation
 
 Hover over a reference such as `TaskId` to inspect any information supplied by the server. Then place the cursor on the
 reference and use **Go to Declaration** from the context menu.
 
-Navigation inside Vernac is supported. Navigation from a generated Java class back to the original Vernac declaration is
-not part of this tutorial's current feature set. Mouse shortcuts depend on your keymap; use the named action when
-testing navigation.
+Type navigation works across files and namespaces, including explicit imports.
+Inline `behavior` bodies also support Java completion and navigation; see the
+[behavior tutorial](behavior.md).
+
+After generating the Java sources, open a Java test and use **Go to Declaration**
+on a model type reference such as `TaskId` or `Title`. For compiler-owned IDs,
+value objects, enums and their collections, this opens the original Vernac
+declaration. Normal Java types retain normal Java navigation. The generated Java
+file remains accessible in the project tree and through Navigate to Class.
+Try the same action on a generated field getter or a public behavior method:
+it opens the field or method declaration in Vernac. This includes methods using
+`implemented by`; direct calls to your external Java implementation still open Java.
+See [Java-to-Vernac navigation](../development/java-to-vernac-navigation.md) for
+prerequisites and boundaries.
+
+Mouse shortcuts depend on your keymap; use the named action when testing navigation.
 
 ## 7. Add another Vernac file
 
-In the Project tool window, select `src/main/vernac/` and open the **New** menu. Choose the Vernac file template:
+In the Project tool window, select `src/main/vernac/` and choose
+**New → Vernac Namespace**. Enter a fully qualified namespace, for example
+`org.example.tasks`. The action creates `org/example/tasks` below the source root
+and selects that directory. Existing directories are reused.
 
-- **Vernac File** starts a new model file.
-- **Vernac Getting Started** provides the task example.
+When invoked inside an existing namespace, the dialog suggests that namespace as
+a prefix. The entered name is always fully qualified, relative to the source root.
+Vernac keywords such as `custom` are allowed as segments; Java keywords such as
+`class`, empty segments, and trailing dots are rejected. Namespace segments support
+the Java 21 Unicode identifier alphabet, including names such as `aufträge` and
+`注文`. Control/format characters are rejected, and spelling is not normalized or
+transliterated. See [the naming contract](../contracts/names-and-unicode.md).
 
-Enter the requested filename and base package. Check the resulting package declaration before building.
+Select the new namespace directory and choose **New → Vernac File**. Enter a file
+name, with or without `.vernac`, and choose:
 
-Use a different package or rename the sample types when inserting another getting-started model into the same project.
-Two copies defining the same types in the same package will conflict.
+- **Empty Model** for a minimal file.
+- **Getting Started** for a small ID/value-object example.
 
-Editor support recognizes `.vernac` files independently of their directory. The standard Maven setup, however, reads
-model files from `src/main/vernac/`; keep build inputs there.
+Both choices automatically insert:
+
+```vernac
+namespace org.example.tasks;
+```
+
+No manual namespace or base-package input is required. The namespace comes from
+the directory, not the file name. Create the namespace first: the file action is
+available only inside a valid namespace below `src/main/vernac`, not directly at
+the source root. Directory paths are not accepted as file names.
+
+Use **Empty Model** for additional definitions in the same namespace. Repeating the
+getting-started sample there would introduce duplicate type declarations.
+
+These actions currently use the conventional `src/main/vernac` layout. Custom
+source roots and automatic declaration updates after moving a file are separate
+follow-ups. The project wizard also creates namespace-based models, with paths
+and Java test imports customized together.
 
 ## 8. Make your first change
 
-Inside the existing `Task` aggregate, add:
+Inside the existing `Task` aggregate's `behavior` block, add:
 
 ```java
-public void start() {
-    status(Status.IN_PROGRESS);
+modify void start() {
+    self.status(Status.IN_PROGRESS);
 }
 ```
 
@@ -241,13 +286,13 @@ in its configured source directory. Installing the IntelliJ plugin does not modi
 | Symptom                               | What to check                                                                                                                                                                                 |
 |---------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Vernac is missing from New Project    | Confirm that the plugin is enabled and compatible with your IDE build; check required plugins and restart after installation.                                                                 |
-| No JDK is available in the wizard     | Register a JDK with Java 21 or newer under Project Structure → SDKs, then reopen the wizard.                                                                                                  |
+| No JDK is available in the wizard     | Register a JDK with Java 25 under Project Structure → SDKs, then reopen the wizard.                                                                                                  |
 | No highlighting or completion         | Confirm the file ends in `.vernac`, is associated with the Vernac file type, and the plugin is enabled. Reopen the file and inspect the IDE log for language-server startup errors if needed. |
 | Maven cannot resolve Vernac artifacts | Install the current SNAPSHOT artifacts from the Vernac repository, and check that the IDE and command line use the intended Maven settings and local repository.                              |
 | Java references are unresolved        | Run Maven `test` to generate sources, then reload Maven if needed.                                                                                                                            |
 | “Load Maven Project” appears          | A new wizard-created project should import automatically. If it stays unlinked, you can load its POM manually to continue and report the automatic-import failure.                            |
 | Terminal build uses the wrong JDK     | Check `JAVA_HOME` and `java -version`. The wizard configures the IDE project and Maven runner, not your terminal environment.                                                                 |
-| A chosen package fails Vernac parsing | Java package validation does not yet cover every Vernac keyword interaction. Use another segment temporarily and report the rejected name.                                                    |
+| A chosen package fails Vernac parsing | Check the namespace against its directory. Vernac keywords are allowed where Java permits them; Java keywords remain invalid.                                                    |
 
 When reporting a problem, include the plugin version, IntelliJ build number, selected JDK, and relevant error message.
 

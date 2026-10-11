@@ -54,28 +54,6 @@ public final class PackageResolver {
         });
     }
 
-    public static String resolveCollectionPackage(
-            String basePackage,
-            Optional<CollectionDefinitionNode> collectionDef,
-            Optional<String> parentCustomPackage
-    ) {
-        // 1. Priorität: Eigenes Package im collection-Block
-        if (collectionDef != null && collectionDef.isPresent()) {
-            Optional<String> collPkg = collectionDef.get().customPackage();
-            if (collPkg.isPresent() && !collPkg.get().isBlank()) {
-                return collPkg.get();
-            }
-        }
-
-        // 2. Priorität: Package der umschließenden Entity / des Value Objects
-        if (parentCustomPackage != null && parentCustomPackage.isPresent() && !parentCustomPackage.get().isBlank()) {
-            return parentCustomPackage.get();
-        }
-
-        // 3. Priorität: Domain-Package aus basePackage ableiten
-        return resolveDomainPackage(basePackage, Optional.empty());
-    }
-
     /**
      * Ermittelt das Package für UseCase-Service-Klassen.
      */

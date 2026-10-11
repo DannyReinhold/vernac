@@ -1,0 +1,10 @@
+namespace model;
+id RootId;
+id StopId;
+id ParcelId;
+value Label(String);
+value Tag(String) list Tags;
+entity Parcel[ParcelId](Label) set Parcels;
+entity Stop[StopId](Label, Parcels, Tags) list Stops;
+aggregate Root[RootId](Stop requiredStop, Stops allStops, Stops niceStops);
+repository Roots for Root { }

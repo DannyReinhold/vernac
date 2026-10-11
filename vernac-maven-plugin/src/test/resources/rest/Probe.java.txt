@@ -1,0 +1,101 @@
+package example.catalog;
+
+import com.sun.net.httpserver.HttpServer;
+import java.net.*;
+import java.net.http.*;
+import java.time.Duration;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.*;
+import example.catalog.domain.*;
+import example.catalog.adapter.outbound.RestCatalog;
+import org.vernac.runtime.http.*;
+import org.vernac.runtime.ports.*;
+import org.vernac.runtime.json.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+public final class Probe {
+    public static void run() throws Exception {
+        var status = new AtomicInteger(200);
+        var body = new AtomicReference<>("{\"title\":\"Notebook\",\"added\":true}");
+        var path = new AtomicReference<String>();
+        var query = new AtomicReference<String>();
+        var locale = new AtomicReference<String>();
+        var written = new AtomicReference<String>();
+        var method = new AtomicReference<String>();
+        var count = new AtomicInteger();
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> {
+            try (exchange) {
+                count.incrementAndGet();
+                path.set(exchange.getRequestURI().getRawPath());
+                query.set(exchange.getRequestURI().getRawQuery());
+                locale.set(exchange.getRequestHeaders().getFirst("X-Locale"));
+                method.set(exchange.getRequestMethod());
+                exchange.getResponseHeaders().set("Content-Type", "application/json");
+                exchange.getResponseHeaders().set("X-Correlation-ID", "r-42");
+                if (method.get().equals("PUT") || method.get().equals("PATCH")) {
+                    assertEquals("application/json", exchange.getRequestHeaders().getFirst("Content-Type"));
+                    written.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+                    exchange.sendResponseHeaders(204, -1);
+                } else {
+                    byte[] bytes = body.get().getBytes(StandardCharsets.UTF_8);
+                    exchange.sendResponseHeaders(status.get(), bytes.length);
+                    exchange.getResponseBody().write(bytes);
+                }
+            }
+        });
+        server.start();
+        try (var transport = HttpClient.newHttpClient()) {
+            var http = new HttpAdapterClient(transport, Duration.ofSeconds(3), 4096);
+            var base = URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/api/v1/");
+            try (var spring = new org.springframework.context.annotation.AnnotationConfigApplicationContext()) {
+                spring.getEnvironment().getPropertySources().addFirst(new org.springframework.core.env.MapPropertySource(
+                    "test", java.util.Map.of("catalog.base-url", base.toString())));
+                spring.registerBean(HttpAdapterClient.class, () -> http);
+                spring.register(RestCatalog.class);
+                spring.refresh();
+                assertEquals(Title.of("Notebook"), spring.getBean(CatalogSource.class).load(Lookup.of(Title.of("spring"), null)));
+            }
+            assertThrows(org.vernac.runtime.configuration.AdapterConfigurationException.class,
+                () -> new RestCatalog(http, URI.create("file:///invalid")));
+            CatalogSource catalog = new RestCatalog(http, base);
+            var key = Title.of("ä /?+%#");
+            assertEquals(Title.of("Notebook"), catalog.load(Lookup.of(key, null)));
+            assertEquals("/api/v1/items/%C3%A4%20%2F%3F%2B%25%23", path.get());
+            assertNull(query.get()); assertNull(locale.get());
+            catalog.load(Lookup.of(key, Title.of("a&b=c +")));
+            assertEquals("locale=a%26b%3Dc%20%2B", query.get());
+            assertEquals("a&b=c +", locale.get());
+            int before = count.get();
+            var headerError = assertThrows(LocalIntegrationException.class,
+                    () -> catalog.load(Lookup.of(key, Title.of("secret\r\ninjected: x"))));
+            assertEquals(IntegrationCategory.INVALID_REQUEST, headerError.category());
+            assertEquals(before, count.get());
+            assertFalse(headerError.getCause().toString().contains("secret"));
+
+            catalog.rename(Title.of("Renamed"));
+            assertEquals("PUT", method.get());
+            assertEquals("{\"title\":\"Renamed\"}", written.get());
+            catalog.patchTitle(Title.of("Patched"));
+            assertEquals("PATCH", method.get());
+            assertEquals("{\"title\":\"Patched\"}", written.get());
+            body.set("{\"title\":\" \"}");
+            assertInstanceOf(MappingContractException.class,
+                    assertThrows(RemoteIntegrationException.class, () -> catalog.load(Lookup.of(key, null))).getCause());
+            body.set("{}");
+            assertEquals("$.title", ((DtoContractException)assertThrows(RemoteIntegrationException.class,
+                    () -> catalog.load(Lookup.of(key, null))).getCause()).path());
+            status.set(404); assertTrue(catalog.lookup(key).isEmpty());
+            assertThrows(PortInvocationException.class, () -> catalog.load(Lookup.of(key, null)));
+            status.set(403); body.set("{\"code\":\"ACCOUNT_BLOCKED\"}");
+            var rejected = assertThrows(PortRejectedException.class, () -> catalog.load(Lookup.of(key, null)));
+            assertEquals(CatalogRejection.BLOCKED, rejected.code(CatalogRejection.class).orElseThrow());
+            assertEquals("r-42", rejected.transportDetails().get("http.correlationId"));
+            assertEquals("load", rejected.invocation().operation());
+            status.set(401); body.set("{ broken");
+            var failed = assertThrows(PortInvocationException.class, () -> catalog.load(Lookup.of(key, null)));
+            assertEquals(IntegrationCategory.AUTHENTICATION, failed.category());
+            assertEquals(1, failed.getSuppressed().length);
+        } finally { server.stop(0); }
+    }
+}

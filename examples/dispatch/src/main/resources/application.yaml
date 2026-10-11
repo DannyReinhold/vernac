@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: vernac-dispatch
+  datasource:
+    url: ${DISPATCH_DB_URL:jdbc:postgresql://localhost:55435/dispatch}
+    username: ${DISPATCH_DB_USER:dispatch}
+    password: ${DISPATCH_DB_PASSWORD:local-showcase-only}
+  docker:
+    compose:
+      file: compose.yaml
+      lifecycle-management: start-only
+  flyway:
+    enabled: true
+server:
+  address: 127.0.0.1
+  port: ${DISPATCH_PORT:8087}
+vernac:
+  events:
+    poll-interval: PT0.5S
+    initial-backoff: PT1S
+dispatch:
+  carrier:
+    simulator-port: ${DISPATCH_CARRIER_SIMULATOR_PORT:8091}
+    base-url: ${CARRIER_BASE_URL:http://127.0.0.1:${dispatch.carrier.simulator-port}}

@@ -1,0 +1,117 @@
+name: Publish IntelliJ Plugin
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version of the archived plugin, e.g. 0.2.0"
+        required: true
+        type: string
+      source_run_id:
+        description: "Original Vernac Release run ID (number in its URL)"
+        required: true
+        type: string
+      source_attempt:
+        description: "Original candidate attempt from the release summary"
+        required: true
+        default: '1'
+        type: string
+      dry_run:
+        description: "Check artifact/provenance only; never upload"
+        required: true
+        default: true
+        type: boolean
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      source_run_id:
+        required: true
+        type: string
+      source_attempt:
+        required: true
+        type: string
+      dry_run:
+        required: true
+        type: boolean
+    secrets:
+      JETBRAINS_MARKETPLACE_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    concurrency:
+      group: vernac-marketplace
+      cancel-in-progress: false
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+      SOURCE_ATTEMPT: ${{ inputs.source_attempt }}
+      DRY_RUN: ${{ inputs.dry_run }}
+    steps:
+      - name: Check out release tooling
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Validate inputs and retrieve source-run metadata
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 tools/release.py version
+          if [[ ! "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ || ! "$SOURCE_ATTEMPT" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::Source run ID and attempt must be positive integers."
+            exit 1
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/attempts/$SOURCE_ATTEMPT" > source-run.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/attempts/$SOURCE_ATTEMPT/jobs?per_page=100" > source-jobs.json
+
+      - name: Download original candidate
+        uses: actions/download-artifact@v4
+        with:
+          name: vernac-plugin-${{ inputs.version }}-${{ inputs.source_attempt }}
+          path: release-candidate
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Verify candidate identity, checksum and provenance
+        run: python3 tools/release.py provenance
+
+      - name: Explain dry run
+        if: inputs.dry_run
+        run: echo "Plugin artifact/provenance checks passed. No Central wait, consumer download or Marketplace upload in dry-run mode." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Wait for matching Maven Central artifacts
+        if: ${{ !inputs.dry_run }}
+        run: python3 tools/release.py central --timeout 1800
+
+      - name: Set up Java for clean Central consumer
+        if: ${{ !inputs.dry_run }}
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Verify packaged project template against Central
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/release.py consumer --output "$RUNNER_TEMP/vernac-consumer"
+          mvn -B -ntp -U -f "$RUNNER_TEMP/vernac-consumer/pom.xml" \
+            -Dmaven.repo.local="$RUNNER_TEMP/vernac-central-only" clean verify
+
+      - name: Upload original ZIP to Marketplace Stable
+        if: ${{ !inputs.dry_run }}
+        env:
+          JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+        run: python3 tools/release.py upload

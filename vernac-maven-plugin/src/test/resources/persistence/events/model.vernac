@@ -1,0 +1,12 @@
+namespace eventdemo;
+id TaskId;
+value Label(String) list Labels;
+value Amount(BigDecimal);
+value Detail(Label? note, Amount? amount);
+value Batch(Labels labels) list Batches;
+value Status = OPEN | CLOSED;
+event Changed(TaskId id, Labels labels, Detail? detail, Batches batches, Status status);
+recorded event Archived();
+event Transient();
+deferred listener First on Changed behavior { execute { throw new AssertionError("Must not run on emit"); } }
+deferred listener Second on Changed behavior { execute { throw new AssertionError("Must not run on emit"); } }

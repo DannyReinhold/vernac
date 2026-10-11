@@ -1,0 +1,11 @@
+namespace org.example.delivery;
+
+id StopId;
+id ParcelId;
+
+value Address(String street, String city);
+value TrackingNumber(String);
+value Weight(BigDecimal);
+
+entity Parcel[ParcelId](TrackingNumber, mut Weight) set Parcels;
+entity Stop[StopId](Address, mut Parcels, Tags) list Stops;

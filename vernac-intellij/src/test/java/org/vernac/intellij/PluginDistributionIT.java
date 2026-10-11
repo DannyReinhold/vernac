@@ -98,10 +98,31 @@ class PluginDistributionIT {
                     "org/vernac/intellij/VernacNewProjectWizard.class",
                     "org/vernac/intellij/VernacProjectTemplate.class",
                     "org/vernac/intellij/VernacProjectOpenActivity.class",
-                    "org/vernac/intellij/VernacLspIntegrationProvider.class"
+                    "org/vernac/intellij/VernacLspIntegrationProvider.class",
+                    "org/vernac/intellij/VernacLspCustomization.class",
+                    "org/vernac/intellij/VernacJavaDeclarationHandler.class",
+                    "org/vernac/intellij/VernacTypeNavigationTarget.class",
+                    "org/vernac/intellij/VernacNewNamespaceAction.class",
+                    "org/vernac/intellij/VernacNewFileAction.class",
+                    "org/vernac/intellij/VernacFileTemplateHandler.class",
+                    "org/vernac/intellij/VernacNamespaces.class",
+                    "org/vernac/intellij/VernacParserDefinition.class",
+                    "org/vernac/intellij/VernacInjectionHost.class",
+                    "org/vernac/intellij/VernacJavaInjector.class",
+                    "org/vernac/intellij/VernacHostManipulator.class",
+                    "fileTemplates/internal/Vernac File.vernac.ft",
+                    "fileTemplates/internal/Vernac Getting Started.vernac.ft"
             )) {
                 requireContent(plugin, entry);
             }
+
+            String descriptor = new String(requireContent(plugin, "META-INF/plugin.xml"),
+                    java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(descriptor.contains("<internalFileTemplate name=\"Vernac File\"/>"));
+            assertTrue(descriptor.contains("<internalFileTemplate name=\"Vernac Getting Started\"/>"));
+            assertTrue(descriptor.contains("implementation=\"org.vernac.intellij.VernacFileTemplateHandler\""));
+            assertFalse(plugin.containsKey("fileTemplates/Vernac File.vernac.ft"));
+            assertFalse(plugin.containsKey("fileTemplates/Vernac Getting Started.vernac.ft"));
 
             for (String templateFile : List.of(
                     "pom.xml",
@@ -111,7 +132,7 @@ class PluginDistributionIT {
                     ".mvn/wrapper/maven-wrapper.properties",
                     ".gitignore",
                     ".gitattributes",
-                    "src/main/vernac/tasks.vernac",
+                    "src/main/vernac/org/example/tasks/tasks.vernac",
                     "src/test/java/org/example/tasks/TaskTest.java"
             )) {
                 requireContent(
@@ -119,6 +140,25 @@ class PluginDistributionIT {
                         "projectTemplates/vernac-basic/" + templateFile
                 );
             }
+
+            var compilerJar = zip.stream().filter(e -> e.getName().startsWith("vernac-intellij/lib/vernac-compiler-")
+                    && e.getName().endsWith(".jar")).findFirst().orElseThrow();
+            var compiler = readNestedJar(zip, compilerJar.getName());
+            requireContent(compiler, "org/vernac/compiler/tooling/BehaviorJavaProjection.class");
+            requireContent(compiler, "org/vernac/compiler/tooling/VernacTypeNavigation.class");
+            requireContent(compiler, "org/vernac/compiler/pipeline/GeneratedSourceOwnership.class");
+            requireContent(compiler, "org/vernac/compiler/parser/VernacParser.class");
+            requireContent(compiler, "org/vernac/language/VernacNames.class");
+            for (String artifact : List.of("antlr4-runtime", "vernac-runtime", "javapoet", "jspecify")) {
+                assertTrue(zip.stream().anyMatch(e -> e.getName().startsWith("vernac-intellij/lib/" + artifact + "-")
+                        && e.getName().endsWith(".jar")), "Missing projection dependency: " + artifact);
+            }
+            assertFalse(plugin.containsKey("org/vernac/language/VernacNames.class"),
+                    "Shared naming classes belong to the compiler JAR only");
+            assertTrue(descriptor.contains("org.vernac.intellij.VernacJavaDeclarationHandler"));
+            assertTrue(descriptor.contains("org.vernac.intellij.VernacJavaInjector"));
+            assertTrue(descriptor.contains("org.vernac.intellij.VernacParserDefinition"));
+            assertTrue(descriptor.contains("org.vernac.intellij.VernacHostManipulator"));
 
             Map<String, byte[]> server = readNestedJar(
                     zip,

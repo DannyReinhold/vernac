@@ -31,6 +31,18 @@
 
     <dependencies>
         <dependency>
+            <groupId>com.jetbrains.intellij.java</groupId>
+            <artifactId>java-psi</artifactId>
+            <version>${intellij.platform.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- Shared parser and type resolution for embedded Java; bundled in plugin/lib. -->
+        <dependency>
+            <groupId>org.vernac</groupId>
+            <artifactId>vernac-compiler</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.vernac</groupId>
             <artifactId>vernac-lsp</artifactId>
             <version>${project.version}</version>

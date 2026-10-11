@@ -1,11 +1,11 @@
 grammar Vernac;
 
 compilationUnit
-    : packageDeclaration? importDeclaration* topLevelDeclaration* EOF
+    : namespaceDeclaration importDeclaration* topLevelDeclaration* EOF
     ;
 
-packageDeclaration
-    : 'package' qualifiedName ';'
+namespaceDeclaration
+    : 'namespace' qualifiedName ';'
     ;
 
 importDeclaration
@@ -19,6 +19,7 @@ topLevelDeclaration
     | aggregateDefinition
     | entityDefinition
     | portDefinition
+    | outboundAdapterDefinition
     | repositoryDefinition
     | usecaseDefinition
     | domainServiceDefinition
@@ -29,11 +30,7 @@ topLevelDeclaration
 // 0. Identifier Types
 // ==========================================
 idDeclaration
-    : 'id' name=typeName ( '{' idMember*'}' )? ';'?
-    ;
-
-idMember
-    : packageDeclarationStatement
+    : 'id' name=typeName collectionDefinition? ';'?
     ;
 
 // ==========================================
@@ -41,10 +38,11 @@ idMember
 // ==========================================
 valueDefinition
     : 'value' name=typeName (
-        '(' parameterList? ')' ( 'validates' validationBlock )? ( collectionDefinition )?
+        '(' parameterList? ')' ( 'validates' validationBlock )?
       | '=' enumConstantList
       )
-      ( '{' valueMember* '}' )?
+      behaviorBlock?
+      collectionDefinition?
       ';'?
     ;
 
@@ -53,21 +51,24 @@ enumConstantList
     ;
 
 enumConstant
-    : name=IDENTIFIER ( '(' dbValue=STRING_LITERAL ')' )?
-    ;
-
-valueMember
-    : packageDeclarationStatement
-    | methodDefinition
+    : name=qualifiedNameSegment
     ;
 
 collectionDefinition
-    : 'collection' collectionName=typeName? ( '{' collectionMember* '}' )?
+    : kind=('list' | 'set') collectionName=typeName? behaviorBlock?
     ;
 
-collectionMember
-    : packageDeclarationStatement
-    | methodDefinition
+behaviorBlock
+    : 'behavior' '{' javaImports? behaviorMethod* '}'
+    ;
+
+javaImports
+    : 'java' 'imports' '{' (qualifiedName ';')* '}'
+    ;
+
+behaviorMethod
+    : (visibility=('public' | 'private') | effect=('read' | 'modify')) returnType=type name=methodName '(' parameterList? ')'
+      ( '{' rawJavaBlock '}' | 'implemented' 'by' implementation=qualifiedName ';' )
     ;
 
 validationBlock
@@ -79,21 +80,11 @@ validationStatement
     ;
 
 // ==========================================
-// 2. Events (outbox | memory | default)
+// 2. Domain events
 // ==========================================
 eventDefinition
-    : (dispatchKind=eventDispatchKind)? 'event' name=typeName '(' parameterList? ')'
-      ( '{' eventMember* '}' )?
-      ';'?
-    ;
-
-eventDispatchKind
-    : 'outbox'
-    | 'memory'
-    ;
-
-eventMember
-    : packageDeclarationStatement
+    : recorded='recorded'? 'event' name=typeName '(' parameterList? ')'
+      ('validates' validationBlock)? ';'?
     ;
 
 // ==========================================
@@ -103,6 +94,8 @@ aggregateDefinition
     : 'aggregate' name=typeName '[' idReference ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
       ( '{' aggregateMember* '}' )?
+      behaviorBlock?
+      collectionDefinition?
       ';'?
     ;
 
@@ -119,6 +112,7 @@ entityDefinition
     : 'entity' name=typeName '[' idReference ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
       ( '{' entityMember* '}' )?
+      behaviorBlock?
       ( collectionDefinition )?
       ';'?
     ;
@@ -144,81 +138,83 @@ accessModifier
 // 4. Ports (Outbound Adapters & Mapping)
 // ==========================================
 portDefinition
-    : 'port' name=typeName '{' portMember* '}'
+    : 'port' name=typeName '{' portMethodDefinition* '}'
     ;
 
-portMember
-    : schemaDefinition
-    | portMethodDefinition
+outboundAdapterDefinition
+    : 'adapter' name=typeName 'implements' portType=type
+      ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
+      '{' configurationBlock? (schemaDefinition | mappingDefinition)*
+      ('behavior' '{' javaImports? javaUses? serviceMethod* '}' | restBlock)
+      (schemaDefinition | mappingDefinition)* '}' ';'?
+    ;
+
+configurationBlock
+    : 'configuration' '{' configurationEntry+ '}'
+    ;
+configurationEntry
+    : configType=qualifiedName name=variableName 'from' property=STRING_LITERAL ';'
+    ;
+
+restBlock
+    : 'rest' '{' 'client' client=variableName ';' 'base' base=variableName ';' restOperation* '}'
+    ;
+restOperation
+    : returnType=type name=methodName '(' parameterList? ')' '{'
+      verb=('GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE') route=STRING_LITERAL ';'
+      restBinding*
+      ('body' '<-' requestPath=qualifiedName 'using' requestMapping=methodName ';')?
+      ('response' responseType=type 'using' responseMapping=methodName ';')?
+      ('on' absentStatus=INT_LITERAL 'absent' ';')?
+      ('errors' ('implemented' 'by' errorImplementation=qualifiedName ';' | restErrors))?
+      '}'
+    ;
+restErrors
+    : '{' ('response' errorType=type ';')? restErrorRule+ ('otherwise' 'default' ';')? '}'
+    ;
+restErrorRule
+    : 'when' restErrorOr 'then' restErrorAction ';'
+    ;
+restErrorOr : restErrorAnd ('or' restErrorAnd)* ;
+restErrorAnd : restErrorNot ('and' restErrorNot)* ;
+restErrorNot : 'not' restErrorNot | '(' restErrorOr ')' | restErrorPredicate ;
+restErrorPredicate
+    : field=qualifiedName (operator=('=' | '!=' | '<' | '<=' | '>' | '>=') restErrorLiteral
+      | 'is' presence=('absent' | 'present'))
+    ;
+restErrorLiteral : STRING_LITERAL | booleanValue=('true' | 'false') | '-'? (INT_LITERAL | DECIMAL_LITERAL) ;
+restErrorAction
+    : 'reject' code=qualifiedName message=STRING_LITERAL
+    | 'fail' responsibility=('local' | 'remote' | 'unknown') category=qualifiedName message=STRING_LITERAL
+    ;
+restBinding
+    : kind=('path' | 'query' | 'header') target=STRING_LITERAL '<-' source=qualifiedName ';'
+    ;
+
+mappingDefinition
+    : 'mapping' name=methodName ':' targetType=type '<-' sourceType=type
+      ('{' (mappingAssignment* | javaImports? 'java' '{' rawJavaBlock '}') '}'
+       | 'implemented' 'by' implementation=qualifiedName ';')
+    ;
+mappingAssignment
+    : target=variableName '<-' path=qualifiedName ('using' mapper=methodName)? ';'
     ;
 
 schemaDefinition
-    : 'schema' name=typeName '{' schemaField* '}'
+    : 'schema' name=typeName ('naming' strategy=variableName)? '(' (schemaField (',' schemaField)*)? ')' ';'
     ;
 
 schemaField
-    : fieldType=type name=variableName ';'
+    : patch='patch'? fieldType=type name=variableName? ('named' externalName=STRING_LITERAL)?
+      ('absent' 'as' explicitNull='null')?
+    ;
+
+javaUses
+    : 'java' 'uses' '{' (dependencies+=parameter ';')* '}'
     ;
 
 portMethodDefinition
-    : returnType=type name=methodName '(' parameterList? ')' throwsClause? '{'
-        adapterDefinition
-        mappingBlock?
-      '}'
-    ;
-
-throwsClause
-    : 'throws' qualifiedName (',' qualifiedName)*
-    ;
-
-adapterDefinition
-    : adapterCustom
-    | adapterRest
-    ;
-
-adapterRest
-    : 'adapter' 'rest' '{' packageDeclarationStatement? restConfig* restErrorRule* '}'
-    ;
-
-adapterCustom
-    : 'adapter' 'custom' delegateName=qualifiedName? ';'
-    | 'adapter' 'custom' '{' packageDeclarationStatement? rawJavaBlock '}'
-    | 'adapter' 'custom' delegateName=qualifiedName '{' packageDeclarationStatement? '}' ';'?
-    ;
-
-restConfig
-    : httpMethod STRING_LITERAL ';'
-    | variableName ':' STRING_LITERAL ';'
-    ;
-
-httpMethod
-    : 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
-    ;
-
-restErrorRule
-    : 'on' statusCode ( 'return' expression | 'throw' type ) ';'
-    ;
-
-statusCode
-    : INT_LITERAL
-    | INT_LITERAL '..' INT_LITERAL
-    | STATUS_FAMILY
-    ;
-
-mappingBlock
-    : 'mapping' '{' mappingStatement* '}'
-    ;
-
-mappingStatement
-    : sourcePath ( '<-' | '->' ) targetPath ';'
-    ;
-
-sourcePath
-    : variableName ( '.' variableName | '[' ( '*' | INT_LITERAL ) ']' )* ( ':' type )?
-    ;
-
-targetPath
-    : variableName ( '.' variableName )*
+    : returnType=type name=methodName '(' parameterList? ')' ';'
     ;
 
 // ==========================================
@@ -241,7 +237,20 @@ packageDeclarationStatement
     ;
 
 repositoryFindMethod
-    : 'find' returnType=type name=methodName '(' parameterList? ')' ';'
+    : 'find' returnType=type name=qualifiedNameSegment '(' parameterList? ')'
+      ('where' repositoryExpression)?
+      ('order' 'by' repositoryOrder (',' repositoryOrder)*)? ';'
+    ;
+
+repositoryExpression : repositoryAnd ('or' repositoryAnd)* ;
+repositoryAnd : repositoryNot ('and' repositoryNot)* ;
+repositoryNot : 'not' repositoryNot | '(' repositoryExpression ')' | repositoryPredicate ;
+repositoryPredicate
+    : field=qualifiedNameSegment ((operator=('=' | '!=' | '<' | '<=' | '>' | '>=' | 'like' | 'contains') | operator=('starts' | 'ends') 'with') ':' parameterName=variableName
+        | 'is' presence=('absent' | 'present'))
+    ;
+repositoryOrder
+    : field=qualifiedNameSegment direction=('asc' | 'desc')?
     ;
 
 repositoryCustomMethod
@@ -252,38 +261,19 @@ repositoryCustomMethod
 // 6. Use Cases
 // ==========================================
 usecaseDefinition
-    : 'usecase' name=typeName '(' parameterList? ')'
-      ( 'validates' validationBlock )?
-      '{' usecaseMember* '}'
-      ';'?
+    : 'usecase' name=typeName '(' inputs=parameterList? ')'
+      ('returns' (resultType=type | '(' results=parameterList ')'))?
+      ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
+      ('validates' validationBlock)?
+      'behavior' '{' javaImports? usecaseBehaviorMember* '}' ';'?
     ;
-
-usecaseMember
-    : packageDeclarationStatement
-    | useDependencyStatement
-    | usecaseStatement
+usecaseBehaviorMember
+    : 'execute' ('{' rawJavaBlock '}' | 'implemented' 'by' implementation=qualifiedName ';')
+    | behaviorMethod
     ;
 
 useDependencyStatement
     : 'use' typeName (variableName)? ';'
-    ;
-
-usecaseStatement
-    : loadStatement
-    | saveStatement
-    | tupleReturnStatement
-    | singleReturnStatement
-    | rawJavaStatement
-    ;
-
-loadStatement
-    : 'load' aggregateType=typeName (instanceName=variableName)?
-      ('from' repositoryName=variableName)?
-      ('by' idExpression=expression)? ';'
-    ;
-
-saveStatement
-    : 'save' instanceName=variableName ('to' repositoryName=variableName)? ';'
     ;
 
 singleReturnStatement
@@ -312,33 +302,24 @@ javaBlockStatement
 // 7. Domain Services
 // ==========================================
 domainServiceDefinition
-    : 'service' name=typeName '(' parameterList? ')' (':' returnType=type)?
-      ( 'validates' validationBlock )?
-      '{' domainServiceMember* '}'
-      ';'?
+    : 'service' name=typeName
+      ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
+      'behavior' '{' javaImports? serviceMethod* '}' ';'?
     ;
 
-domainServiceMember
-    : packageDeclarationStatement
-    | singleReturnStatement
-    | tupleReturnStatement
-    | rawJavaStatement
+serviceMethod
+    : visibility=('public' | 'private') returnType=type name=methodName '(' parameterList? ')'
+      ('validates' validationBlock)?
+      ('{' rawJavaBlock '}' | 'implemented' 'by' implementation=qualifiedName ';')
     ;
 
 // ==========================================
 // 8. Event Listeners
 // ==========================================
 listenerDefinition
-    : 'listener' eventName=typeName '{'
-        listenerMember*
-      '}'
-      ';'?
-    ;
-
-listenerMember
-    : packageDeclarationStatement
-    | useDependencyStatement
-    | rawJavaStatement
+    : deliveryMode=('synchronous' | 'deferred') 'listener' name=typeName 'on' eventType=type
+      ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
+      'behavior' '{' javaImports? usecaseBehaviorMember* '}' ';'?
     ;
 
 // ==========================================
@@ -360,9 +341,74 @@ typeArguments
     : type (',' type)*
     ;
 
-// Package- und Import-Pfade dürfen nur aus echten Identifiern bestehen
+// Vernac keywords are contextual in qualified names. Java validity is checked semantically.
 qualifiedName
-    : IDENTIFIER ('.' IDENTIFIER)*
+    : qualifiedNameSegment ('.' qualifiedNameSegment)*
+    ;
+
+qualifiedNameSegment
+    : 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    | IDENTIFIER
+    | BOOLEAN_LITERAL
+    | 'null'
+    | 'DELETE'
+    | 'GET'
+    | 'PATCH'
+    | 'POST'
+    | 'PUT'
+    | 'adapter'
+    | 'aggregate'
+    | 'as'
+    | 'by'
+    | 'configuration' | 'using' | 'naming' | 'named' | 'patch' | 'as' | 'null' | 'implements' | 'read' | 'modify' | 'behavior' | 'java' | 'imports' | 'implemented' | 'by' | 'collection'
+    | 'list'
+    | 'set'
+    | 'custom'
+    | 'else'
+    | 'emit'
+    | 'entity'
+    | 'event'
+    | 'find'
+    | 'for'
+    | 'from'
+    | 'id'
+    | 'if'
+    | 'import'
+    | 'internal'
+    | 'invariant'
+    | 'listener'
+    | 'recorded'
+    | 'synchronous'
+    | 'deferred'
+    | 'on'
+    | 'load'
+    | 'mapping'
+    | 'memory'
+    | 'mut'
+    | 'namespace'
+    | 'outbox'
+    | 'package'
+    | 'port'
+    | 'private'
+    | 'public'
+    | 'repository'
+    | 'returns' | 'uses' | 'execute' | 'or' | 'not' | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
+    | 'require'
+    | 'rest'
+    | 'return'
+    | 'save'
+    | 'schema'
+    | 'service'
+    | 'switch'
+    | 'throw'
+    | 'throws'
+    | 'to'
+    | 'try'
+    | 'use'
+    | 'usecase'
+    | 'validates'
+    | 'value'
+    | 'while'
     ;
 
 rawJavaBlock
@@ -388,6 +434,7 @@ primaryExpression
     | INT_LITERAL
     | DECIMAL_LITERAL
     | BOOLEAN_LITERAL
+    | 'null'
     | '(' expression ')'
     ;
 
@@ -403,11 +450,20 @@ typeName
     ;
 
 methodName
-    : IDENTIFIER
+    : 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
+    | 'read' | 'modify' | 'load' | 'save'
+    | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
+    | IDENTIFIER
+    | 'value'
+    | 'id'
     ;
 
 variableName
-    : IDENTIFIER
+    : 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
+    | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
+    | IDENTIFIER
     | 'value'
     | 'id'
     ;
@@ -415,7 +471,15 @@ variableName
 // ==========================================
 // Lexer-Tokens
 // ==========================================
-IDENTIFIER      : [a-zA-Z_][a-zA-Z0-9_]* ;
+IDENTIFIER      : IdentifierStart IdentifierPart* ;
+fragment IdentifierStart
+    : {org.vernac.language.VernacNames.isStart(_input.LA(1))
+        || (org.vernac.language.VernacNames.isForbidden(_input.LA(1)) && !Character.isWhitespace(_input.LA(1)))}? .
+    ;
+fragment IdentifierPart
+    : {org.vernac.language.VernacNames.isPart(_input.LA(1))
+        || (org.vernac.language.VernacNames.isForbidden(_input.LA(1)) && !Character.isWhitespace(_input.LA(1)))}? .
+    ;
 STRING_LITERAL  : '"' (~["\\\r\n] | '\\' .)* '"' ;
 INT_LITERAL     : [0-9]+ ;
 DECIMAL_LITERAL : [0-9]+ '.' [0-9]+ ;

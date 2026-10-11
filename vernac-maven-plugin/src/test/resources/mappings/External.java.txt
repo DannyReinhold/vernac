@@ -1,0 +1,3 @@
+package mapdemo;
+import mapdemo.domain.Title;
+public final class External { public static Title external(String source) {return Title.of(source+"!");} }

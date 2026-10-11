@@ -1,0 +1,39 @@
+namespace showcase.routing;
+
+entity Stop[StopId](Customer, Address, Units) list Stops;
+
+aggregate Tour[TourId](Title, Capacity, mut Stops, mut TourState)
+validates {
+    require(self.totalUnits() <= self.capacity().intValue(), "Tour capacity exceeded");
+    require(self.tourState() == TourState.PLANNED || !self.stops().isEmpty(), "An active tour needs a stop");
+}
+behavior {
+    java imports { org.vernac.runtime.DomainValidationException; }
+    read int totalUnits() { return self.stops().stream().mapToInt(stop -> stop.units().intValue()).sum(); }
+    modify void add(Stop stop) {
+        if (self.tourState() != TourState.PLANNED) throw new DomainValidationException("Only planned tours can change");
+        if (self.stops().contains(stop.id())) throw new DomainValidationException("This stop is already on the tour");
+        if ((long) self.totalUnits() + stop.units().intValue() > self.capacity().intValue())
+            throw new DomainValidationException("Not enough capacity on the target tour");
+        self.stops(self.stops().plus(stop));
+    }
+    modify void remove(StopId id) {
+        if (self.tourState() != TourState.PLANNED) throw new DomainValidationException("Only planned tours can change");
+        if (!self.stops().contains(id)) throw new DomainValidationException("Stop is not on this tour");
+        self.stops(self.stops().minusAllId(id));
+    }
+    modify void ready() {
+        if (self.tourState() != TourState.PLANNED || self.stops().isEmpty())
+            throw new DomainValidationException("A planned tour needs at least one stop before release");
+        self.tourState(TourState.READY);
+    }
+    modify void dispatch() {
+        if (self.tourState() != TourState.READY) throw new DomainValidationException("Release the tour before dispatch");
+        self.tourState(TourState.DISPATCHED);
+    }
+} list Tours;
+
+repository TourRepository for Tour {
+    find Tours all() order by title;
+    find Tours search(String text) where title contains :text order by title;
+}

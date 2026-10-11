@@ -1,0 +1,33 @@
+namespace showcase.routing;
+import showcase.carrier.*;
+
+recorded event TourDispatched(TourId, Title, Shipment);
+
+usecase DispatchTour(TourId) uses TourRepository tours behavior {
+    java imports { java.math.BigDecimal; }
+    execute {
+        var tour = self.tours().byId(tourId);
+        tour.dispatch();
+        self.tours().save(tour);
+        // Every crate weighs 10 kg in this illustrative delivery business.
+        var shipment = Shipment.of(Destination.of(tour.stops().first().orElseThrow().address().city()),
+                ParcelWeight.of(BigDecimal.valueOf(tour.totalUnits()).multiply(BigDecimal.TEN)));
+        self.emit(TourDispatched.create(tour.id(), tour.title(), shipment));
+    }
+}
+
+// An application-owned receipt is written in the listener transaction.
+port DispatchJournal { void record(TourId, Title, ShippingQuote); }
+adapter JdbcDispatchJournal implements DispatchJournal {
+    behavior {
+        java uses { org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate jdbc; }
+        public void record(TourId, Title, ShippingQuote) implemented by showcase.integration.JournalImplementation;
+    }
+}
+
+deferred listener NotifyCarrier on TourDispatched uses ShippingCarrier carrier, DispatchJournal journal behavior {
+    execute {
+        var quote = self.carrier().quote(event.shipment());
+        self.journal().record(event.tourId(), event.title(), quote);
+    }
+}

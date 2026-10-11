@@ -11,7 +11,8 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
-import org.vernac.compiler.pipeline.VernacCompilationResult;
+import org.vernac.compiler.pipeline.VernacProjectCompilationResult;
+import org.vernac.compiler.analyzer.SemanticValidationException;
 import org.vernac.compiler.pipeline.VernacCompiler;
 
 import java.io.File;
@@ -19,7 +20,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.stream.Stream;
 
 /**
  * Compiles Vernac DSL files (.vernac) into Java source code during the generate-sources phase.
@@ -51,6 +51,22 @@ public class VernacCompileMojo extends AbstractMojo {
     @Parameter(property = "vernac.skip", defaultValue = "false")
     private boolean skip;
 
+    @Parameter(property="vernac.schemaHistory", defaultValue="${project.basedir}/src/main/vernac-schema/history")
+    private File historyDirectory;
+    @Parameter(property="vernac.migrations", defaultValue="${project.basedir}/src/main/resources/db/migration")
+    private File migrationDirectory;
+    @Parameter(property="vernac.enumCodes")
+    private File enumCodes;
+
+    private org.vernac.compiler.persistence.SchemaModel previousSchema() throws java.io.IOException {
+        if (historyDirectory == null || migrationDirectory == null) return org.vernac.compiler.persistence.SchemaModel.empty();
+        return new org.vernac.compiler.persistence.SchemaHistory(historyDirectory.toPath(),migrationDirectory.toPath()).read();
+    }
+    private java.util.Map<String,java.util.Map<String,String>> enumOverrides() throws java.io.IOException {
+        return enumCodes == null ? java.util.Map.of() : org.vernac.compiler.persistence.SchemaModel.JSON.readValue(
+                java.nio.file.Files.readString(enumCodes.toPath()),new com.fasterxml.jackson.core.type.TypeReference<>() { });
+    }
+
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         if (skip) {
@@ -58,51 +74,25 @@ public class VernacCompileMojo extends AbstractMojo {
             return;
         }
 
-        if (!sourceDirectory.exists() || !sourceDirectory.isDirectory()) {
-            getLog().info("No Vernac source directory found at " + sourceDirectory.getAbsolutePath() + " - skipping.");
-            return;
+        if (sourceDirectory.exists() && !sourceDirectory.isDirectory()) {
+            throw new MojoExecutionException("Vernac source path is not a directory: " + sourceDirectory);
         }
 
-        Path sourcePath = sourceDirectory.toPath();
         Path outputPath = outputDirectory.toPath();
-
-        List<Path> vernacFiles;
-        try (Stream<Path> stream = Files.walk(sourcePath)) {
-            vernacFiles = stream
-                    .filter(Files::isRegularFile)
-                    .filter(p -> p.getFileName().toString().endsWith(".vernac"))
-                    .toList();
-        } catch (IOException e) {
-            throw new MojoExecutionException("Failed to scan Vernac source directory: " + sourceDirectory, e);
-        }
-
-        if (vernacFiles.isEmpty()) {
-            getLog().info("No .vernac files found in " + sourceDirectory.getAbsolutePath());
-            return;
-        }
-
-        getLog().info("Compiling " + vernacFiles.size() + " Vernac DSL file(s) to " + outputDirectory.getAbsolutePath());
-
         try {
+            // Resolve the entire source tree before writing any generated Java.
+            VernacProjectCompilationResult result = sourceDirectory.exists()
+                    ? compiler.compileProject(sourceDirectory.toPath(),previousSchema(),enumOverrides())
+                    : new VernacProjectCompilationResult(List.of(), List.of());
+            result.diagnostics().forEach(diagnostic -> getLog().warn(diagnostic.toString()));
             Files.createDirectories(outputPath);
+            result.writeTo(outputPath);
+            getLog().info("Successfully generated " + result.generatedFiles().size() + " Java source file(s).");
+        } catch (SemanticValidationException e) {
+            throw new MojoFailureException("Failed to compile Vernac project: " + e.getMessage(), e);
         } catch (IOException e) {
-            throw new MojoExecutionException("Could not create output directory: " + outputDirectory, e);
+            throw new MojoExecutionException("Could not read or write Vernac project files: " + e.getMessage(), e);
         }
-
-        int totalGeneratedFiles = 0;
-
-        for (Path file : vernacFiles) {
-            getLog().debug("Compiling Vernac file: " + file);
-            try {
-                VernacCompilationResult result = compiler.compile(file);
-                result.writeTo(outputPath);
-                totalGeneratedFiles += result.generatedFiles().size();
-            } catch (Exception e) {
-                throw new MojoFailureException("Failed to compile Vernac file: " + file + " (" + e.getMessage() + ")", e);
-            }
-        }
-
-        getLog().info("Successfully generated " + totalGeneratedFiles + " Java source file(s).");
 
         // Register the directory with Maven so that the Java compiler finds the classes
         if (project != null) {

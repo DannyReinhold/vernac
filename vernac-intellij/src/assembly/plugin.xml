@@ -20,6 +20,13 @@
 
     <dependencySets>
         <dependencySet>
+            <outputDirectory>lib</outputDirectory>
+            <scope>runtime</scope>
+            <useProjectArtifact>false</useProjectArtifact>
+            <useTransitiveDependencies>true</useTransitiveDependencies>
+            <unpack>false</unpack>
+        </dependencySet>
+        <dependencySet>
             <outputDirectory>server</outputDirectory>
             <outputFileNameMapping>vernac-lsp.jar</outputFileNameMapping>
             <scope>provided</scope>

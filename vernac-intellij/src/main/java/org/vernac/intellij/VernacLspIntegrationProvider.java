@@ -8,6 +8,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.platform.lsp.api.LspIntegrationProvider;
 import com.intellij.platform.lsp.api.ProjectWideLspClientDescriptor;
+import com.intellij.platform.lsp.api.customization.LspCustomization;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -46,6 +47,13 @@ public final class VernacLspIntegrationProvider
         private VernacLspClientDescriptor(Project project, Path pluginPath) {
             super(project, "Vernac");
             this.pluginPath = pluginPath;
+        }
+
+        private final LspCustomization customization = new VernacLspCustomization();
+
+        @Override
+        public LspCustomization getLspCustomization() {
+            return customization;
         }
 
         private Path locateServerJar() throws ExecutionException {

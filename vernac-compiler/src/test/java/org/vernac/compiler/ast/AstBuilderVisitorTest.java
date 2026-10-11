@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.vernac.compiler.parser.VernacLexer;
 import org.vernac.compiler.parser.VernacParser;
-import org.vernac.runtime.DispatchMode;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,7 +25,7 @@ class AstBuilderVisitorTest {
     @DisplayName("Parst Aggregate mit Standard-Id und abgeleiteten sowie expliziten Feldnamen")
     void shouldParseAggregateWithIdAndMutableFields() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 aggregate Project[ProjectId](ProjectName, mut Money budget) validates {
                     require(budget.amount().compareTo(BigDecimal.ZERO) >= 0, "Budget cannot be negative");
@@ -58,7 +57,7 @@ class AstBuilderVisitorTest {
         assertThat(budgetField.isMutable()).isTrue();
 
         assertThat(project.validations()).hasSize(1);
-        assertThat(project.validations().getFirst().condition()).isEqualTo("budget.amount().compareTo(BigDecimal.ZERO)>=0");
+        assertThat(project.validations().getFirst().condition()).isEqualTo("budget.amount().compareTo(BigDecimal.ZERO) >= 0");
         assertThat(project.methods()).hasSize(1);
         assertThat(project.methods().getFirst().name()).isEqualTo("assignBudget");
 
@@ -78,7 +77,7 @@ class AstBuilderVisitorTest {
         @DisplayName("Parst 'id <Name>;' als IdDeclarationNode")
         void shouldParseIdDeclarations() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     id ProjectId;
                     id TaskId;
@@ -101,10 +100,10 @@ class AstBuilderVisitorTest {
     class ValueObjectTests {
 
         @Test
-        @DisplayName("Leitet bei Single Value Objects den Feldnamen 'value' automatisch ab")
-        void shouldDeriveDefaultValueFieldNameForSingleParam() {
+        @DisplayName("Leitet auch bei Single Value Objects den Feldnamen aus dem Typ ab")
+        void shouldDeriveTypeBasedFieldNameForSingleParam() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     value ProjectId(UUID);
                     """;
 
@@ -114,30 +113,30 @@ class AstBuilderVisitorTest {
             ValueObjectNode vo = cu.valueObjects().getFirst();
             assertThat(vo.name()).isEqualTo("ProjectId");
             assertThat(vo.fields()).hasSize(1);
-            assertThat(vo.fields().getFirst().name()).isEqualTo("value");
+            assertThat(vo.fields().getFirst().name()).isEqualTo("uuid");
             assertThat(vo.fields().getFirst().type().name()).isEqualTo("UUID");
         }
 
         @Test
-        @DisplayName("Unterstützt package-Override im Value Object Block")
-        void shouldParseValueObjectWithPackageOverride() {
+        @DisplayName("Rejects removed package overrides in Value Objects")
+        void shouldRejectValueObjectWithPackageOverride() {
             String src = """
-                    package com.example.domain;
-                    value SharedId(UUID) {
+                    namespace com.example.domain;
+                    value SharedId(UUID) behavior {
                         package com.example.shared.kernel;
                     }
                     """;
 
-            CompilationUnitNode cu = parse(src);
-            ValueObjectNode vo = cu.valueObjects().getFirst();
-            assertThat(vo.customPackage()).contains("com.example.shared.kernel");
-            assertThat(vo.fields().getFirst().name()).isEqualTo("value");
+            org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                    new org.vernac.compiler.pipeline.VernacSourceParser().parse("override.vernac", src))
+                    .isInstanceOf(org.vernac.compiler.analyzer.SemanticValidationException.class)
+                    .hasMessageContaining("Syntax error");
         }
 
         @Test
         void shouldParseValueObjectWithValidation() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     value Money(BigDecimal amount, Currency currency) validates {
                         require(amount >= 0, "Amount must be positive");
@@ -152,20 +151,20 @@ class AstBuilderVisitorTest {
             assertThat(vo.name()).isEqualTo("Money");
             assertThat(vo.fields()).hasSize(2);
             assertThat(vo.validations()).hasSize(2);
-            assertThat(vo.validations().getFirst().condition()).isEqualTo("amount>=0");
+            assertThat(vo.validations().getFirst().condition()).isEqualTo("amount >= 0");
             assertThat(vo.validations().getFirst().message()).isEqualTo("Amount must be positive");
         }
 
         @Test
         void shouldParseValueObjectWithExplicitCollectionAndMethods() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     value Money(BigDecimal amount, String? comment) validates {
                         require(amount.compareTo(BigDecimal.ZERO) >= 0, "Amount must be positive");
-                    } collection MoneyTransactions {
+                    } list MoneyTransactions behavior {
                         public Money sum() {
-                            return items.stream().reduce(Money.of(BigDecimal.ZERO), (a, b) -> Money.of(a.amount().add(b.amount())));
+                            return self.stream().reduce(Money.of(BigDecimal.ZERO), (a, b) -> Money.of(a.amount().add(b.amount())));
                         }
                     };
                     """;
@@ -187,14 +186,14 @@ class AstBuilderVisitorTest {
         }
 
         @Test
-        @DisplayName("Parst Enum Value Object mit Standard- und Custom-DB-Werten sowie Methoden")
+        @DisplayName("Parst Enum Value Object mit geordneten Konstanten und Methoden")
         void shouldParseEnumValueObject() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
-                    value AcMode = ECO("eco") | COOL | HEAT("heat") | OFF {
+                    value AcMode = ECO | COOL | HEAT | OFF behavior {
                         public boolean isActive() {
-                            return this != OFF;
+                            return self != AcMode.OFF;
                         }
                     }
                     """;
@@ -208,23 +207,8 @@ class AstBuilderVisitorTest {
             assertThat(vo.fields()).isEmpty();
             assertThat(vo.enumConstants()).hasSize(4);
 
-            // ECO mit explizitem dbValue "eco"
-            assertThat(vo.enumConstants().get(0).name()).isEqualTo("ECO");
-            assertThat(vo.enumConstants().get(0).customDbValue()).contains("eco");
-            assertThat(vo.enumConstants().get(0).effectiveDbValue()).isEqualTo("eco");
-
-            // COOL ohne dbValue -> Fallback auf Konstantenname
-            assertThat(vo.enumConstants().get(1).name()).isEqualTo("COOL");
-            assertThat(vo.enumConstants().get(1).customDbValue()).isEmpty();
-            assertThat(vo.enumConstants().get(1).effectiveDbValue()).isEqualTo("COOL");
-
-            // HEAT mit explizitem dbValue "heat"
-            assertThat(vo.enumConstants().get(2).name()).isEqualTo("HEAT");
-            assertThat(vo.enumConstants().get(2).customDbValue()).contains("heat");
-
-            // OFF ohne dbValue
-            assertThat(vo.enumConstants().get(3).name()).isEqualTo("OFF");
-            assertThat(vo.enumConstants().get(3).customDbValue()).isEmpty();
+            assertThat(vo.enumConstants()).extracting(EnumConstantNode::name)
+                    .containsExactly("ECO", "COOL", "HEAT", "OFF");
 
             // Methode prüfen
             assertThat(vo.methods()).hasSize(1);
@@ -239,12 +223,10 @@ class AstBuilderVisitorTest {
             @DisplayName("Parst Listener mit Dependencies und Statements")
             void shouldParseListener() {
                 String src = """
-                        package com.example.energy;
+                        namespace com.example.energy;
                         
-                        listener StorageOverheated {
-                            use NotificationPort notifications;
-                        
-                            notifications.sendAlert("Overheated");
+                        synchronous listener Alert on StorageOverheated uses NotificationPort notifications behavior {
+                            execute { self.notifications().sendAlert("Overheated"); }
                         }
                         """;
 
@@ -252,13 +234,12 @@ class AstBuilderVisitorTest {
                 assertThat(cu.listeners()).hasSize(1);
 
                 ListenerNode listener = cu.listeners().getFirst();
-                assertThat(listener.eventName()).isEqualTo("StorageOverheated");
-                assertThat(listener.listenerName()).isEqualTo("StorageOverheatedListener");
-                assertThat(listener.dependencies()).hasSize(1);
-                assertThat(listener.dependencies().getFirst().typeName()).isEqualTo("NotificationPort");
-                assertThat(listener.dependencies().getFirst().instanceName()).contains("notifications");
-                assertThat(listener.statements()).hasSize(1);
-                assertThat(listener.statements().getFirst().javaCode()).contains("notifications.sendAlert(\"Overheated\");");
+                assertThat(listener.eventType().name()).isEqualTo("StorageOverheated");
+                assertThat(listener.listenerName()).isEqualTo("Alert");
+                assertThat(listener.operation().injections()).hasSize(1);
+                assertThat(listener.operation().injections().getFirst().type().name()).isEqualTo("NotificationPort");
+                assertThat(listener.operation().injections().getFirst().name()).isEqualTo("notifications");
+                assertThat(listener.operation().bodyCode()).contains("self.notifications()");
             }
         }
     }
@@ -271,7 +252,7 @@ class AstBuilderVisitorTest {
         @DisplayName("Parst Aggregate mit Id-Header, mut-Feldern, Validierungen und Methoden")
         void shouldParseAggregateWithIdAndMethods() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     aggregate Project[ProjectId](ProjectName title, Money? budget, mut Tasks tasks) validates {
                         require(tasks.size() <= 100, "Max 100 tasks allowed");
@@ -307,7 +288,7 @@ class AstBuilderVisitorTest {
             assertThat(tasksField.isMutable()).isTrue();
 
             assertThat(agg.validations()).hasSize(1);
-            assertThat(agg.validations().getFirst().condition()).isEqualTo("tasks.size()<=100");
+            assertThat(agg.validations().getFirst().condition()).isEqualTo("tasks.size() <= 100");
             assertThat(agg.validations().getFirst().message()).isEqualTo("Max 100 tasks allowed");
 
             assertThat(agg.methods()).hasSize(1);
@@ -321,7 +302,7 @@ class AstBuilderVisitorTest {
         @DisplayName("Parst Entity mit Id-Header und Feldern")
         void shouldParseEntityWithId() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     entity Task[TaskId](String title, mut int status);
                     """;
@@ -345,13 +326,13 @@ class AstBuilderVisitorTest {
     class EventTests {
 
         @Test
-        @DisplayName("Parst outbox, memory und unpräfigierte Events mit DispatchMode")
+        @DisplayName("Parses explicit recording independently of listeners")
         void shouldParseEventsWithDispatchKind() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
-                    outbox event ProjectBudgetExceeded(ProjectId projectId, Money currentCost, Money budget);
-                    memory event ProjectValidated(ProjectId projectId);
+                    recorded event ProjectBudgetExceeded(ProjectId projectId, Money currentCost, Money budget);
+                    event ProjectValidated(ProjectId projectId);
                     event TaskCompleted(ProjectId projectId, TaskId taskId);
                     """;
 
@@ -360,16 +341,16 @@ class AstBuilderVisitorTest {
 
             EventNode outboxEvent = cu.events().get(0);
             assertThat(outboxEvent.name()).isEqualTo("ProjectBudgetExceeded");
-            assertThat(outboxEvent.dispatchMode()).isEqualTo(DispatchMode.OUTBOX);
+            assertThat(outboxEvent.recorded()).isTrue();
             assertThat(outboxEvent.fields()).hasSize(3);
 
             EventNode memoryEvent = cu.events().get(1);
             assertThat(memoryEvent.name()).isEqualTo("ProjectValidated");
-            assertThat(memoryEvent.dispatchMode()).isEqualTo(DispatchMode.MEMORY);
+            assertThat(memoryEvent.recorded()).isFalse();
 
             EventNode defaultEvent = cu.events().get(2);
             assertThat(defaultEvent.name()).isEqualTo("TaskCompleted");
-            assertThat(defaultEvent.dispatchMode()).isEqualTo(DispatchMode.OUTBOX);
+            assertThat(defaultEvent.recorded()).isFalse();
         }
     }
 
@@ -381,7 +362,7 @@ class AstBuilderVisitorTest {
         @DisplayName("Leitet Standard-Namen ab und liest package-Override aus")
         void shouldParseRepositoryWithDefaultNameAndCustomPackage() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     repository for Project {
                         package com.example.infrastructure.own;
@@ -402,119 +383,33 @@ class AstBuilderVisitorTest {
     }
 
     @Nested
-    @DisplayName("5. Ports (Outbound Adapters & Mappings)")
+    @DisplayName("5. Ports and separate adapters")
     class PortTests {
-
-        @Test
-        @DisplayName("Parst Port mit Schema, REST Adapter, Config, Error Handling und Mapping")
-        void shouldParsePortWithRestAdapterAndMapping() {
-            String src = """
-                    package com.example.domain;
-                    
-                    port HolidayCalendarProvider {
-                    
-                        schema HolidayResponseDto {
-                            LocalDate date;
-                            String name;
-                        }
-                    
-                        Optional<HolidayCalendar> loadCalendar(CountryCode country, Year year) throws ServiceUnavailableException {
-                            adapter rest {
-                                GET "/api/v1/holidays/{country}/{year}";
-                                accept: "application/json";
-                    
-                                on 404 return Optional.empty();
-                                on 401 return HolidayCalendarAccessNotAllowed.of(year, country);
-                                on 5xx throw ExternalServiceException;
-                            }
-                            mapping {
-                                response.body[*].date -> HolidayCalendar.holidays;
-                                country -> HolidayCalendar.country;
-                                year -> HolidayCalendar.year;
-                            }
-                        }
-                    }
-                    """;
-
-            CompilationUnitNode cu = parse(src);
-            assertThat(cu.ports()).hasSize(1);
-
-            PortNode port = cu.ports().getFirst();
-            assertThat(port.name()).isEqualTo("HolidayCalendarProvider");
-
-            assertThat(port.schemas()).hasSize(1);
-            SchemaNode schema = port.schemas().getFirst();
-            assertThat(schema.name()).isEqualTo("HolidayResponseDto");
-            assertThat(schema.fields()).hasSize(2);
-            assertThat(schema.fields().getFirst().type().name()).isEqualTo("LocalDate");
-            assertThat(schema.fields().getFirst().name()).isEqualTo("date");
-
-            assertThat(port.methods()).hasSize(1);
-            PortMethodNode method = port.methods().getFirst();
-            assertThat(method.name()).isEqualTo("loadCalendar");
-            assertThat(method.returnType().name()).isEqualTo("Optional");
-            assertThat(method.parameters()).hasSize(2);
-            assertThat(method.thrownExceptions()).contains("ServiceUnavailableException");
-
-            assertThat(method.adapter()).isInstanceOf(RestAdapterNode.class);
-            RestAdapterNode restAdapter = (RestAdapterNode) method.adapter();
-
-            assertThat(restAdapter.configs()).hasSize(2);
-            assertThat(restAdapter.configs().get(0).key()).isEqualTo("GET");
-            assertThat(restAdapter.configs().get(0).value()).isEqualTo("/api/v1/holidays/{country}/{year}");
-            assertThat(restAdapter.configs().get(1).key()).isEqualTo("accept");
-            assertThat(restAdapter.configs().get(1).value()).isEqualTo("application/json");
-
-            assertThat(restAdapter.errorRules()).hasSize(3);
-            assertThat(restAdapter.errorRules().get(0).statusCode()).isEqualTo("404");
-            assertThat(restAdapter.errorRules().get(0).returnExpression()).contains("Optional.empty()");
-            assertThat(restAdapter.errorRules().get(2).statusCode()).isEqualTo("5xx");
-            assertThat(restAdapter.errorRules().get(2).throwExceptionType()).contains("ExternalServiceException");
-
-            assertThat(method.mapping()).isPresent();
-            MappingBlockNode mapping = method.mapping().get();
-            assertThat(mapping.statements()).hasSize(3);
-            assertThat(mapping.statements().get(0).sourcePath()).isEqualTo("response.body[*].date");
-            assertThat(mapping.statements().get(0).targetPath()).isEqualTo("HolidayCalendar.holidays");
-            assertThat(mapping.statements().get(0).direction()).isEqualTo("->");
-        }
-
-        @Test
-        @DisplayName("Parst Port mit Custom Adaptern (Delegate und Inline Java)")
-        void shouldParsePortWithCustomAdapters() {
-            String src = """
-                    package com.example.domain;
-                    
-                    port InvoiceGenerator {
-                        PdfDocument generate(InvoiceData data) {
-                            adapter custom InvoiceGeneratorDelegate;
-                        }
-                    
-                        LegacyId syncCustomer(CustomerId id) {
-                            adapter custom {
-                                return LegacyId.of(id.value());
-                            }
-                        }
-                    }
-                    """;
-
-            CompilationUnitNode cu = parse(src);
-            PortNode port = cu.ports().getFirst();
+        @Test void parsesDomainPortSignatures() {
+            var unit=parse("namespace example; port Archive { Text? read(Text?); void store(Text); }");
+            var port=unit.ports().getFirst();
             assertThat(port.methods()).hasSize(2);
-
-            // 1. Delegate Custom Adapter
-            PortMethodNode delegateMethod = port.methods().get(0);
-            assertThat(delegateMethod.adapter()).isInstanceOf(CustomAdapterNode.class);
-            CustomAdapterNode delegateAdapter = (CustomAdapterNode) delegateMethod.adapter();
-            assertThat(delegateAdapter.delegateName()).contains("InvoiceGeneratorDelegate");
-            assertThat(delegateAdapter.inlineCode()).isEmpty();
-
-            // 2. Inline Custom Adapter
-            PortMethodNode inlineMethod = port.methods().get(1);
-            assertThat(inlineMethod.adapter()).isInstanceOf(CustomAdapterNode.class);
-            CustomAdapterNode inlineAdapter = (CustomAdapterNode) inlineMethod.adapter();
-            assertThat(inlineAdapter.delegateName()).isEmpty();
-            assertThat(inlineAdapter.inlineCode().get().trim()).contains("return LegacyId.of(id.value());");
+            assertThat(port.methods().getFirst().returnType().isOptional()).isTrue();
+            assertThat(port.methods().getFirst().parameters().getFirst().name()).isEqualTo("text");
+        }
+        @Test void parsesInlineAndExternalAdapterBehavior() {
+            var unit=parse("""
+                namespace example;
+                adapter LocalArchive implements Archive uses Policy {
+                    behavior {
+                        java imports { java.util.Locale; }
+                        java uses { java.lang.StringBuilder buffer; }
+                        public Text read(Text) implemented by example.External;
+                        public void store(Text) { self.buffer().append(text.string()); }
+                    }
+                }
+                """);
+            var adapter=(OutboundAdapterNode)unit.definitions().getFirst();
+            assertThat(adapter.portType().name()).isEqualTo("Archive");
+            assertThat(adapter.dependencies().getFirst().name()).isEqualTo("policy");
+            assertThat(adapter.javaDependencies().getFirst().name()).isEqualTo("buffer");
+            assertThat(adapter.methods().getFirst().method().implementation()).contains("example.External");
+            assertThat(adapter.methods().get(1).method().bodyCode()).contains("self.buffer()");
         }
     }
 
@@ -523,16 +418,16 @@ class AstBuilderVisitorTest {
     class EdgeCaseTests {
 
         @Test
-        @DisplayName("Erlaubt 'value' und 'id' in Feldnamen und Parametern, aber nicht als Methodenname")
+        @DisplayName("Erlaubt 'value' und 'id' in Feldnamen und Parametern")
         void shouldAllowValueAndIdAsVariableNames() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     value CustomType(String value, UUID id) validates {
                         require(value != null && id != null, "value and id missing");
-                    } {
+                    } behavior {
                         public String combine(String id) {
-                            return this.value + id;
+                            return self.value() + id;
                         }
                     };
                     """;
@@ -551,7 +446,7 @@ class AstBuilderVisitorTest {
             assertThat(vo.methods().getFirst().parameters().getFirst().name()).isEqualTo("id");
 
             // Expression prüfen
-            assertThat(vo.validations().getFirst().condition()).isEqualTo("value!=null&&id!=null");
+            assertThat(vo.validations().getFirst().condition()).isEqualTo("value != null && id != null");
         }
     }
 
@@ -563,7 +458,7 @@ class AstBuilderVisitorTest {
         @DisplayName("Leitet sichere Feldnamen für primitive Typen ab, um Keyword-Kollisionen zu vermeiden")
         void shouldDeriveSafeFieldNamesForPrimitives() {
             String src = """
-                    package com.example.domain;
+                    namespace com.example.domain;
                     
                     value Metrics(int, boolean, long, double, byte);
                     """;
@@ -583,109 +478,27 @@ class AstBuilderVisitorTest {
     @Nested
     @DisplayName("8. Use Cases")
     class UseCaseTests {
-
-        @Test
-        @DisplayName("Parst UseCase mit Conventions, Validierung, Java-Fragment und Tuple-Return")
-        void shouldParseUseCaseWithConventionsAndStatements() {
-            String src = """
-                    package com.example.application;
-                    
-                    usecase CancelOrder(OrderId, String reason) validates {
-                        require(!reason.isBlank(), "Reason must not be blank");
-                    } {
-                        use OrderRepository;
-                        use NotificationPort notifications;
-                    
-                        load Order by orderId;
-                    
-                        if (order.isShipped()) {
-                            throw new IllegalStateException("Already shipped");
-                        }
-                    
-                        order.cancel(reason);
-                        save order;
-                    
-                        return (order.id() as myOrderId, order.status());
-                    }
-                    """;
-
-            CompilationUnitNode cu = parse(src);
-            assertThat(cu.useCases()).hasSize(1);
-
-            UseCaseNode useCase = cu.useCases().getFirst();
-            assertThat(useCase.name()).isEqualTo("CancelOrder");
-
-            // Parameter
-            assertThat(useCase.parameters()).hasSize(2);
-            assertThat(useCase.parameters().get(0).name()).isEqualTo("orderId");
-            assertThat(useCase.parameters().get(0).type().name()).isEqualTo("OrderId");
-            assertThat(useCase.parameters().get(1).name()).isEqualTo("reason");
-
-            // Validierung
-            assertThat(useCase.validations()).hasSize(1);
-            assertThat(useCase.validations().getFirst().condition()).isEqualTo("!reason.isBlank()");
-
-            // Dependencies (use)
-            assertThat(useCase.dependencies()).hasSize(2);
-            assertThat(useCase.dependencies().get(0).typeName()).isEqualTo("OrderRepository");
-            assertThat(useCase.dependencies().get(0).instanceName()).isEmpty(); // Greift Default
-            assertThat(useCase.dependencies().get(1).typeName()).isEqualTo("NotificationPort");
-            assertThat(useCase.dependencies().get(1).instanceName()).contains("notifications");
-
-            // Statements
-            assertThat(useCase.statements()).hasSize(4);
-
-            // Statement 1: load
-            assertThat(useCase.statements().get(0)).isInstanceOf(LoadStatementNode.class);
-            LoadStatementNode loadStmt = (LoadStatementNode) useCase.statements().get(0);
-            assertThat(loadStmt.aggregateType()).isEqualTo("Order");
-            assertThat(loadStmt.idExpressionCode()).contains("orderId");
-
-            // Statement 2: Java if-statement
-            assertThat(useCase.statements().get(1)).isInstanceOf(RawJavaStatementNode.class);
-
-            // Statement 3: order.cancel(reason); (geparst als RawJavaStatement)
-            assertThat(useCase.statements().get(2)).isInstanceOf(RawJavaStatementNode.class);
-
-            // Statement 4: save
-            assertThat(useCase.statements().get(3)).isInstanceOf(SaveStatementNode.class);
-            SaveStatementNode saveStmt = (SaveStatementNode) useCase.statements().get(3);
-            assertThat(saveStmt.instanceName()).isEqualTo("order");
-
-            // Return Statement (Tuple)
-            assertThat(useCase.returnStatement()).isPresent();
-            assertThat(useCase.returnStatement().get()).isInstanceOf(TupleReturnNode.class);
-            TupleReturnNode tuple = (TupleReturnNode) useCase.returnStatement().get();
-            assertThat(tuple.elements()).hasSize(2);
-            assertThat(tuple.elements().get(0).expressionCode()).isEqualTo("order.id()");
-            assertThat(tuple.elements().get(0).alias()).contains("myOrderId");
-            assertThat(tuple.elements().get(1).expressionCode()).isEqualTo("order.status()");
-            assertThat(tuple.elements().get(1).alias()).isEmpty();
+        @Test void shouldParseUseCaseWithConventionsAndStatements() {
+            var u=parse("""
+                namespace demo;
+                usecase Rename(TourId, Title title) returns (TourId, Title)
+                    uses TourRepository, NotificationPort notifications
+                    validates { require(self.title().string().length() > 0, "Required"); }
+                behavior { execute { return Result.of(tourId,title); } }
+                """).useCases().getFirst();
+            assertThat(u.parameters().getFirst().name()).isEqualTo("tourId");
+            assertThat(u.injections().getFirst().name()).isEqualTo("tourRepository");
+            assertThat(u.injections().get(1).name()).isEqualTo("notifications");
+            assertThat(u.resultFields()).hasSize(2);
+            assertThat(u.validations().getFirst().condition()).contains("self.title()");
+            assertThat(u.bodyCode()).contains("return Result.of");
+            assertThat(u.executeCount()).isEqualTo(1);
         }
-
-        @Test
-        @DisplayName("Unterstützt package-Override und Single Return Statement")
-        void shouldParseUseCaseWithCustomPackageAndSingleReturn() {
-            String src = """
-                    package com.example.application;
-                    
-                    usecase CreateOrder(CustomerId customerId) {
-                        package com.example.mycustom.ordering;
-                        use OrderRepository;
-                    
-                        save order;
-                        return order.id();
-                    }
-                    """;
-
-            CompilationUnitNode cu = parse(src);
-            UseCaseNode useCase = cu.useCases().getFirst();
-
-            assertThat(useCase.customPackage()).contains("com.example.mycustom.ordering");
-            assertThat(useCase.returnStatement()).isPresent();
-            assertThat(useCase.returnStatement().get()).isInstanceOf(SingleReturnNode.class);
-            SingleReturnNode single = (SingleReturnNode) useCase.returnStatement().get();
-            assertThat(single.expressionCode()).contains("order.id()");
+        @Test void shouldParseExplicitSingleReturnAndExternalImplementation() {
+            var u=parse("namespace demo; usecase Find(TourId) returns Title? behavior { execute implemented by custom.Find; }").useCases().getFirst();
+            assertThat(u.resultType().orElseThrow().name()).isEqualTo("Title");
+            assertThat(u.resultType().orElseThrow().isOptional()).isTrue();
+            assertThat(u.implementation()).contains("custom.Find");
         }
     }
 
@@ -697,38 +510,25 @@ class AstBuilderVisitorTest {
         @DisplayName("Parst DomainService mit Conventions, Parametern, Validierung und Rückgabetyp")
         void shouldParseDomainService() {
             String src = """
-                    package com.example.domain;
-                    
-                    service TariffCalculator(WattHours capacity, WattHours storedEnergy, WattHours) : WattHours validates {
-                        require(capacity.value() > 0, "Capacity must be positive");
-                    } {
-                        int available = Math.max(0, storedEnergy.value() - wattHours.value());
-                        return WattHours.of(Math.max(0, capacity.value() - available));
+                    namespace com.example.domain;
+                    service TariffCalculator uses PricingPolicy behavior {
+                        public WattHours calculate(WattHours capacity, WattHours storedEnergy, WattHours)
+                        validates { require(self.capacity().value() > 0, "Capacity must be positive"); } {
+                            return capacity;
+                        }
                     }
                     """;
-
-            CompilationUnitNode cu = parse(src);
-            assertThat(cu.domainServices()).hasSize(1);
-
-            DomainServiceNode service = cu.domainServices().getFirst();
+            var service = parse(src).domainServices().getFirst();
             assertThat(service.name()).isEqualTo("TariffCalculator");
-
-            // Parameter prüfen (2x expliziter Name, 1x Konvention abgeleitet)
-            assertThat(service.parameters()).hasSize(3);
-            assertThat(service.parameters().get(0).name()).isEqualTo("capacity");
-            assertThat(service.parameters().get(1).name()).isEqualTo("storedEnergy");
-            assertThat(service.parameters().get(2).name()).isEqualTo("wattHours");
-
-            // ReturnType & Validierung
-            assertThat(service.returnType()).isPresent();
-            assertThat(service.returnType().get().name()).isEqualTo("WattHours");
-            assertThat(service.validations()).hasSize(1);
-            assertThat(service.validations().getFirst().condition()).isEqualTo("capacity.value()>0");
-
-            // Rumpf & Return-Statement
-            assertThat(service.statements()).hasSize(1);
-            assertThat(service.returnStatement()).isPresent();
-            assertThat(service.returnStatement().get()).isInstanceOf(SingleReturnNode.class);
+            assertThat(service.injections().getFirst().name()).isEqualTo("pricingPolicy");
+            var operation = service.methods().getFirst();
+            assertThat(operation.method().name()).isEqualTo("calculate");
+            assertThat(operation.method().parameters()).extracting(FieldNode::name)
+                    .containsExactly("capacity", "storedEnergy", "wattHours");
+            assertThat(operation.method().returnType().name()).isEqualTo("WattHours");
+            assertThat(operation.validations()).hasSize(1);
+            assertThat(operation.validations().getFirst().condition()).contains("self.capacity().value()");
+            assertThat(operation.method().bodyCode()).contains("return capacity;");
         }
     }
 }

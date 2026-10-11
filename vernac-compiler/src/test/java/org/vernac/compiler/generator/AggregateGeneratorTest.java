@@ -42,7 +42,7 @@ class AggregateGeneratorTest {
     @DisplayName("Generiert vollständiges Aggregate Root mit Lifecycle, mut-Settern, Events und ID-Semantik")
     void shouldGenerateAggregateRoot() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 aggregate Project[ProjectId](ProjectName name, mut Money budget) validates {
                     require(budget.amount().compareTo(BigDecimal.ZERO) >= 0, "Budget cannot be negative");
@@ -61,10 +61,9 @@ class AggregateGeneratorTest {
 
         assertThat(code)
                 .contains("public class Project implements AggregateRoot<ProjectId>")
-                .contains("private final transient List<DomainEvent> domainEvents = new ArrayList<>();")
                 .contains("private final Instant createdAt;")
                 .contains("private Instant updatedAt;")
-                .contains("private long version;")
+                .contains("private final PersistenceState persistenceState;")
                 .contains("private final ProjectId id;")
                 .contains("private final ProjectName name;")
                 .contains("private Money budget;")
@@ -75,13 +74,10 @@ class AggregateGeneratorTest {
                 .contains("public ProjectId id()")
                 .contains("public Instant createdAt()")
                 .contains("public Instant updatedAt()")
-                .contains("public long version()")
-                .contains("public List<DomainEvent> pullDomainEvents()")
-                .contains("List<DomainEvent> events = List.copyOf(this.domainEvents);")
-                .contains("this.domainEvents.clear();")
+                .contains("public PersistenceState persistenceState()")
                 .contains("return Objects.equals(this.id, that.id);")
                 .contains("return Objects.hash(this.id);")
-                .contains("return \"Project[id=\" + this.id + \"]\";");
+                .contains("return \"Project[id=\" + this.id + \", name=\" + this.name + \", budget=\" + this.budget + \", createdAt=\" + this.createdAt + \", updatedAt=\" + this.updatedAt + \"]\";");
 
         assertThat(normalizedCode)
                 .contains("public static Project create(ProjectName name, Money budget)")
@@ -89,35 +85,32 @@ class AggregateGeneratorTest {
     }
 
     @Test
-    @DisplayName("Übernimmt Java-Block mit Event-Emitting (registerEvent) fehlerfrei")
+    @DisplayName("Publishes explicitly through modify Access, independently of repository save")
     void shouldGenerateAggregateWithEventEmitting() {
-        String src = """
-                package com.example.domain;
-                
-                aggregate Project[ProjectId](ProjectName name) {
-                    public void rename(ProjectName newName) {
-                        this.name = newName;
-                        registerEvent(ProjectRenamed.create(this.id, newName));
+        var result = new org.vernac.compiler.pipeline.VernacCompiler().compileSource("""
+                namespace example;
+                id ProjectId; value ProjectName(String);
+                event ProjectRenamed(ProjectId, ProjectName);
+                aggregate Project[ProjectId](mut ProjectName name) behavior {
+                    modify void rename(ProjectName newName) {
+                        self.name(newName);
+                        self.emit(ProjectRenamed.create(self.id(), newName));
                     }
                 };
-                """;
-
-        CompilationUnitNode cu = parse(src);
-        AggregateNode node = cu.aggregates().getFirst();
-        JavaFile file = generator.generate(node, Map.of(), Map.of(), "com.example.domain", List.of());
-        String code = file.toString().replaceAll("\\s+", " ");
-
-        assertThat(code)
-                .contains("public void rename(ProjectName newName)")
-                .contains("this.name = newName;")
-                .contains("registerEvent(ProjectRenamed.create(this.id, newName));");
+                """);
+        String code=result.generatedFiles().stream().map(Object::toString).reduce("",String::concat);
+        assertThat(code).contains("public void rename(ProjectName newName)", "self.name(newName)",
+                "self.emit(ProjectRenamed.create(self.id(), newName))", "EventContext.emit(event)")
+                .doesNotContain("registerEvent", "pullDomainEvents", "domainEvents");
+        var compiled=org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(result.generatedFiles());
+        assertThat(compiled.success()).withFailMessage(compiled.diagnostics().toString()).isTrue();
     }
 
     @Test
     @DisplayName("Nutzt konsistent explizite und abgeleitete Feldnamen inkl. Mutatoren durch alle Methoden")
     void shouldGenerateAggregateWithExplicitAndDerivedNames() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 aggregate Customer[CustomerId](String, mut String customAlias);
                 """;
 
@@ -129,7 +122,7 @@ class AggregateGeneratorTest {
         assertThat(code)
                 .contains("private final String string;")
                 .contains("private String customAlias;")
-                .contains("private Customer(CustomerId id, String string, String customAlias, Instant createdAt, Instant updatedAt, long version, boolean validate)")
+                .contains("private Customer(CustomerId id, String string, String customAlias, Instant createdAt, Instant updatedAt, long version)")
                 .contains("public static Customer create(String string, String customAlias)")
                 .contains("public static Customer reconstitute(CustomerId id, String string, String customAlias, Instant createdAt, Instant updatedAt, long version)")
                 .contains("public void customAlias(String customAlias) {")
@@ -142,7 +135,7 @@ class AggregateGeneratorTest {
     @DisplayName("Erzeugt TABLE_NAME und SCHEMA_DDL mit korrektem Value-Object-Flattening")
     void shouldGenerateSchemaConstantsWithFlattenedColumns() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 value ProjectName(String value);
                 value Currency(String code);
@@ -169,5 +162,23 @@ class AggregateGeneratorTest {
                 .contains("created_at TIMESTAMPTZ NOT NULL")
                 .contains("updated_at TIMESTAMPTZ NOT NULL")
                 .contains("version BIGINT NOT NULL DEFAULT 0");
+    }
+
+    @Test
+    void generatesBehaviorViewsWithoutExposingSetters() {
+        var result = new org.vernac.compiler.pipeline.VernacCompiler().compileSource("""
+            namespace access.example;
+            id CounterId; value Count(int);
+            aggregate Counter[CounterId](mut Count count) behavior {
+                read int current() { return self.count().intValue(); }
+                modify void increase() { self.count(Count.of(self.count().intValue() + 1)); }
+            };
+            """);
+        String owner = result.generatedFiles().stream().filter(f -> f.typeSpec().name().equals("Counter")).findFirst().orElseThrow().toString();
+        assertThat(owner).contains("private class __ReadView", "private final class __AccessView", "implements CounterRead", "implements CounterAccess");
+        assertThat(owner.substring(owner.indexOf("public class Counter"), owner.indexOf("{", owner.indexOf("public class Counter")))).doesNotContain("CounterRead", "CounterAccess");
+        assertThat(result.generatedFiles()).anyMatch(f -> f.typeSpec().name().equals("CounterWrite"));
+        var compiled = org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(result);
+        assertThat(compiled.success()).as(compiled.diagnostics().toString()).isTrue();
     }
 }

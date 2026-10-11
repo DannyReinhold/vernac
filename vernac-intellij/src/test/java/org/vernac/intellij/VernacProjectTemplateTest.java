@@ -98,9 +98,9 @@ class VernacProjectTemplateTest {
         );
 
         String model = Files.readString(
-                project.resolve("src/main/vernac/tasks.vernac")
+                project.resolve("src/main/vernac/de/rsas/taskmanager/tasks.vernac")
         );
-        assertTrue(model.contains("package de.rsas.taskmanager;"));
+        assertTrue(model.contains("namespace de.rsas.taskmanager;"));
         assertFalse(model.contains("org.example.tasks"));
 
         Path testPath = project.resolve(
@@ -137,6 +137,30 @@ class VernacProjectTemplateTest {
                     "Missing resource: " + resource
             );
         }
+    }
+
+    @Test
+    void customizedNamespaceCompilesWithCurrentCompiler() throws Exception {
+        Path project = temporaryDirectory.resolve("unicode");
+        VernacProjectTemplate.copyTo(project, "Tasks", "org.example", "tasks", "org.example.aufträge");
+        var result = new org.vernac.compiler.pipeline.VernacCompiler()
+                .compileProject(project.resolve("src/main/vernac"));
+        assertTrue(result.generatedFiles().stream().anyMatch(file ->
+                file.packageName().equals("org.example.aufträge.domain")
+                        && file.typeSpec().name().equals("Task")));
+        assertFalse(Files.exists(project.resolve("src/main/vernac/tasks.vernac")));
+    }
+
+    @Test
+    void detectsExistingRelocatedModelBeforeWritingOtherFiles() throws Exception {
+        Path project = temporaryDirectory.resolve("existing-model");
+        Path model = project.resolve("src/main/vernac/de/rsas/taskmanager/tasks.vernac");
+        Files.createDirectories(model.getParent());
+        Files.writeString(model, "Keep this model.");
+        assertThrows(java.io.IOException.class, () -> VernacProjectTemplate.copyTo(
+                project, "Tasks", "de.rsas", "tasks", "de.rsas.taskmanager"));
+        assertEquals("Keep this model.", Files.readString(model));
+        assertFalse(Files.exists(project.resolve("pom.xml")));
     }
 
     @Test

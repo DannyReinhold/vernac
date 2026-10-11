@@ -1,1 +1,1 @@
-org.vernac.runtime.autoconfigure.VernacOutboxAutoConfiguration
+org.vernac.runtime.jdbc.autoconfigure.EventDeliveryAutoConfiguration

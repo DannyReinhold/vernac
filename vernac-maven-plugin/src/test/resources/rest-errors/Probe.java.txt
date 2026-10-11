@@ -1,0 +1,84 @@
+package example.errors;
+
+import com.sun.net.httpserver.HttpServer;
+import java.net.*;
+import java.net.http.*;
+import java.time.Duration;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.*;
+import example.errors.domain.*;
+import example.errors.adapter.outbound.CatalogHttp;
+import org.vernac.runtime.http.*;
+import org.vernac.runtime.ports.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+public final class Probe {
+    public static void run() throws Exception {
+        var status = new AtomicInteger(200);
+        var body = new AtomicReference<>("{\"title\":\"Notebook\",\"newRemoteField\":true}");
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/catalog", exchange -> {
+            try (exchange) {
+                exchange.getResponseHeaders().set("Content-Type", "application/json");
+                exchange.getResponseHeaders().set("Retry-After", "30");
+                byte[] bytes = body.get().getBytes(StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(status.get(), bytes.length);
+                exchange.getResponseBody().write(bytes);
+            }
+        });
+        server.start();
+        try (var transport = HttpClient.newHttpClient()) {
+            Catalog catalog = new CatalogHttp(new HttpAdapterClient(transport, Duration.ofSeconds(3), 4096),
+                    URI.create("http://127.0.0.1:" + server.getAddress().getPort()));
+            assertEquals(Title.of("Notebook"), catalog.load());
+            status.set(422); body.set("{\"code\":\"DENIED\"}");
+            var rejected = assertThrows(PortRejectedException.class, catalog::load);
+            assertEquals(Rejection.DENIED, rejected.code());
+            assertEquals("422", rejected.transportDetails().get("http.status"));
+            assertNotNull(rejected.invocation());
+            body.set("{\"code\":\"OTHER\"}");
+            assertEquals(IntegrationCategory.INVALID_RESPONSE, assertThrows(RemoteIntegrationException.class, catalog::load).category());
+            status.set(400);
+            assertEquals(Rejection.DENIED, assertThrows(PortRejectedException.class, catalog::load).code());
+            body.set("{}");
+            assertEquals(IntegrationCategory.UNEXPECTED_STATUS, assertThrows(PortInvocationException.class, catalog::load).category());
+            body.set("secret malformed body");
+            var malformed = assertThrows(PortInvocationException.class, catalog::load);
+            assertEquals(IntegrationCategory.UNEXPECTED_STATUS, malformed.category());
+            assertEquals(1, malformed.getSuppressed().length);
+            assertFalse(malformed.getSuppressed()[0].toString().contains("secret"));
+            status.set(409);
+            assertThrows(PortInvocationException.class, catalog::load); // NOT an absence match
+            body.set("{}");
+            assertEquals(Rejection.MISSING_REASON, assertThrows(PortRejectedException.class, catalog::load).code());
+            body.set("{\"meta\":{\"reason\":\"explained\"}}");
+            assertThrows(PortInvocationException.class, catalog::load);
+            status.set(429); body.set("{\"attempts\":2}");
+            var limited = assertThrows(RemoteIntegrationException.class, catalog::load);
+            assertEquals(IntegrationCategory.RATE_LIMITED, limited.category());
+            assertEquals("30", limited.transportDetails().get("http.retryAfter"));
+            body.set("{\"permanent\":true}");
+            assertThrows(RemoteIntegrationException.class, catalog::load); // unknown OR true
+            body.set("{\"attempts\":1,\"permanent\":false}");
+            assertEquals(PortInvocationException.class, assertThrows(PortInvocationException.class, catalog::load).getClass());
+            status.set(401); body.set("secret malformed body");
+            var local = assertThrows(LocalIntegrationException.class, catalog::load);
+            assertEquals(IntegrationCategory.AUTHENTICATION, local.category());
+            assertEquals(1, local.getSuppressed().length);
+            status.set(403);
+            assertEquals(PortInvocationException.class, assertThrows(PortInvocationException.class, catalog::load).getClass());
+            status.set(503);
+            assertEquals(IntegrationCategory.REMOTE_FAILURE, assertThrows(RemoteIntegrationException.class, catalog::load).category());
+            status.set(200);
+            assertEquals(IntegrationCategory.INVALID_RESPONSE, assertThrows(RemoteIntegrationException.class, catalog::load).category());
+            status.set(404);
+            assertTrue(catalog.lookup().isEmpty());
+            status.set(401);
+            assertThrows(LocalIntegrationException.class, catalog::lookup);
+            status.set(409);
+            assertThrows(RemoteIntegrationException.class, catalog::ping);
+            status.set(200);
+            catalog.ping();
+        } finally { server.stop(0); }
+    }
+}

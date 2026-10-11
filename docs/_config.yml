@@ -1,0 +1,10 @@
+title: Vernac
+description: Model the domain. Make the architecture explicit.
+url: https://vernac.org
+markdown: kramdown
+highlighter: rouge
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default

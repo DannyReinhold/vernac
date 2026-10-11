@@ -43,3 +43,6 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+# Python release tooling
+__pycache__/

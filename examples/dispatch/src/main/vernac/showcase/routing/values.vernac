@@ -1,0 +1,12 @@
+namespace showcase.routing;
+
+id TourId;
+id StopId;
+value Title(String) validates { require(!self.string().isBlank(), "A tour needs a title"); };
+value Customer(String) validates { require(!self.string().isBlank(), "A stop needs a customer"); };
+value Address(String street, String city) validates {
+    require(!self.street().isBlank() && !self.city().isBlank(), "Street and city are required");
+};
+value Units(int) validates { require(self.intValue() > 0, "Load must be positive"); };
+value Capacity(int) validates { require(self.intValue() > 0, "Capacity must be positive"); };
+value TourState = PLANNED | READY | DISPATCHED;

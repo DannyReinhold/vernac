@@ -1,0 +1,326 @@
+{
+  "formatVersion" : 1,
+  "migration" : "V20261011190000000__dispatch.sql",
+  "previousFingerprint" : "80a947793d1802db05dd3d1246d9b9534a6c51dd00f17d796277da3e0441da66",
+  "modelFingerprint" : "0f4995a7aa0e4b1553d1093b66c464de11552ee2e3bb0314fa44075e01ed3444",
+  "model" : {
+    "formatVersion" : 1,
+    "mappingVersion" : 1,
+    "tables" : [ {
+      "namespace" : "showcase.routing",
+      "name" : "@event:TourDispatched",
+      "origin" : "showcase.routing.TourDispatched",
+      "columns" : [ {
+        "name" : "@eventId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "EventId",
+        "origin" : "showcase.routing.TourDispatched"
+      }, {
+        "name" : "@nanoRemainder:@occurredAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "showcase.routing.TourDispatched"
+      }, {
+        "name" : "@occurredAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "showcase.routing.TourDispatched"
+      }, {
+        "name" : "@scale:shipment.weight",
+        "sqlType" : "INTEGER",
+        "nullable" : false,
+        "codec" : "BigDecimal:scale",
+        "origin" : "showcase.routing.TourDispatched.shipment.weight"
+      }, {
+        "name" : "shipment.destination",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "showcase.routing.TourDispatched.shipment.destination"
+      }, {
+        "name" : "shipment.weight",
+        "sqlType" : "NUMERIC",
+        "nullable" : false,
+        "codec" : "BigDecimal:",
+        "origin" : "showcase.routing.TourDispatched.shipment.weight"
+      }, {
+        "name" : "title",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "showcase.routing.TourDispatched.title"
+      }, {
+        "name" : "tourId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "showcase.routing.TourId"
+      } ],
+      "primaryKey" : [ "@eventId" ],
+      "constraints" : [ {
+        "name" : "@check:range:@nanoRemainder:@occurredAt",
+        "clause" : "CHECK (\"@nanoRemainder:@occurredAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:shipment.weight",
+        "clause" : "CHECK (\"shipment.weight\" NOT IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric))"
+      } ]
+    }, {
+      "namespace" : "showcase.routing",
+      "name" : "Tour",
+      "origin" : "showcase.routing.Tour",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "showcase.routing.Tour"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "showcase.routing.Tour"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "showcase.routing.Tour"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "showcase.routing.Tour"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "showcase.routing.Tour"
+      }, {
+        "name" : "capacity",
+        "sqlType" : "INTEGER",
+        "nullable" : false,
+        "codec" : "int:",
+        "origin" : "showcase.routing.Tour.capacity"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "showcase.routing.Tour.id"
+      }, {
+        "name" : "title",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "showcase.routing.Tour.title"
+      }, {
+        "name" : "tourState",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "showcase.routing.TourState"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:enum:tourState",
+        "clause" : "CHECK (\"tourState\" IN ('DISPATCHED', 'PLANNED', 'READY'))"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      } ]
+    }, {
+      "namespace" : "showcase.routing",
+      "name" : "Tour.@entity:showcase.routing.Stop",
+      "origin" : "showcase.routing.Stop",
+      "columns" : [ {
+        "name" : "@aggregateId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "aggregate-owner",
+        "origin" : "showcase.routing.Tour"
+      }, {
+        "name" : "address.city",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "showcase.routing.Stop.address.city"
+      }, {
+        "name" : "address.street",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "showcase.routing.Stop.address.street"
+      }, {
+        "name" : "customer",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "showcase.routing.Stop.customer"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "showcase.routing.Stop.id"
+      }, {
+        "name" : "units",
+        "sqlType" : "INTEGER",
+        "nullable" : false,
+        "codec" : "int:",
+        "origin" : "showcase.routing.Stop.units"
+      } ],
+      "primaryKey" : [ "@aggregateId", "id" ],
+      "constraints" : [ {
+        "name" : "@fk:aggregate",
+        "clause" : "FOREIGN KEY (\"@aggregateId\") REFERENCES \"showcase.routing\".\"Tour\" (\"id\")"
+      } ]
+    }, {
+      "namespace" : "showcase.routing",
+      "name" : "Tour.stops",
+      "origin" : "showcase.routing.Tour.stops",
+      "columns" : [ {
+        "name" : "@aggregateId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "aggregate-owner",
+        "origin" : "showcase.routing.Tour"
+      }, {
+        "name" : "@entityId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "entity-reference:showcase.routing.Stop",
+        "origin" : "showcase.routing.Stop"
+      }, {
+        "name" : "@position",
+        "sqlType" : "INTEGER",
+        "nullable" : false,
+        "codec" : "list-position",
+        "origin" : "stops"
+      } ],
+      "primaryKey" : [ "@aggregateId", "@position" ],
+      "constraints" : [ {
+        "name" : "@check:position",
+        "clause" : "CHECK (\"@position\" >= 0)"
+      }, {
+        "name" : "@fk:entity",
+        "clause" : "FOREIGN KEY (\"@aggregateId\", \"@entityId\") REFERENCES \"showcase.routing\".\"Tour.@entity:showcase.routing.Stop\" (\"@aggregateId\", \"id\") DEFERRABLE INITIALLY DEFERRED"
+      }, {
+        "name" : "@fk:owner",
+        "clause" : "FOREIGN KEY (\"@aggregateId\") REFERENCES \"showcase.routing\".\"Tour\" (\"id\")"
+      } ]
+    }, {
+      "namespace" : "vernac",
+      "name" : "@delivery",
+      "origin" : "@event-delivery",
+      "columns" : [ {
+        "name" : "attempts",
+        "sqlType" : "INTEGER",
+        "nullable" : false,
+        "codec" : "int",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "claimToken",
+        "sqlType" : "UUID",
+        "nullable" : true,
+        "codec" : "UUID",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "completedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : true,
+        "codec" : "delivery-time",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "delivery-time",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "eventId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "eventType",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "lastAttemptAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : true,
+        "codec" : "delivery-time",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "lastError",
+        "sqlType" : "TEXT",
+        "nullable" : true,
+        "codec" : "String",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "leaseUntil",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : true,
+        "codec" : "delivery-time",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "listenerId",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "nextAttemptAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "delivery-time",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "status",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String",
+        "origin" : "@event-delivery"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:attempts",
+        "clause" : "CHECK (\"attempts\" >= 0)"
+      }, {
+        "name" : "@check:claim",
+        "clause" : "CHECK ((\"status\" = 'PROCESSING' AND \"claimToken\" IS NOT NULL AND \"leaseUntil\" IS NOT NULL) OR (\"status\" <> 'PROCESSING' AND \"claimToken\" IS NULL AND \"leaseUntil\" IS NULL))"
+      }, {
+        "name" : "@check:status",
+        "clause" : "CHECK (\"status\" IN ('PENDING', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'BLOCKED'))"
+      }, {
+        "name" : "@unique:delivery",
+        "clause" : "UNIQUE (\"eventType\", \"eventId\", \"listenerId\")"
+      } ]
+    } ],
+    "enumCodes" : {
+      "showcase.routing.TourState" : {
+        "DISPATCHED" : "DISPATCHED",
+        "PLANNED" : "PLANNED",
+        "READY" : "READY"
+      }
+    }
+  }
+}

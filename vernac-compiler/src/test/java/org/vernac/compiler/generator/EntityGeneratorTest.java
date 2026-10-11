@@ -42,7 +42,7 @@ class EntityGeneratorTest {
     @DisplayName("Generiert Entity mit Entity-Interface, mut-Settern, create/reconstitute und ID-Semantik")
     void shouldGenerateEntity() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 entity Task[TaskId](TaskTitle title, mut TaskStatus status) validates {
                     require(title.value().length() <= 100, "Title too long");
@@ -72,7 +72,7 @@ class EntityGeneratorTest {
                 .contains("public TaskStatus status()")
                 .contains("return Objects.equals(this.id, that.id);")
                 .contains("return Objects.hash(this.id);")
-                .contains("return \"Task[id=\" + this.id + \"]\";");
+                .contains("return \"Task[id=\" + this.id + \", title=\" + this.title + \", status=\" + this.status + \"]\";");
 
         assertThat(normalizedCode)
                 .contains("public static Task create(TaskTitle title, TaskStatus status)")
@@ -83,7 +83,7 @@ class EntityGeneratorTest {
     @DisplayName("Nutzt konsistent explizite und abgeleitete Feldnamen im generierten Entity durch alle Methoden")
     void shouldGenerateEntityWithExplicitAndDerivedNames() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 entity OrderItem[ItemId](String, mut int explicitQuantity);
                 """;
 
@@ -117,7 +117,7 @@ class EntityGeneratorTest {
     @DisplayName("Erzeugt TABLE_NAME und SCHEMA_DDL mit korrektem Value-Object-Flattening für Entities")
     void shouldGenerateSchemaConstantsWithFlattenedColumns() {
         String src = """
-                package com.example.domain;
+                namespace com.example.domain;
                 
                 value ItemDescription(String text);
                 value Currency(String isoCode);
@@ -141,5 +141,23 @@ class EntityGeneratorTest {
                 .contains("description VARCHAR(255) NOT NULL")
                 .contains("unit_price_amount NUMERIC(19, 4) NOT NULL")
                 .contains("unit_price_currency VARCHAR(255) NOT NULL");
+    }
+
+    @Test
+    void generatesBehaviorViewsWithoutExposingSetters() {
+        var result = new org.vernac.compiler.pipeline.VernacCompiler().compileSource("""
+            namespace access.example;
+            id CounterId; value Count(int);
+            entity Counter[CounterId](mut Count count) behavior {
+                read int current() { return self.count().intValue(); }
+                modify void increase() { self.count(Count.of(self.count().intValue() + 1)); }
+            };
+            """);
+        String owner = result.generatedFiles().stream().filter(f -> f.typeSpec().name().equals("Counter")).findFirst().orElseThrow().toString();
+        assertThat(owner).contains("private class __ReadView", "private final class __AccessView", "implements CounterRead", "implements CounterAccess");
+        assertThat(owner.substring(owner.indexOf("public class Counter"), owner.indexOf("{", owner.indexOf("public class Counter")))).doesNotContain("CounterRead", "CounterAccess");
+        assertThat(result.generatedFiles()).anyMatch(f -> f.typeSpec().name().equals("CounterWrite"));
+        var compiled = org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(result);
+        assertThat(compiled.success()).as(compiled.diagnostics().toString()).isTrue();
     }
 }

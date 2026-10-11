@@ -22,39 +22,35 @@ class VernacCompilerTest {
     @DisplayName("Kompiliert eine vollständige Domain- und Port-Spezifikation inklusive Dateisystem-Export")
     void shouldCompileCompleteDomainAndPortSpecification(@TempDir Path tempDir) throws IOException {
         String dsl = """
-                package com.example;
+                namespace com.example;
                 
-                import java.math.BigDecimal;
-                import java.util.Currency;
                 
                 id ProjectId;
                 id TaskId;
                 value ProjectName(String value) validates {
-                    require(value.length() <= 50, "Name too long");
+                    require(self.value().length() <= 50, "Name too long");
                 };
                 value Money(BigDecimal amount, Currency currency);
                 
-                outbox event ProjectCreated(ProjectId projectId, ProjectName name);
+                event ProjectCreated(ProjectId projectId, ProjectName name);
                 
                 aggregate Project[ProjectId](ProjectName name, mut Money budget) validates {
-                    require(budget.amount().compareTo(BigDecimal.ZERO) >= 0, "Budget cannot be negative");
-                } {
-                    public void assignBudget(Money newBudget) {
-                        budget(newBudget);
+                    require(self.budget().amount().compareTo(BigDecimal.ZERO) >= 0, "Budget cannot be negative");
+                } behavior {
+                    modify void assignBudget(Money newBudget) {
+                        self.budget(newBudget);
                     }
                 };
                 
-                entity Task[TaskId](String title, mut Boolean completed);
+                value Title(String); value Completed(Boolean value);
+                entity Task[TaskId](Title title, mut Completed completed);
                 
                 port ProjectExternalService {
-                    schema ExternalProjectDto {
-                        String title;
-                    }
-                    Optional<String> fetchExternalData() {
-                        adapter rest {
-                            GET "/external/data";
-                            on 404 return Optional.empty();
-                        }
+                    ProjectName? fetchExternalData();
+                }
+                adapter LocalProjectService implements ProjectExternalService {
+                    behavior {
+                        public ProjectName? fetchExternalData() { return Optional.empty(); }
                     }
                 }
                 """;
@@ -66,7 +62,7 @@ class VernacCompilerTest {
                 .map(f -> f.typeSpec().name())
                 .toList();
 
-        // 4 Value Objects + 1 Event + 1 Aggregate + 1 Entity + 1 Port + 1 Schema + 1 Adapter = 10 Klassen
+        // Domain types, a port, and its separate adapter are generated together.
         assertThat(generatedTypeNames).contains(
                 "ProjectId",
                 "TaskId",
@@ -76,8 +72,7 @@ class VernacCompilerTest {
                 "Project",
                 "Task",
                 "ProjectExternalService",
-                "ExternalProjectDto",
-                "RestProjectExternalServiceFetchExternalDataAdapter"
+                "LocalProjectService"
         );
 
         // Teste das Schreiben auf das Dateisystem (Domänen- und Infrastruktur-Packages)
@@ -88,8 +83,7 @@ class VernacCompilerTest {
         assertThat(Files.exists(domainDir.resolve("Project.java"))).isTrue();
         assertThat(Files.exists(domainDir.resolve("ProjectExternalService.java"))).isTrue();
 
-        Path outboundDir = tempDir.resolve("com/example/infrastructure/outbound/projectexternalservice");
-        assertThat(Files.exists(outboundDir.resolve("ExternalProjectDto.java"))).isTrue();
-        assertThat(Files.exists(outboundDir.resolve("RestProjectExternalServiceFetchExternalDataAdapter.java"))).isTrue();
+        Path outboundDir = tempDir.resolve("com/example/adapter/outbound");
+        assertThat(Files.exists(outboundDir.resolve("LocalProjectService.java"))).isTrue();
     }
 }
