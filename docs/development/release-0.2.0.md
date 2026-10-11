@@ -116,30 +116,24 @@ platforms or other unrelated product subsystems in this release example.
 
 ## 5. Release automation, including Marketplace
 
-Recommended shape: shared version/commit and verification, with separately
-repeatable publication jobs or workflows. The final implementation decision follows
-inspection of Marketplace's supported upload API and the existing release process.
+Implemented shape: one manual release workflow plus a callable/manually repeatable
+plugin publication workflow. Central's final Portal approval remains manual.
 
-- [ ] Extend the current release workflow so every published runtime artifact,
-      including JSON/HTTP, is explicitly covered by the release inventory.
-- [ ] Build and retain the plugin ZIP from the reviewed release source and version;
-      validate its descriptor, bundled LSP/compiler and generated-project template.
-- [ ] Automate Marketplace upload using a dedicated repository/environment secret;
-      never place tokens in source, generated artifacts, logs or documentation.
-- [ ] Make dry runs build/verify/archive without uploading to Central or Marketplace.
-- [ ] Separate upload/publication recovery: a failed Marketplace step must not require
-      redeploying an immutable Maven Central version, and vice versa.
-- [ ] Gate plugin publication on matching required Maven artifacts being available,
-      so newly generated projects can actually resolve their dependencies.
-- [ ] Record version, commit, artifact checksums and destinations in the workflow
-      summary. Update the maintainer guide to match the actual process.
-- [ ] Document any external review delay; upload is not the same as availability.
-- [ ] Reconcile tag/GitHub Release conventions with the existing Maven/plugin tags.
-      Do not move previously published tags.
+- [x] Include all eight publication coordinates, including JSON/HTTP.
+- [x] Verify and archive the plugin ZIP with version, commit and SHA-256 manifest.
+- [x] Upload to the existing Marketplace listing using a dedicated secret.
+- [x] Keep dry runs free from Central/Marketplace uploads.
+- [x] Retry plugin publication from the original run artifact without Maven redeploy.
+- [x] Gate plugin upload on Central availability and a fresh packaged-template consumer.
+- [x] Provide ephemeral PostgreSQL and reject skipped required release tests.
+- [x] Document secret setup, review delays, recovery and existing tag conventions.
+- [ ] Complete a GitHub dry run of these changes from the reviewed branch.
+- [ ] Verify real Central/Marketplace publication during the release.
 
-The existing workflow's dry-run success is not sufficient evidence if relevant
-PostgreSQL tests were skipped. Configure disposable databases and make required
-acceptance tests explicit gates. Keep credentials limited to publication steps.
+Local offline tests cover archive validation, provenance, test gates, inventory,
+consumer preparation and redacted single-attempt upload behavior. These do not
+replace GitHub execution or Marketplace acceptance. See the
+[maintainer guide](../maintainers/releasing.md#github-actions).
 
 ## 6. Acceptance, merge and release
 
@@ -187,8 +181,8 @@ Existing mapping and REST tutorial execution tests remain in the verification se
 Website rendering, external URLs and full PostgreSQL/installed-IDE acceptance remain
 separate release checks. Repository links in published docs currently target
 feature/redefining_the_language; retarget them to the released source when merging.
-The release workflow must include runtime-http/runtime-json in its publication
-scope; Marketplace automation is still a planned release task.
+The release workflow now includes runtime-http/runtime-json and Marketplace submission;
+its GitHub dry run and real publication remain acceptance tasks.
 
 ## Adapter configuration consolidation
 
