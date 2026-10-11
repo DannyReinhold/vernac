@@ -49,3 +49,4 @@ external Java implementations and transaction boundaries.
 - [Use the HTTP adapter runtime](http-adapter-runtime.md) — real calls, typed errors and explicit absence.
 
 - [Declare an outbound REST adapter](declarative-rest.md) — HTTP bindings, DTO mappings and external error translation.
+- [Translate HTTP errors declaratively](declarative-errors.md) — typed business rejection, responsibility and unavailable error bodies.

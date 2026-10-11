@@ -159,8 +159,26 @@ restOperation
       ('body' '<-' requestPath=qualifiedName 'using' requestMapping=methodName ';')?
       ('response' responseType=type 'using' responseMapping=methodName ';')?
       ('on' absentStatus=INT_LITERAL 'absent' ';')?
-      ('errors' 'implemented' 'by' errorImplementation=qualifiedName ';')?
+      ('errors' ('implemented' 'by' errorImplementation=qualifiedName ';' | restErrors))?
       '}'
+    ;
+restErrors
+    : '{' ('response' errorType=type ';')? restErrorRule+ ('otherwise' 'default' ';')? '}'
+    ;
+restErrorRule
+    : 'when' restErrorOr 'then' restErrorAction ';'
+    ;
+restErrorOr : restErrorAnd ('or' restErrorAnd)* ;
+restErrorAnd : restErrorNot ('and' restErrorNot)* ;
+restErrorNot : 'not' restErrorNot | '(' restErrorOr ')' | restErrorPredicate ;
+restErrorPredicate
+    : field=qualifiedName (operator=('=' | '!=' | '<' | '<=' | '>' | '>=') restErrorLiteral
+      | 'is' presence=('absent' | 'present'))
+    ;
+restErrorLiteral : STRING_LITERAL | booleanValue=('true' | 'false') | '-'? (INT_LITERAL | DECIMAL_LITERAL) ;
+restErrorAction
+    : 'reject' code=qualifiedName message=STRING_LITERAL
+    | 'fail' responsibility=('local' | 'remote' | 'unknown') category=qualifiedName message=STRING_LITERAL
     ;
 restBinding
     : kind=('path' | 'query' | 'header') target=STRING_LITERAL '<-' source=qualifiedName ';'
@@ -322,7 +340,7 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | IDENTIFIER
     | BOOLEAN_LITERAL
     | 'null'
@@ -425,7 +443,7 @@ typeName
     ;
 
 methodName
-    : 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'using' | 'naming' | 'named' | 'patch'
     | 'read' | 'modify' | 'load' | 'save'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
@@ -435,7 +453,7 @@ methodName
     ;
 
 variableName
-    : 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'using' | 'naming' | 'named' | 'patch'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
     | IDENTIFIER

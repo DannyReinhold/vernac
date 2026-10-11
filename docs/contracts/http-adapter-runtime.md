@@ -2,7 +2,7 @@
 
 Status: implemented runtime foundation. [REST declarations](declarative-rest.md)
 now generate request/response bindings and support external Java error translation.
-Ordered declarative error rules are next. Java adapter behavior can also use this API. See the [executable tutorial](../tutorials/http-adapter-runtime.md).
+Ordered declarative error rules are implemented. Java adapter behavior can also use this API. See the [executable tutorial](../tutorials/http-adapter-runtime.md).
 
 ## Dependencies and scope
 
@@ -143,7 +143,7 @@ original HTTP status failure. A Java handler can attach the decoding failure as 
 suppressed exception and still match status-only conditions. Unrelated application
 programming errors propagate rather than being treated as unavailable wire data.
 
-`ErrorCondition` defines three-valued evaluation for the upcoming declarative rules:
+`ErrorCondition` defines three-valued evaluation for declarative rules:
 
 | A | B | A AND B | A OR B |
 | --- | --- | --- | --- |
@@ -162,8 +162,8 @@ on unavailable body data cannot match merely through negation or inequality. An
 independently true status branch in OR can still match. A decoded error's `test`
 method offers this distinction for a Java predicate over the available DTO.
 
-`optionalOn404` handles 404 before the error handler. The forthcoming compiler must
-reject contradictory declarative 404 rules; this runtime Java API cannot inspect
+`optionalOn404` handles 404 before the error handler. The compiler rejects
+contradictory declarative 404 rules; this runtime Java API cannot inspect
 arbitrary handler code.
 
 ## Verification and next step
@@ -176,4 +176,5 @@ and executes the tutorial's generated adapter, DTOs and mappings against HTTP.
 
 Implemented next layer: a shared resolved REST model, typed request/response
 bindings, external Java errors and LSP references; see the REST contract.
-Next: ordered declarative error rules using this runtime's truth model.
+Ordered declarative error rules use this runtime's truth model; their compiled
+tutorial includes status-only fallback and unavailable-body tests.

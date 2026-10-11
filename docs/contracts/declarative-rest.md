@@ -1,7 +1,7 @@
 # Declarative outbound REST adapters
 
-Status: implemented request/response slice. Ordered declarative error rules are
-still pending; external Java error translation is implemented. This extends the
+Status: implemented request/response bindings, ordered declarative error rules
+and external Java error translation. This extends the
 [port/adapter contract](ports-adapters-and-acl.md) and uses the
 [HTTP runtime contract](http-adapter-runtime.md).
 
@@ -52,7 +52,7 @@ when a protocol needs custom orchestration.
 5. Required response declaration for a value result:
    `response Schema using mapping;`.
 6. Optional `on 404 absent;`.
-7. Optional `errors implemented by fully.qualified.JavaClass;`.
+7. Optional `errors { ... }` or `errors implemented by fully.qualified.JavaClass;`.
 8. Closing brace.
 
 The supported verbs are GET, POST, PUT, PATCH and DELETE. GET bodies are rejected.
@@ -143,15 +143,96 @@ provided. Successful response decoding has its own runtime boundary and is not
 rerouted through the HTTP-status hook. The Java hook cannot be inspected for business
 correctness; signature errors are reported by javac in the usual Java integration step.
 
-The forthcoming declarative `errors { ... }` form will reject contradictory rules
-and use the already implemented three-valued unavailable-body semantics. No such
-block is accepted by this patch.
+## Declarative error rules
+
+```vernac
+errors {
+    response CarrierError;
+    when status = 422 and response.code = "DESTINATION_NOT_SUPPORTED"
+    then reject ShippingRejection.DESTINATION_NOT_SUPPORTED
+        "The destination is not supported";
+    when status = 401
+    then fail local AUTHENTICATION "Check configured credentials";
+    otherwise default;
+}
+```
+
+The response declaration is optional, names an adapter-local schema, and is required
+when any rule reads response fields. It is independent of the successful response
+schema. Rules run only for non-2xx responses after any explicit 404 shortcut.
+At least one rule is required in an errors block. `otherwise default;` is optional;
+the default HTTP classification always applies when no rule matches.
+
+Conditions use `not`, `and`, `or` in decreasing precedence; parentheses override
+precedence. Comparison/presence predicates bind more tightly than logical operators.
+There is no embedded Java in a declarative condition.
+
+| Operand | Supported predicates |
+| --- | --- |
+| `status` | `=`, `!=`, `<`, `<=`, `>`, `>=` with integer literal 100–599 |
+| String DTO field | `=`, `!=` with a string literal; case-sensitive, no normalization |
+| Boolean DTO field | `=`, `!=` with `true` or `false` |
+| Integral or BigDecimal DTO field | All six comparisons with exact decimal/integer literals, optionally negative |
+| DTO field/path | `is absent`, `is present` |
+
+Nested DTO paths are supported. No implicit conversion of strings to numbers, enum
+names to codes, or dates to timestamps occurs. Floating-point, date/time and
+collection comparisons, header predicates, dynamic messages and PATCH-field
+predicates require a Java handler for now. Numeric wire predicates compare exact
+numeric values, independent of BigDecimal scale, without conversion to double;
+this is wire-number comparison, not domain-VO equality. Messages and string
+literals support Java escapes such as `\n`, `\t`, `\\` and `\"`; actual Unicode
+characters may be written directly. Invalid escapes produce a source diagnostic.
+
+The runtime decodes the declared error DTO once per failed response. Unknown JSON
+properties remain tolerated; invalid JSON/types/missing required fields make the
+whole DTO unavailable. Optional missing/null fields are absent in a valid DTO.
+Nested absence propagates through the path. Empty strings and empty collections
+are present values; `is absent` never means empty.
+
+Only TRUE selects a rule:
+
+- Comparing an absent optional field yields UNAVAILABLE, even for `!=`.
+- `is absent`/`is present` explicitly test paths in an available DTO.
+- An unavailable whole DTO makes **every** response predicate UNAVAILABLE,
+  including `is absent` and `is present`.
+- NOT preserves UNAVAILABLE. FALSE AND UNAVAILABLE is FALSE;
+  TRUE OR UNAVAILABLE is TRUE. Other unknown combinations remain UNAVAILABLE.
+- Thus an independently true status branch may still select a rule, but a malformed
+  body cannot turn into a match merely through negation or an absence check.
+
+Every selected exception (including the default) retains sanitized error-decoding
+diagnostics as suppressed exceptions. Status, Retry-After and invocation context
+remain available. Response payloads and request arguments are not copied into the
+failure. There is no automatic logging or retry.
+
+`reject Type.CONSTANT "message"` requires a declared Vernac enum and an existing
+constant, resolved through the ordinary namespace/import rules. It produces
+PortRejectedException carrying that actual enum value. Codes are never declared
+implicitly. `fail local|remote|unknown CATEGORY "message"` produces respectively
+LocalIntegrationException, RemoteIntegrationException or PortInvocationException.
+CATEGORY must be an existing IntegrationCategory. Choosing responsibility is an
+explicit application policy, not a deduction from the HTTP status.
+
+First match wins; overlapping rules are intentional and are not reordered.
+With `on 404 absent`, rules must exclude status 404. The compiler conservatively
+checks status expressions while treating body predicates as possibly true or false.
+For example `status != 404 and response.code = "X"` is accepted; a body-only rule
+is rejected because it might otherwise be shadowed. The diagnostic suggests
+excluding 404 or removing the shortcut. This check does not inspect external Java
+hooks and is not general-purpose proof of rule reachability.
+
+Declarative and implemented-by error handling are mutually exclusive per operation.
+No rule changes the classification of successful-response decoding/mapping errors
+or transport failures that have no HTTP response.
 
 ## Tooling and verification
 
 LSP diagnostics use the compiler contract. Completion/navigation supports operation
 source paths (including cross-file value fields), adapter-local mappings and response
-schemas. Generic type completion filters REST signatures like port signatures.
+schemas. Error rules additionally support nested DTO field and enum-code
+completion/navigation, error-schema navigation and technical-category completion.
+Generic type completion filters REST signatures like port signatures.
 Existing Java mapping injection and generated-Java-to-Vernac operation navigation
 also work with REST adapters. The plugin requires rebuilding/reinstalling to bundle
 the updated compiler and LSP.
@@ -160,4 +241,8 @@ The [tutorial](../tutorials/declarative-rest.md) is compiled and executed by
 RestAdapterExecutionTest against a loopback server. RestProjectTest covers invalid
 contracts and generated Java navigation; RestSymbolsTest checks editor references.
 HttpRequestsTest covers UTF-8/URL encoding, base paths, absence and safe diagnostics.
-No Docker or remote service is needed for this test set.
+RestErrorProjectTest and ErrorValuesTest cover rule validation and comparison
+semantics. RestErrorExecutionTest compiles the complete
+[error tutorial](../tutorials/declarative-errors.md) and executes generated code
+against HTTP, including malformed bodies, priority, optional results and void
+operations. No Docker or remote service is needed for this test set.

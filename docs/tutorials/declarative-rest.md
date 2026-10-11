@@ -164,3 +164,5 @@ them against a loopback server. It checks UTF-8/URL encoding, optional omission,
 validated DTO conversion, PUT, PATCH, typed rejection and 404 behavior without Docker.
 `RestProjectTest` covers invalid declarations. The LSP supports source-path, mapping
 and response-schema completion/navigation, including cross-file domain fields.
+
+Continue with [declarative error translation](declarative-errors.md) to replace Java error hooks with typed rules.

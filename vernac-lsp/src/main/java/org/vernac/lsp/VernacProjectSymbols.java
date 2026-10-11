@@ -390,12 +390,68 @@ final class VernacProjectSymbols {
             else if (contains(op.requestPath, point)) name = op.requestPath;
             else for (var binding : op.restBinding()) if (contains(binding.source, point)) name = binding.source;
             if (name != null) found.add(new RestReference(name, kind, op, adapterAncestor(op)));
+            if (op.restErrors() != null) walk(op.restErrors(), child -> {
+                if (child instanceof VernacParser.RestErrorPredicateContext p && contains(p.field, point))
+                    found.add(new RestReference(p.field, "errorField", op, adapterAncestor(op)));
+                if (child instanceof VernacParser.RestErrorActionContext a) {
+                    if (contains(a.code, point)) found.add(new RestReference(a.code, "errorCode", op, adapterAncestor(op)));
+                    if (contains(a.category, point)) found.add(new RestReference(a.category, "errorCategory", op, adapterAncestor(op)));
+                }
+            });
         });
         return found.size() == 1 ? found.getFirst() : null;
     }
     private Map<String, Location> restChoices(Path path, RestReference ref, String prefix) {
         var file = files.get(path);
         Map<String, Location> choices = new TreeMap<>();
+        if (ref.kind().equals("errorCategory")) {
+            for (var category : org.vernac.runtime.ports.IntegrationCategory.values()) choices.put(category.name(), null);
+            return choices;
+        }
+        if (ref.kind().equals("errorCode")) {
+            var scope = new FileTypeScope(file.unit(), index, namespaces);
+            for (var symbol : declarations) {
+                if (symbol.kind() != TypeSymbol.Kind.ENUM) continue;
+                String name = symbol.identity().name();
+                var visible = scope.resolve(name, file.unit().location()).type().orElse(null);
+                List<String> names = new ArrayList<>();
+                names.add(symbol.identity().qualifiedName());
+                if (visible instanceof ResolvedType.Declared d && d.symbol().equals(symbol)) names.add(name);
+                var target = files.get(symbol.sourceFile());
+                for (String spelling : names) {
+                    choices.put(spelling, new Location(symbol.sourceFile().toUri().toString(), declarationRanges.get(symbol)));
+                    for (var top : target.tree().topLevelDeclaration()) {
+                        var v = top.valueDefinition();
+                        if (v == null || v.name == null || !v.name.getText().equals(name) || v.enumConstantList() == null) continue;
+                        for (var constant : v.enumConstantList().enumConstant()) if (constant.name != null)
+                            choices.put(spelling + "." + constant.name.getText(), queryLocation(symbol.sourceFile(), target, constant.name));
+                    }
+                }
+            }
+            return choices;
+        }
+        if (ref.kind().equals("errorField")) {
+            choices.put("status", null);
+            var errors = ref.operation().restErrors();
+            if (errors != null && errors.errorType != null) {
+                choices.put("response", queryLocation(path, file, errors.errorType));
+                int dot = prefix.lastIndexOf('.');
+                if (dot >= 0 && prefix.startsWith("response.")) {
+                    try {
+                        ensureMappingModel();
+                        if (mappingModel != null) {
+                            var type = new TypeNode(file.unit().location(), errors.errorType.getText());
+                            var segments = prefix.substring(0, dot).split("\\.");
+                            var fields = mappingModel.fields(path, ref.adapter().name.getText(), type,
+                                    Arrays.asList(segments).subList(1, segments.length));
+                            String qualifier = prefix.substring(0, dot + 1);
+                            fields.forEach((name, at) -> choices.put(qualifier + name, location(path, file, at)));
+                        }
+                    } catch (IllegalArgumentException | NoSuchElementException | org.vernac.compiler.analyzer.SemanticValidationException incomplete) { }
+                }
+            }
+            return choices;
+        }
         if (ref.kind().equals("using")) {
             ref.adapter().mappingDefinition().forEach(m -> {
                 if (m.name != null) choices.put(m.name.getText(), queryLocation(path, file, m.name));
@@ -449,6 +505,8 @@ final class VernacProjectSymbols {
             if(ancestor instanceof VernacParser.SchemaFieldContext) field=true;
             if(ancestor instanceof VernacParser.TypeContext type && type.getParent() instanceof VernacParser.RestOperationContext op
                     && op.responseType == type) field = true;
+            if (ancestor instanceof VernacParser.TypeContext type && type.getParent() instanceof VernacParser.RestErrorsContext errors
+                    && errors.errorType == type) field = true;
             if(ancestor instanceof VernacParser.OutboundAdapterDefinitionContext adapter) return field ? adapter : null;
         }
         return null;

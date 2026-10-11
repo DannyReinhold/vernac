@@ -3,7 +3,7 @@
 This tutorial introduces port interfaces and Java-backed adapters. Continue with
 DTO schemas, mappings and the [HTTP runtime](http-adapter-runtime.md) for the
 implemented integration foundations. [REST declarations](declarative-rest.md) now cover request/response bindings;
-ordered declarative error translation remains the next step in [the target contract](../contracts/ports-adapters-and-acl.md).
+[declarative error translation](declarative-errors.md) covers typed business rejection and technical classification.
 
 ## Declare the capability
 

@@ -17,6 +17,7 @@ import static org.vernac.compiler.rest.ResolvedRestOperation.*;
 public final class RestResolver {
     private final List<CompilerDiagnostic> errors;
     private final MappingResolver values;
+    private final VernacProject project;
     private final Map<String, ResolvedMapping> mappings = new LinkedHashMap<>();
     private static final Pattern SLOT = Pattern.compile("\\{([^{}]+)}");
     private static final Set<String> RESTRICTED_HEADERS = Set.of("host", "content-length", "connection", "expect", "upgrade");
@@ -25,6 +26,7 @@ public final class RestResolver {
             OutboundAdapterNode adapter, String namespace, FileTypeScope scope, List<ResolvedSchema> schemas,
             List<ResolvedMapping> mappings) {
         this.errors = errors;
+        this.project = project;
         this.values = new MappingResolver(project, types, errors).context(adapter, namespace, scope, schemas);
         mappings.forEach(m -> this.mappings.put(m.source().name(), m));
     }
@@ -104,7 +106,112 @@ public final class RestResolver {
                 if (!name.contains(".") || Arrays.stream(name.split("\\.")).anyMatch(n -> !VernacNames.isIdentifier(n)))
                     error(method.location(), "errors implemented by requires a fully qualified Java class name.");
             });
-            result.put(method, new ResolvedRestOperation(operation, bindings, body, response));
+            result.put(method, new ResolvedRestOperation(operation, bindings, body, response, resolveErrors(operation)));
+        }
+        return result;
+    }
+
+    private Errors resolveErrors(RestAdapterNode.Operation op) {
+        if (op.errors().isEmpty()) return null;
+        var syntax = op.errors().get();
+        var dto = syntax.response().map(values::resolveType).orElse(null);
+        if (dto != null && (dto.kind() != ResolvedMapping.Kind.DTO || syntax.response().orElseThrow().isOptional())) {
+            error(syntax.response().orElseThrow().location(), "Error response requires a required adapter-local schema.");
+            dto = null;
+        }
+        List<Rule> rules = new ArrayList<>();
+        for (var rule : syntax.rules()) {
+            var condition = condition(rule.condition(), dto);
+            var action = rule.action();
+            ResolvedMapping.Type codeType = null; String code = action.code();
+            if (action.kind().equals("reject")) {
+                int dot = code.lastIndexOf('.');
+                if (dot < 1) error(action.location(), "Business rejection requires a declared Vernac enum constant: Type.CODE.");
+                else {
+                    codeType = values.resolveType(new TypeNode(action.location(), code.substring(0, dot)));
+                    code = code.substring(dot + 1);
+                    if (codeType != null) {
+                        if (codeType.symbol() == null || codeType.symbol().kind() != TypeSymbol.Kind.ENUM)
+                            error(action.location(), "Business rejection code must belong to a Vernac enum.");
+                        else {
+                            var id = codeType.symbol().identity();
+                            String constant = code;
+                            boolean exists = project.sources().stream().filter(f -> f.unit().namespace().equals(id.namespace()))
+                                .flatMap(f -> f.unit().definitions().stream())
+                                .filter(n -> n instanceof ValueObjectNode v && v.name().equals(id.name()))
+                                .map(n -> (ValueObjectNode)n).flatMap(v -> v.enumConstants().stream())
+                                .anyMatch(c -> c.name().equals(constant));
+                            if (!exists) error(action.location(), "Unknown business rejection constant: " + action.code());
+                        }
+                    }
+                }
+            } else {
+                try { org.vernac.runtime.ports.IntegrationCategory.valueOf(code); }
+                catch (IllegalArgumentException ex) { error(action.location(), "Unknown integration failure category: " + code); }
+            }
+            if (condition != null) {
+                if (op.absentStatus().isPresent() && couldMatch404(condition))
+                    error(rule.location(), "Error rule can match 404 but on 404 absent handles it first. Exclude 404 explicitly or remove the shortcut.");
+                rules.add(new Rule(condition, action, codeType, code));
+            }
+        }
+        return new Errors(dto, rules);
+    }
+    private Condition condition(RestAdapterNode.Condition node, ResolvedMapping.Type dto) {
+        if (node instanceof RestAdapterNode.Logical l) {
+            var children = l.operands().stream().map(c -> condition(c, dto)).filter(Objects::nonNull).toList();
+            return new Logical(l.operator(), children);
+        }
+        if (node instanceof RestAdapterNode.Negation n) {
+            var c = condition(n.operand(), dto); return c == null ? null : new Negation(c);
+        }
+        var p = (RestAdapterNode.Predicate)node;
+        if (p.path().equals(List.of("status"))) {
+            try {
+                int status = Integer.parseInt(p.literal());
+                if (!p.literalKind().equals("number") || status < 100 || status > 599) throw new NumberFormatException();
+            } catch (NumberFormatException ex) { error(p.location(), "HTTP status comparison requires an integer from 100 to 599."); }
+            return new Predicate(p, List.of(), "status");
+        }
+        if (!p.path().getFirst().equals("response") || p.path().size() < 2) {
+            error(p.location(), "Error conditions require status or response.field paths."); return null;
+        }
+        if (dto == null) { error(p.location(), "Response predicates require response <Schema> in the errors block."); return null; }
+        var current = dto; List<ResolvedMapping.Field> fields = new ArrayList<>();
+        for (String segment : p.path().subList(1, p.path().size())) {
+            var field = values.fields(current).stream().filter(f -> f.name().equals(segment)).findFirst().orElse(null);
+            if (field == null || field.patch()) { error(p.location(), "Unknown or unsupported error response field: " + segment); return null; }
+            fields.add(field); current = field.type();
+        }
+        if (p.literalKind().equals("presence")) return new Predicate(p, fields, "presence");
+        String scalar = current.identity();
+        String kind = scalar.equals("java.lang.String") ? "string" : scalar.equals("java.lang.Boolean") ? "boolean"
+            : Set.of("java.lang.Byte", "java.lang.Short", "java.lang.Integer", "java.lang.Long", "java.math.BigInteger", "java.math.BigDecimal").contains(scalar) ? "number" : "unsupported";
+        if (current.kind() != ResolvedMapping.Kind.SCALAR || !kind.equals(p.literalKind()))
+            error(p.location(), "Error comparison literal must match the field type; supported literals are strings, booleans and exact numbers.");
+        if (!kind.equals("number") && !Set.of("=", "!=").contains(p.operator()))
+            error(p.location(), "Only numeric error fields support ordered comparisons.");
+        return new Predicate(p, fields, kind);
+    }
+    private boolean couldMatch404(Condition condition) { return possible404(condition).contains(true); }
+    private Set<Boolean> possible404(Condition c) {
+        if (c instanceof Predicate p) {
+            if (!p.kind().equals("status")) return Set.of(true, false);
+            try {
+                int n = Integer.parseInt(p.source().literal());
+                boolean match = switch (p.source().operator()) {
+                    case "=" -> 404 == n; case "!=" -> 404 != n; case "<" -> 404 < n;
+                    case "<=" -> 404 <= n; case ">" -> 404 > n; case ">=" -> 404 >= n; default -> false;
+                };
+                return Set.of(match);
+            } catch (NumberFormatException ex) { return Set.of(true, false); }
+        }
+        if (c instanceof Negation n) { Set<Boolean> r = new HashSet<>(); possible404(n.operand()).forEach(v -> r.add(!v)); return r; }
+        var l = (Logical)c; Set<Boolean> result = Set.of(l.operator().equals("and"));
+        for (var child : l.operands()) {
+            Set<Boolean> next = new HashSet<>();
+            for (boolean a : result) for (boolean b : possible404(child)) next.add(l.operator().equals("and") ? a && b : a || b);
+            result = next;
         }
         return result;
     }

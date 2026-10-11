@@ -12,7 +12,9 @@ vernac-runtime-http module, with strict JSON/mapping boundaries, explicit 404
 absence, bounded response buffering, full-response deadlines and real HTTP tests.
 REST request/response declarations, external Java error hooks, encoded bindings,
 LSP references and an executable REST tutorial are now implemented. Ordered
-`errors { when ... }` rules and their tooling are the next slice.
+`errors { when ... }` rules, typed enum codes, body predicates, conservative 404
+conflict checking and tooling are now implemented too. Next is a complete automated
+application-runner demonstration, followed by the outbound contract/roadmap review.
 
 ## Implementation slices
 

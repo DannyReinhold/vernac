@@ -211,3 +211,4 @@ for implemented, deferred and planned areas.
 - [HTTP adapters and structured failures](tutorials/http-adapter-runtime.md)
 
 - [Declarative outbound REST adapters](tutorials/declarative-rest.md)
+- [Declarative HTTP error translation](tutorials/declarative-errors.md)

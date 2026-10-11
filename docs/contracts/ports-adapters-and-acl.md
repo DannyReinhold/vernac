@@ -215,8 +215,8 @@ uses the technical default; spelling otherwise default is optional.
 
 Unparseable error bodies must preserve the original HTTP failure. Status-only
 rules can still match; a rule depending on an unavailable response value does not
-match, including through negation. Exact unavailable-value evaluation is a required
-implementation specification. Error decoding details remain available diagnostically.
+match, including through negation. Exact unavailable-value evaluation is specified in the
+[implemented REST contract](declarative-rest.md). Error decoding details remain available diagnostically.
 
 on 404 absent is explicit and valid only for optional operation results.
 Contradictory shortcut and full rules are rejected.

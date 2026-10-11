@@ -301,8 +301,39 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                         List.of(path.getText().split("\\.")), o.requestMapping.getText())),
                     Optional.ofNullable(o.responseType).map(type -> new RestAdapterNode.Response(toTypeNode(type), o.responseMapping.getText())),
                     Optional.ofNullable(o.absentStatus).map(t -> t.getText()),
-                    Optional.ofNullable(o.errorImplementation).map(ParserRuleContext::getText));
+                    Optional.ofNullable(o.errorImplementation).map(ParserRuleContext::getText),
+                    Optional.ofNullable(o.restErrors()).map(e -> new RestAdapterNode.Errors(
+                        Optional.ofNullable(e.errorType).map(this::toTypeNode), e.restErrorRule().stream().map(rule -> {
+                            var a = rule.restErrorAction();
+                            return new RestAdapterNode.ErrorRule(toLocation(rule), errorOr(rule.restErrorOr()),
+                                new RestAdapterNode.Action(toLocation(a), a.code != null ? "reject" : a.responsibility.getText(),
+                                    a.code != null ? a.code.getText() : a.category.getText(), errorString(a.message.getText(), toLocation(a))));
+                        }).toList())));
             }).toList());
+    }
+    private RestAdapterNode.Condition errorOr(VernacParser.RestErrorOrContext c) {
+        return new RestAdapterNode.Logical("or", c.restErrorAnd().stream().map(this::errorAnd).toList());
+    }
+    private RestAdapterNode.Condition errorAnd(VernacParser.RestErrorAndContext c) {
+        return new RestAdapterNode.Logical("and", c.restErrorNot().stream().map(this::errorNot).toList());
+    }
+    private RestAdapterNode.Condition errorNot(VernacParser.RestErrorNotContext c) {
+        if (c.restErrorNot() != null) return new RestAdapterNode.Negation(errorNot(c.restErrorNot()));
+        if (c.restErrorOr() != null) return errorOr(c.restErrorOr());
+        var p = c.restErrorPredicate(); var literal = p.restErrorLiteral();
+        String kind = literal == null ? "presence" : literal.STRING_LITERAL() != null ? "string"
+                : literal.booleanValue != null ? "boolean" : "number";
+        return new RestAdapterNode.Predicate(toLocation(p), List.of(p.field.getText().split("\\.")),
+                p.operator != null ? p.operator.getText() : p.presence.getText(),
+                literal == null ? "" : kind.equals("string") ? errorString(literal.getText(), toLocation(p)) : literal.getText(), kind);
+    }
+    private String errorString(String literal, SourceLocation at) {
+        // DSL strings in error rules follow Java escape spelling; never emit raw source as Java.
+        try { return unquote(literal).translateEscapes(); }
+        catch (IllegalArgumentException ex) {
+            throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(
+                org.vernac.compiler.analyzer.CompilerDiagnostic.error(at, "Invalid escape in error-rule string literal.")));
+        }
     }
     public MappingNode visitMappingDefinition(VernacParser.MappingDefinitionContext ctx) {
         var imports=ctx.javaImports()==null?List.<JavaImportNode>of():ctx.javaImports().qualifiedName().stream()

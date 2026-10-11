@@ -26,6 +26,10 @@ public final class DecodedError<T> {
     }
     public Optional<T> value() { return value; }
     public Optional<DtoContractException> decodingFailure() { return decodingFailure; }
+    public ErrorCondition evaluate(java.util.function.Function<T, ErrorCondition> expression) {
+        Objects.requireNonNull(expression);
+        return value.map(v -> Objects.requireNonNull(expression.apply(v))).orElse(ErrorCondition.UNAVAILABLE);
+    }
     public ErrorCondition test(Predicate<T> predicate) {
         Objects.requireNonNull(predicate);
         return value.map(v -> ErrorCondition.of(predicate.test(v))).orElse(ErrorCondition.UNAVAILABLE);

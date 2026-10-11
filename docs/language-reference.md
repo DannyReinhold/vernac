@@ -450,9 +450,9 @@ An adapter may use `rest` instead of `behavior`, declaring named `client` and
 `base` dependencies followed by typed operations. Operations bind `path`, `query`
 and `header` values, optionally map a request `body`, and map DTO `response` values
 back into domain results. `on 404 absent` is explicit; custom error translation uses
-`errors implemented by`. See the [REST tutorial](tutorials/declarative-rest.md) and
-[exact contract](contracts/declarative-rest.md). Ordered declarative error rules
-remain the next slice. The former nested per-method adapter syntax is not supported.
+`errors { when ... then ... }` or `errors implemented by`. See the
+[REST tutorial](tutorials/declarative-rest.md), [error translation tutorial](tutorials/declarative-errors.md)
+and [exact contract](contracts/declarative-rest.md). The former nested per-method adapter syntax is not supported.
 
 ---
 

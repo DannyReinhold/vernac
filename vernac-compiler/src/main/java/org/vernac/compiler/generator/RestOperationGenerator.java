@@ -43,7 +43,8 @@ final class RestOperationGenerator {
             String arguments = method.parameters().stream().map(FieldNode::name).collect(Collectors.joining(", "));
             code.add("(__invocation, __response) -> $L.$N(self, $L__response)", operation.errorImplementation().get(),
                     method.name(), arguments.isEmpty() ? "" : arguments + ", ");
-        } else code.add("$T::defaultFailure", failures);
+        } else if (plan.errors() != null) code.add(new RestErrorGenerator().handler(plan.errors()));
+        else code.add("$T::defaultFailure", failures);
         code.add(optional && !absent ? "));\n" : ");\n");
         return code.build();
     }
