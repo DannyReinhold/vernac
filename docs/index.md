@@ -189,8 +189,8 @@ Start with the examples using the reviewed language:
 - **`examples/persistence-demo`**: Standalone Spring Boot, PostgreSQL and Flyway walkthrough
   with complete aggregate graphs and a prepared migration exercise.
 
-`vernac-example` and `vernac-example-home-energy` are older showcases awaiting migration
-to the reviewed language. They are not currently a green end-to-end build reference.
+The legacy reactor example modules have been removed. Remaining examples and
+templates are being audited for the [0.2.0 release](development/release-0.2.0.md).
 
 See the [consolidation status and next steps](development/consolidation-status.md)
 for implemented, deferred and planned areas.

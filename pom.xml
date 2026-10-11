@@ -52,16 +52,14 @@
         <module>vernac-compiler</module>
         <module>vernac-maven-plugin</module>
         <module>examples/namespace-values</module>
-        <module>vernac-example</module>
         <module>vernac-lsp</module>
-        <module>vernac-example-home-energy</module>
         <module>vernac-intellij</module>
         <module>vernac-runtime-jdbc</module>
         <module>vernac-jdbc-spring-boot-starter</module>
     </modules>
 
     <properties>
-        <revision>0.1.1-SNAPSHOT</revision>
+        <revision>0.2.0-SNAPSHOT</revision>
         <java.version>21</java.version>
         <maven.compiler.release>21</maven.compiler.release>
         <maven.compiler.source>21</maven.compiler.source>

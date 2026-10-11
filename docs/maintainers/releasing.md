@@ -4,6 +4,11 @@ This guide describes local Maven Central releases and IntelliJ plugin
 distribution through GitHub Releases and JetBrains Marketplace.
 It also records the current scope of release automation.
 
+The current development target is 0.2.0-SNAPSHOT. Follow the
+[0.2.0 release plan](../development/release-0.2.0.md) before publishing: this guide's
+historical 0.1.0 commands are being audited, and Marketplace automation is not yet
+implemented. Do not treat those commands as the final 0.2.0 checklist.
+
 ## Release scope
 
 The following components are published to Maven Central:
@@ -481,17 +486,9 @@ strategies and their underlying exceptions.
 A working Docker CLI does not guarantee compatibility between the Docker
 Engine API and the Docker client embedded in Testcontainers.
 
-The temporary workaround used with Testcontainers 1.20.4 and Docker 29 was:
-
-```text
-vernac-example/src/test/resources/docker-java.properties
-```
-
-```properties
-api.version=1.44
-```
-
-Reassess this workaround when updating Testcontainers. It addresses
+Historically, the now-removed legacy example used docker-java.properties with
+`api.version=1.44` for Testcontainers 1.20.4 and Docker 29. This is not a current
+project-wide requirement. Reassess any such workaround when updating Testcontainers. It addresses
 connection compatibility, not failures in repository or schema behavior.
 
 ### Portal authentication fails

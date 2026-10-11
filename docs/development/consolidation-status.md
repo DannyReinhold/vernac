@@ -1,7 +1,10 @@
 # Vernac consolidation status
 
-Status: 2026-10-10. This separates reviewed functionality from older implementations
+Status: 2026-10-11. Target release: 0.2.0. This separates reviewed functionality from older implementations
 and future plans. It is not a claim that every language feature is production-ready.
+
+The authoritative remaining work and release gates are in the
+[0.2.0 consolidation plan](release-0.2.0.md). Larger extensions start after release.
 
 ## Reviewed and implemented
 
@@ -20,7 +23,8 @@ and future plans. It is not a claim that every language feature is production-re
 | JDBC repositories | Explicit repository declaration, byId/save/delete, declarative comparisons and ordering, complete graph loads, list order, reachability cleanup and optimistic locking |
 | Usecases | Named application operations, REQUIRED transactions, explicit results and external implementations |
 | Domain services | Named methods, injected dependencies through self, per-operation preconditions and external implementations |
-| Events | Immutable occurrences, shared EventId, validation and synchronous listeners with scoped publication |
+| Events | Immutable occurrences, shared EventId, validation, synchronous listeners, relational recording, deferred delivery and workers |
+| Outbound ports and ACL | Java adapters, DTO/PATCH semantics, mappings, REST bindings, typed error rules and local HTTP walkthrough |
 | Schema tooling | Versioned source snapshots, initial/next migration candidates, explicit transformations, risk gates and Flyway replay checks |
 
 Reviewed areas have contracts and automated tests; depth and integration coverage
@@ -36,30 +40,21 @@ not exhaustive concurrency, platform, historical-data or deployment verification
 - Declarative root queries are implemented; handwritten JDBC/custom query extensions,
   nested collection predicates, multi-value equality and pagination remain deferred.
   Boolean OR/NOT/parentheses and literal/pattern text searches are implemented.
-- Events and synchronous listeners are reviewed and supported. Relational recording,
-  durable delivery, workers and event-evolution migrations remain the next increment;
-  recorded/deferred declarations currently fail explicitly. See [the plan](event-delivery.md).
-- Ports/adapters still need their dedicated review and project-pipeline migration.
-- Old examples still contain pre-refactoring syntax; the complete root reactor is not
-  yet a green integration gate. Use the documented targeted builds during consolidation.
+- Event recording, durable delivery and workers are implemented; event evolution
+  and retry/idempotency responsibilities remain explicit operational concerns.
+- Outbound ports/adapters are implemented, including the executable REST/ACL demo.
+  Inbound transport generation remains post-release work.
+- The two legacy example modules have been removed. The remaining examples and
+  project templates still require the release audit; a green root build alone is
+  not evidence that every generated starter project works.
 
 ## Next work
 
-1. Complete relational event storage, delivery jobs, claim tokens/leases, PostgreSQL
-   concurrency tests and the event-evolution tutorial. No silent durability fallback.
-2. Review ports, adapters and ACL mappings.
-3. Revisit **service read/modify classification** and consistency with usecases/domain
-   behavior. Dependency access through self is now unified for services and usecases.
-4. Evaluate recursively read-only validation views only if their implementation
-   cost is proportionate. Current input views offer shallow protection.
-5. Align all examples, templates, documentation, diagnostics and IDE support;
-   keep extending focused PostgreSQL migration/concurrency regression coverage.
-
-API/endpoints, MCP tools, messaging adapters and AI authoring assistance remain later
-extensions. They should build on the consolidated core.
-
-Apply the [feature review checklist](feature-review-checklist.md) to each step, including
-language consistency, generated-code quality, diagnostics, IDE support and tutorials.
+Follow [the 0.2.0 plan](release-0.2.0.md): repository/template cleanup, remaining
+consistency review, all documentation and examples, a usable complete application,
+release automation including Marketplace, then merge to main and release.
+All work remains on feature/redefining_the_language until the acceptance gates pass.
+Apply the [feature review checklist](feature-review-checklist.md) throughout.
 
 ## Migration exercise and constraint cleanup
 
@@ -89,5 +84,5 @@ comparisons for ordered types, root metadata, Optional cardinality checks, batch
 graph loading and LSP field/parameter support. See the
 [query contract](../contracts/repository-queries.md). Real PostgreSQL acceptance
 remains an explicit opt-in test step; local generated-Java compilation alone is
-not proof of database semantics. LIKE-like predicates follow this increment,
-before alternative locale-aware sort orders.
+not proof of database semantics. Literal text searches and LIKE predicates are
+implemented; alternative locale-aware sort orders remain deferred.

@@ -21,7 +21,7 @@ This repository already contains:
 - a small runtime API (`vernac-runtime`)
 - an IntelliJ IDEA plugin with a bundled language server (`vernac-intellij`)
 - the reusable language server behind the editor integration (`vernac-lsp`)
-- two example modules (`vernac-example`, `vernac-example-home-energy`)
+- focused examples under `examples/`, including the persistence, events and ports walkthrough
 
 ### A tiny example
 
@@ -103,7 +103,7 @@ public class JdbcEnergyStorageRepository implements EnergyStorageRepository {
 }
 ```
 
-### What works today (v0.1.x)
+### Current development scope
 
 The DSL currently supports:
 
@@ -302,39 +302,33 @@ invalid syntax is reported in the editor.
 The IDE plugin provides editing support. Java source generation still runs
 through the Vernac Maven plugin during your project's Maven build.
 
-### Run the showcase
+### Run the walkthrough
 
-The `vernac-example-home-energy` module demonstrates Vernac with
-Spring Boot and PostgreSQL.
+The standalone `examples/persistence-demo` application demonstrates aggregate
+persistence, Flyway migrations, event delivery and outbound REST/ACL integration.
+After installing the current snapshot and starting Docker, run from the repository root:
 
-Prerequisites: install the repository artifacts as described above
-and ensure Docker is running.
-
-From the repository root:
-
-```bash
-mvn -pl vernac-example-home-energy spring-boot:run "-Dspring-boot.run.workingDirectory=.."
+```text
+mvn -f examples/persistence-demo/pom.xml clean spring-boot:run
 ```
 
-The application runs with the repository root as its working directory.
-Spring Boot's Docker Compose integration starts PostgreSQL using
-`vernac-example-home-energy/compose.yaml`.
+Its runners verify their expectations and report success or fail visibly. The
+ports walkthrough also runs without Docker or PostgreSQL:
 
-On startup, the demo runner:
+```text
+mvn -f examples/persistence-demo/pom.xml clean test -Dtest=PortDemoTest
+```
 
-1. Creates and persists an energy storage aggregate.
-2. Invokes the generated `OptimizeEnergyFlow` use case, which loads
-   the aggregate, calls a REST adapter, updates the stored energy,
-   and saves the result.
-3. Reloads the aggregate in a separate transaction to verify
-   the committed state.
-
-Check the application logs for the resulting charge level and version.
-After the update, the reloaded aggregate should have version `2`.
-
-The demo recreates the `energy_storage` table on each startup.
+See [the example README](examples/persistence-demo/README.md) for setup and
+[the guided ports walkthrough](docs/tutorials/ports-walkthrough.md).
 
 ### Status of the project
+
+The current development target is **0.2.0-SNAPSHOT**. Consolidation, example and
+documentation review, a complete application showcase, and release automation
+precede the 0.2.0 release. See the [release plan](docs/development/release-0.2.0.md).
+New inbound, MCP and messaging features follow that release.
+
 
 Many DDD core concepts are already supported, but the project is still in its early stages.
 I may change the language definition and the code generators at any time in the stage.
