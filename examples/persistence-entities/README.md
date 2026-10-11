@@ -1,7 +1,7 @@
 # Aggregate entity graph schema
 
-This standalone example exercises the reviewed **schema generator**, not the legacy
-JDBC repository generator. Install the current Maven plugin from the repository root:
+This standalone example focuses on the **schema generator** and shared entity
+relationships. It does not start an application or database. Install the current Maven plugin from the repository root:
 
 ```text
 mvn -pl vernac-maven-plugin -am clean install
@@ -28,7 +28,8 @@ verification are aids, not guarantees. Never overwrite already applied migration
 
 Changing entity relationships affects their own tables; shared entity state tables
 are independent of individual incoming paths. List positions belong to relationships.
-The future JDBC writer/loader must preserve shared Java identity and remove states
-only when no longer reachable from the aggregate; this example does not implement it.
+The JDBC writer/loader preserves shared Java identity and removes state only when
+no longer reachable from the aggregate. Run [the persistence demo](../persistence-demo/README.md)
+to observe and test that behavior. This focused example only generates its schema.
 
 See [the persistence contract](../../docs/contracts/postgresql-persistence.md).

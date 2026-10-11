@@ -14,5 +14,9 @@ class BehaviorTest {
         assertEquals(4, name.length());
         assertTrue(name.alternative().isEmpty());
         assertTrue(PersonNames.of(name, name).hasDuplicates());
+        assertFalse(PersonNames.of(name).hasDuplicates());
+        assertEquals("ADA!", PersonName.of("Ada").upper());
+        assertThrows(org.vernac.runtime.DomainValidationException.class,
+                () -> PersonName.of(" "));
     }
 }

@@ -31,8 +31,12 @@ The basic project template now uses namespace directories and modify behavior.
 The project wizard relocates both Vernac and Java sources and injects the bundled
 compiler version without matching a hard-coded old version. Tests cover custom
 coordinates, Unicode namespaces, compilation and pre-existing destination files.
-The first-domain-model tutorial follows this template. The remaining examples
-and file templates still need their separate audit.
+The first-domain-model tutorial follows this template. The example source/documentation
+audit now provides a [learning guide](../../examples/README.md), removes the isolated
+operations event experiment and covers entity/service behavior in Java tests. Both
+schema examples generate successfully; file templates are compiled in their test.
+The demo's database/concurrency/event checks still require an explicit PostgreSQL
+run before release. Do not treat their opt-in skips as successful verification.
 
 The standalone examples retain their own application versions. Only their
 vernac.version denotes the compiler/runtime version. The parent revision remains

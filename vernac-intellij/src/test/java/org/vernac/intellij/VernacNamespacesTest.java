@@ -68,6 +68,21 @@ class VernacNamespacesTest {
                 String template = new String(source.readAllBytes(), StandardCharsets.UTF_8);
                 assertTrue(template.startsWith("namespace ${NAMESPACE};"));
                 assertFalse(template.contains("BASE_PACKAGE"));
+                Path root = project.resolve(name.replace(' ', '-'));
+                Path file = root.resolve("org/example/tasks/model.vernac");
+                java.nio.file.Files.createDirectories(file.getParent());
+                java.nio.file.Files.writeString(file,
+                        template.replace("${NAMESPACE}", "org.example.tasks"));
+                var compilation = new org.vernac.compiler.pipeline.VernacCompiler()
+                        .compileProject(root);
+                if (name.equals("Vernac File")) {
+                    assertTrue(compilation.generatedFiles().isEmpty());
+                } else {
+                    var generatedNames = compilation.generatedFiles().stream()
+                            .map(fileResult -> fileResult.typeSpec().name()).toList();
+                    assertTrue(generatedNames.containsAll(
+                            java.util.List.of("TaskId", "Title", "TaskSummary")));
+                }
                 assertFalse(template.contains("aggregate "));
                 assertEquals("namespace org.example.tasks;", template.replace("${NAMESPACE}", "org.example.tasks").lines().findFirst().orElseThrow());
             }

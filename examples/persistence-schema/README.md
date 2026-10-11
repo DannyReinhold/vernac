@@ -1,7 +1,9 @@
 # PostgreSQL schema and migration candidates
 
 This is a **schema-tooling example**, not a runnable persistence application.
-The new JDBC repository generator and entity storage are separate follow-up work.
+It introduces a simple Tour → Stop → Parcel containment chain. For a runnable
+application with shared entities, queries and events, see
+[the persistence demo](../persistence-demo/README.md).
 
 Install the current Maven plugin from the repository root:
 
@@ -18,7 +20,7 @@ mvn vernac:migration -Dvernac.migrationDescription=initial
 
 Inspect `target/vernac-schema/schema.sql`, the candidate in
 `src/main/resources/db/migration`, and the snapshot under
-`src/main/vernac-schema/history`. Add `Title? note` to Tour and generate the next
+`src/main/vernac-schema/history`. Add `Title? note` to the fields of Tour and generate the next
 candidate with `-Dvernac.migrationDescription=add_note`.
 
 You alone are responsible for reviewing, testing and approving every migration

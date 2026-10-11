@@ -12,5 +12,6 @@ class ProductNameBehaviorTest {
         var name = ProductName.of("Notebook");
 
         assertEquals("[Notebook]", name.decorated());
+        assertEquals("NOTEBOOK!", name.displayName());
     }
 }

@@ -2,6 +2,8 @@
 
 These tutorials introduce Vernac through small, practical exercises.
 Each tutorial starts with a working example and invites you to change it.
+The [example guide](../../examples/README.md) explains the learning order, build
+commands and which checks require PostgreSQL.
 
 ## Getting Started
 

@@ -1,12 +1,11 @@
 # Vernac persistence walkthrough
 
 A standalone Spring Boot application, intentionally **not** a child of the Vernac
-reactor. It uses the current reviewed JDBC generator, not the legacy energy example's
-mapping. Java usecase methods own transactions; generated repositories require them.
+reactor. It demonstrates complete aggregate persistence, events and outbound adapters. Java usecase methods own transactions; generated repositories require them.
 
 ## Run
 
-Prerequisites: Maven, a JDK suitable for building Vernac, Docker Desktop with Linux
+Prerequisites: Maven, JDK 25, Docker Desktop with Linux
 containers, and local port 55433 available. The application targets Java 21.
 The development database credentials in this example are disposable local defaults.
 
@@ -258,3 +257,16 @@ mvn -f examples/persistence-demo/pom.xml clean spring-boot:run
 See [the guided ports tutorial](../../docs/tutorials/ports-walkthrough.md) for a
 reading order and the [declarative error tutorial](../../docs/tutorials/declarative-errors.md)
 for the error-rule semantics.
+
+## Domain service and usecases
+
+Read `tour-planning.vernac`: TourPlanning moves a Stop between two Tours, while
+MoveStopToTour loads and saves both aggregates in its generated transaction.
+TourPlanningTest checks the service without Spring or PostgreSQL, including rejection
+of a move to the same Tour before any state changes. This deliberately small policy
+is not a complete logistics planner.
+
+`record-tour-notes.vernac` and `record-tour-notes-externally.vernac` contrast inline
+and external usecase implementations; `describe-tour.vernac` demonstrates a result.
+The handwritten DeliveryDemoUseCases is runner orchestration showing Java interop,
+not a requirement to implement all usecases by hand.
