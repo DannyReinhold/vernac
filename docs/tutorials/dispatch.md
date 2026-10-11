@@ -48,3 +48,16 @@ and follow the [migration tutorial](postgresql-migrations.md) to evolve storage.
 Continue with [events](domain-events.md), [outbound ports](outbound-ports.md) or the
 [complete specification](../specification/index.md) when you want to understand a
 particular boundary more deeply.
+
+## Change configuration without changing the model
+
+Open `CarrierHttp` in `carrier.vernac`. Its `configuration` block binds `baseUri`
+to `dispatch.carrier.base-url`. `application.yaml` supplies the environment-specific
+value; no URI factory bean is necessary. To move the local carrier simulator,
+set `DISPATCH_CARRIER_SIMULATOR_PORT` before starting Dispatch. The default URL
+follows the selected port. An explicit `CARRIER_BASE_URL` overrides it.
+Keep the simulator as the target while exploring the deliberate outage button.
+
+This mechanism also supports technical strings, durations, paths, integers and
+booleans for non-HTTP adapters. Such properties are available through `self` in
+both inline and external behavior. They never become part of the domain port.

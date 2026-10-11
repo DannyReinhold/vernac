@@ -35,6 +35,15 @@ final class PortContracts {
             types.put(adapter.portType(),d); target=d.symbol();
         } else error(errors,adapter.location(),"An adapter must implement a non-optional Vernac port.");
         List<FieldNode> dependencies=new ArrayList<>(adapter.dependencies()); dependencies.addAll(adapter.javaDependencies());
+        for (var config : adapter.configuration()) {
+            dependencies.add(new FieldNode(config.location(), new TypeNode(config.location(), config.type()), config.name(), false));
+            if (!AdapterConfigurationTypes.TYPES.containsKey(config.type()))
+                error(errors, config.location(), "Configuration type must be String, URI, Duration, Path, int, long or boolean.");
+            if (!config.property().matches("[a-zA-Z0-9][a-zA-Z0-9_.-]*"))
+                error(errors, config.location(), "Configuration requires a literal property key using letters, digits, dots, hyphens or underscores.");
+            if (adapter.rest().isPresent() && adapter.rest().get().base().equals(config.name()) && !config.type().equals("URI"))
+                error(errors, config.location(), "REST base configuration must have type URI.");
+        }
         names(dependencies,errors);
         for(var dep:adapter.dependencies()) {
             var found=scope.resolve(dep.type().name(),dep.location()); errors.addAll(found.diagnostics());

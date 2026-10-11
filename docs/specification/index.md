@@ -33,6 +33,7 @@ resolution and feature contracts also constrain accepted programs.
 - [Scalar representation limits](../contracts/scalar-storage-limits.md)
 - [Repository queries](../contracts/repository-queries.md)
 - [Ports and adapters](../contracts/ports-adapters-and-acl.md)
+- [Adapter configuration](../contracts/adapter-configuration.md)
 - [Adapter DTOs and JSON](../contracts/adapter-dtos.md)
 - [Mappings](../contracts/adapter-mappings.md)
 - [REST declarations](../contracts/declarative-rest.md)

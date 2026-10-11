@@ -47,7 +47,18 @@ public final class Probe {
         server.start();
         try (var transport = HttpClient.newHttpClient()) {
             var http = new HttpAdapterClient(transport, Duration.ofSeconds(3), 4096);
-            CatalogSource catalog = new RestCatalog(http, URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/api/v1/"));
+            var base = URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/api/v1/");
+            try (var spring = new org.springframework.context.annotation.AnnotationConfigApplicationContext()) {
+                spring.getEnvironment().getPropertySources().addFirst(new org.springframework.core.env.MapPropertySource(
+                    "test", java.util.Map.of("catalog.base-url", base.toString())));
+                spring.registerBean(HttpAdapterClient.class, () -> http);
+                spring.register(RestCatalog.class);
+                spring.refresh();
+                assertEquals(Title.of("Notebook"), spring.getBean(CatalogSource.class).load(Lookup.of(Title.of("spring"), null)));
+            }
+            assertThrows(org.vernac.runtime.configuration.AdapterConfigurationException.class,
+                () -> new RestCatalog(http, URI.create("file:///invalid")));
+            CatalogSource catalog = new RestCatalog(http, base);
             var key = Title.of("ä /?+%#");
             assertEquals(Title.of("Notebook"), catalog.load(Lookup.of(key, null)));
             assertEquals("/api/v1/items/%C3%A4%20%2F%3F%2B%25%23", path.get());

@@ -9,6 +9,18 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class RestSymbolsTest {
+    @Test void configurationTypesAndRestBaseCompleteAndNavigate() {
+        Path root = Path.of("configuration-workspace").toAbsolutePath(), path = root.resolve("demo/model.vernac");
+        String text = "namespace demo; port Remote { void ping(); } adapter Client implements Remote { configuration { URI endpoint from \"remote.url\"; String token from \"remote.token\"; } rest { client http; base endpoint; void ping() { GET \"/\"; } } }";
+        var symbols = new VernacProjectSymbols(root, Map.of(path, text));
+        int type = text.indexOf("URI");
+        assertEquals(List.of("URI"), symbols.complete(path, new Position(0, type + 1)).stream().map(c -> c.getLabel()).toList());
+        int base = text.indexOf("base endpoint") + 5;
+        assertEquals(List.of("endpoint"), symbols.complete(path, new Position(0, base + 2)).stream().map(c -> c.getLabel()).toList());
+        assertEquals(text.indexOf("URI endpoint") + 4,
+            symbols.definition(path, new Position(0, base + 2)).getFirst().getRange().getStart().getCharacter());
+    }
+
     @Test void errorRulesNavigateDtosNestedFieldsAndImportedEnumConstants() {
         Path root = Path.of("error-workspace").toAbsolutePath(), path = root.resolve("demo/model.vernac");
         Path domain = root.resolve("codes/codes.vernac");

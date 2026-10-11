@@ -126,3 +126,21 @@ isolation using a barrier. No PostgreSQL server is needed for that test.
 
 Continue with [adapter DTOs and PATCH](adapter-dtos.md) for local records, strict
 JSON conversion and explicit update intent.
+
+## Configure a non-HTTP adapter
+
+Technical configuration is equally useful for a filesystem archive. Inside an
+adapter, before `behavior`, declare:
+
+```vernac
+configuration {
+    Path directory from "archive.directory";
+    int batchSize from "archive.batch-size";
+}
+```
+
+Behavior can use `self.directory().resolve(...)` and `self.batchSize()`; an external
+`implemented by` class receives exactly the same accessors. No directory is created
+by configuration binding, and a positive batch-size constraint must be enforced by
+the consumer. The domain port still speaks in domain values, not paths or settings.
+See the [configuration contract](../contracts/adapter-configuration.md).

@@ -28,4 +28,39 @@ class CarrierTest {
       assertThat(carrier.quote(shipment).reference().string()).isEqualTo("LOCAL-Bremen");
     }
   }
+
+  @Test
+  void applicationYamlResolvesSimulatorPortWithoutUriBean() throws Exception {
+    try (var server = new CarrierSimulator();
+        var transport = HttpClient.newHttpClient();
+        var spring =
+            new org.springframework.context.annotation.AnnotationConfigApplicationContext()) {
+      var yaml =
+          new org.springframework.boot.env.YamlPropertySourceLoader()
+              .load(
+                  "application",
+                  new org.springframework.core.io.ClassPathResource("application.yaml"));
+      yaml.forEach(source -> spring.getEnvironment().getPropertySources().addLast(source));
+      spring
+          .getEnvironment()
+          .getPropertySources()
+          .addFirst(
+              new org.springframework.core.env.MapPropertySource(
+                  "test",
+                  java.util.Map.of(
+                      "dispatch.carrier.simulator-port",
+                      server.baseUri().getPort(),
+                      "CARRIER_BASE_URL",
+                      "http://127.0.0.1:${dispatch.carrier.simulator-port}")));
+      spring.registerBean(
+          HttpAdapterClient.class,
+          () -> new HttpAdapterClient(transport, Duration.ofSeconds(3), 8192));
+      spring.register(CarrierHttp.class);
+      spring.refresh();
+      var shipment = Shipment.of(Destination.of("Bremen"), ParcelWeight.of(new BigDecimal("20")));
+      assertThat(spring.getBean(CarrierHttp.class).quote(shipment).price().amount())
+          .isEqualByComparingTo("7.00");
+      assertThat(spring.getBeanNamesForType(java.net.URI.class)).isEmpty();
+    }
+  }
 }

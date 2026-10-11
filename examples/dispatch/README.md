@@ -171,3 +171,21 @@ product. Authentication, authorization, route optimization, geographic maps,
 cancellation/compensation, real carrier bookings and operations dashboards are not
 implemented. The activity panel is a small diagnostic projection, not a new general
 query language or a public API for Vernac's event tables.
+
+## Configure the carrier endpoint
+
+`CarrierHttp` declares `URI baseUri from "dispatch.carrier.base-url"` in its
+`configuration` block. Spring resolves this at startup; no URI bean is needed.
+The local carrier simulator listens on loopback port **8091**. Set
+`DISPATCH_CARRIER_SIMULATOR_PORT` to move it; the default base URL follows that port.
+`CARRIER_BASE_URL` overrides the target URL explicitly. Keep it on the local
+simulator for this walkthrough, including its deliberate outage simulation.
+The database integration profile uses simulator port **8092** to avoid the running UI.
+
+For example, set `DISPATCH_CARRIER_SIMULATOR_PORT=8093` before launching the app
+if 8091 is occupied. Missing/invalid REST endpoints fail during adapter construction,
+with a property-key diagnostic that omits its value. Unit tests still construct
+the adapter directly with the random-port fixture URI.
+
+[The configuration contract](../../docs/contracts/adapter-configuration.md) covers
+other adapter settings, typed conversion and inline/external behavior access.

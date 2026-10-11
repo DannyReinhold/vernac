@@ -364,6 +364,18 @@ Exact single-value wrapping/unwrapping is allowed; unit conversion and normaliza
 are not invented. Nested/collection conversion uses explicit named mappings when
 required. A mapping can instead use a Java body or external implementation.
 
+An adapter can declare technical properties before its implementation:
+
+```vernac
+configuration {
+    URI baseUri from "carrier.base-url";
+}
+```
+
+Spring reads required values at construction; `self.baseUri()` exposes the typed
+value in behavior. Supported types are String, URI, Duration, Path, int, long and
+boolean. See [configuration](contracts/adapter-configuration.md).
+
 An adapter may replace behavior with `rest { client name; base name; ... }`.
 Each operation declares, in order, HTTP verb/route; path/query/header bindings;
 optional body mapping; response mapping; optional `on 404 absent`; optional error

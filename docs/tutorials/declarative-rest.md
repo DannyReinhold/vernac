@@ -24,6 +24,9 @@ port CatalogSource {
 }
 
 adapter RestCatalog implements CatalogSource {
+    configuration {
+        URI baseUri from "catalog.base-url";
+    }
     rest {
         client http;
         base baseUri;
@@ -75,13 +78,19 @@ Definitions can precede or follow the REST block. The adapter implements every
 port operation. Method signatures and inferred parameter names follow the normal
 port conventions; explicit names are useful when parameters have different roles.
 
-The `client http` declaration generates a constructor dependency and an access
-method named `http()` of type `HttpAdapterClient`. `base baseUri` does the same for
-`java.net.URI`. These names identify dependencies, not URLs or configuration
-values. Provide the two Spring beans as shown in the
-[HTTP runtime tutorial](http-adapter-runtime.md). The URI might be
-`http://localhost:8088/api/v1/`; `/items/{key}` then addresses `/api/v1/items/...`.
-A leading slash on the route does **not** discard the configured base path.
+The `client http` declaration injects an `HttpAdapterClient`. `base baseUri`
+uses the typed property declared above: no URI bean or endpoint Java glue is needed.
+Add this to your application's `application.yaml`:
+
+```yaml
+catalog:
+  base-url: ${CATALOG_BASE_URL:http://localhost:8088/api/v1/}
+```
+
+Supply the HTTP client as shown in the [HTTP runtime tutorial](http-adapter-runtime.md).
+A missing or invalid base fails at startup, before the first call. `/items/{key}`
+addresses `/api/v1/items/...`; a leading route slash does **not** discard the base path.
+See [the configuration contract](../contracts/adapter-configuration.md) for all types.
 
 `Lookup.key` unwraps its single-value `Title` automatically. An absent locale
 omits both the query parameter and the header. Paths require present values.

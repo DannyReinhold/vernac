@@ -234,7 +234,8 @@ For this local fixture, PortDemoWalkthrough constructs the generated CarrierHttp
 adapter and calls it through ShippingCarrier. Namespace `org.example.carrier` sits
 outside the application's `org.example.delivery` component scan deliberately: the
 fixture owns the endpoint lifecycle. A real application would discover/import the
-adapter bean and supply its HttpAdapterClient and URI dependencies through Spring,
+adapter bean, supply its HttpAdapterClient through Spring and set
+`delivery.carrier.base-url` in application properties,
 as shown in the HTTP tutorial. Neither a database transaction nor a database rollback
 is implied by this outbound communication.
 

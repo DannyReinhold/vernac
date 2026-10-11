@@ -8,11 +8,33 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.vernac.runtime.DomainValidationException;
 public final class Probe {
     public static void run() throws Exception {
+        for (String value : List.of("", "SECRET_invalid")) {
+            try (var failed = new AnnotationConfigApplicationContext()) {
+                failed.registerBean(AtomicInteger.class, () -> new AtomicInteger());
+                failed.getEnvironment().getPropertySources().addFirst(new org.springframework.core.env.MapPropertySource("config", Map.of(
+                    "archive.decoration", "!", "archive.endpoint", "https://example.org", "archive.timeout", value)));
+                failed.register(LocalArchive.class);
+                try { failed.refresh(); throw new AssertionError("Expected configuration failure"); }
+                catch (org.springframework.beans.BeansException expected) {
+                    Throwable cause = expected;
+                    while (cause.getCause() != null) {
+                        if (cause.toString().contains("SECRET")) throw new AssertionError("Configuration leaked");
+                        cause = cause.getCause();
+                    }
+                    if (!(cause instanceof org.vernac.runtime.configuration.AdapterConfigurationException)
+                        || !cause.getMessage().contains("archive.timeout") || cause.toString().contains("SECRET")) throw new AssertionError(cause);
+                }
+            }
+        }
         try(var spring=new AnnotationConfigApplicationContext()) {
+            spring.getEnvironment().getPropertySources().addFirst(new org.springframework.core.env.MapPropertySource("config", Map.of(
+                "archive.decoration", "!", "archive.endpoint", "https://example.org/api", "archive.timeout", "PT3S",
+                "archive.directory", "archive", "archive.batch-size", "25", "archive.byte-limit", "9223372036854775807", "archive.enabled", "true")));
             spring.registerBean(AtomicInteger.class,()->new AtomicInteger());
             spring.register(LocalArchive.class,ArchiveService.class);
             spring.refresh();
             Archive archive=spring.getBean(Archive.class);
+            spring.getEnvironment().getPropertySources().addFirst(new org.springframework.core.env.MapPropertySource("later", Map.of("archive.decoration", "changed")));
             if(!spring.getBean(ArchiveService.class).store(Text.of("saved")).string().equals("saved!")) throw new AssertionError();
             if(spring.getBean(AtomicInteger.class).get()!=1) throw new AssertionError();
             if(archive.load(null).isPresent()) throw new AssertionError();

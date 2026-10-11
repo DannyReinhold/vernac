@@ -56,6 +56,29 @@ final class BeanBehaviorGenerator {
             delegate.addMethod(MethodSpec.methodBuilder(dependency.name()).addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(type)
                     .addStatement("return $L.this.$N", owner.simpleName(), dependency.name()).build());
         }
+        if (adapter != null && !adapter.configuration().isEmpty()) {
+            var spring = MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC)
+                .addAnnotation(ClassName.get("org.springframework.beans.factory.annotation", "Autowired"));
+            for (var parameter : constructor.build().parameters()) spring.addParameter(parameter);
+            spring.addParameter(ClassName.get("org.springframework.core.env", "Environment"), "__vernacEnvironment");
+            List<CodeBlock> arguments = new ArrayList<>();
+            dependencies.forEach(d -> arguments.add(CodeBlock.of("$N", d.name())));
+            var configRuntime = org.vernac.runtime.configuration.AdapterConfiguration.class;
+            for (var config : adapter.configuration()) {
+                var type = TypeName.get(AdapterConfigurationTypes.TYPES.get(config.type()));
+                String context = unit.namespace() + "." + adapter.name() + "." + config.name();
+                bean.addField(type, config.name(), Modifier.PRIVATE, Modifier.FINAL);
+                constructor.addParameter(type, config.name());
+                String check = adapter.rest().isPresent() && adapter.rest().get().base().equals(config.name()) ? "httpBase" : "required";
+                constructor.addStatement("this.$N = $T.$N($N, $S, $S)", config.name(), configRuntime, check, config.name(), context, config.property());
+                arguments.add(CodeBlock.of("$T.read(__vernacEnvironment, $S, $T.class, $S)", configRuntime, config.property(), type.box(), context));
+                api.addMethod(MethodSpec.methodBuilder(config.name()).addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT).returns(type).build());
+                delegate.addMethod(MethodSpec.methodBuilder(config.name()).addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(type)
+                    .addStatement("return $L.this.$N", owner.simpleName(), config.name()).build());
+            }
+            spring.addStatement("this($L)", CodeBlock.join(arguments, ", "));
+            bean.addMethod(spring.build());
+        }
         bean.addMethod(constructor.build());
         var impl = TypeSpec.classBuilder(companion).addModifiers(Modifier.FINAL).addAnnotation(NullMarked.class)
                 .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());

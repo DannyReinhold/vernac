@@ -13,8 +13,12 @@ public final class CarrierSimulator implements AutoCloseable {
   private final AtomicBoolean failNext = new AtomicBoolean();
 
   public CarrierSimulator() throws java.io.IOException {
+    this(0);
+  }
+
+  public CarrierSimulator(int port) throws java.io.IOException {
     var json = new ObjectMapper();
-    server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
     server.createContext(
         "/quotes",
         exchange -> {

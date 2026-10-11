@@ -23,6 +23,9 @@ port ShippingCarrier {
 }
 
 adapter CarrierHttp implements ShippingCarrier {
+    configuration {
+        URI baseUri from "delivery.carrier.base-url";
+    }
     rest {
         client http;
         base baseUri;

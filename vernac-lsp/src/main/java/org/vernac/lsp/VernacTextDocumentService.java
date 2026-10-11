@@ -30,7 +30,7 @@ public class VernacTextDocumentService implements TextDocumentService {
             "where", "and", "or", "not", "order", "asc", "desc", "is", "absent", "present", "like", "contains", "starts", "ends", "with",
             "namespace", "package", "import", "as", "id",
             "aggregate", "value", "entity", "event", "recorded", "synchronous", "deferred", "service", "external", "schema",
-            "using", "naming", "named", "patch", "repository", "for", "table", "find", "custom", "validates", "require",
+            "configuration", "from", "using", "naming", "named", "patch", "repository", "for", "table", "find", "custom", "validates", "require",
             "read", "modify", "behavior", "java", "imports", "implemented", "by", "mut", "invariant", "mapping", "list", "set",
             "port", "adapter", "rest", "on", "throw", "throws",
             "usecase", "use", "uses", "returns", "execute", "listener"
@@ -60,6 +60,8 @@ public class VernacTextDocumentService implements TextDocumentService {
     private static void collectTypeOffsets(ParseTree tree, Set<Integer> offsets, Set<Integer> enumOffsets) {
         if (tree instanceof VernacParser.EnumConstantContext constant && constant.name != null)
             enumOffsets.add(constant.name.getStart().getStartIndex());
+        if (tree instanceof VernacParser.ConfigurationEntryContext entry && entry.configType != null)
+            offsets.add(entry.configType.getStart().getStartIndex());
         if (tree instanceof VernacParser.TypeNameContext name) offsets.add(name.getStart().getStartIndex());
         if (tree instanceof VernacParser.TypeContext type && type.rawType != null)
             offsets.add(type.rawType.getStop().getStartIndex());

@@ -15,6 +15,9 @@ before or after either block.
 
 ```vernac
 adapter CatalogHttp implements CatalogSource {
+    configuration {
+        URI baseUri from "catalog.base-url";
+    }
     rest {
         client http;
         base baseUri;
@@ -29,13 +32,12 @@ adapter CatalogHttp implements CatalogSource {
 }
 ```
 
-`client` and `base` declare named, required technical dependencies of types
-`org.vernac.runtime.http.HttpAdapterClient` and `java.net.URI`. The application
-supplies them through Spring constructor injection. They do not configure a
-literal endpoint inside the domain model. Names are checked together with the
-adapter's ordinary `uses` dependencies and generated members. Both are accessible
-through self in external error handlers. Dependency names are explicit in this
-initial transport configuration.
+`client` declares a required `HttpAdapterClient` collaborator. `base` selects the
+URI configuration member in this example. Spring resolves `catalog.base-url` at
+construction; no URI bean is needed. Both values are exposed through `self` to
+external error handlers. Without a matching configuration entry, `base` declares
+a URI bean dependency. Names are checked together with `uses` and generated members.
+See [adapter configuration](adapter-configuration.md) for types and startup checks.
 
 Each operation repeats the port signature, with ordinary inferred/explicit
 parameter names and exact type/optionality checking. Public visibility is implicit.

@@ -27,6 +27,9 @@ port CatalogSource {
 }
 
 adapter HttpCatalog implements CatalogSource {
+    configuration {
+        URI base from "catalog.base-url";
+    }
     behavior {
         java imports {
             java.net.http.HttpRequest;
@@ -39,7 +42,6 @@ adapter HttpCatalog implements CatalogSource {
         }
         java uses {
             org.vernac.runtime.http.HttpAdapterClient http;
-            java.net.URI base;
         }
 
         public Title load() {
@@ -85,7 +87,7 @@ adapter HttpCatalog implements CatalogSource {
 }
 ```
 
-Provide two technical Spring beans in your application configuration:
+Provide the transport and HTTP runtime beans in your application configuration:
 
 ```java
 @Bean(destroyMethod = "close")
@@ -100,19 +102,24 @@ HttpClient catalogTransport() {
 HttpAdapterClient catalogHttp(HttpClient catalogTransport) {
     return new HttpAdapterClient(catalogTransport, Duration.ofSeconds(10), 1_048_576);
 }
-
-@Bean
-URI catalogBase() {
-    return URI.create("http://localhost:8088");
-}
 ```
 
-The snippets use `java.net.URI`, `java.net.http.HttpClient`, `java.time.Duration`,
-`org.springframework.context.annotation.Bean` and
-`org.vernac.runtime.http.HttpAdapterClient`. Choose an application property for
-real endpoint configuration. The application owns and closes the JDK client.
-With multiple clients/base URIs, use explicit Spring wiring/selection; Vernac does
-not guess the matching bean. The runtime itself is not a Spring bean automatically.
+The Java snippets use `java.net.http.HttpClient`, `java.time.Duration`,
+`org.springframework.context.annotation.Bean` and `org.vernac.runtime.http.HttpAdapterClient`.
+The application owns and closes the JDK client. With multiple HTTP clients, select
+collaborators explicitly through Spring wiring; Vernac does not guess matching beans.
+The runtime client itself is not automatically a Spring bean.
+
+Configure the endpoint without a URI bean:
+
+```yaml
+catalog:
+  base-url: ${CATALOG_BASE_URL:http://localhost:8088}
+```
+
+`self.base()` works in inline and external implementations. This Java-backed
+adapter accepts a general URI; unlike a declarative REST `base`, Java code owns
+protocol-specific endpoint validation. See [adapter configuration](../contracts/adapter-configuration.md).
 
 Inject `CatalogSource` into your application. A response like
 `{"title":"Notebook","newRemoteField":42}` returns `Title.of("Notebook")`.

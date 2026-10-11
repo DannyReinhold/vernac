@@ -37,9 +37,11 @@ public final class VernacTypeNavigation {
                         && List.of("Read", "Write", "Access").stream().anyMatch(suffix -> (source.unit().namespace() + ".domain.access." + symbol.identity().name() + suffix).equals(javaName));
                 boolean serviceAccess = symbol.kind() == TypeSymbol.Kind.DOMAIN_SERVICE
                         && (source.unit().namespace() + ".domain.access." + symbol.identity().name() + "Access").equals(javaName);
+                boolean adapterAccess = symbol.kind() == TypeSymbol.Kind.OUTBOUND_ADAPTER
+                        && (source.unit().namespace() + ".adapter.outbound.access." + symbol.identity().name() + "Access").equals(javaName);
                 boolean valueRead = symbol.kind() == TypeSymbol.Kind.VALUE_OBJECT && (source.unit().namespace() + ".domain.access." + symbol.identity().name() + "Read").equals(javaName)
                         && source.unit().valueObjects().stream().anyMatch(v -> v.name().equals(symbol.identity().name()) && !v.validations().isEmpty());
-                if (!generated.equals(javaName) && !(member.isPresent() && (access || valueRead || serviceAccess))) continue;
+                if (!generated.equals(javaName) && !(member.isPresent() && (access || valueRead || serviceAccess || adapterAccess))) continue;
                 String text = texts.get(source.path());
                 return text == null ? Optional.empty() : locate(project, source, text, symbol, member);
             }
@@ -128,6 +130,12 @@ public final class VernacTypeNavigation {
                 List<Target> candidates = new ArrayList<>();
                 if (definition instanceof UseCaseNode u && key.name().equals("execute") && key.parameterTypes().size()==u.parameters().size())
                     return target(source.path(),text,"execute",name.getStart(),name.getStop());
+                if (definition instanceof OutboundAdapterNode && key.parameterTypes().isEmpty()
+                        && syntax.outboundAdapterDefinition().configurationBlock() != null) {
+                    for (var entry : syntax.outboundAdapterDefinition().configurationBlock().configurationEntry())
+                        if (entry.name.getText().equals(key.name()))
+                            return target(source.path(), text, key.name(), entry.name.getStart(), entry.name.getStop());
+                }
                 if (definition instanceof PortNode port || definition instanceof OutboundAdapterNode) {
                     var namespaces = new HashSet<String>();
                     project.sources().forEach(s -> namespaces.add(s.unit().namespace()));

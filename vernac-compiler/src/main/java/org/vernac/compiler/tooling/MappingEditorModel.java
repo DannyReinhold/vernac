@@ -14,7 +14,7 @@ public final class MappingEditorModel {
         List<VernacSourceFile> sources=new ArrayList<>();
         for(var source:original.sources()) {
             List<TopLevelDefinition> definitions=source.unit().definitions().stream().map(d -> d instanceof OutboundAdapterNode a
-                ? (TopLevelDefinition)new OutboundAdapterNode(a.location(),a.name(),a.portType(),a.dependencies(),a.javaDependencies(),a.javaImports(),a.methods(),a.schemas(),List.of()):d).toList();
+                ? (TopLevelDefinition)new OutboundAdapterNode(a.location(),a.name(),a.portType(),a.dependencies(),a.javaDependencies(),a.javaImports(),a.methods(),a.schemas(),List.of(),Optional.empty(),a.configuration()):d).toList();
             var unit=source.unit();sources.add(new VernacSourceFile(source.path(),new CompilationUnitNode(unit.location(),unit.namespace(),unit.imports(),definitions)));
         }
         base=new ProjectTypeResolver().resolve(new VernacProject(original.sourceRoot(),sources,original.symbols()));

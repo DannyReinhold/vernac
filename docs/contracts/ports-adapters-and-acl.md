@@ -254,3 +254,10 @@ in [the HTTP runtime contract](http-adapter-runtime.md). Existing Java adapter
 behavior can use them now. REST request/response declarations and external Java error translation are implemented
 in [the REST contract](declarative-rest.md). Ordered declarative error rules are specified there as well. Manual behavior still propagates exceptions as-is unless it
 explicitly invokes an integration boundary.
+
+## Technical configuration
+
+Adapters MAY declare typed required properties in a `configuration` block before
+their implementation. Configuration accessors are part of the adapter access view
+and behave identically for inline and external implementations. They do not belong
+to the port API. See the [configuration contract](adapter-configuration.md).

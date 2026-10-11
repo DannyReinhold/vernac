@@ -189,3 +189,13 @@ separate release checks. Repository links in published docs currently target
 feature/redefining_the_language; retarget them to the released source when merging.
 The release workflow must include runtime-http/runtime-json in its publication
 scope; Marketplace automation is still a planned release task.
+
+## Adapter configuration consolidation
+
+Outbound adapters now support typed required properties with explicit keys and
+startup conversion. Inline/external behavior shares configuration access through
+self. REST bases can use properties without URI beans. Dispatch and the HTTP
+tutorials demonstrate binding, including environment overrides. Tests cover
+Spring construction, redacted failures, all supported scalar types, external behavior
+and REST base completion/navigation. Configuration does not add hot reload or
+credential rotation; client-specific tuning remains explicit Java configuration.

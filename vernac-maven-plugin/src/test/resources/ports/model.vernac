@@ -9,15 +9,24 @@ port Archive {
     Text? brokenOptional();
 }
 adapter LocalArchive implements Archive {
+    configuration {
+        String decoration from "archive.decoration";
+        URI endpoint from "archive.endpoint";
+        Duration timeout from "archive.timeout";
+        Path directory from "archive.directory";
+        int batchSize from "archive.batch-size";
+        long byteLimit from "archive.byte-limit";
+        boolean enabled from "archive.enabled";
+    }
     behavior {
         java uses { java.util.concurrent.atomic.AtomicInteger counter; }
-        public Text save(Text) { self.counter().incrementAndGet(); return Text.of(text.string() + suffix()); }
+        public Text save(Text) { self.counter().incrementAndGet(); return Text.of(text.string() + self.decoration() + suffix()); }
         public Text? load(Text?) { return text; }
         public Text context(Text) implemented by portsdemo.ExternalImplementation;
         public Text fail() implemented by portsdemo.ExternalImplementation;
         public Text broken() { return null; }
         public Text? brokenOptional() { return null; }
-        private String suffix() { return "!"; }
+        private String suffix() { return ""; }
     }
 }
 service ArchiveService uses Archive

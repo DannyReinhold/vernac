@@ -144,9 +144,16 @@ portDefinition
 outboundAdapterDefinition
     : 'adapter' name=typeName 'implements' portType=type
       ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
-      '{' (schemaDefinition | mappingDefinition)*
+      '{' configurationBlock? (schemaDefinition | mappingDefinition)*
       ('behavior' '{' javaImports? javaUses? serviceMethod* '}' | restBlock)
       (schemaDefinition | mappingDefinition)* '}' ';'?
+    ;
+
+configurationBlock
+    : 'configuration' '{' configurationEntry+ '}'
+    ;
+configurationEntry
+    : configType=qualifiedName name=variableName 'from' property=STRING_LITERAL ';'
     ;
 
 restBlock
@@ -353,7 +360,7 @@ qualifiedNameSegment
     | 'aggregate'
     | 'as'
     | 'by'
-    | 'using' | 'naming' | 'named' | 'patch' | 'as' | 'null' | 'implements' | 'read' | 'modify' | 'behavior' | 'java' | 'imports' | 'implemented' | 'by' | 'collection'
+    | 'configuration' | 'using' | 'naming' | 'named' | 'patch' | 'as' | 'null' | 'implements' | 'read' | 'modify' | 'behavior' | 'java' | 'imports' | 'implemented' | 'by' | 'collection'
     | 'list'
     | 'set'
     | 'custom'
@@ -444,7 +451,7 @@ typeName
 
 methodName
     : 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
-    | 'using' | 'naming' | 'named' | 'patch'
+    | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'read' | 'modify' | 'load' | 'save'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
     | IDENTIFIER
@@ -454,7 +461,7 @@ methodName
 
 variableName
     : 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
-    | 'using' | 'naming' | 'named' | 'patch'
+    | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
     | IDENTIFIER
     | 'value'

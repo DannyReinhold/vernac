@@ -18,3 +18,7 @@ vernac:
   events:
     poll-interval: PT0.5S
     initial-backoff: PT1S
+dispatch:
+  carrier:
+    simulator-port: ${DISPATCH_CARRIER_SIMULATOR_PORT:8091}
+    base-url: ${CARRIER_BASE_URL:http://127.0.0.1:${dispatch.carrier.simulator-port}}

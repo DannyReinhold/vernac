@@ -98,6 +98,8 @@
 ]]></description>
 
     <change-notes><![CDATA[
+        <p>Typed adapter configuration: diagnostics, configuration-type completion,
+        and navigation from a REST base to its configuration declaration.</p>
         <h3>Generated API readability</h3>
         <p>Access interfaces now use domain.access. Go to Declaration on technical interface
         types keeps standard Java navigation. Validation injection no longer adds an artificial negation.</p>

@@ -135,6 +135,19 @@ final class VernacProjectSymbols {
         List<VernacParser.QualifiedNameContext> contexts = new ArrayList<>();
         // Match by the injected token's code-point offset, not by text alone.
         int marker = file.text().codePointCount(0, start);
+        var configuration = configurationReference(probe, marker);
+        if (configuration != null) {
+            var choices = configuration.types()
+                ? org.vernac.compiler.pipeline.AdapterConfigurationTypes.TYPES.keySet()
+                : configurationNames(configuration.adapter());
+            Range range = new Range(position(file.text(), start), position(file.text(), end));
+            return choices.stream().sorted().filter(name -> name.startsWith(prefix)).map(name -> {
+                var item = new CompletionItem(name);
+                item.setKind(configuration.types() ? CompletionItemKind.TypeParameter : CompletionItemKind.Property);
+                item.setTextEdit(Either.forLeft(new TextEdit(range, name)));
+                return item;
+            }).toList();
+        }
         var restReference = restReference(probe, marker);
         if (restReference != null) {
             var choices = restChoices(path, restReference, prefix);
@@ -252,6 +265,14 @@ final class VernacProjectSymbols {
         int offset = offset(file.text(), position);
         if (offset < 0) return List.of();
         int point = file.text().codePointCount(0, offset);
+        var configuration = configurationReference(file.tree(), point);
+        if (configuration != null) {
+            if (configuration.types() || configuration.adapter().configurationBlock() == null) return List.of();
+            String name = configuration.adapter().restBlock().base.getText();
+            return configuration.adapter().configurationBlock().configurationEntry().stream()
+                .filter(entry -> entry.name != null && entry.name.getText().equals(name))
+                .map(entry -> queryLocation(path, file, entry.name)).toList();
+        }
         var restReference = restReference(file.tree(), point);
         if (restReference != null) {
             String name = restReference.name().getText();
@@ -530,6 +551,24 @@ final class VernacProjectSymbols {
             if(parent instanceof VernacParser.RepositoryDefinitionContext repo) found.add(new QueryReference(name,method,repo,parameter));
         });
         return found.size()==1?found.getFirst():null;
+    }
+    private record ConfigurationReference(boolean types, VernacParser.OutboundAdapterDefinitionContext adapter) {}
+    private static ConfigurationReference configurationReference(ParseTree tree, int point) {
+        var found = new ArrayList<ConfigurationReference>();
+        walk(tree, node -> {
+            if (!(node instanceof VernacParser.OutboundAdapterDefinitionContext adapter)) return;
+            if (adapter.configurationBlock() != null) for (var entry : adapter.configurationBlock().configurationEntry())
+                if (contains(entry.configType, point)) found.add(new ConfigurationReference(true, adapter));
+            if (adapter.restBlock() != null && contains(adapter.restBlock().base, point))
+                found.add(new ConfigurationReference(false, adapter));
+        });
+        return found.size() == 1 ? found.getFirst() : null;
+    }
+    private static Set<String> configurationNames(VernacParser.OutboundAdapterDefinitionContext adapter) {
+        Set<String> names = new TreeSet<>();
+        if (adapter.configurationBlock() != null) for (var entry : adapter.configurationBlock().configurationEntry())
+            if (entry.name != null && entry.configType != null && entry.configType.getText().equals("URI")) names.add(entry.name.getText());
+        return names;
     }
     private static boolean contains(ParserRuleContext node,int point) {
         return node!=null && node.getStop()!=null && node.getStart().getStartIndex()<=point && point<=node.getStop().getStopIndex();

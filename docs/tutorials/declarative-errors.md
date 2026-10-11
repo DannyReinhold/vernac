@@ -1,7 +1,7 @@
 # Translate remote failures without Java glue
 
 This builds on [declarative REST](declarative-rest.md). Use the same HTTP runtime
-and application-provided HttpAdapterClient and URI beans. The following complete
+and an application-provided HttpAdapterClient plus the `catalog.base-url` property. The following complete
 model is compiled and exercised by `RestErrorExecutionTest` against a local HTTP
 server; no external API or database is required.
 
@@ -13,6 +13,9 @@ value Rejection = DENIED | MISSING_REASON;
 
 port Catalog { Title load(); Title? lookup(); void ping(); }
 adapter CatalogHttp implements Catalog {
+    configuration {
+        URI baseUri from "catalog.base-url";
+    }
     rest {
         client http;
         base baseUri;

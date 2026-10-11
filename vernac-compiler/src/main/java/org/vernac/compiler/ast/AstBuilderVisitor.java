@@ -277,17 +277,21 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 m.validationBlock() == null ? List.of() : m.validationBlock().validationStatement().stream()
                     .map(v -> new ValidationRuleNode(toLocation(v), extractRawSource(v.condition),
                         v.message == null ? "" : unquote(v.message.getText()))).toList())).toList();
+        var configuration = ctx.configurationBlock() == null ? List.<AdapterConfigurationNode>of() :
+            ctx.configurationBlock().configurationEntry().stream().map(c -> new AdapterConfigurationNode(
+                toLocation(c), c.configType.getText(), c.name.getText(), unquote(c.property.getText()))).toList();
         Optional<RestAdapterNode> rest = Optional.ofNullable(ctx.restBlock()).map(this::rest);
         if (rest.isPresent()) {
             var http = rest.get();
-            technical = List.of(
+            technical = new ArrayList<>(List.of(
                 new FieldNode(http.location(), new TypeNode(http.location(), "org.vernac.runtime.http.HttpAdapterClient"), http.client(), false),
-                new FieldNode(http.location(), new TypeNode(http.location(), "java.net.URI"), http.base(), false));
+                new FieldNode(http.location(), new TypeNode(http.location(), "java.net.URI"), http.base(), false)));
+            if (configuration.stream().anyMatch(c -> c.name().equals(http.base()))) technical.remove(1);
             methods = http.operations().stream().map(o -> new ServiceMethodNode(o.method(), List.of())).toList();
         }
         return new OutboundAdapterNode(toLocation(ctx),ctx.name.getText(),toTypeNode(ctx.portType),
                 dependencies,technical,imports,methods,ctx.schemaDefinition().stream().map(this::visitSchemaDefinition).toList(),
-                ctx.mappingDefinition().stream().map(this::visitMappingDefinition).toList(), rest);
+                ctx.mappingDefinition().stream().map(this::visitMappingDefinition).toList(), rest, configuration);
     }
     private RestAdapterNode rest(VernacParser.RestBlockContext ctx) {
         return new RestAdapterNode(toLocation(ctx), ctx.client.getText(), ctx.base.getText(),
