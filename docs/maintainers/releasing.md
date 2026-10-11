@@ -4,11 +4,11 @@ This guide describes local Maven Central releases and IntelliJ plugin
 distribution through GitHub Releases and JetBrains Marketplace.
 It also records the current scope of release automation.
 
-The current development target is 0.2.0-SNAPSHOT. Follow the
-[0.2.0 release plan](../development/release-0.2.0.md) before publishing: this guide's
-commands below illustrate 0.2.0. The automated route is described under
-[GitHub Actions](#github-actions); its first real dry run and installed-plugin
-acceptance remain release gates.
+The current development target is **0.3.0-SNAPSHOT**. Version **0.2.0** has been
+published to Maven Central and JetBrains Marketplace. The
+[0.2.0 release plan](../development/release-0.2.0.md) records that release's scope.
+The commands below use 0.2.0 as an example; select the intended new version for
+future releases. See [GitHub Actions](#github-actions) for the automated route.
 
 ## Release scope
 
