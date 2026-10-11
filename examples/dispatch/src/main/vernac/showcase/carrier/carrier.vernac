@@ -1,0 +1,52 @@
+namespace showcase.carrier;
+
+value Destination(String) validates {
+    require(!self.string().isBlank(), "Destination must not be blank");
+};
+value ParcelWeight(BigDecimal) validates {
+    require(self.bigDecimal().signum() > 0, "Weight must be positive");
+};
+value Shipment(Destination destination, ParcelWeight weight);
+value QuoteReference(String);
+value CurrencyCode(String);
+value ShippingPrice(BigDecimal amount, CurrencyCode currency) validates {
+    require(self.amount().signum() >= 0, "Shipping price must not be negative");
+};
+value ShippingQuote(QuoteReference reference, ShippingPrice price);
+
+// The caller sees domain values and failures, not HTTP or DTOs.
+port ShippingCarrier {
+    ShippingQuote quote(Shipment shipment);
+}
+
+adapter CarrierHttp implements ShippingCarrier {
+    rest {
+        client http;
+        base baseUri;
+
+        ShippingQuote quote(Shipment shipment) {
+            POST "/quotes";
+            body <- shipment using toRequest;
+            response QuotePayload using toQuote;
+
+        }
+
+    }
+
+    schema QuoteRequest(String destination, BigDecimal weightKg);
+    schema QuotePayload(String quoteId, Cost price);
+    schema Cost(BigDecimal amount, String currency);
+
+    mapping toRequest: QuoteRequest <- Shipment {
+        destination <- source.destination;
+        weightKg <- source.weight;
+    }
+    mapping toPrice: ShippingPrice <- Cost {
+        amount <- source.amount;
+        currency <- source.currency;
+    }
+    mapping toQuote: ShippingQuote <- QuotePayload {
+        reference <- source.quoteId;
+        price <- source.price using toPrice;
+    }
+}

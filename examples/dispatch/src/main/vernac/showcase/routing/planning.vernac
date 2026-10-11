@@ -1,0 +1,49 @@
+namespace showcase.routing;
+
+service TourPlanning behavior {
+    java imports { org.vernac.runtime.DomainValidationException; }
+    public void moveStop(Tour source, Tour target, StopId)
+    validates {
+        require(!self.source().id().equals(self.target().id()), "Choose a different target tour");
+    } {
+        if (source.tourState() != TourState.PLANNED || target.tourState() != TourState.PLANNED)
+            throw new DomainValidationException("Both tours must be planned");
+        var stop = source.stops().by(stopId).orElseThrow(() ->
+                new DomainValidationException("The stop is no longer on the source tour; refresh the board"));
+        // Check the target before removing the source relationship.
+        target.add(stop);
+        source.remove(stopId);
+    }
+}
+
+usecase CreateTour(Title, Capacity) returns TourId uses TourRepository tours behavior {
+    execute {
+        var tour = Tour.create(title, capacity, Stops.empty(), TourState.PLANNED);
+        self.tours().save(tour);
+        return tour.id();
+    }
+}
+usecase AddStop(TourId, Customer, Address, Units) uses TourRepository tours behavior {
+    execute {
+        var tour = self.tours().byId(tourId);
+        tour.add(Stop.create(customer, address, units));
+        self.tours().save(tour);
+    }
+}
+usecase MoveStop(TourId sourceId, TourId targetId, StopId)
+    uses TourRepository tours, TourPlanning behavior {
+    execute {
+        var source = self.tours().byId(sourceId);
+        var target = self.tours().byId(targetId);
+        self.tourPlanning().moveStop(source, target, stopId);
+        self.tours().save(source);
+        self.tours().save(target);
+    }
+}
+usecase ReleaseTour(TourId) uses TourRepository tours behavior {
+    execute {
+        var tour = self.tours().byId(tourId);
+        tour.ready();
+        self.tours().save(tour);
+    }
+}

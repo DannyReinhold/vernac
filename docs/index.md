@@ -99,3 +99,10 @@ for practical boundaries and the [release plan](development/release-0.2.0.md) fo
 
 [GitHub](https://github.com/DannyReinhold/vernac) · [Contributing](development/index.md) ·
 [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+
+## Explore a complete application
+
+**Vernac Dispatch** puts the delivery story on screen. Balance tour capacity, release
+a plan and follow a durable event through a simulated carrier outage and retry.
+The browser is a Java web adapter; the business model and application operations are
+Vernac. [Start the Dispatch walkthrough](tutorials/dispatch.md).

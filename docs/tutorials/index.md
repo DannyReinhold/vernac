@@ -43,3 +43,8 @@ In PowerShell, quote a complete dotted `-Dproperty=value` argument when necessar
 
 [FAQ](../faq/index.md) · [Language reference](../language-reference.md) ·
 [Specification](../specification/index.md) · [Documentation home](../index.md)
+
+## Put the pieces together
+
+[Run Vernac Dispatch](dispatch.md): an interactive application connecting the domain,
+transactions, PostgreSQL, durable events and a carrier ACL.

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <title>{{ page.title | default: site.title | escape }} · Vernac</title>
+  <link rel="stylesheet" href="{{ '/assets/css/site.css' | relative_url }}">
+</head>
+<body>
+  <a class="skip" href="#content">Skip to content</a>
+  <header><a class="brand" href="{{ '/' | relative_url }}">vernac<span> / architecture, expressed.</span></a>
+    <nav aria-label="Main"><a href="{{ '/tutorials/' | relative_url }}">Learn</a><a href="{{ '/language-reference.html' | relative_url }}">Reference</a><a href="{{ '/faq/' | relative_url }}">FAQ</a></nav>
+  </header>
+  <main id="content">{{ content }}</main>
+  <footer><span>Vernac · Open-source architecture for Java</span><nav aria-label="Legal"><a href="{{ '/impressum.html' | relative_url }}">Impressum / Legal notice</a><a href="{{ '/privacy.html' | relative_url }}">Privacy / Datenschutz</a><a href="https://github.com/DannyReinhold/vernac">GitHub</a></nav></footer>
+</body>
+</html>

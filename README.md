@@ -124,3 +124,12 @@ Dedicated inbound HTTP/MCP generation and messaging adapters are future work;
 ordinary Java/Spring entry points can invoke generated usecases today.
 
 Apache License 2.0. See [LICENSE](LICENSE).
+
+[Legal notice / Impressum](docs/impressum.md) · [Privacy](docs/privacy.md)
+
+## Run the architecture
+
+[**Vernac Dispatch**](examples/dispatch/README.md) is an interactive delivery-planning
+application: move stops, enforce capacity, dispatch tours and observe durable event
+delivery through a generated REST adapter. It runs locally with PostgreSQL and a
+carrier simulator.

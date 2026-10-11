@@ -83,13 +83,13 @@ maintainers, tutorials, FAQs and website entry points), templates and examples.
 
 ## 4. Build a compelling complete application
 
-Proposed flagship: **Vernac Dispatch**, a small, usable delivery planning application.
-Confirm the compact product scope before implementation; this is not yet a shipped
-application or a promise of additional language capabilities.
+**Vernac Dispatch** is implemented under `examples/dispatch` as an independent
+application. Its domain and carrier tests pass. The database acceptance profile and
+manual browser walkthrough remain release gates until run against PostgreSQL.
 
 The user should be able to create tours and stops, plan shipments, move a stop
 between tours through a domain service, request a carrier quote through a port/ACL,
-complete a tour and observe subsequent event processing. A clear browser UI should
+dispatch a tour and observe subsequent event processing. A clear browser UI should
 show plans, actionable validation/conflict messages and delivery status. Persisted
 data must survive restart. Include deterministic demo data and a repeatable reset
 for only the disposable demonstration database.
@@ -101,17 +101,18 @@ inbound/API language merely to build this example. A local carrier fixture shoul
 make the default startup independent of external accounts; document replacement
 with a real implementation.
 
-Suggested location: examples/vernac-dispatch, standalone and not a reactor child.
+Location: examples/dispatch, standalone and not a reactor child.
 Keep persistence-demo as a focused technical walkthrough if both retain a distinct
 purpose. Define a short end-to-end demo script and automated acceptance test before
 adding visual polish. Avoid route optimization, real payments, authentication
 platforms or other unrelated product subsystems in this release example.
 
-- [ ] Agree on screens, workflow and acceptance scenarios.
-- [ ] Implement the domain/application and persistence with current Vernac features.
-- [ ] Add the browser UI and local carrier setup with a one-command startup.
+- [x] Define screens, workflow and acceptance scenarios.
+- [x] Implement the domain/application and persistence with current Vernac features.
+- [x] Add the browser UI and local carrier setup with a one-command startup.
 - [ ] Demonstrate invariants, optimistic conflicts, ACL errors and event processing.
-- [ ] Add a complete tutorial and repeatable automated end-to-end acceptance run.
+- [x] Add a tutorial and repeatable automated database acceptance test.
+- [ ] Execute the database acceptance profile and complete the manual UI walkthrough.
 
 ## 5. Release automation, including Marketplace
 

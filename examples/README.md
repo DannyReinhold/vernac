@@ -14,12 +14,12 @@ arguments if they contain dots.
 | [Namespaces and values](namespace-values/README.md) | Multiple files, imports, optional values, inline/external behavior, entity modification | Java tests; part of the reactor | No |
 | [Schema basics](persistence-schema/README.md) | Flattening and a simple entity containment chain | SQL schema and migration candidate generation | No, until you apply/verify SQL |
 | [Shared entity schema](persistence-entities/README.md) | Multiple references to the same entity, lists versus sets | SQL schema and migration candidate generation | No, until you apply/verify SQL |
+| [Dispatch](dispatch/README.md) | Complete delivery application, web boundary, transactional planning and durable carrier work | Interactive browser UI and automated walkthrough | PostgreSQL to run; domain/HTTP tests need none |
 | [Persistence walkthrough](persistence-demo/README.md) | Aggregate graphs, queries, optimistic locking, events, ports and ACL | Spring Boot runners and tests | PostgreSQL for persistence/events; not for ports/domain tests |
 
 Read them in this order. The schema examples intentionally isolate SQL layout;
 they are not duplicate runnable applications. The persistence demo combines the
-concepts, with assertions and log output rather than a UI. A separate complete
-application showcase is planned for 0.2.0.
+concepts, with assertions and log output rather than a UI. Dispatch adds the interactive application experience.
 
 ## Build the examples
 
@@ -37,10 +37,12 @@ mvn -pl examples/namespace-values -am verify
 mvn -f examples/persistence-schema/pom.xml clean vernac:schema
 mvn -f examples/persistence-entities/pom.xml clean vernac:schema
 mvn -f examples/persistence-demo/pom.xml clean test
+mvn -f examples/dispatch/pom.xml clean verify
 ```
 
-The last command runs domain-service and HTTP tests; the PostgreSQL tests explicitly
-skip without opt-in. A successful build with skips is **not** proof of database
+The persistence-demo command runs domain-service and HTTP tests; its PostgreSQL tests
+explicitly skip without opt-in. Dispatch uses a separate `database-tests` profile
+whose tests fail when its requested database is missing. A successful build with skips is **not** proof of database
 behavior. Follow the demo README to start its separate disposable test database
 and enable those tests. Do not run simultaneous builds against the same output tree.
 
@@ -64,3 +66,8 @@ aggregates. It is a teaching scenario, not a complete dispatch policy.
 
 See the [tutorials](../docs/tutorials/index.md) for guided exercises and the
 [contracts](../docs/contracts) for the guaranteed semantics.
+
+## Interactive showcase
+
+[Dispatch](dispatch/README.md) combines a delivery board with generated usecases,
+aggregate persistence, durable event delivery and a local carrier integration.
