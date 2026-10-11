@@ -40,9 +40,9 @@ external changes can still produce JDBC errors. Read-side validation of arbitrar
 externally modified rows is not added by this change. Native infinity dates are
 not part of the supported contract. Domain reconstruction still checks invariants.
 
-Float and double retain their existing mappings. Exact equality predicates for
-repository searches are a separate next step: PostgreSQL numeric equality alone
-cannot distinguish positive and negative zero as boxed Java equality does.
+Float and double equality searches preserve boxed Java equality, including signed
+zero and canonical NaN equality, through the scalar query codec. They do not rely
+on PostgreSQL numeric equality alone. See [query capabilities](repository-queries.md).
 
 ## Verification
 

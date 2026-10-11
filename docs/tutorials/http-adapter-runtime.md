@@ -2,7 +2,9 @@
 
 This step uses existing adapter behavior, generated DTOs/mappings and the new
 HTTP runtime. A [declarative REST alternative](declarative-rest.md) is now available.
-Ordered declarative error rules are **not implemented yet**. The domain-facing port below remains independent of HTTP.
+[Declarative error rules](declarative-errors.md) are also available. This chapter
+shows the lower-level Java boundary for cases requiring explicit control; the port
+remains independent of HTTP.
 
 Add `org.vernac:vernac-runtime-http` at the same version as your Vernac compiler
 to the application dependencies. It brings the DTO/JSON runtime transitively.

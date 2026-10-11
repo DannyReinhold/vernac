@@ -84,7 +84,7 @@ The [names contract](../contracts/names-and-unicode.md) records the decisions.
 The implementation removes the implicit single-field `value` fallback, centralizes
 default-name derivation, and validates effective fields and resolved Java signatures
 for ordinary VOs. ID customization is rejected by the existing declaration syntax.
-See [implementation and verification notes](member-naming.md) for current status.
+See [implementation and verification notes](compiler-architecture.md) for current status.
 
 Regression cases include `int` versus `IntValue`, acronym runs, Unicode names,
 adding a second field, qualified type references, generated getters/factories,

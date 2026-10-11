@@ -1,8 +1,7 @@
 # Generated output ownership and cleanup
 
-Status: source-output reconciliation implemented; project build confirmed successful. Compiled-output strategy requires
-the acceptance checks
-below before a deterministic packaging guarantee is claimed.
+Status: generated Java ownership reconciliation is implemented. Bytecode and JAR
+cleanup remain the responsibility of the Java/Maven build, not the Vernac source writer.
 
 ## Scope
 
@@ -93,4 +92,4 @@ preflight failure, interrupted-run reconciliation, unrelated-file preservation, 
 and symbolic links. The project build passed after applying the source-cleanup changes.
 
 Compiled-class cleanup and the consecutive-build/JAR acceptance checks remain pending. A successful source-cleanup
-build does not yet establish the final bytecode guarantee.
+build must separately ensure stale bytecode is absent; use clean for release verification.

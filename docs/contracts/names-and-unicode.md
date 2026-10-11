@@ -1,11 +1,6 @@
 # Names, Unicode and source encoding
 
-Status: agreed language contract. The Unicode patch passed the project build and
-manual IntelliJ checks for accented namespaces, files and value-object types.
-Default-name and ordinary VO API-collision implementation and regression tests
-have been supplied; the full Maven test run for this change remains pending.
-Fixed ID declaration syntax is retained and covered by negative tests.
-See [implementation notes](../development/unicode-support.md).
+Status: normative naming contract for the 0.2.0 language revision.
 
 This contract applies to namespace segments, declared type names, field names,
 parameter names, method names and enum constants. Existing type-specific naming

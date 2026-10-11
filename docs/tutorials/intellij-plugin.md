@@ -31,18 +31,18 @@ generates and compiles Java sources. Editor diagnostics do not replace a success
 
 ## 1. Prepare your environment
 
-This guide describes the development plugin version `0.1.0-dev.3`.
+This guide describes the 0.2.0-SNAPSHOT development plugin.
 
 - Use a compatible IntelliJ IDEA installation. The current plugin descriptor targets build `262.10968.63` through the
   `262.*` series.
 - Keep IntelliJ's Java and Maven plugins enabled. The plugin also requires IntelliJ's LSP support.
-- Register a JDK with Java 21 or newer in **Project Structure → SDKs**. The wizard currently selects registered JDKs; it
+- Register a JDK with Java 25 in **Project Structure → SDKs**. The wizard currently selects registered JDKs; it
   does not download a new JDK for you.
 - Allow internet access for the initial Maven Wrapper and dependency downloads.
 
 ### Current development-version requirement
 
-The generated project uses Vernac `0.1.0-SNAPSHOT` artifacts. These must currently be installed in your local Maven
+The generated project uses Vernac `0.2.0-SNAPSHOT` artifacts. These must currently be installed in your local Maven
 repository.
 
 Build the Vernac source repository with JDK 25, as required by its IntelliJ module:
@@ -82,13 +82,13 @@ Open **New Project** and choose **Vernac**. Enter, for example:
 | GroupId      | `com.example`                          |
 | ArtifactId   | `task-manager`                         |
 | Java package | `com.example.taskmanager`              |
-| JDK          | A registered JDK with Java 21 or newer |
+| JDK          | A registered JDK with Java 25 |
 
 The artifact ID is suggested from the project name: `TaskManager` becomes `task-manager`. You can edit it independently.
 GroupId and Java package are separate settings; set both explicitly as needed.
 
 Choose **Create**. The wizard writes the project, sets its project JDK, and configures Maven executions to use that JDK.
-After the project opens, it starts the Maven import and opens `src/main/vernac/tasks.vernac`.
+After the project opens, it starts the Maven import and opens `src/main/vernac/com/example/taskmanager/tasks.vernac`.
 
 The generated POM contains your coordinates and display name:
 
@@ -108,14 +108,14 @@ The POM's Java target remains 21, even if you select a newer JDK.
 | File                                                        | Purpose                                                  |
 |-------------------------------------------------------------|----------------------------------------------------------|
 | `pom.xml`                                                   | Dependencies and Vernac source-generation configuration. |
-| `src/main/vernac/tasks.vernac`                              | Your initial domain model.                               |
+| `src/main/vernac/com/example/taskmanager/tasks.vernac`                              | Your initial domain model.                               |
 | `src/test/java/com/example/taskmanager/TaskTest.java`       | An example of using the generated model from Java.       |
 | `mvnw`, `mvnw.cmd`, `.mvn/wrapper/maven-wrapper.properties` | Maven Wrapper files.                                     |
 | `README.md`                                                 | Project-specific build instructions and pointers.        |
 | `.gitignore`, `.gitattributes`                              | Initial Git configuration files.                         |
 
-The Java test's path, package declaration, and domain imports follow the package you selected. The Vernac file stays
-under `src/main/vernac/`; its package declaration is updated accordingly.
+Both source paths follow the namespace you selected. The Vernac file declares
+`namespace com.example.taskmanager;`; Java test imports refer to its `.domain` package.
 
 ## 5. Build and run the example
 
@@ -155,8 +155,9 @@ supplies language-aware highlighting; exact colors depend on your IntelliJ theme
 
 ### Syntax diagnostics
 
-Temporarily remove the semicolon from the `id TaskId;` declaration. Look for a diagnostic near the invalid declaration.
-Restore the semicolon before continuing.
+Temporarily remove the closing parenthesis in `value Title(String)`. Inspect the
+syntax diagnostic, then restore it. Removing the optional terminator from an ID
+declaration is not a reliable syntax-error exercise.
 
 ### Semantic diagnostics
 
@@ -240,17 +241,16 @@ getting-started sample there would introduce duplicate type declarations.
 
 These actions currently use the conventional `src/main/vernac` layout. Custom
 source roots and automatic declaration updates after moving a file are separate
-follow-ups. During the namespace refactoring, use `examples/namespace-values` for
-the working Maven example; the broader wizard project template is still awaiting
-migration and is not changed by these file-creation actions.
+follow-ups. The project wizard also creates namespace-based models, with paths
+and Java test imports customized together.
 
 ## 8. Make your first change
 
-Inside the existing `Task` aggregate, add:
+Inside the existing `Task` aggregate's `behavior` block, add:
 
 ```java
-public void start() {
-    status(Status.IN_PROGRESS);
+modify void start() {
+    self.status(Status.IN_PROGRESS);
 }
 ```
 
@@ -286,13 +286,13 @@ in its configured source directory. Installing the IntelliJ plugin does not modi
 | Symptom                               | What to check                                                                                                                                                                                 |
 |---------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Vernac is missing from New Project    | Confirm that the plugin is enabled and compatible with your IDE build; check required plugins and restart after installation.                                                                 |
-| No JDK is available in the wizard     | Register a JDK with Java 21 or newer under Project Structure → SDKs, then reopen the wizard.                                                                                                  |
+| No JDK is available in the wizard     | Register a JDK with Java 25 under Project Structure → SDKs, then reopen the wizard.                                                                                                  |
 | No highlighting or completion         | Confirm the file ends in `.vernac`, is associated with the Vernac file type, and the plugin is enabled. Reopen the file and inspect the IDE log for language-server startup errors if needed. |
 | Maven cannot resolve Vernac artifacts | Install the current SNAPSHOT artifacts from the Vernac repository, and check that the IDE and command line use the intended Maven settings and local repository.                              |
 | Java references are unresolved        | Run Maven `test` to generate sources, then reload Maven if needed.                                                                                                                            |
 | “Load Maven Project” appears          | A new wizard-created project should import automatically. If it stays unlinked, you can load its POM manually to continue and report the automatic-import failure.                            |
 | Terminal build uses the wrong JDK     | Check `JAVA_HOME` and `java -version`. The wizard configures the IDE project and Maven runner, not your terminal environment.                                                                 |
-| A chosen package fails Vernac parsing | Java package validation does not yet cover every Vernac keyword interaction. Use another segment temporarily and report the rejected name.                                                    |
+| A chosen package fails Vernac parsing | Check the namespace against its directory. Vernac keywords are allowed where Java permits them; Java keywords remain invalid.                                                    |
 
 When reporting a problem, include the plugin version, IntelliJ build number, selected JDK, and relevant error message.
 

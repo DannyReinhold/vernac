@@ -64,3 +64,7 @@ no transition policy. Add a policy and tests as a further exercise.
 No database, Docker container or running Spring application is needed here.
 For persistence and migrations, continue with the tutorials linked from the
 [tutorial index](index.md).
+
+Next, [follow a delivery operation through the architecture](from-model-to-application.md).
+The Task exercise taught the domain API; the next chapter connects it to transactions,
+persistence, events and an external capability.

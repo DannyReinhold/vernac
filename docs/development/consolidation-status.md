@@ -45,7 +45,8 @@ not exhaustive concurrency, platform, historical-data or deployment verification
 - Outbound ports/adapters are implemented, including the executable REST/ACL demo.
   Inbound transport generation remains post-release work.
 - The two legacy example modules have been removed. The remaining examples and
-  project templates still require the release audit; a green root build alone is
+  project templates have a source/documentation audit and focused tests; full release
+  acceptance still requires database and installed-IDE checks. A green root build alone is
   not evidence that every generated starter project works.
 
 ## Next work

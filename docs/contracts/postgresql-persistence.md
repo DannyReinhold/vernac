@@ -15,7 +15,7 @@ Both compiler entry points use the reviewed repository generator; the old genera
 class is not used by these paths.
 
 Runtime scalar codecs preserve the declared component layouts. The standalone
-[persistence demo](../../examples/persistence-demo/README.md) exercises Spring JDBC,
+[persistence demo](https://github.com/DannyReinhold/vernac/blob/feature/redefining_the_language/examples/persistence-demo/README.md) exercises Spring JDBC,
 Flyway and complete aggregate graphs. Custom queries remain a later feature.
 
 ## Responsibility for migrations
@@ -235,11 +235,10 @@ belongs to `<namespace>.adapter.outbound.jdbc`. Shared execution code lives in
 - All operations require a surrounding usecase transaction (MANDATORY).
 - No lazy loading. Errors do not restore object state automatically.
 
-The planned declarative search API is specified in
+The declarative search API is specified in
 [Repository queries](repository-queries.md). It returns explicit aggregate
 collections or an optional singleton; custom JDBC searches are deferred.
-The search syntax is not implemented yet. Unsupported query declarations continue
-to fail explicitly rather than producing partially implemented repositories.
+Unsupported query forms MUST fail explicitly rather than produce partial implementations.
 
 ## Runtime boundaries
 
@@ -257,8 +256,6 @@ list rows retain position keys; reordering updates their target IDs without key 
 Unreachable states are removed after obsolete dependent rows. This is a per-aggregate
 algorithm, not a general-purpose ORM or global identity cache.
 
-Domain events pulled after saving are delegated to the configured EventDispatcher in
-the same transaction. The new schema tooling does not yet generate outbox infrastructure
-DDL; this demo emits no events. The event/outbox feature remains subject to its separate
-language and persistence review. Query methods in repository declarations currently
-produce an explicit unsupported-feature error rather than partially generated code.
+Event publication is explicit through EventContext, not a repository-save side
+effect. Event payload tables and delivery jobs are covered by the [event contract](events.md)
+and participate in schema generation and migration planning.

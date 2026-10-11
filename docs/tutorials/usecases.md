@@ -34,8 +34,8 @@ Try replacing the two result fields with `returns Title?`, changing the body to
 `return title;` and removing the private helper. The public return type becomes
 Optional<Title>; returning null is a contract failure.
 
-To access persistence add `uses TaskRepository tasks` and invoke tasks.byId(...)
-and tasks.save(...) in execute. The repository and aggregate must already be declared.
+To access persistence add `uses TaskRepository tasks` and invoke self.tasks().byId(...)
+and self.tasks().save(...) in execute. The repository and aggregate must already be declared.
 Dependencies arrive through constructor injection. A usecase called through an injected
 Spring bean establishes/joins a REQUIRED transaction.
 

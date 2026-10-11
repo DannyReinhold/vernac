@@ -1,550 +1,392 @@
-# Vernac Language Reference (v0.1.x)
+# Vernac language reference
 
-This document is the comprehensive reference for the Vernac Domain-Specific Language (DSL) as implemented in this
-repository.
-If in doubt, the ANTLR grammar (`vernac-compiler/src/main/antlr4/org/vernac/compiler/parser/Vernac.g4`),
-`AstBuilderVisitor`, and `SemanticAnalyzer` serve as the underlying implementation baseline.
+This reference describes **0.2.0-SNAPSHOT**. It covers the supported project-compilation
+pipeline, not every production retained in the parser for internal/legacy tests.
+The [specification index](specification/index.md) identifies the normative document
+for each rule. A discrepancy between implementation and contract is a defect to
+investigate, not permission to silently redefine the contract.
 
-Vernac files use the `.vernac` extension and typically live under `src/main/vernac/*.vernac`.
+Examples without a namespace or referenced type declarations are fragments to insert
+into an existing model. [From model to application](tutorials/from-model-to-application.md)
+contains a complete model. For an introduction, follow the [tutorials](tutorials/index.md).
 
----
+## Files, namespaces and imports
 
-## 1. Architectural Philosophy & "Convention over Configuration"
-
-Vernac is designed around core Domain-Driven Design (DDD) building blocks. A primary design principle is **Convention
-over Configuration**:
-
-- You can omit parameter/variable names, repository names, collection names, instance names, and dispatch modes whenever
-  a clear convention applies.
-- Sensible defaults (naming conventions, package structures, JDBC implementations, CRUD signatures) are generated
-  automatically.
-- Write only what varies from the standard.
-
----
-
-## 2. File Structure & Package Organization
-
-### 2.1 File Header
+The conventional source root is `src/main/vernac`. Files are UTF-8, end in `.vernac`,
+and declare a namespace matching their source-root-relative directory:
 
 ```vernac
-namespace com.example.shop;
-import com.example.other.*;
-
-// Top-level declarations...
+namespace org.example.delivery;
+import org.example.people.OwnerName;
+import org.example.shared.*;
 ```
 
-- `namespace <qualifiedName>;` is required and matches the source-root-relative directory.
-- File-level imports refer to Vernac types or namespaces. They are not forwarded as arbitrary Java imports.
-- Java implementation imports belong in `java imports` inside `behavior`.
+This file belongs under `org/example/delivery/`. A namespace may span files; names
+in it are visible without imports. Type identity is namespace plus simple name,
+not the filename. Explicit/wildcard imports refer to Vernac types, never arbitrary
+Java classes. Fully qualified Vernac references are supported. Unknown, ambiguous,
+duplicate and redundant own-namespace imports are diagnosed according to the
+[namespaces specification](specification/namespaces-and-imports.md).
 
-### 2.2 Default Package Conventions
+Declarations are resolved project-wide independently of source order. Imports do
+not recursively textually include files. Namespace is an organizational concept;
+it does not automatically create a DDD bounded context.
 
-By default, generated classes are placed into DDD-oriented subpackages based on the compilation unit's base package:
+Namespace/import statements require semicolons. Declaration terminators may be
+optional where the grammar permits; examples use semicolons consistently where useful.
+Per-definition Java package overrides are not supported by the reviewed pipeline.
 
-| Construct                                     | Default Target Subpackage                            | Example (`base = com.example.shop`)                       |
-|:----------------------------------------------|:-----------------------------------------------------|:----------------------------------------------------------|
-| `id`, `value`, `entity`, `aggregate`, `event` | `<basePackage>.domain`                               | `com.example.shop.domain`                                 |
-| `repository` (Interface)                      | `<basePackage>.domain`                               | `com.example.shop.domain`                                 |
-| `repository` (JDBC Implementation)            | `<basePackage>.adapter.db`                           | `com.example.shop.adapter.db`                             |
-| `port` (Interface)                            | `<basePackage>.domain`                               | `com.example.shop.domain`                                 |
-| `port` | `<namespace>.domain` | `com.example.shop.domain` |
-| `adapter` | `<namespace>.adapter.outbound` | `com.example.shop.adapter.outbound` |
-| `usecase`                                     | `<basePackage>.usecase`                              | `com.example.shop.usecase`                                |
-| `service`                                     | `<basePackage>.domain`                               | `com.example.shop.domain`                                 |
-| `listener`                                    | `<basePackage>.domain`                               | `com.example.shop.domain`                                 |
-| `list` / `set`                                  | Same as enclosing entity/value object (or `.domain`) | `com.example.shop.domain`                                 |
+## Names and generated packages
 
-### 2.3 Package Overrides
+Vernac supports the specified Java-compatible Unicode identifier alphabet without
+normalizing spelling. Vernac keywords may be namespace segments when valid for the
+Java target. Java keywords, forbidden control characters and API collisions are
+rejected. Built-in type names cannot be redeclared as Vernac types.
 
-Reviewed IDs, value objects, enums and collections do not permit package overrides. Their Java package is `<namespace>.domain`. Other declaration kinds are still being reviewed.
+| Definition | Public Java location |
+| --- | --- |
+| ID, value, enum, entity, aggregate, event, named collection | `<namespace>.domain` |
+| Domain service, repository interface, port interface | `<namespace>.domain` |
+| Usecase | `<namespace>.usecase` |
+| JDBC repository | `<namespace>.adapter.outbound.jdbc` |
+| Outbound adapter | `<namespace>.adapter.outbound` |
+| Listener | `<namespace>.adapter.inbound.event` |
+| Domain access interfaces | `<namespace>.domain.access` |
+| Usecase access interfaces | `<namespace>.usecase.access` |
+| Adapter DTO holder | `<namespace>.adapter.outbound.dto.<Adapter>Dtos` |
+
+Omitted field/parameter/dependency names derive from the simple type name:
+`StatusReason` → `statusReason`, `URLValue` → `urlValue`, `int` → `intValue`.
+An explicit name takes precedence. Single-field values have no `value` exception.
+`value Title(String);` exposes `string()`; `value Title(String value);` exposes `value()`.
+Collection names default to the element name plus `s`, without dictionary pluralization.
+Repository names default to `<Aggregate>Repository`.
+
+Effective names must be unique and legal in the generated Java API. Vernac does not
+number or silently rename collisions. Entity/aggregate identity is always named `id`,
+independently of how an ID is named when used as an ordinary field.
+See [names and Unicode](contracts/names-and-unicode.md).
+
+## Types and optional values
+
+Ordinary value fields accept the explicit [built-in type catalog](specification/domain-field-types.md):
+Java primitives and boxed equivalents, String, BigInteger, BigDecimal, UUID, Currency,
+and the listed immutable java.time types. The catalog is not a general Java import mechanism.
+
+| Context | Modeled data |
+| --- | --- |
+| Value object | Approved built-ins, IDs, enums, other VOs and collections of values |
+| Entity or aggregate | IDs, enums, VOs, entities and eligible named collections |
+| Event payload / usecase input and output / port signature | IDs, VOs, enums and collections of values |
+| Adapter schema | Approved transport scalars, local DTOs and technical collections |
+
+An entity/aggregate cannot contain an aggregate, directly or through a collection.
+Use an aggregate ID instead. VOs cannot contain mutable entities, even through an
+immutable collection. Direct entity containment cycles are forbidden; ID references
+are not containment. A primitive/built-in entity state field requires a domain wrapper.
+
+`T?` is optional. Domain storage and public factory inputs use `@Nullable T`;
+getters return `Optional<T>`. `int?` is rejected; use `Integer?` or an optional domain
+wrapper. Generated top-level types are `@NullMarked`. An Optional container itself
+must never be null. DTO/result records have their separately specified Optional
+component contracts, not nullable record accessors.
+
+## IDs
 
 ```vernac
-id SharedId;
-value Money(BigDecimal amount);
+id TourId;
+id StopId set StopIds;
 ```
 
----
+An ID is a final UUID wrapper with a private constructor. Its API includes
+`create()`, `of(UUID)`, `of(String)`, `value()`, `asString()`, identity-value equality,
+hashing and rendering. ID state/behavior cannot be customized. A named list or set
+may be requested explicitly. See [ID rules](contracts/names-and-unicode.md).
 
-## 3. Name and Type Inference Rules
-
-One of Vernac's most powerful features is the ability to omit explicit variable, field, parameter, or component names.
-The compiler resolves them deterministically:
-
-### 3.1 Field and parameter names
-
-Explicit names take precedence. Otherwise, use the type's simple name with the
-initial uppercase run converted to lower camel case: `StatusReason` → `statusReason`,
-`URLValue` → `urlValue`, `HTML2XMLMapper` → `html2XMLMapper`. Primitive types append
-`Value`, for example `intValue`. Namespace qualification does not affect the name.
-
-The rule is identical for single- and multi-field value objects. Write
-`value Title(String value);` if you want `value()`; `value Title(String);` generates
-`string()`. Adding a second field does not rename an existing getter.
-
-Effective names must be unique and must not cause an illegal generated Java API.
-No numbering or silent renaming is used. See the authoritative
-[names and API collision contract](contracts/names-and-unicode.md).
-
-### 3.2 Collection Name Derivation
-
-- When omitting the name in a `list` / `set` clause (e.g. `value LineItem(...) list;` or
-  `entity Task[...] list;`), the compiler automatically appends `s` to the element type name (e.g., `LineItems`,
-  `Tasks`, `Cars`).
-
-### 3.3 Repository Name Derivation
-
-- `repository for Order { ... }` automatically derives the repository interface name as `<AggregateName>Repository`
-  (e.g., `OrderRepository`).
-
-### 3.4 Event Dispatch Mode Default
-
-- `event OrderPlaced(...)` defaults to `outbox` dispatching mode.
-
-### 3.5 UseCase Dependency & Variable Derivations
-
-- `uses OrderRepository` derives `orderRepository` using the shared naming convention.
-- Input and result names follow the same convention, with explicit overrides.
-- Java repository calls replace the former load/save DSL statements.
-- Return types/fields are explicitly declared; no Java-expression inference is performed.
-
-## 4. Typed Identifiers (`id`)
-
-Typed identifiers wrap standard UUIDs to guarantee type safety in domain logic and avoid parameter transposition bugs.
+## Value objects
 
 ```vernac
-id OrderId;
-id CustomerId;
+value Title(String) validates {
+    require(!self.string().isBlank(), "Title must not be blank");
+};
+value Money(BigDecimal amount, Currency currency);
+value Notes(String? description, String? comment);
 ```
 
-### Generated Java Code:
+A VO generates a final class with private construction, final fields, `of(...)`,
+record-style getters, `equals`/`hashCode` over all fields and `toString`. It is not
+a Java record. There are no `mut` fields or setters; fieldless VOs are rejected.
+All-optional VOs are allowed and are distinct from absence of the VO itself; they
+have only the full factory, not an additional zero-argument factory.
 
-- A `final` class implementing standard `equals`, `hashCode`, and `toString`.
-- Encapsulates `private final UUID value;`.
-- Factory methods:
-    - `public static OrderId create()`: Generates a new random identifier via `UUID.randomUUID()`.
-    - `public static OrderId of(UUID value)`: Wraps an existing `UUID`.
-    - `public static OrderId of(String value)`: Parses a UUID string via `UUID.fromString(value)`.
-- Accessor: `public UUID value()`.
+The full factory accepts all fields. If required and optional fields coexist, one required-only overload
+delegates to the full factory; combinations are not enumerated. Null checks precede
+validation. Failed construction returns no object. Ordinary VOs have no redundant
+`asString`/`asUuid` helper; UUID single-value helpers are specified in the
+[value contract](contracts/value-objects.md).
 
----
-
-## 5. Value Objects (`value`)
-
-Value Objects represent immutable domain concepts without independent identity. They are strictly immutable (fields
-cannot be marked `mut`).
-
-### 5.1 Single-Field Value Objects
+## Enum values
 
 ```vernac
-value WattHours(int value) validates {
-    require(self.value() >= 0, "WattHours cannot be negative");
-}
+value TourStatus = PLANNED | COMPLETED;
 ```
 
-- Here `value` is explicitly named. Omitting it would produce `intValue`.
-- Factory methods: `Type.of(...)`.
-- Getter: `value()`.
-- Validations defined in `validates { require(condition, "error message"); }` are checked at construction time, throwing
-  `DomainValidationException` on violation.
-- **UUID Value Object Special Helpers**: If a single-field value object wraps a `UUID` (e.g. `value ProjectId(UUID)`),
-  the generator also produces:
-    - `create()` (new random UUID), `of(String)`
-    - The getter follows the field name; redundant `asString()` / `asUuid()` methods are not generated for ordinary VOs. IDs retain `asString()`.
+Enums become Java enums with `@NullMarked` and the ValueObject marker. Standard
+`name()`, `values()`, `valueOf(...)` and `==` apply. There is no generated `dbValue()`.
+Constants are unique valid names; uppercase naming is a recommendation, not a rule.
+`String` or `name` can be a constant without declaring a type or a method.
 
-### 5.2 Multi-Field and Nested Value Objects
+Enums may have behavior and a named collection. They do not have custom state,
+constructors, constant-specific bodies or validates blocks. Persistence codes and
+external mappings are separate concerns. See [enum contract](contracts/enum-value-objects.md).
+
+## Named collections
 
 ```vernac
-value PaymentCurrency(String code);
-value Money(BigDecimal amount, PaymentCurrency currency);
-value Document(String, UUID); // field names inferred as 'string' and 'uuid'
+value Tag(String) list Tags;
+id TourId set TourIds;
 ```
 
-- Generates constructor, `of(...)` factory methods with null-checks (`Objects.requireNonNull`), record-like getters
-  (`amount()`, `currency()`), and `equals`/`hashCode`/`toString`.
+Collections are explicit final domain classes. Lists preserve order/multiplicity;
+sets retain the first equal instance. Input structure is copied, output views are
+unmodifiable, and transformations leave the original collection unchanged.
+Mutable entity elements are not deep-copied.
 
-### 5.3 Optional / Nullable Fields (`?`)
+The API includes `empty`, `of`, iteration, `stream`, `filter`, `matching`, `find`,
+`contains`, `count`, `plus`, `plusAll`, `minus`, `minusAll` and Java collection views.
+Lists also provide `get`, `first`, `last`, `distinct` and `duplicates`.
+`duplicates()` returns **all occurrences of repeated values, including the first**;
+`duplicates().distinct()` selects one representative per group.
 
-Any field can be marked as optional using the `?` suffix (e.g., `String? comment`):
+Entity/aggregate collections add `by(id)`, `contains(id)`, `minusId(id)` and
+`minusAllId(id)`. Collection `by` returns Optional; repository `byId` has a different
+missing-result contract. Exact signatures, set equality and ordering are defined
+in the [collection contract](contracts/collections.md).
 
-```vernac
-value Money(BigDecimal amount, String? comment) validates {
-    require(self.amount().compareTo(BigDecimal.ZERO) >= 0, "Amount must be positive");
-}
-```
-
-- The backing field is annotated with `@Nullable`.
-- The getter returns `java.util.Optional<T>` (e.g.,
-  `public Optional<String> comment() { return Optional.ofNullable(this.comment); }`).
-- An overloaded factory `Money.of(amount)` is generated alongside `Money.of(amount, comment)` for ergonomics.
-- *Note:* Primitive types cannot be optional directly (`int?` is invalid; use `Integer?` instead).
-
-### 5.4 First-Class Collections (`list`, `set`)
-
-Collections are explicitly requested on an ID, value object, enum, entity or
-aggregate. The default name is the element type name followed by `s`.
+## Behavior and validation
 
 ```vernac
-id TaskId set TaskIds;
-value Tag(String name) list Tags behavior {
-    public boolean hasDuplicates() {
-        return !self.duplicates().isEmpty();
+value ProductName(String) behavior {
+    java imports { java.util.Locale; }
+    public String display() {
+        return self.string().toUpperCase(Locale.ROOT) + suffix();
     }
+    private String suffix() { return "!"; }
 };
 ```
 
-Generated final classes live in `<namespace>.domain`. Lists preserve order and
-repetitions; sets keep the first encountered instance of each equal element.
-Both copy their input structure and expose unmodifiable views. Transformations
-return collections without changing the original.
+Inline Java is generated into a separate companion, not inserted with privileged
+access to private domain state. Public VO/enum/collection methods receive `self`;
+private helpers receive only explicitly declared arguments. Public behavior may
+instead declare `implemented by fully.qualified.Class;`. The external static method
+receives the same self and arguments as its inline equivalent.
 
-The API includes factories, iteration, `stream`, `filter`, `matching`, `find`,
-`contains`, `count`, `plus`, `plusAll`, `minus` and `minusAll`. Lists additionally
-provide indexed access, `first`, `last`, `distinct` and `duplicates`.
-**`duplicates()` includes every occurrence of a repeated element, including its
-first occurrence.** Use `duplicates().distinct()` for one representative per group.
+Java imports belong in the behavior block. They do not change the resolution of
+modeled fields/signatures and cannot shadow protected Vernac/built-in names.
+Nullness is checked at generated boundaries and can be checked statically using
+NullAway, as configured in the basic template. A null required/Optional result is
+a BehaviorContractException, not a business rejection.
 
-Value objects may contain collections of IDs, enums or other value objects,
-never collections of entities or aggregates. Entity/aggregate collections offer
-identity helpers `by(id)`, `contains(id)`, `minusId(id)` and `minusAllId(id)`.
+`validates { require(condition, "message"); }` runs through a separate read view
+using `self.field()`. It does not expose setters or emit. These checks provide API
+boundaries, not a purity/security proof of arbitrary Java. See [behavior](contracts/behavior.md).
 
-See the [collection contract](contracts/collections.md) for exact signatures and
-semantics, the [tutorial](tutorials/collections.md) for examples, and the
-[implementation notes](development/collections.md) for current pipeline scope.
-
-For custom code, see the [behavior contract](contracts/behavior.md) and
-[behavior tutorial](tutorials/behavior.md). Public inline implementations use
-`self` and private helpers have explicit parameters. Implementation code cannot
-access private domain fields.
-
-### 5.5 Enums
-
-Enums are declared as value objects using `=` and pipe `|` separators:
+## Entities and aggregates
 
 ```vernac
-value OrderStatus = NEW | PAID | SHIPPED;
+id StopId;
+value Address(String);
+entity Stop[StopId](mut Address) behavior {
+    read Address currentAddress() { return self.address(); }
+    modify void relocate(Address address) { self.address(address); }
+} list Stops;
 ```
 
-Enums generate public Java enums in `<namespace>.domain`, with `@NullMarked`
-and the `ValueObject` marker interface. Use standard Java constants, `==`,
-`name()`, `values()`, and `valueOf(String)`. No `of()` or `dbValue()` helper is
-provided. External codes belong to a separately designed adapter/persistence
-mapping; constant names and ordinals are not automatic storage formats.
+Entities and aggregates use `read` and `modify` for public behavior; private helpers
+remain private. Read methods receive Read views; modify methods receive Access
+views combining Read and Write. The domain object implements neither access
+interface. Field setters are not public domain methods.
+
+`create(fields...)` always creates the ID internally. `reconstitute(id, fields...)`
+retains identity and validates again. Aggregates additionally reconstruct technical
+version and creation/update timestamps; entities do not gain aggregate metadata.
+Required-only create overloads omit optional fields, never accept an external ID.
+
+Equality and hashing depend on identity; toString includes identity and domain
+fields. Aggregate timestamps start equal, and effective modifications update the
+modification time. Technical optimistic version access belongs to infrastructure.
+See [entities and aggregates](contracts/entities-and-aggregates.md).
+
+### Validation failures and object state
+
+Modify operations change live objects. Validation occurs at successful outermost
+modify completion, including participating nested receivers. Failed behavior or
+validation does not restore fields or metadata. Do not continue using a failed
+graph as though it had rolled back. Abort the operation and obtain fresh state when
+needed. Database rollback does not repair Java objects or undo external I/O.
+
+Read protection is shallow: returned children are ordinary entity instances, not
+recursively immutable proxies. The contract does not enforce aggregate ownership
+against every direct Java reference. Candidate-state rollback is not implemented.
+
+## Repositories and queries
 
 ```vernac
-value AcMode = ECO | COOL | HEAT | OFF behavior {
-    public boolean isActive() {
-        return self != AcMode.OFF;
-    }
-};
-value Settings(AcMode, AcMode? previousMode);
-```
-
-Enums support custom methods and ordinary VO fields, including optional fields.
-Additional state, custom constructors, constant-specific bodies, validation blocks,
-and per-definition packages are not supported. Legal custom overrides such as
-`public String toString()` are permitted; final/implicit Java API conflicts such
-as a parameterless `name()` method are diagnosed by Vernac.
-
-Constants must be unique valid member names. UPPER_SNAKE_CASE is recommended,
-not required. A constant named `String`, `name`, or an existing Vernac type is
-legal and does not declare or import a type. A constant named `name` does not
-conflict with `name()`. In embedded Java, an expression such as `String.valueOf(...)`
-may need qualification as `java.lang.String.valueOf(...)` if String is a constant.
-
-See the [enum contract](contracts/enum-value-objects.md) and
-[enum tutorial](tutorials/enum-value-objects.md).
-
----
-
-## 6. Aggregates and Entities (`aggregate`, `entity`)
-
-Aggregates and Entities represent stateful domain models with identity.
-
-### 6.1 Basic Syntax
-
-```vernac
-entity OrderLine[OrderLineId](
-    String sku,
-    mut int quantity,
-    Money unitPrice
-) list OrderLines;
-
-aggregate Order[OrderId](
-    CustomerId customer,
-    mut String status,
-    mut OrderLines lines
-) validates {
-    require(self.status() != null, "Status must not be null");
-} {
-    public void completeOrder() {
-        status("PAID");
-        registerEvent(OrderPaid.create(this.id, this.customer));
-    }
+repository TourRepository for Tour {
+    find Tours withStatus(TourStatus status)
+        where tourStatus = :status order by title;
+    find Tour? titled(Title title) where title = :title;
 }
 ```
 
-### 6.2 Key Features & Generated Code
+Declare the referenced aggregate and result collection explicitly. The generated
+interface provides `byId`, `save` and `delete`; JDBC requires a surrounding transaction
+(MANDATORY). byId returns the complete graph or AggregateNotFoundException. Save
+uses optimistic locking; it does not silently reinsert a concurrently deleted root.
 
-- **Identity**: Bound to an ID type via `[IdType]`.
-- **Factory Methods**:
-    - `public static Type create(...)` for initial domain creation. A new object Id is created by using the id type's
-      `create` method.
-    - `public static Type reconstitute(IdType id, ..., Instant createdAt, Instant updatedAt, long version)` for
-      persistence rehydration.
-- **Mutable Fields (`mut`)**:
-    - Immutable fields are generated as `final`.
-    - Fields marked `mut` generate setter-like methods (e.g. `public void status(String status)`).
-    - When a field value changes, generated mutators assign the new value
-      and then execute all `validates { ... }` invariant checks.
-      Aggregate mutators also call `markAsUpdated()` before validation.
-    - Assigning an equal value is a no-op and does not re-run invariant checks.
-- **Lifecycle & Auditing**:
-    - Aggregates implement `AggregateRoot<IdType>` and maintain `createdAt`, `updatedAt`, and `version` (optimistic
-      locking).
-    - Entities implement `Entity<IdType>`.
-- **Domain Events in Aggregates**:
-    - Aggregates maintain a transient domain event queue.
-    - Inside methods, call `registerEvent(event)` to queue events.
-    - Repositories or infrastructure pull and dispatch events via `pullDomainEvents()`.
-- **Entity Collections (`minusId`)**:
-    - If a collection is defined on an `entity` (e.g. `entity OrderLine[...] list OrderLines;`), the collection
-      includes an additional `minusId(OrderLineId id)` method for identity-based removal.
-- **SQL Schema Constants**:
-    - Aggregates and entities generate `public static final String TABLE_NAME = "..."` (snake_case) and
-      `public static final String SCHEMA_DDL = "..."`.
-    - Multi-field and nested value objects are recursively flattened into SQL column definitions (e.g. `Money budget`
-      becomes `budget_amount NUMERIC(19, 4)` and `budget_currency VARCHAR(255)`).
+Find names do not imply predicates. Supported predicates include `=`, `!=`, `<`,
+`<=`, `>`, `>=`, `is absent`, `is present`, `like`, `contains`, `starts with` and
+`ends with`, combined with `not`, `and`, `or` and parentheses. Precedence is not,
+then and, then or. Fields reference eligible root values or `id`, `createdAt`,
+`updatedAt`; `:name` references a typed parameter. Capabilities depend on the scalar.
+No arbitrary SQL, nested traversal, projections or pagination is implied.
 
-#### Validation failures and object state
+Find returns a declared aggregate collection or an optional singleton. Multiple
+matches for a singleton raise NonUniqueQueryResultException; this does not create
+a database uniqueness constraint. Ordered queries require list results. A list
+query without order produces a warning; ties remain unspecified. Contained-list
+position is independent of the order of root query results.
 
-Generated aggregate and entity mutators validate the object after applying
-a field change. If an invariant fails, they throw a
-`DomainValidationException`. They do not undo the assignment or restore
-previous lifecycle metadata. A rejected mutation can therefore leave the
-instance in an invalid state.
+Equality follows the documented Java semantics, including decimal scale, signed
+floating zero and temporal components. Absent optional fields do not match a
+non-optional comparison parameter. Text contains/starts/ends treat text literally;
+LIKE uses explicit pattern semantics. See [repository queries](contracts/repository-queries.md).
 
-After such a failure:
+## Persistence and migrations
 
-- Abort the current use case and ensure its database transaction is rolled back.
-- Discard the affected aggregate instance, including its contained entities.
-- Do not catch the exception and then continue modifying or saving that instance.
-- If another attempt is needed, load a fresh instance in a new transaction.
+Repository-backed aggregates map to quoted PostgreSQL schemas named by namespace.
+VOs flatten recursively. Optional structures use presence information when necessary;
+entity state and relationships are distinct so references can share state. Complete
+loads preserve shared Java identity within an aggregate and check concurrent changes.
+There is no lazy loading. Scalar representation limits are explicit.
 
-Handle the error outside the failed transactional operation, for example
-by translating it into an application or API error response. Database
-rollback affects transactional database changes; it does not restore Java
-object fields or undo external side effects.
+| Maven goal | Effect |
+| --- | --- |
+| `vernac:compile` | Generate Java; reconcile compiler-owned source files |
+| `vernac:schema` | Generate expected schema under target; no database changes |
+| `vernac:migration` | Write a candidate migration and versioned model history |
+| `vernac:schema-check` | Replay migrations and compare owned schema using disposable databases |
 
-This differs from value-object construction: if construction fails validation,
-no new value object is returned to the caller.
+Migrations are candidates, never deployment guarantees. The application owner MUST
+review, test and approve them. `force` permits generation despite recognized data-loss
+risk; it does not invent a safe conversion or provide approval. Backfills and enum
+code changes require deliberate decisions. See [persistence](contracts/postgresql-persistence.md),
+[scalar limits](contracts/scalar-storage-limits.md) and [migration tutorial](tutorials/flyway-workflow.md).
 
-Custom Java methods must explicitly preserve domain invariants, for example
-by using generated mutators or calling `validate()`. Vernac does not
-automatically wrap arbitrary Java method bodies in validation or rollback logic.
-
-### 6.3 Strict DDD Invariant Rules Checked by Compiler
-
-- Aggregates **cannot** be directly embedded inside other Aggregates/Entities as fields; reference them by their
-  `IdType`.
-- Raw collections (`List`, `Set`, `Map`) are forbidden as aggregate/entity fields; use first-class `list` / `set` types.
-
----
-
-## 7. Events (`event`)
-
-Events capture immutable facts that occurred in the domain. For an in-depth guide on the Transactional Outbox pattern,
-`vernac_outbox` DDL, event dispatching, and asynchronous event listeners,
-see [Event-Driven Architecture & Outbox Documentation](event-driven-architecture.md).
+## Usecases
 
 ```vernac
-// Default is outbox dispatch mode
-event OrderCreated(OrderId orderId, CustomerId customerId);
-
-// Explicit dispatch modes
-memory event OrderValidated(OrderId orderId);
-outbox event ProjectBudgetExceeded(ProjectId projectId, Money currentCost, String? reason);
-```
-
-### Generated Java Code:
-
-- Implements `DomainEvent`.
-- Generates `UUID eventId` and `Instant occurredOn`.
-- Generates constant `public static final String EVENT_TYPE = "PROJECT_BUDGET_EXCEEDED";`.
-- Factory methods: `create(...)` and `of(UUID eventId, Instant occurredOn, ...)`.
-- For `outbox` events: Generates `OUTBOX_TABLE_NAME = "vernac_outbox"` and `OUTBOX_SCHEMA_DDL`.
-
----
-
-## 8. Repositories (`repository`)
-
-Repositories provide Spring JDBC-based persistence with optimistic locking and event dispatching. For an in-depth guide
-on database mapping rules, DDL generation, column flattening, child entity synchronization, and custom Spring repository
-beans, see [Repository Database Mapping Documentation](repository-db-mapping.md).
-
-```vernac
-repository for Order {
-    find List<Order> findByStatus(String status);
-    custom List<Order> findTopOrders(BigDecimal threshold);
-}
-```
-
-### Generated Artifacts:
-
-1. **Repository Interface** (`<basePackage>.domain.OrderRepository`):
-    - Standard CRUD methods: `Order byId(OrderId id);`, `Order save(Order aggregate);`, `void delete(Order aggregate);`.
-    - Any `find` methods declared in the block.
-    - Extends custom fragment `OrderRepositoryCustom` if `custom` methods are present.
-2. **Custom Interface** (`OrderRepositoryCustom`):
-    - Contains signatures for all `custom ...` methods so you can implement complex queries in standard Java.
-3. **Spring JDBC Repository** (`<basePackage>.adapter.db.JdbcOrderRepository`):
-    - Annotated with `@Repository` and `@Transactional(propagation = Propagation.MANDATORY)`.
-    - Optimistic locking check via `version`.
-    - Automatically dispatches queued domain events on `save(...)` using `JdbcEventDispatcher`.
-    - Automatically generates 1:N entity child persistence (`sync<Entities>`, `fetch<Entities>`) for any aggregate
-      collection fields.
-
----
-
-## 9. Ports and Adapters (port, adapter)
-
-A port declares a domain interface. A separate adapter implements all operations:
-
-```vernac
-port InvoiceGenerator {
-    PdfDocument generate(InvoiceData);
-}
-
-adapter LocalInvoiceGenerator implements InvoiceGenerator {
-    behavior {
-        public PdfDocument generate(InvoiceData)
-            implemented by com.example.invoice.InvoiceBehavior;
-    }
-}
-```
-
-The payload types must be declared Vernac values. Port signatures also accept IDs,
-enums and their collections, optional values and void results. Raw Java payloads,
-entities and aggregates are rejected.
-
-The port is generated in <namespace>.domain; the Spring adapter in
-<namespace>.adapter.outbound. Both inline and external static implementations
-receive the same self access view. Domain dependencies use uses, technical Java
-dependencies use java uses inside behavior. Each call has an immutable invocation
-context. No transaction or retry is automatically introduced.
-
-See the [working tutorial](tutorials/outbound-ports.md) and
-[target contract](contracts/ports-adapters-and-acl.md). Adapter-local `schema`
-declarations generate records in `<namespace>.adapter.outbound.dto.<Adapter>Dtos`.
-Supported forms include `list<T>`, ordinary optional fields, `naming snake_case`,
-`named "wire-name"`, `absent as null` and explicit `patch` fields. Applications add
-`vernac-runtime-json` for strict Jackson codecs. See the [DTO tutorial](tutorials/adapter-dtos.md)
-and [exact contract](contracts/adapter-dtos.md).
-
-Adapter-local `mapping name: Target <- Source { field <- source.path; }` declarations
-support exact single-value wrapping/unwrapping, explicit `using` mappings and
-collection conversion. An alternative `java { ... }` body (with optional `java imports`)
-or `implemented by` class handles deliberate custom conversions. See the
-[mapping tutorial](tutorials/adapter-mappings.md) and [contract](contracts/adapter-mappings.md).
-
-An adapter may use `rest` instead of `behavior`, declaring named `client` and
-`base` dependencies followed by typed operations. Operations bind `path`, `query`
-and `header` values, optionally map a request `body`, and map DTO `response` values
-back into domain results. `on 404 absent` is explicit; custom error translation uses
-`errors { when ... then ... }` or `errors implemented by`. See the
-[REST tutorial](tutorials/declarative-rest.md), [error translation tutorial](tutorials/declarative-errors.md)
-and [exact contract](contracts/declarative-rest.md). The former nested per-method adapter syntax is not supported.
-
----
-
-## 10. Use Cases (`usecase`)
-
-One operation with typed domain inputs, explicit results and REQUIRED transaction propagation:
-
-```vernac
-usecase CancelOrder(OrderId id, CancellationReason reason)
-    returns (OrderId id, CancellationReason reason)
-    uses OrderRepository
-behavior {
+usecase CompleteTour(TourId) uses TourRepository tours behavior {
     execute {
-        var order = orderRepository.byId(id);
-        order.cancel(reason);
-        orderRepository.save(order);
-        return Result.of(order.id(), reason);
+        var tour = self.tours().byId(tourId);
+        tour.complete();
+        self.tours().save(tour);
     }
 }
 ```
 
-The types and domain method used above must be declared. Java implementation bodies
-can use private helpers or delegate through `execute implemented by ...;`.
-The generated bean resides in `<namespace>.usecase`; dependencies use constructor
-injection. Optional input parameters are nullable at the public boundary and Optional
-inside implementation code. Composite results are records with checked components
-and generated of factories. Optional preconditions use an input-only Read interface.
+A usecase is one Spring operation with REQUIRED propagation. Inputs/results are
+domain values, not entity graphs. Omit returns for void; `returns Title` returns a
+value; `returns Title?` returns Optional; `returns (TourId, Title?)` creates a nested
+Result record with `of` factories. Results are explicit, not inferred from Java.
 
-See the [usecase contract](contracts/usecases.md) and [tutorial](tutorials/usecases.md).
-The former custom-package and load/save syntax is removed.
+`uses` has comma-separated dependencies without parentheses. Access dependencies
+through self. Exactly one execute is required; private helpers and Java imports
+are allowed. `execute implemented by ...;` delegates to static external Java.
+Optional validates sees only input getters. Spring interception is required for
+transaction semantics; nested REQUIRED operations join the same physical transaction.
+See [usecase contract](contracts/usecases.md).
 
-## 11. Domain Services (`service`)
+## Domain services
 
-Domain services expose named operations in a `behavior` block, with optional
-`uses` dependencies, per-operation `validates`, private helpers and external
-implementations. They are stateless Spring beans in `<namespace>.domain` and do
-not start transactions. See the [domain service contract](contracts/domain-services.md)
-and [stop-transfer tutorial](tutorials/domain-services.md).
+A stateless `service Name uses ... behavior { ... }` generates a Spring domain bean
+with named public operations, private helpers and optional per-operation preconditions.
+Unlike usecases, services do not open transactions and can take entities/aggregates.
+Each public implementation receives self Access and its parameters. Dependencies
+remain constructor-injected; external methods use the same delegation protocol.
+Services do not currently classify methods as read/modify. See [service contract](contracts/domain-services.md).
+
+## Events and listeners
 
 ```vernac
-service TourPlanning behavior {
-    public void moveStop(Tour source, Tour target, StopId)
-    validates {
-        require(!self.source().id().equals(self.target().id()), "Different tours required");
-    } {
-        var stop = source.allStops().by(stopId).orElseThrow();
-        source.removeStop(stopId);
-        target.addStop(stop);
-    }
+event TourCompleted(TourId);
+recorded event DispatchRecorded(TourId);
+deferred listener NotifyDispatch on TourCompleted behavior {
+    execute { System.out.println("Completed: " + event.tourId()); }
 }
 ```
 
----
+The listener example logs for illustration; logging is not transactional or exactly-once.
+An event is immutable and has shared runtime EventId and occurredAt metadata.
+`create` creates an occurrence; `reconstitute` retains identity/time and validates.
+Equality is occurrence identity, not payload equality. Events can validate but have
+no behavior. Fieldless events are allowed.
 
-## 12. Event Listeners (`listener`)
+`self.emit` requires an active transactional EventContext. Generated usecases establish
+it; modify behavior, services and listeners may participate. Read views, validators
+and VO behavior cannot emit. Publication is independent of save.
 
-Event listeners subscribe to domain events to trigger asynchronous side-effects or inter-aggregate coordination.
+A named `synchronous listener ... on Event` runs immediately in the current transaction.
+A `deferred listener` creates a durable job handled after commit. Each subscriber has
+its own acknowledgement/retries. Event storage is relational per event type, not Java
+serialization. `recorded` retains an event without requiring a deferred subscriber.
 
-```vernac
-listener StorageCharged {
-    use NotificationPort notifications;
+Workers claim jobs with leases and fencing tokens. Deferred handler work and successful
+acknowledgement share a transaction; retry handling and external effects have the
+limits in the [event contract](contracts/events.md). Exactly-once external delivery,
+strict global ordering and automatic payload evolution are not promised.
 
-    notifications.sendAlert("Storage charged: " + event.storageId().value());
-}
-```
+## Ports, adapters, DTOs and mappings
 
-- Generated as a Spring `@Component` named `<EventName>Listener`.
-- Generates handler method:
-  `@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)`
-  `public void on(StorageCharged event) { ... }`
-- Injected dependencies via `use`.
-- The current event is available in raw Java statements as the implicit variable `event`.
+A `port Name { Result operation(Input); }` declares an outbound domain capability.
+A separate `adapter Name implements Port uses ... { behavior { ... } }` implements
+all operations, with self access for inline/external methods. Technical dependencies
+use `java uses` inside behavior after optional `java imports`. Adapters do not open
+transactions or introduce automatic retries.
 
----
+Inside an adapter, `schema Name (...)` defines local transport records. Fields support
+`named "wire-name"`, `naming snake_case` on the schema, optional `T?`, `absent as null`
+and `patch T`/`patch T?`. PATCH distinguishes unchanged, set and (when legal) clear.
+Required fields reject missing/null/wrong-type JSON; unknown fields are ignored.
 
-## 13. Summary of Inference & Omission Rules
+Mappings use one direction: `mapping name: Target <- Source { field <- source.path; }`.
+Exact single-value wrapping/unwrapping is allowed; unit conversion and normalization
+are not invented. Nested/collection conversion uses explicit named mappings when
+required. A mapping can instead use a Java body or external implementation.
 
-For quick reference, this table summarizes everything you can omit in Vernac:
+An adapter may replace behavior with `rest { client name; base name; ... }`.
+Each operation declares, in order, HTTP verb/route; path/query/header bindings;
+optional body mapping; response mapping; optional `on 404 absent`; optional error
+rules or Java error hook. Supported verbs are GET, POST, PUT, PATCH and DELETE.
+Schemas and mappings may precede or follow the implementation.
 
-| Context               | What can be omitted               | Default / Inferred Behavior                                                                                  |
-|:----------------------|:----------------------------------|:-------------------------------------------------------------------------------------------------------------|
-| `value Name(T)`       | Parameter name (single field)     | Same type-based derivation as every other field; write `T value` explicitly for `value()`.                                                                              |
-| `value Name(T1, T2)`  | Parameter names (multi-field)     | Inferred via the shared naming rule (e.g., `UUID` $\to$ `uuid`, `String` $\to$ `string`, `int` $\to$ `intValue`). |
-| `entity`, `aggregate` | Field names                       | Inferred via the shared naming rule (e.g. `String` $\to$ `string`).                                               |
-| `list` / `set`          | Collection name                   | Pluralized type name (e.g. `Car list;` $\to$ `Cars`).                                                  |
-| `event`               | Dispatch mode                     | Defaults to `outbox`.                                                                                        |
-| `event`               | Parameter names                   | Inferred via the shared naming rule.                                                                              |
-| `repository`          | Repository name                   | `<AggregateName>Repository`.                                                                                 |
-| `usecase`             | `use Dependency;` instance name   | Decapitalized type name (e.g. `orderRepository`).                                                            |
-| `usecase`             | `load Aggregate;` target variable | Decapitalized aggregate name (e.g. `order`).                                                                 |
-| `usecase`             | `load Aggregate;` repo name       | Single matching repository in `use` statements.                                                              |
-| `usecase`             | `load Aggregate;` by expression   | `<aggregateName>Id` (e.g. `orderId`).                                                                        |
-| `usecase`             | `save aggregate;` repo name       | Single matching repository in `use` statements.                                                              |
-| `usecase`             | `return (a.b(), c as alias);`     | Component alias defaults to property after dot (`b`), types inferred automatically.                          |
-| Top-level & blocks    | `package`                         | Inherits file package or default DDD subpackage (`.domain`, `.usecase`, etc.).                               |
+Declarative error rules use `when ... then reject DomainCode.VALUE "message";`
+or `fail local|remote|unknown CATEGORY "message";`. Ordered rules match only when
+their condition is true; missing/malformed body operands are not blindly treated
+as false. Business codes are declared enums. HTTP status alone cannot determine
+business meaning or responsibility. No complete request payload is captured by default.
+
+See [ports](contracts/ports-adapters-and-acl.md), [DTOs](contracts/adapter-dtos.md),
+[mappings](contracts/adapter-mappings.md), [REST syntax](contracts/declarative-rest.md)
+and [HTTP runtime](contracts/http-adapter-runtime.md) for the complete APIs and rules.
+
+## Compiler and IDE boundary
+
+Maven generates Java and reconciles owned `.java` output using a manifest. It does
+not delete arbitrary `.class` files or JARs; use Maven clean for a clean bytecode build.
+The LSP shares semantic analysis for diagnostics, completion and navigation. IntelliJ
+adds embedded-Java assistance and source-backed navigation; generated APIs must be
+built/imported for Java resolution. Arbitrary Java bodies remain subject to javac
+and configured static analysis.
+
+[FAQ](faq/index.md) · [Specification](specification/index.md) · [Tutorials](tutorials/index.md)

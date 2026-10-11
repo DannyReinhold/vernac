@@ -327,31 +327,14 @@ Repeated imports need stable identity mapping rather than repeated creation. Rec
 must not become a convenient validation bypass for external input. An automatic `fromExternal`
 API and any integration keyword remain deferred.
 
-## 9. Tooling, tests, and remaining work
+## 9. Implementation and remaining design questions
 
-The current patch includes parsing and mode representation, project type resolution for the
-entity/aggregate behavior slice, generated interfaces, runtime delegation, keyword highlighting,
-Java injection with correctly typed `self`, and Java-to-Vernac navigation for these types and
-public members. The IDE requires generated Java interfaces on its indexed source path, just
-like existing injected behavior required generated value-object classes.
+The reviewed project pipeline generates read/write/access views, behavior and
+validation delegates, metadata and Java projection. Execution tests cover nested
+calls, expired write access, Optional boundaries and retained changes after failure.
+Persistence and event semantics are now defined in their own contracts.
 
-Tests compile the generated Java and exercise both successful and failing modifications,
-nested calls, private helpers, external delegates, expired write access, nullable fields,
-collections and child identity. Negative Java compilation tests demonstrate read access
-restrictions. Existing tests remain; deferred-feature tests now use an unreviewed event
-instead of an entity, and the standalone compiler example uses the new behavior syntax.
-
-Legacy low-level generator entry points still serve tests and unreviewed infrastructure code;
-the reviewed project/compiler path uses access-based generation. The reviewed generation path no longer assumes SQL schema constants. Aggregate metadata
-now follows the [entity/aggregate contract](../contracts/entities-and-aggregates.md); event plumbing
-and complete persistence/transaction semantics still require their dedicated review.
-
-Next steps:
-
-1. Review generated Java for readability and try a small read/modify example.
-2. Validation delegates are implemented. Any future shorthand requires explicit
-   name-resolution rules; do not rewrite arbitrary Java tokens.
-3. Continue the entity/aggregate contract: field types, child access, ownership, lifecycle,
-   events, and operation-boundary semantics.
-4. Review persistence, schema evolution, and migrations together.
-5. Revisit candidate-state isolation only if its practical value justifies its complexity.
+Keep the candidate-state exploration above as a deliberately deferred design record.
+Open questions concern graph ownership, deep read access and whether transactional
+in-memory candidates justify their implementation and cognitive cost. Do not infer
+that these guarantees exist from the current access-interface structure.

@@ -1,6 +1,6 @@
 # Persist a complete aggregate with PostgreSQL
 
-Use the standalone [persistence demo](../../examples/persistence-demo/README.md).
+Use the standalone [persistence demo](https://github.com/DannyReinhold/vernac/blob/feature/redefining_the_language/examples/persistence-demo/README.md).
 This tutorial assumes you already understand IDs, values, entities and collections.
 
 ## 1. Build and start
@@ -64,8 +64,8 @@ public void changeAndReorder(TourId id) {
 
 The repository uses MANDATORY propagation. Calling it outside a transaction fails;
 it does not silently start a transaction. Handwritten usecases are intentional here:
-the example focuses on persistence without depending on the pending usecase-language
-review. Avoid self-invocation as a substitute for calling a transactional Spring bean.
+the runner demonstrates direct Java interoperability. Generated usecases are also
+shown in the [usecase tutorial](usecases.md). Avoid self-invocation as a substitute for calling a transactional Spring bean.
 
 ## 4. Observe shared identity and updates
 

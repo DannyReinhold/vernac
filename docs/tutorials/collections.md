@@ -83,13 +83,12 @@ Nothing changes in the generated collection: its structure is a snapshot. Elemen
 objects themselves are not deep-copied.
 
 **Where do custom Java imports go?**
-Their syntax is the next design topic. For now use public collection methods and
-fully qualified Java references inside method bodies where needed. File-level
-Vernac imports resolve Vernac types, not arbitrary Java classes.
+Place `java imports { qualified.Type; }` first inside the collection behavior
+block. File-level Vernac imports resolve Vernac types, not arbitrary Java classes.
 
 **Are all owner types already available in multi-file generation?**
-IDs, VOs, enums, and their collections are. Full Entity/Aggregate generation is still
-awaiting its own review in that pipeline; existing single-source generation supports
-their collections. See [implementation boundaries](../development/collections.md).
+Yes. IDs, VOs, enums, entities and aggregates support explicit collections through
+the multi-file project pipeline. Field eligibility still depends on the owner: a
+VO cannot hold mutable entity elements.
 
 [Collection contract](../contracts/collections.md) · [All tutorials](index.md)

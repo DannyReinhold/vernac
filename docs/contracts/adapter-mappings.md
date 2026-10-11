@@ -1,7 +1,7 @@
 # Adapter mapping contract
 
-Status: implemented. REST request generation and transport error rules are the
-next slice. This contract complements [adapter DTOs](adapter-dtos.md).
+Status: normative mapping contract for 0.2.0. This contract complements
+[adapter DTOs](adapter-dtos.md) and [REST bindings](declarative-rest.md).
 
 ## Purpose and placement
 
@@ -178,8 +178,8 @@ A null root argument is rejected before conversion.
 
 Mapping diagnostics contain names and paths, not captured source object graphs.
 Causes originate in user/domain code and may contain user-supplied messages. This
-layer does not yet decide local versus remote responsibility, log requests or retry
-operations. The later adapter error layer owns transport-specific classification.
+layer does not decide local versus remote responsibility, log requests or retry
+operations. The adapter error boundary owns transport-specific classification.
 
 ## Tooling and verification
 

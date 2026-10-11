@@ -1,215 +1,101 @@
-<p>
-  <img
-    src="assets/brand/vernac-logo-light.svg"
-    alt="Vernac"
-    width="420"
-    style="max-width: 100%; height: auto;"
-  >
-</p>
+<p><img src="assets/brand/vernac-logo-light.svg" alt="Vernac" width="420" style="max-width: 100%; height: auto;"></p>
 
-# Vernac Documentation
+# Give your application an executable architecture
 
-**A Domain-Specific Language for Domain-Driven Design in Java 21, Spring Boot, and PostgreSQL**
+**Vernac turns a domain model into a working Java architecture.**
 
-Welcome to the official documentation for **Vernac**!
+A delivery tour is more than a row in a table. It has identity, valid states,
+contained stops, operations that change it, and consequences that other systems
+care about. Vernac lets you express these responsibilities together, then generates
+the Java and Spring infrastructure that connects them.
 
-Vernac is a concise, declarative Domain-Specific Language (DSL) and compiler designed to streamline Domain-Driven Design
-(DDD) and Hexagonal / Clean Architecture in Java applications. You model your domain identifiers, value objects,
-entities, aggregates, repositories, ports, and use cases in `.vernac` files, while the Vernac compiler generates
-idiomatic, robust, and production-ready Java 21 code.
+You write the business decisions. Vernac supplies consistent value APIs, aggregate
+boundaries, transactional usecases, JDBC persistence, event delivery and outbound
+integration. Business implementations remain ordinary Java, inline or external.
 
----
-
-## Learn Vernac by Doing
-
-Start with a small task model and explore how Vernac definitions become
-Java types and behavior.
-
-[Start the tutorials →](tutorials/index.md)
-
-For field rules, factories and lifecycle metadata, see the
-[Entity and aggregate contract](contracts/entities-and-aggregates.md).
-
-Follow the [database tutorial](tutorials/database-persistence.md) for a runnable
-Spring Boot/PostgreSQL example, then [evolve its schema with Flyway](tutorials/flyway-workflow.md).
-For application notifications, start with [domain events](tutorials/domain-events.md).
-The [PostgreSQL mapping contract](contracts/postgresql-persistence.md) defines the
-storage and repository behavior.
-
----
-
-## 🚀 Key Highlights
-
-- **Pure, Type-Safe Domain Model**: Strongly typed IDs, immutable Value Objects, First-Class Collections, and Aggregates
-  with automatic invariant validation.
-- **Automated Relational Persistence**: Generates Spring JDBC repositories, PostgreSQL DDL schemas, transparent column
-  flattening for embedded Value Objects, child entity synchronization (1:N), and optimistic locking.
-- **Transactional Outbox Pattern**: Built-in EDA support that atomically persists domain events in `vernac_outbox`
-  within the aggregate's transaction, paired with Spring `@TransactionalEventListener`.
-- **Hexagonal Outbound Ports**: Generates port interfaces, external DTO schemas, and HTTP adapters with explicit DTO mappings and error translation
-  with automatic request/response mapping and Anti-Corruption Layer (ACL) separation.
-- **Application Layer Orchestration**: Spring `@Service` and `@Transactional` Use Cases with declarative dependency
-  injection, parameter validation, and type-inferred tuple returns.
-- **Convention over Configuration**: Deterministic name and type inference for fields, collections, repositories,
-  dispatch modes, and use-case operations.
-- **Java 21 & Spring Boot Native**: Generated code integrates seamlessly with Spring Boot 3+ applications and the
-  standard Java compiler.
-
----
-
-## ⚡ Quick DSL Showcase
+## Follow one operation through the system
 
 ```vernac
-package com.example.energy;
+namespace example.dispatch;
 
-id StorageId;
+id TourId;
+value Title(String) validates {
+    require(!self.string().isBlank(), "Title must not be blank");
+};
+value TourStatus = PLANNED | COMPLETED;
+event TourCompleted(TourId);
 
-value WattHours(int value) validates {
-    require(self.value() >= 0, "WattHours cannot be negative");
+aggregate Tour[TourId](Title, mut TourStatus) behavior {
+    modify void complete() {
+        self.tourStatus(TourStatus.COMPLETED);
+    }
+} list Tours;
+
+repository TourRepository for Tour {
+    find Tours withStatus(TourStatus status)
+        where tourStatus = :status order by title;
 }
 
-outbox event StorageCharged(StorageId storageId, WattHours newTotal);
-
-aggregate EnergyStorage[StorageId](
-    WattHours capacity,
-    mut WattHours storedEnergy
-) validates {
-    require(self.storedEnergy().value() <= self.capacity().value(), "Stored energy cannot exceed capacity");
-} {
-    public void charge(WattHours additionalEnergy) {
-        int newTotal = this.storedEnergy.value() + additionalEnergy.value();
-        storedEnergy(WattHours.of(newTotal));
-        registerEvent(StorageCharged.create(this.id, this.storedEnergy));
+usecase CompleteTour(TourId) uses TourRepository tours behavior {
+    execute {
+        var tour = self.tours().byId(tourId);
+        tour.complete();
+        self.tours().save(tour);
+        self.emit(TourCompleted.create(tour.id()));
     }
 }
-
-repository for EnergyStorage;
 ```
 
----
+Follow CompleteTour: load a complete aggregate, invoke domain behavior, save under
+optimistic locking, and publish a fact inside the usecase transaction. A listener
+chooses synchronous participation or durable deferred handling. An outbound port
+can describe the next external action without exposing HTTP DTOs to the domain.
 
-## 📚 Documentation Guides
+[Follow the architecture step by step →](tutorials/from-model-to-application.md)
 
-Explore the detailed architecture and reference manuals for every area of Vernac:
+This compact example leaves transition policy to the application. Completing a tour
+is not automatically idempotent merely because assigning the same status is a no-op.
 
-| Guide                                                                       | Description                                    | Key Topics                                                                                               |
-|:----------------------------------------------------------------------------|:-----------------------------------------------|:---------------------------------------------------------------------------------------------------------|
-| 📖 **[Language Reference](./language-reference.md)**                        | Complete DSL syntax, keywords, and conventions | `id`, `value`, `entity`, `aggregate`, `collection`, `mut`, inference rules, DDD validation               |
-| 🏛️ **[Use Cases & Application Layer](./usecase-application-layer.md)**      | Application services and orchestration         | `usecase`, `service`, `@Transactional`, dependency injection (`uses`), explicit Java repository calls, declared results      |
-| 🗄️ **[Database & Repository Mapping](./repository-db-mapping.md)**          | PostgreSQL persistence and Spring JDBC         | Table DDL, column flattening, 1:N child entities, optimistic locking, custom repository beans            |
-| 🌐 **[Outbound Ports & REST Adapters](./tutorials/ports-walkthrough.md)**         | Hexagonal architecture and external APIs       | `port`, HTTP adapter generation, schema DTOs, Anti-Corruption Layer, error translation        |
-| ⚡ **[Event-Driven Architecture & Outbox](./event-driven-architecture.md)** | Domain events and Transactional Outbox         | `event`, `vernac_outbox` DDL, `JdbcEventDispatcher`, `@TransactionalEventListener(phase = AFTER_COMMIT)` |
+## Choose your next step
 
----
+| Your goal | Start here |
+| --- | --- |
+| Get a model compiling in minutes | [Your first domain model](tutorials/your-first-domain-model.md) |
+| Use the editor and project wizard | [IntelliJ tutorial](tutorials/intellij-plugin.md) |
+| See persistence, events and external calls work together | [Delivery walkthrough](tutorials/database-persistence.md) |
+| Find exact syntax | [Language reference](language-reference.md) |
+| Understand guarantees and limits | [Specification and contracts](specification/index.md) |
+| Solve a common problem | [FAQ and troubleshooting](faq/index.md) |
 
-## 🛠️ Getting Started
+## What the language connects
 
-### 1. Add the Maven Plugin
+- **Domain:** typed IDs, immutable values, enums, named lists/sets, entities and aggregates.
+- **Behavior:** Java implementations behind generated access views, explicit validation,
+  private helpers and external delegation.
+- **Application:** named domain services and single-operation transactional usecases.
+- **Persistence:** PostgreSQL mapping, complete graphs, declarative queries, optimistic
+  locking and reviewable Flyway migration candidates; no ORM or lazy loading.
+- **Events:** immutable facts, synchronous listeners and relationally stored deliveries
+  with retries and worker coordination.
+- **Integration:** outbound ports, manual or REST adapters, DTO records, PATCH intent,
+  explicit mappings and business/technical error translation.
+- **Tooling:** Maven generation and IntelliJ support for Vernac and embedded Java.
 
-Configure the `vernac-maven-plugin` and `vernac-runtime` in your `pom.xml`:
+## Version and prerequisites
 
-```xml
+These pages describe **0.2.0-SNAPSHOT**, not the earlier published language.
+Install matching snapshot artifacts locally before following this branch's tutorials.
+Use JDK 25 to build the repository and examples; application output targets Java 21.
+The persistence examples use PostgreSQL 17. Choose the runtime modules your application
+needs; using domain models does not require JDBC.
 
-<dependencies>
-    <dependency>
-        <groupId>org.vernac</groupId>
-        <artifactId>vernac-runtime</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
-    </dependency>
-</dependencies>
+The [tutorial path](tutorials/index.md) starts without a database and gradually adds
+architecture. The [example guide](https://github.com/DannyReinhold/vernac/tree/feature/redefining_the_language/examples)
+contains build commands and separates database-free tests from PostgreSQL checks.
 
-<build>
-<plugins>
-    <plugin>
-        <groupId>org.vernac</groupId>
-        <artifactId>vernac-maven-plugin</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
-        <executions>
-            <execution>
-                <goals>
-                    <goal>compile</goal>
-                </goals>
-            </execution>
-        </executions>
-    </plugin>
-</plugins>
-</build>
-```
+Vernac is under active development. Migration review, external-call idempotency and
+business invariants remain application responsibilities. See the [FAQ](faq/index.md)
+for practical boundaries and the [release plan](development/release-0.2.0.md) for planned work.
 
-### 2. Create Your Domain Model
-
-Place your `.vernac` model files under `src/main/vernac/` (e.g., `src/main/vernac/order-domain.vernac`).
-
-### 3. Build & Generate Sources
-
-Run the standard Maven lifecycle:
-
-```bash
-mvn clean compile
-```
-
-The Vernac compiler processes your `.vernac` definitions during the `generate-sources` phase and places generated Java
-source files in:
-
-```
-target/generated-sources/vernac/
-```
-
-These sources are automatically added to your project's compile classpath.
-
----
-
-## 🛠️ IDE Support & Tooling
-
-The Vernac IntelliJ plugin provides a project wizard, file templates,
-and editor support powered by its bundled language server:
-
-- Create Maven projects with custom coordinates, packages, and JDK selection.
-- Import generated projects into Maven automatically.
-- Syntax and semantic highlighting.
-- Real-time syntax and semantic diagnostics.
-- Context-aware code completion and snippets.
-- Hover documentation and Go to Declaration within Vernac files.
-
-No separate language-server installation or LSP4IJ configuration is required.
-Java source generation runs through the Vernac Maven plugin.
-
-[Get started with the IntelliJ plugin →](tutorials/intellij-plugin.md)
-
-The current development template requires locally installed Vernac
-SNAPSHOT artifacts. See the tutorial for setup instructions.
-
----
-
-## 🔍 Example Projects
-
-Start with the examples using the reviewed language:
-
-- **`examples/namespace-values`**: Namespaces, value objects and Java interoperability.
-- **`examples/persistence-demo`**: Standalone Spring Boot, PostgreSQL and Flyway walkthrough
-  with complete aggregate graphs and a prepared migration exercise.
-
-The legacy reactor example modules have been removed. Remaining examples and
-templates are being audited for the [0.2.0 release](development/release-0.2.0.md).
-
-See the [consolidation status and next steps](development/consolidation-status.md)
-for implemented, deferred and planned areas.
-
----
-
-## 🔗 Links & Resources
-
-- **GitHub Repository**: [GitHub - Danny-Reinhold/vernac](https://github.com/DannyReinhold/vernac)
-- **License**: [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
-
-[Search complete aggregates with declarative repository queries →](tutorials/repository-queries.md)
-
-- [Usecases: one operation, one transaction](tutorials/usecases.md)
-
-- [Domain services: planning a stop transfer](tutorials/domain-services.md)
-
-- [HTTP adapters and structured failures](tutorials/http-adapter-runtime.md)
-
-- [Declarative outbound REST adapters](tutorials/declarative-rest.md)
-- [Declarative HTTP error translation](tutorials/declarative-errors.md)
-- [Run the complete ports and ACL walkthrough](tutorials/ports-walkthrough.md)
+[GitHub](https://github.com/DannyReinhold/vernac) · [Contributing](development/index.md) ·
+[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)

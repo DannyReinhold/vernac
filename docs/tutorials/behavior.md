@@ -104,7 +104,8 @@ private-access boundary as external code. Never edit that generated file.
 
 **Why does a Java error mention that file?** Java compilation follows generation.
 The method's Javadoc records the Vernac source location. Automatic diagnostic
-remapping and Java-aware inline editing are future work.
+remapping is distinct from editor support. IntelliJ provides Java-aware inline
+editing as described below; javac can still report generated-file locations.
 
 **Is this an architecture firewall?** No. Vernac catches known import mistakes;
 it does not inspect every Java dependency or prevent deliberate bypasses.
@@ -138,11 +139,12 @@ field setters and modifying behavior. Private helpers remain `private`.
 
 ```vernac
 id CounterId;
-entity Counter[CounterId](mut int count) validates {
-    require(self.count() >= 0, "Count must not be negative");
+value Count(int);
+entity Counter[CounterId](mut Count count) validates {
+    require(self.count().intValue() >= 0, "Count must not be negative");
 } behavior {
-    read int current() { return self.count(); }
-    modify void increment() { self.count(self.count() + 1); }
+    read int current() { return self.count().intValue(); }
+    modify void increment() { self.count(Count.of(Math.addExact(self.count().intValue(), 1))); }
 };
 ```
 

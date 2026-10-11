@@ -21,8 +21,8 @@ method availability and expression types. There is no token replacement or impli
 rewriting of arbitrary Java expressions. Whitespace and comments in expressions survive
 code generation.
 
-Usecase and service validation are outside this change: their input-validation contract
-has not been redesigned. Collection behavior is also unchanged.
+Usecase and service validation use input-only views as defined by their contracts.
+Collection behavior does not introduce collection-level validates blocks.
 
 ## Generated structure
 
@@ -76,7 +76,8 @@ itself also remains an application error.
 
 IntelliJ Java injection presents validation expressions with the same read-typed `self`
 and imports as generated Java. Host ranges use UTF-16 offsets, including Unicode source.
-Generated read types can navigate back to the corresponding Vernac definition.
+Technical Read types remain Java navigation targets. Source-backed getters and
+behavior members can navigate to their Vernac declarations.
 
 Tests compile generated Java to check read-view isolation, Optional getters, public
 behavior delegation, imports and invalid member access. Existing lifecycle tests cover

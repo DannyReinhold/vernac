@@ -1,21 +1,10 @@
 # Ports and ACL implementation plan
 
-The agreed target is [the contract](../contracts/ports-adapters-and-acl.md).
-This is a staged redesign, not compatibility work for the experimental syntax.
-The first documentation patch contained no compiler/runtime changes.
-The foundation patch implements slice 1 and its basic IDE support.
-The DTO patch implements the records/JSON/PATCH portion of slice 2, including
-local completion/navigation. The mapping patch completes typed declarative/Java
-conversion, nested/list conversions, PATCH preservation and basic mapping IDE support.
-The HTTP foundation adds transport-independent structured exceptions and a separate
-vernac-runtime-http module, with strict JSON/mapping boundaries, explicit 404
-absence, bounded response buffering, full-response deadlines and real HTTP tests.
-REST request/response declarations, external Java error hooks, encoded bindings,
-LSP references and an executable REST tutorial are now implemented. Ordered
-`errors { when ... }` rules, typed enum codes, body predicates, conservative 404
-conflict checking and tooling are now implemented too. The complete automated application-runner demonstration is now in persistence-demo
-(PortDemoRunner/PortDemoTest), with local HTTP and no external account requirements.
-Next is the outbound contract review and broader language roadmap.
+The [port contract](../contracts/ports-adapters-and-acl.md) and its linked DTO,
+mapping and REST contracts define observable behavior. The implementation includes
+manual adapters, typed DTO/mapping generation, HTTP request/response bindings and
+declarative errors. PortDemoRunner/PortDemoTest demonstrate the integration through
+real loopback HTTP. This document records architecture and remaining extensions.
 
 ## Implementation slices
 
@@ -35,17 +24,17 @@ shared resolved models. Do not introduce a second string-based type resolver.
 Each slice includes relevant tests and documentation rather than deferring all
 verification until the end.
 
-## Details to finalize before their implementation
+## Shared implementation boundaries
 
 - Mapping scopes and generated technical subpackages. DTOs are adapter-local nested
   records in <namespace>.adapter.outbound.dto.<Adapter>Dtos; see the DTO contract.
-- Mapping invocation API, Java hook signatures and approved technical field types.
+- Mapping APIs and Java hook signatures are defined in the mapping contract.
 - Error-category inventory and typed domain-code access: settled in the HTTP runtime contract.
 - Missing error-body operands: three-valued ErrorCondition; only TRUE matches.
   Compiler conditions must use this shared truth model.
 - Runtime success/status/body combinations are documented in the HTTP contract;
   the compiler must validate operation-specific absence/void/result declarations.
-- Explicit request diagnostics syntax and external correlation header configuration.
+- Further declarative request-diagnostic/correlation configuration remains an extension.
 - Exception wrapping boundaries: user programming defects must not masquerade
   indiscriminately as remote contract errors.
 

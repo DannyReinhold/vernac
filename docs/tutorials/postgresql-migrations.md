@@ -6,8 +6,8 @@ successful automated check guarantees correctness, safety or suitability for you
 production data and deployment.
 
 This tutorial covers the new schema tools. The new JDBC repository implementation
-and entity persistence are separate increments. Do not use the old repository
-SQL generator against these new schemas.
+and the JDBC runtime use the same mapping model. This tutorial focuses on schema
+operations; the runnable delivery example demonstrates persistence.
 
 ## Start with the example
 
@@ -17,8 +17,7 @@ Install the current compiler and Maven plugin from the repository root:
 mvn -pl vernac-maven-plugin -am clean install
 ```
 
-Open `examples/persistence-schema`. It has a repository-backed aggregate with values,
-an enum and a list. From that directory:
+Open `examples/persistence-schema`. It has a repository-backed Tour containing Stops and Parcels through lists. From that directory:
 
 ```text
 mvn vernac:schema
@@ -151,7 +150,7 @@ Read the [mapping contract](../contracts/postgresql-persistence.md) and
 
 ## Inspect entity containment
 
-The separate [entity graph example](../../examples/persistence-entities/README.md)
+The separate [entity graph example](https://github.com/DannyReinhold/vernac/blob/feature/redefining_the_language/examples/persistence-entities/README.md)
 adds shared entity references, subentities, direct optional references, lists and sets.
 Use it to inspect table ownership and composite foreign keys without modifying the
-value-only example. For generated JDBC operations, use the [runnable database tutorial](database-persistence.md).
+small containment example. For generated JDBC operations, use the [runnable database tutorial](database-persistence.md).

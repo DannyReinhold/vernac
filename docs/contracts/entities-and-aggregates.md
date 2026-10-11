@@ -175,17 +175,17 @@ adapter API, not an access-control mechanism against arbitrary Java code.
 The existing JDBC generator now reads/writes this state and returns the same aggregate.
 It still uses the expected version in the UPDATE predicate and writes the next version;
 failed optimistic locking must not advance the in-memory version. Its current update
-point is after successful SQL work, **before transaction commit**. Commit failure and
-rollback synchronization, version coverage for child-table changes, and overflow handling
-need the dedicated persistence review. Do not infer a completed transactional contract.
+point is after successful SQL work, **before transaction commit**. Commit failure or
+rollback does not restore this Java state. Root version checks cover aggregate graph
+writes as specified by the [persistence contract](postgresql-persistence.md).
 
 ## Domain generation and persistence
 
 The reviewed domain generator no longer computes SQL DDL or emits `TABLE_NAME` and
 `SCHEMA_DDL` constants. Domain legality must not depend on whether a persistence mapping
-exists: enum fields and cross-namespace types are valid domain fields. Low-level legacy
-schema tests remain in place pending the persistence redesign. Explicit repository
-mapping retains its own checks, including rejection of implicit enum storage formats.
+exists: enum fields and cross-namespace types are valid domain fields. Explicit repository
+mapping retains its own eligibility and representation checks; enum code defaults
+and overrides are defined by the persistence contract.
 
 ## Verification and remaining work
 
@@ -195,9 +195,9 @@ tests cover reconstruction, no-op and nested modification timing, failed validat
 retained changes, entity replacement, and technical version access. Runtime tests verify
 callback ordering and scope cleanup. LSP tests verify live diagnostics and their removal.
 
-The dedicated persistence step will cover schema generation, enum/ACL mapping, migrations,
-transaction boundaries and complete aggregate optimistic locking. Events and aggregate
-ownership remain separate topics. The candidate-state design remains postponed; see
+Persistence and events have separate contracts for schema generation, mappings,
+migrations, transactions and delivery. Deep aggregate ownership enforcement remains
+a separate design topic. The candidate-state design remains postponed; see
 [the planning record](../development/entity-behavior-and-change-contexts.md).
 
 ## Generated API layout and readability

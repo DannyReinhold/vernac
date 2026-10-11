@@ -11,9 +11,8 @@ The loader accepts open-document snapshots as an overlay over the source tree.
 No Java files are generated or written during editor analysis.
 
 Analysis covers namespace layout, declaration identities, imports and the reviewed
-ID/VO type rules. Deferred language categories have the same incomplete analysis
-coverage as the compiler's `analyzeProject` entry point. They must not be considered
-fully checked merely because the editor displays no diagnostics.
+type rules through the shared project resolver. Java bodies still require Java
+analysis/compilation; absence of Vernac diagnostics is not proof of runtime correctness.
 
 ## Source roots and isolation
 
@@ -106,7 +105,8 @@ The editor does not recursively load imports or guess Java classes.
 Other declarations are indexed to preserve identity conflicts and import visibility.
 This does not complete their semantic review. Repository/listener shorthand
 completion remains the earlier implementation, and enum-constant/member navigation,
-Java interoperability, hover details and auto-import edits are deferred.
+Embedded Java assistance and Java-to-Vernac navigation are implemented in the
+IntelliJ layer. Additional hover details and auto-import edits remain extensions.
 
 Tests cover incomplete input, file-local imports, local precedence, ambiguous and
 conflicting declarations, fully qualified edits, UTF-16 declaration ranges, false
@@ -147,10 +147,9 @@ value TaskSummary(TaskId id, Title title);
 
 ## Next
 
-Unicode identifier support is implemented in the next slice; see
-[Unicode implementation](unicode-support.md) for its pending full verification.
-After that, track generator-owned output files and remove obsolete generated classes
-only after successful generation. Stale-file cleanup is not implemented yet.
+Unicode identifiers and generated Java ownership reconciliation are implemented;
+see [compiler architecture](compiler-architecture.md) and [output ownership](generated-output.md).
+Compiled class/JAR cleanup remains a Java build responsibility.
 
 ## Confirmed navigation and deferred Ctrl-hover feedback
 

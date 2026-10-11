@@ -1,6 +1,7 @@
 # Value Object Contract
 
-Status: Accepted design contract; implementation conformance remains to be verified.
+Status: normative contract for the 0.2.0 language revision. MUST and MUST NOT
+express requirements; implementation verification is tracked separately.
 The runtime exception hierarchy and validation order below are part of this contract.
 
 ## Scope
@@ -55,7 +56,7 @@ Value object state is immutable:
 
 Approved scalar types and immutable nested value objects satisfy the intended model.
 Collection declarations, defensive copying, and collection access are governed by a
-separate collection contract that remains to be specified. No arbitrary Java arrays
+separate [collection contract](collections.md). No arbitrary Java arrays
 or collection field types are implicitly permitted by this contract.
 
 ## Construction and factories
@@ -88,6 +89,15 @@ all absent.
 
 Fieldless value objects are forbidden. A declaration without fields MUST produce
 a Vernac diagnostic at the declaration. This is a permanent language rule.
+
+## UUID single-value convenience factories
+
+A single-field VO whose resolved field type is UUID additionally provides create()
+and of(String), using UUID generation/parsing before normal constructor validation.
+Its getter retains the declared/derived field name. This does not add ID identity
+semantics or asString/asUuid helpers to an ordinary VO. An optional UUID field keeps
+its nullable String-factory input policy. ID declarations remain the preferred way
+to model domain identity.
 
 ## Validation
 
@@ -234,8 +244,8 @@ Applications with an existing business-exception superclass can translate Vernac
 exceptions at their application boundary. Generated value objects do not need to
 inherit from or depend on an application-specific exception hierarchy.
 
-The treatment of existing runtime exceptions outside value object construction,
-including identifier parsing and persistence failures, requires a separate review.
+Identifier parsing, persistence and integration failures are governed by their own
+APIs/contracts; the construction rule here does not reclassify every Java exception.
 
 ## Validation receiver
 

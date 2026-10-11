@@ -1,55 +1,45 @@
-# Vernac Tutorials
+# Build an application, one architectural decision at a time
 
-These tutorials introduce Vernac through small, practical exercises.
-Each tutorial starts with a working example and invites you to change it.
-The [example guide](../../examples/README.md) explains the learning order, build
-commands and which checks require PostgreSQL.
+Start with a passing domain test. Then follow a delivery operation through behavior,
+transactions, persistence, events and an external carrier. Each chapter answers a
+practical question; focused examples isolate details when the full system would distract.
 
-## Getting Started
+These tutorials target **0.2.0-SNAPSHOT**. Use JDK 25 and matching local artifacts.
+Commands with `mvn` are terminal commands; omit `mvn` in IntelliJ's Maven command window.
+In PowerShell, quote a complete dotted `-Dproperty=value` argument when necessary.
 
-1. [Getting Started with the Vernac IntelliJ Plugin](intellij-plugin.md)  
-   Create a Maven project, explore language-aware editing, and run
-   your first Java test.
+## 1. Make the domain explicit
 
-2. [Your First Domain Model](your-first-domain-model.md)  
-   Create a task model, use it from Java, explore validation, and add
-   your first business method.
+1. [Set up IntelliJ](intellij-plugin.md): create a project and navigate between Vernac and Java.
+2. [Your first domain model](your-first-domain-model.md): values, identity and a tested operation.
+3. [From model to application](from-model-to-application.md): see how the architectural pieces connect.
+4. [Default names and explicit roles](default-names.md): choose a clear generated API.
+5. [Closed domain values](enum-value-objects.md): model states without transport codes.
+6. [Lists, sets and repeated values](collections.md): make multiplicity and identity intentional.
+7. [Domain behavior](behavior.md): inline Java, private helpers and external implementations.
 
-3. [Default Names and Explicit Roles](default-names.md)
-   Explore generated getters, role names and compiler diagnostics.
+## 2. Turn behavior into an application operation
 
-4. [Closed Domain Values with Enums](enum-value-objects.md)
-   Add domain behavior, use enums in value objects, and explore naming collisions.
+1. [Usecases](usecases.md): one operation, declared results and one transaction boundary.
+2. [Domain services](domain-services.md): move a Stop between Tours using a shared domain rule.
 
-5. [Working with Domain Collections](collections.md)
-   Explore lists, sets, immutable transformations and repeated elements.
+## 3. Keep and evolve state
 
-6. [Give Your Model Domain Behavior](behavior.md)
-   Add inline Java, private helpers, external implementations and null checking.
+1. [Persist complete aggregates](database-persistence.md): shared entities, queries and concurrent changes.
+2. [Repository queries](repository-queries.md): equality, absence, text patterns and boolean expressions.
+3. [Evolve with Flyway](flyway-workflow.md): review and apply a migration while retaining data.
+4. [Schema tooling](postgresql-migrations.md): snapshots, backfills and disposable-database verification.
 
-[Back to the documentation](../index.md)
-## PostgreSQL persistence and migrations
+## 4. React to facts and cross system boundaries
 
-1. [Persist a complete aggregate](database-persistence.md): run the standalone Spring
-   Boot example, inspect shared entities, transaction boundaries and orphan cleanup.
-2. [Evolve the database with Flyway](flyway-workflow.md): generate and review a second
-   migration, verify it and apply it while retaining the existing data.
-3. [Schema tooling reference](postgresql-migrations.md): mapping, snapshots, explicit
-   backfills, conversion options and schema verification.
+1. [Domain events](domain-events.md): synchronous participation and durable deferred delivery.
+2. [Run the ports and ACL walkthrough](ports-walkthrough.md): inspect real HTTP calls against a local fixture.
+3. [A Java-backed outbound port](outbound-ports.md): the same architecture without HTTP.
+4. [DTOs and PATCH](adapter-dtos.md): names, absence and explicit update intent.
+5. [Mappings](adapter-mappings.md): translate transport records into validated domain values.
+6. [Declarative REST](declarative-rest.md): bind requests and responses.
+7. [Declarative error translation](declarative-errors.md): distinguish rejection from technical failure.
+8. [HTTP runtime](http-adapter-runtime.md): use the lower-level Java API when needed.
 
-## Domain events
-
-[Publish an event and invoke synchronous listeners](domain-events.md), including
-external Java implementations and transaction boundaries.
-
-- [Outbound ports and Java-backed adapters](outbound-ports.md) — domain interfaces, dependency injection and isolated behavior.
-
-- [Adapter DTOs and PATCH](adapter-dtos.md) — strict JSON, explicit names and three-state updates.
-
-- [Map adapter DTOs to domain values](adapter-mappings.md) — explicit conversions, validated factories and optional values.
-
-- [Use the HTTP adapter runtime](http-adapter-runtime.md) — real calls, typed errors and explicit absence.
-
-- [Declare an outbound REST adapter](declarative-rest.md) — HTTP bindings, DTO mappings and external error translation.
-- [Translate HTTP errors declaratively](declarative-errors.md) — typed business rejection, responsibility and unavailable error bodies.
-- [Run the ports and ACL walkthrough](ports-walkthrough.md) — generated code, real local HTTP and verified runner scenarios.
+[FAQ](../faq/index.md) · [Language reference](../language-reference.md) ·
+[Specification](../specification/index.md) · [Documentation home](../index.md)

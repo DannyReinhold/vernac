@@ -138,9 +138,9 @@ The editor recognizes the new keywords and projects execute/private bodies and
 validation expressions into Java contexts. Java usecase type/execute navigation
 points to the declaration. Result-component navigation is not added in this increment.
 
-Ports retain their separately deferred project-generation status. Events and
-synchronous listeners have a [reviewed contract](events.md). Domain services are supported with their own reviewed contract. Declaring a usecase dependency does not silently migrate those generators.
-Repository and usecase dependencies work with the reviewed project pipeline.
+Ports, repositories, domain services, events and listeners participate in the
+project pipeline under their respective contracts. Dependency eligibility remains
+context-specific; a uses declaration does not bypass architectural checks.
 
 ## Verification
 

@@ -1,4 +1,4 @@
-# Embedded Java in IntelliJ: behavior pilot
+# Embedded Java in IntelliJ
 
 ## Scope
 
@@ -18,9 +18,9 @@ IntelliJ's default semantic-token policy only enables plain text and TextMate;
 adding a custom parser without this override would remove Vernac highlighting.
 Injected Java files are excluded from this opt-in and retain Java highlighting.
 
-The first pilot covers ordinary and enum value objects and explicit collection
-behavior. It does not inject validation expressions or legacy entity/aggregate
-Java blocks. `implemented by` has no inline body to inject; Java navigation on
+Projection covers reviewed behavior contexts and validation delegates, including
+entity/aggregate read/modify access and application/adapter bodies. Unsupported
+legacy Java blocks are not a documented extension mechanism. `implemented by` has no inline body to inject; Java navigation on
 that Vernac target declaration is a separate feature.
 
 ## Prerequisites and editing
@@ -33,7 +33,7 @@ that Vernac target declaration is a separate feature.
 - Changes inside inline bodies and private helper declarations use the live
   document. Saving or rebuilding is not required for those edits.
 - Declare additional Java imports explicitly in `java imports`. Automatic import
-  insertion into that DSL block is not part of this pilot.
+  insertion into that DSL block is not provided by this integration.
 
 Java can navigate from a helper call to its original inline method name because
 that name is an injected source fragment, not merely synthetic scaffolding.

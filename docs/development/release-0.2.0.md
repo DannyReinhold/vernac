@@ -32,7 +32,7 @@ The project wizard relocates both Vernac and Java sources and injects the bundle
 compiler version without matching a hard-coded old version. Tests cover custom
 coordinates, Unicode namespaces, compilation and pre-existing destination files.
 The first-domain-model tutorial follows this template. The example source/documentation
-audit now provides a [learning guide](../../examples/README.md), removes the isolated
+audit now provides a [learning guide](https://github.com/DannyReinhold/vernac/blob/feature/redefining_the_language/examples/README.md), removes the isolated
 operations event experiment and covers entity/service behavior in Java tests. Both
 schema examples generate successfully; file templates are compiled in their test.
 The demo's database/concurrency/event checks still require an explicit PostgreSQL
@@ -67,9 +67,9 @@ implemented behavior. Intentional limits are discoverable and covered where usef
 This includes README, all of docs (contracts, specification, development,
 maintainers, tutorials, FAQs and website entry points), templates and examples.
 
-- [ ] Inventory pages and classify each as current contract, tutorial, maintainer
+- [x] Inventory pages and classify each as current contract, tutorial, maintainer
       guide, active design note, historical decision or obsolete content.
-- [ ] Update useful pages. Consolidate duplicates and remove obsolete or irrelevant
+- [x] Update useful pages. Consolidate duplicates and remove obsolete or irrelevant
       material from the working tree; Git history preserves old versions.
 - [ ] Keep necessary active design decisions, but distinguish plans from guarantees.
 - [ ] Repair links, navigation, stale commands, class names, old syntax and version
@@ -174,3 +174,17 @@ Keep these visible, but do not fold them into consolidation:
 
 Persistence/migration correctness and architectural consistency remain ongoing
 quality work, not one-time boxes checked by this release.
+
+## Documentation consolidation evidence
+
+README and site entry points share an executable delivery story; the reference is
+rewritten for 0.2.0 and linked to one normative specification index. FAQs and a
+contributor index separate audiences. Historical progress notes were consolidated;
+old public URLs remain navigation pages. DocumentationExamplesTest verifies the
+entry models and generated Java. The local link checker covers targets/anchors.
+Existing mapping and REST tutorial execution tests remain in the verification set.
+Website rendering, external URLs and full PostgreSQL/installed-IDE acceptance remain
+separate release checks. Repository links in published docs currently target
+feature/redefining_the_language; retarget them to the released source when merging.
+The release workflow must include runtime-http/runtime-json in its publication
+scope; Marketplace automation is still a planned release task.

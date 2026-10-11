@@ -30,8 +30,8 @@ Vernac naming convention. Conflicts require explicit names.
 Dependencies may be domain services, domain ports or repository interfaces.
 Usecases and concrete adapters are not service dependencies. Repository access is
 possible, but application orchestration and transaction ownership normally remain
-in the usecase. Ports still require their separately planned pipeline review;
-a service dependency does not activate a deferred port generator.
+in the usecase. Dependencies use the shared namespace resolver and must satisfy
+their own declaration contracts.
 
 Only public operations appear on the bean. Dependency getters are exposed on
 `<namespace>.domain.access.<Service>Access`, not on the bean. A private inner

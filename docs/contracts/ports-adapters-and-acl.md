@@ -1,9 +1,8 @@
 # Ports, adapters, DTOs and mappings
 
-Status: agreed target contract, not a claim of implemented functionality.
-Examples specify the intended notation; remaining syntax details are listed in
-[the implementation plan](../development/ports-adapters-and-acl.md).
-This contract supersedes conflicting legacy outbound-port design notes.
+Status: normative outbound architecture contract for 0.2.0. The linked DTO, mapping,
+REST and runtime contracts define exact syntax and APIs. Inbound generators, async
+ports and other extensions remain outside this contract.
 
 ## Architectural boundary
 
@@ -20,8 +19,9 @@ An adapter implements the entire port and becomes a Spring bean. A single
 implementation needs no extra selection syntax. Multiple implementations require
 unambiguous application configuration; the generator must not silently choose one.
 Concrete outbound implementations belong below <namespace>.adapter.outbound.
-No custom-package override is provided. Exact technical subpackage layout is
-settled during implementation.
+No custom-package override is provided. Access views reside in
+`<namespace>.adapter.outbound.access`; DTO holders reside in
+`<namespace>.adapter.outbound.dto`.
 
 Ports and adapters neither open nor require a database transaction by default.
 A database rollback cannot undo external communication. Calls are synchronous in
@@ -252,6 +252,5 @@ Typed declarative/Java mappings are implemented; see the [mapping contract](adap
 The shared port exception hierarchy and synchronous HTTP execution are implemented
 in [the HTTP runtime contract](http-adapter-runtime.md). Existing Java adapter
 behavior can use them now. REST request/response declarations and external Java error translation are implemented
-in [the REST contract](declarative-rest.md). Ordered declarative error rules remain
-target contract. Manual behavior still propagates exceptions as-is unless it
+in [the REST contract](declarative-rest.md). Ordered declarative error rules are specified there as well. Manual behavior still propagates exceptions as-is unless it
 explicitly invokes an integration boundary.

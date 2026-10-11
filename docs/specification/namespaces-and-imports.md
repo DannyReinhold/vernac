@@ -1,9 +1,10 @@
 # Namespaces and Imports
 
-Status: Accepted design; implementation pending.
+Status: normative requirements for the 0.2.0 language revision.
 
-This specification defines the intended Vernac behavior. It does not claim
-that the current compiler or IDE plugin already implements these rules.
+This specification defines namespace and import semantics. Compiler and editor
+implementations MUST use the same resolution rules. Verification evidence and
+remaining release work belong in development documentation.
 
 ## 1. Purpose
 
@@ -307,22 +308,15 @@ Retain existing tests unless their expected behavior is deliberately superseded
 by this specification. Update those expectations explicitly. Tests of generated
 Java are required alongside parser and analyzer tests.
 
-## 12. Migration and open follow-ups
+## 12. Related rules and excluded extensions
 
-This is a language change, not a drop-in grammar patch. Migrate the previous
-file-level `package` declaration to `namespace`, remove per-definition package
-overrides, and replace Java-oriented file imports according to the forthcoming
-Java-interoperability rules. Do not silently discard old constructs.
+Java package placement is summarized in the [reference](../language-reference.md).
+Built-ins and field eligibility are specified in [domain types](domain-field-types.md),
+naming in the [names contract](../contracts/names-and-unicode.md), and Java imports
+in the [behavior contract](../contracts/behavior.md). Generated-source reconciliation
+is described in [output ownership](../development/generated-output.md); SQL naming
+is defined by the [persistence contract](../contracts/postgresql-persistence.md).
 
-Update compiler, generators, plugin/LSP, examples, project templates and
-documentation together. Audit the effects of changed output paths and stale
-generated files before rollout.
-
-Separate decisions still required:
-
-- Complete mapping from definition/artifact roles to Java packages.
-- Java types, built-in types and embedded-Java import scope.
-- Identifier conventions and collision checks for generated members.
-- External Vernac dependency metadata and symbol discovery.
-- Cleanup of stale generated files after moves, renames or deletion.
-- SQL identifiers, quoting and schema migrations in the persistence review.
+Automatic discovery of Vernac symbols in external binary dependencies is not
+introduced by this source-project namespace contract. Removing package overrides
+does not authorize arbitrary fallback to Java class names.

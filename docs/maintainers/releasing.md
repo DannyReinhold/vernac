@@ -6,15 +6,17 @@ It also records the current scope of release automation.
 
 The current development target is 0.2.0-SNAPSHOT. Follow the
 [0.2.0 release plan](../development/release-0.2.0.md) before publishing: this guide's
-historical 0.1.0 commands are being audited, and Marketplace automation is not yet
-implemented. Do not treat those commands as the final 0.2.0 checklist.
+commands below illustrate 0.2.0. Marketplace automation and a complete workflow
+publication-module audit remain release gates. Do not publish before those gates pass.
 
 ## Release scope
 
-The following components are published to Maven Central:
+The 0.2.0 Maven Central publication scope is:
 
 - `org.vernac:vernac` — parent POM
 - `org.vernac:vernac-runtime`
+- `org.vernac:vernac-runtime-json`
+- `org.vernac:vernac-runtime-http`
 - `org.vernac:vernac-runtime-jdbc`
 - `org.vernac:vernac-jdbc-spring-boot-starter`
 - `org.vernac:vernac-compiler`
@@ -94,17 +96,17 @@ The project uses the Maven property `revision` as its central version input.
 Supply the release version on the command line:
 
 ```text
--Drevision=0.1.0
+-Drevision=0.2.0
 ```
 
 This overrides the development version for that invocation without editing
-every module POM. Replace `0.1.0` in the commands below when publishing
+every module POM. Replace `0.2.0` in the commands below when publishing
 another release.
 
 A Maven Central release version must not end in `-SNAPSHOT`.
 
-Published versions are immutable. A correction to a published `0.1.0`
-must use a new version, such as `0.1.1`.
+Published versions are immutable. A correction to a published `0.2.0`
+must use a new version, such as `0.2.1`.
 
 ## 1. Prepare the source state
 
@@ -126,7 +128,7 @@ or private signing material.
 Start Docker Desktop and run:
 
 ```text
-mvn -Drevision=0.1.0 clean verify
+mvn -Drevision=0.2.0 clean verify
 ```
 
 This includes the example modules and IntelliJ plugin checks.
@@ -146,7 +148,7 @@ Replace `YOUR_SIGNING_KEY_FINGERPRINT` with the full fingerprint of the
 release signing key:
 
 ```text
-mvn -Prelease -Drevision=0.1.0 -pl vernac-runtime-jdbc,vernac-jdbc-spring-boot-starter,vernac-maven-plugin -am -Dgpg.keyname=YOUR_SIGNING_KEY_FINGERPRINT clean verify
+mvn -Prelease -Drevision=0.2.0 -pl vernac-runtime-http,vernac-runtime-jdbc,vernac-jdbc-spring-boot-starter,vernac-maven-plugin -am -Dgpg.keyname=YOUR_SIGNING_KEY_FINGERPRINT clean verify
 ```
 
 The `-am` option includes required reactor projects, including the parent,
@@ -185,7 +187,7 @@ resolved appropriately by the flattening step.
 Run the same selected-module build with `deploy`:
 
 ```text
-mvn -Prelease -Drevision=0.1.0 -pl vernac-runtime-jdbc,vernac-jdbc-spring-boot-starter,vernac-maven-plugin -am -Dgpg.keyname=YOUR_SIGNING_KEY_FINGERPRINT clean deploy
+mvn -Prelease -Drevision=0.2.0 -pl vernac-runtime-http,vernac-runtime-jdbc,vernac-jdbc-spring-boot-starter,vernac-maven-plugin -am -Dgpg.keyname=YOUR_SIGNING_KEY_FINGERPRINT clean deploy
 ```
 
 This command uploads the release artifacts.
@@ -247,7 +249,7 @@ For example:
 3. Build it with a new, empty Maven repository directory:
 
 ```text
-mvn -U -Dmaven.repo.local=C:/temp/vernac-central-check-0.1.0 clean verify
+mvn -U -Dmaven.repo.local=C:/temp/vernac-central-check-0.2.0 clean verify
 ```
 
 Run this command in the standalone project's directory. Choose a different
@@ -272,8 +274,8 @@ After successful publication and consumption verification, tag the exact
 commit used to build the release:
 
 ```text
-git tag -a maven-v0.1.0 RELEASE_COMMIT_SHA -m "Maven Central release 0.1.0"
-git push origin maven-v0.1.0
+git tag -a maven-v0.2.0 RELEASE_COMMIT_SHA -m "Maven Central release 0.2.0"
+git push origin maven-v0.2.0
 ```
 
 Replace `RELEASE_COMMIT_SHA` with the previously recorded commit ID.
@@ -297,7 +299,7 @@ SNAPSHOT version, for example:
 
 ```xml
 
-<revision>0.1.1-SNAPSHOT</revision>
+<revision>0.2.1-SNAPSHOT</revision>
 ```
 
 Commit this development-version change separately.
@@ -333,7 +335,7 @@ mvn -version
 Build from the repository root:
 
 ```powershell
-$releaseVersion = "0.1.0"
+$releaseVersion = "0.2.0"
 mvn "-Drevision=$releaseVersion" -pl vernac-intellij -am clean verify
 ```
 
@@ -511,8 +513,11 @@ started manually with a release version and a dry-run option.
 The successful dry run verified the CI build and signing path. An actual
 publication through this workflow is a separate verification step.
 
-The current workflow verifies the project and builds the selected publication
-artifacts. In dry-run mode it does not deploy them. In deployment mode it
+The current workflow verifies the project and builds its selected publication
+artifacts. Its selected-module list currently omits vernac-runtime-http (and does
+not thereby guarantee publication of runtime-json). Before 0.2.0, update and dry-run
+that selection against the scope above. This documentation change does not modify
+the workflow or certify it as release-ready. In dry-run mode it does not deploy them. In deployment mode it
 uploads to the Central Publisher Portal for validation; final publication
 remains a manual Portal action.
 

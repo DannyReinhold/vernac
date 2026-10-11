@@ -1,11 +1,11 @@
 # Domain Field Types and Nullness
 
-Status: Accepted design; implementation pending.
+Status: normative requirements for the 0.2.0 language revision.
 
 Related specification: [Namespaces and Imports](namespaces-and-imports.md).
 
-This document specifies intended language behavior. It does not claim that the
-current compiler, generators, JDBC support or IDE implement every requirement.
+This specification defines modeled field eligibility and nullness. It does not
+extend the separate persistence/transport capability catalogs.
 
 ## 1. Purpose and scope
 
@@ -289,24 +289,17 @@ Existing tests remain unless their expectations are explicitly superseded by
 these accepted language changes. Parser-only success is not sufficient;
 generated Java and relevant runtime behavior must be tested.
 
-## 11. Open decisions and migration
+## 11. Related contracts and excluded extensions
 
-The following are intentionally unresolved:
+Built-in names are reserved against Vernac declarations. Built-ins use their catalog
+names; fully qualified Java class spellings are not alternative domain-type aliases.
+A fully qualified Vernac identity must resolve in the project index.
 
-- Name resolution when a Vernac type has the same name as a built-in, such as
-  `Currency` or `String`; no precedence or reservation rule is established here.
-- Whether exact fully qualified Java spellings of built-ins, such as
-  `java.math.BigDecimal`, are accepted aliases. Arbitrary Java names remain
-  forbidden either way.
-- Rules for operation signatures, event payloads and adapter schemas.
-- Additional Java libraries and imports inside embedded Java code.
-- Future support for user-defined Java value types.
-- Complete collection semantics and declaration forms.
-
-Migration requires auditing existing direct primitive/Java fields in entities
-and aggregates, current imports, examples, templates, tests, compiler diagnostics
-and plugin behavior. Replacing fields with value objects changes the generated
-Java API and may affect persistence; document such changes explicitly.
+Operation signatures, event payloads, collections and adapter schemas have their own
+contracts in the [specification index](index.md). Java imports inside implementation
+blocks do not add modeled field types. User-defined Java value-type integration remains
+outside this catalog. EventId is the shared runtime event identity, governed by the
+[event contract](../contracts/events.md).
 
 ## References
 

@@ -139,9 +139,9 @@ runtime defaults. A required result never turns 404 into absence. If an operatio
 combines `on 404 absent` with an external error hook, 404 is handled first and does
 not reach the hook. Successful malformed responses still fail as INVALID_RESPONSE.
 
-Dedicated declarative `errors { when ... }` rules are the next step; they are not
-part of this patch. The hook already supports precise business/technical handling
-without exposing HTTP in the port's domain signatures.
+Use [declarative error rules](declarative-errors.md) for common status/body mappings.
+The Java hook remains available for custom policy without exposing HTTP in the
+port's domain signatures.
 
 ## What the compiler checks
 

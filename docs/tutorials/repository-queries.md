@@ -73,7 +73,8 @@ PostgreSQL `C` collation, not language-specific alphabetical order.
 Time comparisons include nanosecond remainders. All ordered scalar capabilities
 are listed in the [contract](../contracts/repository-queries.md). This increment
 supports IDs, enums, and single-value objects with one required built-in scalar.
-Nested paths, multi-value equality, collection predicates and LIKE are deferred.
+Nested paths, multi-value equality and collection predicates are not supported.
+Text searches and boolean combinations are described below.
 
 ## Ordering
 

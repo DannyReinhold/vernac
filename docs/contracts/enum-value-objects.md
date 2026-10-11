@@ -1,6 +1,7 @@
 # Enum Value Object Contract
 
-Status: Accepted design contract; implementation conformance remains to be verified.
+Status: normative contract for the 0.2.0 language revision. MUST and MUST NOT
+express requirements; implementation verification is tracked separately.
 MUST and MUST NOT express requirements, not claims about the current compiler.
 
 ## Purpose and scope
@@ -181,11 +182,11 @@ An external representation belongs to the relevant persistence or adapter mappin
 Different external systems may assign different representations to the same enum.
 The domain enum MUST NOT acquire one privileged external representation.
 
-Stable codes, unknown external values, renaming, mapping completeness, and schema
-migrations will be specified with persistence and ACL mapping. Removing dbValue
-MUST NOT be compensated by silently substituting name(), toString(), or ordinal()
-in existing mappings. Affected generators and examples must be identified; unresolved
-mapping support must be explicitly diagnosed or tracked until that review.
+Stable storage codes, renaming and schema migration follow the
+[persistence contract](postgresql-persistence.md). DTO conversion follows the
+[mapping contract](adapter-mappings.md). These mappings MUST NOT treat toString()
+or ordinal() as an implicit external contract. Unsupported conversions require
+a diagnostic or an explicit Java mapping.
 
 `ordinal()` MUST NOT be used as the generated persistent representation. The presence
 of ordinal() on the Java API does not imply a stable domain or storage identifier.

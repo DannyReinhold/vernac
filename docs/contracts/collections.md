@@ -1,7 +1,7 @@
 # Domain Collection Contract
 
-Status: Accepted design; implementation supplied with this contract. Full Maven
-and installed-plugin verification remain required. MUST denotes a requirement.
+Status: normative contract for the 0.2.0 language revision. MUST denotes a requirement.
+Build and installed-plugin verification are release checks, not alternative semantics.
 
 ## Purpose
 
@@ -256,7 +256,6 @@ completion/navigation across namespaces, field eligibility, and generated symbol
 - Required/optional nested VO fields, cross-file/namespace resolution, and rejection
   of Entity/Aggregate collections in VOs.
 
-This collection contract does not migrate all Entity/Aggregate generators to the
-multi-file pipeline. Their existing single-source generation can emit these
-collections; the strict project pipeline still reports those not-yet-reviewed owner
-kinds as deferred. Full persistence/ACL collection mapping is likewise a later review.
+Collection declarations participate in the multi-file project pipeline for all
+supported owner kinds. Persistence and adapter mappings have separate capability
+rules; see [persistence](postgresql-persistence.md) and [mappings](adapter-mappings.md).

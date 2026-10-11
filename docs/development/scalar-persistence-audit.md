@@ -1,7 +1,14 @@
-# Scalar persistence and query equality audit
+# Scalar persistence decisions: historical audit
 
 Date: 2026-10-10. Scope: `ScalarMappings`, `ScalarCodec`, JDBC binding/reading in
-`JdbcAggregateStore`, and generated VO equality. Query implementation is still pending.
+`JdbcAggregateStore`, and generated VO equality. This records findings made before the scalar/query changes.
+
+**Historical decision record.** The failures and proposed actions below describe
+the pre-change implementation, not current guarantees. Representation checks and
+query equality were subsequently implemented. Consult the
+[scalar limits](../contracts/scalar-storage-limits.md) and
+[query contract](../contracts/repository-queries.md) for current behavior. This record
+is retained because it explains signed zero, scale and temporal representation choices.
 
 ## Decision and evidence boundary
 

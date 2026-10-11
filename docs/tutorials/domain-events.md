@@ -159,7 +159,7 @@ It also tests automatic polling, independent subscribers and processing rollback
 
 ## Runnable example
 
-The standalone [persistence demo](../../examples/persistence-demo/README.md#event-walkthrough)
+The standalone [persistence demo](https://github.com/DannyReinhold/vernac/blob/feature/redefining_the_language/examples/persistence-demo/README.md#event-walkthrough)
 contains a complete event runner. It demonstrates synchronous observation, two deferred
 subscribers, an intentional first-attempt failure, successful retry and publisher rollback.
 Its event migration is committed alongside the source schema snapshot. Run it after
