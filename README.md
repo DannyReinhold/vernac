@@ -70,9 +70,10 @@ framework convention.
 
 ## Start with a passing test
 
-This branch documents **0.2.0-SNAPSHOT**, the next development release. Use matching
-snapshot artifacts and the development plugin; an older published release does not
-implement this language revision.
+This documentation describes the **Vernac 0.2.0 language and API**. Use matching
+compiler, runtime and IntelliJ plugin versions; 0.1.x does not implement this
+language revision. For a source checkout, the commands below build and install
+the version configured in its root POM (currently `0.2.0-SNAPSHOT`).
 
 Use JDK 25 and Maven 3.9+. Generated application code targets Java 21.
 From this repository, install the compiler and runtime, then try the minimal template:

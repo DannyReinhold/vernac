@@ -83,6 +83,22 @@ jobs:
           server-username: CENTRAL_USERNAME
           server-password: CENTRAL_PASSWORD
 
+      - name: Set up pinned Maven
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=3.9.16
+          archive="apache-maven-${version}-bin.tar.gz"
+          base="https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/${version}"
+          mkdir -p "$RUNNER_TEMP/vernac-maven"
+          cd "$RUNNER_TEMP/vernac-maven"
+          curl --fail --silent --show-error --location "$base/$archive" -o "$archive"
+          curl --fail --silent --show-error --location "$base/$archive.sha512" -o "$archive.sha512"
+          printf '%s  %s\n' "$(cat "$archive.sha512")" "$archive" | sha512sum --check -
+          tar -xzf "$archive"
+          echo "$PWD/apache-maven-${version}/bin" >> "$GITHUB_PATH"
+          "$PWD/apache-maven-${version}/bin/mvn" --version
+
       - name: Verify complete project
         run: mvn -B -ntp -Drevision="$RELEASE_VERSION" clean verify
 

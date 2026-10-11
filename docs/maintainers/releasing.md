@@ -659,3 +659,21 @@ API references:
 - [JetBrains plugin upload API](https://plugins.jetbrains.com/docs/marketplace/plugin-upload.html)
 - [GitHub artifact download action](https://github.com/actions/download-artifact)
 - [Central Publishing Maven plugin](https://central.sonatype.org/publish/publish-portal-maven/)
+
+## Central bundle validation and Maven version
+
+The release and plugin-consumer workflows pin Maven **3.9.16**, verify its
+download checksum and print its version. `setup-java` does not pin Maven.
+Use the same Maven version for local publishing. Maven 3.10 can leave repository
+metadata in the Central staging directory which the publishing plugin includes
+in its bundle. Central then reports directories without a `.pom`, even when
+the actual version directories contain their POMs.
+
+If Central validation fails, inspect the build log and bundle before retrying.
+A successful `clean verify` dry run does not exercise Central bundle creation
+and server-side validation. After correcting a failed, **unpublished** deployment,
+discard that failed deployment in the Portal and start a new workflow run from
+the corrected `main` commit with the same release version. This is different
+from retrying a deployment that has already been published: never redeploy
+published coordinates. For a Marketplace-only failure, use the separate plugin
+workflow instead.
