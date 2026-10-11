@@ -13,7 +13,7 @@ The development database credentials in this example are disposable local defaul
 From the Vernac repository root, install the current snapshot:
 
 ```text
-mvn -pl vernac-maven-plugin,vernac-jdbc-spring-boot-starter -am clean install
+mvn -pl vernac-maven-plugin,vernac-jdbc-spring-boot-starter,vernac-runtime-http -am clean install
 mvn -f examples/persistence-demo/pom.xml spring-boot:run
 ```
 
@@ -191,3 +191,70 @@ mvn test -Dvernac.test.database=true -Dtest=EventDemoTest
 This uses the separate test database on port 55434. It exercises actual generated
 listeners, Boot auto-configuration, Flyway and the automatic worker, rather than
 invoking the worker directly. The persistent application database uses port 55433.
+
+## Ports and ACL walkthrough
+
+A third application runner, PortDemoRunner (`@Order(2)`), follows the persistence
+and event runners. It executes generated outbound REST code against a deterministic
+local carrier fixture. No external account, API key or fixed HTTP port is required.
+No schema change or migration is introduced by this walkthrough.
+
+The model is [carrier.vernac](src/main/vernac/org/example/carrier/carrier.vernac).
+Its domain port accepts Shipment values and returns ShippingQuote values; HTTP,
+wire codes and adapter-local DTOs stay in the adapter. A POST unwraps Destination
+and ParcelWeight into JSON. The response maps a nested Cost DTO into ShippingPrice,
+then into a ShippingQuote; the ordinary domain factories validate the result.
+
+The walkthrough verifies:
+
+1. Successful POST and GET, nested response mapping and tolerated extra JSON fields.
+2. Explicit optional 404 behavior and a DELETE returning 204.
+3. Correct encoding of a reference containing Unicode, slash, space, question mark
+   and plus; the base URI's `/api/` prefix is preserved.
+4. Recognized 422/403 responses mapped to declared ShippingRejection enum constants.
+5. Explicit local authentication responsibility for 401, unresolved responsibility
+   for an unfamiliar 403, and a remote 503 failure with Retry-After metadata.
+6. Invalid JSON, missing required response fields and a negative domain price
+   rejected as INVALID_RESPONSE with causes retained.
+7. Malformed error JSON and absent optional error codes falling back to technical
+   failures, preserving the HTTP status and decoding diagnostics where applicable.
+8. Distinct per-call invocation IDs, no automatic request-payload capture and exactly
+   14 HTTP requests (no hidden retries).
+
+Each successful check writes `Verified ports/ACL: ...`. Expected failures are logged
+with exception type, code/category, status, operation and invocation ID. The final
+message is `Ports/ACL walkthrough passed: 16 checks, 14 HTTP requests`. Any mismatch
+throws an exception and fails the runner. `demo.run=false` disables all three runners.
+
+The scenario names (for example `unsupported` and `broken-json`) are explicit test
+fixtures, not production routing logic. LocalCarrierServer binds only to 127.0.0.1
+on an automatically allocated port. Each run owns and closes both server and client,
+including on failure. They do not keep the application alive after the walkthrough.
+
+For this local fixture, PortDemoWalkthrough constructs the generated CarrierHttp
+adapter and calls it through ShippingCarrier. Namespace `org.example.carrier` sits
+outside the application's `org.example.delivery` component scan deliberately: the
+fixture owns the endpoint lifecycle. A real application would discover/import the
+adapter bean and supply its HttpAdapterClient and URI dependencies through Spring,
+as shown in the HTTP tutorial. Neither a database transaction nor a database rollback
+is implied by this outbound communication.
+
+Run the same walkthrough as a normal test **without Docker or PostgreSQL**, from the
+repository root after installing the current snapshot:
+
+```text
+mvn -f examples/persistence-demo/pom.xml clean test -Dtest=PortDemoTest
+```
+
+Expected: `Tests run: 2, Failures: 0, Errors: 0, Skipped: 0`. The test executes the
+walkthrough twice to detect leaked scenario state and also invokes the application
+runner. For the entire application, including persistence and events, use the usual
+start command (Docker/PostgreSQL are still required for those two walkthroughs):
+
+```text
+mvn -f examples/persistence-demo/pom.xml clean spring-boot:run
+```
+
+See [the guided ports tutorial](../../docs/tutorials/ports-walkthrough.md) for a
+reading order and the [declarative error tutorial](../../docs/tutorials/declarative-errors.md)
+for the error-rule semantics.

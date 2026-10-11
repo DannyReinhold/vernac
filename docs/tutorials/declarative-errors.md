@@ -115,5 +115,5 @@ it must exclude 404 (for example `status != 404 and ...`); otherwise the compile
 reports that the rule could be shadowed. There is no automatic 404-to-empty policy.
 
 See the [REST contract](../contracts/declarative-rest.md) for predicate types,
-precedence and limitations. The application demo runner is the next walkthrough;
-this tutorial's automated test already covers the generated HTTP boundary.
+precedence and limitations. Continue with the [application demo runner](ports-walkthrough.md); its database-free
+test and full application mode both exercise the generated HTTP boundary.

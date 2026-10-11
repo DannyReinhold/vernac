@@ -1,0 +1,79 @@
+namespace org.example.carrier;
+
+value Destination(String) validates {
+    require(!self.string().isBlank(), "Destination must not be blank");
+};
+value ParcelWeight(BigDecimal) validates {
+    require(self.bigDecimal().signum() > 0, "Weight must be positive");
+};
+value Shipment(Destination destination, ParcelWeight weight);
+value QuoteReference(String);
+value CurrencyCode(String);
+value ShippingPrice(BigDecimal amount, CurrencyCode currency) validates {
+    require(self.amount().signum() >= 0, "Shipping price must not be negative");
+};
+value ShippingQuote(QuoteReference reference, ShippingPrice price);
+value ShippingRejection = DESTINATION_NOT_SUPPORTED | ACCOUNT_BLOCKED;
+
+// The caller sees domain values and failures, not HTTP or DTOs.
+port ShippingCarrier {
+    ShippingQuote quote(Shipment shipment);
+    ShippingQuote? lookup(QuoteReference reference);
+    void cancel(QuoteReference reference);
+}
+
+adapter CarrierHttp implements ShippingCarrier {
+    rest {
+        client http;
+        base baseUri;
+
+        ShippingQuote quote(Shipment shipment) {
+            POST "/quotes";
+            body <- shipment using toRequest;
+            response QuotePayload using toQuote;
+            errors {
+                response CarrierError;
+                when status = 422 and response.code = "UNSUPPORTED_DESTINATION"
+                then reject ShippingRejection.DESTINATION_NOT_SUPPORTED
+                    "The carrier does not serve this destination";
+                when status = 403 and response.code = "ACCOUNT_BLOCKED"
+                then reject ShippingRejection.ACCOUNT_BLOCKED
+                    "The shipping account is blocked";
+                // Explicit policy of this example, not a universal interpretation of 401.
+                when status = 401
+                then fail local AUTHENTICATION "Check the carrier integration credentials";
+                otherwise default;
+            }
+        }
+
+        ShippingQuote? lookup(QuoteReference reference) {
+            GET "/quotes/{reference}";
+            path "reference" <- reference;
+            response QuotePayload using toQuote;
+            on 404 absent;
+        }
+
+        void cancel(QuoteReference reference) {
+            DELETE "/quotes/{reference}";
+            path "reference" <- reference;
+        }
+    }
+
+    schema QuoteRequest(String destination, BigDecimal weightKg);
+    schema QuotePayload(String quoteId, Cost price);
+    schema Cost(BigDecimal amount, String currency);
+    schema CarrierError(String? code);
+
+    mapping toRequest: QuoteRequest <- Shipment {
+        destination <- source.destination;
+        weightKg <- source.weight;
+    }
+    mapping toPrice: ShippingPrice <- Cost {
+        amount <- source.amount;
+        currency <- source.currency;
+    }
+    mapping toQuote: ShippingQuote <- QuotePayload {
+        reference <- source.quoteId;
+        price <- source.price using toPrice;
+    }
+}

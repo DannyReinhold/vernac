@@ -10,6 +10,7 @@
     <name>Vernac Persistence Demo</name>
     <properties><java.version>21</java.version><vernac.version>0.1.1-SNAPSHOT</vernac.version></properties>
     <dependencies>
+        <dependency><groupId>org.vernac</groupId><artifactId>vernac-runtime-http</artifactId><version>${vernac.version}</version></dependency>
         <dependency><groupId>org.vernac</groupId><artifactId>vernac-jdbc-spring-boot-starter</artifactId><version>${vernac.version}</version></dependency>
         <dependency><groupId>org.flywaydb</groupId><artifactId>flyway-core</artifactId></dependency>
         <dependency><groupId>org.flywaydb</groupId><artifactId>flyway-database-postgresql</artifactId></dependency>

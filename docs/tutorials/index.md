@@ -50,3 +50,4 @@ external Java implementations and transaction boundaries.
 
 - [Declare an outbound REST adapter](declarative-rest.md) — HTTP bindings, DTO mappings and external error translation.
 - [Translate HTTP errors declaratively](declarative-errors.md) — typed business rejection, responsibility and unavailable error bodies.
+- [Run the ports and ACL walkthrough](ports-walkthrough.md) — generated code, real local HTTP and verified runner scenarios.

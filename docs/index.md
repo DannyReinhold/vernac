@@ -46,7 +46,7 @@ storage and repository behavior.
   flattening for embedded Value Objects, child entity synchronization (1:N), and optimistic locking.
 - **Transactional Outbox Pattern**: Built-in EDA support that atomically persists domain events in `vernac_outbox`
   within the aggregate's transaction, paired with Spring `@TransactionalEventListener`.
-- **Hexagonal Outbound Ports**: Generates port interfaces, external DTO schemas, and Spring `RestClient` HTTP adapters
+- **Hexagonal Outbound Ports**: Generates port interfaces, external DTO schemas, and HTTP adapters with explicit DTO mappings and error translation
   with automatic request/response mapping and Anti-Corruption Layer (ACL) separation.
 - **Application Layer Orchestration**: Spring `@Service` and `@Transactional` Use Cases with declarative dependency
   injection, parameter validation, and type-inferred tuple returns.
@@ -97,7 +97,7 @@ Explore the detailed architecture and reference manuals for every area of Vernac
 | 📖 **[Language Reference](./language-reference.md)**                        | Complete DSL syntax, keywords, and conventions | `id`, `value`, `entity`, `aggregate`, `collection`, `mut`, inference rules, DDD validation               |
 | 🏛️ **[Use Cases & Application Layer](./usecase-application-layer.md)**      | Application services and orchestration         | `usecase`, `service`, `@Transactional`, dependency injection (`uses`), explicit Java repository calls, declared results      |
 | 🗄️ **[Database & Repository Mapping](./repository-db-mapping.md)**          | PostgreSQL persistence and Spring JDBC         | Table DDL, column flattening, 1:N child entities, optimistic locking, custom repository beans            |
-| 🌐 **[Outbound Ports & REST Adapters](./outbound-port-mapping.md)**         | Hexagonal architecture and external APIs       | `port`, Spring `RestClient` generation, schema DTOs, Anti-Corruption Layer, error status handling        |
+| 🌐 **[Outbound Ports & REST Adapters](./tutorials/ports-walkthrough.md)**         | Hexagonal architecture and external APIs       | `port`, HTTP adapter generation, schema DTOs, Anti-Corruption Layer, error translation        |
 | ⚡ **[Event-Driven Architecture & Outbox](./event-driven-architecture.md)** | Domain events and Transactional Outbox         | `event`, `vernac_outbox` DDL, `JdbcEventDispatcher`, `@TransactionalEventListener(phase = AFTER_COMMIT)` |
 
 ---
@@ -212,3 +212,4 @@ for implemented, deferred and planned areas.
 
 - [Declarative outbound REST adapters](tutorials/declarative-rest.md)
 - [Declarative HTTP error translation](tutorials/declarative-errors.md)
+- [Run the complete ports and ACL walkthrough](tutorials/ports-walkthrough.md)

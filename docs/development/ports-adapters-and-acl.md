@@ -13,8 +13,9 @@ absence, bounded response buffering, full-response deadlines and real HTTP tests
 REST request/response declarations, external Java error hooks, encoded bindings,
 LSP references and an executable REST tutorial are now implemented. Ordered
 `errors { when ... }` rules, typed enum codes, body predicates, conservative 404
-conflict checking and tooling are now implemented too. Next is a complete automated
-application-runner demonstration, followed by the outbound contract/roadmap review.
+conflict checking and tooling are now implemented too. The complete automated application-runner demonstration is now in persistence-demo
+(PortDemoRunner/PortDemoTest), with local HTTP and no external account requirements.
+Next is the outbound contract review and broader language roadmap.
 
 ## Implementation slices
 
