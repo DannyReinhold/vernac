@@ -27,12 +27,12 @@ rollback, deep immutability of entity graphs, safe production migrations or retr
 - [ ] Make the complete root build a green gate again; targeted builds are not the
       final release acceptance criterion.
 
-Source-backed finding: templates/vernac-basic still contains pre-refactoring
-package/aggregate syntax and the project template loader expects those entries.
-Update the template, loader, bundled resources, README and acceptance tests together.
-A generated project must compile and test with the current compiler, not merely
-contain plausible files. The older template's version placeholder must also be
-updated coherently; do not globally replace historical release numbers.
+The basic project template now uses namespace directories and modify behavior.
+The project wizard relocates both Vernac and Java sources and injects the bundled
+compiler version without matching a hard-coded old version. Tests cover custom
+coordinates, Unicode namespaces, compilation and pre-existing destination files.
+The first-domain-model tutorial follows this template. The remaining examples
+and file templates still need their separate audit.
 
 The standalone examples retain their own application versions. Only their
 vernac.version denotes the compiler/runtime version. The parent revision remains

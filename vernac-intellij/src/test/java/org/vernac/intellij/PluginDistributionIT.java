@@ -132,7 +132,7 @@ class PluginDistributionIT {
                     ".mvn/wrapper/maven-wrapper.properties",
                     ".gitignore",
                     ".gitattributes",
-                    "src/main/vernac/tasks.vernac",
+                    "src/main/vernac/org/example/tasks/tasks.vernac",
                     "src/test/java/org/example/tasks/TaskTest.java"
             )) {
                 requireContent(

@@ -24,7 +24,7 @@ public final class VernacProjectTemplate {
             ".mvn/wrapper/maven-wrapper.properties",
             ".gitignore",
             ".gitattributes",
-            "src/main/vernac/tasks.vernac",
+            "src/main/vernac/org/example/tasks/tasks.vernac",
             "src/test/java/org/example/tasks/TaskTest.java"
     );
 
@@ -97,7 +97,8 @@ public final class VernacProjectTemplate {
                     || relativePath.endsWith(".java")) {
                 content = customizeSource(
                         new String(content, StandardCharsets.UTF_8),
-                        basePackage
+                        basePackage,
+                        relativePath.endsWith(".vernac")
                 ).getBytes(StandardCharsets.UTF_8);
             }
 
@@ -162,7 +163,7 @@ public final class VernacProjectTemplate {
         String heading = "# " + escapeMarkdown(projectName)
                 + "\n\n"
                 + "- Maven coordinates: `" + groupId + ":" + artifactId + "`\n"
-                + "- Java package: `" + basePackage + "`";
+                + "- Vernac namespace: `" + basePackage + "`";
 
         readme = replaceExactlyOnce(
                 readme,
@@ -170,6 +171,8 @@ public final class VernacProjectTemplate {
                 heading
         );
 
+        readme = readme.replace("src/main/vernac/org/example/tasks/",
+                "src/main/vernac/" + basePackage.replace('.', '/') + "/");
         return replaceExactlyOnce(
                 readme,
                 "src/test/java/org/example/tasks/TaskTest.java",
@@ -269,12 +272,14 @@ public final class VernacProjectTemplate {
 
     private static String customizeSource(
             String content,
-            String basePackage
+            String basePackage,
+            boolean vernac
     ) throws IOException {
+        String keyword = vernac ? "namespace" : "package";
         content = replaceExactlyOnce(
                 content,
-                "package org.example.tasks;",
-                "package " + basePackage + ";"
+                keyword + " org.example.tasks;",
+                keyword + " " + basePackage + ";"
         );
 
         return content.replace(
@@ -301,13 +306,8 @@ public final class VernacProjectTemplate {
                 "<artifactId>" + escapeXml(artifactId) + "</artifactId>"
         );
 
-        pom = replaceExactlyOnce(
-                pom,
-                "<vernac.version>0.1.0-SNAPSHOT</vernac.version>",
-                "<vernac.version>"
-                        + escapeXml(readVernacVersion())
-                        + "</vernac.version>"
-        );
+        pom = replaceSection(pom, "<vernac.version>", "</vernac.version>",
+                "<vernac.version>" + escapeXml(readVernacVersion()) + "</vernac.version>");
         return replaceExactlyOnce(
                 pom,
                 "<name>Vernac Basic Example</name>",
@@ -344,6 +344,11 @@ public final class VernacProjectTemplate {
             String templatePath,
             String basePackage
     ) {
+        String modelRoot = "src/main/vernac/org/example/tasks/";
+        if (templatePath.startsWith(modelRoot)) {
+            return "src/main/vernac/" + basePackage.replace('.', '/')
+                    + "/" + templatePath.substring(modelRoot.length());
+        }
         String testRoot = "src/test/java/org/example/tasks/";
 
         if (templatePath.startsWith(testRoot)) {

@@ -1,26 +1,66 @@
 # Your first domain model
 
-Start with the maintained namespace/value example in `examples/namespace-values`.
-It demonstrates IDs, value objects, optional fields, validations and imports between
-files/namespaces, without a database. The former legacy reactor example has been
-removed; this page no longer instructs users to build it.
+Start with `templates/vernac-basic`, or create a project using the Vernac IntelliJ
+project wizard. The wizard sets Maven coordinates, the namespace and source paths
+for you. Use JDK 25 for the build; the application targets Java 21.
 
-From the repository root, with the current JDK and snapshot:
+For a snapshot version, install the matching Vernac artifacts locally first.
+Released compiler and runtime artifacts are downloaded from Maven Central.
 
-```text
-mvn -pl examples/namespace-values -am clean verify
+## Build and explore
+
+From the generated project directory, run `./mvnw clean test` on Linux/macOS or
+`.\mvnw.cmd clean test` in Windows PowerShell. In an IntelliJ Maven run
+configuration, enter `clean test`.
+
+Open `src/main/vernac/org/example/tasks/tasks.vernac` (with the corresponding
+namespace path if you chose another namespace):
+
+```vernac
+namespace org.example.tasks;
+
+id TaskId;
+
+value Title(String) validates {
+    require(!self.string().isBlank(), "Task title must not be blank");
+};
+
+value Status = PENDING | IN_PROGRESS | COMPLETED | CANCELLED;
+
+aggregate Task[TaskId](Title title, mut Status) behavior {
+    modify void complete() {
+        self.status(Status.COMPLETED);
+    }
+};
 ```
 
-Read that example's README and its handwritten tests alongside the `.vernac` files.
-Try changing a validation or removing a cross-namespace import, then rebuild and
-observe the resulting diagnostic or test failure. Restore experiments before committing.
+`Title` validates its value when created. `Task.create(title, status)` creates a
+fresh identity. Only the status is mutable, and the behavior accesses it through
+`self`. Generated classes live in `org.example.tasks.domain`.
 
-For complete application behavior, continue with:
+The Java test in `src/test/java/org/example/tasks/TaskTest.java` creates a task,
+completes it and checks the result. Read the generated Java under
+`target/generated-sources/vernac` as well; edit the Vernac source, never the
+generated classes.
 
-- [The ports and ACL walkthrough](ports-walkthrough.md).
-- The standalone `examples/persistence-demo` README for aggregate persistence,
-  events and the prepared migration exercise.
-- [The current value-object contract](../contracts/value-objects.md).
+## Add your own behavior
 
-A fuller introductory tutorial and all project templates are part of the
-[0.2.0 documentation and example audit](../development/release-0.2.0.md).
+Add this method inside the existing `behavior` block:
+
+```java
+modify void start() {
+    self.status(Status.IN_PROGRESS);
+}
+```
+
+Extend the Java test to call `task.start()` and assert `Status.IN_PROGRESS`
+before completing the task. Rebuild with `clean test`.
+
+Next, try `Title.of(" ")` in a test. Assert that it throws
+`org.vernac.runtime.DomainValidationException`. Think about whether completing an
+already cancelled task should be allowed: the initial example deliberately has
+no transition policy. Add a policy and tests as a further exercise.
+
+No database, Docker container or running Spring application is needed here.
+For persistence and migrations, continue with the tutorials linked from the
+[tutorial index](index.md).
