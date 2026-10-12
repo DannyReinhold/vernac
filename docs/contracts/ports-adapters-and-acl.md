@@ -1,6 +1,6 @@
 # Ports, adapters, DTOs and mappings
 
-Status: normative outbound architecture contract for 0.2.0. The linked DTO, mapping,
+Status: normative outbound architecture contract for 0.3.0. The linked DTO, mapping,
 REST and runtime contracts define exact syntax and APIs. Inbound generators, async
 ports and other extensions remain outside this contract.
 
@@ -93,11 +93,11 @@ Unicode/acronym algorithm is defined in the [DTO contract](adapter-dtos.md).
 
 An ordinary optional field is not a patch instruction. A patch field has:
 
-| State | Meaning | JSON |
-| --- | --- | --- |
+| State       | Meaning                       | JSON             |
+|-------------|-------------------------------|------------------|
 | unchanged() | No instruction for this field | Property omitted |
-| clear() | Remove its value | Explicit null |
-| set(value) | Supply a value | Encoded value |
+| clear()     | Remove its value              | Explicit null    |
+| set(value)  | Supply a value                | Encoded value    |
 
 ```vernac
 schema CustomerPatch (
@@ -111,13 +111,13 @@ name allows unchanged/set but rejects clear. comment allows all three states.
 JSON decoding enforces the same distinction.
 
 Java components use PatchField<T>, not Optional<PatchField<T>>. Containers are
-non-null, set(null) is rejected, and generated constructors reject clear for a
+non-null, set (null) is rejected, and generated constructors reject clear for a
 non-clearable field. Factories take explicit wrappers, not nullable parameters.
 PatchField is an immutable technical runtime value with meaningful equality,
 hashCode and toString; its concrete Java declaration remains an implementation detail.
 
 patch is initially restricted to DTOs. Combining patch with absent as null is a
-compiler error. set(emptyCollection) differs from clear(). Setting a field replaces
+compiler error. set (emptyCollection) differs from clear (). Setting a field replaces
 its whole value in this initial contract. Recursive object patches and list edit
 operations are not implicitly generated.
 
@@ -187,7 +187,7 @@ The invocation context is per call, not mutable singleton bean state.
 
 Malformed successful responses, missing required fields and domain-validation
 failures during response mapping are invalid-response integration errors with
-location information and preserved causes, never Optional.empty().
+location information and preserved causes, never Optional.empty ().
 
 ## Declarative HTTP error translation
 
@@ -252,7 +252,8 @@ Typed declarative/Java mappings are implemented; see the [mapping contract](adap
 The shared port exception hierarchy and synchronous HTTP execution are implemented
 in [the HTTP runtime contract](http-adapter-runtime.md). Existing Java adapter
 behavior can use them now. REST request/response declarations and external Java error translation are implemented
-in [the REST contract](declarative-rest.md). Ordered declarative error rules are specified there as well. Manual behavior still propagates exceptions as-is unless it
+in [the REST contract](declarative-rest.md). Ordered declarative error rules are specified there as well. Manual
+behavior still propagates exceptions as-is unless it
 explicitly invokes an integration boundary.
 
 ## Technical configuration

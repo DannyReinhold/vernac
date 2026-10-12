@@ -1,6 +1,6 @@
 # Value Object Contract
 
-Status: normative contract for the 0.2.0 language revision. MUST and MUST NOT
+Status: normative contract for the 0.3.0 language revision. MUST and MUST NOT
 express requirements; implementation verification is tracked separately.
 The runtime exception hierarchy and validation order below are part of this contract.
 
@@ -92,8 +92,8 @@ a Vernac diagnostic at the declaration. This is a permanent language rule.
 
 ## UUID single-value convenience factories
 
-A single-field VO whose resolved field type is UUID additionally provides create()
-and of(String), using UUID generation/parsing before normal constructor validation.
+A single-field VO whose resolved field type is UUID additionally provides create ()
+and of (String), using UUID generation/parsing before normal constructor validation.
 Its getter retains the declared/derived field name. This does not add ID identity
 semantics or asString/asUuid helpers to an ordinary VO. An optional UUID field keeps
 its nullable String-factory input policy. ID declarations remain the preferred way

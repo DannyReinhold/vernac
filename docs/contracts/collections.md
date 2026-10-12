@@ -1,6 +1,6 @@
 # Domain Collection Contract
 
-Status: normative contract for the 0.2.0 language revision. MUST denotes a requirement.
+Status: normative contract for the 0.3.0 language revision. MUST denotes a requirement.
 Build and installed-plugin verification are release checks, not alternative semantics.
 
 ## Purpose
@@ -100,50 +100,50 @@ instances; sets deliberately keep one. There is no implicit version reconciliati
 
 For a generated type C containing T:
 
-| API | Meaning |
-| --- | --- |
-| `C.empty()` | Empty collection |
-| `C.of(T... items)` | Snapshot of an array or individual arguments |
-| `C.of(Iterable<? extends T> items)` | Snapshot of a Java or generated collection |
-| `iterator()` / enhanced for loop | Read-only traversal |
-| `stream()` | Sequential stream of contained instances |
-| `asList()` (lists only) | Unmodifiable List<T> view |
-| `asSet()` (sets only) | Unmodifiable Set<T> view |
+| API                                 | Meaning                                      |
+|-------------------------------------|----------------------------------------------|
+| `C.empty()`                         | Empty collection                             |
+| `C.of(T... items)`                  | Snapshot of an array or individual arguments |
+| `C.of(Iterable<? extends T> items)` | Snapshot of a Java or generated collection   |
+| `iterator()` / enhanced for loop    | Read-only traversal                          |
+| `stream()`                          | Sequential stream of contained instances     |
+| `asList()` (lists only)             | Unmodifiable List<T> view                    |
+| `asSet()` (sets only)               | Unmodifiable Set<T> view                     |
 
 The class MUST NOT implement List or Set and MUST NOT expose mutation methods that
-merely fail at runtime. No redundant elements()/toList()/toSet() aliases are generated.
+merely fail at runtime. No redundant elements ()/toList ()/toSet () aliases are generated.
 A separate collection map operation is not provided; use stream mapping and an
 explicit destination factory. Optional.map remains available on single-result APIs.
 
 ## Queries
 
-| API | Return | Meaning |
-| --- | --- | --- |
-| `size()` | int | Number of elements |
-| `isEmpty()` | boolean | Whether size is zero |
-| `contains(T element)` | boolean | Membership by equality; may stop at first match |
-| `count(T element)` | int | Number of equal elements; 0 or 1 for sets |
-| `find(T element)` | Optional<T> | First contained equal instance, not the query object |
-| `get(int index)` (list) | T | Zero-based access; invalid indices throw IndexOutOfBoundsException |
-| `first()` / `last()` (list) | Optional<T> | First/last element, or empty |
+| API                         | Return      | Meaning                                                            |
+|-----------------------------|-------------|--------------------------------------------------------------------|
+| `size()`                    | int         | Number of elements                                                 |
+| `isEmpty()`                 | boolean     | Whether size is zero                                               |
+| `contains(T element)`       | boolean     | Membership by equality; may stop at first match                    |
+| `count(T element)`          | int         | Number of equal elements; 0 or 1 for sets                          |
+| `find(T element)`           | Optional<T> | First contained equal instance, not the query object               |
+| `get(int index)` (list)     | T           | Zero-based access; invalid indices throw IndexOutOfBoundsException |
+| `first()` / `last()` (list) | Optional<T> | First/last element, or empty                                       |
 
 `contains(x)` is equivalent to `count(x) > 0`; `!contains(x)` to `count(x) == 0`.
 No missing result is represented as null.
 
 ## Transformations
 
-| API | Meaning |
-| --- | --- |
-| `plus(T element)` | Append to a list; insert if absent into a set |
-| `plusAll(Iterable<? extends T> elements)` | Include all supplied elements in encounter order |
-| `minus(T element)` | Remove the first equal occurrence, if present |
-| `minusAll(T element)` | Remove every equal occurrence |
-| `minusAll(Iterable<? extends T> elements)` | Remove all source elements equal to any candidate |
-| `matching(T element)` | Retain every equal source occurrence |
-| `matching(Iterable<? extends T> elements)` | Retain all source elements equal to any candidate |
-| `filter(Predicate<? super T> predicate)` | Retain elements satisfying the predicate |
-| `distinct()` (list only) | Keep the first instance of each equality group |
-| `duplicates()` (list only) | Keep ALL occurrences of groups appearing at least twice |
+| API                                        | Meaning                                                 |
+|--------------------------------------------|---------------------------------------------------------|
+| `plus(T element)`                          | Append to a list; insert if absent into a set           |
+| `plusAll(Iterable<? extends T> elements)`  | Include all supplied elements in encounter order        |
+| `minus(T element)`                         | Remove the first equal occurrence, if present           |
+| `minusAll(T element)`                      | Remove every equal occurrence                           |
+| `minusAll(Iterable<? extends T> elements)` | Remove all source elements equal to any candidate       |
+| `matching(T element)`                      | Retain every equal source occurrence                    |
+| `matching(Iterable<? extends T> elements)` | Retain all source elements equal to any candidate       |
+| `filter(Predicate<? super T> predicate)`   | Retain elements satisfying the predicate                |
+| `distinct()` (list only)                   | Keep the first instance of each equality group          |
+| `duplicates()` (list only)                 | Keep ALL occurrences of groups appearing at least twice |
 
 Missing removal candidates do not cause errors. Candidate repetitions do not
 multiply results and do not represent counts to subtract. Selection preserves
@@ -159,7 +159,7 @@ source order and source instances, not candidate instances:
 
 ### Duplicates: every occurrence, including the first
 
-**duplicates() does not return only the extra occurrences and does not deduplicate
+**duplicates () does not return only the extra occurrences and does not deduplicate
 its result.** It selects equality groups whose frequency is at least two and returns
 ALL original members of those groups, preserving order and exact instances.
 
@@ -171,27 +171,27 @@ ALL original members of those groups, preserving order and exact instances.
 [].duplicates()                        -> []
 ```
 
-Use **duplicates().distinct()** for one representative of each repeated group.
-The first original instance is retained by distinct().
+Use **duplicates ().distinct ()** for one representative of each repeated group.
+The first original instance is retained by distinct ().
 
-Example: Account(id=42, balance=100) and Account(id=42, balance=200) compare equal
-by identity. duplicates() retains BOTH instances for investigation. Calling
-distinct() afterward deliberately selects the first and discards the other state.
+Example: Account (id=42, balance=100) and Account (id=42, balance=200) compare equal
+by identity. duplicates () retains BOTH instances for investigation. Calling
+distinct () afterward deliberately selects the first and discards the other state.
 Neither operation decides which balance is correct or more recent.
 
 ## Identity helpers (Entity/Aggregate elements only)
 
 The ID parameter uses the element's resolved Vernac ID type:
 
-| API | Return | Meaning |
-| --- | --- | --- |
-| `by(Id id)` | Optional<T> | First element with the ID |
-| `contains(Id id)` | boolean | Whether that ID is present |
-| `minusId(Id id)` | C | Remove the first matching identity |
-| `minusAllId(Id id)` | C | Remove all matching identities |
+| API                 | Return      | Meaning                            |
+|---------------------|-------------|------------------------------------|
+| `by(Id id)`         | Optional<T> | First element with the ID          |
+| `contains(Id id)`   | boolean     | Whether that ID is present         |
+| `minusId(Id id)`    | C           | Remove the first matching identity |
+| `minusAllId(Id id)` | C           | Remove all matching identities     |
 
-contains(T) and contains(Id) are overloads. ID collections themselves need only
-find(id), contains(id), and the ordinary element operations; no redundant ID helpers.
+contains (T) and contains (Id) are overloads. ID collections themselves need only
+find (id), contains (id), and the ordinary element operations; no redundant ID helpers.
 The collection is an in-memory subset, not a repository. A valid ID may be absent.
 
 ## Equality, hashing, and rendering
@@ -229,7 +229,8 @@ use the shared namespace resolver.
 Collection `behavior` blocks MAY contain public and private methods. Their signatures
 use resolved Vernac/approved scalar types and normal optional/nullness rules. They
 cannot define mutable storage, custom constructors, packages, or collection invariants.
-Implementation code lives in a separate top-level class and cannot access private collection storage. Public implementations receive `self`; private helpers use explicit parameters.
+Implementation code lives in a separate top-level class and cannot access private collection storage. Public
+implementations receive `self`; private helpers use explicit parameters.
 
 Actual generated/inherited method signature conflicts and invalid member/parameter
 names MUST produce source-located compiler and LSP diagnostics. Legal overloads
@@ -250,8 +251,8 @@ completion/navigation across namespaces, field eligibility, and generated symbol
   unchanged sources, empty collections, missing candidates, and bounds errors.
 - Ordering, equality/hashCode, identity helpers, original-instance preservation,
   list multiplicities, and set first-instance semantics.
-- **duplicates() including first occurrences, all-equal/unique/empty cases, distinct
-  Entity states with the same ID, and duplicates().distinct().**
+- **duplicates () including first occurrences, all-equal/unique/empty cases, distinct
+  Entity states with the same ID, and duplicates ().distinct ().**
 - count and contains consistency for lists and sets.
 - Required/optional nested VO fields, cross-file/namespace resolution, and rejection
   of Entity/Aggregate collections in VOs.

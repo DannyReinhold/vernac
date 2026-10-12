@@ -13,7 +13,7 @@ Yes. A repository is explicit, not generated for every aggregate. The core runti
 is separate from JDBC, JSON and HTTP support. Select the modules your application
 needs; the [basic tutorial](../tutorials/your-first-domain-model.md) needs no database.
 
-## Why does Title have string() instead of value()?
+## Why does Title have string () instead of value ()?
 
 Field names follow one type-based rule. `value Title(String);` derives `string`.
 Write `value Title(String value);` to choose `value` explicitly. Adding another
@@ -24,7 +24,7 @@ field does not rename the first. Conflicts require explicit meaningful names.
 
 Optional factory/public input parameters accept nullable values. Domain getters
 express absence as Optional so callers must handle it deliberately. Required inputs
-reject null. This is not permission to return null instead of Optional.empty().
+reject null. This is not permission to return null instead of Optional.empty ().
 DTO and usecase-result records have separately defined Optional components.
 [Read the field contract](../specification/domain-field-types.md).
 
@@ -97,7 +97,7 @@ empty collection. PATCH additionally distinguishes unchanged, set and clear.
 ## Why does the editor understand my model but Maven cannot find artifacts?
 
 The IDE plugin bundles editor tooling, not artifacts installed into your Maven
-repository. For this development branch, install matching 0.2.0-SNAPSHOT artifacts.
+repository. For this development branch, install matching 0.3.0-SNAPSHOT artifacts.
 Check the Maven runner JDK/settings and local repository. Use JDK 25 for these examples.
 [IDE setup](../tutorials/intellij-plugin.md).
 
@@ -112,6 +112,7 @@ Do not put handwritten files inside generated output directories.
 
 Not for database claims. PostgreSQL tests are opt-in; supply the documented disposable
 server configuration and inspect skipped counts. Database-free HTTP and domain tests
-exercise different boundaries. [Test the delivery example](../tutorials/database-persistence.md#7-run-the-database-tests).
+exercise different
+boundaries. [Test the delivery example](../tutorials/database-persistence.md#7-run-the-database-tests).
 
 [All tutorials](../tutorials/index.md) · [Reference](../language-reference.md)

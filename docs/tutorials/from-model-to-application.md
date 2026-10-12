@@ -30,11 +30,11 @@ repository TourRepository for Tour {
         where tourStatus = :status order by title;
 }
 
-usecase CompleteTour(TourId) uses TourRepository tours behavior {
+usecase CompleteTour(TourId) uses TourRepository tourRepository behavior {
     execute {
-        var tour = self.tours().byId(tourId);
+        var tour = self.tourRepository().byId(tourId);
         tour.complete();
-        self.tours().save(tour);
+        self.tourRepository().save(tour);
         self.emit(TourCompleted.create(tour.id()));
     }
 }

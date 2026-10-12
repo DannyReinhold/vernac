@@ -1,6 +1,6 @@
 # Aggregate persistence and queries
 
-This page is a navigation entry for existing links. Current 0.2.0 documentation:
+This page is a navigation entry for existing links. Current 0.3.0 documentation:
 
 Start with [database persistence](tutorials/database-persistence.md) and
 [Flyway evolution](tutorials/flyway-workflow.md). The

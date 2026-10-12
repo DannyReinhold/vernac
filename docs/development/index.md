@@ -18,7 +18,8 @@ Release acceptance also includes installation of the packaged IntelliJ plugin.
 - [Feature review checklist](feature-review-checklist.md): purpose, quality, diagnostics and tooling.
 - [Generated output ownership](generated-output.md): reconciliation and failure boundaries.
 - [Validation delegates](validation-delegates.md): access views and Java projection.
-- [Entity changes and candidate-state design](entity-behavior-and-change-contexts.md): current direct mutation and explicitly deferred alternatives.
+- [Entity changes and candidate-state design](entity-behavior-and-change-contexts.md): current direct mutation and
+  explicitly deferred alternatives.
 - [LSP workspace analysis](lsp-workspace-analysis.md), [embedded Java](intellij-java-behavior.md), [Java navigation](java-to-vernac-navigation.md).
 - [Schema tooling](postgresql-schema-tooling.md) and [scalar mapping decisions](scalar-persistence-audit.md).
 - [Event delivery](event-delivery.md) and [ports implementation](ports-adapters-and-acl.md).
@@ -26,10 +27,12 @@ Release acceptance also includes installation of the packaged IntelliJ plugin.
 ## Project maintenance
 
 - [Documentation ownership and validation](documentation.md)
-- [Deep IntelliJ integration roadmap](intellij-deep-integration.md): cross-language refactoring and debugger investigation (planned).
-- [Capabilities and usecase authorization](capabilities-and-usecase-authorization.md): planned module and SaaS policy design.
+- [Deep IntelliJ integration roadmap](intellij-deep-integration.md): cross-language refactoring and debugger
+  investigation (planned).
+- [Capabilities and usecase authorization](capabilities-and-usecase-authorization.md): planned module and SaaS policy
+  design.
 - [Consolidation status](consolidation-status.md)
-- [0.2.0 release plan](release-0.2.0.md)
+- [0.3.0 release plan](release-0.3.0.md)
 - [Release operations](../maintainers/releasing.md)
 
 Implementation notes explain mechanisms and trade-offs. They do not override the

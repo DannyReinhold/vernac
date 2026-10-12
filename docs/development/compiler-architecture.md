@@ -11,7 +11,7 @@ instead of guessing Java classes from strings. File order and import cycles do n
 require recursive source inclusion.
 
 VernacCompiler provides readProject, analyzeProject and compileProject entry points.
-The compileSource and compile(Path) convenience APIs index one source and use the
+The compileSource and compile (Path) convenience APIs index one source and use the
 same ProjectTypeResolver and generation pipeline. They do not discover sibling files;
 use compileProject for applications. There is no separate single-file semantic analyzer
 or generator fallback for unresolved types.
@@ -58,4 +58,4 @@ Tests must cover parsing/resolution diagnostics, generated Java compilation, mea
 runtime behavior and editor symbol updates. Documentation examples are tested in
 DocumentationExamplesTest; transport/persistence behavior needs its dedicated tests.
 Avoid claiming full IDE verification from a source-only check. The [feature checklist](feature-review-checklist.md)
-and [release plan](release-0.2.0.md) define review and acceptance.
+and [release plan](release-0.3.0.md) define review and acceptance.

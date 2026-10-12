@@ -1,4 +1,4 @@
-# Vernac 0.2.0 consolidation and release plan
+# Vernac 0.3.0 consolidation and release plan
 
 Status: 2026-10-11. Development version: **0.2.0-SNAPSHOT**.
 All consolidation work remains on **feature/redefining_the_language**. Merge to
@@ -23,16 +23,18 @@ rollback, deep immutability of entity graphs, safe production migrations or retr
 - [x] Remove vernac-example and vernac-example-home-energy from source and reactor.
 - [x] Point the root showcase instructions to examples/persistence-demo.
 - [ ] Review every remaining example and project/file template, including tests,
-      generated output, namespaces, imports, POMs and instructions.
+  generated output, namespaces, imports, POMs and instructions.
 - [ ] Make the complete root build a green gate again; targeted builds are not the
-      final release acceptance criterion.
+  final release acceptance criterion.
 
 The basic project template now uses namespace directories and modify behavior.
 The project wizard relocates both Vernac and Java sources and injects the bundled
 compiler version without matching a hard-coded old version. Tests cover custom
 coordinates, Unicode namespaces, compilation and pre-existing destination files.
 The first-domain-model tutorial follows this template. The example source/documentation
-audit now provides a [learning guide](https://github.com/DannyReinhold/vernac/blob/feature/redefining_the_language/examples/README.md), removes the isolated
+audit now provides
+a [learning guide](https://github.com/DannyReinhold/vernac/blob/feature/redefining_the_language/examples/README.md),
+removes the isolated
 operations event experiment and covers entity/service behavior in Java tests. Both
 schema examples generate successfully; file templates are compiled in their test.
 The demo's database/concurrency/event checks still require an explicit PostgreSQL
@@ -47,17 +49,17 @@ applicable. Add an automated alignment check when finalizing the release workflo
 ## 2. Close consistency and implementation gaps
 
 - [ ] Compare grammar, semantic analysis, generators and contracts for every
-      supported declaration; identify and remove or explicitly delimit old constructs.
+  supported declaration; identify and remove or explicitly delimit old constructs.
 - [ ] Revisit dependency/self and implemented-by consistency across domain behavior,
-      usecases, services, listeners and adapters. Record any intentional differences.
+  usecases, services, listeners and adapters. Record any intentional differences.
 - [ ] Decide whether service read/modify classification needs adjustment before 0.2.0.
 - [ ] Review validation access depth and document remaining shallow-view boundaries.
-      Do not reopen candidate-state rollback as a prerequisite for this release.
+  Do not reopen candidate-state rollback as a prerequisite for this release.
 - [ ] Check IntelliJ/LSP support feature-by-feature, including Java projection,
-      diagnostics, completion and navigation. Keep the requested Ctrl-hover visual
-      feedback visible in the backlog; decide its release priority explicitly.
+  diagnostics, completion and navigation. Keep the requested Ctrl-hover visual
+  feedback visible in the backlog; decide its release priority explicitly.
 - [ ] Investigate regressions in reviewed features immediately; avoid expanding the
-      release into speculative refactors without a concrete user benefit.
+  release into speculative refactors without a concrete user benefit.
 
 Acceptance: no known contradiction between the documented public contract and the
 implemented behavior. Intentional limits are discoverable and covered where useful.
@@ -68,18 +70,18 @@ This includes README, all of docs (contracts, specification, development,
 maintainers, tutorials, FAQs and website entry points), templates and examples.
 
 - [x] Inventory pages and classify each as current contract, tutorial, maintainer
-      guide, active design note, historical decision or obsolete content.
+  guide, active design note, historical decision or obsolete content.
 - [x] Update useful pages. Consolidate duplicates and remove obsolete or irrelevant
-      material from the working tree; Git history preserves old versions.
+  material from the working tree; Git history preserves old versions.
 - [ ] Keep necessary active design decisions, but distinguish plans from guarantees.
 - [ ] Repair links, navigation, stale commands, class names, old syntax and version
-      claims. Never publish 0.2.0-SNAPSHOT as if it were available on Central.
+  claims. Never publish 0.2.0-SNAPSHOT as if it were available on Central.
 - [ ] Check every example's purpose; prefer a few useful, executable examples over
-      many overlapping demonstrations. Keep examples under examples.
+  many overlapping demonstrations. Keep examples under examples.
 - [ ] Compile important documentation snippets and run referenced examples where
-      claims cross a runtime boundary. Verify terminal vs IntelliJ Maven instructions.
+  claims cross a runtime boundary. Verify terminal vs IntelliJ Maven instructions.
 - [ ] Ensure tutorials/FAQs explain nullability, validation failure state, naming,
-      migrations, event evolution, retries and external communication responsibilities.
+  migrations, event evolution, retries and external communication responsibilities.
 
 ## 4. Build a compelling complete application
 

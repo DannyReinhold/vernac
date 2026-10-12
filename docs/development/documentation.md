@@ -2,16 +2,16 @@
 
 ## Audiences and authority
 
-| Location | Purpose | Tone |
-| --- | --- | --- |
-| README | Explain the product and lead to the first success | Concrete, inviting, evidence-based |
-| docs/index.md | Website landing page and navigation | Standalone introduction |
-| tutorials | Guided learning and experiments | Engaging, explicit prerequisites and outcomes |
-| faq | Questions and recovery paths | Direct, practical |
-| language-reference.md | Complete syntax/capability overview | Precise and searchable |
-| specification + contracts | One normative specification | Formal requirements and explicit limits |
-| development | Mechanisms, rationale and active proposals | Technical; plans labelled as plans |
-| maintainers | Releasing and operations | Procedural and auditable |
+| Location                  | Purpose                                           | Tone                                          |
+|---------------------------|---------------------------------------------------|-----------------------------------------------|
+| README                    | Explain the product and lead to the first success | Concrete, inviting, evidence-based            |
+| docs/index.md             | Website landing page and navigation               | Standalone introduction                       |
+| tutorials                 | Guided learning and experiments                   | Engaging, explicit prerequisites and outcomes |
+| faq                       | Questions and recovery paths                      | Direct, practical                             |
+| language-reference.md     | Complete syntax/capability overview               | Precise and searchable                        |
+| specification + contracts | One normative specification                       | Formal requirements and explicit limits       |
+| development               | Mechanisms, rationale and active proposals        | Technical; plans labelled as plans            |
+| maintainers               | Releasing and operations                          | Procedural and auditable                      |
 
 The delivery story connects values to usecases, storage, events and external systems.
 Focused Task, naming and DTO exercises remain useful; explain where they fit rather
@@ -31,7 +31,7 @@ member naming, enums and collections) were consolidated into compiler-architectu
 Git history retains their patch-by-patch evidence. Candidate-state design, scalar
 representation rationale and other still-relevant technical decisions remain.
 
-The reference and entry pages describe 0.2.0-SNAPSHOT explicitly. They MUST NOT imply
+The reference and entry pages describe 0.3.0-SNAPSHOT explicitly. They MUST NOT imply
 that an older published version implements the same syntax. Release operators must
 advance the documented version during release preparation; automatic website version
 injection is not introduced here.

@@ -39,11 +39,11 @@ repository TourRepository for Tour {
         where tourStatus = :status order by title;
 }
 
-usecase CompleteTour(TourId) uses TourRepository tours behavior {
+usecase CompleteTour(TourId) uses TourRepository tourRepository behavior {
     execute {
-        var tour = self.tours().byId(tourId);
+        var tour = self.tourRepository().byId(tourId);
         tour.complete();
-        self.tours().save(tour);
+        self.tourRepository().save(tour);
         self.emit(TourCompleted.create(tour.id()));
     }
 }
@@ -70,8 +70,8 @@ framework convention.
 
 ## Start with a passing test
 
-This documentation describes the **Vernac 0.2.0 language and API**. Use matching
-compiler, runtime and IntelliJ plugin versions; 0.1.x does not implement this
+This documentation describes the **Vernac 0.3.0 language and API**. Use matching
+compiler, runtime and IntelliJ plugin versions; 0.1.x and 0.2.x do not implement this
 language revision. For a source checkout, the commands below build and install
 the version configured in its root POM (currently `0.3.0-SNAPSHOT`).
 
@@ -120,8 +120,8 @@ part of the documented contracts, not details to discover in production.
 
 The repository contains the compiler, Maven plugin, runtime modules for core/JDBC/JSON/HTTP,
 and IntelliJ/LSP tooling. See [contributor documentation](docs/development/index.md)
-and the [0.2.0 release plan](docs/development/release-0.2.0.md).
-The 0.3.0 development compiler also generates HTTP inbound adapters around usecases;
+and the [0.3.0 release plan](docs/development/release-0.3.0.md).
+The 0.3.0 compiler also generates HTTP inbound adapters around usecases;
 see [the tutorial](docs/tutorials/inbound-http.md). MCP and messaging adapters remain
 planned. Ordinary Java/Spring entry points continue to work alongside generated ones.
 

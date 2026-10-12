@@ -1,6 +1,6 @@
 # Enum Value Object Contract
 
-Status: normative contract for the 0.2.0 language revision. MUST and MUST NOT
+Status: normative contract for the 0.3.0 language revision. MUST and MUST NOT
 express requirements; implementation verification is tracked separately.
 MUST and MUST NOT express requirements, not claims about the current compiler.
 
@@ -32,8 +32,7 @@ value Status = PENDING | IN_PROGRESS | COMPLETED;
 
 An enum MUST declare at least one constant. Declaration order MUST be preserved.
 Duplicate constants MUST be rejected, using the shared identifier comparison rules.
-No automatic renaming, numbering, case conversion, or implicit extra constants
-(such as UNKNOWN) are permitted.
+No automatic renaming, numbering, case conversion, or implicit extra constants (such as UNKNOWN) are permitted.
 
 Each declaration MUST generate one public Java enum in `<namespace>.domain`.
 The enum MUST be annotated with `@NullMarked`. It MUST NOT depend on a generated
@@ -120,7 +119,8 @@ nor `name()` is promised as a stable external code across domain refactorings.
 
 Authors MAY define public and private methods in a `behavior` block.
 See the [behavior contract](behavior.md) for `self`, separate implementation
-classes, scoped Java imports and external static implementations. Method signatures follow the shared resolved-type and nullness rules;
+classes, scoped Java imports and external static implementations. Method signatures follow the shared resolved-type and
+nullness rules;
 no arbitrary Java types become available through this feature.
 
 This contract does not introduce extra instance fields, constructors, constructor
@@ -184,12 +184,12 @@ The domain enum MUST NOT acquire one privileged external representation.
 
 Stable storage codes, renaming and schema migration follow the
 [persistence contract](postgresql-persistence.md). DTO conversion follows the
-[mapping contract](adapter-mappings.md). These mappings MUST NOT treat toString()
-or ordinal() as an implicit external contract. Unsupported conversions require
+[mapping contract](adapter-mappings.md). These mappings MUST NOT treat toString ()
+or ordinal () as an implicit external contract. Unsupported conversions require
 a diagnostic or an explicit Java mapping.
 
 `ordinal()` MUST NOT be used as the generated persistent representation. The presence
-of ordinal() on the Java API does not imply a stable domain or storage identifier.
+of ordinal () on the Java API does not imply a stable domain or storage identifier.
 
 ## Verification and documentation
 

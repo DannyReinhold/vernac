@@ -16,34 +16,34 @@ service TourPlanning behavior {
     }
 }
 
-usecase CreateTour(Title, Capacity) returns TourId uses TourRepository tours behavior {
+usecase CreateTour(Title, Capacity) returns TourId uses TourRepository behavior {
     execute {
         var tour = Tour.create(title, capacity, Stops.empty(), TourState.PLANNED);
-        self.tours().save(tour);
+        self.tourRepository().save(tour);
         return tour.id();
     }
 }
-usecase AddStop(TourId, Customer, Address, Units) uses TourRepository tours behavior {
+usecase AddStop(TourId, Customer, Address, Units) uses TourRepository behavior {
     execute {
-        var tour = self.tours().byId(tourId);
+        var tour = self.tourRepository().byId(tourId);
         tour.add(Stop.create(customer, address, units));
-        self.tours().save(tour);
+        self.tourRepository().save(tour);
     }
 }
 usecase MoveStop(TourId sourceId, TourId targetId, StopId)
-    uses TourRepository tours, TourPlanning behavior {
+    uses TourRepository, TourPlanning behavior {
     execute {
-        var source = self.tours().byId(sourceId);
-        var target = self.tours().byId(targetId);
+        var source = self.tourRepository().byId(sourceId);
+        var target = self.tourRepository().byId(targetId);
         self.tourPlanning().moveStop(source, target, stopId);
-        self.tours().save(source);
-        self.tours().save(target);
+        self.tourRepository().save(source);
+        self.tourRepository().save(target);
     }
 }
-usecase ReleaseTour(TourId) uses TourRepository tours behavior {
+usecase ReleaseTour(TourId) uses TourRepository behavior {
     execute {
-        var tour = self.tours().byId(tourId);
+        var tour = self.tourRepository().byId(tourId);
         tour.ready();
-        self.tours().save(tour);
+        self.tourRepository().save(tour);
     }
 }

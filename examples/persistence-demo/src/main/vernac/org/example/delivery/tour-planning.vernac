@@ -14,13 +14,13 @@ behavior {
 }
 
 usecase MoveStopToTour(TourId sourceTourId, TourId targetTourId, StopId)
-    uses TourRepository tours, TourPlanning
+    uses TourRepository, TourPlanning
 behavior {
     execute {
-        var source = self.tours().byId(sourceTourId);
-        var target = self.tours().byId(targetTourId);
+        var source = self.tourRepository().byId(sourceTourId);
+        var target = self.tourRepository().byId(targetTourId);
         self.tourPlanning().moveStop(source, target, stopId);
-        self.tours().save(source);
-        self.tours().save(target);
+        self.tourRepository().save(source);
+        self.tourRepository().save(target);
     }
 }

@@ -4,10 +4,10 @@ This guide describes local Maven Central releases and IntelliJ plugin
 distribution through GitHub Releases and JetBrains Marketplace.
 It also records the current scope of release automation.
 
-The current development target is **0.3.0-SNAPSHOT**. Version **0.2.0** has been
+The current development target is **0.4.0-SNAPSHOT**. Version **0.3.0** has been
 published to Maven Central and JetBrains Marketplace. The
-[0.2.0 release plan](../development/release-0.2.0.md) records that release's scope.
-The commands below use 0.2.0 as an example; select the intended new version for
+[0.3.0 release plan](../development/release-0.3.0.md) records that release's scope.
+The commands below use 0.3.0 as an example; select the intended new version for
 future releases. See [GitHub Actions](#github-actions) for the automated route.
 
 ## Release scope
@@ -528,12 +528,12 @@ between building, Central publication and plugin submission.
 In **Repository Settings → Secrets and variables → Actions → Repository secrets**,
 retain the existing signing/Central secrets and add the Marketplace token:
 
-| Secret name | Purpose |
-| --- | --- |
-| `CENTRAL_USERNAME` | Central Portal token username |
-| `CENTRAL_PASSWORD` | Central Portal token password |
-| `GPG_PRIVATE_KEY` | Private signing key for the CI Bouncy Castle signer |
-| `GPG_PASSPHRASE` | Signing-key passphrase |
+| Secret name                   | Purpose                                                         |
+|-------------------------------|-----------------------------------------------------------------|
+| `CENTRAL_USERNAME`            | Central Portal token username                                   |
+| `CENTRAL_PASSWORD`            | Central Portal token password                                   |
+| `GPG_PRIVATE_KEY`             | Private signing key for the CI Bouncy Castle signer             |
+| `GPG_PASSPHRASE`              | Signing-key passphrase                                          |
 | `JETBRAINS_MARKETPLACE_TOKEN` | Permanent token for an account permitted to update `org.vernac` |
 
 Create the last token under **My Tokens** in the JetBrains Marketplace account.

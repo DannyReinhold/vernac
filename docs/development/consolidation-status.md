@@ -1,30 +1,30 @@
 # Vernac consolidation status
 
-Status: 2026-10-12. Version 0.2.0 is published; current development targets 0.3.0.
+Status: 2026-10-12. Version 0.3.0 is published; current development targets 0.4.0.
 This separates implemented functionality from planned work, not a blanket claim of
-production readiness. The [0.2.0 plan](release-0.2.0.md) remains historical release context.
+production readiness. The [0.3.0 plan](release-0.3.0.md) remains historical release context.
 
 ## Reviewed and implemented
 
-| Area | Current scope |
-| --- | --- |
-| Namespaces and imports | Project-wide discovery, multi-file resolution, qualified names and namespace-derived Java packages |
-| Names and Unicode | Shared default-name rules, explicit roles, collisions and Unicode-aware diagnostics and positions |
-| IDs and value objects | Factories, validation, equality, getters, approved scalar types, optional fields and nullability contracts |
-| Enum values | Java enums, domain behavior and name checks; persistence codes stay outside the domain |
-| Domain collections | Explicit lists and sets, immutable collection structure, documented equality/duplicate operations and entity-ID access |
-| Behavior and validation | Inline Java or external implementation, delegated access through self, read/modify interfaces and validation delegates |
-| Entities and aggregates | Identity, create/reconstitute, containment rules, factories and technical persistence state |
-| Generated sources | Manifest-owned Java output and orphan cleanup; class files and JARs remain build-tool responsibilities |
-| IntelliJ/LSP | Project/file/namespace creation, Maven import, project diagnostics, completion, navigation and embedded Java support |
-| PostgreSQL mapping | Namespace-safe quoted names, recursive flattening, optional presence, scalar components and shared entity graphs |
-| JDBC repositories | Explicit repository declaration, byId/save/delete, declarative comparisons and ordering, complete graph loads, list order, reachability cleanup and optimistic locking |
-| Usecases | Named application operations, REQUIRED transactions, explicit results and external implementations |
-| Domain services | Named methods, injected dependencies through self, per-operation preconditions and external implementations |
-| Events | Immutable occurrences, shared EventId, validation, synchronous listeners, relational recording, deferred delivery and workers |
-| HTTP inbound adapters | Typed path/query/header/body input, usecase invocation, shared mappings including explicit Result sources, scoped error policies |
-| Outbound ports and ACL | Java adapters, DTO/PATCH semantics, mappings, REST bindings, typed error rules and local HTTP walkthrough |
-| Schema tooling | Versioned source snapshots, initial/next migration candidates, explicit transformations, risk gates and Flyway replay checks |
+| Area                    | Current scope                                                                                                                                                          |
+|-------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Namespaces and imports  | Project-wide discovery, multi-file resolution, qualified names and namespace-derived Java packages                                                                     |
+| Names and Unicode       | Shared default-name rules, explicit roles, collisions and Unicode-aware diagnostics and positions                                                                      |
+| IDs and value objects   | Factories, validation, equality, getters, approved scalar types, optional fields and nullability contracts                                                             |
+| Enum values             | Java enums, domain behavior and name checks; persistence codes stay outside the domain                                                                                 |
+| Domain collections      | Explicit lists and sets, immutable collection structure, documented equality/duplicate operations and entity-ID access                                                 |
+| Behavior and validation | Inline Java or external implementation, delegated access through self, read/modify interfaces and validation delegates                                                 |
+| Entities and aggregates | Identity, create/reconstitute, containment rules, factories and technical persistence state                                                                            |
+| Generated sources       | Manifest-owned Java output and orphan cleanup; class files and JARs remain build-tool responsibilities                                                                 |
+| IntelliJ/LSP            | Project/file/namespace creation, Maven import, project diagnostics, completion, navigation and embedded Java support                                                   |
+| PostgreSQL mapping      | Namespace-safe quoted names, recursive flattening, optional presence, scalar components and shared entity graphs                                                       |
+| JDBC repositories       | Explicit repository declaration, byId/save/delete, declarative comparisons and ordering, complete graph loads, list order, reachability cleanup and optimistic locking |
+| Usecases                | Named application operations, REQUIRED transactions, explicit results and external implementations                                                                     |
+| Domain services         | Named methods, injected dependencies through self, per-operation preconditions and external implementations                                                            |
+| Events                  | Immutable occurrences, shared EventId, validation, synchronous listeners, relational recording, deferred delivery and workers                                          |
+| HTTP inbound adapters   | Typed path/query/header/body input, usecase invocation, shared mappings including explicit Result sources, scoped error policies                                       |
+| Outbound ports and ACL  | Java adapters, DTO/PATCH semantics, mappings, REST bindings, typed error rules and local HTTP walkthrough                                                              |
+| Schema tooling          | Versioned source snapshots, initial/next migration candidates, explicit transformations, risk gates and Flyway replay checks                                           |
 
 Reviewed areas have contracts and automated tests; depth and integration coverage
 differ. The standalone persistence demo has also completed a real PostgreSQL run and
