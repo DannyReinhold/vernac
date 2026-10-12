@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1180" viewBox="0 0 1600 1180" role="img" aria-labelledby="title desc">
+<title id="title">Vernac — Clean Architecture</title><desc id="desc">Inbound adapters invoke use cases. Use cases orchestrate domain objects and call repository and outbound port contracts. Persistence and outbound adapters implement those contracts. Technical dependencies point toward the core. Domain objects are independent of infrastructure.</desc>
+<defs><radialGradient id="bg"><stop stop-color="#172d45"/><stop offset="1" stop-color="#090f20"/></radialGradient><linearGradient id="core" x2="1" y2="1"><stop stop-color="#142d3d"/><stop offset="1" stop-color="#121d33"/></linearGradient><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#67e8d4" stroke-width="1.5"/></marker><marker id="violet" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M 1 1 L 9 5 L 1 9 Z" fill="#151f35" stroke="#baa5fa" stroke-width="1.3"/></marker><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r=".8" fill="#7188a9" opacity=".12"/></pattern></defs>
+<g font-family="Inter, DejaVu Sans, Arial, sans-serif"><rect width="1600" height="1180" rx="28" fill="url(#bg)"/><rect width="1600" height="1180" rx="28" fill="url(#dots)"/>
+
+<text x="64" y="61" fill="#67e8d4" font-size="14" font-weight="650" letter-spacing="3">VERNAC / ARCHITECTURE</text>
+<text x="64" y="116" fill="#f0f6ff" font-size="43" font-weight="700" >A clear core. Endless possibilities.</text>
+<text x="66" y="153" fill="#94a8c7" font-size="19" font-weight="400" >Domain-driven design · Clean architecture · Java &amp; Spring Boot</text>
+<rect x="1260" y="61" width="276" height="46" rx="23" fill="#152b33" stroke="#326b68"/>
+<text x="1282" y="90" fill="#9de9dc" font-size="12" font-weight="650" >DEPENDENCIES POINT INWARD</text>
+<rect x="64" y="191" width="1472" height="173" rx="24" fill="#101b2d" stroke="#293954"/>
+<text x="88" y="224" fill="#8cadd4" font-size="13" font-weight="650" letter-spacing="1.5">01  /  ENTRY POINTS</text>
+<rect x="88" y="243" width="520" height="96" rx="16" fill="#111e35" stroke="#30425e"/>
+<rect x="89" y="265" width="3" height="52" rx="1.5" fill="#83b7ff"/>
+<text x="112" y="274" fill="#83b7ff" font-size="12" font-weight="650" letter-spacing="1.5">INBOUND ADAPTERS</text>
+<text x="112" y="309" fill="#edf5ff" font-size="25" font-weight="650" >HTTP API · UI · Event listeners</text>
+<text x="645" y="281" fill="#d5e2f5" font-size="19" font-weight="500" >Translate input into application commands.</text>
+<text x="645" y="314" fill="#94a8c7" font-size="17" font-weight="400" >Transport, authentication and presentation stay at the edge.</text>
+<path d="M 348 339 L 348 429" fill="none" stroke="#67e8d4" stroke-width="2.5"  marker-end="url(#arrow)"/>
+<text x="370" y="402" fill="#67e8d4" font-size="14" font-weight="400" >invokes</text>
+<rect x="64" y="429" width="1472" height="379" rx="24" fill="url(#core)" stroke="#3f706e"/>
+<text x="88" y="464" fill="#67e8d4" font-size="13" font-weight="650" letter-spacing="1.5">02  /  APPLICATION &amp; DOMAIN</text>
+<rect x="1327" y="447" width="183" height="30" rx="15" fill="#1b3b3d" stroke="#396260"/>
+<text x="1345" y="467" fill="#9ee5d8" font-size="10" font-weight="650" >FRAMEWORK-FREE CORE</text>
+<rect x="88" y="493" width="520" height="155" rx="16" fill="#111e35" stroke="#30425e"/>
+<rect x="89" y="515" width="3" height="111" rx="1.5" fill="#67e8d4"/>
+<text x="112" y="524" fill="#67e8d4" font-size="12" font-weight="650" letter-spacing="1.5">APPLICATION</text>
+<text x="112" y="559" fill="#edf5ff" font-size="25" font-weight="650" >Use Cases</text>
+<text x="112" y="590" fill="#94a8c7" font-size="16" font-weight="400" >Orchestrate business operations</text>
+<text x="112" y="615" fill="#94a8c7" font-size="16" font-weight="400" >Define transaction boundaries</text>
+<rect x="936" y="493" width="576" height="155" rx="16" fill="#111e35" stroke="#30425e"/>
+<rect x="937" y="515" width="3" height="111" rx="1.5" fill="#67e8d4"/>
+<text x="960" y="524" fill="#67e8d4" font-size="12" font-weight="650" letter-spacing="1.5">DOMAIN</text>
+<text x="960" y="559" fill="#edf5ff" font-size="25" font-weight="650" >Domain Objects</text>
+<text x="960" y="590" fill="#94a8c7" font-size="16" font-weight="400" >Aggregates · Entities · Value Objects</text>
+<text x="960" y="615" fill="#94a8c7" font-size="16" font-weight="400" >Business rules · Invariants · Domain Events</text>
+<path d="M 608 567 L 936 567" fill="none" stroke="#67e8d4" stroke-width="2.5"  marker-end="url(#arrow)"/>
+<text x="654" y="548" fill="#67e8d4" font-size="15" font-weight="400" >orchestrates</text>
+<rect x="88" y="704" width="520" height="80" rx="16" fill="#111e35" stroke="#30425e"/>
+<rect x="89" y="726" width="3" height="36" rx="1.5" fill="#67e8d4"/>
+<text x="112" y="735" fill="#67e8d4" font-size="12" font-weight="650" letter-spacing="1.5">DOMAIN CONTRACT</text>
+<text x="112" y="770" fill="#edf5ff" font-size="25" font-weight="650" >Repository</text>
+<rect x="936" y="704" width="576" height="80" rx="16" fill="#111e35" stroke="#30425e"/>
+<rect x="937" y="726" width="3" height="36" rx="1.5" fill="#67e8d4"/>
+<text x="960" y="735" fill="#67e8d4" font-size="12" font-weight="650" letter-spacing="1.5">APPLICATION CONTRACT</text>
+<text x="960" y="770" fill="#edf5ff" font-size="25" font-weight="650" >Outbound Ports</text>
+<path d="M 348 648 L 348 704" fill="none" stroke="#67e8d4" stroke-width="2.5"  marker-end="url(#arrow)"/>
+<text x="369" y="683" fill="#67e8d4" font-size="14" font-weight="400" >loads / saves aggregates</text>
+<path d="M 608 614 L 768 614 Q 792 614 792 638 L 792 724 Q 792 744 816 744 L 936 744" fill="none" stroke="#67e8d4" stroke-width="2.5"  marker-end="url(#arrow)"/>
+<text x="813" y="698" fill="#67e8d4" font-size="14" font-weight="400" >calls</text>
+<rect x="64" y="869" width="1472" height="227" rx="24" fill="#141b2f" stroke="#443c61"/>
+<text x="88" y="904" fill="#baa5fa" font-size="13" font-weight="650" letter-spacing="1.5">03  /  INFRASTRUCTURE</text>
+<rect x="88" y="930" width="520" height="141" rx="16" fill="#111e35" stroke="#30425e"/>
+<rect x="89" y="952" width="3" height="97" rx="1.5" fill="#baa5fa"/>
+<text x="112" y="961" fill="#baa5fa" font-size="12" font-weight="650" letter-spacing="1.5">PERSISTENCE ADAPTER</text>
+<text x="112" y="996" fill="#edf5ff" font-size="25" font-weight="650" >Persistence Layer</text>
+<text x="112" y="1027" fill="#94a8c7" font-size="16" font-weight="400" >Repository implementation · JDBC</text>
+<text x="112" y="1052" fill="#94a8c7" font-size="16" font-weight="400" >Relational mapping · SQL</text>
+<rect x="936" y="930" width="576" height="141" rx="16" fill="#111e35" stroke="#30425e"/>
+<rect x="937" y="952" width="3" height="97" rx="1.5" fill="#baa5fa"/>
+<text x="960" y="961" fill="#baa5fa" font-size="12" font-weight="650" letter-spacing="1.5">OUTBOUND ADAPTERS</text>
+<text x="960" y="996" fill="#edf5ff" font-size="25" font-weight="650" >External Integrations</text>
+<text x="960" y="1027" fill="#94a8c7" font-size="16" font-weight="400" >Port implementations · HTTP clients</text>
+<text x="960" y="1052" fill="#94a8c7" font-size="16" font-weight="400" >Mail · Payments · Third-party services</text>
+<path d="M 348 930 L 348 784" fill="none" stroke="#baa5fa" stroke-width="2.5"  stroke-dasharray="7 7" marker-end="url(#violet)"/>
+<text x="370" y="849" fill="#c7b6ff" font-size="14" font-weight="400" >implements</text>
+<path d="M 1224 930 L 1224 784" fill="none" stroke="#baa5fa" stroke-width="2.5"  stroke-dasharray="7 7" marker-end="url(#violet)"/>
+<text x="1246" y="849" fill="#c7b6ff" font-size="14" font-weight="400" >implements</text>
+<rect x="665" y="933" width="208" height="54" rx="12" fill="#1b243a" stroke="#3a4965"/>
+<text x="690" y="967" fill="#dbe8fa" font-size="22" font-weight="600" >PostgreSQL</text>
+<path d="M 608 960 L 665 960" fill="none" stroke="#67e8d4" stroke-width="2.5"  marker-end="url(#arrow)"/>
+<text x="665" y="1019" fill="#94a8c7" font-size="15" font-weight="400" >Adapters own the</text>
+<text x="665" y="1043" fill="#94a8c7" font-size="15" font-weight="400" >technical details.</text>
+<path d="M 88 1136 L 143 1136" fill="none" stroke="#67e8d4" stroke-width="2.5"  marker-end="url(#arrow)"/>
+<text x="160" y="1142" fill="#acbfd8" font-size="14" font-weight="400" >Invocation / data access</text>
+<path d="M 489 1136 L 544 1136" fill="none" stroke="#baa5fa" stroke-width="2.5"  stroke-dasharray="7 7" marker-end="url(#violet)"/>
+<text x="562" y="1142" fill="#acbfd8" font-size="14" font-weight="400" >Implements a core contract</text>
+<text x="1010" y="1142" fill="#acbfd8" font-size="14" font-weight="400" >Business rules stay independent of infrastructure.</text>
+</g></svg>
