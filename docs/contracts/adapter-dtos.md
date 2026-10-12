@@ -179,4 +179,5 @@ type and component navigation can resolve generated DTOs back to their schemas.
 
 Typed declarative/Java mappings, nested/list conversions and state-preserving PATCH
 conversion are now implemented; see the [mapping contract](adapter-mappings.md).
-REST requests and error translation are next.
+REST requests and error translation use these DTOs; see
+[declarative REST](declarative-rest.md) and the [HTTP runtime](http-adapter-runtime.md).

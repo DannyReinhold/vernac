@@ -30,11 +30,11 @@ repository TourRepository for Tour {
         where tourStatus = :status order by title;
 }
 
-usecase CompleteTour(TourId) uses TourRepository tours behavior {
+usecase CompleteTour(TourId) uses TourRepository tourRepository behavior {
     execute {
-        var tour = self.tours().byId(tourId);
+        var tour = self.tourRepository().byId(tourId);
         tour.complete();
-        self.tours().save(tour);
+        self.tourRepository().save(tour);
         self.emit(TourCompleted.create(tour.id()));
     }
 }
@@ -43,6 +43,11 @@ usecase CompleteTour(TourId) uses TourRepository tours behavior {
 This is a separate namespace from the Task model. Build to generate its Java API.
 For execution against PostgreSQL, use the configured [delivery demo](database-persistence.md):
 adding a repository declaration alone does not configure a DataSource or apply migrations.
+
+The architecture view below separates application orchestration from transport
+and storage. Each generated adapter connects to a declared contract.
+
+![Application and domain boundaries](../assets/vernac-architecture.svg)
 
 ## 1. Make invalid values difficult to create
 

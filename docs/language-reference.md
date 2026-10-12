@@ -1,7 +1,8 @@
 # Vernac language reference
 
-This reference describes **0.2.0-SNAPSHOT**. It covers the supported project-compilation
-pipeline, not every production retained in the parser for internal/legacy tests.
+This reference describes the **Vernac 0.3.0 language and generated API**. Use matching
+compiler and runtime versions. A source checkout builds 0.3.0-SNAPSHOT until the
+release workflow selects 0.3.0. Obsolete experimental syntax is not supported.
 The [specification index](specification/index.md) identifies the normative document
 for each rule. A discrepancy between implementation and contract is a defect to
 investigate, not permission to silently redefine the contract.
@@ -402,3 +403,12 @@ built/imported for Java resolution. Arbitrary Java bodies remain subject to java
 and configured static analysis.
 
 [FAQ](faq/index.md) · [Specification](specification/index.md) · [Tutorials](tutorials/index.md)
+
+## HTTP inbound adapters
+
+`adapter Name inbound http uses Usecase dependency { ... }` defines named endpoints
+with typed path/query/header bindings, an optional DTO body, explicit assignments to
+usecase inputs and a response mapping. Assignments retain target-left `<-` orientation.
+The adapter creates no implicit Result; `<Usecase>.Result` is a supported response
+mapping source for explicitly declared tuple results. Transactions remain in usecases.
+See the [contract](contracts/inbound-http.md) and [complete tutorial](tutorials/inbound-http.md).

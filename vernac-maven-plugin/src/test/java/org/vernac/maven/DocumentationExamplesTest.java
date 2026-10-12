@@ -22,7 +22,7 @@ class DocumentationExamplesTest {
         for (String name : List.of("repository-queries", "usecases", "enum-value-objects",
                 "outbound-ports", "declarative-rest", "declarative-errors", "default-names",
                 "adapter-dtos", "domain-events", "http-adapter-runtime", "collections",
-                "your-first-domain-model", "adapter-mappings")) {
+                "your-first-domain-model", "adapter-mappings", "inbound-http")) {
             String document = Files.readString(Path.of("../docs/tutorials/" + name + ".md"))
                     .replace("\r\n", "\n");
             var block = Pattern.compile("```vernac\\n(.*?)```", Pattern.DOTALL).matcher(document);
@@ -36,6 +36,43 @@ class DocumentationExamplesTest {
             Files.writeString(file, model);
             assertFalse(new VernacCompiler().compileProject(root).generatedFiles().isEmpty(), name);
         }
+    }
+
+    @Test void aiReferenceExamplesCompileTogetherIncludingHandwrittenJava() throws Exception {
+        String document = Files.readString(Path.of("../docs/ai-language-reference.md")).replace("\r\n", "\n");
+        Path root = temporary.resolve("ai-model");
+        var blocks = Pattern.compile("```vernac\\n(.*?)```", Pattern.DOTALL).matcher(document);
+        int count = 0;
+        while (blocks.find()) {
+            String model = blocks.group(1);
+            var namespace = Pattern.compile("namespace ([\\p{L}\\p{N}_.]+);").matcher(model);
+            assertTrue(namespace.find(), "AI reference examples must be complete models");
+            Path file = root.resolve(namespace.group(1).replace('.', '/')).resolve("example" + count++ + ".vernac");
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, model);
+        }
+        assertTrue(count > 0, "AI reference must contain examples");
+        Path sources = temporary.resolve("ai-java");
+        new VernacCompiler().compileProject(root).writeTo(sources);
+        var java = Pattern.compile("```java\\n(.*?)```", Pattern.DOTALL).matcher(document);
+        while (java.find()) {
+            String source = java.group(1);
+            var packageName = Pattern.compile("package ([\\p{L}\\p{N}_.]+);").matcher(source);
+            var typeName = Pattern.compile("public (?:final )?class (\\w+)").matcher(source);
+            assertTrue(packageName.find(), "Java examples must include their package");
+            assertTrue(typeName.find(), "Java examples must include their class");
+            Path file = sources.resolve(packageName.group(1).replace('.', '/')).resolve(typeName.group(1) + ".java");
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, source);
+        }
+        Path classes = Files.createDirectories(temporary.resolve("ai-classes"));
+        var arguments = new ArrayList<>(List.of("--release", "21", "-proc:none", "-classpath",
+                System.getProperty("java.class.path"), "-d", classes.toString()));
+        try (var files = Files.walk(sources)) {
+            files.filter(path -> path.toString().endsWith(".java")).map(Path::toString).forEach(arguments::add);
+        }
+        assertEquals(0, ToolProvider.getSystemJavaCompiler().run(null, null, null,
+                arguments.toArray(String[]::new)), "AI reference Java must compile");
     }
 
     @Test void entryPointsTellTheSameExecutableStory() throws Exception {

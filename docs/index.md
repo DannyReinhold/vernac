@@ -1,19 +1,56 @@
 <p><img src="assets/brand/vernac-logo-light.svg" alt="Vernac" width="420" style="max-width: 100%; height: auto;"></p>
 
-# Give your application an executable architecture
+# Architecture, expressed.
 
-**Vernac turns a domain model into a working Java architecture.**
+**Vernac is a Domain‑Driven Architecture Language.  
+It turns your domain model into a working Java application.**
 
-A delivery tour is more than a row in a table. It has identity, valid states,
-contained stops, operations that change it, and consequences that other systems
-care about. Vernac lets you express these responsibilities together, then generates
-the Java and Spring infrastructure that connects them.
+Modern systems grow fast — and architecture often decays just as fast.  
+Domain logic spreads across layers, persistence leaks into business code, REST DTOs
+creep into aggregates, and events become an afterthought.
 
-You write the business decisions. Vernac supplies consistent value APIs, aggregate
-boundaries, transactional usecases, JDBC persistence, event delivery and outbound
-integration. Business implementations remain ordinary Java, inline or external.
+Vernac prevents this by making architecture explicit.
 
-## Follow one operation through the system
+It describes IDs, values, aggregates, behavior, usecases, events, ports, adapters,
+repositories, persistence and integration in one language — then generates clean Java
+and Spring infrastructure without hidden framework magic.
+
+---
+
+## Why Vernac?
+
+- Architecture stays consistent as your system grows
+- Domain rules remain visible and enforceable
+- Usecases are transactional and explicit
+- Persistence is predictable and reviewable
+- Events are durable and coordinated
+- Integration is typed and controlled
+- Java implementations remain ordinary and testable
+
+Vernac is designed for long‑lived systems where correctness, clarity and maintainability matter.
+
+---
+
+## The architecture at a glance
+
+<p>
+<img src="assets/vernac-architecture.svg"
+     alt="Vernac architecture diagram"
+     style="max-width: 100%; height: auto;">
+</p>
+
+**Domain → Usecases → Repositories → Persistence**  
+**Usecases → Ports → Adapters**  
+**Usecases / Adapters → Events**
+
+One language connects all of them.
+
+---
+
+## A complete operation, expressed
+
+A domain model like this one ![Tour Domain Model](assets/dispatch-domain-model.svg) can be expressed in Vernac like
+this:
 
 ```vernac
 namespace example.dispatch;
@@ -36,73 +73,77 @@ repository TourRepository for Tour {
         where tourStatus = :status order by title;
 }
 
-usecase CompleteTour(TourId) uses TourRepository tours behavior {
+usecase CompleteTour(TourId) uses TourRepository tourRepository behavior {
     execute {
-        var tour = self.tours().byId(tourId);
+        var tour = self.tourRepository().byId(tourId);
         tour.complete();
-        self.tours().save(tour);
+        self.tourRepository().save(tour);
         self.emit(TourCompleted.create(tour.id()));
     }
 }
 ```
 
-Follow CompleteTour: load a complete aggregate, invoke domain behavior, save under
+Follow `CompleteTour`: load a complete aggregate, invoke domain behavior, save under
 optimistic locking, and publish a fact inside the usecase transaction. A listener
-chooses synchronous participation or durable deferred handling. An outbound port
-can describe the next external action without exposing HTTP DTOs to the domain.
+chooses synchronous participation or durable deferred handling.
 
-[Follow the architecture step by step →](tutorials/from-model-to-application.md)
+![CompleteTour transaction and event sequence](assets/dispatch-complete-tour.svg)
 
-This compact example leaves transition policy to the application. Completing a tour
-is not automatically idempotent merely because assigning the same status is a no-op.
+---
+
+## Designed for AI‑assisted development
+
+Vernac’s language reference is deterministic and self‑contained.  
+It avoids hidden defaults, ambiguous semantics and framework‑specific magic.
+
+See the **AI‑specific language reference**:  
+[ai-language-reference.md](ai-language-reference.md)
+
+---
 
 ## Choose your next step
 
-| Your goal | Start here |
-| --- | --- |
-| Get a model compiling in minutes | [Your first domain model](tutorials/your-first-domain-model.md) |
-| Use the editor and project wizard | [IntelliJ tutorial](tutorials/intellij-plugin.md) |
-| See persistence, events and external calls work together | [Delivery walkthrough](tutorials/database-persistence.md) |
-| Find exact syntax | [Language reference](language-reference.md) |
-| Understand guarantees and limits | [Specification and contracts](specification/index.md) |
-| Solve a common problem | [FAQ and troubleshooting](faq/index.md) |
+| Your goal                                                | Start here                           |
+|----------------------------------------------------------|--------------------------------------|
+| Get a model compiling in minutes                         | [Your first model](tutorials/your-first-domain-model.md) |
+| Use the editor and project wizard                        | [IntelliJ setup](tutorials/intellij-plugin.md)         |
+| See persistence, events and external calls work together | [Database walkthrough](tutorials/database-persistence.md)    |
+| Find exact syntax                                        | [Language reference](language-reference.md)                |
+| Understand guarantees and limits                         | [Specification](specification/index.md)               |
+| Solve a common problem                                   | [FAQ](faq/index.md)                         |
 
-## What the language connects
-
-- **Domain:** typed IDs, immutable values, enums, named lists/sets, entities and aggregates.
-- **Behavior:** Java implementations behind generated access views, explicit validation,
-  private helpers and external delegation.
-- **Application:** named domain services and single-operation transactional usecases.
-- **Persistence:** PostgreSQL mapping, complete graphs, declarative queries, optimistic
-  locking and reviewable Flyway migration candidates; no ORM or lazy loading.
-- **Events:** immutable facts, synchronous listeners and relationally stored deliveries
-  with retries and worker coordination.
-- **Integration:** outbound ports, manual or REST adapters, DTO records, PATCH intent,
-  explicit mappings and business/technical error translation.
-- **Tooling:** Maven generation and IntelliJ support for Vernac and embedded Java.
+---
 
 ## Version and prerequisites
 
-These pages describe **0.2.0-SNAPSHOT**, not the earlier published language.
-Install matching snapshot artifacts locally before following this branch's tutorials.
-Use JDK 25 to build the repository and examples; application output targets Java 21.
-The persistence examples use PostgreSQL 17. Choose the runtime modules your application
-needs; using domain models does not require JDBC.
+These pages describe the **Vernac 0.3.0 language and API**.
+Source checkouts use **0.3.0-SNAPSHOT** until the release workflow selects 0.3.0.
+Use JDK 25 to build the repository; generated applications target Java 21.  
+Persistence examples use PostgreSQL 17.
 
-The [tutorial path](tutorials/index.md) starts without a database and gradually adds
-architecture. The [example guide](https://github.com/DannyReinhold/vernac/tree/feature/redefining_the_language/examples)
-contains build commands and separates database-free tests from PostgreSQL checks.
+The tutorials start without a database and gradually add architecture.  
+The example guide contains build commands and separates database‑free tests from PostgreSQL checks.
 
-Vernac is under active development. Migration review, external-call idempotency and
-business invariants remain application responsibilities. See the [FAQ](faq/index.md)
-for practical boundaries and the [release plan](development/release-0.2.0.md) for planned work.
+Vernac is under active development. Migration review, external‑call idempotency and
+business invariants remain application responsibilities.
 
-[GitHub](https://github.com/DannyReinhold/vernac) · [Contributing](development/index.md) ·
-[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+---
 
 ## Explore a complete application
 
-**Vernac Dispatch** puts the delivery story on screen. Balance tour capacity, release
-a plan and follow a durable event through a simulated carrier outage and retry.
-The browser is a Java web adapter; the business model and application operations are
-Vernac. [Start the Dispatch walkthrough](tutorials/dispatch.md).
+**Vernac Dispatch** puts the delivery story on screen.  
+Balance tour capacity, release a plan and follow a durable event through a simulated
+carrier outage and retry.
+
+Generated HTTP endpoints and handwritten Java adapters connect the browser to
+Vernac usecases. Business decisions stay in the domain.
+
+[Run the Dispatch showcase](tutorials/dispatch.md).
+
+---
+
+[GitHub](https://github.com/DannyReinhold/vernac) ·  
+[Contributing](development/index.md) ·  
+[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) ·  
+[Impressum](impressum.md) ·  
+[Privacy](privacy.md)

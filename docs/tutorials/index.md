@@ -4,9 +4,24 @@ Start with a passing domain test. Then follow a delivery operation through behav
 transactions, persistence, events and an external carrier. Each chapter answers a
 practical question; focused examples isolate details when the full system would distract.
 
-These tutorials target **0.2.0-SNAPSHOT**. Use JDK 25 and matching local artifacts.
+These tutorials describe **Vernac 0.3.0**. Use JDK 25 for the documented builds;
+generated application code targets Java 21. Released consumers use 0.3.0 artifacts
+from Maven Central after publication. Repository examples use 0.3.0-SNAPSHOT by
+default: install matching local artifacts first, or select the release with
+`-Dvernac.version=0.3.0` after publication.
 Commands with `mvn` are terminal commands; omit `mvn` in IntelliJ's Maven command window.
 In PowerShell, quote a complete dotted `-Dproperty=value` argument when necessary.
+
+## How to use the examples
+
+The Task chapters are small, database-free exercises. The delivery chapters use
+`examples/persistence-demo`; Dispatch adds a browser UI. Unless explicitly labelled
+as an addition, a complete model is an alternative exercise: do not paste it into a
+namespace that already defines the same types. Fragments belong inside the named
+existing declaration. Revert intentional failures before moving to the next chapter.
+
+Each chapter tells you where commands run and which extra dependencies it needs.
+For a source checkout, use the [example build guide](https://github.com/DannyReinhold/vernac/blob/main/examples/README.md).
 
 ## 1. Make the domain explicit
 
@@ -40,6 +55,7 @@ In PowerShell, quote a complete dotted `-Dproperty=value` argument when necessar
 6. [Declarative REST](declarative-rest.md): bind requests and responses.
 7. [Declarative error translation](declarative-errors.md): distinguish rejection from technical failure.
 8. [HTTP runtime](http-adapter-runtime.md): use the lower-level Java API when needed.
+9. [HTTP inbound adapters](inbound-http.md): expose a usecase with an explicit request/response contract.
 
 [FAQ](../faq/index.md) · [Language reference](../language-reference.md) ·
 [Specification](../specification/index.md) · [Documentation home](../index.md)

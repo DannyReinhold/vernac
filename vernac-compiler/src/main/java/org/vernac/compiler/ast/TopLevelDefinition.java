@@ -12,6 +12,7 @@ public sealed interface TopLevelDefinition extends AstNode permits
         RepositoryNode,
         PortNode,
         OutboundAdapterNode,
+        InboundHttpAdapterNode,
         UseCaseNode,
         DomainServiceNode,
         ListenerNode {

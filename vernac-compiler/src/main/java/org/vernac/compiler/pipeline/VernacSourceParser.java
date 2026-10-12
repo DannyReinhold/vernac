@@ -41,8 +41,7 @@ public final class VernacSourceParser {
     }
 
     private void validateNames(String sourceName, ParseTree tree) {
-        if (tree instanceof VernacParser.RawJavaBlockContext
-                || tree instanceof VernacParser.RawJavaStatementContext) return;
+        if (tree instanceof VernacParser.RawJavaBlockContext) return;
         if (tree instanceof VernacParser.TypeNameContext
                 || tree instanceof VernacParser.VariableNameContext
                 || tree instanceof VernacParser.MethodNameContext

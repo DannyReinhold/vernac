@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1030" viewBox="0 0 1600 1030" role="img" aria-labelledby="title desc"><title id="title">Small model. Strong boundaries.</title><desc id="desc">A tour, its domain types and the contracts that connect them.</desc><defs><radialGradient id="bg"><stop stop-color="#172d45"/><stop offset="1" stop-color="#090f20"/></radialGradient><linearGradient id="core" x2="1" y2="1"><stop stop-color="#142d3d"/><stop offset="1" stop-color="#121d33"/></linearGradient><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#67e8d4" stroke-width="1.5"/></marker><marker id="violet" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M 1 1 L 9 5 L 1 9 Z" fill="#151f35" stroke="#baa5fa" stroke-width="1.3"/></marker><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r=".8" fill="#7188a9" opacity=".12"/></pattern></defs><g font-family="Inter, DejaVu Sans, Arial, sans-serif"><rect width="1600" height="1030" rx="28" fill="url(#bg)"/><rect width="1600" height="1030" rx="28" fill="url(#dots)"/>
+<text x="64" y="60" fill="#67e8d4" font-size="14" font-weight="650" letter-spacing="3">VERNAC / EXAMPLE.DISPATCH</text>
+<text x="64" y="115" fill="#f0f6ff" font-size="43" font-weight="700" >Small model. Strong boundaries.</text>
+<text x="64" y="152" fill="#94a8c7" font-size="19" font-weight="400" >A tour, its domain types and the contracts that connect them.</text>
+<rect x="64" y="220" width="344" height="134" rx="16" fill="#111e35" stroke="#30425e"/>
+<rect x="65" y="242" width="3" height="90" rx="1.5" fill="#83b7ff"/>
+<text x="88" y="251" fill="#83b7ff" font-size="12" font-weight="650" letter-spacing="1.5">IDENTITY</text>
+<text x="88" y="286" fill="#edf5ff" font-size="25" font-weight="650" >TourId</text>
+<text x="88" y="317" fill="#94a8c7" font-size="16" font-weight="400" >Typed identity of a Tour</text>
+<rect x="64" y="390" width="344" height="160" rx="16" fill="#111e35" stroke="#30425e"/>
+<rect x="65" y="412" width="3" height="116" rx="1.5" fill="#83b7ff"/>
+<text x="88" y="421" fill="#83b7ff" font-size="12" font-weight="650" letter-spacing="1.5">VALUE OBJECT</text>
+<text x="88" y="456" fill="#edf5ff" font-size="25" font-weight="650" >Title</text>
+<text x="88" y="487" fill="#94a8c7" font-size="16" font-weight="400" >Wraps String</text>
+<text x="88" y="512" fill="#94a8c7" font-size="16" font-weight="400" >Invariant: must not be blank</text>
+<rect x="64" y="586" width="344" height="150" rx="16" fill="#111e35" stroke="#30425e"/>
+<rect x="65" y="608" width="3" height="106" rx="1.5" fill="#83b7ff"/>
+<text x="88" y="617" fill="#83b7ff" font-size="12" font-weight="650" letter-spacing="1.5">ENUM VALUE</text>
+<text x="88" y="652" fill="#edf5ff" font-size="25" font-weight="650" >TourStatus</text>
+<text x="88" y="683" fill="#94a8c7" font-size="16" font-weight="400" >PLANNED | COMPLETED</text>
+<text x="88" y="708" fill="#94a8c7" font-size="16" font-weight="400" >Mutable field on Tour</text>
+<rect x="530" y="220" width="490" height="516" rx="24" fill="url(#core)" stroke="#427b77"/>
+<text x="560" y="258" fill="#67e8d4" font-size="13" font-weight="650" letter-spacing="2">AGGREGATE ROOT</text>
+<text x="560" y="310" fill="#edf5ff" font-size="48" font-weight="700" >Tour</text>
+<text x="560" y="359" fill="#94a8c7" font-size="15" font-weight="400" >Identity</text>
+<text x="730" y="359" fill="#dceaff" font-size="20" font-weight="600" >TourId</text>
+<text x="560" y="400" fill="#94a8c7" font-size="15" font-weight="400" >Title</text>
+<text x="730" y="400" fill="#dceaff" font-size="20" font-weight="600" >Title</text>
+<text x="560" y="441" fill="#94a8c7" font-size="15" font-weight="400" >Status</text>
+<text x="730" y="441" fill="#dceaff" font-size="20" font-weight="600" >TourStatus</text>
+<path d="M 560 469 H 990" stroke="#375568"/>
+<text x="560" y="509" fill="#67e8d4" font-size="12" font-weight="650" letter-spacing="1.5">DOMAIN BEHAVIOR</text>
+<text x="560" y="547" fill="#edf5ff" font-size="26" font-weight="650" >complete()</text>
+<text x="560" y="584" fill="#94a8c7" font-size="18" font-weight="400" >Sets tourStatus to COMPLETED.</text>
+<rect x="560" y="642" width="251" height="36" rx="18" fill="#172d3b" stroke="#335568"/>
+<text x="577" y="666" fill="#67e8d4" font-size="13" font-weight="650" >COLLECTION TYPE: Tours</text>
+<path d="M 408 287 H 530" fill="none" stroke="#83b7ff" stroke-width="2"/>
+<circle cx="530" cy="287" r="4" fill="#83b7ff"/>
+<path d="M 408 470 H 530" fill="none" stroke="#83b7ff" stroke-width="2"/>
+<circle cx="530" cy="470" r="4" fill="#83b7ff"/>
+<path d="M 408 661 H 530" fill="none" stroke="#83b7ff" stroke-width="2"/>
+<circle cx="530" cy="661" r="4" fill="#83b7ff"/>
+<rect x="1140" y="220" width="396" height="220" rx="16" fill="#111e35" stroke="#30425e"/>
+<rect x="1141" y="242" width="3" height="176" rx="1.5" fill="#baa5fa"/>
+<text x="1164" y="251" fill="#baa5fa" font-size="12" font-weight="650" letter-spacing="1.5">REPOSITORY CONTRACT</text>
+<text x="1164" y="286" fill="#edf5ff" font-size="25" font-weight="650" >TourRepository</text>
+<text x="1164" y="317" fill="#94a8c7" font-size="16" font-weight="400" >for Tour</text>
+<text x="1164" y="342" fill="#94a8c7" font-size="16" font-weight="400" >withStatus(status) → Tours</text>
+<text x="1164" y="367" fill="#94a8c7" font-size="16" font-weight="400" >Filter: tourStatus = status</text>
+<text x="1164" y="392" fill="#94a8c7" font-size="16" font-weight="400" >Order: title</text>
+<path d="M 1140 340 L 1020 340" fill="none" stroke="#67e8d4" stroke-width="2.5"  marker-end="url(#arrow)"/>
+<text x="1041" y="318" fill="#67e8d4" font-size="14" font-weight="400" >for</text>
+<rect x="1140" y="514" width="396" height="222" rx="16" fill="#111e35" stroke="#30425e"/>
+<rect x="1141" y="536" width="3" height="178" rx="1.5" fill="#67e8d4"/>
+<text x="1164" y="545" fill="#67e8d4" font-size="12" font-weight="650" letter-spacing="1.5">APPLICATION USE CASE</text>
+<text x="1164" y="580" fill="#edf5ff" font-size="25" font-weight="650" >CompleteTour</text>
+<text x="1164" y="611" fill="#94a8c7" font-size="16" font-weight="400" >Input: TourId</text>
+<text x="1164" y="636" fill="#94a8c7" font-size="16" font-weight="400" >Uses TourRepository</text>
+<text x="1164" y="661" fill="#94a8c7" font-size="16" font-weight="400" >Invokes Tour.complete()</text>
+<text x="1164" y="686" fill="#94a8c7" font-size="16" font-weight="400" >Saves Tour and emits event</text>
+<path d="M 1338 514 L 1338 440" fill="none" stroke="#67e8d4" stroke-width="2.5"  marker-end="url(#arrow)"/>
+<text x="1358" y="481" fill="#67e8d4" font-size="14" font-weight="400" >uses</text>
+<path d="M 1140 568 L 1020 568" fill="none" stroke="#67e8d4" stroke-width="2.5"  marker-end="url(#arrow)"/>
+<text x="1035" y="546" fill="#67e8d4" font-size="14" font-weight="400" >invokes</text>
+<rect x="530" y="827" width="490" height="130" rx="16" fill="#111e35" stroke="#30425e"/>
+<rect x="531" y="849" width="3" height="86" rx="1.5" fill="#baa5fa"/>
+<text x="554" y="858" fill="#baa5fa" font-size="12" font-weight="650" letter-spacing="1.5">DOMAIN EVENT</text>
+<text x="554" y="893" fill="#edf5ff" font-size="25" font-weight="650" >TourCompleted</text>
+<text x="554" y="924" fill="#94a8c7" font-size="16" font-weight="400" >Payload: TourId</text>
+<path d="M 1338 736 V 888 H 1020" fill="none" stroke="#67e8d4" stroke-width="2.5"  marker-end="url(#arrow)"/>
+<text x="1142" y="866" fill="#67e8d4" font-size="15" font-weight="400" >emits after save()</text>
+<text x="64" y="866" fill="#edf5ff" font-size="25" font-weight="650" >Explicit types.</text>
+<text x="64" y="902" fill="#edf5ff" font-size="25" font-weight="650" >Business behavior.</text>
+<text x="64" y="938" fill="#edf5ff" font-size="25" font-weight="650" >Clear contracts.</text>
+<text x="64" y="995" fill="#94a8c7" font-size="16" font-weight="400" >CompleteTour emits the event; Tour.complete() changes the status.</text>
+</g></svg>

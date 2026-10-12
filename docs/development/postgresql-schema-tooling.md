@@ -18,7 +18,8 @@ The reviewed project pipeline generates repositories through `JdbcRepositoryGene
 presence witnesses, owner keys, table filters and dependency depths. `JdbcMapping`
 contains explicit typed getter/factory bindings; `JdbcAggregateStore` executes JDBC
 without reflection. Compile and schema goals read the same history and enum-code overrides.
-Query syntax remains subsequent work.
+Declarative queries share the resolved storage plans; handwritten JDBC query extensions
+remain deferred.
 
 ## Candidate planning
 

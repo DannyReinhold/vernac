@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 390" role="img" aria-labelledby="title desc">
+<style>text{font-family:system-ui,sans-serif;fill:#183147}.heading{font-size:21px;font-weight:700}.label{font-size:16px;font-weight:600}.detail{font-size:13px}.arrow{stroke:#416780;stroke-width:2;fill:none;marker-end:url(#arrow)}</style>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#416780"/></marker></defs>
+<rect width="880" height="390" rx="16" fill="#f5f8fc"/>
+<title id="title">HTTP conversion surrounds the usecase transaction</title><desc id="desc">Request parsing and input mapping happen before the usecase transaction. The usecase changes and saves domain state. Response mapping happens afterward and may fail after commit.</desc>
+<text x="32" y="38" class="heading">Transport conversion surrounds the transaction</text>
+<rect x="32" y="80" width="236" height="145" rx="12" fill="#e4eef9" stroke="#5379a5"/>
+<text x="48" y="110" class="label">1. HTTP input</text><text x="48" y="140" class="detail">Parse path/query/header/JSON</text><text x="48" y="165" class="detail">Construct validated values</text><text x="48" y="199" class="detail">Wire: 400 · Domain value: 422</text>
+<rect x="314" y="80" width="252" height="145" rx="12" fill="#e3f4ed" stroke="#31836d"/>
+<text x="330" y="110" class="label">2. Usecase transaction</text><text x="330" y="140" class="detail">Load · domain behavior · save</text><text x="330" y="165" class="detail">Publish events when explicit</text><text x="330" y="199" class="detail">REQUIRED: start or join</text>
+<rect x="612" y="80" width="236" height="145" rx="12" fill="#e4eef9" stroke="#5379a5"/>
+<text x="628" y="110" class="label">3. HTTP response</text><text x="628" y="140" class="detail">Map declared usecase result</text><text x="628" y="165" class="detail">Encode DTO / return status</text><text x="628" y="199" class="detail">Failure does not undo commit</text>
+<path class="arrow" d="M268 153H306"/><path class="arrow" d="M566 153H604"/>
+<text x="32" y="273" class="label">The controller owns transport; the usecase owns orchestration.</text>
+<text x="32" y="307" class="detail">A response failure may follow a committed command. No automatic retry or idempotency is implied.</text>
+<text x="32" y="337" class="detail">An existing outer transaction can delay commit beyond the usecase return.</text>
+</svg>

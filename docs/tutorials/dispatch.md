@@ -3,9 +3,10 @@
 A delivery board looks simple until two plans change together, a vehicle is full,
 or a carrier is unavailable. Dispatch makes those boundaries visible.
 
-Open the [Dispatch application guide](https://github.com/DannyReinhold/vernac/tree/feature/redefining_the_language/examples/dispatch).
+Open the [Dispatch application guide](https://github.com/DannyReinhold/vernac/tree/main/examples/dispatch).
 It contains exact startup commands, source links and a five-minute walkthrough.
-You need the current 0.2.0-SNAPSHOT artifacts, JDK 25, Maven and Docker.
+Use JDK 25, Maven and Docker. Source-checkout commands install 0.3.0-SNAPSHOT;
+released consumers can select 0.3.0 after publication.
 
 ## Follow one decision through the system
 
@@ -37,7 +38,10 @@ claimed. A real booking operation would require an explicit idempotency contract
 
 ## Read, then change
 
-Read the model files in this order: values, tours, planning, dispatch, carrier.
+Read the model files in this order: values, tours, planning, dispatch, carrier,
+then `showcase/web/tour-api.vernac`. The create/release HTTP endpoints are generated
+from that last model; board projections and other commands demonstrate handwritten
+Java interoperability.
 Then inspect the generated Java. The web controller contains conversion and
 presentation work; the model contains business decisions.
 

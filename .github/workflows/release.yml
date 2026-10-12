@@ -6,11 +6,11 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version, e.g. 0.2.0"
+        description: "Release version, e.g. 0.3.0"
         required: true
         type: string
       dry_run:
-        description: "Build and sign; no Central or Marketplace upload"
+        description: "Dry Run (Build and sign; no Central or Marketplace upload)"
         required: true
         default: true
         type: boolean
@@ -70,6 +70,9 @@ jobs:
           if [[ "$DRY_RUN" == "false" ]]; then
             python3 tools/release.py unpublished
           fi
+
+      - name: Check documentation links
+        run: python3 tools/check-doc-links.py
 
       - name: Check release tooling
         run: python3 -m unittest discover -s tools/tests -v -b

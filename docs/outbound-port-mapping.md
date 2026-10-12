@@ -1,6 +1,6 @@
 # Outbound ports and anti-corruption layers
 
-This page is a navigation entry for existing links. Current 0.2.0 documentation:
+This page is a navigation entry for existing links. Current 0.3.0 documentation:
 
 Start with the [ports walkthrough](tutorials/ports-walkthrough.md).
 The [port contract](contracts/ports-adapters-and-acl.md),

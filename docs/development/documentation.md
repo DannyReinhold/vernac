@@ -2,16 +2,16 @@
 
 ## Audiences and authority
 
-| Location | Purpose | Tone |
-| --- | --- | --- |
-| README | Explain the product and lead to the first success | Concrete, inviting, evidence-based |
-| docs/index.md | Website landing page and navigation | Standalone introduction |
-| tutorials | Guided learning and experiments | Engaging, explicit prerequisites and outcomes |
-| faq | Questions and recovery paths | Direct, practical |
-| language-reference.md | Complete syntax/capability overview | Precise and searchable |
-| specification + contracts | One normative specification | Formal requirements and explicit limits |
-| development | Mechanisms, rationale and active proposals | Technical; plans labelled as plans |
-| maintainers | Releasing and operations | Procedural and auditable |
+| Location                  | Purpose                                           | Tone                                          |
+|---------------------------|---------------------------------------------------|-----------------------------------------------|
+| README                    | Explain the product and lead to the first success | Concrete, inviting, evidence-based            |
+| docs/index.md             | Website landing page and navigation               | Standalone introduction                       |
+| tutorials                 | Guided learning and experiments                   | Engaging, explicit prerequisites and outcomes |
+| faq                       | Questions and recovery paths                      | Direct, practical                             |
+| language-reference.md     | Complete syntax/capability overview               | Precise and searchable                        |
+| specification + contracts | One normative specification                       | Formal requirements and explicit limits       |
+| development               | Mechanisms, rationale and active proposals        | Technical; plans labelled as plans            |
+| maintainers               | Releasing and operations                          | Procedural and auditable                      |
 
 The delivery story connects values to usecases, storage, events and external systems.
 Focused Task, naming and DTO exercises remain useful; explain where they fit rather
@@ -31,16 +31,19 @@ member naming, enums and collections) were consolidated into compiler-architectu
 Git history retains their patch-by-patch evidence. Candidate-state design, scalar
 representation rationale and other still-relevant technical decisions remain.
 
-The reference and entry pages describe 0.2.0-SNAPSHOT explicitly. They MUST NOT imply
-that an older published version implements the same syntax. Release operators must
-advance the documented version during release preparation; automatic website version
-injection is not introduced here.
+Reference, contracts and tutorials describe the **0.3.0 language revision**. Source-checkout
+instructions explicitly distinguish the **0.3.0-SNAPSHOT** development artifact from the
+**0.3.0** release selected by the workflow. Documentation MUST NOT declare a release
+published before publication, or introduce a future development target prematurely.
+Historical release records retain their original versions and are labelled historical.
+The example application version (such as 0.1.0-SNAPSHOT) is independent of its
+vernac.version dependency. Automatic website version injection is not introduced here.
 
 ## Checks
 
 DocumentationExamplesTest extracts the complete entry-point models from Markdown,
 compiles their generated Java and exercises domain behavior. Existing mapping/REST
-tutorial execution tests remain. Thirteen complete tutorial models are also checked
+tutorial execution tests remain. Fourteen complete tutorial models are also checked
 for semantic validity and code generation. These checks do not validate every partial snippet,
 IDE gesture, website renderer or production runtime claim.
 

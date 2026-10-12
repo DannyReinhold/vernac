@@ -11,12 +11,12 @@ Shared references within an aggregate use one entity state table per resolved ty
 The reviewed multi-file pipeline now generates JDBC repositories with `byId`, `save`
 and `delete`. `SchemaBuilder` captures `StoragePlan` bindings while building the DDL;
 the JDBC generator uses these exact columns, presence markers and relation targets.
-Both compiler entry points use the reviewed repository generator; the old generator
-class is not used by these paths.
+All compiler entry points use the same resolved pipeline and repository generator.
+The obsolete generator and its separate SQL mapping have been removed.
 
 Runtime scalar codecs preserve the declared component layouts. The standalone
-[persistence demo](https://github.com/DannyReinhold/vernac/blob/feature/redefining_the_language/examples/persistence-demo/README.md) exercises Spring JDBC,
-Flyway and complete aggregate graphs. Custom queries remain a later feature.
+[persistence demo](https://github.com/DannyReinhold/vernac/blob/main/examples/persistence-demo/README.md) exercises Spring JDBC,
+Flyway and complete aggregate graphs. Declarative queries are implemented; handwritten JDBC query extensions remain deferred.
 
 ## Responsibility for migrations
 

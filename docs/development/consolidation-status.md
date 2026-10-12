@@ -1,31 +1,31 @@
 # Vernac consolidation status
 
-Status: 2026-10-11. Target release: 0.2.0. This separates reviewed functionality from older implementations
-and future plans. It is not a claim that every language feature is production-ready.
-
-The authoritative remaining work and release gates are in the
-[0.2.0 consolidation plan](release-0.2.0.md). Larger extensions start after release.
+Status: release preparation for **0.3.0**. The source checkout uses **0.3.0-SNAPSHOT**;
+publication and Marketplace approval are separate release steps.
+This separates implemented functionality from planned work, not a blanket claim of
+production readiness. The [0.3.0 plan](release-0.3.0.md) records the current acceptance gates.
 
 ## Reviewed and implemented
 
-| Area | Current scope |
-| --- | --- |
-| Namespaces and imports | Project-wide discovery, multi-file resolution, qualified names and namespace-derived Java packages |
-| Names and Unicode | Shared default-name rules, explicit roles, collisions and Unicode-aware diagnostics and positions |
-| IDs and value objects | Factories, validation, equality, getters, approved scalar types, optional fields and nullability contracts |
-| Enum values | Java enums, domain behavior and name checks; persistence codes stay outside the domain |
-| Domain collections | Explicit lists and sets, immutable collection structure, documented equality/duplicate operations and entity-ID access |
-| Behavior and validation | Inline Java or external implementation, delegated access through self, read/modify interfaces and validation delegates |
-| Entities and aggregates | Identity, create/reconstitute, containment rules, factories and technical persistence state |
-| Generated sources | Manifest-owned Java output and orphan cleanup; class files and JARs remain build-tool responsibilities |
-| IntelliJ/LSP | Project/file/namespace creation, Maven import, project diagnostics, completion, navigation and embedded Java support |
-| PostgreSQL mapping | Namespace-safe quoted names, recursive flattening, optional presence, scalar components and shared entity graphs |
-| JDBC repositories | Explicit repository declaration, byId/save/delete, declarative comparisons and ordering, complete graph loads, list order, reachability cleanup and optimistic locking |
-| Usecases | Named application operations, REQUIRED transactions, explicit results and external implementations |
-| Domain services | Named methods, injected dependencies through self, per-operation preconditions and external implementations |
-| Events | Immutable occurrences, shared EventId, validation, synchronous listeners, relational recording, deferred delivery and workers |
-| Outbound ports and ACL | Java adapters, DTO/PATCH semantics, mappings, REST bindings, typed error rules and local HTTP walkthrough |
-| Schema tooling | Versioned source snapshots, initial/next migration candidates, explicit transformations, risk gates and Flyway replay checks |
+| Area                    | Current scope                                                                                                                                                          |
+|-------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Namespaces and imports  | Project-wide discovery, multi-file resolution, qualified names and namespace-derived Java packages                                                                     |
+| Names and Unicode       | Shared default-name rules, explicit roles, collisions and Unicode-aware diagnostics and positions                                                                      |
+| IDs and value objects   | Factories, validation, equality, getters, approved scalar types, optional fields and nullability contracts                                                             |
+| Enum values             | Java enums, domain behavior and name checks; persistence codes stay outside the domain                                                                                 |
+| Domain collections      | Explicit lists and sets, immutable collection structure, documented equality/duplicate operations and entity-ID access                                                 |
+| Behavior and validation | Inline Java or external implementation, delegated access through self, read/modify interfaces and validation delegates                                                 |
+| Entities and aggregates | Identity, create/reconstitute, containment rules, factories and technical persistence state                                                                            |
+| Generated sources       | Manifest-owned Java output and orphan cleanup; class files and JARs remain build-tool responsibilities                                                                 |
+| IntelliJ/LSP            | Project/file/namespace creation, Maven import, project diagnostics, completion, navigation and embedded Java support                                                   |
+| PostgreSQL mapping      | Namespace-safe quoted names, recursive flattening, optional presence, scalar components and shared entity graphs                                                       |
+| JDBC repositories       | Explicit repository declaration, byId/save/delete, declarative comparisons and ordering, complete graph loads, list order, reachability cleanup and optimistic locking |
+| Usecases                | Named application operations, REQUIRED transactions, explicit results and external implementations                                                                     |
+| Domain services         | Named methods, injected dependencies through self, per-operation preconditions and external implementations                                                            |
+| Events                  | Immutable occurrences, shared EventId, validation, synchronous listeners, relational recording, deferred delivery and workers                                          |
+| HTTP inbound adapters   | Typed path/query/header/body input, usecase invocation, shared mappings including explicit Result sources, scoped error policies                                       |
+| Outbound ports and ACL  | Java adapters, DTO/PATCH semantics, mappings, REST bindings, typed error rules and local HTTP walkthrough                                                              |
+| Schema tooling          | Versioned source snapshots, initial/next migration candidates, explicit transformations, risk gates and Flyway replay checks                                           |
 
 Reviewed areas have contracts and automated tests; depth and integration coverage
 differ. The standalone persistence demo has also completed a real PostgreSQL run and
@@ -43,7 +43,8 @@ not exhaustive concurrency, platform, historical-data or deployment verification
 - Event recording, durable delivery and workers are implemented; event evolution
   and retry/idempotency responsibilities remain explicit operational concerns.
 - Outbound ports/adapters are implemented, including the executable REST/ACL demo.
-  Inbound transport generation remains post-release work.
+  The 0.3.0 HTTP inbound slice adds typed request binding, usecase calls and response ACL;
+  other inbound transports remain planned.
 - The two legacy example modules have been removed. The remaining examples and
   project templates have a source/documentation audit and focused tests; full release
   acceptance still requires database and installed-IDE checks. A green root build alone is
@@ -51,11 +52,21 @@ not exhaustive concurrency, platform, historical-data or deployment verification
 
 ## Next work
 
-Follow [the 0.2.0 plan](release-0.2.0.md): repository/template cleanup, remaining
-consistency review, all documentation and examples, a usable complete application,
-release automation including Marketplace, then merge to main and release.
-All work remains on feature/redefining_the_language until the acceptance gates pass.
-Apply the [feature review checklist](feature-review-checklist.md) throughout.
+The 0.3.0 consolidation removes the abandoned single-file analyzer/generation path,
+legacy domain generator modes, implicit type guessing and per-type package syntax.
+Single-file convenience APIs and project compilation now share resolution and generation;
+schema and repository generation consume the same resolved model. Tests that asserted
+obsolete public setters or SQL constants on domain classes now exercise the reviewed
+access-view API and separate schema model instead. Their lifecycle, naming, identity
+and flattening coverage is retained.
+
+- [Deep IntelliJ integration](intellij-deep-integration.md): cross-language refactoring,
+  conflict reporting, rich navigation/inspections and debugger investigation. **Planned,
+  not implemented in this consolidation.**
+- [Capabilities and usecase authorization](capabilities-and-usecase-authorization.md):
+  reusable modules, explicit execution permissions and domain-specific limits.
+- Continue applying the [feature review checklist](feature-review-checklist.md), including
+  shared compiler/tooling semantics and the quality of generated Java.
 
 ## Migration exercise and constraint cleanup
 

@@ -19,6 +19,7 @@ topLevelDeclaration
     | aggregateDefinition
     | entityDefinition
     | portDefinition
+    | inboundHttpAdapterDefinition
     | outboundAdapterDefinition
     | repositoryDefinition
     | usecaseDefinition
@@ -93,15 +94,9 @@ eventDefinition
 aggregateDefinition
     : 'aggregate' name=typeName '[' idReference ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
-      ( '{' aggregateMember* '}' )?
       behaviorBlock?
       collectionDefinition?
       ';'?
-    ;
-
-aggregateMember
-    : packageDeclarationStatement
-    | methodDefinition
     ;
 
 idReference
@@ -111,27 +106,9 @@ idReference
 entityDefinition
     : 'entity' name=typeName '[' idReference ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
-      ( '{' entityMember* '}' )?
       behaviorBlock?
       ( collectionDefinition )?
       ';'?
-    ;
-
-entityMember
-    : packageDeclarationStatement
-    | methodDefinition
-    ;
-
-invariantDefinition
-    : 'invariant' name=IDENTIFIER '{' rawJavaBlock '}'
-    ;
-
-methodDefinition
-    : accessModifier? returnType=type name=methodName '(' parameterList? ')' '{' rawJavaBlock '}'
-    ;
-
-accessModifier
-    : 'public' | 'internal' | 'private'
     ;
 
 // ==========================================
@@ -147,6 +124,25 @@ outboundAdapterDefinition
       '{' configurationBlock? (schemaDefinition | mappingDefinition)*
       ('behavior' '{' javaImports? javaUses? serviceMethod* '}' | restBlock)
       (schemaDefinition | mappingDefinition)* '}' ';'?
+    ;
+
+inboundHttpAdapterDefinition
+    : 'adapter' name=typeName 'inbound' 'http'
+      ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
+      '{' 'base' base=STRING_LITERAL ';'
+      (inboundEndpoint | schemaDefinition | mappingDefinition)*
+      ('errors' 'implemented' 'by' errorImplementation=qualifiedName ';')? '}' ';'?
+    ;
+inboundEndpoint
+    : name=methodName '{' verb=('GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE') route=STRING_LITERAL ';'
+      inboundBinding* ('body' bodyType=type ';')?
+      'execute' dependency=variableName '{' mappingAssignment* '}'
+      'respond' status=INT_LITERAL (responseType=type 'using' responseMapping=methodName)? ';'
+      ('on' 'absent' 'respond' absentStatus=INT_LITERAL ';')? '}'
+    ;
+inboundBinding
+    : kind=('path' | 'query' | 'header') valueType=type name=variableName?
+      ('named' externalName=STRING_LITERAL)? ';'
     ;
 
 configurationBlock
@@ -222,18 +218,8 @@ portMethodDefinition
 // ==========================================
 repositoryDefinition
     : 'repository' (name=typeName)? 'for' aggregateName=typeName '{'
-        repositoryMember*
+        repositoryFindMethod*
       '}' ';'?
-    ;
-
-repositoryMember
-    : packageDeclarationStatement
-    | repositoryFindMethod
-    | repositoryCustomMethod
-    ;
-
-packageDeclarationStatement
-    : 'package' qualifiedName ';'
     ;
 
 repositoryFindMethod
@@ -253,10 +239,6 @@ repositoryOrder
     : field=qualifiedNameSegment direction=('asc' | 'desc')?
     ;
 
-repositoryCustomMethod
-    : 'custom' returnType=type name=methodName '(' parameterList? ')' ';'
-    ;
-
 // ==========================================
 // 6. Use Cases
 // ==========================================
@@ -270,32 +252,6 @@ usecaseDefinition
 usecaseBehaviorMember
     : 'execute' ('{' rawJavaBlock '}' | 'implemented' 'by' implementation=qualifiedName ';')
     | behaviorMethod
-    ;
-
-useDependencyStatement
-    : 'use' typeName (variableName)? ';'
-    ;
-
-singleReturnStatement
-    : 'return' expression? ';'
-    ;
-
-tupleReturnStatement
-    : 'return' '(' tupleElement (',' tupleElement)* ')' ';'
-    ;
-
-tupleElement
-    : expression ('as'? alias=variableName)?
-    ;
-
-rawJavaStatement
-    : javaBlockStatement
-    | '{' rawJavaBlock '}'
-    | ~('}' | 'use' | 'load' | 'save' | 'return' | 'package' | 'emit' | '{') ~(';' | '{')* ';'
-    ;
-
-javaBlockStatement
-    : ('if' | 'for' | 'while' | 'switch' | 'try') ~('{')* '{' rawJavaBlock '}' ( 'else' ( '{' rawJavaBlock '}' | javaBlockStatement ) )?
     ;
 
 // ==========================================
@@ -330,7 +286,7 @@ parameterList
     ;
 
 parameter
-    : ( '@' typeName ( '(' STRING_LITERAL ')' )? )* (isMut='mut')? paramType=type (name=variableName)?
+    : (isMut='mut')? paramType=type (name=variableName)?
     ;
 
 type
@@ -347,7 +303,7 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | IDENTIFIER
     | BOOLEAN_LITERAL
     | 'null'
@@ -450,7 +406,7 @@ typeName
     ;
 
 methodName
-    : 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'read' | 'modify' | 'load' | 'save'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
@@ -460,7 +416,7 @@ methodName
     ;
 
 variableName
-    : 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
     | IDENTIFIER
@@ -488,7 +444,5 @@ BOOLEAN_LITERAL : 'true' | 'false' ;
 WS            : [ \t\r\n]+ -> skip ;
 LINE_COMMENT  : '//' ~[\r\n]* -> channel(HIDDEN) ;
 BLOCK_COMMENT : '/*' .*? '*/' -> channel(HIDDEN) ;
-
-STATUS_FAMILY   : [1-5] [xX] [xX] ;
 
 ANY_CHAR      : . ;

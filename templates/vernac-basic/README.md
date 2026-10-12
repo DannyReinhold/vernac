@@ -10,7 +10,7 @@ No database, Docker, or running Spring application is required.
 - Internet access for the initial download of Maven and dependencies.
 
 <!-- vernac-dependency-note:start -->
-This example uses Vernac `0.2.0-SNAPSHOT`. Install the matching artifacts
+This example uses Vernac `0.3.0-SNAPSHOT`. Install the matching artifacts
 in your local Maven repository first by running `mvn clean install`
 from the Vernac repository root with the JDK required by that build.
 <!-- vernac-dependency-note:end -->

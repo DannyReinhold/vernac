@@ -66,6 +66,10 @@
         <dependency>
             <groupId>org.postgresql</groupId><artifactId>postgresql</artifactId>
         </dependency>
+        <!-- Generated inbound controllers are tested with real Spring MVC binding. -->
+        <dependency><groupId>org.springframework</groupId><artifactId>spring-webmvc</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>org.springframework</groupId><artifactId>spring-test</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>jakarta.servlet</groupId><artifactId>jakarta.servlet-api</artifactId><scope>test</scope></dependency>
         <!-- Testing -->
         <dependency><groupId>org.vernac</groupId><artifactId>vernac-runtime-http</artifactId><scope>test</scope></dependency>
         <dependency><groupId>org.vernac</groupId><artifactId>vernac-runtime-json</artifactId><scope>test</scope></dependency>

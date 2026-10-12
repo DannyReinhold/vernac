@@ -48,7 +48,6 @@ public final class SchemaBuilder {
         Set<String> roots = new HashSet<>();
         for (var source : project.project().sources()) for (var def : source.unit().definitions()) {
             if (!(def instanceof RepositoryNode repo)) continue;
-            if (repo.customPackage().isPresent()) fail(repo.location(), "Repository packages derive from the namespace; remove custom package.");
             var lookup = project.scopes().get(source.path()).resolve(repo.aggregateName(), repo.location());
             if (lookup.type().orElse(null) instanceof ResolvedType.Declared type
                     && type.symbol().kind() == TypeSymbol.Kind.AGGREGATE) {

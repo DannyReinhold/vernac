@@ -13,34 +13,26 @@ import showcase.routing.usecase.*;
 @RequestMapping("/api")
 public class DispatchController {
   private final TourRepository tours;
-  private final CreateTour create;
   private final AddStop add;
   private final MoveStop move;
-  private final ReleaseTour release;
   private final DispatchTour dispatch;
   private final NamedParameterJdbcTemplate jdbc;
   private final CarrierSimulator carrier;
 
   public DispatchController(
       TourRepository tours,
-      CreateTour create,
       AddStop add,
       MoveStop move,
-      ReleaseTour release,
       DispatchTour dispatch,
       NamedParameterJdbcTemplate jdbc,
       CarrierSimulator carrier) {
     this.tours = tours;
-    this.create = create;
     this.add = add;
     this.move = move;
-    this.release = release;
     this.dispatch = dispatch;
     this.jdbc = jdbc;
     this.carrier = carrier;
   }
-
-  public record NewTour(String title, int capacity) {}
 
   public record NewStop(String customer, String street, String city, int units) {}
 
@@ -94,12 +86,6 @@ public class DispatchController {
     return new Board(views, receipts, deliveries);
   }
 
-  @PostMapping("/tours")
-  public Map<String, String> create(@RequestBody NewTour input) {
-    return Map.of(
-        "id", create.execute(Title.of(input.title()), Capacity.of(input.capacity())).asString());
-  }
-
   @PostMapping("/tours/{id}/stops")
   public void add(@PathVariable UUID id, @RequestBody NewStop input) {
     add.execute(
@@ -112,11 +98,6 @@ public class DispatchController {
   @PostMapping("/move")
   public void move(@RequestBody Transfer input) {
     move.execute(TourId.of(input.source()), TourId.of(input.target()), StopId.of(input.stop()));
-  }
-
-  @PostMapping("/tours/{id}/release")
-  public void release(@PathVariable UUID id) {
-    release.execute(TourId.of(id));
   }
 
   @PostMapping("/tours/{id}/dispatch")

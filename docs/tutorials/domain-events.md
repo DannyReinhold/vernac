@@ -1,8 +1,11 @@
 # Publish a domain event
 
-This walkthrough starts with synchronous events, then introduces recording and queued
-delivery. Deferred workers now process committed jobs; see the
-[delivery plan](../development/event-delivery.md).
+An event records a fact, while its listeners decide how to react. This walkthrough
+first observes a fact in the current transaction, then delivers it durably after
+commit. Use a Spring Boot application with the matching JDBC starter and transaction
+manager. The [persistence demo](database-persistence.md) already supplies this setup.
+The small Task model below is an alternative exercise; avoid duplicating its types
+in a namespace from another tutorial.
 
 In a Spring Boot application with Vernac generation enabled, create
 `src/main/vernac/example/tasks/events.vernac`:
@@ -78,13 +81,13 @@ self getters, and `self.emit(...)` can report another event. Validators never re
 that capability.
 
 See the [event contract](../contracts/events.md) for factories, identity and nullability.
-Next: durable relational event storage and per-listener delivery jobs, with a separate
-PostgreSQL walkthrough. Do not simulate durability by switching this example to an
+The next sections add durable relational storage and per-listener delivery jobs. Do not simulate durability by switching this example to an
 asynchronous thread or by catching and ignoring listener failures.
 
-## Next stage: recording and queued delivery
+## Record occurrences and queue delivery
 
-Replace `event Changed(...)` with `recorded event Changed(...)` to retain occurrences
+Replace `event TaskRenamed(TaskId, Title);` with
+`recorded event TaskRenamed(TaskId, Title);` to retain occurrences
 without a deferred consumer. Alternatively, declare a `deferred listener` to request
 storage and a delivery job for that listener. Keep synchronous listeners where their
 work belongs to the caller's transaction.
@@ -115,10 +118,10 @@ The configured PostgreSQL account must be able to create and drop disposable dat
 
 ## Run a deferred listener
 
-Add a small listener to the Changed event from this tutorial:
+Add this listener alongside PrintRename for the same TaskRenamed event:
 
 ```vernac
-deferred listener PrintChanged on Changed behavior {
+deferred listener PrintRenamedLater on TaskRenamed behavior {
     execute { System.out.println("Deferred event: " + event.eventId()); }
 }
 ```
@@ -159,7 +162,7 @@ It also tests automatic polling, independent subscribers and processing rollback
 
 ## Runnable example
 
-The standalone [persistence demo](https://github.com/DannyReinhold/vernac/blob/feature/redefining_the_language/examples/persistence-demo/README.md#event-walkthrough)
+The standalone [persistence demo](https://github.com/DannyReinhold/vernac/blob/main/examples/persistence-demo/README.md#event-walkthrough)
 contains a complete event runner. It demonstrates synchronous observation, two deferred
 subscribers, an intentional first-attempt failure, successful retry and publisher rollback.
 Its event migration is committed alongside the source schema snapshot. Run it after

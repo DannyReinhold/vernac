@@ -2,7 +2,9 @@
 
 Start with a namespace directory matching `namespace tasks;` below src/main/vernac.
 This self-contained example requires Spring context and transaction support in the
-Java application (as provided by the Vernac Spring/JDBC setup):
+Java application, **including a configured transaction manager** (as provided by
+the [persistence demo](database-persistence.md)). Generation itself can be inspected
+without starting Spring. Save it as `src/main/vernac/tasks/describe.vernac`:
 
 ```vernac
 namespace tasks;
@@ -27,7 +29,8 @@ behavior {
 
 Compile using your normal Maven build. Inject tasks.usecase.DescribeTask into the
 application's caller. Invoke execute(id, null) for no title. The result's title()
-returns Optional.empty(); toString describes both components. A blank supplied title
+returns Optional.empty(); toString describes both components. The public execute
+argument is nullable, while `title` inside behavior/private helpers is Optional. A blank supplied title
 fails before execute's implementation body runs.
 
 Try replacing the two result fields with `returns Title?`, changing the body to
@@ -39,7 +42,8 @@ and self.tasks().save(...) in execute. The repository and aggregate must already
 Dependencies arrive through constructor injection. A usecase called through an injected
 Spring bean establishes/joins a REQUIRED transaction.
 
-To move Java out of the model, replace execute's block with:
+Restore the original tuple result and helper before the next step. To move Java
+out of the model, replace execute's block with:
 
 ```vernac
 execute implemented by custom.DescribeTaskImplementation;

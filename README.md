@@ -39,11 +39,11 @@ repository TourRepository for Tour {
         where tourStatus = :status order by title;
 }
 
-usecase CompleteTour(TourId) uses TourRepository tours behavior {
+usecase CompleteTour(TourId) uses TourRepository tourRepository behavior {
     execute {
-        var tour = self.tours().byId(tourId);
+        var tour = self.tourRepository().byId(tourId);
         tour.complete();
-        self.tours().save(tour);
+        self.tourRepository().save(tour);
         self.emit(TourCompleted.create(tour.id()));
     }
 }
@@ -70,12 +70,12 @@ framework convention.
 
 ## Start with a passing test
 
-This documentation describes the **Vernac 0.2.0 language and API**. Use matching
-compiler, runtime and IntelliJ plugin versions; 0.1.x does not implement this
-language revision. For a source checkout, the commands below build and install
-the version configured in its root POM (currently `0.2.0-SNAPSHOT`).
+This documentation describes the **Vernac 0.3.0 language and API**. Use matching
+compiler, runtime and IntelliJ plugin versions; earlier releases do not support all
+constructs documented here. For a source checkout, the commands below build and install
+the version configured in its root POM (currently `0.3.0-SNAPSHOT`).
 
-Use JDK 25 and Maven 3.9+. Generated application code targets Java 21.
+Use JDK 25 and Maven 3.9.x (release automation pins 3.9.16). Generated application code targets Java 21.
 From this repository, install the compiler and runtime, then try the minimal template:
 
 ```shell
@@ -120,15 +120,16 @@ part of the documented contracts, not details to discover in production.
 
 The repository contains the compiler, Maven plugin, runtime modules for core/JDBC/JSON/HTTP,
 and IntelliJ/LSP tooling. See [contributor documentation](docs/development/index.md)
-and the [0.2.0 release plan](docs/development/release-0.2.0.md).
-Dedicated inbound HTTP/MCP generation and messaging adapters are future work;
-ordinary Java/Spring entry points can invoke generated usecases today.
+and the [0.3.0 release plan](docs/development/release-0.3.0.md).
+The 0.3.0 compiler also generates HTTP inbound adapters around usecases;
+see [the tutorial](docs/tutorials/inbound-http.md). MCP and messaging adapters remain
+planned. Ordinary Java/Spring entry points continue to work alongside generated ones.
 
 Apache License 2.0. See [LICENSE](LICENSE).
 
 [Legal notice / Impressum](docs/impressum.md) · [Privacy](docs/privacy.md)
 
-## Run the architecture
+## Explore the interactive showcase
 
 [**Vernac Dispatch**](examples/dispatch/README.md) is an interactive delivery-planning
 application: move stops, enforce capacity, dispatch tours and observe durable event

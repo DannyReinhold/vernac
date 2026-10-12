@@ -8,7 +8,6 @@ import org.antlr.v4.runtime.RuleContext;
 import org.antlr.v4.runtime.Token;
 import org.vernac.compiler.parser.VernacBaseVisitor;
 import org.vernac.compiler.parser.VernacParser;
-import org.vernac.compiler.util.TypeUtils;
 
 import java.util.*;
 
@@ -46,6 +45,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         if (ctx.aggregateDefinition() != null) return visitAggregateDefinition(ctx.aggregateDefinition());
         if (ctx.entityDefinition() != null) return visitEntityDefinition(ctx.entityDefinition());
         if (ctx.eventDefinition() != null) return visitEventDefinition(ctx.eventDefinition());
+        if (ctx.inboundHttpAdapterDefinition() != null) return visitInboundHttpAdapterDefinition(ctx.inboundHttpAdapterDefinition());
         if (ctx.outboundAdapterDefinition() != null) return visitOutboundAdapterDefinition(ctx.outboundAdapterDefinition());
         if (ctx.portDefinition() != null) return visitPortDefinition(ctx.portDefinition());
         if (ctx.repositoryDefinition() != null) return visitRepositoryDefinition(ctx.repositoryDefinition());
@@ -134,7 +134,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         String name = ctx.name.getText();
 
         VernacParser.IdReferenceContext idCtx = ctx.idReference();
-        TypeNode idType = new TypeNode(toLocation(idCtx), idCtx.idType.getText(), Collections.emptyList(), false);
+        TypeNode idType = toTypeNode(idCtx.idType);
         IdReferenceNode idDef = new IdReferenceNode(toLocation(idCtx), idType);
 
         List<FieldNode> fields = Optional.ofNullable(ctx.parameterList())
@@ -150,21 +150,8 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             }
         }
 
-        Optional<String> customPackage = Optional.empty();
-        List<MethodNode> methods = new ArrayList<>();
-
-        if (ctx.aggregateMember() != null) {
-            for (VernacParser.AggregateMemberContext member : ctx.aggregateMember()) {
-                if (member.packageDeclarationStatement() != null) {
-                    customPackage = Optional.of(member.packageDeclarationStatement().qualifiedName().getText());
-                } else if (member.methodDefinition() != null) {
-                    methods.add(toMethodNode(member.methodDefinition()));
-                }
-            }
-        }
-
-        methods.addAll(behaviorMethods(ctx.behaviorBlock()));
-        return new AggregateNode(toLocation(ctx), name, idDef, fields, validations, methods, customPackage, collection(ctx.collectionDefinition()), behaviorImports(ctx.behaviorBlock()));
+        return new AggregateNode(toLocation(ctx), name, idDef, fields, validations,
+                behaviorMethods(ctx.behaviorBlock()), collection(ctx.collectionDefinition()), behaviorImports(ctx.behaviorBlock()));
     }
 
     @Override
@@ -172,7 +159,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         String name = ctx.name.getText();
 
         VernacParser.IdReferenceContext idCtx = ctx.idReference();
-        TypeNode idType = new TypeNode(toLocation(idCtx), idCtx.idType.getText(), Collections.emptyList(), false);
+        TypeNode idType = toTypeNode(idCtx.idType);
         IdReferenceNode idDef = new IdReferenceNode(toLocation(idCtx), idType);
 
         List<FieldNode> fields = Optional.ofNullable(ctx.parameterList())
@@ -188,23 +175,8 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             }
         }
 
-        Optional<String> customPackage = Optional.empty();
-        List<MethodNode> methods = new ArrayList<>();
-
-        if (ctx.entityMember() != null) {
-            for (VernacParser.EntityMemberContext member : ctx.entityMember()) {
-                if (member.packageDeclarationStatement() != null) {
-                    customPackage = Optional.of(member.packageDeclarationStatement().qualifiedName().getText());
-                } else if (member.methodDefinition() != null) {
-                    methods.add(toMethodNode(member.methodDefinition()));
-                }
-            }
-        }
-
-        Optional<CollectionDefinitionNode> collection = collection(ctx.collectionDefinition());
-
-        methods.addAll(behaviorMethods(ctx.behaviorBlock()));
-        return new EntityNode(toLocation(ctx), name, idDef, fields, validations, methods, collection, customPackage, behaviorImports(ctx.behaviorBlock()));
+        return new EntityNode(toLocation(ctx), name, idDef, fields, validations,
+                behaviorMethods(ctx.behaviorBlock()), collection(ctx.collectionDefinition()), behaviorImports(ctx.behaviorBlock()));
     }
 
     @Override
@@ -212,41 +184,20 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         String aggregateName = ctx.aggregateName.getText();
         String name = ctx.name != null ? ctx.name.getText() : aggregateName + "Repository";
 
-        Optional<String> customPackage = Optional.empty();
         List<RepositoryMethodNode> methods = new ArrayList<>();
-
-        for (VernacParser.RepositoryMemberContext member : ctx.repositoryMember()) {
-            if (member.packageDeclarationStatement() != null) {
-                customPackage = Optional.of(member.packageDeclarationStatement().qualifiedName().getText());
-            } else if (member.repositoryFindMethod() != null) {
-                VernacParser.RepositoryFindMethodContext findCtx = member.repositoryFindMethod();
-                var predicates = new ArrayList<RepositoryMethodNode.Predicate>();
-                var condition = findCtx.repositoryExpression() == null
-                        ? new RepositoryMethodNode.Junction("and", List.of())
-                        : queryExpression(findCtx.repositoryExpression(), predicates);
-                methods.add(new RepositoryMethodNode(
-                        toLocation(findCtx),
-                        toTypeNode(findCtx.returnType),
-                        findCtx.name.getText(),
-                        Optional.ofNullable(findCtx.parameterList()).map(p -> extractParameters(p)).orElse(Collections.emptyList()),
-                        false,
-                        predicates,
-                        findCtx.repositoryOrder().stream().map(o -> new RepositoryMethodNode.Order(
-                                toLocation(o), o.field.getText(), o.direction != null && o.direction.getText().equals("desc"))).toList(), condition
-                ));
-            } else if (member.repositoryCustomMethod() != null) {
-                VernacParser.RepositoryCustomMethodContext customCtx = member.repositoryCustomMethod();
-                methods.add(new RepositoryMethodNode(
-                        toLocation(customCtx),
-                        toTypeNode(customCtx.returnType),
-                        customCtx.name.getText(),
-                        Optional.ofNullable(customCtx.parameterList()).map(p -> extractParameters(p)).orElse(Collections.emptyList()),
-                        true
-                ));
-            }
+        for (var findCtx : ctx.repositoryFindMethod()) {
+            var predicates = new ArrayList<RepositoryMethodNode.Predicate>();
+            var condition = findCtx.repositoryExpression() == null
+                    ? new RepositoryMethodNode.Junction("and", List.of())
+                    : queryExpression(findCtx.repositoryExpression(), predicates);
+            methods.add(new RepositoryMethodNode(
+                    toLocation(findCtx), toTypeNode(findCtx.returnType), findCtx.name.getText(),
+                    findCtx.parameterList() == null ? List.of() : extractParameters(findCtx.parameterList()),
+                    predicates, findCtx.repositoryOrder().stream().map(o -> new RepositoryMethodNode.Order(
+                            toLocation(o), o.field.getText(), o.direction != null && o.direction.getText().equals("desc"))).toList(),
+                    condition));
         }
-
-        return new RepositoryNode(toLocation(ctx), name, aggregateName, customPackage, methods);
+        return new RepositoryNode(toLocation(ctx), name, aggregateName, methods);
     }
 
     @Override
@@ -261,6 +212,33 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     public PortNode visitPortDefinition(VernacParser.PortDefinitionContext ctx) {
         return new PortNode(ctx.name.getText(), ctx.portMethodDefinition().stream()
                 .map(this::visitPortMethodDefinition).toList(), locationOf(ctx));
+    }
+
+    @Override
+    public InboundHttpAdapterNode visitInboundHttpAdapterDefinition(VernacParser.InboundHttpAdapterDefinitionContext ctx) {
+        var endpoints = ctx.inboundEndpoint().stream().map(e -> new InboundHttpAdapterNode.Endpoint(
+                toLocation(e), e.name.getText(), e.verb.getText(), unquote(e.route.getText()),
+                e.inboundBinding().stream().map(b -> {
+                    var type = toTypeNode(b.valueType);
+                    String name = b.name == null ? org.vernac.language.VernacNames.defaultMemberName(type.name()) : b.name.getText();
+                    return new InboundHttpAdapterNode.Binding(toLocation(b), b.kind.getText(), type, name,
+                            b.externalName == null ? name : unquote(b.externalName.getText()));
+                }).toList(), Optional.ofNullable(e.bodyType).map(this::toTypeNode), e.dependency.getText(),
+                e.mappingAssignment().stream().map(a -> new MappingAssignmentNode(toLocation(a), a.target.getText(),
+                        List.of(a.path.getText().split("\\.")), Optional.ofNullable(a.mapper).map(ParserRuleContext::getText))).toList(),
+                httpStatus(e.status.getText()), Optional.ofNullable(e.responseType).map(this::toTypeNode),
+                Optional.ofNullable(e.responseMapping).map(ParserRuleContext::getText),
+                Optional.ofNullable(e.absentStatus).map(t -> httpStatus(t.getText())))).toList();
+        return new InboundHttpAdapterNode(toLocation(ctx), ctx.name.getText(), unquote(ctx.base.getText()),
+                ctx.dependencies.stream().map(this::adapterParameter).toList(), endpoints,
+                ctx.schemaDefinition().stream().map(this::visitSchemaDefinition).toList(),
+                ctx.mappingDefinition().stream().map(this::visitMappingDefinition).toList(),
+                Optional.ofNullable(ctx.errorImplementation).map(ParserRuleContext::getText));
+    }
+
+    private int httpStatus(String value) {
+        try { return Integer.parseInt(value); }
+        catch (NumberFormatException invalid) { return -1; }
     }
 
     public OutboundAdapterNode visitOutboundAdapterDefinition(VernacParser.OutboundAdapterDefinitionContext ctx) {
@@ -391,18 +369,6 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     public PortMethodNode visitPortMethodDefinition(VernacParser.PortMethodDefinitionContext ctx) {
         return new PortMethodNode(ctx.name.getText(),toTypeNode(ctx.returnType),
                 ctx.parameterList() == null ? List.of() : extractParameters(ctx.parameterList()),locationOf(ctx));
-    }
-
-    private MethodNode toMethodNode(VernacParser.MethodDefinitionContext ctx) {
-        String access = Optional.ofNullable(ctx.accessModifier()).map(ParserRuleContext::getText).orElse("public");
-        TypeNode returnType = toTypeNode(ctx.returnType);
-        String name = ctx.name.getText();
-        List<FieldNode> parameters = Optional.ofNullable(ctx.parameterList())
-                .map(p -> extractParameters(p))
-                .orElse(Collections.emptyList());
-
-        String body = extractRawSource(ctx.rawJavaBlock());
-        return new MethodNode(toLocation(ctx), access, returnType, name, parameters, body);
     }
 
     private String extractRawSource(ParserRuleContext ctx) {

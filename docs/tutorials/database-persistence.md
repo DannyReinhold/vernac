@@ -1,6 +1,6 @@
 # Persist a complete aggregate with PostgreSQL
 
-Use the standalone [persistence demo](https://github.com/DannyReinhold/vernac/blob/feature/redefining_the_language/examples/persistence-demo/README.md).
+Use the standalone [persistence demo](https://github.com/DannyReinhold/vernac/blob/main/examples/persistence-demo/README.md).
 This tutorial assumes you already understand IDs, values, entities and collections.
 
 ## 1. Build and start

@@ -9,7 +9,7 @@ carrier integration. The business model lives in `.vernac` files. Java connects 
 to the browser and to the local carrier simulator.
 
 This is an independent example, **not a child module** of the Vernac reactor.
-It uses **Vernac 0.2.0-SNAPSHOT**, Java 21 output and the current JDK 25 build setup.
+It uses **Vernac 0.3.0-SNAPSHOT**, Java 21 output and the current JDK 25 build setup.
 
 ## Start
 
@@ -189,3 +189,15 @@ the adapter directly with the random-port fixture URI.
 
 [The configuration contract](../../docs/contracts/adapter-configuration.md) covers
 other adapter settings, typed conversion and inline/external behavior access.
+
+## Generated HTTP inbound boundary
+
+`showcase/web/tour-api.vernac` generates the create and release endpoints used by
+the web UI. `POST /api/tours` reads an explicit DTO, wraps title/capacity through
+validated domain factories, calls CreateTour and maps TourId to a 201 response.
+`POST /api/tours/{id}/release` parses the UUID, calls ReleaseTour and returns 204.
+The controllers open no transactions: the usecases keep that responsibility.
+
+The other board, integration-status and command endpoints remain handwritten to
+show Java interoperability. See the [inbound tutorial](../../docs/tutorials/inbound-http.md)
+for the contract, safe error defaults and external error policies.

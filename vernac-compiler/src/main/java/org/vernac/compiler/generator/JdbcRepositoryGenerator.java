@@ -121,7 +121,7 @@ public final class JdbcRepositoryGenerator {
     }
     private void queryMethods(StoragePlan plan, TypeSpec.Builder contract, TypeSpec.Builder adapter) {
         ClassName queryType=ClassName.get("org.vernac.runtime.jdbc","ScalarQuery");
-        for(var method:plan.repository().findMethods()) {
+        for(var method:plan.repository().methods()) {
             var query=Objects.requireNonNull(project.queries().get(method),"Unresolved repository query");
             TypeName result=ResolvedJavaTypes.javaType(query.result());
             TypeName returns=query.singleton()?ParameterizedTypeName.get(ClassName.get(Optional.class),result):result;

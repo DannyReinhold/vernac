@@ -1,0 +1,34 @@
+namespace showcase.web;
+import showcase.routing.TourId;
+import showcase.routing.CreateTour;
+import showcase.routing.ReleaseTour;
+
+// Transport and ACL stay outside the routing domain. Usecases own transactions.
+adapter TourApi inbound http uses CreateTour createTour, ReleaseTour releaseTour {
+    base "/api/tours";
+
+    create {
+        POST "/";
+        body NewTour;
+        execute createTour {
+            title <- body.title;
+            capacity <- body.capacity;
+        }
+        respond 201 CreatedTour using toCreated;
+    }
+
+    release {
+        POST "/{id}/release";
+        path UUID tourId named "id";
+        execute releaseTour {
+            tourId <- path.tourId;
+        }
+        respond 204;
+    }
+
+    schema NewTour(String title, int capacity);
+    schema CreatedTour(UUID id);
+    mapping toCreated: CreatedTour <- TourId {
+        id <- source;
+    }
+}

@@ -1,6 +1,7 @@
 # Lists, Sets, and Repeated Values
 
-Use the compiler/plugin version containing the list/set collection contract.
+Use a Vernac 0.3.0 project and matching plugin. This database-free exercise
+compares membership, order and equality; no repository is involved.
 Create `src/main/vernac/example/names/model.vernac`:
 
 ```vernac

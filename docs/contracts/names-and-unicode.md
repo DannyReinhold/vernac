@@ -1,6 +1,6 @@
 # Names, Unicode and source encoding
 
-Status: normative naming contract for the 0.2.0 language revision.
+Status: normative naming contract for the 0.3.0 language revision.
 
 This contract applies to namespace segments, declared type names, field names,
 parameter names, method names and enum constants. Existing type-specific naming
@@ -123,18 +123,18 @@ Use locale-independent Unicode code-point case conversion; do not transliterate,
 normalize, split surrogate pairs or infer acronym boundaries from a dictionary.
 The derived result must still pass identifier validity and collision checks.
 
-| Type name | Default name |
-| --- | --- |
-| `StatusReason` | `statusReason` |
-| `TaskId` | `taskId` |
-| `UrlValue` | `urlValue` |
-| `URLValue` | `urlValue` |
-| `URL` | `url` |
-| `HTMLXMLMapper` | `htmlxmlMapper` |
+| Type name        | Default name     |
+|------------------|------------------|
+| `StatusReason`   | `statusReason`   |
+| `TaskId`         | `taskId`         |
+| `UrlValue`       | `urlValue`       |
+| `URLValue`       | `urlValue`       |
+| `URL`            | `url`            |
+| `HTMLXMLMapper`  | `htmlxmlMapper`  |
 | `HTML2XMLMapper` | `html2XMLMapper` |
-| `CustomerID` | `customerID` |
-| `Größe` | `größe` |
-| `𐐀name` | `𐐨name` |
+| `CustomerID`     | `customerID`     |
+| `Größe`          | `größe`          |
+| `𐐀name`          | `𐐨name`          |
 
 Spellings such as `UrlValue` and `CustomerId` are recommended, not required.
 Vernac does not invent alternatives, append numbers or choose another name to
@@ -176,16 +176,16 @@ otherwise identical signatures valid overloads. Check inherited override legalit
 as well: final methods cannot be overridden, and illegal static/instance or
 visibility combinations must not escape detection where Vernac owns the signature.
 
-| Field name | Getter | Result for an ordinary VO |
-| --- | --- | --- |
-| `toString` | `toString()` | Conflicts with the generated method |
-| `hashCode` | `hashCode()` | Conflicts with the generated method |
-| `getClass` | `getClass()` | Conflicts with the inherited final method |
-| `wait` | `wait()` | Conflicts with the inherited final method |
-| `notify` | `notify()` | Conflicts with the inherited final method |
+| Field name  | Getter        | Result for an ordinary VO                 |
+|-------------|---------------|-------------------------------------------|
+| `toString`  | `toString()`  | Conflicts with the generated method       |
+| `hashCode`  | `hashCode()`  | Conflicts with the generated method       |
+| `getClass`  | `getClass()`  | Conflicts with the inherited final method |
+| `wait`      | `wait()`      | Conflicts with the inherited final method |
+| `notify`    | `notify()`    | Conflicts with the inherited final method |
 | `notifyAll` | `notifyAll()` | Conflicts with the inherited final method |
-| `equals` | `equals()` | Does not collide with `equals(Object)` |
-| `value` | `value()` | Allowed if otherwise conflict-free |
+| `equals`    | `equals()`    | Does not collide with `equals(Object)`    |
+| `value`     | `value()`     | Allowed if otherwise conflict-free        |
 
 This is not a global name blacklist. Apply the API of the generated type being
 checked. For example, an ordinary VO can have a field named `id`; an entity's

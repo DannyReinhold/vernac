@@ -2,7 +2,7 @@ namespace org.example.delivery;
 
 usecase RecordTourNotesExternally(TourId, Notes)
     returns (TourId, Notes)
-    uses TourRepository tours
+    uses TourRepository tourRepository
 behavior {
     execute implemented by org.example.delivery.application.RecordTourNotesImplementation;
 }

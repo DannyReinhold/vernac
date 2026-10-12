@@ -11,8 +11,12 @@
     </parent>
     <artifactId>vernac-runtime-http</artifactId>
     <name>Vernac Runtime HTTP</name>
-    <description>Synchronous HTTP boundary for Vernac outbound adapters</description>
+    <description>HTTP boundaries for Vernac outbound clients and inbound Spring MVC adapters</description>
     <dependencies>
+        <!-- Supplied by Spring web applications using generated inbound controllers. -->
+        <dependency><groupId>org.springframework</groupId><artifactId>spring-web</artifactId><scope>provided</scope></dependency>
+        <dependency><groupId>org.springframework</groupId><artifactId>spring-tx</artifactId><scope>provided</scope></dependency>
+        <dependency><groupId>jakarta.servlet</groupId><artifactId>jakarta.servlet-api</artifactId><scope>provided</scope></dependency>
         <dependency>
             <groupId>org.vernac</groupId>
             <artifactId>vernac-runtime-json</artifactId>

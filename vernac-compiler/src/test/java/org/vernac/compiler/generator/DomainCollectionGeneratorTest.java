@@ -129,16 +129,9 @@ class DomainCollectionGeneratorTest {
                 } list OrderLines;
                 """;
 
-        CompilationUnitNode cu = parse(src);
-        EntityNode entity = cu.definitions().stream()
-                .filter(d -> d instanceof EntityNode)
-                .map(d -> (EntityNode) d)
-                .findFirst().orElseThrow();
-
-        assertThat(entity.customPackage()).contains("com.example.mycustom.order");
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
                 new org.vernac.compiler.pipeline.VernacCompiler().compileSource(src))
                 .isInstanceOf(org.vernac.compiler.analyzer.SemanticValidationException.class)
-                .hasMessageContaining("custom packages");
+                .hasMessageContaining("Syntax error");
     }
 }

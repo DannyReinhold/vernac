@@ -12,15 +12,18 @@ import static org.vernac.compiler.dto.ResolvedSchema.*;
 public final class SchemaContracts {
     private static final Set<String> RESERVED = Set.of("of","toString","equals","hashCode","getClass","clone","finalize","notify","notifyAll","wait");
     public List<ResolvedSchema> resolve(OutboundAdapterNode adapter, List<CompilerDiagnostic> errors) {
+        return resolve(adapter.name(), adapter.schemas(), errors);
+    }
+    public List<ResolvedSchema> resolve(String adapterName, List<SchemaNode> declarations, List<CompilerDiagnostic> errors) {
         Map<String,SchemaNode> names = new LinkedHashMap<>();
-        for(var schema:adapter.schemas()) {
+        for(var schema:declarations) {
             if(!VernacNames.isTypeName(schema.name())) error(errors,schema.location(),VernacNames.invalidNameMessage(schema.name()));
             if(names.putIfAbsent(schema.name(),schema)!=null) error(errors,schema.location(),"Duplicate adapter-local schema: " + schema.name());
-            if(BuiltinTypes.names().contains(schema.name()) || schema.name().equals("list") || schema.name().equals(adapter.name()+"Dtos") || schema.name().startsWith("__"))
+            if(BuiltinTypes.names().contains(schema.name()) || schema.name().equals("list") || schema.name().equals(adapterName+"Dtos") || schema.name().startsWith("__"))
                 error(errors,schema.location(),"Reserved DTO schema name: " + schema.name());
         }
         List<ResolvedSchema> result=new ArrayList<>();
-        for(var schema:adapter.schemas()) {
+        for(var schema:declarations) {
             if(!Set.of("exact","snake_case").contains(schema.naming())) error(errors,schema.location(),"DTO naming must be exact or snake_case.");
             Set<String> fields=new HashSet<>(),external=new HashSet<>();
             List<Field> resolved=new ArrayList<>();

@@ -1,8 +1,8 @@
 # Closed Domain Values with Enums
 
-This tutorial uses the revised enum compiler. Start with a Vernac Maven project
-and the matching IntelliJ plugin. A released older compiler may still implement
-the previous enum API.
+Use a Vernac 0.3.0 Maven project and matching IntelliJ plugin. This exercise
+models a closed set of domain states and needs no database. If your project
+already defines Status in example.tasks, use a fresh project or another namespace.
 
 ## Model the allowed states
 
@@ -104,9 +104,11 @@ PENDING are different values, not interchangeable states.
 **Where is dbValue()?**
 
 It is not generated. A database or foreign API may use different codes for the
-same domain value. Those representations belong to mappings. Automatic JDBC enum
-mapping currently reports an explicit unsupported-mapping diagnostic while that
-contract is being designed. Do not persist ordinal() as a stable identifier.
+same domain value. Those representations belong to mappings. Generated JDBC mapping stores stable TEXT codes recorded in schema snapshots.
+Initial codes match constant names; explicit infrastructure mappings can retain a
+code when a constant is renamed. Generate and review the corresponding migration
+before deploying a changed enum. See the [persistence contract](../contracts/postgresql-persistence.md#enums).
+Do not persist ordinal() as a stable identifier.
 
 **Can I add fields or constructor arguments?**
 
@@ -117,7 +119,8 @@ richer domain model if each value needs additional data.
 
 It highlights declared constants as enum members, completes and navigates enum
 type references across files/namespaces, and reports declaration/API conflicts.
-Completion and navigation of constant references inside arbitrary embedded Java
-bodies are not yet implemented. Java-body compilation remains javac's job.
+Embedded Java assistance relies on IntelliJ's Java integration and the current
+generated API. Regenerate after changing constants; the LSP alone is not a Java
+compiler. Java-body compilation remains javac's job.
 
 [Enum contract](../contracts/enum-value-objects.md) · [All tutorials](index.md)

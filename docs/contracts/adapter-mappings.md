@@ -1,6 +1,6 @@
 # Adapter mapping contract
 
-Status: normative mapping contract for 0.2.0. This contract complements
+Status: normative mapping contract, including the 0.3.0 inbound HTTP extension. This contract complements
 [adapter DTOs](adapter-dtos.md) and [REST bindings](declarative-rest.md).
 
 ## Purpose and placement
@@ -19,6 +19,12 @@ response. Field optionality is supported independently.
 Applications using these generated mappings add `vernac-runtime-json` at the same
 version as the compiler, also when a particular mapping has no DTO endpoint.
 Manual port implementations without generated mappings do not require it.
+
+HTTP inbound adapters use the same conversion rules and factory generation, with
+DTO/mapping holders under `<namespace>.adapter.inbound.http`. They additionally
+allow an injected usecase's explicitly declared `<Usecase>.Result` as a mapping
+source; Result components retain their normal optionality. Result is not a mapping
+target or a new domain type. See [the inbound contract](inbound-http.md).
 
 ```vernac
 mapping toWeight:

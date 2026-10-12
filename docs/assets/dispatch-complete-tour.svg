@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1080" viewBox="0 0 1600 1080" role="img" aria-labelledby="title desc"><title id="title">One command. A complete story.</title><desc id="desc">CompleteTour(TourId) — from loading the aggregate to emitting TourCompleted.</desc><defs><radialGradient id="bg"><stop stop-color="#172d45"/><stop offset="1" stop-color="#090f20"/></radialGradient><linearGradient id="core" x2="1" y2="1"><stop stop-color="#142d3d"/><stop offset="1" stop-color="#121d33"/></linearGradient><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#67e8d4" stroke-width="1.5"/></marker><marker id="violet" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M 1 1 L 9 5 L 1 9 Z" fill="#151f35" stroke="#baa5fa" stroke-width="1.3"/></marker><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r=".8" fill="#7188a9" opacity=".12"/></pattern></defs><g font-family="Inter, DejaVu Sans, Arial, sans-serif"><rect width="1600" height="1080" rx="28" fill="url(#bg)"/><rect width="1600" height="1080" rx="28" fill="url(#dots)"/>
+<text x="64" y="60" fill="#67e8d4" font-size="14" font-weight="650" letter-spacing="3">VERNAC / EXAMPLE.DISPATCH</text>
+<text x="64" y="115" fill="#f0f6ff" font-size="43" font-weight="700" >One command. A complete story.</text>
+<text x="64" y="152" fill="#94a8c7" font-size="19" font-weight="400" >CompleteTour(TourId) — from loading the aggregate to emitting TourCompleted.</text>
+<rect x="93" y="205" width="328" height="94" rx="16" fill="#111e35" stroke="#30425e"/>
+<rect x="94" y="227" width="3" height="50" rx="1.5" fill="#67e8d4"/>
+<text x="117" y="236" fill="#67e8d4" font-size="12" font-weight="650" letter-spacing="1.5">APPLICATION</text>
+<text x="117" y="271" fill="#edf5ff" font-size="25" font-weight="650" >CompleteTour</text>
+<path d="M 257 300 V 926" stroke="#344660" stroke-width="2" stroke-dasharray="5 9"/>
+<rect x="458" y="205" width="328" height="94" rx="16" fill="#111e35" stroke="#30425e"/>
+<rect x="459" y="227" width="3" height="50" rx="1.5" fill="#baa5fa"/>
+<text x="482" y="236" fill="#baa5fa" font-size="12" font-weight="650" letter-spacing="1.5">REPOSITORY</text>
+<text x="482" y="271" fill="#edf5ff" font-size="25" font-weight="650" >TourRepository</text>
+<path d="M 622 300 V 926" stroke="#344660" stroke-width="2" stroke-dasharray="5 9"/>
+<rect x="823" y="205" width="328" height="94" rx="16" fill="#111e35" stroke="#30425e"/>
+<rect x="824" y="227" width="3" height="50" rx="1.5" fill="#67e8d4"/>
+<text x="847" y="236" fill="#67e8d4" font-size="12" font-weight="650" letter-spacing="1.5">AGGREGATE</text>
+<text x="847" y="271" fill="#edf5ff" font-size="25" font-weight="650" >Tour</text>
+<path d="M 987 300 V 926" stroke="#344660" stroke-width="2" stroke-dasharray="5 9"/>
+<rect x="1188" y="205" width="328" height="94" rx="16" fill="#111e35" stroke="#30425e"/>
+<rect x="1189" y="227" width="3" height="50" rx="1.5" fill="#baa5fa"/>
+<text x="1212" y="236" fill="#baa5fa" font-size="12" font-weight="650" letter-spacing="1.5">EVENT</text>
+<text x="1212" y="271" fill="#edf5ff" font-size="25" font-weight="650" >TourCompleted</text>
+<path d="M 1352 300 V 926" stroke="#344660" stroke-width="2" stroke-dasharray="5 9"/>
+<rect x="244" y="328" width="26" height="562" rx="7" fill="#1c3e49" stroke="#4a8b85"/>
+<circle cx="59" cy="360" r="18" fill="#173f43" stroke="#458f87"/>
+<text x="54" y="366" fill="#9aeee0" font-size="16" font-weight="650" >1</text>
+<path d="M 270 360 H 622" fill="none" stroke="#67e8d4" stroke-width="2.5"  marker-end="url(#arrow)"/>
+<text x="311" y="341" fill="#d9f5ed" font-size="19" font-weight="600" >byId(tourId)</text>
+<path d="M 622 403 H 270" fill="none" stroke="#83b7ff" stroke-width="2" stroke-dasharray="6 6"/>
+<text x="396" y="430" fill="#83b7ff" font-size="15" font-weight="400" >tour</text>
+<circle cx="59" cy="485" r="18" fill="#173f43" stroke="#458f87"/>
+<text x="54" y="491" fill="#9aeee0" font-size="16" font-weight="650" >2</text>
+<path d="M 270 485 H 987" fill="none" stroke="#67e8d4" stroke-width="2.5"  marker-end="url(#arrow)"/>
+<text x="391" y="467" fill="#d9f5ed" font-size="19" font-weight="600" >tour.complete()</text>
+<rect x="931" y="508" width="583" height="108" rx="18" fill="url(#core)" stroke="#427b77"/>
+<text x="955" y="540" fill="#67e8d4" font-size="12" font-weight="650" letter-spacing="1.5">STATUS ASSIGNMENT</text>
+<rect x="955" y="556" width="141" height="36" rx="18" fill="#172d3b" stroke="#335568"/>
+<text x="972" y="580" fill="#67e8d4" font-size="13" font-weight="650" >ANY STATUS</text>
+<path d="M 1115 574 H 1182" fill="none" stroke="#67e8d4" stroke-width="2.5"  marker-end="url(#arrow)"/>
+<rect x="1201" y="556" width="179" height="36" rx="18" fill="#172d3b" stroke="#335568"/>
+<text x="1218" y="580" fill="#67e8d4" font-size="13" font-weight="650" >COMPLETED</text>
+<circle cx="59" cy="684" r="18" fill="#173f43" stroke="#458f87"/>
+<text x="54" y="690" fill="#9aeee0" font-size="16" font-weight="650" >3</text>
+<path d="M 270 684 H 622" fill="none" stroke="#67e8d4" stroke-width="2.5"  marker-end="url(#arrow)"/>
+<text x="315" y="665" fill="#d9f5ed" font-size="19" font-weight="600" >save(tour)</text>
+<text x="676" y="691" fill="#94a8c7" font-size="16" font-weight="400" >Persist the updated aggregate.</text>
+<circle cx="59" cy="820" r="18" fill="#173f43" stroke="#458f87"/>
+<text x="54" y="826" fill="#9aeee0" font-size="16" font-weight="650" >4</text>
+<path d="M 270 820 H 1352" fill="none" stroke="#67e8d4" stroke-width="2.5"  marker-end="url(#arrow)"/>
+<text x="399" y="801" fill="#d9f5ed" font-size="19" font-weight="600" >emit(TourCompleted.create(tour.id()))</text>
+<rect x="1246" y="847" width="219" height="36" rx="18" fill="#172d3b" stroke="#335568"/>
+<text x="1263" y="871" fill="#baa5fa" font-size="13" font-weight="650" >PAYLOAD: TourId</text>
+<rect x="64" y="960" width="1472" height="66" rx="16" fill="#141f34" stroke="#30415a"/>
+<text x="88" y="1000" fill="#83b7ff" font-size="14" font-weight="650" >READ</text>
+<text x="212" y="1000" fill="#728ba9" font-size="22" font-weight="400" >→</text>
+<text x="290" y="1000" fill="#67e8d4" font-size="14" font-weight="650" >CHANGE STATE</text>
+<text x="563" y="1000" fill="#728ba9" font-size="22" font-weight="400" >→</text>
+<text x="655" y="1000" fill="#67e8d4" font-size="14" font-weight="650" >SAVE</text>
+<text x="894" y="1000" fill="#728ba9" font-size="22" font-weight="400" >→</text>
+<text x="987" y="1000" fill="#baa5fa" font-size="14" font-weight="650" >EMIT EVENT</text>
+</g></svg>
