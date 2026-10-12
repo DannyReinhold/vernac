@@ -19,6 +19,7 @@ topLevelDeclaration
     | aggregateDefinition
     | entityDefinition
     | portDefinition
+    | inboundHttpAdapterDefinition
     | outboundAdapterDefinition
     | repositoryDefinition
     | usecaseDefinition
@@ -123,6 +124,25 @@ outboundAdapterDefinition
       '{' configurationBlock? (schemaDefinition | mappingDefinition)*
       ('behavior' '{' javaImports? javaUses? serviceMethod* '}' | restBlock)
       (schemaDefinition | mappingDefinition)* '}' ';'?
+    ;
+
+inboundHttpAdapterDefinition
+    : 'adapter' name=typeName 'inbound' 'http'
+      ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
+      '{' 'base' base=STRING_LITERAL ';'
+      (inboundEndpoint | schemaDefinition | mappingDefinition)*
+      ('errors' 'implemented' 'by' errorImplementation=qualifiedName ';')? '}' ';'?
+    ;
+inboundEndpoint
+    : name=methodName '{' verb=('GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE') route=STRING_LITERAL ';'
+      inboundBinding* ('body' bodyType=type ';')?
+      'execute' dependency=variableName '{' mappingAssignment* '}'
+      'respond' status=INT_LITERAL (responseType=type 'using' responseMapping=methodName)? ';'
+      ('on' 'absent' 'respond' absentStatus=INT_LITERAL ';')? '}'
+    ;
+inboundBinding
+    : kind=('path' | 'query' | 'header') valueType=type name=variableName?
+      ('named' externalName=STRING_LITERAL)? ';'
     ;
 
 configurationBlock
@@ -283,7 +303,7 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | IDENTIFIER
     | BOOLEAN_LITERAL
     | 'null'
@@ -386,7 +406,7 @@ typeName
     ;
 
 methodName
-    : 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'read' | 'modify' | 'load' | 'save'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
@@ -396,7 +416,7 @@ methodName
     ;
 
 variableName
-    : 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
     | IDENTIFIER

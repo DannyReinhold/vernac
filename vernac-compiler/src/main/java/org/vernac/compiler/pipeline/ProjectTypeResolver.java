@@ -159,13 +159,19 @@ public final class ProjectTypeResolver {
                     adapter, source.unit().namespace(), scopes.get(source.path()), schemas.getOrDefault(adapter, List.of()),
                     mappings.getOrDefault(adapter, List.of())).resolve(adapter.rest().get()));
             }
+        Map<InboundHttpAdapterNode,org.vernac.compiler.inbound.ResolvedInbound> inboundAdapters = new LinkedHashMap<>();
+        Set<String> inboundRoutes = new HashSet<>();
+        for (var source : project.sources()) for (var definition : source.unit().definitions())
+            if (definition instanceof InboundHttpAdapterNode adapter && !invalidSources.contains(source.path().toString()))
+                inboundAdapters.put(adapter,new org.vernac.compiler.inbound.InboundResolver(project,fieldTypes,diagnostics,inboundRoutes)
+                        .resolve(adapter,source.unit().namespace(),scopes.get(source.path())));
         failOnErrors(diagnostics);
         List<TypeSymbol> deferred = namespaces.stream().flatMap(namespace -> project.symbols().inNamespace(namespace).stream())
                 .filter(symbol -> switch (symbol.kind()) {
-                    case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, REPOSITORY, USE_CASE, DOMAIN_SERVICE, EVENT, LISTENER, PORT, OUTBOUND_ADAPTER -> false;
+                    case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, REPOSITORY, USE_CASE, DOMAIN_SERVICE, EVENT, LISTENER, PORT, OUTBOUND_ADAPTER, INBOUND_HTTP_ADAPTER -> false;
                     default -> true;
                 }).toList();
-        return new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries, schemas, mappings, restOperations);
+        return new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries, schemas, mappings, restOperations, inboundAdapters);
     }
 
     private void resolveField(FieldNode field, FileTypeScope scope, Map<TypeNode, ResolvedType> resolved,

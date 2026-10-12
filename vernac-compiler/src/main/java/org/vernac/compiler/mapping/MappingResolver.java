@@ -19,7 +19,10 @@ public final class MappingResolver {
     private final List<CompilerDiagnostic> errors;
     private FileTypeScope scope;
     private String namespace;
-    private OutboundAdapterNode adapter;
+    private String adapterName;
+    private String dtoPackage;
+    private final Map<String, Type> extraTypes = new LinkedHashMap<>();
+    private final Map<String, List<Field>> extraFields = new LinkedHashMap<>();
     private final Map<String,ResolvedSchema> schemas=new LinkedHashMap<>();
     private final Map<String,ResolvedMapping> signatures=new LinkedHashMap<>();
     private final Set<String> dependencies=new LinkedHashSet<>();
@@ -28,8 +31,11 @@ public final class MappingResolver {
         this.project=project;this.domainTypes=domainTypes;this.errors=errors;
     }
     public List<ResolvedMapping> resolve(OutboundAdapterNode adapter,String namespace,FileTypeScope scope,List<ResolvedSchema> schemas) {
-        context(adapter,namespace,scope,schemas);
-        for(var m:adapter.mappings()) {
+        return resolve(adapter.name(), adapter.mappings(), namespace, scope, schemas, namespace + ".adapter.outbound.dto");
+    }
+    public List<ResolvedMapping> resolve(String name, List<MappingNode> declarations, String namespace, FileTypeScope scope, List<ResolvedSchema> schemas, String dtoPackage) {
+        context(name,namespace,scope,schemas,dtoPackage);
+        for(var m:declarations) {
             if(!VernacNames.isIdentifier(m.name()) || m.name().startsWith("__") || Set.of("getClass","wait","notify","notifyAll","equals","hashCode","toString","clone","finalize").contains(m.name()))
                 error(m.location(),"Invalid or reserved mapping name: "+m.name());
             Type target=resolveType(m.targetType()), input=resolveType(m.sourceType());
@@ -42,7 +48,7 @@ public final class MappingResolver {
             if(m.source().javaBody().isPresent() || m.source().implementation().isPresent()) {
                 validateJava(m);result.add(m);graph.put(m.source().name(),Set.of());continue;
             }
-            if(m.target().kind()==Kind.SCALAR || m.target().kind()==Kind.SEQUENCE || isEnum(m.target())) {
+            if(m.target().kind()==Kind.RESULT || m.target().kind()==Kind.SCALAR || m.target().kind()==Kind.SEQUENCE || isEnum(m.target())) {
                 error(m.source().location(),"Declarative mapping targets require a DTO, value object or ID. Use a Java mapping for scalar, enum or collection roots.");continue;
             }
             List<Field> targetFields=fields(m.target());
@@ -76,7 +82,10 @@ public final class MappingResolver {
     }
     /** Reuses the same scope and field model for tolerant editor queries. */
     public MappingResolver context(OutboundAdapterNode adapter,String namespace,FileTypeScope scope,List<ResolvedSchema> schemas) {
-        this.adapter=adapter;this.namespace=namespace;this.scope=scope;this.schemas.clear();
+        return context(adapter.name(), namespace, scope, schemas, namespace + ".adapter.outbound.dto");
+    }
+    public MappingResolver context(String name,String namespace,FileTypeScope scope,List<ResolvedSchema> schemas,String dtoPackage) {
+        this.adapterName=name;this.dtoPackage=dtoPackage;this.namespace=namespace;this.scope=scope;this.schemas.clear();
         schemas.forEach(s->this.schemas.put(s.source().name(),s));return this;
     }
     private void validateJava(ResolvedMapping m) {
@@ -99,7 +108,7 @@ public final class MappingResolver {
         for(String next:graph.getOrDefault(name,Set.of()))cycle(next,active,done);
         active.remove(name);
     }
-    private Conversion named(Type from,Type to,String name,SourceLocation at) {
+    public Conversion named(Type from,Type to,String name,SourceLocation at) {
         var m=signatures.get(name);
         if(m==null) {error(at,"Unknown adapter-local mapping: "+name);return null;}
         if(same(from,m.input()) && same(to,m.target())) {dependencies.add(name);return new Named(name);}
@@ -108,7 +117,7 @@ public final class MappingResolver {
         }
         error(at,"Mapping '"+name+"' has incompatible source/target types.");return null;
     }
-    private Conversion automatic(Type from,Type to,Set<String> visited) {
+    public Conversion automatic(Type from,Type to,Set<String> visited) {
         if(same(from,to))return new Identity();
         if(!visited.add(from.identity()+" -> "+to.identity()))return null;
         if(from.kind()==Kind.SEQUENCE && to.kind()==Kind.SEQUENCE) {
@@ -128,7 +137,7 @@ public final class MappingResolver {
         }
         return null;
     }
-    private Path path(Type root,MappingAssignmentNode entry) {
+    public Path path(Type root,MappingAssignmentNode entry) {
         if(entry.path().isEmpty() || !entry.path().getFirst().equals("source")) {error(entry.location(),"Mapping source paths must start with source.");return null;}
         Type current=root;boolean optional=false,patch=false;List<Field> steps=new ArrayList<>();
         for(String name:entry.path().subList(1,entry.path().size())) {
@@ -148,6 +157,7 @@ public final class MappingResolver {
             Type element=resolveType(node.typeArguments().getFirst());return element==null?null:sequence(element,null,false);
         }
         if(!node.typeArguments().isEmpty()) {error(node.location(),"Only list<T> is a technical mapping container.");return null;}
+        if (extraTypes.containsKey(node.name())) return extraTypes.get(node.name());
         var local=schemas.get(node.name());
         if(local!=null) {
             if(scope.resolve(node.name(),node.location()).type().orElse(null) instanceof ResolvedType.Declared)
@@ -157,7 +167,7 @@ public final class MappingResolver {
         var lookup=scope.resolve(node.name(),node.location());errors.addAll(lookup.diagnostics());
         return lookup.type().map(t->domain(t,node.location())).orElse(null);
     }
-    private Type domain(ResolvedType resolved,SourceLocation at) {
+    public Type domain(ResolvedType resolved,SourceLocation at) {
         if(resolved instanceof ResolvedType.Builtin b) {
             if(b.javaType()==org.vernac.runtime.EventId.class) {error(at,"EventId is not an ACL mapping scalar.");return null;}
             return scalar(b.javaType());
@@ -178,13 +188,18 @@ public final class MappingResolver {
         return new Type(symbol==null?"list<"+element.identity()+">":symbol.identity().qualifiedName(),java,Kind.SEQUENCE,symbol,null,element,set);
     }
     private Type scalar(Class<?> type) {TypeName java=TypeName.get(type);return new Type(java.box().toString(),java,Kind.SCALAR,null,null,null,false);}
-    private Type dto(ResolvedSchema schema) {return new Type("dto:"+schema.source().name(),ClassName.get(namespace+".adapter.outbound.dto",adapter.name()+"Dtos",schema.source().name()),Kind.DTO,null,schema,null,false);}
+    private Type dto(ResolvedSchema schema) {return new Type("dto:"+schema.source().name(),ClassName.get(dtoPackage,adapterName+"Dtos",schema.source().name()),Kind.DTO,null,schema,null,false);}
     private Type shape(ResolvedSchema.Shape shape) {
         if(shape instanceof ResolvedSchema.Scalar s)return scalar(s.javaType());
         if(shape instanceof ResolvedSchema.Nested n)return dto(schemas.get(n.schemaName()));
         return sequence(shape(((ResolvedSchema.Sequence)shape).element()),null,false);
     }
+    public void register(Type type, List<Field> fields, String... names) {
+        for (String name : names) extraTypes.put(name,type);
+        extraFields.put(type.identity(), List.copyOf(fields));
+    }
     public List<Field> fields(Type type) {
+        if (extraFields.containsKey(type.identity())) return extraFields.get(type.identity());
         if(type.kind()==Kind.DTO)return type.schema().fields().stream().map(f->new Field(f.source().name(),shape(f.shape()),f.source().type().isOptional(),f.source().patch())).toList();
         if(type.kind()!=Kind.DOMAIN || isEnum(type))return List.of();
         if(type.symbol().kind()==TypeSymbol.Kind.ID)return List.of(new Field("value",scalar(java.util.UUID.class),false,false));

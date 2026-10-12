@@ -22,6 +22,7 @@ production readiness. The [0.2.0 plan](release-0.2.0.md) remains historical rele
 | Usecases | Named application operations, REQUIRED transactions, explicit results and external implementations |
 | Domain services | Named methods, injected dependencies through self, per-operation preconditions and external implementations |
 | Events | Immutable occurrences, shared EventId, validation, synchronous listeners, relational recording, deferred delivery and workers |
+| HTTP inbound adapters | Typed path/query/header/body input, usecase invocation, shared mappings including explicit Result sources, scoped error policies |
 | Outbound ports and ACL | Java adapters, DTO/PATCH semantics, mappings, REST bindings, typed error rules and local HTTP walkthrough |
 | Schema tooling | Versioned source snapshots, initial/next migration candidates, explicit transformations, risk gates and Flyway replay checks |
 
@@ -41,7 +42,8 @@ not exhaustive concurrency, platform, historical-data or deployment verification
 - Event recording, durable delivery and workers are implemented; event evolution
   and retry/idempotency responsibilities remain explicit operational concerns.
 - Outbound ports/adapters are implemented, including the executable REST/ACL demo.
-  Inbound transport generation remains post-release work.
+  The 0.3.0 HTTP inbound slice adds typed request binding, usecase calls and response ACL;
+  other inbound transports remain planned.
 - The two legacy example modules have been removed. The remaining examples and
   project templates have a source/documentation audit and focused tests; full release
   acceptance still requires database and installed-IDE checks. A green root build alone is

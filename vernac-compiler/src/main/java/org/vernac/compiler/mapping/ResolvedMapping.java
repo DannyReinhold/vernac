@@ -10,7 +10,7 @@ import org.vernac.compiler.symbols.TypeSymbol;
 /** Resolved conversion plan shared by generation and tooling; no generator name guessing. */
 public record ResolvedMapping(MappingNode source, Type target, Type input, List<Assignment> assignments) {
     public ResolvedMapping { assignments=List.copyOf(assignments); }
-    public enum Kind { SCALAR, DOMAIN, DTO, SEQUENCE }
+    public enum Kind { SCALAR, DOMAIN, DTO, SEQUENCE, RESULT }
     public record Type(String identity, TypeName javaType, Kind kind, TypeSymbol symbol,
             ResolvedSchema schema, Type element, boolean set) { }
     public record Field(String name,Type type,boolean optional,boolean patch) { }

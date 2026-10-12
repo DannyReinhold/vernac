@@ -402,3 +402,12 @@ built/imported for Java resolution. Arbitrary Java bodies remain subject to java
 and configured static analysis.
 
 [FAQ](faq/index.md) · [Specification](specification/index.md) · [Tutorials](tutorials/index.md)
+
+## HTTP inbound adapters
+
+`adapter Name inbound http uses Usecase dependency { ... }` defines named endpoints
+with typed path/query/header bindings, an optional DTO body, explicit assignments to
+usecase inputs and a response mapping. Assignments retain target-left `<-` orientation.
+The adapter creates no implicit Result; `<Usecase>.Result` is a supported response
+mapping source for explicitly declared tuple results. Transactions remain in usecases.
+See the [contract](contracts/inbound-http.md) and [complete tutorial](tutorials/inbound-http.md).

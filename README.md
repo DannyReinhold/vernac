@@ -121,8 +121,9 @@ part of the documented contracts, not details to discover in production.
 The repository contains the compiler, Maven plugin, runtime modules for core/JDBC/JSON/HTTP,
 and IntelliJ/LSP tooling. See [contributor documentation](docs/development/index.md)
 and the [0.2.0 release plan](docs/development/release-0.2.0.md).
-Dedicated inbound HTTP/MCP generation and messaging adapters are future work;
-ordinary Java/Spring entry points can invoke generated usecases today.
+The 0.3.0 development compiler also generates HTTP inbound adapters around usecases;
+see [the tutorial](docs/tutorials/inbound-http.md). MCP and messaging adapters remain
+planned. Ordinary Java/Spring entry points continue to work alongside generated ones.
 
 Apache License 2.0. See [LICENSE](LICENSE).
 

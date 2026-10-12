@@ -143,6 +143,7 @@ public final class VernacProjectLoader {
             case AggregateNode node -> new Declaration(node.name(), TypeSymbol.Kind.AGGREGATE);
             case EventNode node -> new Declaration(node.name(), TypeSymbol.Kind.EVENT);
             case RepositoryNode node -> new Declaration(node.name(), TypeSymbol.Kind.REPOSITORY);
+            case InboundHttpAdapterNode node -> new Declaration(node.name(), TypeSymbol.Kind.INBOUND_HTTP_ADAPTER);
             case OutboundAdapterNode node -> new Declaration(node.name(), TypeSymbol.Kind.OUTBOUND_ADAPTER);
             case PortNode node -> new Declaration(node.name(), TypeSymbol.Kind.PORT);
             case UseCaseNode node -> new Declaration(node.name(), TypeSymbol.Kind.USE_CASE);

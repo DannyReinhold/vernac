@@ -101,6 +101,8 @@ public final class BehaviorImports {
                 result.add(ns + "." + repository.name());
                 result.add(ns + ".domain." + repository.name());
                 result.add(ns + ".adapter.outbound.jdbc.Jdbc" + repository.name());
+            } else if (definition instanceof InboundHttpAdapterNode adapter) {
+                result.add(ns + ".adapter.inbound.http." + adapter.name());
             } else if (definition instanceof OutboundAdapterNode adapter) {
                 result.add(ns + ".adapter.outbound." + adapter.name());
             }

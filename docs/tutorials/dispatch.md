@@ -37,7 +37,10 @@ claimed. A real booking operation would require an explicit idempotency contract
 
 ## Read, then change
 
-Read the model files in this order: values, tours, planning, dispatch, carrier.
+Read the model files in this order: values, tours, planning, dispatch, carrier,
+then `showcase/web/tour-api.vernac`. The create/release HTTP endpoints are generated
+from that last model; board projections and other commands demonstrate handwritten
+Java interoperability.
 Then inspect the generated Java. The web controller contains conversion and
 presentation work; the model contains business decisions.
 

@@ -45,6 +45,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         if (ctx.aggregateDefinition() != null) return visitAggregateDefinition(ctx.aggregateDefinition());
         if (ctx.entityDefinition() != null) return visitEntityDefinition(ctx.entityDefinition());
         if (ctx.eventDefinition() != null) return visitEventDefinition(ctx.eventDefinition());
+        if (ctx.inboundHttpAdapterDefinition() != null) return visitInboundHttpAdapterDefinition(ctx.inboundHttpAdapterDefinition());
         if (ctx.outboundAdapterDefinition() != null) return visitOutboundAdapterDefinition(ctx.outboundAdapterDefinition());
         if (ctx.portDefinition() != null) return visitPortDefinition(ctx.portDefinition());
         if (ctx.repositoryDefinition() != null) return visitRepositoryDefinition(ctx.repositoryDefinition());
@@ -211,6 +212,33 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     public PortNode visitPortDefinition(VernacParser.PortDefinitionContext ctx) {
         return new PortNode(ctx.name.getText(), ctx.portMethodDefinition().stream()
                 .map(this::visitPortMethodDefinition).toList(), locationOf(ctx));
+    }
+
+    @Override
+    public InboundHttpAdapterNode visitInboundHttpAdapterDefinition(VernacParser.InboundHttpAdapterDefinitionContext ctx) {
+        var endpoints = ctx.inboundEndpoint().stream().map(e -> new InboundHttpAdapterNode.Endpoint(
+                toLocation(e), e.name.getText(), e.verb.getText(), unquote(e.route.getText()),
+                e.inboundBinding().stream().map(b -> {
+                    var type = toTypeNode(b.valueType);
+                    String name = b.name == null ? org.vernac.language.VernacNames.defaultMemberName(type.name()) : b.name.getText();
+                    return new InboundHttpAdapterNode.Binding(toLocation(b), b.kind.getText(), type, name,
+                            b.externalName == null ? name : unquote(b.externalName.getText()));
+                }).toList(), Optional.ofNullable(e.bodyType).map(this::toTypeNode), e.dependency.getText(),
+                e.mappingAssignment().stream().map(a -> new MappingAssignmentNode(toLocation(a), a.target.getText(),
+                        List.of(a.path.getText().split("\\.")), Optional.ofNullable(a.mapper).map(ParserRuleContext::getText))).toList(),
+                httpStatus(e.status.getText()), Optional.ofNullable(e.responseType).map(this::toTypeNode),
+                Optional.ofNullable(e.responseMapping).map(ParserRuleContext::getText),
+                Optional.ofNullable(e.absentStatus).map(t -> httpStatus(t.getText())))).toList();
+        return new InboundHttpAdapterNode(toLocation(ctx), ctx.name.getText(), unquote(ctx.base.getText()),
+                ctx.dependencies.stream().map(this::adapterParameter).toList(), endpoints,
+                ctx.schemaDefinition().stream().map(this::visitSchemaDefinition).toList(),
+                ctx.mappingDefinition().stream().map(this::visitMappingDefinition).toList(),
+                Optional.ofNullable(ctx.errorImplementation).map(ParserRuleContext::getText));
+    }
+
+    private int httpStatus(String value) {
+        try { return Integer.parseInt(value); }
+        catch (NumberFormatException invalid) { return -1; }
     }
 
     public OutboundAdapterNode visitOutboundAdapterDefinition(VernacParser.OutboundAdapterDefinitionContext ctx) {

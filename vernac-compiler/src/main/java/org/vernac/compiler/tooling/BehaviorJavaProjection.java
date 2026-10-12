@@ -61,6 +61,28 @@ public final class BehaviorJavaProjection {
                     }
                 }
             }
+            if (definition instanceof InboundHttpAdapterNode adapter && adapter.mappings().stream().anyMatch(m->m.javaBody().isPresent())) {
+                try {
+                    var resolved=new ProjectTypeResolver().resolve(project);var plan=resolved.inboundAdapters().get(adapter);
+                    var helper=new UseCaseJavaProjection();
+                    for(int m=0;m<adapter.mappings().size();m++) {
+                        var mapping=adapter.mappings().get(m);var body=syntax.inboundHttpAdapterDefinition().mappingDefinition(m).rawJavaBlock();
+                        if(body==null)continue;
+                        var binding=plan.mappings().stream().filter(p->p.source().equals(mapping)).findFirst().orElseThrow();
+                        var imports=new TreeMap<>(BehaviorImports.visible(project,scope));
+                        for(var t:List.of(binding.input(),binding.target()))if(t.javaType() instanceof com.palantir.javapoet.ClassName c)imports.put(c.simpleName(),c.canonicalName());
+                        mapping.javaImports().forEach(imp->imports.put(imp.target().substring(imp.target().lastIndexOf('.')+1),imp.target()));
+                        StringBuilder header=new StringBuilder("package "+unit.namespace()+".adapter.inbound.http.mapping;\n");
+                        imports.values().stream().filter(n->n.contains(".")).distinct().forEach(n->header.append("import ").append(n).append(";\n"));
+                        header.append("@org.jspecify.annotations.NullMarked final class __VernacEditorMapping_").append(adapter.name()).append('_').append(mapping.name())
+                                .append(" { static ").append(binding.target().javaType()).append(' ').append(mapping.name()).append('(').append(binding.input().javaType()).append(" source) {\n");
+                        List<Fragment> fragments=new ArrayList<>();helper.add(fragments,body,text,"","");
+                        helper.close(result,adapter.name()+"Mapping"+mapping.name(),fragments,header.toString(),"}\n}\n");
+                    }
+                } catch(IllegalArgumentException | NoSuchElementException | org.vernac.compiler.analyzer.SemanticValidationException incomplete) {
+                    // An invalid surrounding contract is diagnosed without fabricating Java types.
+                }
+            }
             if (definition instanceof DomainServiceNode service) {
                 result.addAll(new ServiceJavaProjection().build(project, scope, unit, service, syntax.domainServiceDefinition(), text));
             }

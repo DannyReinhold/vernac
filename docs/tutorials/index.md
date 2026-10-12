@@ -48,3 +48,5 @@ In PowerShell, quote a complete dotted `-Dproperty=value` argument when necessar
 
 [Run Vernac Dispatch](dispatch.md): an interactive application connecting the domain,
 transactions, PostgreSQL, durable events and a carrier ACL.
+
+- [Put your domain behind an HTTP API](inbound-http.md): generate HTTP endpoints around usecases.

@@ -1,7 +1,8 @@
 # Vernac: self-contained reference for AI code generation
 
-Language baseline: **released 0.2.0**, also the starting language of the
-**0.3.0-SNAPSHOT** development branch. Date: 2026-10-12. This document describes
+Language baseline: **0.3.0-SNAPSHOT** development, based on released 0.2.0.
+HTTP inbound adapters in section 22 require the 0.3.0 compiler/runtime; they are
+not available in 0.2.0. Date: 2026-10-12. This document describes
 implemented project compilation, not proposed features. It is intentionally
 self-contained: provide this entire file to an AI together with the application
 requirements and existing model files. Artifact versions must match the project.
@@ -639,7 +640,7 @@ Do NOT generate these as supported language:
 - Unspecified public usecase methods, usecase Result inferred from Java, uses(...).
 - `permission`, `requires`, entitlement/quota/subscription declarations or module exports.
 - Imports of external Vernac modules from dependency metadata: this is planned, not implemented.
-- Generated HTTP controllers/MCP/Kafka/RabbitMQ endpoints, automatic async ports.
+- Generated MCP/Kafka/RabbitMQ endpoints, automatic async ports.
 - Database rollback restoring object state or guaranteeing rollback of remote effects.
 
 Obsolete entity/package/custom-repository productions have been removed from the
@@ -968,3 +969,44 @@ Repository readers: [language reference](language-reference.md),
 [specifications](specification/index.md), [contracts](contracts/index.md),
 [tutorials](tutorials/index.md). These links are supplementary; all essential
 code-generation rules and examples in this prompt are included above.
+
+## 22. HTTP inbound adapters (0.3.0)
+
+Implemented synchronous Spring MVC endpoints around existing usecases. Syntax:
+
+```text
+adapter Api inbound http uses Create create {
+    base "/api/items";
+    post { POST "/"; body Request; execute create { title <- body.title; }
+        respond 201 Response using output; }
+    schema Request(String title); schema Response(UUID id);
+    mapping output: Response <- ItemId { id <- source; }
+}
+```
+
+This shape assumes declared Create(Title) returns ItemId. Each endpoint has an explicit
+unique name, verb/route, typed path/query/header declarations, at most one required
+local DTO body, exactly one injected-usecase execute block and an explicit response.
+Use `path UUID itemId named "id";` for `/{id}`, then `itemId <- path.itemId;`. Query/header
+values may be optional; path values cannot. GET bodies are forbidden. Source paths
+start with path/query/header/body; assignment targets are actual usecase parameter
+names. Required parameters must be assigned once; omitted optional parameters are
+absent. Exact single-value wrapping uses validated factories; complex conversions
+use named mappings. No automatic enum or String-to-UUID conversion in assignments.
+
+No inferred Result. A tuple return may be referenced as `<Usecase>.Result` (qualified
+when needed) as a mapping source for injected usecases. Void responses have no mapper;
+value results require one. Success is 2xx; 204/205 have no body. Optional single results
+require `on absent respond 204;`, `404;` or `410;`. Absent values skip response mapping.
+Schemas/mappings can appear before or after endpoints. Base route `/` means the base
+resource without a trailing slash. Controllers/DTOs/mappings live in
+`namespace.adapter.inbound.http[.dto/.mapping]`. Add Spring MVC/Jackson, matching
+vernac-runtime-http and component scanning; usecases retain REQUIRED transactions.
+
+Errors default to safe `{code,message}` bodies: invalid transport 400, domain validation
+422, missing aggregate 404, optimistic conflict 409, other domain rejection 422,
+technical/response-mapping failure 500. Optional final adapter clause
+`errors implemented by fully.qualified.JavaClass;` calls public static
+`InboundHttpErrors.Reply handle(String endpoint, Exception error)`. No error-matching
+DSL, retry/security/OpenAPI/async behavior is implied. Public messages are chosen
+explicitly; internal exception messages are never automatically exposed.

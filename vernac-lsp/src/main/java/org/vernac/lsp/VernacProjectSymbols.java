@@ -69,6 +69,8 @@ final class VernacProjectSymbols {
                     collection(path, namespace, top.aggregateDefinition().name, top.aggregateDefinition().collectionDefinition(), false);
                 } else if (top.eventDefinition() != null) {
                     add(path, namespace, top.eventDefinition().name, TypeSymbol.Kind.EVENT);
+                } else if (top.inboundHttpAdapterDefinition() != null) {
+                    add(path,namespace,top.inboundHttpAdapterDefinition().name,TypeSymbol.Kind.INBOUND_HTTP_ADAPTER);
                 } else if (top.outboundAdapterDefinition() != null) {
                     add(path,namespace,top.outboundAdapterDefinition().name,TypeSymbol.Kind.OUTBOUND_ADAPTER);
                 } else if (top.portDefinition() != null) {
@@ -135,6 +137,13 @@ final class VernacProjectSymbols {
         List<VernacParser.QualifiedNameContext> contexts = new ArrayList<>();
         // Match by the injected token's code-point offset, not by text alone.
         int marker = file.text().codePointCount(0, start);
+        var inbound = inboundChoices(path,file,probe,marker,prefix);
+        if(inbound!=null) {
+            Range range=new Range(position(file.text(),start),position(file.text(),end));
+            return inbound.keySet().stream().filter(n->n.startsWith(prefix)).map(n->{
+                var item=new CompletionItem(n);item.setKind(CompletionItemKind.Property);item.setTextEdit(Either.forLeft(new TextEdit(range,n)));return item;
+            }).toList();
+        }
         var configuration = configurationReference(probe, marker);
         if (configuration != null) {
             var choices = configuration.types()
@@ -188,10 +197,10 @@ final class VernacProjectSymbols {
         if (contexts.isEmpty()) return null;
         var context = contexts.getFirst();
         var schemaAdapter = schemaAdapter(context);
-        if (schemaAdapter != null) {
+        if (schemaAdapter != null || inboundTransportType(context)) {
             Set<String> choices = new TreeSet<>(BuiltinTypes.names());
             choices.remove("EventId"); choices.add("list");
-            schemaAdapter.schemaDefinition().stream().filter(d -> d.name != null).forEach(d -> choices.add(d.name.getText()));
+            localSchemas(context).stream().filter(d -> d.name != null).forEach(d -> choices.add(d.name.getText()));
             Range range = new Range(position(file.text(),start),position(file.text(),end));
             return choices.stream().filter(name -> name.startsWith(prefix)).map(name -> {
                 var item = new CompletionItem(name); item.setKind(CompletionItemKind.Class);
@@ -242,8 +251,7 @@ final class VernacProjectSymbols {
         }
         if(mappingType) {
             choices.remove("EventId");choices.put("list","Technical collection");
-            var adapter=adapterAncestor(context);
-            if(adapter!=null)adapter.schemaDefinition().forEach(d->{if(d.name!=null)choices.put(d.name.getText(),"Adapter-local DTO");});
+            localSchemas(context).forEach(d->{if(d.name!=null)choices.put(d.name.getText(),"Adapter-local DTO");});
         }
         Range range = new Range(position(file.text(), start), position(file.text(), end));
         List<CompletionItem> result = new ArrayList<>();
@@ -265,6 +273,18 @@ final class VernacProjectSymbols {
         int offset = offset(file.text(), position);
         if (offset < 0) return List.of();
         int point = file.text().codePointCount(0, offset);
+        int inboundStart=offset;
+        while(inboundStart>0 && nameCharacter(file.text().codePointBefore(inboundStart)))inboundStart-=Character.charCount(file.text().codePointBefore(inboundStart));
+        var inbound=inboundChoices(path,file,file.tree(),point,file.text().substring(inboundStart,offset));
+        if(inbound!=null) {
+            List<ParserRuleContext> names=new ArrayList<>();walk(file.tree(),n->{if(n instanceof ParserRuleContext c && (c instanceof VernacParser.QualifiedNameContext || c instanceof VernacParser.MethodNameContext || c instanceof VernacParser.VariableNameContext) && contains(c,point))names.add(c);});
+            for(var name:names) {
+                String value=name.getText();
+                if(name instanceof VernacParser.QualifiedNameContext q)value=q.qualifiedNameSegment().stream().filter(n->n.getStart().getStartIndex()<=point).map(n->n.getText()).collect(java.util.stream.Collectors.joining("."));
+                var target=inbound.get(value);if(target!=null)return List.of(target);
+            }
+            return List.of();
+        }
         var configuration = configurationReference(file.tree(), point);
         if (configuration != null) {
             if (configuration.types() || configuration.adapter().configurationBlock() == null) return List.of();
@@ -300,15 +320,15 @@ final class VernacProjectSymbols {
 
         List<VernacParser.QualifiedNameContext> dtoReferences = new ArrayList<>();
         walk(file.tree(), node -> {
-            if(node instanceof VernacParser.QualifiedNameContext name && contains(name,point) && (schemaAdapter(name)!=null || name.getParent() instanceof VernacParser.TypeContext && mappingAncestor(name)!=null))
+            if(node instanceof VernacParser.QualifiedNameContext name && contains(name,point) && (schemaAdapter(name)!=null || inboundTransportType(name) || name.getParent() instanceof VernacParser.TypeContext && mappingAncestor(name)!=null))
                 dtoReferences.add(name);
         });
         if(!dtoReferences.isEmpty()) {
             var reference=dtoReferences.getFirst();
-            var local=adapterAncestor(reference).schemaDefinition().stream()
+            var local=localSchemas(reference).stream()
                 .filter(d -> d.name!=null && d.name.getText().equals(reference.getText()))
                 .map(d -> queryLocation(path,file,d.name)).toList();
-            if(!local.isEmpty() || schemaAdapter(reference)!=null)return local;
+            if(!local.isEmpty() || schemaAdapter(reference)!=null || inboundTransportType(reference))return local;
         }
         List<String> references = new ArrayList<>();
         walk(file.tree(), node -> {
@@ -333,6 +353,116 @@ final class VernacProjectSymbols {
         return List.of(new Location(target.sourceFile().toUri().toString(), declarationRanges.get(target)));
     }
 
+    private static VernacParser.InboundHttpAdapterDefinitionContext inboundAncestor(ParseTree node) {
+        for(var n=node;n!=null;n=n.getParent())if(n instanceof VernacParser.InboundHttpAdapterDefinitionContext a)return a;
+        return null;
+    }
+    private static List<VernacParser.SchemaDefinitionContext> localSchemas(ParseTree node) {
+        var inbound=inboundAncestor(node);if(inbound!=null)return inbound.schemaDefinition();
+        var outbound=adapterAncestor(node);return outbound==null?List.of():outbound.schemaDefinition();
+    }
+    private static boolean inboundTransportType(ParseTree node) {
+        for(var n=node;n!=null;n=n.getParent()) {
+            if(n instanceof VernacParser.SchemaFieldContext)return inboundAncestor(n)!=null;
+            if(n instanceof VernacParser.TypeContext t && t.getParent() instanceof VernacParser.InboundEndpointContext e)
+                return t==e.bodyType || t==e.responseType;
+        }
+        return false;
+    }
+    private VernacParser.UsecaseDefinitionContext inboundUsecase(Parsed file,VernacParser.InboundHttpAdapterDefinitionContext adapter,String dependency) {
+        var parameter=adapter.dependencies.stream().filter(p->parameterName(p).equals(dependency)).findFirst();
+        if(parameter.isEmpty())return null;
+        var scope=new FileTypeScope(file.unit(),index,namespaces);
+        var found=scope.resolve(parameter.get().paramType.rawType.getText(),file.unit().location()).type().orElse(null);
+        if(!(found instanceof ResolvedType.Declared d) || d.symbol().kind()!=TypeSymbol.Kind.USE_CASE)return null;
+        var source=files.get(d.symbol().sourceFile());if(source==null)return null;
+        return source.tree().topLevelDeclaration().stream().map(VernacParser.TopLevelDeclarationContext::usecaseDefinition)
+                .filter(Objects::nonNull).filter(u->u.name!=null && u.name.getText().equals(d.symbol().identity().name())).findFirst().orElse(null);
+    }
+    private static String parameterName(VernacParser.ParameterContext p) {
+        return p.name==null?org.vernac.language.VernacNames.defaultMemberName(p.paramType.rawType.getText()):p.name.getText();
+    }
+    private Map<String,Location> inboundChoices(Path path,Parsed file,ParseTree tree,int point,String prefix) {
+        List<ParserRuleContext> hits=new ArrayList<>();
+        walk(tree,node->{
+            if(node instanceof VernacParser.InboundEndpointContext e && contains(e.dependency,point))hits.add(e.dependency);
+            if(node instanceof VernacParser.MappingAssignmentContext a && inboundAncestor(a)!=null) {
+                if(contains(a.target,point))hits.add(a.target);
+                if(contains(a.path,point))hits.add(a.path);
+                if(contains(a.mapper,point))hits.add(a.mapper);
+            }
+            if(node instanceof VernacParser.InboundEndpointContext e && contains(e.responseMapping,point))hits.add(e.responseMapping);
+        });
+        if(hits.isEmpty())return null;
+        var hit=hits.getFirst();var adapter=inboundAncestor(hit);Map<String,Location> result=new TreeMap<>();
+        if(hit.getParent() instanceof VernacParser.InboundEndpointContext e && hit==e.dependency) {
+            for(var d:adapter.dependencies)result.put(parameterName(d),queryLocation(path,file,d));return result;
+        }
+        if(hit.getParent() instanceof VernacParser.InboundEndpointContext || hit.getParent() instanceof VernacParser.MappingAssignmentContext a && hit==a.mapper) {
+            for(var m:adapter.mappingDefinition())if(m.name!=null)result.put(m.name.getText(),queryLocation(path,file,m.name));return result;
+        }
+        var assignment=(VernacParser.MappingAssignmentContext)hit.getParent();
+        var mapping=mappingAncestor(assignment);
+        VernacParser.InboundEndpointContext endpoint=null;
+        for(var n=assignment.getParent();n!=null;n=n.getParent())if(n instanceof VernacParser.InboundEndpointContext e){endpoint=e;break;}
+        if(hit==assignment.target) {
+            if(mapping!=null)return inboundFields(path,file,adapter,mapping.targetType,List.of(),"");
+            var usecase=endpoint==null?null:inboundUsecase(file,adapter,endpoint.dependency.getText());
+            if(usecase!=null && usecase.inputs!=null)for(var p:usecase.inputs.parameter())result.put(parameterName(p),queryLocation(pathForUsecase(usecase),files.get(pathForUsecase(usecase)),p));
+            return result;
+        }
+        int dot=prefix.lastIndexOf('.');String qualifier=dot<0?"":prefix.substring(0,dot+1);
+        var steps=dot<0?List.<String>of():List.of(prefix.substring(0,dot).split("\\."));
+        if(mapping!=null) {
+            if(steps.isEmpty()){result.put("source",queryLocation(path,file,mapping.sourceType));return result;}
+            if(!steps.getFirst().equals("source"))return result;
+            return inboundFields(path,file,adapter,mapping.sourceType,steps.subList(1,steps.size()),qualifier);
+        }
+        if(endpoint==null)return result;
+        if(steps.isEmpty()) {
+            for(String group:List.of("path","query","header"))if(endpoint.inboundBinding().stream().anyMatch(b->b.kind.getText().equals(group)))result.put(group,queryLocation(path,file,endpoint));
+            if(endpoint.bodyType!=null)result.put("body",queryLocation(path,file,endpoint.bodyType));return result;
+        }
+        if(steps.getFirst().equals("body") && endpoint.bodyType!=null)return inboundFields(path,file,adapter,endpoint.bodyType,steps.subList(1,steps.size()),qualifier);
+        if(steps.size()==1)for(var binding:endpoint.inboundBinding())if(binding.kind.getText().equals(steps.getFirst())) {
+            String name=binding.name==null?org.vernac.language.VernacNames.defaultMemberName(binding.valueType.rawType.getText()):binding.name.getText();
+            result.put(qualifier+name,queryLocation(path,file,binding.name==null?binding:binding.name));
+        }
+        return result;
+    }
+    private Path pathForUsecase(VernacParser.UsecaseDefinitionContext usecase) {
+        return files.entrySet().stream().filter(e->e.getValue().tree().topLevelDeclaration().stream().anyMatch(d->d.usecaseDefinition()==usecase)).map(Map.Entry::getKey).findFirst().orElseThrow();
+    }
+    private Map<String,Location> inboundFields(Path path,Parsed file,VernacParser.InboundHttpAdapterDefinitionContext adapter,
+            VernacParser.TypeContext type,List<String> steps,String qualifier) {
+        Map<String,Location> result=new TreeMap<>();if(type==null || type.rawType==null)return result;
+        String name=type.rawType.getText();Path origin=path;Parsed owner=file;
+        List<VernacParser.ParameterContext> parameters=List.of();List<VernacParser.SchemaFieldContext> fields=List.of();
+        var dto=adapter.schemaDefinition().stream().filter(s->s.name!=null && s.name.getText().equals(name)).findFirst();
+        if(dto.isPresent())fields=dto.get().schemaField();
+        else {
+            String base=name.endsWith(".Result")?name.substring(0,name.length()-7):name;
+            var found=new FileTypeScope(file.unit(),index,namespaces).resolve(base,file.unit().location()).type().orElse(null);
+            if(found instanceof ResolvedType.Declared declared) {
+                origin=declared.symbol().sourceFile();owner=files.get(origin);if(owner==null)return result;
+                for(var d:owner.tree().topLevelDeclaration()) {
+                    if(name.endsWith(".Result") && d.usecaseDefinition()!=null && d.usecaseDefinition().name.getText().equals(declared.symbol().identity().name()) && d.usecaseDefinition().results!=null)parameters=d.usecaseDefinition().results.parameter();
+                    if(d.valueDefinition()!=null && d.valueDefinition().name.getText().equals(declared.symbol().identity().name()) && d.valueDefinition().parameterList()!=null)parameters=d.valueDefinition().parameterList().parameter();
+                    if(d.idDeclaration()!=null && d.idDeclaration().name.getText().equals(declared.symbol().identity().name()) && steps.isEmpty())result.put(qualifier+"value",queryLocation(origin,owner,d.idDeclaration()));
+                }
+            }
+        }
+        if(!steps.isEmpty()) {
+            String next=steps.getFirst();
+            for(var f:fields)if((f.name==null?org.vernac.language.VernacNames.defaultMemberName(f.fieldType.rawType.getText()):f.name.getText()).equals(next))return inboundFields(path,file,adapter,f.fieldType,steps.subList(1,steps.size()),qualifier);
+            for(var p:parameters)if(parameterName(p).equals(next))return inboundFields(origin,owner,adapter,p.paramType,steps.subList(1,steps.size()),qualifier);
+            return result;
+        }
+        for(var f:fields)result.put(qualifier+(f.name==null?org.vernac.language.VernacNames.defaultMemberName(f.fieldType.rawType.getText()):f.name.getText()),queryLocation(path,file,f.name==null?f:f.name));
+        for(var p:parameters)result.put(qualifier+parameterName(p),queryLocation(origin,owner,p.name==null?p:p.name));
+        return result;
+    }
+
     private static VernacParser.MappingDefinitionContext mappingAncestor(ParseTree node) {
         for(var n=node;n!=null;n=n.getParent())if(n instanceof VernacParser.MappingDefinitionContext m)return m;
         return null;
@@ -347,7 +477,7 @@ final class VernacProjectSymbols {
         List<MappingReference> result=new ArrayList<>();
         walk(tree,node->{if(node instanceof VernacParser.MappingAssignmentContext a) {
             ParserRuleContext name=contains(a.target,point)?a.target:contains(a.path,point)?a.path:contains(a.mapper,point)?a.mapper:null;
-            if(name!=null)result.add(new MappingReference(name,name==a.target?"target":name==a.path?"source":"using",mappingAncestor(a),adapterAncestor(a)));
+            if(name!=null && adapterAncestor(a)!=null && mappingAncestor(a)!=null)result.add(new MappingReference(name,name==a.target?"target":name==a.path?"source":"using",mappingAncestor(a),adapterAncestor(a)));
         }});
         return result.size()==1?result.getFirst():null;
     }
