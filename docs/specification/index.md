@@ -1,6 +1,6 @@
 # Vernac specification and contracts
 
-This is the normative documentation for the **0.2.0 language revision**. It is
+This is the normative documentation for the **0.3.0 language revision**. It is
 organized into language rules and feature contracts; both parts define the language.
 MUST/MUST NOT express requirements, SHOULD a recommendation, and MAY a permission.
 Examples illustrate rules; explicitly incomplete fragments require their surrounding
@@ -32,6 +32,7 @@ resolution and feature contracts also constrain accepted programs.
 - [PostgreSQL mapping](../contracts/postgresql-persistence.md)
 - [Scalar representation limits](../contracts/scalar-storage-limits.md)
 - [Repository queries](../contracts/repository-queries.md)
+- [HTTP inbound adapters](../contracts/inbound-http.md)
 - [Ports and adapters](../contracts/ports-adapters-and-acl.md)
 - [Adapter configuration](../contracts/adapter-configuration.md)
 - [Adapter DTOs and JSON](../contracts/adapter-dtos.md)
@@ -52,4 +53,4 @@ revise the contract. Do not silently treat an old document, a parser production 
 a generated excerpt as a new supported feature.
 
 See [documentation maintenance](../development/documentation.md) and the
-[release plan](../development/release-0.2.0.md) for remaining verification work.
+[release plan](../development/release-0.3.0.md) for remaining verification work.

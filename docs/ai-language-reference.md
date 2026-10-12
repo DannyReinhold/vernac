@@ -1,11 +1,12 @@
 # Vernac: self-contained reference for AI code generation
 
-Language baseline: **0.3.0-SNAPSHOT** development, based on released 0.2.0.
-HTTP inbound adapters in section 22 require the 0.3.0 compiler/runtime; they are
-not available in 0.2.0. Date: 2026-10-12. This document describes
-implemented project compilation, not proposed features. It is intentionally
-self-contained: provide this entire file to an AI together with the application
-requirements and existing model files. Artifact versions must match the project.
+Language baseline: **Vernac 0.3.0**. The source checkout defaults to
+**0.3.0-SNAPSHOT**; release builds select 0.3.0 explicitly. HTTP inbound adapters
+require the 0.3.0 compiler/runtime and are not available in 0.2.0.
+This document describes implemented project compilation, not proposed features.
+It is intentionally self-contained: provide this entire file to an AI together
+with the application requirements and existing model files. Artifact versions
+must match the project; do not assume a release is published solely from this document.
 
 ## 1. Instruction to the code-generating assistant
 
@@ -28,7 +29,7 @@ validate Java bodies, dependency injection, SQL behavior or external protocols.
 If compilation tools are unavailable, say the output is unverified; never claim
 that this document alone guarantees compilation or business correctness.
 
-All fenced `vernac` blocks in sections 15–20 below form **complete examples** with
+All fenced `vernac` blocks in the worked-example sections below form **complete examples** with
 specified paths. They can be compiled together. Other grammar displays are labeled
 `text` and use metavariables; they are not literal source files.
 
@@ -952,18 +953,18 @@ Before returning generated source, check:
 11. Full project generation AND javac succeed. Run meaningful runtime/DB/HTTP tests
     for the behavior being claimed; report skipped infrastructure tests as skipped.
 
-For a configured application, run `mvn clean verify` (in IntelliJ's Maven command
-field use `clean verify`). When modifying the compiler itself, install its artifacts
+For a configured application, run `mvn clean verify`; when an IntelliJ field already
+supplies the Maven executable, enter its goals/options as that UI requires. When modifying the compiler itself, install its artifacts
 before building standalone examples: `mvn clean install`. Do not assume `verify`
 updates the local Maven repository. Schema/migration commands require a configured
 persistence application and deliberate review; they are not needed for pure VOs.
 
-The complete examples above were checked as one source tree through the project
-compiler from Maven Central (0.2.0) and Java 21-target compilation when this
-document was authored (seven Vernac files; 91 Java files including the external
-implementation fixture). That is
-a syntax/type check, not proof that an arbitrary application's Spring configuration,
-database or remote provider is correct. Re-run after changing examples or compiler.
+The repository's `DocumentationExamplesTest` extracts every complete Vernac block
+in this file, resolves them as one project and compiles all generated Java together
+with the supplied external Java examples using `--release 21`. It uses the current
+checkout's compiler, not an older compiler fetched from Central. Re-run this test
+after editing examples. This is a syntax/type check, not proof that arbitrary Spring
+configuration, databases or remote providers are correct.
 
 Repository readers: [language reference](language-reference.md),
 [specifications](specification/index.md), [contracts](contracts/index.md),
@@ -1010,3 +1011,67 @@ technical/response-mapping failure 500. Optional final adapter clause
 `InboundHttpErrors.Reply handle(String endpoint, Exception error)`. No error-matching
 DSL, retry/security/OpenAPI/async behavior is implied. Public messages are chosen
 explicitly; internal exception messages are never automatically exposed.
+
+### 22.1 Complete example: command endpoint and explicit Result
+
+**Request:** Accept a label, invoke an application command, return the newly created
+identity and label. Expose a second command using a path ID. Do not invent a response
+contract inside the controller.
+
+**Answer:** `src/main/vernac/ai/http/entries.vernac`
+
+```vernac
+namespace ai.http;
+
+id EntryId;
+value Label(String) validates {
+    require(!self.string().isBlank(), "Label must not be blank");
+};
+usecase CreateEntry(Label) returns (EntryId, Label) behavior {
+    execute { return Result.of(EntryId.create(), label); }
+}
+usecase ConfirmEntry(EntryId) behavior {
+    execute { System.out.println("Confirmed " + entryId.asString()); }
+}
+
+adapter EntryApi inbound http uses CreateEntry createEntry, ConfirmEntry confirmEntry {
+    base "/api/entries";
+    create {
+        POST "/";
+        body CreateEntryRequest;
+        execute createEntry { label <- body.label; }
+        respond 201 EntryResponse using toResponse;
+    }
+    confirm {
+        POST "/{id}/confirm";
+        path UUID entryId named "id";
+        execute confirmEntry { entryId <- path.entryId; }
+        respond 204;
+    }
+    schema CreateEntryRequest(String label);
+    schema EntryResponse(UUID id, String label);
+    mapping toResponse: EntryResponse <- CreateEntry.Result {
+        id <- source.entryId;
+        label <- source.label;
+    }
+}
+```
+
+This demonstrates wiring; it does not store entries. Include a Spring Boot web
+starter, matching vernac-runtime-http (which includes vernac-runtime-json), component
+scanning for ai.http, and a transaction manager for the usecases. Spring context
+and transaction libraries alone do not supply a transaction manager. Existing JDBC
+applications already provide one; a small exercise can use Spring JDBC and an H2
+in-memory datasource. Do not disable the usecase transaction to make startup pass.
+
+POST /api/entries with `{"label":"Review schedule"}` maps String through Label.of,
+then maps CreateEntry.Result to `{"id":"...","label":"Review schedule"}`. A blank
+label fails validation (422); missing/wrong JSON fails wire validation (400).
+POST /api/entries/<id>/confirm parses UUID explicitly and returns 204. The Result is
+a declared application result; its mapping source is not an inferred DTO or a
+standalone Vernac type. Source paths use actual generated getter names.
+
+A response-mapping failure can occur after the usecase transaction commits. Its 500
+response is not permission to repeat a command. Authentication, authorization,
+idempotency keys, OpenAPI, streaming and asynchronous transports are not generated
+by this syntax. Configure those concerns explicitly outside this initial slice.

@@ -3,7 +3,8 @@
 Repository searches return your domain aggregates, including all contained entities
 and collections. They do not return arbitrary SQL projections.
 
-This example uses the reviewed language and the development SNAPSHOT. Place it in
+Use a Vernac 0.3.0 application with JDBC support. This model is a separate query
+exercise; the persistence demo provides an already wired runnable alternative. Place it in
 `src/main/vernac/example/search/tours.vernac`:
 
 ```vernac
@@ -55,7 +56,7 @@ does not introduce a uniqueness constraint.
 
 ## Comparisons
 
-Use `=`, `!=`, `<`, `<=`, `>` and `>=`. Combine predicates with `and`.
+Use `=`, `!=`, `<`, `<=`, `>` and `>=`. Combine predicates with `and`, `or`, `not` and parentheses.
 The left side names a root field; `:name` binds a method parameter. Vernac checks
 the exact domain type, even if two different value objects both wrap String.
 Optional parameters are not supported; use a separate query with `is absent`.
@@ -117,7 +118,7 @@ on empty strings, absent values and Unicode, see the
 ## Combine conditions
 
 ```vernac
-find Tours selected(TourStatus status, Title title)
+find Tours selected(Status status, Title title)
     where (status = :status or title = :title) and not (reference is absent)
     order by title;
 ```

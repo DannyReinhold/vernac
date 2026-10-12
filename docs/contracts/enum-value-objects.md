@@ -176,7 +176,7 @@ under its normal field rules. There is no implicit String-to-enum conversion.
 
 The enum declaration MUST NOT contain database codes, transport codes, serialized
 aliases, or a special dbValue property. Previous code-assignment syntax and generated
-dbValue helpers must be removed during implementation of this contract.
+dbValue helpers are not part of the supported language or generated API.
 
 An external representation belongs to the relevant persistence or adapter mapping.
 Different external systems may assign different representations to the same enum.

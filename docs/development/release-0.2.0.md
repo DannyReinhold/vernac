@@ -1,6 +1,10 @@
-# Vernac 0.3.0 consolidation and release plan
+# Vernac 0.2.0 consolidation and release plan
 
-Status: 2026-10-11. Development version: **0.2.0-SNAPSHOT**.
+Historical planning record for the released 0.2.0 line. Unchecked items below reflect
+that planning snapshot, not the current release gate. For current work, use the
+[0.3.0 release plan](release-0.3.0.md).
+
+Planning status: 2026-10-11. Development version: **0.2.0-SNAPSHOT**.
 All consolidation work remains on **feature/redefining_the_language**. Merge to
 main only after the acceptance gates below, then release **0.2.0** to Maven Central
 and update the IntelliJ plugin. No release, tag or remote merge is performed by
@@ -33,7 +37,7 @@ compiler version without matching a hard-coded old version. Tests cover custom
 coordinates, Unicode namespaces, compilation and pre-existing destination files.
 The first-domain-model tutorial follows this template. The example source/documentation
 audit now provides
-a [learning guide](https://github.com/DannyReinhold/vernac/blob/feature/redefining_the_language/examples/README.md),
+a [learning guide](https://github.com/DannyReinhold/vernac/blob/main/examples/README.md),
 removes the isolated
 operations event experiment and covers entity/service behavior in Java tests. Both
 schema examples generate successfully; file templates are compiled in their test.

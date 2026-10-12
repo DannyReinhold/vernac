@@ -24,7 +24,9 @@ PLUGIN_ID = "org.vernac"
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
 REQUIRED_TESTS = ("EntitySchemaPostgresTest", "EventStoragePostgresTest", "EventWorkerPostgresTest",
                   "RepositoryQueryPostgresTest", "ScalarQueryPostgresTest", "ScalarStoragePostgresTest",
-                  "RequiredFieldBackfillTest", "SchemaMojoTest", "PluginDistributionIT")
+                  "RequiredFieldBackfillTest", "SchemaMojoTest", "PluginDistributionIT",
+    "DocumentationExamplesTest", "InboundHttpContractTest", "InboundHttpExecutionTest",
+    "InboundHttpRuntimeTest", "InboundHttpSymbolsTest")
 
 
 def require(condition, message):
@@ -34,7 +36,7 @@ def require(condition, message):
 
 def version(value):
     require(re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", value),
-            "Use a release version such as 0.2.0, without SNAPSHOT.")
+            "Use a release version such as 0.3.0, without SNAPSHOT.")
     return value
 
 
@@ -161,8 +163,8 @@ def audit_tests():
                 f"Release test report has failures, errors or skipped tests: {path}")
         if int(suite.get("tests", "0")) > 0:
             seen.add(name)
-    require(set(REQUIRED_TESTS) <= seen, "Missing required PostgreSQL or plugin distribution test reports.")
-    summary("Release tests passed, including required PostgreSQL and plugin distribution suites; no skipped tests in reactor module reports.")
+    require(set(REQUIRED_TESTS) <= seen, "Missing required release test reports (PostgreSQL, plugin, documentation or inbound HTTP).")
+    summary("Release tests passed, including required PostgreSQL, plugin, documentation and inbound HTTP suites; no skipped tests in reactor module reports.")
 
 
 def consumer(directory, release, output):

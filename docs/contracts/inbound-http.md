@@ -1,6 +1,6 @@
 # HTTP inbound adapter contract
 
-Status: implemented initial HTTP slice for 0.3.0. The application usecase is the
+Status: normative contract for the implemented 0.3.0 HTTP inbound feature. The application usecase is the
 inbound operation contract; this slice adds no duplicate inbound port interface.
 
 ## Declaration and responsibilities

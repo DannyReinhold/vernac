@@ -5,7 +5,11 @@ read transport data, construct validated domain values, call a usecase and map i
 answer. Vernac generates the Spring MVC plumbing while the application contract stays
 in your usecase.
 
-This complete example needs no database. Save it as
+This exercise does not persist tasks. Start with the [basic Maven template](your-first-domain-model.md),
+which already configures Vernac generation and the Spring Boot dependency versions.
+The usecases still require a transaction manager; below we supply one through
+Spring JDBC and a disposable in-memory H2 datasource. No Docker or external database
+is needed. Use a separate namespace from any earlier Task exercise. Save this as
 `src/main/vernac/example/tasks/api.vernac`:
 
 ```vernac
@@ -47,20 +51,73 @@ existing aggregate/repository patterns when building a persistent application. T
 [Dispatch showcase](https://github.com/DannyReinhold/vernac/tree/main/examples/dispatch)
 uses generated create/release endpoints against its actual persistence usecases.
 
-Use the matching Vernac compiler/runtime versions and Spring Boot's web starter.
-Include `vernac-runtime-http`; its JSON dependency supplies the generated DTO codecs.
-Your Spring application's component scan must include `example.tasks`.
-Build the application with the normal Vernac Maven compile execution and start Spring
-Boot. Then POST JSON to `/api/tasks`:
+## Wire the application
 
-```json
-{"title":"Try the generated API"}
+Add these dependencies to the template's existing `<dependencies>` (its Spring
+Boot parent manages all except the Vernac version):
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-jdbc</artifactId>
+</dependency>
+<dependency>
+    <groupId>com.h2database</groupId>
+    <artifactId>h2</artifactId>
+    <scope>runtime</scope>
+</dependency>
+<dependency>
+    <groupId>org.vernac</groupId>
+    <artifactId>vernac-runtime-http</artifactId>
+    <version>${vernac.version}</version>
+</dependency>
 ```
 
-The response is 201 with `{"taskId":"..."}`. The input String is wrapped through
-Title.of, and the returned ID is unwrapped into the UUID DTO field. Neither the
-controller nor the mapping adds a transaction: CreateTask already owns it.
-POST `/api/tasks/<returned-id>/complete` returns 204.
+Add `org.springframework.boot:spring-boot-maven-plugin` to `<build><plugins>`.
+Create `src/main/java/example/tasks/TaskApplication.java`:
+
+```java
+package example.tasks;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class TaskApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(TaskApplication.class, args);
+    }
+}
+```
+
+Its package makes component scanning include the generated controller and usecases.
+With H2 and Spring JDBC present, Boot supplies the datasource and transaction manager.
+This is transaction infrastructure for the exercise, not a generated Task repository.
+For a real persistent application, follow the [PostgreSQL tutorial](database-persistence.md).
+
+## Call the generated endpoints
+
+From the application directory, run `mvn clean spring-boot:run`. In another terminal:
+
+```powershell
+$created = Invoke-RestMethod -Method Post -Uri 'http://localhost:8080/api/tasks' `
+    -ContentType 'application/json' -Body '{"title":"Try the generated API"}'
+$created.taskId
+Invoke-WebRequest -Method Post -Uri "http://localhost:8080/api/tasks/$($created.taskId)/complete"
+```
+
+The first response is 201 with `{"taskId":"..."}`. The completion response is 204
+with no body, and the application logs the ID. The title is wrapped through Title.of;
+the returned ID is unwrapped into the response UUID field. Neither the controller
+nor the mapping starts a transaction: the usecase already owns it.
+
+![HTTP input, usecase transaction and response mapping](../assets/tutorials/http-boundary.svg)
+
+## Explore failures and results
 
 Try a blank title (422), a malformed UUID (400) and an additional JSON property
 (accepted). Missing required JSON fields produce 400. Responses contain a stable

@@ -1,7 +1,8 @@
 # Map DTOs to validated domain values
 
-Start with [adapter DTOs](adapter-dtos.md) and keep the `vernac-runtime-json`
-dependency. This tutorial uses no HTTP server or database.
+Read [adapter DTOs](adapter-dtos.md) first and keep the `vernac-runtime-json`
+dependency. The Catalog model below is a separate exercise, not an addition to
+the archive declarations. This tutorial uses no HTTP server or database.
 
 Create `src/main/vernac/example/catalog/catalog.vernac`:
 
@@ -119,5 +120,5 @@ The class provides a static `Item toItem(ItemPayload source)` method. It needs n
 Spring registration and can use its own Java imports.
 
 The [mapping contract](../contracts/adapter-mappings.md) covers optional paths,
-set/list distinctions and PATCH intent. REST transport and declarative error rules
-are the next implementation slice; the mappings already work independently of HTTP.
+set/list distinctions and PATCH intent. Continue with [REST transport](declarative-rest.md) and [error rules](declarative-errors.md).
+The mappings also work independently of HTTP.

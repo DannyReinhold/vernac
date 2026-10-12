@@ -20,6 +20,8 @@ Commit SQL and its matching snapshot together. Flyway maintains applied versions
 checksums in `public.flyway_schema_history`. Vernac does not mutate your database when
 running `schema` or `migration`; this example applies migrations at application startup.
 
+![Model, migration candidate, review and application deployment](../assets/tutorials/migration-lifecycle.svg)
+
 ## 1. Confirm the initial version
 
 The example includes `V20261009090000000__initial_delivery.sql` and its matching JSON.
@@ -30,6 +32,9 @@ SELECT version, description, success FROM public.flyway_schema_history;
 SELECT "id", "title" FROM "org.example.delivery"."Tour";
 ```
 
+Connect to the **delivery** application database on port **55433**, not postgres
+or the disposable schema-check databases. From the example directory,
+`docker compose exec postgres psql -U delivery -d delivery` opens the right database.
 Keep one existing Tour ID so you can confirm it survives the migration.
 
 ## 2. Add an optional field
@@ -59,6 +64,10 @@ From the example directory:
 ```text
 mvn vernac:migration -Dvernac.migrationDescription=add_dispatch_reference
 ```
+
+In a PowerShell terminal, quote the complete dotted argument:
+`mvn vernac:migration "-Dvernac.migrationDescription=add_dispatch_reference"`.
+In IntelliJ's Maven command field use the unquoted Maven arguments.
 
 Vernac compares the current model with the last committed schema snapshot. The new
 SQL should add a nullable `reference` TEXT column to Tour. Unchanged constraints and
@@ -181,3 +190,24 @@ When undoing a local tutorial experiment, remember that reverting source files
 also leaves the previously migrated database unchanged. Use a matching disposable
 database state and a Maven `clean` to remove obsolete copied migrations from
 `target/classes`. Never rewrite shared migration history to reconcile experiments.
+
+## Repeat the exercise without mixing database histories
+
+Reverting files is not a database rollback. Before repeating the V2 exercise:
+
+1. Confirm the datasource URL, port **55433**, and application database **delivery**.
+   The schema-check databases and the PostgreSQL administrative database are different.
+2. Restore the baseline model and remove only **unpublished local experiment** SQL
+   and its matching snapshot. Run `mvn clean` to remove copied SQL in `target/classes`.
+3. If V2 was already applied, either retain a matching V2 source history or reset the
+   explicitly disposable demo database. Preserve real/shared data and use a forward
+   migration there; never delete applied shared history to repair an experiment.
+4. Restart and inspect `public.flyway_schema_history` in **delivery**, then check
+   the application tables. An empty baseline should apply only the committed initial
+   migration before the runners execute.
+
+For a throwaway local demo, inspect `docker compose config --volumes` from the example
+folder before using `docker compose --profile test down --volumes`. This removes the
+project's Compose volumes, including test data; it is not a general recovery command.
+Do not run it if you need any data stored in those volumes. Recreate the local services
+with Compose and restart the application only after source history is consistent.

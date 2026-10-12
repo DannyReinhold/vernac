@@ -71,11 +71,11 @@ framework convention.
 ## Start with a passing test
 
 This documentation describes the **Vernac 0.3.0 language and API**. Use matching
-compiler, runtime and IntelliJ plugin versions; 0.1.x and 0.2.x do not implement this
-language revision. For a source checkout, the commands below build and install
+compiler, runtime and IntelliJ plugin versions; earlier releases do not support all
+constructs documented here. For a source checkout, the commands below build and install
 the version configured in its root POM (currently `0.3.0-SNAPSHOT`).
 
-Use JDK 25 and Maven 3.9+. Generated application code targets Java 21.
+Use JDK 25 and Maven 3.9.x (release automation pins 3.9.16). Generated application code targets Java 21.
 From this repository, install the compiler and runtime, then try the minimal template:
 
 ```shell
@@ -129,7 +129,7 @@ Apache License 2.0. See [LICENSE](LICENSE).
 
 [Legal notice / Impressum](docs/impressum.md) · [Privacy](docs/privacy.md)
 
-## Run the architecture
+## Explore the interactive showcase
 
 [**Vernac Dispatch**](examples/dispatch/README.md) is an interactive delivery-planning
 application: move stops, enforce capacity, dispatch tours and observe durable event

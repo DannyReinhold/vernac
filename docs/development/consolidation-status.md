@@ -1,8 +1,9 @@
 # Vernac consolidation status
 
-Status: 2026-10-12. Version 0.3.0 is published; current development targets 0.4.0.
+Status: release preparation for **0.3.0**. The source checkout uses **0.3.0-SNAPSHOT**;
+publication and Marketplace approval are separate release steps.
 This separates implemented functionality from planned work, not a blanket claim of
-production readiness. The [0.3.0 plan](release-0.3.0.md) remains historical release context.
+production readiness. The [0.3.0 plan](release-0.3.0.md) records the current acceptance gates.
 
 ## Reviewed and implemented
 

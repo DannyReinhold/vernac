@@ -1,6 +1,7 @@
 # Give your model domain behavior
 
-Use the reviewed `examples/namespace-values` project. Its `PersonName` example
+From the Vernac repository root, use `examples/namespace-values`, the database-free
+reactor example. Its `PersonName` example
 includes inline code, a private helper, an optional result, an external Java
 implementation and collection behavior. Run:
 

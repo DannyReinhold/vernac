@@ -129,6 +129,6 @@ java imports {
 }
 ```
 
-Keep it out of the domain port signature. Continue with [typed mappings](adapter-mappings.md). Generated REST calls
-are the next implementation slice. The complete current rules are in the
+Keep it out of the domain port signature. Continue with [typed mappings](adapter-mappings.md),
+then [generated REST calls](declarative-rest.md). The complete current rules are in the
 [DTO contract](../contracts/adapter-dtos.md).

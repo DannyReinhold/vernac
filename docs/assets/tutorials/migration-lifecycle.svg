@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 390" role="img" aria-labelledby="title desc">
+<style>text{font-family:system-ui,sans-serif;fill:#183147}.heading{font-size:21px;font-weight:700}.label{font-size:15px;font-weight:600}.detail{font-size:13px}.arrow{stroke:#416780;stroke-width:2;fill:none;marker-end:url(#arrow)}</style>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#416780"/></marker></defs>
+<rect width="880" height="390" rx="16" fill="#f5f8fc"/>
+<title id="title">Model changes become reviewed migration candidates</title><desc id="desc">The current Vernac model and previous snapshot produce a new SQL candidate and snapshot. Review and disposable database verification precede a commit. The application's Flyway integration applies approved migrations; generation does not apply them.</desc>
+<text x="32" y="38" class="heading">Generation prepares a candidate; the application applies it</text>
+<rect x="32" y="78" width="250" height="96" rx="12" fill="#e4eef9" stroke="#5379a5"/>
+<text x="48" y="108" class="label">Model and snapshot</text><text x="48" y="138" class="detail">Source-controlled diff baseline</text>
+<rect x="348" y="78" width="250" height="96" rx="12" fill="#e4eef9" stroke="#5379a5"/>
+<text x="364" y="108" class="label">New SQL + snapshot</text><text x="364" y="138" class="detail">vernac:migration · no SQL applied</text>
+<rect x="348" y="224" width="250" height="105" rx="12" fill="#fff0cf" stroke="#a4822c"/>
+<text x="364" y="254" class="label">Review and test</text><text x="364" y="284" class="detail">schema-check + historical data</text><text x="364" y="309" class="detail">Developer approves and commits</text>
+<rect x="32" y="224" width="250" height="105" rx="12" fill="#e3f4ed" stroke="#31836d"/>
+<text x="48" y="254" class="label">Application deployment</text><text x="48" y="284" class="detail">Flyway applies approved SQL</text><text x="48" y="309" class="detail">Database records applied history</text>
+<path class="arrow" d="M282 126H340"/><path class="arrow" d="M473 174V216"/><path class="arrow" d="M348 276H290"/>
+<text x="631" y="106" class="label">Two different histories</text><text x="631" y="138" class="detail">Git: models, SQL, snapshots</text><text x="631" y="167" class="detail">Database: applied migrations</text><text x="631" y="225" class="detail">Reverting Git does not</text><text x="631" y="251" class="detail">roll back the database.</text>
+<text x="32" y="367" class="detail">Empty-database replay checks structure. It does not prove production data or deployment compatibility.</text>
+</svg>

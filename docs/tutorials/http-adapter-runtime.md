@@ -1,7 +1,8 @@
 # Call an HTTP API through a domain port
 
-This step uses existing adapter behavior, generated DTOs/mappings and the new
-HTTP runtime. A [declarative REST alternative](declarative-rest.md) is now available.
+Use this chapter when an HTTP integration needs handwritten request construction
+or policy beyond the declarative REST model. It combines adapter behavior,
+generated DTOs/mappings and the HTTP runtime. A [declarative REST alternative](declarative-rest.md) is now available.
 [Declarative error rules](declarative-errors.md) are also available. This chapter
 shows the lower-level Java boundary for cases requiring explicit control; the port
 remains independent of HTTP.
@@ -10,7 +11,8 @@ Add `org.vernac:vernac-runtime-http` at the same version as your Vernac compiler
 to the application dependencies. It brings the DTO/JSON runtime transitively.
 No HTTP or Jackson dependency is added to the domain runtime.
 
-Place this file under `src/main/vernac/example/catalog/catalog.vernac`:
+This is an alternative Catalog implementation; use a fresh namespace/project if
+you already followed the declarative Catalog exercise. Place this file under `src/main/vernac/example/catalog/catalog.vernac`:
 
 ```vernac
 namespace example.catalog;

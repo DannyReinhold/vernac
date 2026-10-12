@@ -58,8 +58,8 @@ call starts its own invocation; distributed tracing propagation is later work.
 self.invocation() exposes a local invocation UUID, port, adapter and operation.
 withDetail(name, value) returns a new context with a deliberately selected string
 value; it neither changes the original nor logs anything. Never add credentials.
-No automatic technical exception wrapping or HTTP failure mapping is introduced
-by this slice. Business exceptions propagate unchanged.
+A Java-backed adapter does not automatically wrap arbitrary technical exceptions
+or infer HTTP failure mappings. Business exceptions propagate unchanged.
 
 ## Move a body to Java
 

@@ -5,9 +5,15 @@ before applying it.** Vernac helps prepare candidates. Neither generation nor a
 successful automated check guarantees correctness, safety or suitability for your
 production data and deployment.
 
-This tutorial covers the new schema tools. The new JDBC repository implementation
-and the JDBC runtime use the same mapping model. This tutorial focuses on schema
-operations; the runnable delivery example demonstrates persistence.
+Use this chapter to inspect storage layout and prepare migration candidates without
+starting an application. The JDBC repository uses the same resolved mapping model.
+For an exercise that retains existing data through an application restart, start
+with the [Flyway walkthrough](flyway-workflow.md).
+
+Commands below are shown as Maven invocations for IntelliJ/POSIX shells. In a
+PowerShell terminal, quote complete dotted arguments, for example
+`mvn vernac:migration "-Dvernac.migrationDescription=initial"`. Keep the quotes out
+of IntelliJ's Maven command field.
 
 ## Start with the example
 
@@ -72,7 +78,7 @@ It cannot infer required values, conversions or renames.
 
 A new NOT NULL column on an existing table requires an explicit SQL backfill.
 Known integral widening and float-to-double widening are automatic. Other type/codec
-changes require an explicit USING expression and force approval. Configure
+changes require an explicit USING expression and the force generation override. Configure
 expressions in a reviewed JSON file, keyed by `namespace/table/column`, for example:
 
 ```json
@@ -133,7 +139,8 @@ Owned table columns, defaults, constraints, indexes and user triggers are checke
 This is a structural test on empty databases, not proof that historical data can be
 converted or that production locks and timings are acceptable.
 
-Bind `schema-check` to Maven `verify` in your CI profile. CI is the enforceable gate;
+You can bind `schema-check` to Maven `verify` in a project-specific CI profile;
+it is not automatically bound by the default plugin configuration. CI is the enforceable gate;
 a local pre-push hook is only a convenience. Credentials belong in environment or
 Maven settings, never in the POM or committed files.
 
@@ -150,7 +157,7 @@ Read the [mapping contract](../contracts/postgresql-persistence.md) and
 
 ## Inspect entity containment
 
-The separate [entity graph example](https://github.com/DannyReinhold/vernac/blob/feature/redefining_the_language/examples/persistence-entities/README.md)
+The separate [entity graph example](https://github.com/DannyReinhold/vernac/blob/main/examples/persistence-entities/README.md)
 adds shared entity references, subentities, direct optional references, lists and sets.
 Use it to inspect table ownership and composite foreign keys without modifying the
 small containment example. For generated JDBC operations, use the [runnable database tutorial](database-persistence.md).

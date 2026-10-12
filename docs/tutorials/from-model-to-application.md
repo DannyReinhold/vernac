@@ -44,6 +44,11 @@ This is a separate namespace from the Task model. Build to generate its Java API
 For execution against PostgreSQL, use the configured [delivery demo](database-persistence.md):
 adding a repository declaration alone does not configure a DataSource or apply migrations.
 
+The architecture view below separates application orchestration from transport
+and storage. Each generated adapter connects to a declared contract.
+
+![Application and domain boundaries](../assets/vernac-architecture.svg)
+
 ## 1. Make invalid values difficult to create
 
 Title rejects blank text when constructed. TourId prevents passing an unrelated ID

@@ -71,6 +71,9 @@ jobs:
             python3 tools/release.py unpublished
           fi
 
+      - name: Check documentation links
+        run: python3 tools/check-doc-links.py
+
       - name: Check release tooling
         run: python3 -m unittest discover -s tools/tests -v -b
 

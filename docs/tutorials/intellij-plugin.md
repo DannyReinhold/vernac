@@ -14,7 +14,7 @@ implementation.
 | Feature                          | What it helps you do                                                                                        |
 |----------------------------------|-------------------------------------------------------------------------------------------------------------|
 | New Project wizard               | Create a Maven project with a model, Java test, Maven Wrapper, and README.                                  |
-| Project settings                 | Choose a project name, Maven coordinates, Java package, and registered JDK.                                 |
+| Project settings                 | Choose a project name, Maven coordinates, namespace, and registered JDK.                                 |
 | Automatic Maven import           | Let IntelliJ discover the project's dependencies and build configuration.                                   |
 | Vernac file type and icon        | Recognize `.vernac` files without manually configuring a file type.                                         |
 | Syntax and semantic highlighting | Read models with language-aware coloring supplied through the LSP integration.                              |
@@ -31,7 +31,8 @@ generates and compiles Java sources. Editor diagnostics do not replace a success
 
 ## 1. Prepare your environment
 
-This guide describes the 0.2.0-SNAPSHOT development plugin.
+This guide describes the **0.3.0 plugin**. Match its compiler/runtime version, and
+check the packaged descriptor for IDE compatibility.
 
 - Use a compatible IntelliJ IDEA installation. The current plugin descriptor targets build `262.10968.63` through the
   `262.*` series.
@@ -40,36 +41,38 @@ This guide describes the 0.2.0-SNAPSHOT development plugin.
   does not download a new JDK for you.
 - Allow internet access for the initial Maven Wrapper and dependency downloads.
 
-### Current development-version requirement
+### Released plugin versus a source build
 
-The generated project uses Vernac `0.2.0-SNAPSHOT` artifacts. These must currently be installed in your local Maven
-repository.
+For the published 0.3.0 plugin, the wizard selects matching 0.3.0 Maven artifacts.
+They are downloaded from Central; building the Vernac repository is unnecessary.
+Before that release is published, use the source-build route below instead.
 
-Build the Vernac source repository with JDK 25, as required by its IntelliJ module:
+A development plugin built from this checkout uses **0.3.0-SNAPSHOT**. Install its
+matching artifacts from the repository root first:
 
 ```shell
 mvn clean install
 ```
 
-Run this command from the repository's root POM directory. Check `mvn -version` if you are unsure which JDK Maven uses.
-
-This repository build requirement differs from the generated project's Java 21 target. Installing the IDE plugin bundles
-the language server, but does not install the compiler and runtime artifacts into your Maven repository.
+Use JDK 25 and check `mvn -version`. The generated application still targets Java
+21. Installing the IDE plugin bundles its language server, not Maven artifacts.
 
 ## 2. Install the plugin
 
-For the current development workflow, use the plugin ZIP produced under `vernac-intellij/target/` by the repository
-build.
+For a published version, open **Settings → Plugins → Marketplace**, search for
+**Vernac**, install it and restart if requested. Confirm the displayed version.
+A plugin pending Marketplace review is not yet available through this route.
 
-1. Open IntelliJ **Settings → Plugins**.
-2. Open the gear menu and choose **Install Plugin from Disk…**.
-3. Select the plugin ZIP, rather than an individual JAR.
-4. Restart IntelliJ if requested.
-5. Confirm that **Vernac** appears and is enabled in the installed plugins list.
+For a local development build or a verified release ZIP:
 
-No separate language-server installation or LSP4IJ configuration is required. If you previously configured Vernac
-through LSP4IJ, disable that Vernac server configuration to avoid running two integrations for the same files. You can
-keep LSP4IJ for other languages.
+1. Open **Settings → Plugins** and the gear menu.
+2. Choose **Install Plugin from Disk…**.
+3. Select the `vernac-intellij/target/*-plugin.zip` produced by the build, not a JAR.
+4. Restart if requested and confirm Vernac is enabled.
+
+No separate language-server installation or LSP4IJ configuration is required. If
+an older LSP4IJ setup launches Vernac separately, disable that server configuration
+to avoid duplicate integrations. Other LSP4IJ languages can remain enabled.
 
 ## 3. Create a project
 
@@ -81,11 +84,11 @@ Open **New Project** and choose **Vernac**. Enter, for example:
 | Location     | A directory for your new project       |
 | GroupId      | `com.example`                          |
 | ArtifactId   | `task-manager`                         |
-| Java package | `com.example.taskmanager`              |
+| Namespace    | `com.example.taskmanager`              |
 | JDK          | A registered JDK with Java 25 |
 
 The artifact ID is suggested from the project name: `TaskManager` becomes `task-manager`. You can edit it independently.
-GroupId and Java package are separate settings; set both explicitly as needed.
+GroupId and namespace are separate settings; set both explicitly as needed.
 
 Choose **Create**. The wizard writes the project, sets its project JDK, and configures Maven executions to use that JDK.
 After the project opens, it starts the Maven import and opens `src/main/vernac/com/example/taskmanager/tasks.vernac`.
@@ -101,6 +104,7 @@ The generated POM contains your coordinates and display name:
 <name>TaskManager</name>
 ```
 
+The application's own `0.1.0-SNAPSHOT` version is independent of its Vernac dependency.
 The POM's Java target remains 21, even if you select a newer JDK.
 
 ## 4. Explore the generated files
@@ -248,7 +252,7 @@ and Java test imports customized together.
 
 Inside the existing `Task` aggregate's `behavior` block, add:
 
-```java
+```vernac
 modify void start() {
     self.status(Status.IN_PROGRESS);
 }
@@ -288,7 +292,7 @@ in its configured source directory. Installing the IntelliJ plugin does not modi
 | Vernac is missing from New Project    | Confirm that the plugin is enabled and compatible with your IDE build; check required plugins and restart after installation.                                                                 |
 | No JDK is available in the wizard     | Register a JDK with Java 25 under Project Structure → SDKs, then reopen the wizard.                                                                                                  |
 | No highlighting or completion         | Confirm the file ends in `.vernac`, is associated with the Vernac file type, and the plugin is enabled. Reopen the file and inspect the IDE log for language-server startup errors if needed. |
-| Maven cannot resolve Vernac artifacts | Install the current SNAPSHOT artifacts from the Vernac repository, and check that the IDE and command line use the intended Maven settings and local repository.                              |
+| Maven cannot resolve Vernac artifacts | Match the generated dependency version: released artifacts come from Central; development SNAPSHOT artifacts require local install. Check Maven settings/repository.                              |
 | Java references are unresolved        | Run Maven `test` to generate sources, then reload Maven if needed.                                                                                                                            |
 | “Load Maven Project” appears          | A new wizard-created project should import automatically. If it stays unlinked, you can load its POM manually to continue and report the automatic-import failure.                            |
 | Terminal build uses the wrong JDK     | Check `JAVA_HOME` and `java -version`. The wizard configures the IDE project and Maven runner, not your terminal environment.                                                                 |

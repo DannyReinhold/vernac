@@ -87,7 +87,7 @@ Follow `CompleteTour`: load a complete aggregate, invoke domain behavior, save u
 optimistic locking, and publish a fact inside the usecase transaction. A listener
 chooses synchronous participation or durable deferred handling.
 
-![CompleteTour – Seuqnce](assets/dispatch-complete-tour.svg)
+![CompleteTour transaction and event sequence](assets/dispatch-complete-tour.svg)
 
 ---
 
@@ -105,18 +105,19 @@ See the **AI‑specific language reference**:
 
 | Your goal                                                | Start here                           |
 |----------------------------------------------------------|--------------------------------------|
-| Get a model compiling in minutes                         | tutorials/your-first-domain-model.md |
-| Use the editor and project wizard                        | tutorials/intellij-plugin.md         |
-| See persistence, events and external calls work together | tutorials/database-persistence.md    |
-| Find exact syntax                                        | language-reference.md                |
-| Understand guarantees and limits                         | specification/index.md               |
-| Solve a common problem                                   | faq/index.md                         |
+| Get a model compiling in minutes                         | [Your first model](tutorials/your-first-domain-model.md) |
+| Use the editor and project wizard                        | [IntelliJ setup](tutorials/intellij-plugin.md)         |
+| See persistence, events and external calls work together | [Database walkthrough](tutorials/database-persistence.md)    |
+| Find exact syntax                                        | [Language reference](language-reference.md)                |
+| Understand guarantees and limits                         | [Specification](specification/index.md)               |
+| Solve a common problem                                   | [FAQ](faq/index.md)                         |
 
 ---
 
 ## Version and prerequisites
 
-These pages describe **0.2.0‑SNAPSHOT**.  
+These pages describe the **Vernac 0.3.0 language and API**.
+Source checkouts use **0.3.0-SNAPSHOT** until the release workflow selects 0.3.0.
 Use JDK 25 to build the repository; generated applications target Java 21.  
 Persistence examples use PostgreSQL 17.
 
@@ -134,10 +135,10 @@ business invariants remain application responsibilities.
 Balance tour capacity, release a plan and follow a durable event through a simulated
 carrier outage and retry.
 
-The browser is a Java web adapter; the business model and application operations are
-Vernac.
+Generated HTTP endpoints and handwritten Java adapters connect the browser to
+Vernac usecases. Business decisions stay in the domain.
 
-tutorials/dispatch.md
+[Run the Dispatch showcase](tutorials/dispatch.md).
 
 ---
 
