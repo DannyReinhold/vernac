@@ -1,16 +1,17 @@
 # Publishing a Vernac release
 
-This guide prepares **0.3.0** from the **0.3.0-SNAPSHOT** development line. It does
-not claim that 0.3.0 is already published. The [release checklist](../development/release-0.3.0.md)
-records the gates; the [release-note draft](releases/0.3.0.md) is ready to review for GitHub.
-After publication, advance development separately rather than changing every example
-of the release procedure prematurely.
+The latest published version is **0.3.0**; the next development checkout uses
+**0.4.0-SNAPSHOT**. The procedure below retains 0.3.0 as a worked release example.
+**Do not rerun publication for 0.3.0.** For a new release, substitute its agreed
+version and source branch throughout. The [historical checklist](../development/release-0.3.0.md)
+and [release notes](releases/0.3.0.md) record that release's scope.
 
 ## Scope and one version input
 
 `revision` in the root POM drives Maven modules, the IntelliJ ZIP and the dependency
 version inserted by the project wizard. A release invocation uses `-Drevision=0.3.0`;
-the source default remains 0.3.0-SNAPSHOT. The workflow supplies that argument.
+the development default is not changed by that invocation. The workflow supplies
+that argument; the next checkout now defaults to 0.4.0-SNAPSHOT.
 You do not need to edit every module POM or pre-install a 0.3.0 release locally.
 
 Standalone examples use their own `vernac.version` property. Select
@@ -102,9 +103,10 @@ plugin ZIP, not GitHub's outer download archive. Keep release.json with it. Chec
 - File/namespace actions, highlighting, diagnostics, completion and navigation.
 - Inline Java assistance and Java-to-Vernac navigation after generation.
 
-A dry-run plugin's wizard targets 0.3.0, which is not on Central yet. For this smoke
+For an unpublished release, the dry-run plugin's wizard targets that new release
+version, which is not on Central yet. For this smoke
 check, use a disposable generated project with matching locally installed artifacts
-or temporarily set its vernac.version to 0.3.0-SNAPSHOT. This does not replace the
+or temporarily set its vernac.version to the matching source-checkout SNAPSHOT. This does not replace the
 workflow's **post-publication fresh Central consumer** check. Restore experiments.
 
 A dry-run candidate cannot later be uploaded by the plugin-only workflow. The real
@@ -152,19 +154,20 @@ artifact. Do not rebuild and label a new binary as the previously tested one.
 
 ### 5. Record tags, GitHub releases and next development
 
-After publication and consumption verification, tag the **exact real-release commit**:
+After publication and consumption verification, tag the **exact real-release commit**.
+For the coordinated Maven/plugin release, follow the existing v0.2.0 convention:
 
 ```text
-git tag -a maven-v0.3.0 RELEASE_COMMIT_SHA -m "Maven Central release 0.3.0"
-git tag -a plugin-v0.3.0 RELEASE_COMMIT_SHA -m "Vernac IntelliJ plugin 0.3.0"
-git push origin maven-v0.3.0 plugin-v0.3.0
+git tag -a v0.3.0 RELEASE_COMMIT_SHA -m "Release Vernac 0.3.0"
+git push origin v0.3.0
 ```
 
-Replace RELEASE_COMMIT_SHA with the recorded SHA. Create GitHub releases from those
-tags using the reviewed [notes](releases/0.3.0.md). Attach the original plugin ZIP
-and release.json to the plugin release, and cross-link the two releases. Include
-known limitations and actual verification outcomes. Mark a pending Marketplace review
-as pending rather than approved. Never move an existing published tag.
+Replace RELEASE_COMMIT_SHA with the recorded SHA. Create one GitHub Release from
+v0.3.0 using the reviewed [notes](releases/0.3.0.md). Attach the original plugin ZIP
+and release.json. Include actual verification outcomes and Marketplace status.
+Never move an existing published tag. Historical separate maven-v/plugin-v tags
+remain valid; use those when a distribution intentionally has a different source
+commit or release version.
 
 Only afterward create the next development branch and change root revision plus
 standalone/template vernac.version defaults together (for example to 0.4.0-SNAPSHOT,

@@ -1,8 +1,8 @@
 # Vernac language reference
 
 This reference describes the **Vernac 0.3.0 language and generated API**. Use matching
-compiler and runtime versions. A source checkout builds 0.3.0-SNAPSHOT until the
-release workflow selects 0.3.0. Obsolete experimental syntax is not supported.
+compiler and runtime versions. The next development checkout builds 0.4.0-SNAPSHOT;
+published 0.3.0 consumers use matching 0.3.0 artifacts. Obsolete experimental syntax is not supported.
 The [specification index](specification/index.md) identifies the normative document
 for each rule. A discrepancy between implementation and contract is a defect to
 investigate, not permission to silently redefine the contract.

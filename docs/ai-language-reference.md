@@ -1,7 +1,8 @@
 # Vernac: self-contained reference for AI code generation
 
 Language baseline: **Vernac 0.3.0**. The source checkout defaults to
-**0.3.0-SNAPSHOT**; release builds select 0.3.0 explicitly. HTTP inbound adapters
+**0.4.0-SNAPSHOT** for the next development line; this reference remains anchored
+to the published 0.3.0 language until new features are explicitly documented. HTTP inbound adapters
 require the 0.3.0 compiler/runtime and are not available in 0.2.0.
 This document describes implemented project compilation, not proposed features.
 It is intentionally self-contained: provide this entire file to an AI together

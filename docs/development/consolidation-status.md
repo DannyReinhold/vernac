@@ -1,9 +1,10 @@
 # Vernac consolidation status
 
-Status: release preparation for **0.3.0**. The source checkout uses **0.3.0-SNAPSHOT**;
-publication and Marketplace approval are separate release steps.
+Status: **0.3.0 released; next development version 0.4.0-SNAPSHOT**.
+The published release was built from `e81edf7738c4f7bceea2cdc07b74ed58d725f912`
+in [the successful release workflow](https://github.com/DannyReinhold/vernac/actions/runs/38251115877).
 This separates implemented functionality from planned work, not a blanket claim of
-production readiness. The [0.3.0 plan](release-0.3.0.md) records the current acceptance gates.
+production readiness. The [0.3.0 plan](release-0.3.0.md) is now historical release context.
 
 ## Reviewed and implemented
 

@@ -1,9 +1,11 @@
 # Vernac 0.3.0 release preparation
 
-Status: **prepared for acceptance; not a publication record**. Work is on
-feature/0.3.0. The root revision and source-checkout examples remain 0.3.0-SNAPSHOT;
-the release workflow selects 0.3.0 centrally. Do not advance to 0.4.0-SNAPSHOT until
-this release has been recorded and the next development line is agreed.
+Status: **historical preparation checklist for the published 0.3.0 release**.
+Source commit: `e81edf7738c4f7bceea2cdc07b74ed58d725f912`.
+[Release workflow 38251115877](https://github.com/DannyReinhold/vernac/actions/runs/38251115877)
+completed successfully. The next development line uses **0.4.0-SNAPSHOT**.
+The checklist and commands below retain their original 0.3.0 preparation context;
+unrecorded individual checkboxes are not a current instruction to republish 0.3.0.
 
 ## Release scope
 

@@ -36,7 +36,7 @@ def require(condition, message):
 
 def version(value):
     require(re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", value),
-            "Use a release version such as 0.3.0, without SNAPSHOT.")
+            "Use a release version such as 0.4.0, without SNAPSHOT.")
     return value
 
 

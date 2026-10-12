@@ -117,7 +117,8 @@ See the **AI‑specific language reference**:
 ## Version and prerequisites
 
 These pages describe the **Vernac 0.3.0 language and API**.
-Source checkouts use **0.3.0-SNAPSHOT** until the release workflow selects 0.3.0.
+The next development checkout uses **0.4.0-SNAPSHOT**; published consumers use
+matching **0.3.0** artifacts.
 Use JDK 25 to build the repository; generated applications target Java 21.  
 Persistence examples use PostgreSQL 17.
 
