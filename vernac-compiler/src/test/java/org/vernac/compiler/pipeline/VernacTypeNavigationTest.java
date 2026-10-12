@@ -227,4 +227,22 @@ class VernacTypeNavigationTest {
         assertEquals(text.indexOf("current()"), member("model.domain.access.TaskRead", "current", List.of(), Map.of()).orElseThrow().start());
         assertEquals(text.indexOf("increase()"), member("model.domain.access.TaskAccess", "increase", List.of(), Map.of()).orElseThrow().start());
     }
+
+    @Test void everyCollectionAndItsBehaviorNavigatesToItsOwnDeclaration() throws Exception {
+        Path file = source("model", "names", """
+                value Name(String) list behavior { public String role() { return "history"; } },
+                    set Selection behavior { public String role() { return "selected"; } }, list Archive;
+                """);
+        assertEquals("list", selected(find("model.domain.Names", Map.of()).orElseThrow(), Map.of()));
+        assertEquals("Selection", selected(find("model.domain.Selection", Map.of()).orElseThrow(), Map.of()));
+        assertEquals("Archive", selected(find("model.domain.Archive", Map.of()).orElseThrow(), Map.of()));
+        var first = member("model.domain.Names", "role", List.of(), Map.of()).orElseThrow();
+        var second = member("model.domain.Selection", "role", List.of(), Map.of()).orElseThrow();
+        assertEquals("role", selected(first, Map.of()));
+        assertEquals("role", selected(second, Map.of()));
+        assertTrue(first.start() < second.start());
+        assertEquals(file, second.source());
+        assertTrue(member("model.domain.Archive", "role", List.of(), Map.of()).isEmpty());
+    }
+
 }

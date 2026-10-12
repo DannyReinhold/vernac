@@ -4,7 +4,6 @@
 package org.vernac.compiler.ast;
 
 import java.util.List;
-import java.util.Optional;
 
 public record EntityNode(
         SourceLocation location,
@@ -13,7 +12,8 @@ public record EntityNode(
         List<FieldNode> fields,
         List<ValidationRuleNode> validations,
         List<MethodNode> methods,
-        Optional<CollectionDefinitionNode> collection,
+        List<CollectionDefinitionNode> collections,
         List<JavaImportNode> javaImports
 ) implements TopLevelDefinition {
+    public EntityNode { collections = List.copyOf(collections); }
 }

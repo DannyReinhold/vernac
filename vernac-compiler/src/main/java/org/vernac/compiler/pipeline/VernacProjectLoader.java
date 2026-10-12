@@ -84,7 +84,7 @@ public final class VernacProjectLoader {
             for (var definition : source.unit().definitions()) {
                 var declaration = describe(definition);
                 addSymbol(source, declaration.name(), declaration.kind(), definition.location(), symbols, diagnostics);
-                CollectionDeclaration.of(definition).ifPresent(collection ->
+                CollectionDeclaration.of(definition).forEach(collection ->
                         addSymbol(source, collection.name(), TypeSymbol.Kind.COLLECTION,
                                 collection.definition().location(), symbols, diagnostics));
             }

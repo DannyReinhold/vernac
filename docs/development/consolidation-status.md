@@ -51,6 +51,15 @@ not exhaustive concurrency, platform, historical-data or deployment verification
   acceptance still requires database and installed-IDE checks. A green root build alone is
   not evidence that every generated starter project works.
 
+## First 0.4.0 increment: multiple collections
+
+Implemented: comma-separated lists/sets per ID, VO, enum, entity or aggregate.
+Each name is independently optional, each behavior has its own receiver/imports,
+and duplicate derived names fail. Query return types select their actual collection.
+Compiler resolution, generation, Java projection, Java-to-Vernac navigation and LSP
+completion/navigation share the complete set of declarations. Pagination and its
+optional count remain the next design task, not implemented by this increment.
+
 ## Next work
 
 The 0.3.0 consolidation removes the abandoned single-file analyzer/generation path,

@@ -92,4 +92,23 @@ class RepositoryQueryTest {
         source(MODEL.replace("list Tours","set Tours"),"find Tours all() order by title;");
         assertThrows(SemanticValidationException.class,()->new VernacCompiler().analyzeProject(root));
     }
+    @Test void queryResultsSelectAnyDeclaredCollectionAndRespectItsKind() throws Exception {
+        String model = MODEL.replace("list Tours;", "set SelectedTours, list Tours, list RecentTours;");
+        source(model, "find RecentTours recent() where reference is absent order by createdAt; find SelectedTours selected() where reference is present;");
+        var result = new VernacCompiler().compileProject(root);
+        String jdbc = result.generatedFiles().stream().filter(f -> f.typeSpec().name().startsWith("Jdbc"))
+                .map(Object::toString).reduce("", String::concat);
+        assertTrue(jdbc.contains("RecentTours"));
+        assertTrue(jdbc.contains("SelectedTours"));
+        source(model, "find SelectedTours selected() where reference is present order by createdAt;");
+        var failure = assertThrows(SemanticValidationException.class, () -> new VernacCompiler().analyzeProject(root));
+        assertTrue(failure.getMessage().contains("set result cannot preserve order by"), failure.getMessage());
+    }
+
+    @Test void resultCannotBorrowACollectionFromAnotherAggregateWithTheSameIdType() throws Exception {
+        source(MODEL + "aggregate Other[TourId]() list Others;", "find Others all() where reference is absent;");
+        var failure = assertThrows(SemanticValidationException.class, () -> new VernacCompiler().analyzeProject(root));
+        assertTrue(failure.getMessage().contains("explicitly declared list or set of Tour"), failure.getMessage());
+    }
+
 }

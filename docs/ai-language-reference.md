@@ -1,13 +1,11 @@
 # Vernac: self-contained reference for AI code generation
 
-Language baseline: **Vernac 0.3.0**. The source checkout defaults to
-**0.4.0-SNAPSHOT** for the next development line; this reference remains anchored
-to the published 0.3.0 language until new features are explicitly documented. HTTP inbound adapters
-require the 0.3.0 compiler/runtime and are not available in 0.2.0.
-This document describes implemented project compilation, not proposed features.
-It is intentionally self-contained: provide this entire file to an AI together
-with the application requirements and existing model files. Artifact versions
-must match the project; do not assume a release is published solely from this document.
+Language baseline: **Vernac 0.4.0-SNAPSHOT development**, extending released 0.3.0.
+Multiple attached collections require the 0.4.0 compiler/runtime/tooling described
+here; HTTP inbound adapters require at least 0.3.0. This document describes implemented
+project compilation, not proposed features. Provide this entire file to an AI together
+with the application requirements and existing model files. Match artifact versions;
+do not assume a development feature is available in an older published compiler.
 
 ## 1. Instruction to the code-generating assistant
 
@@ -111,18 +109,23 @@ metanotation, not literal source. `params` is comma-separated `[mut] Type[?] [na
 `mut` is allowed only for entity/aggregate fields, not general parameters.
 
 ```text
-id Name [collection];
-value Name(params) [validates {...}] [behavior {...}] [collection];
-value Name = CONSTANT { | CONSTANT } [behavior {...}] [collection];
-entity Name[IdType](params) [validates {...}] [behavior {...}] [collection];
-aggregate Name[IdType](params) [validates {...}] [behavior {...}] [collection];
+id Name [(list | set) [CollectionName] [behavior {...}] {, (list | set) [CollectionName] [behavior {...}]}];
+value Name(params) [validates {...}] [behavior {...}] [list/set clauses];
+value Name = CONSTANT { | CONSTANT } [behavior {...}] [list/set clauses];
+entity Name[IdType](params) [validates {...}] [behavior {...}] [list/set clauses];
+aggregate Name[IdType](params) [validates {...}] [behavior {...}] [list/set clauses];
 [recorded] event Name(params) [validates {...}];
-collection := (list | set) [CollectionName] [behavior {...}]
 ```
 
+`list/set clauses` is explanatory notation for the same comma-separated suffix
+shown on id, never literal Vernac. The old `collection` keyword is forbidden.
 Use semicolons as shown even where a declaration terminator is optional. A type
-can have **one** attached list or set, not both. Default collection name is exact
-`ElementName + s`: `Categorys`, not guessed `Categories`.
+can declare multiple lists and sets, including several of the same kind. Each
+clause has its own optional name and behavior. Default collection name is exact
+`ElementName + s`: `Categorys`, not guessed `Categories`. For example
+`value Wert(String) list, set Werte;` produces Werts and Werte. `list, set` with both
+names omitted collides and is rejected. No numbering or automatic selection occurs.
+Repository queries select their declared return collection, not the first suffix.
 
 ## 5. Generated domain Java API
 
@@ -713,7 +716,7 @@ implicitly generated. Completing an already completed task emits no new event.
 ## 16. Few-shot pair A: names, optionals and cross-file imports
 
 **Request:** Define a person name with uppercase display, an optional nickname,
-and an explicit collection. Reference it from another namespace.
+and several explicit collections. Reference it from another namespace.
 
 **Answer, file 1:** `src/main/vernac/ai/people/names.vernac`
 
@@ -726,7 +729,7 @@ value PersonName(String text) validates {
     java imports { java.util.Locale; }
     public String upper() { return self.text().toUpperCase(Locale.ROOT); }
     public int length() implemented by ai.helpers.NameBehavior;
-} list PersonNames;
+} list PersonNames, set UniquePersonNames, list ArchivedPersonNames;
 
 value PersonProfile(PersonName legalName, PersonName? nickname);
 ```

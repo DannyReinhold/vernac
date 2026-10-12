@@ -58,7 +58,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     @Override
     public IdDeclarationNode visitIdDeclaration(VernacParser.IdDeclarationContext ctx) {
         String name = ctx.name.getText();
-        return new IdDeclarationNode(toLocation(ctx), name, collection(ctx.collectionDefinition()));
+        return new IdDeclarationNode(toLocation(ctx), name, collections(ctx.collectionDefinition()));
     }
 
     @Override
@@ -91,7 +91,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
 
         List<MethodNode> voMethods = behaviorMethods(ctx.behaviorBlock());
 
-        Optional<CollectionDefinitionNode> collection = collection(ctx.collectionDefinition());
+        List<CollectionDefinitionNode> collections = collections(ctx.collectionDefinition());
 
         return new ValueObjectNode(
                 toLocation(ctx),
@@ -100,7 +100,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 enumConstants,
                 validations,
                 voMethods,
-                collection,
+                collections,
                 behaviorImports(ctx.behaviorBlock())
         );
     }
@@ -121,12 +121,11 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 method.effect == null ? MethodNode.Mode.DEFAULT : MethodNode.Mode.valueOf(method.effect.getText().toUpperCase(java.util.Locale.ROOT)))).toList();
     }
 
-    private Optional<CollectionDefinitionNode> collection(VernacParser.CollectionDefinitionContext ctx) {
-        if (ctx == null) return Optional.empty();
-        return Optional.of(new CollectionDefinitionNode(toLocation(ctx),
+    private List<CollectionDefinitionNode> collections(List<VernacParser.CollectionDefinitionContext> contexts) {
+        return contexts.stream().map(ctx -> new CollectionDefinitionNode(toLocation(ctx),
                 ctx.kind.getText().equals("list") ? CollectionDefinitionNode.Kind.LIST : CollectionDefinitionNode.Kind.SET,
                 Optional.ofNullable(ctx.collectionName).map(ParserRuleContext::getText),
-                behaviorMethods(ctx.behaviorBlock()), behaviorImports(ctx.behaviorBlock())));
+                behaviorMethods(ctx.behaviorBlock()), behaviorImports(ctx.behaviorBlock()))).toList();
     }
 
     @Override
@@ -151,7 +150,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         }
 
         return new AggregateNode(toLocation(ctx), name, idDef, fields, validations,
-                behaviorMethods(ctx.behaviorBlock()), collection(ctx.collectionDefinition()), behaviorImports(ctx.behaviorBlock()));
+                behaviorMethods(ctx.behaviorBlock()), collections(ctx.collectionDefinition()), behaviorImports(ctx.behaviorBlock()));
     }
 
     @Override
@@ -176,7 +175,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         }
 
         return new EntityNode(toLocation(ctx), name, idDef, fields, validations,
-                behaviorMethods(ctx.behaviorBlock()), collection(ctx.collectionDefinition()), behaviorImports(ctx.behaviorBlock()));
+                behaviorMethods(ctx.behaviorBlock()), collections(ctx.collectionDefinition()), behaviorImports(ctx.behaviorBlock()));
     }
 
     @Override

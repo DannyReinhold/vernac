@@ -1,6 +1,6 @@
 # Vernac specification and contracts
 
-This is the normative documentation for the **0.3.0 language revision**. It is
+This is the normative documentation for the **0.4.0-SNAPSHOT development language revision**. It is
 organized into language rules and feature contracts; both parts define the language.
 MUST/MUST NOT express requirements, SHOULD a recommendation, and MAY a permission.
 Examples illustrate rules; explicitly incomplete fragments require their surrounding

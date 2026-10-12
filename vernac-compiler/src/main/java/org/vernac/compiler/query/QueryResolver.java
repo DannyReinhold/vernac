@@ -49,12 +49,13 @@ public final class QueryResolver {
                     if(!target.equals(returns)) error(method.location(),"Optional query result must be the repository aggregate: "+aggregate.name()+"?");
                     if(!method.orders().isEmpty()) error(method.location(),"Optional singleton queries cannot use order by; multiple matches are an error.");
                 } else {
-                    var collection=aggregate.collection();
-                    String expected=collection.map(c->target.symbol().identity().namespace()+"."+c.nameFor(aggregate.name())).orElse("");
-                    if(!(returns instanceof ResolvedType.Declared rt) || rt.symbol().kind()!=TypeSymbol.Kind.COLLECTION
-                            || !rt.symbol().identity().qualifiedName().equals(expected))
+                    var collection = returns instanceof ResolvedType.Declared rt
+                            && rt.symbol().kind() == TypeSymbol.Kind.COLLECTION
+                            ? CollectionTypes.find(project, rt.symbol().identity()) : Optional.<CollectionDeclaration>empty();
+                    if (collection.isEmpty() || !((ResolvedType.Declared) returns).symbol().identity().namespace().equals(target.symbol().identity().namespace())
+                            || !collection.get().elementName().equals(aggregate.name()))
                         error(method.location(),"Query result requires an explicitly declared list or set of "+aggregate.name()+". Declare it on the aggregate, or use "+aggregate.name()+"?.");
-                    list=collection.isPresent() && collection.get().kind()==CollectionDefinitionNode.Kind.LIST;
+                    list = collection.isPresent() && collection.get().definition().kind() == CollectionDefinitionNode.Kind.LIST;
                     if(!list && !method.orders().isEmpty()) error(method.location(),"A set result cannot preserve order by; use a list result.");
                     if(list && method.orders().isEmpty()) diagnostics.add(CompilerDiagnostic.warning(method.location(),"List query has no order by; result order is unspecified."));
                 }

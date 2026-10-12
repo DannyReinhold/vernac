@@ -81,7 +81,7 @@ public class VernacCompiler {
                 if (definition instanceof OutboundAdapterNode a) files.addAll(new OutboundAdapterGenerator().generate(a,source.unit(),project));
                 if (definition instanceof DomainServiceNode s) files.addAll(domainServiceGenerator.generate(s,source.unit(),project));
                 MutableDomain.of(definition).ifPresent(model -> files.addAll(generateMutable(model, source.unit(), project)));
-                CollectionDeclaration.of(definition).ifPresent(collection -> {
+                CollectionDeclaration.of(definition).forEach(collection -> {
                     files.add(domainCollectionGenerator.generate(collection, source.unit().namespace(), project));
                     new BehaviorGenerator().generate(com.palantir.javapoet.ClassName.get(source.unit().namespace() + ".domain", collection.name()),
                             collection.definition().customMethods(), collection.definition().javaImports(), source.unit(), project).ifPresent(files::add);

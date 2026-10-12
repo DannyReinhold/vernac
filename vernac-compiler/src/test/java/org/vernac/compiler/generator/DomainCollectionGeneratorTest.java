@@ -44,7 +44,7 @@ class DomainCollectionGeneratorTest {
                 .findFirst().orElseThrow();
 
         JavaFile file = new org.vernac.compiler.pipeline.VernacCompiler().compileSource(src).generatedFiles().stream()
-                .filter(f -> f.typeSpec().name().equals(node.collection().orElseThrow().nameFor(node.name()))).findFirst().orElseThrow();
+                .filter(f -> f.typeSpec().name().equals(node.collections().getFirst().nameFor(node.name()))).findFirst().orElseThrow();
         String code = file.toString();
 
         assertThat(code)
@@ -81,7 +81,7 @@ class DomainCollectionGeneratorTest {
                 .findFirst().orElseThrow();
 
         JavaFile file = new org.vernac.compiler.pipeline.VernacCompiler().compileSource(src).generatedFiles().stream()
-                .filter(f -> f.typeSpec().name().equals(node.collection().orElseThrow().nameFor(node.name()))).findFirst().orElseThrow();
+                .filter(f -> f.typeSpec().name().equals(node.collections().getFirst().nameFor(node.name()))).findFirst().orElseThrow();
         String code = file.toString();
 
         assertThat(code)
@@ -106,7 +106,7 @@ class DomainCollectionGeneratorTest {
                 .findFirst().orElseThrow();
 
         JavaFile file = new org.vernac.compiler.pipeline.VernacCompiler().compileSource(src).generatedFiles().stream()
-                .filter(f -> f.typeSpec().name().equals(entity.collection().orElseThrow().nameFor(entity.name()))).findFirst().orElseThrow();
+                .filter(f -> f.typeSpec().name().equals(entity.collections().getFirst().nameFor(entity.name()))).findFirst().orElseThrow();
         String code = file.toString();
 
         assertThat(code)

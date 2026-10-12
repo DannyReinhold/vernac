@@ -31,7 +31,7 @@ topLevelDeclaration
 // 0. Identifier Types
 // ==========================================
 idDeclaration
-    : 'id' name=typeName collectionDefinition? ';'?
+    : 'id' name=typeName (collectionDefinition (',' collectionDefinition)*)? ';'?
     ;
 
 // ==========================================
@@ -43,7 +43,7 @@ valueDefinition
       | '=' enumConstantList
       )
       behaviorBlock?
-      collectionDefinition?
+      (collectionDefinition (',' collectionDefinition)*)?
       ';'?
     ;
 
@@ -95,7 +95,7 @@ aggregateDefinition
     : 'aggregate' name=typeName '[' idReference ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
       behaviorBlock?
-      collectionDefinition?
+      (collectionDefinition (',' collectionDefinition)*)?
       ';'?
     ;
 
@@ -107,7 +107,7 @@ entityDefinition
     : 'entity' name=typeName '[' idReference ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
       behaviorBlock?
-      ( collectionDefinition )?
+      (collectionDefinition (',' collectionDefinition)*)?
       ';'?
     ;
 

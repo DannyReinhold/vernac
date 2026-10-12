@@ -171,8 +171,8 @@ class AstBuilderVisitorTest {
             assertThat(vo.fields()).hasSize(2);
             assertThat(vo.fields().get(1).type().isOptional()).isTrue();
 
-            assertThat(vo.collection()).isPresent();
-            CollectionDefinitionNode coll = vo.collection().get();
+            assertThat(vo.collections()).hasSize(1);
+            CollectionDefinitionNode coll = vo.collections().getFirst();
             assertThat(coll.customName()).contains("MoneyTransactions");
             assertThat(coll.customMethods()).hasSize(1);
             assertThat(coll.customMethods().getFirst().name()).isEqualTo("sum");

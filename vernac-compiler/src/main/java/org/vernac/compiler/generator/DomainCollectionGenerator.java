@@ -111,6 +111,4 @@ public final class DomainCollectionGenerator {
         return MethodSpec.methodBuilder(name).addModifiers(Modifier.PUBLIC).returns(returns);
     }
 
-    public String determineCollectionClassName(EntityNode node) { return node.collection().orElseThrow().nameFor(node.name()); }
-    public String determineCollectionClassName(ValueObjectNode node) { return node.collection().orElseThrow().nameFor(node.name()); }
 }

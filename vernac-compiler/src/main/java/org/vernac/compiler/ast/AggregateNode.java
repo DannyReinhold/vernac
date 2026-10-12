@@ -4,7 +4,6 @@
 package org.vernac.compiler.ast;
 
 import java.util.List;
-import java.util.Optional;
 
 public record AggregateNode(
         SourceLocation location,
@@ -13,7 +12,8 @@ public record AggregateNode(
         List<FieldNode> fields,
         List<ValidationRuleNode> validations,
         List<MethodNode> methods,
-        Optional<CollectionDefinitionNode> collection,
+        List<CollectionDefinitionNode> collections,
         List<JavaImportNode> javaImports
 ) implements TopLevelDefinition {
+    public AggregateNode { collections = List.copyOf(collections); }
 }

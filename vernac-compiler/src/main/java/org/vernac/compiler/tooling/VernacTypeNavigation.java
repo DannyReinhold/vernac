@@ -104,20 +104,20 @@ public final class VernacTypeNavigation {
             var definition = source.unit().definitions().get(i);
             var syntax = tree.topLevelDeclaration(i);
             ParserRuleContext name = null;
-            VernacParser.CollectionDefinitionContext collection = null;
+            List<VernacParser.CollectionDefinitionContext> collections = List.of();
             if (syntax.idDeclaration() != null) {
                 name = syntax.idDeclaration().name;
-                collection = syntax.idDeclaration().collectionDefinition();
+                collections = syntax.idDeclaration().collectionDefinition();
             } else if (syntax.valueDefinition() != null) {
                 name = syntax.valueDefinition().name;
-                collection = syntax.valueDefinition().collectionDefinition();
+                collections = syntax.valueDefinition().collectionDefinition();
             }
             if (syntax.entityDefinition() != null) {
                 name = syntax.entityDefinition().name;
-                collection = syntax.entityDefinition().collectionDefinition();
+                collections = syntax.entityDefinition().collectionDefinition();
             } else if (syntax.aggregateDefinition() != null) {
                 name = syntax.aggregateDefinition().name;
-                collection = syntax.aggregateDefinition().collectionDefinition();
+                collections = syntax.aggregateDefinition().collectionDefinition();
             }
             if (syntax.eventDefinition() != null) name=syntax.eventDefinition().name;
             if (syntax.listenerDefinition() != null) name=syntax.listenerDefinition().name;
@@ -220,14 +220,18 @@ public final class VernacTypeNavigation {
                 return unique(candidates);
             }
             var declared = CollectionDeclaration.of(definition);
-            if (symbol.kind() == TypeSymbol.Kind.COLLECTION && collection != null && declared.isPresent()
-                    && declared.get().name().equals(symbol.identity().name())) {
-                if (member.isPresent()) return unique(behavior(project, source, text,
-                        declared.get().definition().customMethods(), collection.behaviorBlock(), member.get()));
-                if (collection.collectionName != null) return target(source.path(), text, declared.get().name(),
-                        collection.collectionName.getStart(), collection.collectionName.getStop());
-                // An implicit collection name has no name token: navigate to list/set itself.
-                return target(source.path(), text, declared.get().name(), collection.kind, collection.kind);
+            if (symbol.kind() == TypeSymbol.Kind.COLLECTION && collections.size() == declared.size()) {
+                for (int c = 0; c < declared.size(); c++) {
+                    var declaration = declared.get(c);
+                    var collection = collections.get(c);
+                    if (!declaration.name().equals(symbol.identity().name())) continue;
+                    if (member.isPresent()) return unique(behavior(project, source, text,
+                            declaration.definition().customMethods(), collection.behaviorBlock(), member.get()));
+                    if (collection.collectionName != null) return target(source.path(), text, declaration.name(),
+                            collection.collectionName.getStart(), collection.collectionName.getStop());
+                    // An implicit collection name has no name token: navigate to list/set itself.
+                    return target(source.path(), text, declaration.name(), collection.kind, collection.kind);
+                }
             }
         }
         return Optional.empty();

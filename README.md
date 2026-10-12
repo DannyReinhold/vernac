@@ -70,7 +70,7 @@ framework convention.
 
 ## Start with a passing test
 
-This documentation describes the **Vernac 0.3.0 language and API**. Use matching
+This documentation describes the **Vernac 0.4.0-SNAPSHOT development language and API**. Use matching
 compiler, runtime and IntelliJ plugin versions; earlier releases do not support all
 constructs documented here. For a source checkout, the commands below build and install
 the version configured in its root POM (currently `0.4.0-SNAPSHOT`).

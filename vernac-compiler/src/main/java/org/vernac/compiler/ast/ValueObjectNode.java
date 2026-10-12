@@ -4,7 +4,6 @@
 package org.vernac.compiler.ast;
 
 import java.util.List;
-import java.util.Optional;
 
 public record ValueObjectNode(
         SourceLocation location,
@@ -13,13 +12,14 @@ public record ValueObjectNode(
         List<EnumConstantNode> enumConstants,
         List<ValidationRuleNode> validations,
         List<MethodNode> methods,
-        Optional<CollectionDefinitionNode> collection,
+        List<CollectionDefinitionNode> collections,
         List<JavaImportNode> javaImports
 ) implements TopLevelDefinition {
+    public ValueObjectNode { collections = List.copyOf(collections); }
     public ValueObjectNode(SourceLocation location, String name, List<FieldNode> fields,
                            List<EnumConstantNode> enumConstants, List<ValidationRuleNode> validations,
-                           List<MethodNode> methods, Optional<CollectionDefinitionNode> collection) {
-        this(location, name, fields, enumConstants, validations, methods, collection, List.of());
+                           List<MethodNode> methods, List<CollectionDefinitionNode> collections) {
+        this(location, name, fields, enumConstants, validations, methods, collections, List.of());
     }
     public boolean isEnum() {
         return !enumConstants.isEmpty();

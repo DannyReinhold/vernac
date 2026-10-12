@@ -204,4 +204,27 @@ class BehaviorJavaProjectionTest {
         var compiled = org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(sources);
         assertTrue(compiled.success(), compiled.diagnostics().toString());
     }
+
+    @Test void eachCollectionProjectsItsOwnReceiverImportsAndHelpers() {
+        String source = """
+                namespace model;
+                value Name(String) list History behavior {
+                    java imports { java.util.Locale; }
+                    public String role() { return helper().toUpperCase(Locale.ROOT); }
+                    private String helper() { return "history"; }
+                }, set Selection behavior {
+                    public String role() { return "selection"; }
+                };
+                """;
+        var blocks = project(source);
+        assertEquals(List.of("History", "Selection"), blocks.stream().map(BehaviorJavaProjection.Block::owner).toList());
+        String first = java(source, blocks.getFirst()), second = java(source, blocks.getLast());
+        assertTrue(first.contains("model.domain.History self"));
+        assertTrue(first.contains("import java.util.Locale;"));
+        assertTrue(first.contains("private static java.lang.String helper()"));
+        assertTrue(second.contains("model.domain.Selection self"));
+        assertFalse(second.contains("import java.util.Locale;"));
+        assertFalse(second.contains("helper()"));
+    }
+
 }

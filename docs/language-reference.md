@@ -1,8 +1,8 @@
 # Vernac language reference
 
-This reference describes the **Vernac 0.3.0 language and generated API**. Use matching
+This reference describes the **Vernac 0.4.0-SNAPSHOT development language and generated API**. Use matching
 compiler and runtime versions. The next development checkout builds 0.4.0-SNAPSHOT;
-published 0.3.0 consumers use matching 0.3.0 artifacts. Obsolete experimental syntax is not supported.
+published 0.3.0 consumers use its earlier contract, with one collection per element. Obsolete experimental syntax is not supported.
 The [specification index](specification/index.md) identifies the normative document
 for each rule. A discrepancy between implementation and contract is a defect to
 investigate, not permission to silently redefine the contract.
@@ -144,9 +144,14 @@ external mappings are separate concerns. See [enum contract](contracts/enum-valu
 ## Named collections
 
 ```vernac
-value Tag(String) list Tags;
+value Tag(String) list Tags, set SelectedTags, list ArchivedTags;
 id TourId set TourIds;
 ```
+
+Each comma-separated list/set clause declares its own collection type and may
+have its own behavior block. Names are independently optional; `value Wert(String)
+list, set Werte;` generates Werts and Werte. Conflicting defaults or explicit names
+are errors. Multiple clauses require the 0.4.0-SNAPSHOT compiler.
 
 Collections are explicit final domain classes. Lists preserve order/multiplicity;
 sets retain the first equal instance. Input structure is copied, output views are

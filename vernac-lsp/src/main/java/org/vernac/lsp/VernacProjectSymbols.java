@@ -92,6 +92,11 @@ final class VernacProjectSymbols {
     }
 
     private void collection(Path path, String namespace, ParserRuleContext owner,
+                            List<VernacParser.CollectionDefinitionContext> collections, boolean valueElements) {
+        for (var collection : collections) collection(path, namespace, owner, collection, valueElements);
+    }
+
+    private void collection(Path path, String namespace, ParserRuleContext owner,
                             VernacParser.CollectionDefinitionContext collection, boolean valueElements) {
         if (collection == null) return;
         if (valueElements && owner != null) {
