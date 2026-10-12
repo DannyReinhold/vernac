@@ -148,17 +148,24 @@ class EnumValueObjectContractTest {
         assertNotNull(output.loadClass("states.domain.Local").getMethod("status"));
     }
 
-    @Test void persistenceDoesNotSilentlyReplaceDbValueWithNames() {
-        var result = compile("value Status = A;");
-        // Exercise the shared flattening boundary directly; persistence is not yet redesigned.
-        var unit = new VernacSourceParser().parse("mapping.vernac", "namespace enums; value Status = A;");
-        var location = new org.vernac.compiler.ast.SourceLocation("mapping.vernac", 1, 1);
-        var field = new org.vernac.compiler.ast.FieldNode(location,
-                new org.vernac.compiler.ast.TypeNode(location, "Status"), "status");
-        var error = assertThrows(SemanticValidationException.class, () ->
-                org.vernac.compiler.generator.PostgresSchemaUtils.flattenField(field, "aggregate",
-                        Map.of("Status", unit.valueObjects().getFirst()), "enums.domain"));
-        assertTrue(error.getMessage().contains("explicit external-code mapping"));
-        assertFalse(result.generatedFiles().isEmpty());
+    @Test void persistenceKeepsEnumCodesOutsideTheDomain(@TempDir Path root) throws Exception {
+        var model = root.resolve("enums/model.vernac");
+        Files.createDirectories(model.getParent());
+        Files.writeString(model, """
+                namespace enums;
+                id ItemId; value Status = A;
+                aggregate Item[ItemId](Status);
+                repository Items for Item {}
+                """);
+        var compiler = new VernacCompiler();
+        var project = compiler.analyzeProject(root);
+        var schema = new org.vernac.compiler.persistence.SchemaBuilder(project,
+                org.vernac.compiler.persistence.SchemaModel.empty(), Map.of("enums.Status", Map.of("A", "stable-a"))).build();
+        assertEquals("stable-a", schema.enumCodes().get("enums.Status").get("A"));
+        var result = compiler.compileProject(root, schema, Map.of());
+        var domain = result.generatedFiles().stream().filter(f -> f.typeSpec().name().equals("Status")).findFirst().orElseThrow().toString();
+        assertFalse(domain.contains("dbValue"));
+        assertFalse(domain.contains("stable-a"));
+        assertTrue(result.generatedFiles().stream().anyMatch(f -> f.toString().contains("stable-a")));
     }
 }

@@ -11,9 +11,8 @@ import java.nio.file.Path;
 import java.util.*;
 
 /**
- * Import-validated project with resolved value-object field references.
- * Other declaration kinds remain indexed but are explicitly deferred.
- * This is not yet a fully validated or generated application.
+ * Project-wide resolved domain types, queries, schemas, mappings and REST bindings.
+ * Embedded Java still requires downstream Java compilation.
  */
 public record ResolvedProject(VernacProject project,
                               Map<Path, FileTypeScope> scopes,

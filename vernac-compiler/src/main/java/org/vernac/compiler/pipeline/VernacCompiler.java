@@ -5,7 +5,6 @@ package org.vernac.compiler.pipeline;
 
 import com.palantir.javapoet.JavaFile;
 import org.vernac.compiler.analyzer.CompilerDiagnostic;
-import org.vernac.compiler.analyzer.SemanticAnalyzer;
 import org.vernac.compiler.analyzer.SemanticValidationException;
 import org.vernac.compiler.ast.*;
 import org.vernac.compiler.generator.*;
@@ -15,19 +14,15 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class VernacCompiler {
 
-    private final SemanticAnalyzer semanticAnalyzer = new SemanticAnalyzer();
     private final IdGenerator idGenerator = new IdGenerator();
     private final ValueObjectGenerator valueObjectGenerator = new ValueObjectGenerator();
     private final EventGenerator eventGenerator = new EventGenerator();
-    private final AggregateGenerator aggregateGenerator = new AggregateGenerator();
-    private final EntityGenerator entityGenerator = new EntityGenerator();
-    private final DomainCollectionGenerator domainCollectionGenerator = new DomainCollectionGenerator(); // <-- NEU
+    private final DomainCollectionGenerator domainCollectionGenerator = new DomainCollectionGenerator();
     private final PortGenerator portGenerator = new PortGenerator();
     private final UseCaseGenerator useCaseGenerator = new UseCaseGenerator();
     private final DomainServiceGenerator domainServiceGenerator = new DomainServiceGenerator();
@@ -47,7 +42,7 @@ public class VernacCompiler {
         return new VernacProjectLoader().load(sourceRoot);
     }
 
-    /** Validates file imports and resolves value-object field types against the project index. */
+    /** Validates imports and resolves all supported declarations against the project index. */
     public ResolvedProject analyzeProject(Path sourceRoot) throws IOException {
         return new ProjectTypeResolver().resolve(readProject(sourceRoot));
     }
@@ -58,7 +53,11 @@ public class VernacCompiler {
     }
     public VernacProjectCompilationResult compileProject(Path sourceRoot, SchemaModel previous,
             Map<String,Map<String,String>> enumCodes) throws IOException {
-        ResolvedProject project = analyzeProject(sourceRoot);
+        return generate(analyzeProject(sourceRoot), previous, enumCodes);
+    }
+
+    private VernacProjectCompilationResult generate(ResolvedProject project, SchemaModel previous,
+            Map<String, Map<String, String>> enumCodes) {
         if (!project.deferredTypes().isEmpty()) {
             throw new SemanticValidationException(project.deferredTypes().stream().map(symbol ->
                     CompilerDiagnostic.error(symbol.location(), "Project generation for " + symbol.kind()
@@ -106,21 +105,9 @@ public class VernacCompiler {
     }
 
     private List<JavaFile> generateMutable(MutableDomain model, CompilationUnitNode unit, ResolvedProject project) {
-        var invalid = model.methods().stream().filter(m -> m.accessModifier().equals("public") && m.mode() == MethodNode.Mode.DEFAULT).toList();
-        if (!invalid.isEmpty()) throw new SemanticValidationException(invalid.stream().map(m -> CompilerDiagnostic.error(m.location(),
-                "Entity/aggregate behavior requires read or modify instead of public. Move legacy inline methods into behavior.")).toList());
-        if (model.definition() instanceof EntityNode e && e.customPackage().isPresent()
-                || model.definition() instanceof AggregateNode a && a.customPackage().isPresent())
-            throw new SemanticValidationException(List.of(CompilerDiagnostic.error(model.definition().location(), "Entity and aggregate packages derive from their namespace.")));
-        Map<String, ValueObjectNode> values = new HashMap<>();
-        Map<String, EntityNode> entities = new HashMap<>();
-        for (var source : project.project().sources()) for (var definition : source.unit().definitions()) {
-            if (definition instanceof ValueObjectNode v) values.put(v.name(), v);
-            if (definition instanceof EntityNode e) entities.put(e.name(), e);
-        }
         List<JavaFile> files = new ArrayList<>();
-        if (model.definition() instanceof EntityNode e) files.add(new EntityGenerator(project).generate(e, values, entities, unit.namespace(), List.of()));
-        else files.add(new AggregateGenerator(project).generate((AggregateNode) model.definition(), values, entities, unit.namespace(), List.of()));
+        if (model.definition() instanceof EntityNode e) files.add(new EntityGenerator(project).generate(e, unit.namespace()));
+        else files.add(new AggregateGenerator(project).generate((AggregateNode) model.definition(), unit.namespace()));
         var owner = com.palantir.javapoet.ClassName.get(unit.namespace() + ".domain", model.name());
         files.addAll(new DomainAccessGenerator().interfaces(model, owner, project));
         var rules = model.definition() instanceof EntityNode e ? e.validations() : ((AggregateNode) model.definition()).validations();
@@ -130,84 +117,11 @@ public class VernacCompiler {
     }
 
     private VernacCompilationResult generate(CompilationUnitNode unit) {
-
-        // Semantische Analyse vor der Codegenerierung
-        List<CompilerDiagnostic> diagnostics = semanticAnalyzer.analyze(unit);
-        List<CompilerDiagnostic> errors = diagnostics.stream()
-                .filter(d -> d.severity() == CompilerDiagnostic.Severity.ERROR)
-                .toList();
-
-        if (!errors.isEmpty()) {
-            throw new SemanticValidationException(errors);
-        }
-
         Path memoryRoot = Path.of(".").toAbsolutePath().normalize();
         var indexed = new VernacProjectLoader().index(memoryRoot,
                 List.of(new VernacSourceFile(memoryRoot.resolve("memory.vernac"), unit)));
-        ResolvedProject resolved = new ProjectTypeResolver().resolve(indexed);
-
-        String packageName = unit.namespace();
-        List<String> imports = unit.imports().stream().map(ImportNode::text).toList();
-        List<JavaFile> generatedFiles = new ArrayList<>();
-
-        // Lookup-Maps für Typ-Beziehungen aufbauen
-        Map<String, AggregateNode> aggregates = new HashMap<>();
-        Map<String, EntityNode> entities = new HashMap<>();
-        Map<String, ValueObjectNode> valueObjects = new HashMap<>();
-        Map<String, RepositoryNode> repositories = new HashMap<>();
-
-        for (TopLevelDefinition def : unit.definitions()) {
-            if (def instanceof AggregateNode agg) aggregates.put(agg.name(), agg);
-            else if (def instanceof EntityNode entity) entities.put(entity.name(), entity);
-            else if (def instanceof ValueObjectNode vo) valueObjects.put(vo.name(), vo);
-            else if (def instanceof RepositoryNode repo) repositories.put(repo.name(), repo);
-        }
-
-        // Bestehende Generierungsschleife
-        for (TopLevelDefinition definition : unit.definitions()) {
-            CollectionDeclaration.of(definition).ifPresent(collection -> {
-                generatedFiles.add(domainCollectionGenerator.generate(collection, packageName, resolved));
-                new BehaviorGenerator().generate(com.palantir.javapoet.ClassName.get(packageName + ".domain", collection.name()),
-                        collection.definition().customMethods(), collection.definition().javaImports(), unit, resolved).ifPresent(generatedFiles::add);
-            });
-            if (definition instanceof IdDeclarationNode idDef) {
-                generatedFiles.add(idGenerator.generate(idDef, packageName));
-            } else if (definition instanceof ValueObjectNode vo) {
-                generatedFiles.add(valueObjectGenerator.generate(vo, packageName, resolved));
-                generatedFiles.addAll(valueValidation(vo, unit, resolved));
-                new BehaviorGenerator().generate(com.palantir.javapoet.ClassName.get(packageName + ".domain", vo.name()),
-                        vo.methods(), vo.javaImports(), unit, resolved).ifPresent(generatedFiles::add);
-
-            } else if (definition instanceof EventNode event) {
-                generatedFiles.addAll(eventGenerator.generate(event, unit, resolved));
-            } else if (definition instanceof AggregateNode agg) {
-                generatedFiles.addAll(generateMutable(MutableDomain.of(agg).orElseThrow(), unit, resolved));
-            } else if (definition instanceof EntityNode entity) {
-                generatedFiles.addAll(generateMutable(MutableDomain.of(entity).orElseThrow(), unit, resolved));
-
-            } else if (definition instanceof RepositoryNode repo) {
-                SchemaBuilder persistence = new SchemaBuilder(resolved, SchemaModel.empty());
-                SchemaModel schema = persistence.build();
-                for (StoragePlan plan : persistence.plans()) if (plan.repository().name().equals(repo.name()))
-                    generatedFiles.addAll(new JdbcRepositoryGenerator(resolved,schema).generate(plan));
-            } else if (definition instanceof PortNode port) {
-                generatedFiles.addAll(portGenerator.generate(port, unit, resolved));
-            } else if (definition instanceof OutboundAdapterNode adapter) {
-                generatedFiles.addAll(new OutboundAdapterGenerator().generate(adapter, unit, resolved));
-            } else if (definition instanceof UseCaseNode useCase) {
-                generatedFiles.addAll(useCaseGenerator.generate(useCase, unit, resolved));
-            } else if (definition instanceof DomainServiceNode service) { // <-- DIESER ZWEIG FEHLT
-                generatedFiles.addAll(domainServiceGenerator.generate(service, unit, resolved));
-            } else if (definition instanceof ListenerNode listener) { // <-- NEU
-                generatedFiles.addAll(listenerGenerator.generate(listener, unit, resolved));
-            }
-        }
-
-        var eventPersistence = new SchemaBuilder(resolved, SchemaModel.empty());
-        var eventSchema = eventPersistence.build();
-        for (var plan : eventPersistence.eventPlans()) generatedFiles.add(new JdbcRepositoryGenerator(resolved,eventSchema).generate(plan));
-        GeneratedTypeNames.check(generatedFiles);
-        return new VernacCompilationResult(packageName, generatedFiles);
+        var resolved = new ProjectTypeResolver().resolve(indexed);
+        var result = generate(resolved, SchemaModel.empty(), Map.of());
+        return new VernacCompilationResult(unit.namespace(), result.generatedFiles());
     }
-
 }

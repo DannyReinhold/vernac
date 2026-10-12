@@ -5,7 +5,6 @@ package org.vernac.compiler.pipeline;
 import org.vernac.compiler.ast.*;
 import org.vernac.compiler.symbols.*;
 import org.vernac.compiler.analyzer.CompilerDiagnostic;
-import org.vernac.compiler.generator.PackageResolver;
 import java.util.*;
 
 /** File-scoped Vernac visibility and explicit Java imports never silently shadow each other. */
@@ -100,8 +99,8 @@ public final class BehaviorImports {
             String ns = source.unit().namespace();
             if (definition instanceof RepositoryNode repository) {
                 result.add(ns + "." + repository.name());
-                result.add(PackageResolver.resolveDomainPackage(ns, repository.customPackage()) + "." + repository.name());
-                result.add(PackageResolver.resolveAdapterPackage(ns, repository.customPackage()) + ".Jdbc" + repository.name());
+                result.add(ns + ".domain." + repository.name());
+                result.add(ns + ".adapter.outbound.jdbc.Jdbc" + repository.name());
             } else if (definition instanceof OutboundAdapterNode adapter) {
                 result.add(ns + ".adapter.outbound." + adapter.name());
             }

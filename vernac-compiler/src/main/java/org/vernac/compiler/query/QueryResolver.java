@@ -37,13 +37,11 @@ public final class QueryResolver {
                 error(repo.location(),"Repository requires an aggregate root."); continue;
             }
             AggregateNode aggregate=(AggregateNode)definitions.get(target.symbol().identity().qualifiedName());
-            if(repo.customPackage().isPresent()) error(repo.location(),"Repository packages derive from their namespace.");
             Set<String> names=new HashSet<>(Set.of("byId","save","delete","getClass","hashCode","equals","toString","wait","notify","notifyAll","finalize","clone","rootMapping","entityMappings","tables"));
             for(var method:repo.methods()) {
                 int before=diagnostics.size();
                 if(method.name().matches("valueMapping[0-9]+") || !SourceVersion.isIdentifier(method.name()) || SourceVersion.isKeyword(method.name()) || !names.add(method.name()))
                     error(method.location(),"Invalid, duplicate or reserved repository method: "+method.name());
-                if(method.isCustom()) { error(method.location(),"Custom JDBC queries are deferred; declare a find method with where/order by."); continue; }
                 ResolvedType returns=resolveType(scope,method.returnType());
                 boolean singleton=method.returnType().isOptional();
                 boolean list=false;

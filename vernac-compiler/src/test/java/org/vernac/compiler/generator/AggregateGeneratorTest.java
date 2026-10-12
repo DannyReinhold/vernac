@@ -3,60 +3,40 @@
 
 package org.vernac.compiler.generator;
 
-import com.palantir.javapoet.JavaFile;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.vernac.compiler.ast.*;
-import org.vernac.compiler.parser.VernacLexer;
-import org.vernac.compiler.parser.VernacParser;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AggregateGeneratorTest {
 
-    private final AggregateGenerator generator = new AggregateGenerator();
-
-    private CompilationUnitNode parse(String source) {
-        VernacLexer lexer = new VernacLexer(CharStreams.fromString(source));
-        VernacParser parser = new VernacParser(new CommonTokenStream(lexer));
-        return new AstBuilderVisitor().visitCompilationUnit(parser.compilationUnit());
-    }
-
-    private Map<String, ValueObjectNode> extractValueObjects(CompilationUnitNode cu) {
-        Map<String, ValueObjectNode> map = new HashMap<>();
-        for (TopLevelDefinition def : cu.definitions()) {
-            if (def instanceof ValueObjectNode vo) {
-                map.put(vo.name(), vo);
-            }
-        }
-        return map;
+    private String generated(String source, String name) {
+        var result = new org.vernac.compiler.pipeline.VernacCompiler().compileSource(source);
+        var compiled = org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(result.generatedFiles().stream()
+                .filter(f -> !f.packageName().contains(".adapter.")).toList());
+        assertThat(compiled.success()).as(compiled.diagnostics().toString()).isTrue();
+        return result.generatedFiles().stream().filter(f -> f.typeSpec().name().equals(name))
+                .findFirst().orElseThrow().toString();
     }
 
     @Test
     @DisplayName("Generiert vollständiges Aggregate Root mit Lifecycle, mut-Settern, Events und ID-Semantik")
     void shouldGenerateAggregateRoot() {
         String src = """
-                namespace com.example.domain;
+                namespace com.example;
                 
+                id ProjectId; value ProjectName(String); value Money(BigDecimal amount);
                 aggregate Project[ProjectId](ProjectName name, mut Money budget) validates {
-                    require(budget.amount().compareTo(BigDecimal.ZERO) >= 0, "Budget cannot be negative");
-                } {
-                    public void assignBudget(Money newBudget) {
-                        budget(newBudget);
+                    require(self.budget().amount().signum() >= 0, "Budget cannot be negative");
+                } behavior {
+                    modify void assignBudget(Money newBudget) {
+                        self.budget(newBudget);
                     }
                 };
                 """;
 
-        CompilationUnitNode cu = parse(src);
-        AggregateNode node = cu.aggregates().getFirst();
-        JavaFile file = generator.generate(node, Map.of(), Map.of(), "com.example.domain", List.of());
-        String code = file.toString();
+        String code = generated(src, "Project");
         String normalizedCode = code.replaceAll("\\s+", " ");
 
         assertThat(code)
@@ -67,9 +47,8 @@ class AggregateGeneratorTest {
                 .contains("private final ProjectId id;")
                 .contains("private final ProjectName name;")
                 .contains("private Money budget;")
-                .contains("protected void markAsUpdated()")
                 .contains("public void budget(Money budget)")
-                .contains("markAsUpdated();")
+                .contains("BehaviorModification.changed(Project.this)")
                 .contains("public void assignBudget(Money newBudget)")
                 .contains("public ProjectId id()")
                 .contains("public Instant createdAt()")
@@ -110,58 +89,48 @@ class AggregateGeneratorTest {
     @DisplayName("Nutzt konsistent explizite und abgeleitete Feldnamen inkl. Mutatoren durch alle Methoden")
     void shouldGenerateAggregateWithExplicitAndDerivedNames() {
         String src = """
-                namespace com.example.domain;
-                aggregate Customer[CustomerId](String, mut String customAlias);
+                namespace com.example;
+                id CustomerId; value CustomerName(String);
+                aggregate Customer[CustomerId](CustomerName, mut CustomerName customAlias);
                 """;
 
-        CompilationUnitNode cu = parse(src);
-        AggregateNode node = cu.aggregates().getFirst();
-        JavaFile file = generator.generate(node, Map.of(), Map.of(), "com.example.domain", List.of());
-        String code = file.toString().replaceAll("\\s+", " ");
+        String code = generated(src, "Customer").replaceAll("\\s+", " ");
 
         assertThat(code)
-                .contains("private final String string;")
-                .contains("private String customAlias;")
-                .contains("private Customer(CustomerId id, String string, String customAlias, Instant createdAt, Instant updatedAt, long version)")
-                .contains("public static Customer create(String string, String customAlias)")
-                .contains("public static Customer reconstitute(CustomerId id, String string, String customAlias, Instant createdAt, Instant updatedAt, long version)")
-                .contains("public void customAlias(String customAlias) {")
-                .contains("this.customAlias = customAlias;")
-                .contains("public String string() { return this.string; }")
-                .contains("public String customAlias() { return this.customAlias; }");
+                .contains("private final CustomerName customerName;")
+                .contains("private CustomerName customAlias;")
+                .contains("private Customer(CustomerId id, CustomerName customerName, CustomerName customAlias, Instant createdAt, Instant updatedAt, long version)")
+                .contains("public static Customer create(CustomerName customerName, CustomerName customAlias)")
+                .contains("public static Customer reconstitute(CustomerId id, CustomerName customerName, CustomerName customAlias, Instant createdAt, Instant updatedAt, long version)")
+                .contains("public void customAlias(CustomerName customAlias) {")
+                .contains("Customer.this.customAlias = customAlias;")
+                .contains("public CustomerName customerName() { return this.customerName; }")
+                .contains("public CustomerName customAlias() { return this.customAlias; }");
     }
 
     @Test
-    @DisplayName("Erzeugt TABLE_NAME und SCHEMA_DDL mit korrektem Value-Object-Flattening")
-    void shouldGenerateSchemaConstantsWithFlattenedColumns() {
+    @DisplayName("Keeps domain classes storage-free; explicit repositories flatten nested values")
+    void shouldGenerateFlattenedSchemaOutsideTheDomain(@org.junit.jupiter.api.io.TempDir java.nio.file.Path root) throws Exception {
         String src = """
-                namespace com.example.domain;
-                
-                value ProjectName(String value);
-                value Currency(String code);
-                value Money(BigDecimal amount, Currency currency);
-                
-                aggregate Project[ProjectId](ProjectName name, Money budget);
+                namespace com.example;
+                id ProjectId; id ItemId;
+                value Description(String);
+                value CurrencyCode(String);
+                value Price(BigDecimal amount, CurrencyCode currency);
+                aggregate Project[ProjectId](Description description, Price unitPrice); repository Projects for Project {}
                 """;
-
-        CompilationUnitNode cu = parse(src);
-        Map<String, ValueObjectNode> valueObjects = extractValueObjects(cu);
-        AggregateNode node = cu.aggregates().getFirst();
-
-        JavaFile file = generator.generate(node, valueObjects, Map.of(), "com.example.domain", List.of());
-        String code = file.toString();
-
-        assertThat(code)
-                .contains("public static final String TABLE_NAME = \"project\";")
-                .contains("public static final String SCHEMA_DDL =")
-                .contains("CREATE TABLE IF NOT EXISTS project (")
-                .contains("id UUID PRIMARY KEY")
-                .contains("name VARCHAR(255) NOT NULL")
-                .contains("budget_amount NUMERIC(19, 4) NOT NULL")
-                .contains("budget_currency VARCHAR(255) NOT NULL")
-                .contains("created_at TIMESTAMPTZ NOT NULL")
-                .contains("updated_at TIMESTAMPTZ NOT NULL")
-                .contains("version BIGINT NOT NULL DEFAULT 0");
+        assertThat(generated(src, "Project")).doesNotContain("TABLE_NAME", "SCHEMA_DDL");
+        var source = root.resolve("com/example/model.vernac");
+        java.nio.file.Files.createDirectories(source.getParent());
+        java.nio.file.Files.writeString(source, src);
+        var project = new org.vernac.compiler.pipeline.VernacCompiler().analyzeProject(root);
+        var schema = new org.vernac.compiler.persistence.SchemaBuilder(project,
+                org.vernac.compiler.persistence.SchemaModel.empty()).build();
+        var table = schema.tables().stream().filter(t -> t.name().equals("Project")).findFirst().orElseThrow();
+        assertThat(table.columns()).extracting(org.vernac.compiler.persistence.SchemaModel.Column::name)
+                .contains("id", "description", "unitPrice.amount", "@scale:unitPrice.amount", "unitPrice.currency");
+        assertThat(table.columns()).filteredOn(c -> c.name().equals("unitPrice.amount"))
+                .extracting(org.vernac.compiler.persistence.SchemaModel.Column::sqlType).containsExactly("NUMERIC");
     }
 
     @Test
@@ -178,7 +147,8 @@ class AggregateGeneratorTest {
         assertThat(owner).contains("private class __ReadView", "private final class __AccessView", "implements CounterRead", "implements CounterAccess");
         assertThat(owner.substring(owner.indexOf("public class Counter"), owner.indexOf("{", owner.indexOf("public class Counter")))).doesNotContain("CounterRead", "CounterAccess");
         assertThat(result.generatedFiles()).anyMatch(f -> f.typeSpec().name().equals("CounterWrite"));
-        var compiled = org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(result);
+        var compiled = org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(result.generatedFiles().stream()
+                .filter(f -> !f.packageName().contains(".adapter.")).toList());
         assertThat(compiled.success()).as(compiled.diagnostics().toString()).isTrue();
     }
 }

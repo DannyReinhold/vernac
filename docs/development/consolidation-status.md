@@ -1,10 +1,8 @@
 # Vernac consolidation status
 
-Status: 2026-10-11. Target release: 0.2.0. This separates reviewed functionality from older implementations
-and future plans. It is not a claim that every language feature is production-ready.
-
-The authoritative remaining work and release gates are in the
-[0.2.0 consolidation plan](release-0.2.0.md). Larger extensions start after release.
+Status: 2026-10-12. Version 0.2.0 is published; current development targets 0.3.0.
+This separates implemented functionality from planned work, not a blanket claim of
+production readiness. The [0.2.0 plan](release-0.2.0.md) remains historical release context.
 
 ## Reviewed and implemented
 
@@ -51,11 +49,21 @@ not exhaustive concurrency, platform, historical-data or deployment verification
 
 ## Next work
 
-Follow [the 0.2.0 plan](release-0.2.0.md): repository/template cleanup, remaining
-consistency review, all documentation and examples, a usable complete application,
-release automation including Marketplace, then merge to main and release.
-All work remains on feature/redefining_the_language until the acceptance gates pass.
-Apply the [feature review checklist](feature-review-checklist.md) throughout.
+The 0.3.0 consolidation removes the abandoned single-file analyzer/generation path,
+legacy domain generator modes, implicit type guessing and per-type package syntax.
+Single-file convenience APIs and project compilation now share resolution and generation;
+schema and repository generation consume the same resolved model. Tests that asserted
+obsolete public setters or SQL constants on domain classes now exercise the reviewed
+access-view API and separate schema model instead. Their lifecycle, naming, identity
+and flattening coverage is retained.
+
+- [Deep IntelliJ integration](intellij-deep-integration.md): cross-language refactoring,
+  conflict reporting, rich navigation/inspections and debugger investigation. **Planned,
+  not implemented in this consolidation.**
+- [Capabilities and usecase authorization](capabilities-and-usecase-authorization.md):
+  reusable modules, explicit execution permissions and domain-specific limits.
+- Continue applying the [feature review checklist](feature-review-checklist.md), including
+  shared compiler/tooling semantics and the quality of generated Java.
 
 ## Migration exercise and constraint cleanup
 

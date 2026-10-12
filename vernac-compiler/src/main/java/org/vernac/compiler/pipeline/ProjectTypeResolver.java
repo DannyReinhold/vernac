@@ -76,8 +76,6 @@ public final class ProjectTypeResolver {
                     var model = mutable.get();
                     for (var method : model.methods()) if (method.accessModifier().equals("public") && method.mode() == MethodNode.Mode.DEFAULT)
                         diagnostics.add(CompilerDiagnostic.error(method.location(), "Entity/aggregate behavior requires read or modify instead of public. Move legacy inline methods into behavior."));
-                    if (definition instanceof EntityNode e && e.customPackage().isPresent() || definition instanceof AggregateNode a && a.customPackage().isPresent())
-                        diagnostics.add(CompilerDiagnostic.error(definition.location(), "Entity and aggregate packages derive from their namespace."));
                     if (validScope) {
                         diagnostics.addAll(BehaviorImports.validate(project, scope, source.unit().namespace(), model.name(), model.imports(), model.methods()));
                         var idLookup = scope.resolve(model.id().type().name(), model.id().location());
@@ -85,7 +83,7 @@ public final class ProjectTypeResolver {
                         if (!model.id().type().isOptional() && model.id().type().typeArguments().isEmpty()
                                 && idLookup.type().orElse(null) instanceof ResolvedType.Declared id && id.symbol().kind() == TypeSymbol.Kind.ID)
                             fieldTypes.put(model.id().type(), id);
-                        else diagnostics.add(CompilerDiagnostic.error(model.id().location(), "Entity identity requires a Vernac id type."));
+                        else diagnostics.add(CompilerDiagnostic.error(model.id().location(), "Entity/aggregate identity requires a Vernac id type."));
                         for (var field : model.fields()) {
                             resolveField(field, scope, fieldTypes, diagnostics, project, true);
                             if (fieldTypes.get(field.type()) instanceof ResolvedType.Builtin)
@@ -113,10 +111,6 @@ public final class ProjectTypeResolver {
                 var collection = requested.get();
                 if (validScope) diagnostics.addAll(BehaviorImports.validate(project, scope, source.unit().namespace(),
                         collection.name(), collection.definition().javaImports(), collection.definition().customMethods()));
-                if (definition instanceof EntityNode entity && entity.customPackage().isPresent()
-                        || definition instanceof AggregateNode aggregate && aggregate.customPackage().isPresent())
-                    diagnostics.add(CompilerDiagnostic.error(definition.location(),
-                            "Collection elements with custom packages are not supported. Use the namespace domain package."));
                 if (validScope) collection.idType().ifPresent(id -> {
                     var lookup = scope.resolve(id.name(), id.location());
                     diagnostics.addAll(lookup.diagnostics());
@@ -179,8 +173,9 @@ public final class ProjectTypeResolver {
         TypeNode reference = field.type();
         if (!reference.typeArguments().isEmpty()) {
             diagnostics.add(CompilerDiagnostic.error(reference.location(),
-                    "Generic field type '" + reference.name() + "' is not supported in a Value Object."
-                            + " Use an approved scalar or a Vernac value type."));
+                    "Generic field type '" + reference.name() + "' is not supported in "
+                            + (collectionMethod ? "this declaration." : "a Value Object.")
+                            + " Declare a Vernac list/set type for collections."));
             return;
         }
         var lookup = scope.resolve(reference.name(), reference.location());

@@ -3,22 +3,16 @@
 
 package org.vernac.compiler.ast;
 
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.vernac.compiler.parser.VernacLexer;
-import org.vernac.compiler.parser.VernacParser;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AstBuilderVisitorTest {
 
     private CompilationUnitNode parse(String source) {
-        VernacLexer lexer = new VernacLexer(CharStreams.fromString(source));
-        VernacParser parser = new VernacParser(new CommonTokenStream(lexer));
-        return new AstBuilderVisitor().visitCompilationUnit(parser.compilationUnit());
+        return new org.vernac.compiler.pipeline.VernacSourceParser().parse("test.vernac", source);
     }
 
     @Test
@@ -28,10 +22,10 @@ class AstBuilderVisitorTest {
                 namespace com.example.domain;
                 
                 aggregate Project[ProjectId](ProjectName, mut Money budget) validates {
-                    require(budget.amount().compareTo(BigDecimal.ZERO) >= 0, "Budget cannot be negative");
-                } {
-                    public void assignBudget(Money newBudget) {
-                        budget(newBudget);
+                    require(self.budget().amount().signum() >= 0, "Budget cannot be negative");
+                } behavior {
+                    modify void assignBudget(Money newBudget) {
+                        self.budget(newBudget);
                     }
                 };
                 
@@ -57,7 +51,7 @@ class AstBuilderVisitorTest {
         assertThat(budgetField.isMutable()).isTrue();
 
         assertThat(project.validations()).hasSize(1);
-        assertThat(project.validations().getFirst().condition()).isEqualTo("budget.amount().compareTo(BigDecimal.ZERO) >= 0");
+        assertThat(project.validations().getFirst().condition()).isEqualTo("self.budget().amount().signum() >= 0");
         assertThat(project.methods()).hasSize(1);
         assertThat(project.methods().getFirst().name()).isEqualTo("assignBudget");
 
@@ -255,9 +249,9 @@ class AstBuilderVisitorTest {
                     namespace com.example.domain;
                     
                     aggregate Project[ProjectId](ProjectName title, Money? budget, mut Tasks tasks) validates {
-                        require(tasks.size() <= 100, "Max 100 tasks allowed");
-                    } {
-                        public TaskId addTask(TaskTitle title) {
+                        require(self.tasks().size() <= 100, "Max 100 tasks allowed");
+                    } behavior {
+                        modify TaskId addTask(TaskTitle title) {
                             TaskId newId = TaskId.create();
                             return newId;
                         }
@@ -288,7 +282,7 @@ class AstBuilderVisitorTest {
             assertThat(tasksField.isMutable()).isTrue();
 
             assertThat(agg.validations()).hasSize(1);
-            assertThat(agg.validations().getFirst().condition()).isEqualTo("tasks.size() <= 100");
+            assertThat(agg.validations().getFirst().condition()).isEqualTo("self.tasks().size() <= 100");
             assertThat(agg.validations().getFirst().message()).isEqualTo("Max 100 tasks allowed");
 
             assertThat(agg.methods()).hasSize(1);
@@ -359,14 +353,13 @@ class AstBuilderVisitorTest {
     class RepositoryTests {
 
         @Test
-        @DisplayName("Leitet Standard-Namen ab und liest package-Override aus")
-        void shouldParseRepositoryWithDefaultNameAndCustomPackage() {
+        @DisplayName("Derives repository names and parses declarative searches")
+        void shouldParseRepositoryWithDefaultName() {
             String src = """
                     namespace com.example.domain;
                     
                     repository for Project {
-                        package com.example.infrastructure.own;
-                        find List<Project> findByName(ProjectName name);
+                        find Projects findByName(ProjectName name) where name = :name;
                     }
                     """;
 
@@ -376,9 +369,8 @@ class AstBuilderVisitorTest {
             RepositoryNode repo = cu.repositories().getFirst();
             assertThat(repo.name()).isEqualTo("ProjectRepository");
             assertThat(repo.aggregateName()).isEqualTo("Project");
-            assertThat(repo.customPackage()).contains("com.example.infrastructure.own");
-            assertThat(repo.findMethods()).hasSize(1);
-            assertThat(repo.findMethods().getFirst().name()).isEqualTo("findByName");
+            assertThat(repo.methods()).hasSize(1);
+            assertThat(repo.methods().getFirst().name()).isEqualTo("findByName");
         }
     }
 

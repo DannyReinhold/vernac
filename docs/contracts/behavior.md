@@ -1,7 +1,8 @@
 # Domain behavior contract
 
 Status: implemented for ordinary value objects, enum value objects and explicit
-list/set types. Entity/aggregate behavior migration is a separate step.
+list/set types. Entity/aggregate behavior uses the read/modify access-view contract in
+[entities and aggregates](entities-and-aggregates.md).
 
 ## Purpose and syntax
 

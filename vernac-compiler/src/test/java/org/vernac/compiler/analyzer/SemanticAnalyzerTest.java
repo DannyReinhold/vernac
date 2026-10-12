@@ -44,7 +44,7 @@ class SemanticAnalyzerTest {
 
         assertThatThrownBy(() -> compiler.compileSource(dsl))
                 .isInstanceOf(SemanticValidationException.class)
-                .hasMessageContaining("Duplicate field name 'email' in 'User'");
+                .hasMessageContaining("Duplicate field name 'email'");
     }
 
     @Test
@@ -57,7 +57,7 @@ class SemanticAnalyzerTest {
 
         assertThatThrownBy(() -> compiler.compileSource(dsl))
                 .isInstanceOf(SemanticValidationException.class)
-                .hasMessageContaining("Cannot resolve type 'UnknownType'");
+                .hasMessageContaining("Unknown type 'UnknownType'");
     }
 
     @Test
@@ -90,7 +90,7 @@ class SemanticAnalyzerTest {
 
         assertThatThrownBy(() -> compiler.compileSource(dsl))
                 .isInstanceOf(SemanticValidationException.class)
-                .hasMessageContaining("Repository target 'OrderData' must be an existing aggregate root");
+                .hasMessageContaining("Repository requires an aggregate root");
     }
 
     @Test
@@ -129,7 +129,7 @@ class SemanticAnalyzerTest {
 
         assertThatThrownBy(() -> compiler.compileSource(dsl))
                 .isInstanceOf(SemanticValidationException.class)
-                .hasMessageContaining("Java keyword 'class' cannot be used as type name");
+                .hasMessageContaining("Invalid type name: class");
     }
 
     @Test
@@ -139,12 +139,12 @@ class SemanticAnalyzerTest {
                 namespace com.example.domain;
                 id ProjectId;
                 value ProjectName(String value);
-                aggregate Project[ProjectId](ProjectName name, int int);
+                aggregate Project[ProjectId](ProjectName name, ProjectName int);
                 """;
 
         assertThatThrownBy(() -> compiler.compileSource(dsl))
                 .isInstanceOf(SemanticValidationException.class)
-                .hasMessageContaining("Java keyword 'int' cannot be used as field name");
+                .hasMessageContaining("Field name 'int' conflicts with the generated entity API or is not a Java identifier");
     }
 
     @Test
@@ -157,7 +157,7 @@ class SemanticAnalyzerTest {
 
         assertThatThrownBy(() -> compiler.compileSource(dsl))
                 .isInstanceOf(SemanticValidationException.class)
-                .hasMessageContaining("Primitive type 'int' cannot be optional. Use the wrapper type 'Integer?' instead.");
+                .hasMessageContaining("Primitive type 'int' cannot be optional. Use 'Integer?' instead.");
     }
 
     @Test void shouldRejectDuplicateDependencyNames() {
@@ -189,12 +189,12 @@ class SemanticAnalyzerTest {
         void shouldRejectAggregateWithUndeclaredIdType() {
             String dsl = """
                     namespace com.example.domain;
-                    aggregate Project[ProjectId](String name);
+                    aggregate Project[ProjectId]();
                     """;
 
             assertThatThrownBy(() -> compiler.compileSource(dsl))
                     .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Aggregate 'Project' references ID type 'ProjectId' which is not declared with 'id ProjectId;'");
+                    .hasMessageContaining("Entity/aggregate identity requires a Vernac id type.");
         }
 
         @Test
@@ -203,12 +203,12 @@ class SemanticAnalyzerTest {
             String dsl = """
                     namespace com.example.domain;
                     value ProjectId(UUID value);
-                    aggregate Project[ProjectId](String name);
+                    aggregate Project[ProjectId]();
                     """;
 
             assertThatThrownBy(() -> compiler.compileSource(dsl))
                     .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Aggregate 'Project' references ID type 'ProjectId' which is not declared with 'id ProjectId;'");
+                    .hasMessageContaining("Entity/aggregate identity requires a Vernac id type.");
         }
 
         @Test
@@ -216,12 +216,12 @@ class SemanticAnalyzerTest {
         void shouldRejectRawUuidAsAggregateId() {
             String dsl = """
                     namespace com.example.domain;
-                    aggregate Project[UUID](String name);
+                    aggregate Project[UUID]();
                     """;
 
             assertThatThrownBy(() -> compiler.compileSource(dsl))
                     .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Aggregate 'Project' references ID type 'UUID' which is not declared with 'id UUID;'");
+                    .hasMessageContaining("Entity/aggregate identity requires a Vernac id type.");
         }
 
         @Test
@@ -229,12 +229,12 @@ class SemanticAnalyzerTest {
         void shouldRejectEntityWithUndeclaredIdType() {
             String dsl = """
                     namespace com.example.domain;
-                    entity Task[TaskId](String title);
+                    entity Task[TaskId]();
                     """;
 
             assertThatThrownBy(() -> compiler.compileSource(dsl))
                     .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Entity 'Task' references ID type 'TaskId' which is not declared with 'id TaskId;'");
+                    .hasMessageContaining("Entity/aggregate identity requires a Vernac id type.");
         }
 
         @Test
@@ -248,7 +248,7 @@ class SemanticAnalyzerTest {
 
             assertThatThrownBy(() -> compiler.compileSource(dsl))
                     .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Duplicate type declaration 'ProjectId'");
+                    .hasMessageContaining("Duplicate type declaration 'com.example.domain.ProjectId'");
         }
     }
 
@@ -304,7 +304,7 @@ class SemanticAnalyzerTest {
 
             assertThatThrownBy(() -> compiler.compileSource(dsl))
                     .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Raw collection 'List' is not permitted in 'Order'");
+                    .hasMessageContaining("Generic field type 'List' is not supported in this declaration");
         }
 
         @Test
@@ -313,7 +313,7 @@ class SemanticAnalyzerTest {
             String dsl = """
                     namespace com.example.domain;
                     id CustomerId;
-                    aggregate Customer[CustomerId](String name);
+                    aggregate Customer[CustomerId]();
                     
                     id OrderId;
                     aggregate Order[OrderId](Customer customer);
@@ -321,7 +321,7 @@ class SemanticAnalyzerTest {
 
             assertThatThrownBy(() -> compiler.compileSource(dsl))
                     .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Direct reference to aggregate root 'Customer' inside 'Order' is forbidden. Reference external aggregates by their ID type instead.");
+                    .hasMessageContaining("Entities and aggregates cannot contain aggregates or their collections. Reference aggregate IDs instead.");
         }
 
         @Test
@@ -330,7 +330,7 @@ class SemanticAnalyzerTest {
             String dsl = """
                     namespace com.example.domain;
                     id CustomerId;
-                    aggregate Customer[CustomerId](String name);
+                    aggregate Customer[CustomerId]();
                     
                     id ItemId;
                     entity OrderItem[ItemId](Customer buyer);
@@ -338,7 +338,7 @@ class SemanticAnalyzerTest {
 
             assertThatThrownBy(() -> compiler.compileSource(dsl))
                     .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Direct reference to aggregate root 'Customer' inside 'OrderItem' is forbidden. Reference external aggregates by their ID type instead.");
+                    .hasMessageContaining("Entities and aggregates cannot contain aggregates or their collections. Reference aggregate IDs instead.");
         }
 
         @Test
@@ -352,7 +352,7 @@ class SemanticAnalyzerTest {
 
             assertThatThrownBy(() -> compiler.compileSource(dsl))
                     .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Duplicate type declaration 'Tags'");
+                    .hasMessageContaining("Duplicate type declaration 'com.example.domain.Tags'");
         }
 
         @Test
@@ -418,7 +418,7 @@ class SemanticAnalyzerTest {
 
             assertThatThrownBy(() -> compiler.compileSource(dsl))
                     .isInstanceOf(SemanticValidationException.class)
-                    .hasMessageContaining("Java keyword 'final' cannot be used as type name");
+                    .hasMessageContaining("Invalid type name: final");
         }
     }
 

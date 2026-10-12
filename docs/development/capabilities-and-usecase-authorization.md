@@ -231,9 +231,11 @@ experiments). Check associated tests, fixtures and editor projection. Reconcile
 stale status/wording in contracts with the supported project pipeline. Preserve
 valid behavior tests; replace obsolete expectations only with an explicit reason.
 
-- [ ] Inventory retained legacy syntax versus supported project compilation.
-- [ ] Remove obsolete implementation paths and their unreachable grammar rules.
-- [ ] Check shared naming/type/nullness implementations across compiler and LSP.
-- [ ] Reconcile documentation and compile AI-reference examples again.
+- [x] Inventory retained legacy syntax versus supported project compilation.
+- [x] Remove the obsolete single-file analyzer, generator fallback modes and abandoned grammar rules.
+- [x] Route compilation through shared project resolution; verify compiler/LSP tests.
+- [x] Reconcile affected documentation and continuously compile AI-reference examples.
 
-This is the next follow-up after the documentation patch, not implemented by it.
+The follow-up consolidation implements these prerequisites. This does not implement
+the capability/authorization proposal above. Deep IDE refactoring and debugger work
+is tracked separately in the [IntelliJ roadmap](intellij-deep-integration.md).

@@ -126,13 +126,24 @@ public class BehaviorContractTest {
         assertTrue(lowered.getMessage().contains("after adding the self receiver"));
         var dependency = assertThrows(SemanticValidationException.class, () -> generate("""
                 id AccountId;
-                aggregate Account[AccountId](int balance);
+                aggregate Account[AccountId]();
                 repository Accounts for Account {}
                 value Name(String) behavior {
                     java imports { behavior.tests.domain.Accounts; }
                 };
                 """));
         assertTrue(dependency.getMessage().contains("known repository or adapter"), dependency.getMessage());
+    }
+
+    @Test void domainBehaviorCannotImportTheGeneratedJdbcAdapter() {
+        var error = assertThrows(SemanticValidationException.class, () -> generate("""
+                id AccountId; aggregate Account[AccountId]();
+                repository Accounts for Account {}
+                value Name(String) behavior {
+                    java imports { behavior.tests.adapter.outbound.jdbc.JdbcAccounts; }
+                };
+                """));
+        assertTrue(error.getMessage().contains("known repository or adapter"), error.getMessage());
     }
 
     @Test void externalStaticImplementationIsCalledWithSelf() throws Exception {

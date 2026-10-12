@@ -1,7 +1,7 @@
 # Vernac language reference
 
-This reference describes **0.2.0-SNAPSHOT**. It covers the supported project-compilation
-pipeline, not every production retained in the parser for internal/legacy tests.
+This reference describes the **0.3.0-SNAPSHOT** development language, based on released
+0.2.0. Obsolete experimental syntax is not supported.
 The [specification index](specification/index.md) identifies the normative document
 for each rule. A discrepancy between implementation and contract is a defect to
 investigate, not permission to silently redefine the contract.

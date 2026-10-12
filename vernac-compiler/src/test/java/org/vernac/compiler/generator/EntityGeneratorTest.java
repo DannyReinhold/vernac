@@ -3,60 +3,40 @@
 
 package org.vernac.compiler.generator;
 
-import com.palantir.javapoet.JavaFile;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.vernac.compiler.ast.*;
-import org.vernac.compiler.parser.VernacLexer;
-import org.vernac.compiler.parser.VernacParser;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class EntityGeneratorTest {
 
-    private final EntityGenerator generator = new EntityGenerator();
-
-    private CompilationUnitNode parse(String source) {
-        VernacLexer lexer = new VernacLexer(CharStreams.fromString(source));
-        VernacParser parser = new VernacParser(new CommonTokenStream(lexer));
-        return new AstBuilderVisitor().visitCompilationUnit(parser.compilationUnit());
-    }
-
-    private Map<String, ValueObjectNode> extractValueObjects(CompilationUnitNode cu) {
-        Map<String, ValueObjectNode> map = new HashMap<>();
-        for (TopLevelDefinition def : cu.definitions()) {
-            if (def instanceof ValueObjectNode vo) {
-                map.put(vo.name(), vo);
-            }
-        }
-        return map;
+    private String generated(String source, String name) {
+        var result = new org.vernac.compiler.pipeline.VernacCompiler().compileSource(source);
+        var compiled = org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(result.generatedFiles().stream()
+                .filter(f -> !f.packageName().contains(".adapter.")).toList());
+        assertThat(compiled.success()).as(compiled.diagnostics().toString()).isTrue();
+        return result.generatedFiles().stream().filter(f -> f.typeSpec().name().equals(name))
+                .findFirst().orElseThrow().toString();
     }
 
     @Test
     @DisplayName("Generiert Entity mit Entity-Interface, mut-Settern, create/reconstitute und ID-Semantik")
     void shouldGenerateEntity() {
         String src = """
-                namespace com.example.domain;
+                namespace com.example;
                 
+                id TaskId; value TaskTitle(String); value TaskStatus = PENDING | COMPLETED;
                 entity Task[TaskId](TaskTitle title, mut TaskStatus status) validates {
-                    require(title.value().length() <= 100, "Title too long");
-                } {
-                    public void complete() {
-                        status(TaskStatus.COMPLETED);
+                    require(self.title().string().length() <= 100, "Title too long");
+                } behavior {
+                    modify void complete() {
+                        self.status(TaskStatus.COMPLETED);
                     }
                 };
                 """;
 
-        CompilationUnitNode cu = parse(src);
-        EntityNode node = cu.entities().getFirst();
-        JavaFile file = generator.generate(node, Map.of(), Map.of(), "com.example.domain", List.of());
-        String code = file.toString();
+        String code = generated(src, "Task");
         String normalizedCode = code.replaceAll("\\s+", " ");
 
         assertThat(code)
@@ -83,64 +63,57 @@ class EntityGeneratorTest {
     @DisplayName("Nutzt konsistent explizite und abgeleitete Feldnamen im generierten Entity durch alle Methoden")
     void shouldGenerateEntityWithExplicitAndDerivedNames() {
         String src = """
-                namespace com.example.domain;
-                entity OrderItem[ItemId](String, mut int explicitQuantity);
+                namespace com.example;
+                id ItemId; value Description(String); value Quantity(int);
+                entity OrderItem[ItemId](Description, mut Quantity explicitQuantity);
                 """;
 
-        CompilationUnitNode cu = parse(src);
-        EntityNode node = cu.entities().getFirst();
-        JavaFile file = generator.generate(node, Map.of(), Map.of(), "com.example.domain", List.of());
-        String code = file.toString().replaceAll("\\s+", " ");
+        String code = generated(src, "OrderItem").replaceAll("\\s+", " ");
 
         // Prüft, ob Default-Name ('string') und Custom-Name ('explicitQuantity') korrekt deklariert werden
         assertThat(code)
-                .contains("private final String string;")
-                .contains("private int explicitQuantity;");
+                .contains("private final Description description;")
+                .contains("private Quantity explicitQuantity;");
 
         // Prüft die Signaturen der Factory-Methoden
         assertThat(code)
-                .contains("public static OrderItem create(String string, int explicitQuantity)")
-                .contains("public static OrderItem reconstitute(ItemId id, String string, int explicitQuantity)");
+                .contains("public static OrderItem create(Description description, Quantity explicitQuantity)")
+                .contains("public static OrderItem reconstitute(ItemId id, Description description, Quantity explicitQuantity)");
 
         // Prüft die internen Mutatoren (Setter) für mut-Felder
         assertThat(code)
-                .contains("public void explicitQuantity(int explicitQuantity)")
-                .contains("this.explicitQuantity = explicitQuantity;");
+                .contains("public void explicitQuantity(Quantity explicitQuantity)")
+                .contains("OrderItem.this.explicitQuantity = explicitQuantity;");
 
         // Prüft die öffentlichen Getter
         assertThat(code)
-                .contains("public String string()")
-                .contains("public int explicitQuantity()");
+                .contains("public Description description()")
+                .contains("public Quantity explicitQuantity()");
     }
 
     @Test
-    @DisplayName("Erzeugt TABLE_NAME und SCHEMA_DDL mit korrektem Value-Object-Flattening für Entities")
-    void shouldGenerateSchemaConstantsWithFlattenedColumns() {
+    @DisplayName("Keeps domain classes storage-free; explicit repositories flatten nested values")
+    void shouldGenerateFlattenedSchemaOutsideTheDomain(@org.junit.jupiter.api.io.TempDir java.nio.file.Path root) throws Exception {
         String src = """
-                namespace com.example.domain;
-                
-                value ItemDescription(String text);
-                value Currency(String isoCode);
-                value Price(BigDecimal amount, Currency currency);
-                
-                entity OrderItem[ItemId](ItemDescription description, Price unitPrice);
+                namespace com.example;
+                id ProjectId; id ItemId;
+                value Description(String);
+                value CurrencyCode(String);
+                value Price(BigDecimal amount, CurrencyCode currency);
+                entity OrderItem[ItemId](Description description, Price unitPrice); aggregate Project[ProjectId](OrderItem); repository Projects for Project {}
                 """;
-
-        CompilationUnitNode cu = parse(src);
-        Map<String, ValueObjectNode> valueObjects = extractValueObjects(cu);
-        EntityNode node = cu.entities().getFirst();
-
-        JavaFile file = generator.generate(node, valueObjects, Map.of(), "com.example.domain", List.of());
-        String code = file.toString();
-
-        assertThat(code)
-                .contains("public static final String TABLE_NAME = \"order_item\";")
-                .contains("public static final String SCHEMA_DDL =")
-                .contains("CREATE TABLE IF NOT EXISTS order_item (")
-                .contains("id UUID PRIMARY KEY")
-                .contains("description VARCHAR(255) NOT NULL")
-                .contains("unit_price_amount NUMERIC(19, 4) NOT NULL")
-                .contains("unit_price_currency VARCHAR(255) NOT NULL");
+        assertThat(generated(src, "OrderItem")).doesNotContain("TABLE_NAME", "SCHEMA_DDL");
+        var source = root.resolve("com/example/model.vernac");
+        java.nio.file.Files.createDirectories(source.getParent());
+        java.nio.file.Files.writeString(source, src);
+        var project = new org.vernac.compiler.pipeline.VernacCompiler().analyzeProject(root);
+        var schema = new org.vernac.compiler.persistence.SchemaBuilder(project,
+                org.vernac.compiler.persistence.SchemaModel.empty()).build();
+        var table = schema.tables().stream().filter(t -> t.name().equals("Project.@entity:com.example.OrderItem")).findFirst().orElseThrow();
+        assertThat(table.columns()).extracting(org.vernac.compiler.persistence.SchemaModel.Column::name)
+                .contains("id", "description", "unitPrice.amount", "@scale:unitPrice.amount", "unitPrice.currency");
+        assertThat(table.columns()).filteredOn(c -> c.name().equals("unitPrice.amount"))
+                .extracting(org.vernac.compiler.persistence.SchemaModel.Column::sqlType).containsExactly("NUMERIC");
     }
 
     @Test
@@ -157,7 +130,8 @@ class EntityGeneratorTest {
         assertThat(owner).contains("private class __ReadView", "private final class __AccessView", "implements CounterRead", "implements CounterAccess");
         assertThat(owner.substring(owner.indexOf("public class Counter"), owner.indexOf("{", owner.indexOf("public class Counter")))).doesNotContain("CounterRead", "CounterAccess");
         assertThat(result.generatedFiles()).anyMatch(f -> f.typeSpec().name().equals("CounterWrite"));
-        var compiled = org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(result);
+        var compiled = org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(result.generatedFiles().stream()
+                .filter(f -> !f.packageName().contains(".adapter.")).toList());
         assertThat(compiled.success()).as(compiled.diagnostics().toString()).isTrue();
     }
 }

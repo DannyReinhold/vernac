@@ -500,11 +500,135 @@ vernac-runtime for domain support, runtime-json for DTO/mapping, runtime-http fo
 REST, runtime-jdbc/starter for persistence. Supply Spring/application dependencies.
 Generated Java is not handwritten source: change the model or an external delegate.
 
-Persistence is PostgreSQL/JDBC, not JPA. It flattens values and keeps entity relations
-and list positions. Schema and migration goals produce owned schema/candidates;
-never invent SQL identifiers from Java names. Migration candidates require owner
-review/testing/approval. No arbitrary .class/.jar cleanup by the Vernac compiler;
-use Maven clean after removing generated types to eliminate stale bytecode.
+### 14.1 Relational mapping: use the generated model as the authority
+
+Persistence is PostgreSQL/JDBC, not JPA. An explicit repository enables storage of
+its aggregate and the complete reachable entity graph. No lazy loading or automatic
+repository per aggregate. Domain reconstitution still checks invariants.
+
+| Modeled element | Mapping convention |
+| --- | --- |
+| Namespace and aggregate | SQL schema is the exact namespace; root table is the exact aggregate name, e.g. `"org.example.delivery"."Tour"` |
+| SQL identifiers | Always quoted; no snake_case conversion, case folding or Unicode normalization. A dot inside `"price.amount"` belongs to one identifier |
+| Single-value VO field | Reuses its containing field path: `Title(String)` used as `Title title` becomes `"title"`, not `"title.string"` |
+| Multi-value/nested VO | Append member names recursively: `Money(BigDecimal amount, Currency currency)` at `price` becomes `"price.amount"`, `"price.currency"` plus scalar components |
+| Optional VO | Nullable representation; a required scalar leaf witnesses presence. If all leaves can be null, a `@present:<path>:<qualified-VO>` marker distinguishes absence from a present all-null value |
+| Root identity and metadata | `"id"` UUID, `"@version"` BIGINT, `"@createdAt"` and `"@updatedAt"` timestamps plus nanosecond remainders |
+| Entity state | One `<Root>.@entity:<qualified-Entity>` table per root/entity type, in the root namespace's SQL schema; primary key `("@aggregateId", "id")` |
+| Direct entity field | Entity UUID under its field name; aggregate-scoped composite FK to the entity state table |
+| Entity collection | Separate relationship table `<owner-state-table>.<field>`; root relationships contain `@aggregateId`, `@entityId`; entity-owned relationships also contain `@ownerId` |
+| Entity list | Adds zero-based `@position`; primary key is owner columns plus position. Repeated references are allowed. Load explicitly orders by position |
+| Entity set | No position; primary key is owner columns plus entity ID; no ordering promise |
+| Value collection | Separate containment-path table with `@ownerId`, technical `@rowId` and flattened value columns; lists add `@position`. Entity-owned value collections also carry `@aggregateId`; deeper value rows reference their owner's `@rowId` |
+
+Optional collections distinguish absent from present-but-empty through a presence
+marker. Multiple paths to an entity within one loaded aggregate return the same
+Java instance. Save synchronizes entity state and relationships; an entity is removed
+only after its last reachable reference disappears. It does not indiscriminately
+replace every child graph. Value-collection rows may be replaced as a unit.
+
+Technical names start with `@`, unavailable to user-defined fields. Identifiers over
+63 UTF-8 bytes are shortened deterministically: longest complete-codepoint prefix
+fitting 30 bytes, then `~` and the first 32 lowercase SHA-256 hex digits of the full
+UTF-8 name. Collisions fail generation. **Read the generated schema; do not hand-guess
+physical names**, especially for long names, nested values and technical components.
+
+Scalars are not all single SQL columns. BigDecimal uses finite NUMERIC plus
+`@scale:<path>` to preserve Java equality. Timestamp/time types store microseconds
+plus remaining nanoseconds; zone-bearing types preserve additional offset/zone data.
+Other multi-component values use named technical columns. Enum TEXT codes live in
+schema metadata: initial codes match constants; subsequent generation retains recorded
+codes. Explicit `vernac.enumCodes` mappings support deliberate evolution. Never use
+ordinals or add domain `dbValue()` methods. Database/text/date representability limits
+still apply; consult the project's scalar-storage contract before choosing edge values.
+
+The root version protects the **whole graph**, not each entity separately. Fresh
+objects start at version 0; insertion persists version 1. An update checks the expected
+`@version`, increments it and fails on a stale snapshot before child writes. A missing
+existing root is not recreated via INSERT fallback. All repository operations require
+a surrounding transaction (MANDATORY); usecases provide REQUIRED transactions.
+A failed transaction does not undo mutations to the Java objects. Structural DB
+constraints protect the representation, not arbitrary Java `validates` expressions.
+
+### 14.2 Migration lifecycle
+
+The versioned **source-controlled schema snapshots** are the diff baseline. Migration
+generation does not diff against an arbitrary running application database and does
+not infer schema evolution merely by parsing old SQL.
+
+Default locations (unless the project's plugin configuration overrides them):
+
+| Artifact | Path / format |
+| --- | --- |
+| Input model | `src/main/vernac/**/*.vernac` |
+| Expected schema preview | `target/vernac-schema/schema.json` and `schema.sql` |
+| Versioned schema history | `src/main/vernac-schema/history/V<version>__<description>.json` |
+| Flyway candidates | `src/main/resources/db/migration/V<version>__<description>.sql` |
+
+Use the version configured for `org.vernac:vernac-maven-plugin` in the application POM.
+The commands below assume its `vernac` prefix resolves there. In a terminal include
+`mvn`; in IntelliJ's Maven command field enter the goals/options as that UI requires.
+Quote the entire dotted `-D...` argument in **PowerShell**; the unquoted examples below
+are Maven arguments for IntelliJ/POSIX shells.
+
+1. Inspect the target model with `mvn vernac:schema`. It writes expected JSON and
+   complete initial-DDL **preview** under `target`; it changes neither the database
+   nor source history. Do not copy this full-schema preview into the next incremental
+   migration of an existing application.
+2. Generate the first candidate with
+   `mvn vernac:migration -Dvernac.migrationDescription=initial_schema`.
+   After changing the model, use the same goal with a new description, for example
+   `mvn vernac:migration -Dvernac.migrationDescription=add_dispatch_reference`.
+   It compares the last snapshot (or empty model initially) with the current target
+   and writes a **new SQL candidate and matching JSON snapshot**. No change means no
+   new files. The default version is UTC `yyyyMMddHHmmssSSS`, not an epoch count;
+   descriptions use lowercase words separated by underscores.
+3. Review the SQL, including order, existing data, locking, deployment compatibility,
+   backups and recovery. The application developer alone is responsible for testing
+   and approving it. Neither generation nor automatic verification guarantees safety.
+4. Run `mvn vernac:schema-check` using `VERNAC_CHECK_URL`, `VERNAC_CHECK_USER` and
+   `VERNAC_CHECK_PASSWORD` supplied securely for a **disposable PostgreSQL server**.
+   The role needs CREATEDB. The goal creates two temporary databases: one receives
+   all Flyway migrations; the other receives the expected complete DDL. It compares
+   Vernac-owned schema objects and removes those databases afterwards. Foreign
+   application tables are ignored. It also requires the current model to match the
+   latest snapshot. It does **not** test production data, backfill correctness on
+   populated tables, operational duration or rolling-deployment compatibility.
+5. Separately exercise migration of representative existing data and the application
+   behavior. Commit the model, SQL, snapshot and any transformation specification
+   together. Deploy through the application's configured Flyway integration, e.g.
+   Spring Boot's Flyway startup migration against the application datasource.
+   Vernac's `schema` and `migration` goals themselves never apply application SQL.
+
+Adding a required column to existing rows requires an explicit SQL backfill. Supply
+`-Dvernac.transformations=path/to/transformations.json`, whose shape is
+`{"backfills":{"<namespace>/<table>/<column>":"<SQL expression>"},"conversions":{}}`.
+Use generated logical identities for keys and trusted, reviewed SQL expressions.
+The generator can then add a nullable column, fill existing rows, and set NOT NULL.
+It must not invent a domain-valid value. Potentially destructive changes normally
+abort; `-Dvernac.force=true` only allows candidate generation to continue through
+recognized risks. It neither supplies missing transformations nor approves/runs SQL.
+
+**Example evolution:** after the initial `Tour` migration has been recorded, define
+`value DispatchReference(String);` and append `DispatchReference? reference` to Tour's
+fields. Generate `add_dispatch_reference`. Its schema delta adds
+`ALTER TABLE "org.example.delivery"."Tour" ADD COLUMN "reference" TEXT;` (with the
+standard review notice), plus the new snapshot. It does not recreate Tour, require a
+backfill for this optional field, or add tautological presence checks for its single
+nullable column. Update handwritten create/reconstitute calls as required by the
+new generated API. Test both absent historical values and newly populated references.
+
+Never overwrite/delete an applied or published migration to make a build green.
+Do not manually recalculate snapshot fingerprints or merge divergent snapshot chains.
+Rebase and regenerate **unpublished** candidates against the accepted history; once
+released/applied, use forward migrations and coordinate deployment. A type/field rename
+may appear as drop/add: the tool cannot infer data-preserving intent. Inspect that
+candidate rather than accepting it as a safe rename. Keep non-Vernac tables separate;
+do not casually extend owned tables outside their model. Git rollback does not roll
+back Flyway or the database. Reset only explicitly disposable demo data when repeating
+an exercise, never a real environment as a migration shortcut.
+
+### 14.3 Unsupported assumptions
 
 Do NOT generate these as supported language:
 
@@ -518,9 +642,11 @@ Do NOT generate these as supported language:
 - Generated HTTP controllers/MCP/Kafka/RabbitMQ endpoints, automatic async ports.
 - Database rollback restoring object state or guaranteeing rollback of remote effects.
 
-Retained experimental grammar productions do not make an unsupported construct
-part of the public language. Where uncertain, inspect the current project compiler
-and its generated API, not merely whether the parser accepts text.
+Obsolete entity/package/custom-repository productions have been removed from the
+0.3.0 compiler. Parsing still does not validate embedded Java: verify the current
+project compiler and generated API, not just syntax acceptance.
+The compiler cleans up its owned generated Java sources, not arbitrary .class/.jar
+files; use Maven clean after removing types to eliminate stale bytecode.
 
 ## 15. One-shot example: complete task application model
 

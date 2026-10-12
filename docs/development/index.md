@@ -26,6 +26,8 @@ Release acceptance also includes installation of the packaged IntelliJ plugin.
 ## Project maintenance
 
 - [Documentation ownership and validation](documentation.md)
+- [Deep IntelliJ integration roadmap](intellij-deep-integration.md): cross-language refactoring and debugger investigation (planned).
+- [Capabilities and usecase authorization](capabilities-and-usecase-authorization.md): planned module and SaaS policy design.
 - [Consolidation status](consolidation-status.md)
 - [0.2.0 release plan](release-0.2.0.md)
 - [Release operations](../maintainers/releasing.md)

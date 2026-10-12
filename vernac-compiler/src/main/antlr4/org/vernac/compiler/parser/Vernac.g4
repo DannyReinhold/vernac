@@ -93,15 +93,9 @@ eventDefinition
 aggregateDefinition
     : 'aggregate' name=typeName '[' idReference ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
-      ( '{' aggregateMember* '}' )?
       behaviorBlock?
       collectionDefinition?
       ';'?
-    ;
-
-aggregateMember
-    : packageDeclarationStatement
-    | methodDefinition
     ;
 
 idReference
@@ -111,27 +105,9 @@ idReference
 entityDefinition
     : 'entity' name=typeName '[' idReference ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
-      ( '{' entityMember* '}' )?
       behaviorBlock?
       ( collectionDefinition )?
       ';'?
-    ;
-
-entityMember
-    : packageDeclarationStatement
-    | methodDefinition
-    ;
-
-invariantDefinition
-    : 'invariant' name=IDENTIFIER '{' rawJavaBlock '}'
-    ;
-
-methodDefinition
-    : accessModifier? returnType=type name=methodName '(' parameterList? ')' '{' rawJavaBlock '}'
-    ;
-
-accessModifier
-    : 'public' | 'internal' | 'private'
     ;
 
 // ==========================================
@@ -222,18 +198,8 @@ portMethodDefinition
 // ==========================================
 repositoryDefinition
     : 'repository' (name=typeName)? 'for' aggregateName=typeName '{'
-        repositoryMember*
+        repositoryFindMethod*
       '}' ';'?
-    ;
-
-repositoryMember
-    : packageDeclarationStatement
-    | repositoryFindMethod
-    | repositoryCustomMethod
-    ;
-
-packageDeclarationStatement
-    : 'package' qualifiedName ';'
     ;
 
 repositoryFindMethod
@@ -253,10 +219,6 @@ repositoryOrder
     : field=qualifiedNameSegment direction=('asc' | 'desc')?
     ;
 
-repositoryCustomMethod
-    : 'custom' returnType=type name=methodName '(' parameterList? ')' ';'
-    ;
-
 // ==========================================
 // 6. Use Cases
 // ==========================================
@@ -270,32 +232,6 @@ usecaseDefinition
 usecaseBehaviorMember
     : 'execute' ('{' rawJavaBlock '}' | 'implemented' 'by' implementation=qualifiedName ';')
     | behaviorMethod
-    ;
-
-useDependencyStatement
-    : 'use' typeName (variableName)? ';'
-    ;
-
-singleReturnStatement
-    : 'return' expression? ';'
-    ;
-
-tupleReturnStatement
-    : 'return' '(' tupleElement (',' tupleElement)* ')' ';'
-    ;
-
-tupleElement
-    : expression ('as'? alias=variableName)?
-    ;
-
-rawJavaStatement
-    : javaBlockStatement
-    | '{' rawJavaBlock '}'
-    | ~('}' | 'use' | 'load' | 'save' | 'return' | 'package' | 'emit' | '{') ~(';' | '{')* ';'
-    ;
-
-javaBlockStatement
-    : ('if' | 'for' | 'while' | 'switch' | 'try') ~('{')* '{' rawJavaBlock '}' ( 'else' ( '{' rawJavaBlock '}' | javaBlockStatement ) )?
     ;
 
 // ==========================================
@@ -330,7 +266,7 @@ parameterList
     ;
 
 parameter
-    : ( '@' typeName ( '(' STRING_LITERAL ')' )? )* (isMut='mut')? paramType=type (name=variableName)?
+    : (isMut='mut')? paramType=type (name=variableName)?
     ;
 
 type
@@ -488,7 +424,5 @@ BOOLEAN_LITERAL : 'true' | 'false' ;
 WS            : [ \t\r\n]+ -> skip ;
 LINE_COMMENT  : '//' ~[\r\n]* -> channel(HIDDEN) ;
 BLOCK_COMMENT : '/*' .*? '*/' -> channel(HIDDEN) ;
-
-STATUS_FAMILY   : [1-5] [xX] [xX] ;
 
 ANY_CHAR      : . ;
