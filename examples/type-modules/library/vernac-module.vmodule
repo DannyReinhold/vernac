@@ -1,0 +1,8 @@
+module example.shared.values {
+    export example.shared.ExternalRef;
+    export example.shared.Label;
+    export example.shared.Labels;
+    export example.shared.Amount;
+    export example.shared.Money;
+    export example.shared.Kind;
+}

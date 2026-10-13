@@ -29,8 +29,14 @@ final class VernacProjectSymbols {
     private final Set<TypeIdentity> valueCollections = new HashSet<>();
     private final Set<String> namespaces = new TreeSet<>();
     private final ProjectSymbolIndex index;
+    private Map<String,Location> dependencyLocations=Map.of();
+    void dependencyLocations(Map<String,Location> locations) {dependencyLocations=Map.copyOf(locations);}
+    private Location location(TypeSymbol symbol) {
+        return dependencyLocations.getOrDefault(symbol.identity().qualifiedName(),new Location(symbol.sourceFile().toUri().toString(),declarationRanges.get(symbol)));
+    }
 
-    VernacProjectSymbols(Path root, Map<Path, String> texts) {
+    VernacProjectSymbols(Path root, Map<Path, String> texts) { this(root,texts,Set.of()); }
+    VernacProjectSymbols(Path root, Map<Path, String> texts,Set<Path> external) {
         this.root=root;
         texts.forEach((path, text) -> {
             var tree = parse(text);
@@ -38,7 +44,7 @@ final class VernacProjectSymbols {
             if (header == null || header.qualifiedName() == null) return;
             String namespace = header.qualifiedName().getText();
             if (!VernacNames.isNamespace(namespace)
-                    || !root.resolve(namespace.replace('.', '/')).equals(path.getParent())) return;
+                    || (!external.contains(path) && !root.resolve(namespace.replace('.', '/')).equals(path.getParent()))) return;
             List<ImportNode> imports = new ArrayList<>();
             for (var item : tree.importDeclaration()) {
                 // Ignore an unfinished import for editor visibility; diagnostics still report it.
@@ -89,6 +95,23 @@ final class VernacProjectSymbols {
             }
         });
         index = new ProjectSymbolIndex(declarations);
+    }
+
+    List<CompletionItem> moduleComplete(String text,Position at) {
+        int point=offset(text,at),start=point;
+        while(start>0) {int cp=text.codePointBefore(start);if(!Character.isJavaIdentifierPart(cp)&&cp!='.')break;start-=Character.charCount(cp);}
+        if(!text.substring(0,start).stripTrailing().endsWith("export"))return List.of();
+        String prefix=text.substring(start,point);Range range=new Range(position(text,start),at);
+        return declarations.stream().filter(d->d.sourceFile().startsWith(root) && !d.sourceFile().toString().contains(".module-contracts"))
+            .map(d->d.identity().qualifiedName()).distinct().sorted().filter(n->n.startsWith(prefix)).map(n->{var item=new CompletionItem(n);item.setTextEdit(Either.forLeft(new TextEdit(range,n)));return item;}).toList();
+    }
+    List<Location> moduleDefinition(String text,Position at) {
+        int point=offset(text,at),start=point,end=point;
+        while(start>0) {int cp=text.codePointBefore(start);if(!Character.isJavaIdentifierPart(cp)&&cp!='.')break;start-=Character.charCount(cp);}
+        while(end<text.length()) {int cp=text.codePointAt(end);if(!Character.isJavaIdentifierPart(cp)&&cp!='.')break;end+=Character.charCount(cp);}
+        String name=text.substring(start,end);
+        var symbol=index.find(name).orElse(null);
+        return symbol==null?List.of():List.of(new Location(symbol.sourceFile().toUri().toString(),declarationRanges.get(symbol)));
     }
 
     private void collection(Path path, String namespace, ParserRuleContext owner,
@@ -355,7 +378,7 @@ final class VernacProjectSymbols {
                     instanceof ResolvedType.Declared declared) target = declared.symbol();
         }
         if (target == null) return List.of();
-        return List.of(new Location(target.sourceFile().toUri().toString(), declarationRanges.get(target)));
+        return List.of(location(target));
     }
 
     private static VernacParser.InboundHttpAdapterDefinitionContext inboundAncestor(ParseTree node) {
@@ -589,7 +612,7 @@ final class VernacProjectSymbols {
                 if (visible instanceof ResolvedType.Declared d && d.symbol().equals(symbol)) names.add(name);
                 var target = files.get(symbol.sourceFile());
                 for (String spelling : names) {
-                    choices.put(spelling, new Location(symbol.sourceFile().toUri().toString(), declarationRanges.get(symbol)));
+                    choices.put(spelling, location(symbol));
                     for (var top : target.tree().topLevelDeclaration()) {
                         var v = top.valueDefinition();
                         if (v == null || v.name == null || !v.name.getText().equals(name) || v.enumConstantList() == null) continue;

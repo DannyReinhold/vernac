@@ -1,5 +1,10 @@
 grammar Vernac;
 
+moduleDefinition
+    : 'module' name=qualifiedName '{' moduleExport* '}' EOF
+    ;
+moduleExport : 'export' exportedType=qualifiedName ';' ;
+
 compilationUnit
     : namespaceDeclaration importDeclaration* topLevelDeclaration* EOF
     ;
@@ -324,7 +329,7 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | IDENTIFIER
     | BOOLEAN_LITERAL
     | 'null'
@@ -427,7 +432,7 @@ typeName
     ;
 
 methodName
-    : 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'read' | 'modify' | 'load' | 'save'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
@@ -437,7 +442,7 @@ methodName
     ;
 
 variableName
-    : 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
     | IDENTIFIER

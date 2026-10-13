@@ -8,4 +8,8 @@ for syntax and the [tutorials](../tutorials/index.md) for guided use.
 Use the specification index for the full feature catalog. In this revision:
 
 - [HTTP inbound adapters](inbound-http.md): request bindings, usecase invocation, response mapping and error defaults.
-- [Pagination](pagination.md): runtime APIs and offset/cursor JDBC queries; Result/HTTP integration remains planned.
+- [Pagination](pagination.md): runtime APIs and offset/cursor JDBC queries; completed usecase results and HTTP DTO integration.
+
+## Accepted designs awaiting implementation
+
+- [Versioned modules](modules.md): implemented type-module exports/imports and accepted future activation/migration rules.

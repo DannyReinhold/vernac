@@ -502,3 +502,22 @@ A policy block or `errors implemented by ...;` may follow an endpoint response, 
 appear last in an adapter. The forms are exclusive per scope. Response-mapping failures
 stay technical; policies never change transactions, retries or authentication.
 See the [normative inbound contract](contracts/inbound-http.md#declarative-inbound-error-policies-040).
+
+## Reusable type modules (0.4.0)
+
+A producer declares `vernac-module.vmodule` beside its POM, not below
+src/main/vernac. Its separate grammar is `module qualified.identifier { export
+fully.qualified.Type; ... }`. Explicit exports currently support IDs, VOs, enums
+and named value collections. Publicly referenced local types and collection elements
+need their own exports. No wildcard exports or foreign re-exports.
+
+A normal compile-scoped Maven dependency makes public contracts available to ordinary
+Vernac imports, including compile-visible transitive dependencies. Type identities do
+not gain a module prefix. The compiler consumes META-INF/vernac/module.json and never
+regenerates dependency classes. External VO structure participates in local schema
+flattening/diffs. Module dependencies do not activate beans or migrations.
+
+Build producer and consumer with the current Vernac Maven plugin. In IntelliJ,
+New → Vernac Module Definition creates the project file. Build after dependency
+changes to refresh the shared resolved editor index. For a runnable two-artifact
+example see [type modules](../examples/type-modules/README.md).

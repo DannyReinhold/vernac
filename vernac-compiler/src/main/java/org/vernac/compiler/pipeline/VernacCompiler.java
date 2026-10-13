@@ -39,12 +39,16 @@ public class VernacCompiler {
 
     /** Reads and indexes the complete source tree before reference resolution. */
     public VernacProject readProject(Path sourceRoot) throws IOException {
-        return new VernacProjectLoader().load(sourceRoot);
+        return org.vernac.compiler.modules.ModuleArtifacts.merge(new VernacProjectLoader().load(sourceRoot), org.vernac.compiler.modules.ModuleArtifacts.editorModules(sourceRoot));
     }
 
     /** Validates imports and resolves all supported declarations against the project index. */
     public ResolvedProject analyzeProject(Path sourceRoot) throws IOException {
         return new ProjectTypeResolver().resolve(readProject(sourceRoot));
+    }
+
+    public ResolvedProject analyzeProject(Path sourceRoot, List<org.vernac.compiler.modules.ModuleDescriptor> modules) throws IOException {
+        return new ProjectTypeResolver().resolve(org.vernac.compiler.modules.ModuleArtifacts.merge(new VernacProjectLoader().load(sourceRoot),modules));
     }
 
     /** Compiles reviewed domain types, collections and explicit JDBC repositories. */
@@ -56,7 +60,7 @@ public class VernacCompiler {
         return generate(analyzeProject(sourceRoot), previous, enumCodes);
     }
 
-    private VernacProjectCompilationResult generate(ResolvedProject project, SchemaModel previous,
+    public VernacProjectCompilationResult generate(ResolvedProject project, SchemaModel previous,
             Map<String, Map<String, String>> enumCodes) {
         if (!project.deferredTypes().isEmpty()) {
             throw new SemanticValidationException(project.deferredTypes().stream().map(symbol ->
@@ -65,6 +69,7 @@ public class VernacCompiler {
         }
         List<JavaFile> files = new ArrayList<>();
         for (var source : project.project().sources()) {
+            if (source.external()) continue;
             for (var definition : source.unit().definitions()) {
                 if (definition instanceof IdDeclarationNode id) files.add(idGenerator.generate(id, source.unit().namespace()));
                 else if (definition instanceof ValueObjectNode value) {

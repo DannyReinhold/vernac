@@ -7,7 +7,8 @@ import java.nio.file.Path;
 import java.util.Objects;
 
 /** A parsed source and its filesystem origin. */
-public record VernacSourceFile(Path path, CompilationUnitNode unit) {
+public record VernacSourceFile(Path path, CompilationUnitNode unit, boolean external) {
+    public VernacSourceFile(Path path,CompilationUnitNode unit) { this(path,unit,false); }
     public VernacSourceFile {
         path = Objects.requireNonNull(path).toAbsolutePath().normalize();
         Objects.requireNonNull(unit);

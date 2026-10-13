@@ -65,3 +65,6 @@ For a source checkout, use the [example build guide](https://github.com/DannyRei
 
 [Run Vernac Dispatch](dispatch.md): an interactive application connecting the domain,
 transactions, PostgreSQL, durable events and a carrier ACL.
+
+[Reuse a type module](../../examples/type-modules/README.md): publish values in a
+separate Maven artifact, import them and flatten them in an application aggregate.

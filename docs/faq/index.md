@@ -350,3 +350,12 @@ Technical integration failures can be selected by their existing responsibility 
 category: a remote timeout can become 503, while an invalid upstream response can
 become 502. The HTTP reply does not erase the original integration diagnostics.
 See [inbound error policies](../contracts/inbound-http.md#declarative-inbound-error-policies-040).
+
+## Can I reuse values from a separately published Vernac library?
+
+Yes. A type library publishes explicit exports through `vernac-module.vmodule` beside
+its POM. Add its Maven dependency and import the exported namespace/type normally.
+The consumer references the existing Java classes; it does not regenerate them.
+External VO fields can be flattened into your own aggregate tables, so a library
+update may require an application migration. Functional-module activation and module
+migration streams are later scope. See the [two-artifact example](../../examples/type-modules/README.md).

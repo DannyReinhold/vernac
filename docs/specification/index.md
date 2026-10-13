@@ -32,7 +32,7 @@ resolution and feature contracts also constrain accepted programs.
 - [PostgreSQL mapping](../contracts/postgresql-persistence.md)
 - [Scalar representation limits](../contracts/scalar-storage-limits.md)
 - [Repository queries](../contracts/repository-queries.md)
-- [Pagination runtime foundation](../contracts/pagination.md): query/HTTP generation remains planned.
+- [Pagination runtime foundation](../contracts/pagination.md): offset/cursor queries and completed HTTP results.
 - [HTTP inbound adapters](../contracts/inbound-http.md)
 - [Ports and adapters](../contracts/ports-adapters-and-acl.md)
 - [Adapter configuration](../contracts/adapter-configuration.md)
@@ -55,3 +55,7 @@ a generated excerpt as a new supported feature.
 
 See [documentation maintenance](../development/documentation.md) and the
 [release plan](../development/release-0.3.0.md) for remaining verification work.
+
+## Accepted designs awaiting implementation
+
+- [Versioned modules](../contracts/modules.md): implemented type-module slice plus explicit functional-module prerequisites.

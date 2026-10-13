@@ -1,0 +1,10 @@
+namespace example.shared;
+id ExternalRef;
+value Label(String) validates {
+    require(!self.string().isBlank(), "Label must not be blank");
+} list Labels;
+value Amount(BigDecimal);
+value Money(Amount, Currency);
+value Kind = BASIC | PREMIUM;
+// Compiled into the JAR, but not importable through the module contract.
+value InternalNote(String);

@@ -12,8 +12,10 @@ import java.io.File;
 import java.nio.file.Files;
 
 /** Generates the expected PostgreSQL model and initial-DDL candidate, without changing source history. */
-@Mojo(name = "schema", threadSafe = true)
+@Mojo(name = "schema", threadSafe = true, requiresDependencyResolution = ResolutionScope.COMPILE)
 public class SchemaMojo extends AbstractMojo {
+    @Parameter(defaultValue="${project}", readonly=true)
+    protected org.apache.maven.project.MavenProject project;
     @Parameter(property="vernac.sourceDirectory", defaultValue="${project.basedir}/src/main/vernac")
     protected File sourceDirectory;
     @Parameter(property="vernac.schemaHistory", defaultValue="${project.basedir}/src/main/vernac-schema/history")
@@ -30,7 +32,7 @@ public class SchemaMojo extends AbstractMojo {
         if (!sourceDirectory.isDirectory()) throw new IllegalArgumentException("Vernac source root does not exist: " + sourceDirectory);
         java.util.Map<String, java.util.Map<String, String>> overrides = enumCodes == null ? java.util.Map.of()
                 : SchemaModel.JSON.readValue(Files.readString(enumCodes.toPath()), new com.fasterxml.jackson.core.type.TypeReference<>() { });
-        return new SchemaBuilder(new VernacCompiler().analyzeProject(sourceDirectory.toPath()), previous, overrides).build();
+        return new SchemaBuilder(new VernacCompiler().analyzeProject(sourceDirectory.toPath(),ModuleClasspath.read(project)), previous, overrides).build();
     }
     @Override public void execute() throws MojoExecutionException, MojoFailureException {
         try {

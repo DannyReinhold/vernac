@@ -71,7 +71,7 @@ public final class VernacProjectLoader {
         return project;
     }
 
-    private VernacProject index(Path sourceRoot, List<VernacSourceFile> sources,
+    public VernacProject index(Path sourceRoot, List<VernacSourceFile> sources,
                                 List<CompilerDiagnostic> diagnostics) {
         Path root = sourceRoot.toAbsolutePath().normalize();
         List<TypeSymbol> symbols = new ArrayList<>();

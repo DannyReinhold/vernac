@@ -50,6 +50,13 @@ language differs. Do not require a redundant wrapper for every direct module API
 
 ## Workstream A: consuming Vernac modules
 
+The [accepted module design contract](../contracts/modules.md) is authoritative for
+export/import semantics, activation boundaries, persisted external VOs and migration
+ownership. The ID/VO/enum/value-collection publication and import slice is implemented;
+functional-module activation and SaaS policies remain planned. Open implementation
+decisions are listed in that contract.
+
+
 Proposed packaging: compiled Java artifacts plus a versioned public descriptor,
 for example `META-INF/vernac/module.json`, and optional source attachments. The
 path and schema remain provisional. The descriptor should record:

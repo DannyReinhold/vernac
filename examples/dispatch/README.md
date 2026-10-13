@@ -238,9 +238,11 @@ Its adapter provides shared malformed-request, not-found and optimistic-conflict
 Try an empty title (no tour is created):
 
 ```powershell
-Invoke-WebRequest -Method Post 'http://localhost:8087/api/tours' -ContentType 'application/json' -Body '{"title":"","capacity":10}'
+$requestFile = Join-Path $env:TEMP 'vernac-empty-title.json'
+[System.IO.File]::WriteAllText($requestFile, '{"title":"","capacity":10}', [System.Text.UTF8Encoding]::new($false))
+curl.exe -i -X POST http://localhost:8087/api/tours -H "Content-Type: application/json" --data-binary "@$requestFile"
 ```
 
-PowerShell reports the non-success response; inspect its JSON body for `code` and
+The command prints the non-success response; inspect its JSON body for `code` and
 `message`. Omitting `capacity` instead produces the shared 400 / INVALID_REQUEST reply.
 These policies do not alter usecase transactions or publish exception messages.
