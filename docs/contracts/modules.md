@@ -415,3 +415,10 @@ in fallback views. Cross-artifact refactoring remains out of scope.
 The producer registers `target/generated-module-sources` as a sources root so that
 an explicitly configured maven-source-plugin execution can attach original Vernac
 sources. See the separate [type-module example](../../examples/type-modules/README.md).
+
+## Learning the lifecycle
+
+The [module tutorial](../tutorials/type-modules.md) walks through type publication,
+consumption, initial application migrations and an external-value upgrade. It also
+explains the planned functional activation lifecycle without presenting it as
+implemented configuration. This contract remains the normative source.

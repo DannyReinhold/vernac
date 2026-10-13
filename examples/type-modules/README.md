@@ -40,3 +40,8 @@ selected by the language server.
 
 See [the module contract](../../docs/contracts/modules.md) for the distinction between
 this implemented type-module slice and planned functional-module activation/migrations.
+
+Follow [the module lifecycle tutorial](../../docs/tutorials/type-modules.md) for
+initial migrations, an exported-value change, application backfills and Flyway
+application. It distinguishes the executable type-module workflow from planned
+functional activation and module-owned histories.

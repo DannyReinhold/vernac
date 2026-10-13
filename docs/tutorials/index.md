@@ -66,5 +66,7 @@ For a source checkout, use the [example build guide](https://github.com/DannyRei
 [Run Vernac Dispatch](dispatch.md): an interactive application connecting the domain,
 transactions, PostgreSQL, durable events and a carrier ACL.
 
-[Reuse a type module](../../examples/type-modules/README.md): publish values in a
-separate Maven artifact, import them and flatten them in an application aggregate.
+[Reuse and evolve a type module](type-modules.md): publish domain values, import
+them, create the initial application migration and upgrade a flattened external VO.
+The chapter also explains the planned activation and independent migration lifecycle
+for functional modules.
