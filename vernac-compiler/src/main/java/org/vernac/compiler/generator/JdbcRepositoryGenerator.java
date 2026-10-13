@@ -37,7 +37,29 @@ public final class JdbcRepositoryGenerator {
         currentAdapter=adapter; bindingNumber=0;
         TypeName storeType=ParameterizedTypeName.get(STORE,aggregate);
         adapter.addField(storeType,"store",Modifier.PRIVATE,Modifier.FINAL);
+        adapter.addField(int.class,"maximumPageSize",Modifier.PRIVATE,Modifier.FINAL);
         adapter.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC).addParameter(JDBC,"jdbc")
+                .addStatement("this(jdbc, 1000)").build());
+        boolean hasCursor=plan.repository().methods().stream().anyMatch(RepositoryMethodNode::cursor);
+        ClassName cursorCodec=ClassName.get("org.vernac.runtime.jdbc", "JdbcCursorCodec");
+        if(hasCursor) {
+            adapter.addField(cursorCodec,"cursorCodec",Modifier.PRIVATE,Modifier.FINAL);
+            adapter.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC).addParameter(JDBC,"jdbc")
+                    .addParameter(int.class,"maximumPageSize").addStatement("this(jdbc, maximumPageSize, $S)", "").build());
+        }
+        var constructor=MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC)
+                .addAnnotation(ClassName.get("org.springframework.beans.factory.annotation", "Autowired"))
+                .addParameter(JDBC,"jdbc")
+                .addParameter(ParameterSpec.builder(int.class,"maximumPageSize")
+                        .addAnnotation(AnnotationSpec.builder(ClassName.get("org.springframework.beans.factory.annotation", "Value"))
+                                .addMember("value", "$S", "${vernac.pagination.max-page-size:1000}").build()).build());
+        if(hasCursor) constructor.addParameter(ParameterSpec.builder(String.class,"cursorKey")
+                .addAnnotation(AnnotationSpec.builder(ClassName.get("org.springframework.beans.factory.annotation", "Value"))
+                        .addMember("value", "$S", "${vernac.pagination.cursor-key:}").build()).build())
+                .addStatement("this.cursorCodec = $T.configured(cursorKey)", cursorCodec);
+        adapter.addMethod(constructor
+                .addStatement("$T.of(1).checkMaximum(maximumPageSize)", ClassName.get("org.vernac.runtime.pagination", "PageSize"))
+                .addStatement("this.maximumPageSize = maximumPageSize")
                 .addStatement("this.store = new $T<>(jdbc, $T.class, rootMapping(), entityMappings(), tables())",STORE,aggregate).build());
         adapter.addMethod(MethodSpec.methodBuilder("byId").addAnnotation(Override.class).addModifiers(Modifier.PUBLIC).returns(aggregate).addParameter(id,"id")
                 .addStatement("return store.byId(id.value())").build());
@@ -125,6 +147,9 @@ public final class JdbcRepositoryGenerator {
             var query=Objects.requireNonNull(project.queries().get(method),"Unresolved repository query");
             TypeName result=ResolvedJavaTypes.javaType(query.result());
             TypeName returns=query.singleton()?ParameterizedTypeName.get(ClassName.get(Optional.class),result):result;
+            if(method.paginated()) returns=ParameterizedTypeName.get(
+                    ClassName.get("org.vernac.runtime.pagination", method.cursor()?"CursorQuery":method.counting()?"CountedOffsetQuery":"OffsetQuery"),
+                    ClassName.get(plan.aggregateNamespace()+".domain", plan.aggregate().name()), result);
             var api=MethodSpec.methodBuilder(method.name()).addModifiers(Modifier.PUBLIC,Modifier.ABSTRACT).returns(returns);
             var impl=MethodSpec.methodBuilder(method.name()).addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(returns);
             for(var p:method.parameters()) {
@@ -153,10 +178,32 @@ public final class JdbcRepositoryGenerator {
             }
             List<CodeBlock> orders=new ArrayList<>();
             for(var o:query.orders()) orders.add(CodeBlock.of("$T.order($S, $L, $L)",queryType,o.field().scalar(),strings(queryColumns(plan,o.field())),o.descending()));
-            impl.addStatement("var __vernacResults = store.find($L, $T.join($S, $L), __vernacQuery.parameters(), $L, $S)",
-                    queryCondition(method.condition(), method.predicates(), clauses),String.class,", ",list(orders),query.singleton(),plan.repositoryNamespace()+"."+plan.repository().name()+"."+method.name());
-            if(query.singleton()) impl.addStatement("return __vernacResults.stream().findFirst()");
-            else impl.addStatement("return $T.of(__vernacResults)",result);
+            if(method.paginated()) {
+                impl.addStatement("String __vernacWhere = $L", queryCondition(method.condition(), method.predicates(), clauses));
+                if(method.offset()) impl.addStatement("String __vernacOrder = $T.join($S, $L)", String.class, ", ", list(orders));
+                if(method.cursor()) {
+                    ClassName sort=ClassName.get("org.vernac.runtime.jdbc", "JdbcCursorSort");
+                    var keys=query.orders().stream().map(o->CodeBlock.of("new $T($S, $L, $L)", sort,
+                            o.field().scalar(), strings(queryColumns(plan,o.field())), o.descending())).toList();
+                    impl.addStatement("var __vernacKeys = $L", list(keys));
+                    impl.beginControlFlow("return __vernacRequest ->")
+                            .addStatement("var __vernacPage = store.cursor($S, $S, __vernacWhere, __vernacKeys, __vernacQuery.parameters(), __vernacRequest, maximumPageSize, cursorCodec)",
+                                    plan.repositoryNamespace()+"."+plan.repository().name()+"."+method.name(), schema.fingerprint());
+                    impl.addStatement("return $T.of($T.of(__vernacPage.items()), __vernacRequest, __vernacPage.nextCursor())",
+                            ClassName.get("org.vernac.runtime.pagination", "CursorPage"), result).endControlFlow("");
+                } else {
+                    impl.beginControlFlow("return __vernacRequest ->")
+                            .addStatement("var __vernacPage = store.offset(__vernacWhere, __vernacOrder, __vernacQuery.parameters(), __vernacRequest, $L, maximumPageSize)", method.counting());
+                    ClassName page=ClassName.get("org.vernac.runtime.pagination",method.counting()?"CountedOffsetPage":"OffsetPage");
+                    impl.addStatement("return $T.of($T.of(__vernacPage.items()), __vernacRequest, __vernacPage.$L())",
+                            page, result, method.counting()?"totalElements":"hasNext").endControlFlow("");
+                }
+            } else {
+                impl.addStatement("var __vernacResults = store.find($L, $T.join($S, $L), __vernacQuery.parameters(), $L, $S)",
+                        queryCondition(method.condition(), method.predicates(), clauses),String.class,", ",list(orders),query.singleton(),plan.repositoryNamespace()+"."+plan.repository().name()+"."+method.name());
+                if(query.singleton()) impl.addStatement("return __vernacResults.stream().findFirst()");
+                else impl.addStatement("return $T.of(__vernacResults)",result);
+            }
             contract.addMethod(api.build()); adapter.addMethod(impl.build());
         }
     }

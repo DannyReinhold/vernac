@@ -9,6 +9,14 @@ value Status = ACTIVE | CLOSED;
 entity Stop[StopId](Title) list Stops;
 aggregate Tour[TourId](Title title, Title? reference, Price price, Status status, Stops stops) list Tours;
 repository TourRepository for Tour {
+    find cursor Tours following(String text) where title starts with :text order by price desc, title asc, id desc;
+    find cursor Tours followingAgain(String text) where title starts with :text order by price desc, title asc, id desc;
+    find cursor Tours followingTime(String text) where title starts with :text order by createdAt desc, id asc;
+    find cursor Tours followingString(String text) where title starts with :text order by title desc, id asc;
+    find cursor Tours followingFiltered(String text, Price price) where title starts with :text and price = :price order by title, id;
+    find offset Tours paged(String text) where title starts with :text order by title, id;
+    find offset Tours counted(String text) where title starts with :text order by title, id counting;
+    find offset Tours byCreation() order by createdAt desc, id asc counting;
     find Tours precedence(Title a, Title b, Status status) where title = :a or title = :b and status = :status order by title;
     find Tours grouped(Title a, Title b, Status status) where (title = :a or title = :b) and status = :status order by title;
     find Tours negated(Title a) where not not (title = :a) order by title;

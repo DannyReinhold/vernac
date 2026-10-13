@@ -39,7 +39,7 @@ not exhaustive concurrency, platform, historical-data or deployment verification
   Candidate-state atomic mutation remains a documented design, not an implementation.
 - Repositories require a usecase transaction. They do not start transactions or lazy-load.
 - Declarative root queries are implemented; handwritten JDBC/custom query extensions,
-  nested collection predicates, multi-value equality and pagination remain deferred.
+  nested collection predicates, multi-value equality remains deferred.
   Boolean OR/NOT/parentheses and literal/pattern text searches are implemented.
 - Event recording, durable delivery and workers are implemented; event evolution
   and retry/idempotency responsibilities remain explicit operational concerns.
@@ -57,8 +57,8 @@ Implemented: comma-separated lists/sets per ID, VO, enum, entity or aggregate.
 Each name is independently optional, each behavior has its own receiver/imports,
 and duplicate derived names fail. Query return types select their actual collection.
 Compiler resolution, generation, Java projection, Java-to-Vernac navigation and LSP
-completion/navigation share the complete set of declarations. Pagination and its
-optional count remain the next design task, not implemented by this increment.
+completion/navigation share the complete set of declarations. [Pagination](../contracts/pagination.md)
+now includes offset/counted and cursor JDBC queries; Result/HTTP integration is now implemented.
 
 ## Next work
 
@@ -108,3 +108,38 @@ graph loading and LSP field/parameter support. See the
 remains an explicit opt-in test step; local generated-Java compilation alone is
 not proof of database semantics. Literal text searches and LIKE predicates are
 implemented; alternative locale-aware sort orders remain deferred.
+
+## Pagination foundation
+
+Implemented technical request values, three materialized result contracts, explicit
+named-list projection and sequential lazy query traversal. Generated list types have
+the DomainList marker, preserving their immutable structure and concrete identity.
+Runtime tests do not establish SQL snapshot/count/cursor behavior. See the
+[remaining implementation sequence](pagination.md).
+
+## Offset repository increment
+
+Implemented list-only offset query declarations with explicit id tie-breakers,
+count-free lookahead, single-statement matching-root count/page snapshots, full-graph
+reconstruction, root-version checks and configurable per-load size limits. The query
+interface supports one completed page or sequential lazy traversal inside the usecase
+transaction. Cursor SQL is now implemented by the following increment; paginated usecase
+Result/HTTP declarations are now implemented.
+
+## Cursor repository increment
+
+Implemented required-key list queries with explicit id tie-breakers, exclusive keyset
+boundaries, decimal ordering-equivalence prefix comparisons, nanosecond components,
+query/filter/schema-bound encrypted/authenticated v1 cursors and configurable durable
+keys. The last returned root need not exist for continuation. Size/transaction/version
+checks remain shared with offset loading. Result/HTTP declarations are now implemented.
+
+## Completed application pages and HTTP
+
+Implemented explicit offset/counted-offset/cursor result qualifiers, required named
+value-list projections, independent Result components and adapter-local page DTOs.
+Mappings preserve the variant/metadata and convert entries through existing ACL.
+Scoped codecs validate counts/windows without global Jackson changes. Invalid cursors
+have a safe 400/INVALID_CURSOR default. Tutorial/AI reference/FAQ, compiler diagnostics,
+LSP field navigation and the Dispatch paging endpoint are included. Request headers
+remain ordinary domain VOs; dynamic filters and backward cursor navigation are deferred.

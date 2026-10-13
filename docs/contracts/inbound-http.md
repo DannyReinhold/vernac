@@ -175,3 +175,17 @@ an external error policy. They require no database. Existing usecase/persistence
 tests remain responsible for transaction and database behavior. LSP tests cover local
 DTO, input and mapping completion/navigation; generated Java origin navigation and
 inline mapping projections are covered by compiler tooling tests.
+
+## Completed pages and cursor failures
+
+Usecase results may contain materialized `offset`, `counted offset` and `cursor`
+value-list components. Map them to corresponding page fields in a named local DTO;
+`using <mapping>` applies to entries while metadata is copied unchanged. Query/header
+numbers and strings still map into explicitly declared domain inputs. No lazy query
+or serialization-time database work is introduced.
+
+InvalidCursorException maps to HTTP 400 with code INVALID_CURSOR; its safe reply asks
+for a new traversal and does not expose a token, key or internal exception message.
+Ordinary domain validation stays 422 and optimistic locking stays 409. This applies
+to blank, malformed or incompatible cursors, not to arbitrary domain exceptions.
+See the [pagination tutorial](../tutorials/pagination.md) for a complete board/GET model.

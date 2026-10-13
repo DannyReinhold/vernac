@@ -42,6 +42,7 @@ For a source checkout, use the [example build guide](https://github.com/DannyRei
 
 1. [Persist complete aggregates](database-persistence.md): shared entities, queries and concurrent changes.
 2. [Repository queries](repository-queries.md): equality, absence, text patterns and boolean expressions.
+   The [pagination tutorial](pagination.md) demonstrates generated queries, counts, independent usecase Result components and a paginated GET.
 3. [Evolve with Flyway](flyway-workflow.md): review and apply a migration while retaining data.
 4. [Schema tooling](postgresql-migrations.md): snapshots, backfills and disposable-database verification.
 

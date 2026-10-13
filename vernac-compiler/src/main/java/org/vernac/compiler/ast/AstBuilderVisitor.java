@@ -194,7 +194,9 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                     findCtx.parameterList() == null ? List.of() : extractParameters(findCtx.parameterList()),
                     predicates, findCtx.repositoryOrder().stream().map(o -> new RepositoryMethodNode.Order(
                             toLocation(o), o.field.getText(), o.direction != null && o.direction.getText().equals("desc"))).toList(),
-                    condition));
+                    condition, findCtx.pagination == null ? RepositoryMethodNode.Pagination.NONE
+                            : RepositoryMethodNode.Pagination.valueOf(findCtx.pagination.getText().toUpperCase(java.util.Locale.ROOT)),
+                    findCtx.counting != null));
         }
         return new RepositoryNode(toLocation(ctx), name, aggregateName, methods);
     }
@@ -345,6 +347,8 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     }
 
     @Override
+    public TypeNode visitPageType(VernacParser.PageTypeContext ctx) { return toTypeNode(ctx); }
+
     public TypeNode visitType(VernacParser.TypeContext ctx) {
         // 1. Den Haupt-Typnamen auslesen (z.B. "Optional" oder "LocalDate")
         String name = ctx.rawType.getText();
@@ -411,6 +415,19 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 .toList();
     }
 
+    private TypeNode toTypeNode(VernacParser.PageTypeContext ctx) {
+        var base=toTypeNode(ctx.type());
+        var kind=ctx.counted!=null?TypeNode.PageKind.COUNTED_OFFSET:ctx.pageMode==null?TypeNode.PageKind.NONE
+                :ctx.pageMode.getText().equals("offset")?TypeNode.PageKind.OFFSET:TypeNode.PageKind.CURSOR;
+        return new TypeNode(toLocation(ctx),base.name(),base.typeArguments(),base.isOptional(),kind);
+    }
+    private List<FieldNode> extractParameters(VernacParser.ResultParameterListContext ctx) {
+        return ctx.resultParameter().stream().map(p->{
+            var type=toTypeNode(p.paramType);
+            String name=p.name==null?org.vernac.language.VernacNames.defaultMemberName(type.name()):p.name.getText();
+            return new FieldNode(toLocation(p),type,name,p.isMut!=null,p.name!=null);
+        }).toList();
+    }
     private TypeNode toTypeNode(VernacParser.TypeContext ctx) {
         String typeName = ctx.rawType.getText();
         List<TypeNode> typeArgs = ctx.typeArguments() != null

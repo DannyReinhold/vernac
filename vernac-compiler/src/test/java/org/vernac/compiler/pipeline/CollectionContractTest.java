@@ -221,4 +221,28 @@ class CollectionContractTest {
                     () -> new VernacCompiler().compileSource("namespace collections; " + body), body);
     }
 
+    @Test void generatedListsParticipateInTypeSafePaginationButSetsDoNot() throws Exception {
+        var result = new VernacCompiler().compileSource("namespace collections; value Name(String) list Names, set SelectedNames; value Label(String) list Labels;");
+        var sources = new LinkedHashMap<String, String>();
+        result.generatedFiles().forEach(file -> sources.put(file.packageName() + "." + file.typeSpec().name(), file.toString()));
+        sources.put("collections.PageProbe", """
+                package collections;
+                import collections.domain.*;
+                import org.vernac.runtime.pagination.*;
+                public class PageProbe {
+                    public static String run() {
+                        OffsetQuery<Name, Names> query = request -> OffsetPage.of(Names.of(Name.of("A")), request, false);
+                        var projected = query.page(OffsetRequest.ofPage(PageNumber.of(1), PageSize.of(20)))
+                            .mapItems(Labels::of, name -> Label.of(name.string()));
+                        return projected.items().get(0).string();
+                    }
+                }
+                """);
+        var output = InMemoryJavaCompiler.compile(sources);
+        assertTrue(output.success(), output.diagnostics().toString());
+        assertEquals("A", output.loadClass("collections.PageProbe").getMethod("run").invoke(null));
+        assertTrue(org.vernac.runtime.DomainList.class.isAssignableFrom(output.loadClass("collections.domain.Names")));
+        assertFalse(org.vernac.runtime.DomainList.class.isAssignableFrom(output.loadClass("collections.domain.SelectedNames")));
+    }
+
 }

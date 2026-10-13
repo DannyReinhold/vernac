@@ -49,7 +49,7 @@ class DomainCollectionGeneratorTest {
 
         assertThat(code)
                 .contains("package com.example.domain;")
-                .contains("public final class Cars implements Iterable<Car>")
+                .contains("public final class Cars implements DomainList<Car>")
                 .contains("private final List<Car> items;")
                 .contains("this.items = DomainCollections.list(items);")
                 .contains("public static Cars empty()")
@@ -86,7 +86,7 @@ class DomainCollectionGeneratorTest {
 
         assertThat(code)
                 .contains("package com.example.domain;")
-                .contains("public final class MoneyTransactions implements Iterable<Money>")
+                .contains("public final class MoneyTransactions implements DomainList<Money>")
                 .contains("public Money sum()");
     }
 
@@ -111,7 +111,7 @@ class DomainCollectionGeneratorTest {
 
         assertThat(code)
                 .contains("package com.example.domain;")
-                .contains("public final class Tasks implements Iterable<Task>")
+                .contains("public final class Tasks implements DomainList<Task>")
                 .contains("public Tasks plus(Task element)")
                 .contains("public Tasks minus(Task element)")
                 .contains("public Tasks minusId(TaskId id)")

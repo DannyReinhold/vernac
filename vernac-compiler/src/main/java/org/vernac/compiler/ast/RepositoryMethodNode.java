@@ -12,8 +12,14 @@ public record RepositoryMethodNode(
         List<FieldNode> parameters,
         List<Predicate> predicates,
         List<Order> orders,
-        Expression condition
+        Expression condition,
+        Pagination pagination,
+        boolean counting
 ) {
+    public enum Pagination { NONE, OFFSET, CURSOR }
+    public boolean offset() { return pagination == Pagination.OFFSET; }
+    public boolean cursor() { return pagination == Pagination.CURSOR; }
+    public boolean paginated() { return pagination != Pagination.NONE; }
     public sealed interface Expression permits Predicate, Junction, Negation { }
     public record Junction(String operator, List<Expression> children) implements Expression { }
     public record Negation(Expression child) implements Expression { }

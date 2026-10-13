@@ -74,7 +74,7 @@ public final class VernacTypeNavigation {
                 if(member.isEmpty())return target(source.path(),text,schema.name.getText(),schema.name.getStart(),schema.name.getStop());
                 if(!member.get().parameterTypes().isEmpty())return Optional.empty();
                 for(var field:schema.schemaField()) {
-                    String name=field.name==null?org.vernac.language.VernacNames.defaultMemberName(field.fieldType.rawType.getText()):field.name.getText();
+                    String name=field.name==null?org.vernac.language.VernacNames.defaultMemberName(field.fieldType.type().rawType.getText()):field.name.getText();
                     if(!name.equals(member.get().name()))continue;
                     var anchor=field.name==null?field.fieldType:field.name;
                     return target(source.path(),text,name,anchor.getStart(),anchor.getStop());

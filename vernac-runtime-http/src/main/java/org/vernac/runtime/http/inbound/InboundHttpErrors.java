@@ -55,6 +55,8 @@ public final class InboundHttpErrors {
         if(error instanceof MappingContractException && error.getCause() instanceof Exception cause
                 && (cause instanceof MappingContractException || cause instanceof DomainValidationException || cause instanceof DtoContractException))
             return defaultReply(cause);
+        if(error instanceof org.vernac.runtime.pagination.InvalidCursorException)
+            return new Reply(400,"INVALID_CURSOR","Start a new traversal with the same search criteria.");
         if(error instanceof DomainValidationException)return new Reply(422,"DOMAIN_VALIDATION","The supplied values do not meet the domain requirements.");
         if(error instanceof PortRejectedException rejected)return new Reply(422,rejected.code().name(),"The operation was rejected.");
         if(error instanceof VernacDomainException)return new Reply(422,"DOMAIN_REJECTED","The operation was rejected.");

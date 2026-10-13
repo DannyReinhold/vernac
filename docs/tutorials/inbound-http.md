@@ -132,3 +132,12 @@ Read the [HTTP inbound contract](../contracts/inbound-http.md) for wire formats,
 query/header declarations, error customization and the deliberately limited scope.
 Business orchestration belongs in the usecase; this adapter remains a transport/ACL
 boundary. Configure Spring Security normally when exposing a protected application.
+
+## Return independent pages
+
+A GET can return multiple materialized page components together with ordinary values.
+Use declared `offset`, `counted offset` or `cursor` usecase results and corresponding
+page fields in a named local DTO. The entry mapping keeps metadata intact, and JSON
+serialization performs no repository work. The [board tutorial](pagination.md) shows
+the complete model, separate query page numbers, cursor continuation and safe
+400/INVALID_CURSOR handling.

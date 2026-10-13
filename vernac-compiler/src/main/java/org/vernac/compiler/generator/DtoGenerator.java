@@ -130,17 +130,22 @@ public final class DtoGenerator {
     private TypeName raw(Shape shape,ClassName holder) {
         if(shape instanceof Scalar s)return TypeName.get(s.javaType());
         if(shape instanceof Nested n)return holder.nestedClass(n.schemaName());
+        if(shape instanceof Page p)return ParameterizedTypeName.get(ClassName.get("org.vernac.runtime.json.pagination",p.kind().javaName()+"Dto"),raw(p.element(),holder).box());
         return ParameterizedTypeName.get(ClassName.get(List.class),raw(((Sequence)shape).element(),holder).box());
     }
     private CodeBlock decode(Shape shape,CodeBlock node,CodeBlock path,ClassName holder,int depth) {
         if(shape instanceof Scalar s)return CodeBlock.of("$T.scalar($L, $L, $T.class)",JSON,node,path,TypeName.get(s.javaType()).box());
         if(shape instanceof Nested n)return CodeBlock.of("$T.read($L, $L)",readerName(holder,n.schemaName()),node,path);
+        if(shape instanceof Page p)return CodeBlock.of("$T.read$L($L, $L, (n$L, p$L) -> $L)",ClassName.get("org.vernac.runtime.json.pagination","JsonPages"),p.kind().javaName(),node,path,depth,depth,
+                decode(p.element(),CodeBlock.of("n$L",depth),CodeBlock.of("p$L",depth),holder,depth+1));
         return CodeBlock.of("$T.list($L, $L, (n$L, p$L) -> $L)",JSON,node,path,depth,depth,
                 decode(((Sequence)shape).element(),CodeBlock.of("n$L",depth),CodeBlock.of("p$L",depth),holder,depth+1));
     }
     private CodeBlock encode(Shape shape,CodeBlock value,ClassName holder,int depth) {
         if(shape instanceof Scalar)return CodeBlock.of("$T.scalarNode($L)",JSON,value);
         if(shape instanceof Nested n)return CodeBlock.of("$T.write($L)",writerName(holder,n.schemaName()),value);
+        if(shape instanceof Page p)return CodeBlock.of("$T.write$L($L, v$L -> $L)",ClassName.get("org.vernac.runtime.json.pagination","JsonPages"),p.kind().javaName(),value,depth,
+                encode(p.element(),CodeBlock.of("v$L",depth),holder,depth+1));
         return CodeBlock.of("$T.array($L, v$L -> $L)",JSON,value,depth,encode(((Sequence)shape).element(),CodeBlock.of("v$L",depth),holder,depth+1));
     }
     private ClassName readerName(ClassName holder,String name) {return holder.nestedClass("__JsonReader_"+name);}

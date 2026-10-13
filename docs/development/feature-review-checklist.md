@@ -93,3 +93,11 @@ inherited final methods, valid overloads and unsafe diagnostic suggestions.
 Full Java-body analysis, enum redesign, collection semantics and SQL naming are
 separate reviews. Entity/aggregate identity is acknowledged here; their full API
 conformance belongs to their own review.
+
+## Feature-patch completion check
+
+Every feature patch MUST review its contract/specification, language reference,
+AI reference, tutorials/examples, relevant FAQs, diagnostics/tooling and plugin
+What's New. Update each affected location or record why it is unaffected. Planned
+syntax MUST be labelled planned; runtime-only support MUST NOT be advertised as
+compiler or IDE support. Existing entry-point examples must remain synchronized.

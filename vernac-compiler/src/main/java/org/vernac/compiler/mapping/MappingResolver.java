@@ -48,7 +48,7 @@ public final class MappingResolver {
             if(m.source().javaBody().isPresent() || m.source().implementation().isPresent()) {
                 validateJava(m);result.add(m);graph.put(m.source().name(),Set.of());continue;
             }
-            if(m.target().kind()==Kind.RESULT || m.target().kind()==Kind.SCALAR || m.target().kind()==Kind.SEQUENCE || isEnum(m.target())) {
+            if(m.target().kind()==Kind.PAGE || m.target().kind()==Kind.RESULT || m.target().kind()==Kind.SCALAR || m.target().kind()==Kind.SEQUENCE || isEnum(m.target())) {
                 error(m.source().location(),"Declarative mapping targets require a DTO, value object or ID. Use a Java mapping for scalar, enum or collection roots.");continue;
             }
             List<Field> targetFields=fields(m.target());
@@ -112,6 +112,10 @@ public final class MappingResolver {
         var m=signatures.get(name);
         if(m==null) {error(at,"Unknown adapter-local mapping: "+name);return null;}
         if(same(from,m.input()) && same(to,m.target())) {dependencies.add(name);return new Named(name);}
+        if(from.kind()==Kind.PAGE && to.kind()==Kind.PAGE && to.pageTransport() && from.pageKind()==to.pageKind()
+                && same(from.element(),m.input()) && same(to.element(),m.target())) {
+            dependencies.add(name);return new Pages(to,new Named(name));
+        }
         if(from.kind()==Kind.SEQUENCE && to.kind()==Kind.SEQUENCE && !(to.set() && !from.set()) && same(from.element(),m.input()) && same(to.element(),m.target())) {
             dependencies.add(name);return new Elements(to,new Named(name));
         }
@@ -120,6 +124,11 @@ public final class MappingResolver {
     public Conversion automatic(Type from,Type to,Set<String> visited) {
         if(same(from,to))return new Identity();
         if(!visited.add(from.identity()+" -> "+to.identity()))return null;
+        if(from.kind()==Kind.PAGE && to.kind()==Kind.PAGE) {
+            if(!to.pageTransport() || from.pageKind()!=to.pageKind()) return null;
+            var element=automatic(from.element(),to.element(),visited);return element==null?null:new Pages(to,element);
+        }
+        if(from.kind()==Kind.PAGE || to.kind()==Kind.PAGE) return null;
         if(from.kind()==Kind.SEQUENCE && to.kind()==Kind.SEQUENCE) {
             // Turning a list into a set discards duplicates: it requires an explicit Java decision.
             if(to.set() && !from.set())return null;
@@ -142,6 +151,7 @@ public final class MappingResolver {
         Type current=root;boolean optional=false,patch=false;List<Field> steps=new ArrayList<>();
         for(String name:entry.path().subList(1,entry.path().size())) {
             if(patch) {error(entry.location(),"PATCH paths must reference the whole field; transformations apply only to set values.");return null;}
+            if(current.kind()==Kind.PAGE) {error(entry.location(),"Map a page as a whole using its entry mapping; metadata and items cannot be traversed separately.");return null;}
             if(current.kind()==Kind.SEQUENCE) {error(entry.location(),"Use a named element mapping to traverse a collection.");return null;}
             var next=fields(current).stream().filter(f->f.name().equals(name)).findFirst();
             if(next.isEmpty()) {error(entry.location(),"Unknown source field '"+name+"' on "+current.identity());return null;}
@@ -153,6 +163,12 @@ public final class MappingResolver {
     }
     public Type resolveType(TypeNode node) {
         if(node.isOptional())error(node.location(),"Mapping root types must be non-optional; handle absence in fields or calling code.");
+        if(node.paginated()) {
+            Type values=resolveType(node.unpaged());
+            if(values==null) return null;
+            if(values.kind()!=Kind.SEQUENCE || values.symbol()==null || values.set()) { error(node.location(),"Page mapping roots require a named domain value list.");return null; }
+            return page(node.pageKind(),values.element(),ParameterizedTypeName.get(ClassName.get("org.vernac.runtime.pagination",node.pageKind().javaName()),values.element().javaType(),values.javaType()),values.identity(),false);
+        }
         if(node.name().equals("list") && node.typeArguments().size()==1) {
             Type element=resolveType(node.typeArguments().getFirst());return element==null?null:sequence(element,null,false);
         }
@@ -168,6 +184,10 @@ public final class MappingResolver {
         return lookup.type().map(t->domain(t,node.location())).orElse(null);
     }
     public Type domain(ResolvedType resolved,SourceLocation at) {
+        if(resolved instanceof ResolvedType.Page p) {
+            var values=domain(p.collection(),at);
+            return values==null?null:page(p.kind(),values.element(),org.vernac.compiler.generator.ResolvedJavaTypes.javaType(p),values.identity(),false);
+        }
         if(resolved instanceof ResolvedType.Builtin b) {
             if(b.javaType()==org.vernac.runtime.EventId.class) {error(at,"EventId is not an ACL mapping scalar.");return null;}
             return scalar(b.javaType());
@@ -192,7 +212,14 @@ public final class MappingResolver {
     private Type shape(ResolvedSchema.Shape shape) {
         if(shape instanceof ResolvedSchema.Scalar s)return scalar(s.javaType());
         if(shape instanceof ResolvedSchema.Nested n)return dto(schemas.get(n.schemaName()));
+        if(shape instanceof ResolvedSchema.Page p) {
+            var element=shape(p.element());
+            return page(p.kind(),element,ParameterizedTypeName.get(ClassName.get("org.vernac.runtime.json.pagination",p.kind().javaName()+"Dto"),element.javaType().box()),"dto-list<"+element.identity()+">",true);
+        }
         return sequence(shape(((ResolvedSchema.Sequence)shape).element()),null,false);
+    }
+    private Type page(TypeNode.PageKind kind,Type element,TypeName java,String collectionIdentity,boolean transport) {
+        return new Type(kind.syntax()+" "+collectionIdentity,java,Kind.PAGE,null,null,element,false,kind,transport);
     }
     public void register(Type type, List<Field> fields, String... names) {
         for (String name : names) extraTypes.put(name,type);

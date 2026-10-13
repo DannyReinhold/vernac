@@ -75,7 +75,8 @@ can explicitly choose Categories. No numbering or automatic collision repair is
 permitted. Collections are namespace-level types and participate in ordinary type
 collision checks, reserved built-in type names, imports, and Unicode rules.
 
-Each collection MUST generate one public final class implementing Iterable<T>,
+Each collection MUST generate one public final class implementing Iterable<T>
+(directly for sets, through DomainList<T> for lists),
 annotated @NullMarked, in `<namespace>.domain`. It has private construction and
 private final storage. No collection-specific or inherited package override is
 permitted. The old `collection` keyword is replaced by `list`/`set`.
@@ -286,3 +287,10 @@ completion/navigation across namespaces, field eligibility, and generated symbol
 Collection declarations participate in the multi-file project pipeline for all
 supported owner kinds. Persistence and adapter mappings have separate capability
 rules; see [persistence](postgresql-persistence.md) and [mappings](adapter-mappings.md).
+
+## Pagination type boundary
+
+Generated lists additionally implement the runtime DomainList<T> contract while
+retaining their concrete type and existing asList API. Sets do not. This permits
+[materialized pagination wrappers](pagination.md) to require order at the Java type
+level; it does not add repository pagination syntax or change field eligibility.

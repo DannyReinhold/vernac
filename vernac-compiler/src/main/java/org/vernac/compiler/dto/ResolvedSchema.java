@@ -7,8 +7,9 @@ import org.vernac.compiler.ast.*;
 public record ResolvedSchema(SchemaNode source, List<Field> fields) {
     public ResolvedSchema { fields = List.copyOf(fields); }
     public record Field(SchemaFieldNode source, String externalName, Shape shape) { }
-    public sealed interface Shape permits Scalar, Nested, Sequence { }
+    public sealed interface Shape permits Scalar, Nested, Sequence, Page { }
     public record Scalar(Class<?> javaType) implements Shape { }
     public record Nested(String schemaName) implements Shape { }
     public record Sequence(Shape element) implements Shape { }
+    public record Page(TypeNode.PageKind kind, Shape element) implements Shape { }
 }

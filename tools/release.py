@@ -26,7 +26,7 @@ REQUIRED_TESTS = ("EntitySchemaPostgresTest", "EventStoragePostgresTest", "Event
                   "RepositoryQueryPostgresTest", "ScalarQueryPostgresTest", "ScalarStoragePostgresTest",
                   "RequiredFieldBackfillTest", "SchemaMojoTest", "PluginDistributionIT",
     "DocumentationExamplesTest", "InboundHttpContractTest", "InboundHttpExecutionTest",
-    "InboundHttpRuntimeTest", "InboundHttpSymbolsTest")
+    "InboundHttpRuntimeTest", "InboundHttpSymbolsTest", "PaginationTest", "JdbcCursorCodecTest", "PaginationHttpExecutionTest", "JsonPagesTest", "PaginationResultContractTest")
 
 
 def require(condition, message):

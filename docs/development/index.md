@@ -32,6 +32,7 @@ Release acceptance also includes installation of the packaged IntelliJ plugin.
 - [Capabilities and usecase authorization](capabilities-and-usecase-authorization.md): planned module and SaaS policy
   design.
 - [Consolidation status](consolidation-status.md)
+- [Pagination implementation sequence](pagination.md): runtime foundation and remaining repository/Result/HTTP work.
 - [0.3.0 release plan](release-0.3.0.md)
 - [Release operations](../maintainers/releasing.md)
 

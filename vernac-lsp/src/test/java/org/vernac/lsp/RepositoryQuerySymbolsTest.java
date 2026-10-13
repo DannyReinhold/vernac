@@ -39,4 +39,20 @@ class RepositoryQuerySymbolsTest {
         assertEquals(repo.toUri().toString(),parameter.getFirst().getUri());
         assertEquals(text.indexOf("Title title")+6,parameter.getFirst().getRange().getStart().getCharacter());
     }
+    @Test void offsetQueriesKeepFieldAndParameterNavigation() {
+        String text="namespace api; import model.*; repository TourRepository for Tour { find offset Tours paged(Title title) where title = :title order by createdAt desc, id asc counting; }";
+        assertEquals(model.toUri().toString(),symbols(text).definition(repo,at(text,"where tit")).getFirst().getUri());
+        assertEquals(repo.toUri().toString(),symbols(text).definition(repo,at(text,":tit")).getFirst().getUri());
+        String incomplete=text.replace("where title", "where tit");
+        assertTrue(symbols(incomplete).complete(repo,at(incomplete,"where tit")).stream().anyMatch(c->c.getLabel().equals("title")));
+    }
+
+    @Test void cursorQueriesKeepCrossNamespaceReferencesAndParameterCompletion() {
+        String text="namespace api; import model.*; repository TourRepository for Tour { find cursor Tours following(Title title) where title = :title order by createdAt desc, id asc; }";
+        assertEquals(model.toUri().toString(),symbols(text).definition(repo,at(text,"where tit")).getFirst().getUri());
+        assertEquals(repo.toUri().toString(),symbols(text).definition(repo,at(text,":tit")).getFirst().getUri());
+        String partial=text.replace("title = :title","title = :tit");
+        assertTrue(symbols(partial).complete(repo,at(partial,":tit")).stream().anyMatch(c->c.getLabel().equals("title")));
+    }
+
 }

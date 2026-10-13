@@ -98,6 +98,28 @@
 ]]></description>
 
     <change-notes><![CDATA[
+        <h3>0.4.0 development: multiple domain collections</h3>
+        <p>Declare several lists and sets per ID, value, enum, entity or aggregate.
+        Each collection has an independent optional name and behavior. Completion,
+        declaration navigation and embedded-Java receivers include every collection.</p>
+        <h3>Paginated usecase results and HTTP</h3>
+        <p>Added explicit offset, counted offset and cursor value-list results, independent
+        Result components and page DTO fields. ACL maps entries while retaining metadata;
+        GET responses contain completed pages. Updated completion/navigation and added
+        safe INVALID_CURSOR error handling. Dispatch now includes a paged board API.</p>
+        <h3>Cursor repository pagination</h3>
+        <p>Added find cursor with ordered aggregate lists, deletion-independent continuation,
+        mixed sort directions and query/filter/schema-bound encrypted cursors. Added cursor
+        completion/highlighting and shared key configuration.</p>
+        <h3>Offset repository pagination</h3>
+        <p>Added find offset queries with optional counting, ordered aggregate lists,
+        typed page/traversal APIs, configurable page-size limits and snapshot-consistent
+        root counts. Added completion and semantic highlighting for offset/counting.
+        </p>
+        <h3>Pagination runtime foundation</h3>
+        <p>Typed requests, completed offset/counted/cursor pages and sequential lazy
+        traversal are available in the runtime. Repository offset/cursor queries and
+        materialized usecase/HTTP page results are supported.</p>
         <p>Typed adapter configuration: diagnostics, configuration-type completion,
         and navigation from a REST base to its configuration declaration.</p>
         <h3>Generated API readability</h3>

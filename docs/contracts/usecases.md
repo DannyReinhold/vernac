@@ -153,3 +153,20 @@ persistence tests remain responsible for database transaction behavior.
 Usecases and services now both expose dependencies through self Access. Usecase
 execution additionally establishes the scoped event context inside its REQUIRED
 transaction. Read views and validation cannot publish events.
+
+## Materialized paginated results (0.4.0)
+
+In result positions only, `offset Names`, `counted offset Names` and `cursor Names`
+retain the variant and the concrete named **value list**. They may appear as the
+single result or as several independent components alongside ordinary values.
+Page entries must be IDs, VOs or enums; project aggregate pages eagerly with mapItems.
+Pages cannot be optional or mut, and lazy queries/sequences cannot be returned.
+Input headers remain domain contracts; page-number/size/cursor VOs are explicitly
+projected into runtime requests in the execute body. Their names confer no special
+meaning and no technical type names are reserved globally.
+
+Tuple fields continue to use the common naming convention and Result.of factory.
+Repeated collections need distinct names. A single page does not create a Result.
+No variant inference, implicit aggregate projection or extra isolation is introduced.
+See [the pagination contract](pagination.md) for precise types, transport shapes,
+counts, cursor binding and transaction limits.

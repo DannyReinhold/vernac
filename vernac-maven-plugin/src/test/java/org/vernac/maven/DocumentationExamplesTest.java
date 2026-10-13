@@ -22,7 +22,7 @@ class DocumentationExamplesTest {
         for (String name : List.of("repository-queries", "usecases", "enum-value-objects",
                 "outbound-ports", "declarative-rest", "declarative-errors", "default-names",
                 "adapter-dtos", "domain-events", "http-adapter-runtime", "collections",
-                "your-first-domain-model", "adapter-mappings", "inbound-http")) {
+                "your-first-domain-model", "adapter-mappings", "inbound-http", "pagination")) {
             String document = Files.readString(Path.of("../docs/tutorials/" + name + ".md"))
                     .replace("\r\n", "\n");
             var block = Pattern.compile("```vernac\\n(.*?)```", Pattern.DOTALL).matcher(document);
@@ -36,6 +36,44 @@ class DocumentationExamplesTest {
             Files.writeString(file, model);
             assertFalse(new VernacCompiler().compileProject(root).generatedFiles().isEmpty(), name);
         }
+    }
+
+    @Test void paginationTutorialGeneratesCompilableJava() throws Exception {
+        String document = Files.readString(Path.of("../docs/tutorials/pagination.md")).replace("\r\n", "\n");
+        var block = Pattern.compile("```vernac\\n(.*?)```", Pattern.DOTALL).matcher(document);
+        assertTrue(block.find());
+        Path root = temporary.resolve("pagination-model");
+        Path file = root.resolve("example/paging/names.vernac");
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, block.group(1));
+        Path sources = temporary.resolve("pagination-java");
+        new VernacCompiler().compileProject(root).writeTo(sources);
+        Path classes = Files.createDirectories(temporary.resolve("pagination-classes"));
+        var arguments = new ArrayList<>(List.of("--release", "21", "-proc:none", "-classpath",
+                System.getProperty("java.class.path"), "-d", classes.toString()));
+        try (var files = Files.walk(sources)) {
+            files.filter(path -> path.toString().endsWith(".java")).map(Path::toString).forEach(arguments::add);
+        }
+        assertEquals(0, ToolProvider.getSystemJavaCompiler().run(null, null, null,
+                arguments.toArray(String[]::new)), "Pagination tutorial Java must compile");
+    }
+
+    @Test void dispatchPaginationModelAndItsGeneratedJavaCompile() throws Exception {
+        Path sources=temporary.resolve("dispatch-java");
+        var compiler=new VernacCompiler();
+        Path modelRoot=Path.of("../examples/dispatch/src/main/vernac");
+        var snapshot=new com.fasterxml.jackson.databind.ObjectMapper().readTree(Files.readString(Path.of("../examples/dispatch/src/main/vernac-schema/history/V20261011190000000__dispatch.json")));
+        var previous=org.vernac.compiler.persistence.SchemaModel.parse(snapshot.get("model").toString());
+        var current=new org.vernac.compiler.persistence.SchemaBuilder(compiler.analyzeProject(modelRoot),previous).build();
+        assertEquals(previous.fingerprint(),current.fingerprint(),"Pagination must not change the existing Dispatch schema");
+        compiler.compileProject(modelRoot).writeTo(sources);
+        // The model references this external extension; Boot application wiring is built by the standalone example.
+        Path extension=sources.resolve("showcase/integration/JournalImplementation.java");Files.createDirectories(extension.getParent());
+        Files.copy(Path.of("../examples/dispatch/src/main/java/showcase/integration/JournalImplementation.java"),extension);
+        Path classes=Files.createDirectories(temporary.resolve("dispatch-classes"));
+        var arguments=new ArrayList<>(List.of("--release","21","-proc:none","-classpath",System.getProperty("java.class.path"),"-d",classes.toString()));
+        try(var files=Files.walk(sources)) { files.filter(path->path.toString().endsWith(".java")).map(Path::toString).forEach(arguments::add); }
+        assertEquals(0,ToolProvider.getSystemJavaCompiler().run(null,null,null,arguments.toArray(String[]::new)),"Dispatch pagination endpoint and usecase must compile with the actual model");
     }
 
     @Test void aiReferenceExamplesCompileTogetherIncludingHandwrittenJava() throws Exception {

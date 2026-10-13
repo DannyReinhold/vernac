@@ -59,6 +59,13 @@ public final class QueryResolver {
                     if(!list && !method.orders().isEmpty()) error(method.location(),"A set result cannot preserve order by; use a list result.");
                     if(list && method.orders().isEmpty()) diagnostics.add(CompilerDiagnostic.warning(method.location(),"List query has no order by; result order is unspecified."));
                 }
+                if(method.counting() && !method.offset())
+                    error(method.location(), "counting requires an offset query.");
+                if(method.paginated()) {
+                    if(singleton || !list) error(method.location(), "Pagination requires a declared list of complete aggregates.");
+                    if(method.orders().isEmpty() || !method.orders().getLast().field().equals("id"))
+                        error(method.location(), "Pagination requires order by with the aggregate id as its final explicit tie-breaker.");
+                }
                 Map<String,FieldNode> params=new HashMap<>();
                 for(var p:method.parameters()) {
                     resolveType(scope,p.type());
@@ -95,7 +102,8 @@ public final class QueryResolver {
                 for(var o:method.orders()) {
                     var f=field(aggregate,o.field(),o.location());
                     if(f==null) continue;
-                    if(!ORDERED.contains(f.scalar())) error(o.location(),"Ordering is not supported for "+o.field()+" ("+f.scalar()+").");
+                    if(!ORDERED.contains(f.scalar()) && !(method.paginated() && o.field().equals("id"))) error(o.location(),"Ordering is not supported for "+o.field()+" ("+f.scalar()+").");
+                    if(method.cursor() && f.optional()) error(o.location(), "Cursor sort fields must be required: " + o.field());
                     if(!sorted.add(o.field())) error(o.location(),"Duplicate sort field: "+o.field());
                     orders.add(new ResolvedQuery.Order(f,o.descending()));
                 }

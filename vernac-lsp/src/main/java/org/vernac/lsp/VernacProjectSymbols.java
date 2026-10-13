@@ -439,9 +439,17 @@ final class VernacProjectSymbols {
         return files.entrySet().stream().filter(e->e.getValue().tree().topLevelDeclaration().stream().anyMatch(d->d.usecaseDefinition()==usecase)).map(Map.Entry::getKey).findFirst().orElseThrow();
     }
     private Map<String,Location> inboundFields(Path path,Parsed file,VernacParser.InboundHttpAdapterDefinitionContext adapter,
+            VernacParser.PageTypeContext type,List<String> steps,String qualifier) {
+        return inboundFields(path,file,adapter,type==null?null:type.type(),steps,qualifier);
+    }
+    private String resultParameterName(VernacParser.ResultParameterContext p) {
+        return p.name==null?org.vernac.language.VernacNames.defaultMemberName(p.paramType.type().rawType.getText()):p.name.getText();
+    }
+    private Map<String,Location> inboundFields(Path path,Parsed file,VernacParser.InboundHttpAdapterDefinitionContext adapter,
             VernacParser.TypeContext type,List<String> steps,String qualifier) {
         Map<String,Location> result=new TreeMap<>();if(type==null || type.rawType==null)return result;
         String name=type.rawType.getText();Path origin=path;Parsed owner=file;
+        List<VernacParser.ResultParameterContext> results=List.of();
         List<VernacParser.ParameterContext> parameters=List.of();List<VernacParser.SchemaFieldContext> fields=List.of();
         var dto=adapter.schemaDefinition().stream().filter(s->s.name!=null && s.name.getText().equals(name)).findFirst();
         if(dto.isPresent())fields=dto.get().schemaField();
@@ -451,7 +459,7 @@ final class VernacProjectSymbols {
             if(found instanceof ResolvedType.Declared declared) {
                 origin=declared.symbol().sourceFile();owner=files.get(origin);if(owner==null)return result;
                 for(var d:owner.tree().topLevelDeclaration()) {
-                    if(name.endsWith(".Result") && d.usecaseDefinition()!=null && d.usecaseDefinition().name.getText().equals(declared.symbol().identity().name()) && d.usecaseDefinition().results!=null)parameters=d.usecaseDefinition().results.parameter();
+                    if(name.endsWith(".Result") && d.usecaseDefinition()!=null && d.usecaseDefinition().name.getText().equals(declared.symbol().identity().name()) && d.usecaseDefinition().results!=null)results=d.usecaseDefinition().results.resultParameter();
                     if(d.valueDefinition()!=null && d.valueDefinition().name.getText().equals(declared.symbol().identity().name()) && d.valueDefinition().parameterList()!=null)parameters=d.valueDefinition().parameterList().parameter();
                     if(d.idDeclaration()!=null && d.idDeclaration().name.getText().equals(declared.symbol().identity().name()) && steps.isEmpty())result.put(qualifier+"value",queryLocation(origin,owner,d.idDeclaration()));
                 }
@@ -459,11 +467,13 @@ final class VernacProjectSymbols {
         }
         if(!steps.isEmpty()) {
             String next=steps.getFirst();
-            for(var f:fields)if((f.name==null?org.vernac.language.VernacNames.defaultMemberName(f.fieldType.rawType.getText()):f.name.getText()).equals(next))return inboundFields(path,file,adapter,f.fieldType,steps.subList(1,steps.size()),qualifier);
+            for(var f:fields)if((f.name==null?org.vernac.language.VernacNames.defaultMemberName(f.fieldType.type().rawType.getText()):f.name.getText()).equals(next))return inboundFields(path,file,adapter,f.fieldType,steps.subList(1,steps.size()),qualifier);
+            for(var p:results)if(resultParameterName(p).equals(next))return inboundFields(origin,owner,adapter,p.paramType,steps.subList(1,steps.size()),qualifier);
             for(var p:parameters)if(parameterName(p).equals(next))return inboundFields(origin,owner,adapter,p.paramType,steps.subList(1,steps.size()),qualifier);
             return result;
         }
-        for(var f:fields)result.put(qualifier+(f.name==null?org.vernac.language.VernacNames.defaultMemberName(f.fieldType.rawType.getText()):f.name.getText()),queryLocation(path,file,f.name==null?f:f.name));
+        for(var f:fields)result.put(qualifier+(f.name==null?org.vernac.language.VernacNames.defaultMemberName(f.fieldType.type().rawType.getText()):f.name.getText()),queryLocation(path,file,f.name==null?f:f.name));
+        for(var p:results)result.put(qualifier+resultParameterName(p),queryLocation(origin,owner,p.name==null?p:p.name));
         for(var p:parameters)result.put(qualifier+parameterName(p),queryLocation(origin,owner,p.name==null?p:p.name));
         return result;
     }
@@ -496,8 +506,8 @@ final class VernacProjectSymbols {
             ensureMappingModel();
             if(mappingModel==null)return choices;
             var syntax=reference.kind().equals("target")?reference.mapping().targetType:reference.mapping().sourceType;
-            if(syntax==null || syntax.rawType==null)return choices;
-            var type=new AstBuilderVisitor(path.toString()).visitType(syntax);
+            if(syntax==null || syntax.type().rawType==null)return choices;
+            var type=new AstBuilderVisitor(path.toString()).visitPageType(syntax);
             List<String> segments=new ArrayList<>();String qualifier="";
             if(reference.kind().equals("source")) {
                 int dot=prefix.lastIndexOf('.');

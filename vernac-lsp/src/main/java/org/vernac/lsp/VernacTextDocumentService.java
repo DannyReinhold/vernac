@@ -27,7 +27,7 @@ public class VernacTextDocumentService implements TextDocumentService {
             "GET", "POST", "PUT", "PATCH", "DELETE",
             "when", "then", "otherwise", "default", "reject", "fail", "local", "remote", "unknown", "status",
             "client", "base", "body", "response", "errors", "path", "query", "header",
-            "where", "and", "or", "not", "order", "asc", "desc", "is", "absent", "present", "like", "contains", "starts", "ends", "with",
+            "counted", "cursor", "offset", "counting", "where", "and", "or", "not", "order", "asc", "desc", "is", "absent", "present", "like", "contains", "starts", "ends", "with",
             "namespace", "package", "import", "as", "id",
             "aggregate", "value", "entity", "event", "recorded", "synchronous", "deferred", "service", "external", "schema",
             "inbound", "http", "respond", "configuration", "from", "using", "naming", "named", "patch", "repository", "for", "table", "find", "custom", "validates", "require",
@@ -244,6 +244,8 @@ public class VernacTextDocumentService implements TextDocumentService {
         }
         // Context C2: Inside a repository { ... } block
         if (isInsideRepositoryBlock(prefix)) {
+            addKeywordCompletion(items, "find cursor", "find cursor ${1:ResultList} ${2:methodName}(${3:params}) where ${4:field} = :${5:parameter} order by ${6:createdAt} desc, id asc;");
+            addKeywordCompletion(items, "find offset", "find offset ${1:ResultList} ${2:methodName}(${3:params}) where ${4:field} = :${5:parameter} order by ${6:createdAt} desc, id asc counting;");
             addKeywordCompletion(items, "find", "find ${1:ResultCollection} ${2:methodName}(${3:params}) where ${4:field} = :${5:parameter} order by ${6:field};");
             return CompletableFuture.completedFuture(Either.forLeft(items));
         }
@@ -317,6 +319,7 @@ public class VernacTextDocumentService implements TextDocumentService {
         addKeywordCompletion(items, "repository", "repository ${1:Name} for ${2:Aggregate} {\n    table: \"${3:table_name}\";\n    $0\n};");
         addKeywordCompletion(items, "id", "id ${1:Name}Id;");
         addKeywordCompletion(items, "usecase", "usecase ${1:Name}(${2:params}) behavior {\n    execute {\n        $0\n    }\n}");
+        addKeywordCompletion(items, "usecase (paged)", "usecase ${1:Name}(${2:params}) returns (counted offset ${3:ValueList} ${4:page}) uses ${5:Repository} behavior {\n    execute {\n        $0\n    }\n}");
         addKeywordCompletion(items, "service", "service ${1:Name} behavior {\n    public ${2:void} ${3:operation}(${4:params}) {\n        $0\n    }\n}");
     }
 

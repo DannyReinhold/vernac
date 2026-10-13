@@ -43,7 +43,7 @@ vernac.version dependency. Automatic website version injection is not introduced
 
 DocumentationExamplesTest extracts the complete entry-point models from Markdown,
 compiles their generated Java and exercises domain behavior. Existing mapping/REST
-tutorial execution tests remain. Fourteen complete tutorial models are also checked
+tutorial execution tests remain. Fifteen complete tutorial models are also checked
 for semantic validity and code generation. These checks do not validate every partial snippet,
 IDE gesture, website renderer or production runtime claim.
 

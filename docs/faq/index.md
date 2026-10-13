@@ -260,4 +260,83 @@ The release workflow requires its named database and plugin suites to execute an
 rejects skipped reactor reports. [Run the database tests](../tutorials/database-persistence.md#7-run-the-database-tests)
 and [review the release gates](../development/release-0.3.0.md).
 
+
+### How can I show a numbered page without loading every matching aggregate?
+
+Declare a paginated repository query with a named **list** result and a complete
+explicit order, for example `find offset Issues open() order by createdAt desc, id asc;`.
+Its generated query object accepts `page(OffsetRequest.ofPage(3, 20))`; only that
+window is returned, and every entry is a fully reconstructed aggregate. Existing
+unqualified find methods keep returning their whole collection.
+
+Add `counting` before the semicolon when the UI needs “page 3 of 27”. The returned
+CountedOffsetPage exposes totalElements and totalPages. An offset past the last row
+returns an empty items list with the original total, not an invented last page.
+Without counting, OffsetPage provides hasNext without computing the total.
+
+### Does pagination make repeated requests observe one unchanged dataset?
+
+No. A counted page's root selection and count share one SQL statement snapshot, and
+child reconstruction verifies root versions. Concurrent changes to selected roots
+may raise an optimistic-lock conflict. Separate requests/traversal steps may observe
+new data, so inserts/deletes can shift offsets. Vernac does not silently change your
+transaction isolation or retry. Use stable sorting with explicit id as the final
+tie-breaker; cursor queries avoid offset shifting for unchanged sort keys, but do not freeze the
+dataset either.
+
+### Can I return the lazy page iterator from a usecase to an HTTP serializer?
+
+No. Its next load needs the usecase transaction. Consume `.pages(request).items()`
+inside that transaction, or load one materialized page and project its entries eagerly.
+Every JDBC load checks the active transaction and rejects requests above the configured
+maximum (`vernac.pagination.max-page-size`, default 1000). Pagination components in
+Vernac Result declarations and HTTP mappings are supported. The
+[pagination tutorial](../tutorials/pagination.md) shows the currently executable API.
+
+### When should I use a cursor instead of a numbered page?
+
+Use `find cursor` for successive sections of an explicitly ordered list, such as an
+activity feed or sequential processing. Start with CursorRequest.first(size), then
+send the returned nextCursor with the same filters. The last returned root may be
+deleted: its saved boundary still works. A cursor has no absolute page number or
+count; choose `find offset ... counting` for “page 3 of 27”. Neither freezes future
+requests against concurrent changes.
+
+### Why does my cursor stop working after a restart or on another server?
+
+Without configuration, Vernac encrypts/authenticates cursors with a random process-local
+key. Set `vernac.pagination.cursor-key` to the same secret (Base64 of 32 random bytes)
+across restarts and replicas to retain continuations. Changing the key, filters,
+repository method or owned schema invalidates old tokens; start a new traversal.
+Never use tokens as authorization and never commit the key. See the
+[cursor configuration tutorial](../tutorials/pagination.md#continue-after-the-last-ordered-key).
+
+### Can one HTTP response contain two separately paged lists and other information?
+
+Yes. Declare a tuple result such as `returns (Title heading, counted offset Summaries
+openItems, counted offset Summaries closedItems, cursor Summaries activity)`. Each
+component keeps its own request position and metadata. Project whole aggregate pages
+into a named value list before Result.of. The adapter maps these into corresponding
+`counted offset list<ItemDto>`/`cursor list<ItemDto>` fields; an entry mapping converts
+the values while metadata is preserved. Each load is independent, rather than a
+promise of one frozen snapshot across all board components. The
+[pagination tutorial](../tutorials/pagination.md) shows the full model and GET.
+
+### Why does the result require values rather than pages of aggregates?
+
+An aggregate is mutable domain state. Returning immutable summaries makes the
+application boundary explicit and lets serialization finish without accessing the
+repository. Use page.mapItems(Summaries::of, mapper), then declare the matching result
+variant. Sets lose order, optional pages confuse absence with an empty window, and
+lazy sequences would perform database work after the usecase transaction; all are
+rejected as result contracts.
+
+### Do I need special pagination types in my domain model?
+
+No. Technical request factories live in the runtime Java API. You can define ordinary
+PageNumber/PageSize/CursorToken VOs with your own validation and pass them to a usecase.
+Unpack their getters explicitly into OffsetRequest/CursorRequest. Their spelling has
+no magic and does not reserve those names globally. The result uses a page qualifier,
+which is a completed application result, not a field type for a persisted aggregate.
+
 [All tutorials](../tutorials/index.md) · [Language reference](../language-reference.md)

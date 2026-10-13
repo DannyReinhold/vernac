@@ -14,6 +14,10 @@ import org.springframework.jdbc.core.namedparam.*;
 import org.springframework.transaction.IllegalTransactionStateException;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.vernac.runtime.*;
+import org.vernac.runtime.pagination.OffsetRequest;
+import org.vernac.runtime.pagination.CursorRequest;
+import org.vernac.runtime.pagination.PageCursor;
+import org.vernac.runtime.pagination.PaginationContractException;
 import static org.vernac.runtime.jdbc.JdbcMapping.*;
 import static org.vernac.runtime.jdbc.JdbcRows.*;
 
@@ -52,6 +56,9 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
                 +(ordering.isEmpty()?"":" ORDER BY "+ordering)+(singleton?" LIMIT 2":"");
         var roots=jdbc.query(sql,parameters,(rs,n)->readRow(rootTable,rs));
         if(singleton && roots.size()>1) throw new NonUniqueQueryResultException(queryName);
+        return restoreRoots(roots);
+    }
+    private List<A> restoreRoots(List<Map<String,@Nullable Object>> roots) {
         if(roots.isEmpty()) return List.of();
         var ids=roots.stream().map(r->(UUID)r.get("id")).toList();
         Map<UUID,Map<String,List<Map<String,@Nullable Object>>>> graphs=new LinkedHashMap<>();
@@ -81,6 +88,94 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
         List<A> result=new ArrayList<>();
         for(UUID id:ids) result.add(type.cast(new ReadGraph(graphs.get(id)).entity(root.table(),id)));
         return List.copyOf(result);
+    }
+    /** Materialized root window; the count and selected roots share one PostgreSQL statement snapshot. */
+    public record OffsetWindow<A>(List<A> items, boolean hasNext, long totalElements) { }
+
+    public OffsetWindow<A> offset(String where, String ordering, SqlParameterSource parameters,
+            OffsetRequest request, boolean counting, int maximumPageSize) {
+        requireTransaction();
+        Objects.requireNonNull(request).size().checkMaximum(maximumPageSize);
+        if(ordering.isBlank()) throw new IllegalArgumentException("Pagination requires explicit ordering");
+        Table rootTable=tables.get(root.table());
+        var bound=new MapSqlParameterSource();
+        String[] names=Objects.requireNonNull(parameters.getParameterNames(), "Query parameter names required");
+        for(String name:names) bound.addValue(name,parameters.getValue(name),parameters.getSqlType(name),parameters.getTypeName(name));
+        bound.addValue("__vernacLimit", counting?(long)request.pageSize():(long)request.pageSize()+1)
+                .addValue("__vernacOffset",request.offset());
+        String columns=String.join(", ",rootTable.columns().stream().map(c->q(c.name())).toList());
+        String filtered="SELECT "+columns+" FROM "+root.table()+(where.isEmpty()?"":" WHERE "+where);
+        String sql;
+        if(counting) {
+            // A left join retains the count even for an empty/out-of-range page. Internal aliases cannot collide with domain columns.
+            sql="WITH "+q("@matches")+" AS MATERIALIZED ("+filtered+"), "
+                    +q("@page")+" AS (SELECT *, row_number() OVER (ORDER BY "+ordering+") AS "+q("@pageOrdinal")
+                    +" FROM "+q("@matches")+" ORDER BY "+ordering+" LIMIT :__vernacLimit OFFSET :__vernacOffset) "
+                    +"SELECT "+q("@page")+".*, "+q("@count")+"."+q("@totalElements")
+                    +" FROM (SELECT count(*) AS "+q("@totalElements")+" FROM "+q("@matches")+") "+q("@count")
+                    +" LEFT JOIN "+q("@page")+" ON TRUE ORDER BY "+q("@page")+"."+q("@pageOrdinal");
+        } else sql=filtered+" ORDER BY "+ordering+" LIMIT :__vernacLimit OFFSET :__vernacOffset";
+        long[] total={0};
+        var rows=jdbc.query(sql,bound,(rs,n)->{
+            if(counting) total[0]=rs.getLong("@totalElements");
+            return rs.getObject("id")==null ? null : readRow(rootTable,rs);
+        });
+        var roots=rows.stream().filter(Objects::nonNull).limit(request.pageSize()).toList();
+        boolean hasNext=counting ? request.offset()<total[0] && total[0]-request.offset()>request.pageSize()
+                : rows.size()>request.pageSize();
+        return new OffsetWindow<>(restoreRoots(roots),hasNext,total[0]);
+    }
+
+    public record CursorWindow<A>(List<A> items, Optional<PageCursor> nextCursor) { }
+
+    /** Exclusive lexicographic boundary over exactly the physical keys used by ORDER BY. */
+    public CursorWindow<A> cursor(String queryName, String modelFingerprint, String where,
+            List<JdbcCursorSort> sorting, SqlParameterSource parameters, CursorRequest request,
+            int maximumPageSize, JdbcCursorCodec codec) {
+        requireTransaction(); Objects.requireNonNull(request).size().checkMaximum(maximumPageSize);
+        if(sorting.isEmpty()) throw new PaginationContractException("Cursor pagination requires explicit sorting");
+        Table rootTable=tables.get(root.table());
+        List<String> keys=new ArrayList<>(); List<Boolean> descending=new ArrayList<>(); List<Boolean> strings=new ArrayList<>();
+        for(var sort:sorting) for(String column:sort.orderedColumns()) {
+            if(rootTable.columns().stream().noneMatch(c->c.name().equals(column))) throw new PaginationContractException("Unknown cursor storage key");
+            keys.add(column); descending.add(sort.descending()); strings.add(sort.scalar().equals("String"));
+        }
+        if(!keys.getLast().equals("id")) throw new PaginationContractException("Cursor ordering must end in root id");
+        byte[] context=JdbcCursorCodec.context(queryName,modelFingerprint,root.table(),where,sorting,parameters);
+        var bound=new MapSqlParameterSource();
+        for(String name:Objects.requireNonNull(parameters.getParameterNames()))
+            bound.addValue(name,parameters.getValue(name),parameters.getSqlType(name),parameters.getTypeName(name));
+        String boundary="";
+        if(request.cursor().isPresent()) {
+            var values=codec.open(request.cursor().get(),context,keys.size());
+            List<String> prefixes=new ArrayList<>(),alternatives=new ArrayList<>();
+            for(int i=0;i<keys.size();i++) {
+                String name="__vernacBoundary"+i;
+                bound.addValue(name,values.get(i));
+                String left=q(keys.get(i))+(strings.get(i)?" COLLATE \"C\"":"");
+                String right=strings.get(i)?"CAST(:"+name+" AS text) COLLATE \"C\"":":"+name;
+                String comparison=left+(descending.get(i)?" < ":" > ")+right;
+                alternatives.add("("+(prefixes.isEmpty()?"":String.join(" AND ",prefixes)+" AND ")+comparison+")");
+                // BigDecimal deliberately uses numeric-prefix equality: its scale is not an ORDER BY component.
+                prefixes.add(left+" = "+right);
+            }
+            boundary="("+String.join(" OR ",alternatives)+")";
+        }
+        String condition=where.isEmpty()?boundary:boundary.isEmpty()?where:"("+where+") AND "+boundary;
+        String columns=String.join(", ",rootTable.columns().stream().map(c->q(c.name())).toList());
+        String ordering=String.join(", ",sorting.stream().map(JdbcCursorSort::sql).toList());
+        bound.addValue("__vernacLimit",(long)request.pageSize()+1);
+        var rows=jdbc.query("SELECT "+columns+" FROM "+root.table()+(condition.isEmpty()?"":" WHERE "+condition)
+                +" ORDER BY "+ordering+" LIMIT :__vernacLimit",bound,(rs,n)->readRow(rootTable,rs));
+        var roots=rows.stream().limit(request.pageSize()).toList();
+        var items=restoreRoots(roots);
+        Optional<PageCursor> next=Optional.empty();
+        if(rows.size()>request.pageSize()) {
+            var last=roots.getLast();
+            List<Object> values=keys.stream().map(k->Objects.requireNonNull(last.get(k),"Required cursor key is absent")).toList();
+            next=Optional.of(codec.seal(context,values));
+        }
+        return new CursorWindow<>(items,next);
     }
     public A save(A aggregate) {
         requireTransaction(); Objects.requireNonNull(aggregate);

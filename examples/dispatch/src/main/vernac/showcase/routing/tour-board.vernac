@@ -1,0 +1,33 @@
+namespace showcase.routing;
+
+value PageNumber(int) validates { require(self.intValue() > 0, "Page number must be positive"); };
+value PageSize(int) validates { require(self.intValue() > 0, "Page size must be positive"); };
+value CursorToken(String);
+value TourSummary(TourId, Title) list TourSummaries;
+
+usecase ReadTourBoard(PageNumber plannedPage, PageNumber dispatchedPage, PageSize, CursorToken? cursorToken)
+    returns (Title heading, counted offset TourSummaries plannedTours,
+        counted offset TourSummaries dispatchedTours, cursor TourSummaries recentTours)
+    uses TourRepository
+    behavior {
+        java imports {
+            org.vernac.runtime.pagination.OffsetRequest;
+            org.vernac.runtime.pagination.CursorRequest;
+            org.vernac.runtime.pagination.PageCursor;
+        }
+        execute {
+            var planned = self.tourRepository().pageWithState(TourState.PLANNED)
+                .page(OffsetRequest.ofPage(plannedPage.intValue(), pageSize.intValue()))
+                .mapItems(TourSummaries::of, tour -> summarize(tour));
+            var dispatched = self.tourRepository().pageWithState(TourState.DISPATCHED)
+                .page(OffsetRequest.ofPage(dispatchedPage.intValue(), pageSize.intValue()))
+                .mapItems(TourSummaries::of, tour -> summarize(tour));
+            var recentRequest = cursorToken
+                .map(token -> CursorRequest.after(PageCursor.of(token.string()), pageSize.intValue()))
+                .orElseGet(() -> CursorRequest.first(pageSize.intValue()));
+            var recent = self.tourRepository().recent().page(recentRequest)
+                .mapItems(TourSummaries::of, tour -> summarize(tour));
+            return Result.of(Title.of("Dispatch board"), planned, dispatched, recent);
+        }
+        private TourSummary summarize(Tour tour) { return TourSummary.of(tour.id(), tour.title()); }
+    }

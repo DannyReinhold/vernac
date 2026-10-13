@@ -32,6 +32,7 @@ resolution and feature contracts also constrain accepted programs.
 - [PostgreSQL mapping](../contracts/postgresql-persistence.md)
 - [Scalar representation limits](../contracts/scalar-storage-limits.md)
 - [Repository queries](../contracts/repository-queries.md)
+- [Pagination runtime foundation](../contracts/pagination.md): query/HTTP generation remains planned.
 - [HTTP inbound adapters](../contracts/inbound-http.md)
 - [Ports and adapters](../contracts/ports-adapters-and-acl.md)
 - [Adapter configuration](../contracts/adapter-configuration.md)

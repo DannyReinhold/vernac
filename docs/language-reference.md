@@ -255,7 +255,8 @@ Find names do not imply predicates. Supported predicates include `=`, `!=`, `<`,
 `ends with`, combined with `not`, `and`, `or` and parentheses. Precedence is not,
 then and, then or. Fields reference eligible root values or `id`, `createdAt`,
 `updatedAt`; `:name` references a typed parameter. Capabilities depend on the scalar.
-No arbitrary SQL, nested traversal, projections or pagination is implied.
+No arbitrary SQL, nested traversal or partial-aggregate projections are implied.
+Offset-qualified queries are described in the pagination section below.
 
 Find returns a declared aggregate collection or an optional singleton. Multiple
 matches for a singleton raise NonUniqueQueryResultException; this does not create
@@ -417,3 +418,71 @@ usecase inputs and a response mapping. Assignments retain target-left `<-` orien
 The adapter creates no implicit Result; `<Usecase>.Result` is a supported response
 mapping source for explicitly declared tuple results. Transactions remain in usecases.
 See the [contract](contracts/inbound-http.md) and [complete tutorial](tutorials/inbound-http.md).
+
+## Offset and cursor pagination
+
+```text
+repository IssueRepository for Issue {
+    find offset Issues withStatus(IssueStatus status)
+        where issueStatus = :status order by createdAt desc, id asc;
+    find offset Issues countedWithStatus(IssueStatus status)
+        where issueStatus = :status order by createdAt desc, id asc counting;
+}
+```
+
+Requires a declared list of complete aggregates and an explicit order ending in root
+id. Without counting the method returns OffsetQuery<Issue, Issues>; with counting it
+returns CountedOffsetQuery<Issue, Issues>. Both bind the filters and expose page(request)
+and lazy pages(request). Ordinary finds retain their original API.
+
+Use `OffsetRequest.ofPage(3, 20)` or `ofOffset(40, 20)` in a Java body, importing from
+org.vernac.runtime.pagination. Pages retain their concrete items list. Counted pages
+add totalElements/totalPages; count and root selection share one SQL statement snapshot.
+Each load requires an active transaction, reconstructs full graphs and checks versions.
+A concurrent root change may raise an optimistic-lock conflict. Independent loads are
+not a frozen snapshot. Generated repositories bind `vernac.pagination.max-page-size`
+(default 1000), rejecting larger requests before SQL.
+
+Cursor declarations use the same list and explicit final-id requirements:
+
+```text
+find cursor Issues following(IssueStatus status)
+    where issueStatus = :status order by createdAt desc, id asc;
+```
+
+The method returns CursorQuery<Issue, Issues>. In a Java body, call
+`page(CursorRequest.first(20))` or continue with `CursorRequest.after(cursor, 20)`.
+CursorPage exposes items(), nextCursor() and nextRequest(); it has no count or absolute
+page number. All cursor sort keys must be required. Each direction and physical time
+component is respected; decimal prefix comparison follows numeric order, not scale.
+The saved boundary survives deletion of its root. Tokens bind to the query, filters,
+complete owned schema fingerprint and codec version, and are encrypted/authenticated.
+Configure `vernac.pagination.cursor-key` (Base64 of 32 random bytes) for durable/shared
+continuations. Blank uses a process key and loses validity after restart/on another
+replica. Invalid tokens raise InvalidCursorException. Tokens never authorize access.
+Paginated usecase results and HTTP/DTO mappings are implemented as described below.
+PageNumber/PageSize/PageCursor are technical Java types, not modeled signature built-ins.
+See the [tutorial](tutorials/pagination.md) and [normative contract](contracts/pagination.md).
+
+### Usecase result components and DTO fields
+
+```text
+usecase ReadBoard(PageNumber openPage, PageNumber closedPage, PageSize)
+    returns (Title heading, counted offset Summaries openItems,
+        counted offset Summaries closedItems, cursor Summaries recentItems)
+    uses IssueRepository behavior { execute { /* return Result.of(...); */ } }
+```
+
+Summaries must be a declared list of immutable domain values (IDs/VOs/enums). Pages
+are required; aggregates/sets/optional pages are rejected. The single-return form
+`returns counted offset Summaries` is also supported. These result qualifiers are
+not input/domain-field built-ins. PageNumber/PageSize in this sketch are application
+VOs; project their getters into runtime request factories explicitly.
+
+DTO page fields use `schema BoardDto(counted offset list<ItemDto> openItems, ...);`.
+A mapping assignment `openItems <- source.openItems using item;` applies the named
+entry conversion and retains metadata. Different variants, page flattening and page
+internal traversal fail. HTTP still returns a named local schema, whose generated
+codecs serialize completed envelopes without a global Jackson module. Invalid query
+cursors return 400/INVALID_CURSOR; ordinary domain validation remains 422.
+The [complete tutorial](tutorials/pagination.md) includes the model, usecase and GET.

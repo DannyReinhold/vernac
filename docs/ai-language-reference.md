@@ -1079,3 +1079,111 @@ A response-mapping failure can occur after the usecase transaction commits. Its 
 response is not permission to repeat a command. Authentication, authorization,
 idempotency keys, OpenAPI, streaming and asynchronous transports are not generated
 by this syntax. Configure those concerns explicitly outside this initial slice.
+
+## 23. Offset and cursor pagination (0.4.0-SNAPSHOT)
+
+Accepted repository syntax (Issues MUST be a declared list of Issue):
+
+```text
+find offset Issues withStatus(IssueStatus status)
+    where issueStatus = :status order by createdAt desc, id asc;
+find offset Issues countedWithStatus(IssueStatus status)
+    where issueStatus = :status order by createdAt desc, id asc counting;
+```
+
+Only offset- or cursor-qualified methods return query objects. Ordinary finds return their
+existing collection/singleton. `counting` is optional and requires offset. The compiler
+requires a list result and an explicit sort whose final field is the root id.
+Sets, optional singleton pages, missing order and a non-id final key are errors.
+No hidden ordering or implicit pagination parameters are generated.
+
+In Java bodies import OffsetRequest from org.vernac.runtime.pagination:
+`self.issueRepository().withStatus(status).page(OffsetRequest.ofPage(3, 20))`.
+Or use `ofOffset(40, 20)`. The counted query returns CountedOffsetPage with totalElements
+and totalPages; the uncounted query returns OffsetPage without totals. Both expose
+items(), request(), hasNext(), nextRequest(), offset(), pageSize() and pageNumber()
+(OptionalLong: present only for offsets aligned to pageSize). Page numbers start at 1.
+Empty/out-of-range counted pages retain the true total; an empty dataset has 0 pages.
+
+Use `.pages(request).items().forEach(...)` for sequential lazy traversal **inside the
+usecase transaction**; do not return a lazy sequence. Each page is materialized and
+loads complete aggregates. Project eagerly with `page.mapItems(TargetList::of, mapper)`:
+explicit destination factory FIRST; no filtering/reordering while keeping page metadata.
+Generated lists implement DomainList<T>, sets do not. Filters bind at query creation.
+The runtime checks an active transaction for every JDBC load, even on an escaped query.
+
+Count and selected roots share one PostgreSQL statement snapshot. Child loads verify
+root versions and can raise optimistic-lock failures under concurrent modification.
+No automatic retry, isolation change or frozen multi-request dataset is promised.
+`vernac.pagination.max-page-size` defaults to 1000; each request exceeding it fails
+before SQL.
+
+Cursor syntax is implemented:
+
+```text
+find cursor Issues following(IssueStatus status)
+    where issueStatus = :status order by createdAt desc, id asc;
+```
+
+It returns CursorQuery<Issue, Issues>. Import CursorRequest in Java bodies and use
+`.page(CursorRequest.first(20))`, `.page(CursorRequest.after(cursor, 20))` or
+`.pages(CursorRequest.first(20)).items().forEach(...)` inside the usecase transaction.
+CursorPage has items(), request(), pageSize(), nextCursor(), nextRequest(), mapItems();
+NO totalElements, totalPages or absolute pageNumber. All sort fields MUST be required,
+and the final explicit sort key MUST be id. `counting` on a cursor query is an error.
+The cursor stores the last returned storage-key tuple, so deleting that root does not
+break continuation. Mixed directions, decimal numeric ties and nanosecond components
+follow SQL ordering. Changing the page size is allowed; changing filters is not.
+Tokens are v1 authenticated/encrypted, binding method identity, filters, ordering,
+complete owned schema fingerprint and codec. Invalid/modified/incompatible tokens raise
+InvalidCursorException. Configure vernac.pagination.cursor-key with Base64 of 32 random
+bytes for shared durable tokens; blank uses a process-local key invalidated on restart.
+Reapply all permission/tenant conditions every request: cursors do not authorize access.
+No frozen dataset, backward cursor navigation, expiration or automatic key rotation.
+
+### Paginated usecase results and HTTP DTO fields (implemented)
+
+Result qualifiers are explicit: `offset ValueList`, `counted offset ValueList`,
+`cursor ValueList`. Use them as a single result or independent tuple components:
+
+```text
+returns (Title heading, counted offset Summaries openItems,
+    counted offset Summaries closedItems, cursor Summaries recentItems)
+```
+
+The corresponding Java types are OffsetPage<Value, ValueList>,
+CountedOffsetPage<Value, ValueList>, CursorPage<Value, ValueList>. ValueList MUST be a
+named list of IDs/VOs/enums; no aggregate/entity entries or sets. Project repository
+aggregate pages eagerly with mapItems(ValueList::of, mapper). Pages MUST be required,
+not optional/mut, and never lazy. A tuple uses the existing Result.of; a single page
+has no implicit Result. Repeated collection types require explicit different names.
+
+Do NOT use qualifiers in domain fields, port signatures or usecase input headers.
+Technical runtime requests are still Java APIs, not global modeled built-ins. Define
+ordinary application PageNumber/PageSize/CursorToken VOs as needed and explicitly use
+their intValue()/longValue()/string() getters when building runtime requests. Avoid
+importing runtime PageNumber into a scope containing your own PageNumber type.
+
+Adapter DTO fields accept `offset list<LocalDto>`, `counted offset list<LocalDto>` or
+`cursor list<LocalDto>` (also approved scalar entries). Entries cannot be nullable,
+containers or PATCH fields. Outer optional/naming rules still apply. Metadata names
+are fixed lowerCamelCase. Offset envelopes have items/offset/pageSize/hasNext and
+pageNumber only for aligned offsets; counted envelopes add totalElements/totalPages.
+Cursor envelopes have items/pageSize and nextCursor only when continuation exists.
+No internal request/Optional/query/aggregate is serialized.
+
+Map a page as a whole: `openItems <- source.openItems using item;`. This applies the
+named item mapping to every entry and retains all metadata. Exact scalar/VO automatic
+entry conversions also work. Source and target page variants MUST match. Do NOT map
+`source.openItems.items`, flatten a page into a list, silently drop counts or rebuild
+a domain page from DTO metadata declaratively. DTO-to-DTO page projection is supported.
+Use explicit Java for deliberately different semantics. Root HTTP responses remain
+named local schemas; a single usecase page may be a field in that schema.
+
+Multiple pages do not implicitly share a frozen multi-query snapshot. Usecases keep
+REQUIRED transactions and complete each page/projection before returning. Invalid
+cursors return HTTP 400/INVALID_CURSOR; ordinary domain validation stays 422. Never
+use cursors as authorization. See docs/tutorials/pagination.md for a complete compiled
+multi-page board and GET, and examples/dispatch for its executable repository-backed
+counterpart. Dynamic filters, backward cursors and global technical request built-ins
+remain outside this increment.

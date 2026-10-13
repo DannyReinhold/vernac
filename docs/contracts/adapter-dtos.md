@@ -181,3 +181,14 @@ Typed declarative/Java mappings, nested/list conversions and state-preserving PA
 conversion are now implemented; see the [mapping contract](adapter-mappings.md).
 REST requests and error translation use these DTOs; see
 [declarative REST](declarative-rest.md) and the [HTTP runtime](http-adapter-runtime.md).
+
+## Page fields
+
+`offset list<LocalDto>`, `counted offset list<LocalDto>` and `cursor list<LocalDto>`
+are immutable transport envelopes; approved scalar entries are also allowed. The
+[page contract](pagination.md#application-results-and-transport-pages) fixes metadata
+names, validation, missing continuation/unaligned page-number representation and
+variant-preserving mappings. This field shorthand is intended for Vernac's common
+page protocol. Other vendors' pagination layouts remain ordinary explicitly modeled
+schemas with Java conversions where necessary. Outer naming strategies do not rename
+the fixed technical envelope metadata. No global Jackson module is changed.

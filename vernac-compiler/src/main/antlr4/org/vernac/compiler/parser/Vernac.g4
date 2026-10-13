@@ -188,7 +188,7 @@ restBinding
     ;
 
 mappingDefinition
-    : 'mapping' name=methodName ':' targetType=type '<-' sourceType=type
+    : 'mapping' name=methodName ':' targetType=pageType '<-' sourceType=pageType
       ('{' (mappingAssignment* | javaImports? 'java' '{' rawJavaBlock '}') '}'
        | 'implemented' 'by' implementation=qualifiedName ';')
     ;
@@ -201,7 +201,7 @@ schemaDefinition
     ;
 
 schemaField
-    : patch='patch'? fieldType=type name=variableName? ('named' externalName=STRING_LITERAL)?
+    : patch='patch'? fieldType=pageType name=variableName? ('named' externalName=STRING_LITERAL)?
       ('absent' 'as' explicitNull='null')?
     ;
 
@@ -223,9 +223,9 @@ repositoryDefinition
     ;
 
 repositoryFindMethod
-    : 'find' returnType=type name=qualifiedNameSegment '(' parameterList? ')'
+    : 'find' pagination=('offset' | 'cursor')? returnType=type name=qualifiedNameSegment '(' parameterList? ')'
       ('where' repositoryExpression)?
-      ('order' 'by' repositoryOrder (',' repositoryOrder)*)? ';'
+      ('order' 'by' repositoryOrder (',' repositoryOrder)*)? counting='counting'? ';'
     ;
 
 repositoryExpression : repositoryAnd ('or' repositoryAnd)* ;
@@ -244,7 +244,7 @@ repositoryOrder
 // ==========================================
 usecaseDefinition
     : 'usecase' name=typeName '(' inputs=parameterList? ')'
-      ('returns' (resultType=type | '(' results=parameterList ')'))?
+      ('returns' (resultType=pageType | '(' results=resultParameterList ')'))?
       ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
       ('validates' validationBlock)?
       'behavior' '{' javaImports? usecaseBehaviorMember* '}' ';'?
@@ -293,6 +293,10 @@ type
     : rawType=qualifiedName ('<' typeArguments '>')? isOptional='?'?
     ;
 
+pageType : (counted='counted' 'offset' | pageMode=('offset' | 'cursor'))? type ;
+resultParameterList : resultParameter (',' resultParameter)* ;
+resultParameter : isMut='mut'? paramType=pageType name=variableName? ;
+
 typeArguments
     : type (',' type)*
     ;
@@ -303,7 +307,7 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | IDENTIFIER
     | BOOLEAN_LITERAL
     | 'null'
@@ -406,7 +410,7 @@ typeName
     ;
 
 methodName
-    : 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'read' | 'modify' | 'load' | 'save'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
@@ -416,7 +420,7 @@ methodName
     ;
 
 variableName
-    : 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
     | IDENTIFIER
