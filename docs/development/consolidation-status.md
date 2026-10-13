@@ -24,7 +24,7 @@ production readiness. The [0.3.0 plan](release-0.3.0.md) is now historical relea
 | Usecases                | Named application operations, REQUIRED transactions, explicit results and external implementations                                                                     |
 | Domain services         | Named methods, injected dependencies through self, per-operation preconditions and external implementations                                                            |
 | Events                  | Immutable occurrences, shared EventId, validation, synchronous listeners, relational recording, deferred delivery and workers                                          |
-| HTTP inbound adapters   | Typed path/query/header/body input, usecase invocation, shared mappings including explicit Result sources, scoped error policies                                       |
+| HTTP inbound adapters   | Typed path/query/header/body input, usecase invocation, shared mappings including explicit Result sources, ordered declarative endpoint/adapter error policies, typed rejection and integration selectors, safe defaults                                       |
 | Outbound ports and ACL  | Java adapters, DTO/PATCH semantics, mappings, REST bindings, typed error rules and local HTTP walkthrough                                                              |
 | Schema tooling          | Versioned source snapshots, initial/next migration candidates, explicit transformations, risk gates and Flyway replay checks                                           |
 

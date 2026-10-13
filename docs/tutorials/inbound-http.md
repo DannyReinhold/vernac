@@ -141,3 +141,27 @@ page fields in a named local DTO. The entry mapping keeps metadata intact, and J
 serialization performs no repository work. The [board tutorial](pagination.md) shows
 the complete model, separate query page numbers, cursor continuation and safe
 400/INVALID_CURSOR handling.
+
+## Give failures a public meaning
+
+When a usecase rejects a request, the API should explain the failure without exposing
+internal exception messages. Put shared rules at adapter scope, and specialize a
+particular endpoint only when its public contract differs. Add this clause last in
+the adapter from this tutorial:
+
+```text
+errors {
+    when validation then respond 422 "INVALID_TASK" "Check the task values.";
+    when not found then respond 404;
+    otherwise default;
+}
+```
+
+An empty title now produces HTTP 422 with `code: INVALID_TASK` and the explicit public
+message. The validator's internal message is not published. A missing aggregate still
+uses the safe NOT_FOUND reply. Other errors retain their defaults.
+
+The Dispatch example demonstrates this on its create endpoint: POST an empty title
+to `/api/tours` to receive `INVALID_TOUR`, or omit a required JSON field to receive the
+adapter-level `INVALID_REQUEST`. Neither request invokes a successful usecase.
+See the [full selector and precedence contract](../contracts/inbound-http.md#declarative-inbound-error-policies-040).

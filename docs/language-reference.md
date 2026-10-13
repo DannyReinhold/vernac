@@ -486,3 +486,19 @@ internal traversal fail. HTTP still returns a named local schema, whose generate
 codecs serialize completed envelopes without a global Jackson module. Invalid query
 cursors return 400/INVALID_CURSOR; ordinary domain validation remains 422.
 The [complete tutorial](tutorials/pagination.md) includes the model, usecase and GET.
+
+## Inbound error policies
+
+HTTP adapters and endpoints support ordered `errors { when ... then respond ...; }`
+policies. Endpoint rules are checked first, then adapter rules, then safe defaults.
+Selectors: `rejection EnumType.CONSTANT`, `integration local|remote|unknown CATEGORY`,
+`invalid request`, `invalid cursor`, `validation`, `not found`, `optimistic conflict`,
+`domain rejection`. A category is an existing IntegrationCategory constant. Typed
+rejections match PortRejectedException; no implicit typed usecase rejection is added.
+`then respond 409;` preserves the safe default code/message. `then respond 409
+"PUBLIC_CODE" "Public message";` replaces them. Both strings are required together.
+Statuses are 400–599. Optional `otherwise default;` retains the final default fallback.
+A policy block or `errors implemented by ...;` may follow an endpoint response, or
+appear last in an adapter. The forms are exclusive per scope. Response-mapping failures
+stay technical; policies never change transactions, retries or authentication.
+See the [normative inbound contract](contracts/inbound-http.md#declarative-inbound-error-policies-040).

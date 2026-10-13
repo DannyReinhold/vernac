@@ -131,14 +131,31 @@ inboundHttpAdapterDefinition
       ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
       '{' 'base' base=STRING_LITERAL ';'
       (inboundEndpoint | schemaDefinition | mappingDefinition)*
-      ('errors' 'implemented' 'by' errorImplementation=qualifiedName ';')? '}' ';'?
+      inboundErrorPolicy? '}' ';'?
     ;
 inboundEndpoint
     : name=methodName '{' verb=('GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE') route=STRING_LITERAL ';'
       inboundBinding* ('body' bodyType=type ';')?
       'execute' dependency=variableName '{' mappingAssignment* '}'
       'respond' status=INT_LITERAL (responseType=type 'using' responseMapping=methodName)? ';'
-      ('on' 'absent' 'respond' absentStatus=INT_LITERAL ';')? '}'
+      ('on' 'absent' 'respond' absentStatus=INT_LITERAL ';')? inboundErrorPolicy? '}'
+    ;
+inboundErrorPolicy
+    : 'errors' ('implemented' 'by' implementation=qualifiedName ';'
+      | '{' inboundErrorRule+ ('otherwise' 'default' ';')? '}')
+    ;
+inboundErrorRule
+    : 'when' inboundErrorSelector 'then' 'respond' status=INT_LITERAL
+      (code=STRING_LITERAL message=STRING_LITERAL)? ';'
+    ;
+inboundErrorSelector
+    : 'rejection' rejectionCode=qualifiedName
+    | 'integration' responsibility=('local' | 'remote' | 'unknown') category=variableName
+    | 'invalid' ('request' | 'cursor')
+    | 'validation'
+    | 'not' 'found'
+    | 'optimistic' 'conflict'
+    | 'domain' 'rejection'
     ;
 inboundBinding
     : kind=('path' | 'query' | 'header') valueType=type name=variableName?
@@ -307,7 +324,7 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | IDENTIFIER
     | BOOLEAN_LITERAL
     | 'null'
@@ -410,7 +427,7 @@ typeName
     ;
 
 methodName
-    : 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'read' | 'modify' | 'load' | 'save'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
@@ -420,7 +437,7 @@ methodName
     ;
 
 variableName
-    : 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
     | IDENTIFIER

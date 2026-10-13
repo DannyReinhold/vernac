@@ -230,3 +230,17 @@ process-local cursor key invalidates old continuations; configure
 `vernac.pagination.cursor-key` through secret management for durable/shared cursors.
 An invalid cursor returns 400/INVALID_CURSOR. The existing UI continues to use its
 original routes; this endpoint demonstrates the generated pagination API.
+
+### Declarative error replies
+
+The TourApi create endpoint specializes domain validation as HTTP 422 / INVALID_TOUR.
+Its adapter provides shared malformed-request, not-found and optimistic-conflict rules.
+Try an empty title (no tour is created):
+
+```powershell
+Invoke-WebRequest -Method Post 'http://localhost:8087/api/tours' -ContentType 'application/json' -Body '{"title":"","capacity":10}'
+```
+
+PowerShell reports the non-success response; inspect its JSON body for `code` and
+`message`. Omitting `capacity` instead produces the shared 400 / INVALID_REQUEST reply.
+These policies do not alter usecase transactions or publish exception messages.

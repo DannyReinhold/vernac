@@ -38,13 +38,47 @@ public final class InboundHttpGenerator {
         var handler=MethodSpec.methodBuilder("handle").addModifiers(Modifier.PUBLIC)
                 .addAnnotation(AnnotationSpec.builder(spring("ExceptionHandler")).addMember("value","$T.class",Exception.class).build())
                 .returns(ParameterizedTypeName.get(RESPONSE,ERRORS.nestedClass("Body"))).addParameter(Exception.class,"error");
-        if(adapter.errorImplementation().isPresent())handler.addStatement("return $T.respond(error, $L::handle)",ERRORS,adapter.errorImplementation().get());
-        else handler.addStatement("return $T.respond(error)",ERRORS);
+        boolean policies = !adapter.errorRules().isEmpty() || adapter.errorImplementation().isPresent()
+                || adapter.endpoints().stream().anyMatch(e -> !e.errorRules().isEmpty() || e.errorImplementation().isPresent());
+        if (policies) {
+            var policy = MethodSpec.methodBuilder("policy").addModifiers(Modifier.PRIVATE,Modifier.STATIC)
+                .returns(ERRORS.nestedClass("Reply")).addParameter(String.class,"endpoint").addParameter(Exception.class,"error");
+            for (var endpoint : adapter.endpoints()) {
+                if (!endpoint.errorRules().isEmpty() || endpoint.errorImplementation().isPresent()) {
+                    policy.beginControlFlow("if (endpoint.equals($S))",endpoint.name());
+                    addRules(policy,endpoint.errorRules(),project);
+                    endpoint.errorImplementation().ifPresent(n -> policy.addStatement("return $L.handle(endpoint, error)",n));
+                    policy.endControlFlow();
+                }
+            }
+            addRules(policy,adapter.errorRules(),project);
+            if (adapter.errorImplementation().isPresent()) policy.addStatement("return $L.handle(endpoint, error)",adapter.errorImplementation().get());
+            else policy.addStatement("return $T.defaultReply(error)",ERRORS);
+            advice.addMethod(policy.build());
+            handler.addStatement("return $T.respond(error, $L::policy)",ERRORS,adapter.name()+"Errors");
+        } else handler.addStatement("return $T.respond(error)",ERRORS);
         advice.addMethod(handler.build());
         var files=new ArrayList<JavaFile>();files.add(file(pkg,builder));files.add(file(pkg,advice));
         if(!plan.schemas().isEmpty())files.add(new DtoGenerator().generate(adapter.name(),pkg+".dto",plan.schemas()));
         if(!plan.mappings().isEmpty())files.addAll(new MappingGenerator().generate(adapter.name(),pkg+".mapping",unit,project,plan.mappings()));
         return List.copyOf(files);
+    }
+    private void addRules(MethodSpec.Builder method,List<InboundHttpAdapterNode.ErrorRule> rules,ResolvedProject project) {
+        for (var rule : rules) {
+            CodeBlock condition;
+            if (rule.selector().equals("rejection")) {
+                var type=(org.vernac.compiler.symbols.ResolvedType.Declared)project.typeOf(rule.rejectionType().orElseThrow());
+                var id=type.symbol().identity();
+                condition=CodeBlock.of("$T.rejection(error, $T.$L)",ERRORS,ClassName.get(id.namespace()+".domain",id.name()),rule.constant());
+            } else if (rule.selector().equals("integration")) {
+                condition=CodeBlock.of("$T.integration(error, $S, $T.$L)",ERRORS,rule.responsibility(),
+                    ClassName.get("org.vernac.runtime.ports","IntegrationCategory"),rule.category());
+            } else condition=CodeBlock.of("$T.matches(error, $S)",ERRORS,rule.selector());
+            method.beginControlFlow("if ($L)",condition);
+            if (rule.code().isPresent()) method.addStatement("return new $T($L, $S, $S)",ERRORS.nestedClass("Reply"),rule.status(),rule.code().get(),rule.message().orElseThrow());
+            else method.addStatement("return $T.withStatus(error, $L)",ERRORS,rule.status());
+            method.endControlFlow();
+        }
     }
     private MethodSpec endpoint(InboundHttpAdapterNode adapter,ResolvedInbound.Endpoint endpoint,ClassName mappings) {
         var source=endpoint.source();

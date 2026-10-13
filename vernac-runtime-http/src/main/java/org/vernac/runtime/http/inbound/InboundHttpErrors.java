@@ -13,7 +13,7 @@ import org.springframework.web.bind.MissingRequestValueException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.vernac.runtime.*;
 import org.vernac.runtime.json.*;
-import org.vernac.runtime.ports.PortRejectedException;
+import org.vernac.runtime.ports.*;
 
 /** Safe HTTP defaults, scoped to generated controllers through their generated advice. */
 @NullMarked
@@ -45,16 +45,51 @@ public final class InboundHttpErrors {
     public static InvocationFailure response(String endpoint,Exception error) {
         return new InvocationFailure(endpoint,new ResponseMappingFailure(error));
     }
+    /** Unwraps only boundary-owned input wrappers; response failures remain technical. */
+    public static Exception policyError(Exception error) {
+        var seen = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<Exception,Boolean>());
+        while (seen.add(error)) {
+            if (error instanceof InvocationFailure f) { error=f.exception(); continue; }
+            if (error instanceof MappingContractException && error.getCause() instanceof Exception cause
+                    && (cause instanceof MappingContractException || cause instanceof DomainValidationException || cause instanceof DtoContractException)) {
+                error=cause; continue;
+            }
+            break;
+        }
+        return error;
+    }
+    public static boolean rejection(Exception error,Enum<?> code) {
+        return policyError(error) instanceof PortRejectedException rejected && rejected.code()==code;
+    }
+    public static boolean integration(Exception error,String responsibility,IntegrationCategory category) {
+        if (!(policyError(error) instanceof PortInvocationException failure) || failure.category()!=category) return false;
+        String actual=failure instanceof LocalIntegrationException ? "local" : failure instanceof RemoteIntegrationException ? "remote" : "unknown";
+        return actual.equals(responsibility);
+    }
+    public static boolean matches(Exception error,String selector) {
+        error=policyError(error);
+        return switch(selector) {
+            case "invalidrequest" -> error instanceof HttpMessageNotReadableException || error instanceof MissingRequestValueException
+                || error instanceof MethodArgumentTypeMismatchException || error instanceof WireValueException || error instanceof DtoContractException;
+            case "invalidcursor" -> error instanceof org.vernac.runtime.pagination.InvalidCursorException;
+            case "validation" -> error instanceof DomainValidationException && !(error instanceof org.vernac.runtime.pagination.InvalidCursorException);
+            case "notfound" -> error instanceof AggregateNotFoundException;
+            case "optimisticconflict" -> error instanceof OptimisticLockingFailureException;
+            case "domainrejection" -> error instanceof VernacDomainException;
+            default -> throw new IllegalArgumentException("Unknown inbound error selector");
+        };
+    }
+    public static Reply withStatus(Exception error,int status) {
+        Reply defaults=defaultReply(error);
+        return new Reply(status,defaults.code(),defaults.message());
+    }
     public static Reply defaultReply(Exception error) {
-        if(error instanceof InvocationFailure invocation)return defaultReply(invocation.exception());
+        error=policyError(error);
         if(error instanceof HttpMessageNotReadableException || error instanceof MissingRequestValueException
                 || error instanceof MethodArgumentTypeMismatchException || error instanceof WireValueException || error instanceof DtoContractException)
             return new Reply(400,"INVALID_REQUEST","Check the supplied fields and identifiers.");
         if(error instanceof AggregateNotFoundException)return new Reply(404,"NOT_FOUND","The requested resource was not found.");
         if(error instanceof OptimisticLockingFailureException)return new Reply(409,"OPTIMISTIC_LOCK_CONFLICT","The resource changed. Reload it before retrying.");
-        if(error instanceof MappingContractException && error.getCause() instanceof Exception cause
-                && (cause instanceof MappingContractException || cause instanceof DomainValidationException || cause instanceof DtoContractException))
-            return defaultReply(cause);
         if(error instanceof org.vernac.runtime.pagination.InvalidCursorException)
             return new Reply(400,"INVALID_CURSOR","Start a new traversal with the same search criteria.");
         if(error instanceof DomainValidationException)return new Reply(422,"DOMAIN_VALIDATION","The supplied values do not meet the domain requirements.");

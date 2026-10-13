@@ -340,3 +340,13 @@ no magic and does not reserve those names globally. The result uses a page quali
 which is a completed application result, not a field type for a persisted aggregate.
 
 [All tutorials](../tutorials/index.md) · [Language reference](../language-reference.md)
+
+## How can an HTTP endpoint report a business failure without exposing internal details?
+
+Use an inbound `errors` policy. A status-only rule keeps the existing safe code and
+message; two explicit strings provide an application-specific public code and message.
+Rules on an endpoint run before shared adapter rules. Unmatched errors retain defaults.
+Technical integration failures can be selected by their existing responsibility and
+category: a remote timeout can become 503, while an invalid upstream response can
+become 502. The HTTP reply does not erase the original integration diagnostics.
+See [inbound error policies](../contracts/inbound-http.md#declarative-inbound-error-policies-040).

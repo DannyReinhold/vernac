@@ -549,6 +549,10 @@ final class VernacProjectSymbols {
     private static RestReference restReference(ParseTree tree, int point) {
         List<RestReference> found = new ArrayList<>();
         walk(tree, node -> {
+            if (node instanceof VernacParser.InboundErrorSelectorContext selector) {
+                if (contains(selector.rejectionCode, point)) found.add(new RestReference(selector.rejectionCode,"errorCode",null,null));
+                if (contains(selector.category, point)) found.add(new RestReference(selector.category,"errorCategory",null,null));
+            }
             if (!(node instanceof VernacParser.RestOperationContext op)) return;
             ParserRuleContext name = null; String kind = "source";
             if (contains(op.requestMapping, point)) { name = op.requestMapping; kind = "using"; }

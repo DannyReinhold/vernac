@@ -229,14 +229,34 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                         List.of(a.path.getText().split("\\.")), Optional.ofNullable(a.mapper).map(ParserRuleContext::getText))).toList(),
                 httpStatus(e.status.getText()), Optional.ofNullable(e.responseType).map(this::toTypeNode),
                 Optional.ofNullable(e.responseMapping).map(ParserRuleContext::getText),
-                Optional.ofNullable(e.absentStatus).map(t -> httpStatus(t.getText())))).toList();
+                Optional.ofNullable(e.absentStatus).map(t -> httpStatus(t.getText())),
+                inboundImplementation(e.inboundErrorPolicy()), inboundRules(e.inboundErrorPolicy()))).toList();
         return new InboundHttpAdapterNode(toLocation(ctx), ctx.name.getText(), unquote(ctx.base.getText()),
                 ctx.dependencies.stream().map(this::adapterParameter).toList(), endpoints,
                 ctx.schemaDefinition().stream().map(this::visitSchemaDefinition).toList(),
                 ctx.mappingDefinition().stream().map(this::visitMappingDefinition).toList(),
-                Optional.ofNullable(ctx.errorImplementation).map(ParserRuleContext::getText));
+                inboundImplementation(ctx.inboundErrorPolicy()), inboundRules(ctx.inboundErrorPolicy()));
     }
 
+    private Optional<String> inboundImplementation(VernacParser.InboundErrorPolicyContext policy) {
+        return policy == null ? Optional.empty() : Optional.ofNullable(policy.implementation).map(ParserRuleContext::getText);
+    }
+    private List<InboundHttpAdapterNode.ErrorRule> inboundRules(VernacParser.InboundErrorPolicyContext policy) {
+        if (policy == null) return List.of();
+        return policy.inboundErrorRule().stream().map(rule -> {
+            var selector = rule.inboundErrorSelector();
+            String code = selector.rejectionCode == null ? "" : selector.rejectionCode.getText();
+            int dot = code.lastIndexOf('.');
+            return new InboundHttpAdapterNode.ErrorRule(toLocation(rule),
+                selector.rejectionCode != null ? "rejection" : selector.responsibility != null ? "integration" : selector.getText(),
+                dot < 0 ? Optional.empty() : Optional.of(new TypeNode(toLocation(selector.rejectionCode), code.substring(0,dot))),
+                dot < 0 ? code : code.substring(dot+1),
+                selector.responsibility == null ? "" : selector.responsibility.getText(),
+                selector.category == null ? "" : selector.category.getText(), httpStatus(rule.status.getText()),
+                Optional.ofNullable(rule.code).map(t -> errorString(t.getText(), toLocation(rule))),
+                Optional.ofNullable(rule.message).map(t -> errorString(t.getText(), toLocation(rule))));
+        }).toList();
+    }
     private int httpStatus(String value) {
         try { return Integer.parseInt(value); }
         catch (NumberFormatException invalid) { return -1; }
