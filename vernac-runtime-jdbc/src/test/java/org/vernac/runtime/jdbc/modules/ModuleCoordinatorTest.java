@@ -15,6 +15,18 @@ import static org.junit.jupiter.api.Assertions.*;
 class ModuleCoordinatorTest {
     private static final SchemaDescription EMPTY=new SchemaDescription(1,1,List.of(),Map.of());
     private static ModuleMigrationStrategy.Prepared module(String name,String table){return new ModuleMigrationStrategy.Prepared(name,"classpath:"+name,name,EMPTY,Set.of(table));}
+    @Test void implicitApplicationHistoryIsPublicWhileExplicitLocationsStayUnchanged() {
+        var original=Flyway.configure().locations("classpath:custom/migrations").table("app_history").load();
+        var stable=ModuleMigrationStrategy.stableApplicationHistory(original);
+        assertEquals("public",stable.getConfiguration().getDefaultSchema());
+        assertEquals("app_history",stable.getConfiguration().getTable());
+        assertEquals(original.getConfiguration().getLocations()[0],stable.getConfiguration().getLocations()[0]);
+        assertNull(original.getConfiguration().getDefaultSchema(),"Do not mutate the caller's Flyway configuration");
+        var explicit=Flyway.configure().defaultSchema("custom_history").load();
+        assertSame(explicit,ModuleMigrationStrategy.stableApplicationHistory(explicit));
+        var schemas=Flyway.configure().schemas("configured_history","other_schema").load();
+        assertSame(schemas,ModuleMigrationStrategy.stableApplicationHistory(schemas));
+    }
     @Test void migratesAndValidatesDependenciesBeforeApplicationAndStopsOnFailure() {
         List<String> log=new ArrayList<>();var modules=List.of(module("required","one/table"),module("dependent","two/table"));
         class Work implements ModuleMigrationStrategy.Operations {

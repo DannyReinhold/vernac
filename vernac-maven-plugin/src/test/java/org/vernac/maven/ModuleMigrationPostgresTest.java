@@ -125,11 +125,11 @@ class ModuleMigrationPostgresTest {
         }
     }
     private static final class CountingSource extends AbstractDataSource {
-        private final String url;private final Properties credentials;final AtomicInteger transactions=new AtomicInteger();
+        private final String url;private final Properties credentials;private String searchPath;final AtomicInteger transactions=new AtomicInteger();
         CountingSource(String url,Properties credentials){this.url=url;this.credentials=credentials;}
         public Connection getConnection() throws SQLException {return wrap(DriverManager.getConnection(url,credentials));}
         public Connection getConnection(String user,String password) throws SQLException{return wrap(DriverManager.getConnection(url,user,password));}
-        private Connection wrap(Connection connection){return (Connection)java.lang.reflect.Proxy.newProxyInstance(getClass().getClassLoader(),new Class<?>[]{Connection.class},(p,m,a)->{if(m.getName().equals("setAutoCommit")&&Boolean.FALSE.equals(a[0]))transactions.incrementAndGet();try{return m.invoke(connection,a);}catch(java.lang.reflect.InvocationTargetException e){throw e.getCause();}});}
+        private Connection wrap(Connection connection) throws SQLException {if(searchPath!=null)try(var statement=connection.createStatement()){statement.execute("SET search_path TO "+searchPath);}return (Connection)java.lang.reflect.Proxy.newProxyInstance(getClass().getClassLoader(),new Class<?>[]{Connection.class},(p,m,a)->{if(m.getName().equals("setAutoCommit")&&Boolean.FALSE.equals(a[0]))transactions.incrementAndGet();try{return m.invoke(connection,a);}catch(java.lang.reflect.InvocationTargetException e){throw e.getCause();}});}
     }
     private static long count(CountingSource source,String sql) throws Exception {try(var c=source.getConnection();var s=c.createStatement();var rows=s.executeQuery(sql)){rows.next();return rows.getLong(1);}}
     @Test void fixtureModulesCompileAndShareTheRuntimeFingerprintContract() throws Exception {
@@ -150,8 +150,14 @@ class ModuleMigrationPostgresTest {
     void deferredModuleReceiversResumeAfterRestartAndRetryWithoutDuplicatingCommittedWrites() throws Exception {
         durable=true;ModuleDeferredEventProbe.calls.set(0);fixtures();
         database(source->{
+            // Reproduce a CI login named vernac even when the test server uses another login.
+            // Before schema creation public is current; afterwards vernac would become current.
+            source.searchPath="vernac, public";
             try(var code=new URLClassLoader(new java.net.URL[]{resources.toUri().toURL()},getClass().getClassLoader());var context=context(source,code)) {
-                context.refresh();var name=code.loadClass("db.required.domain.Name");
+                context.refresh();
+                assertEquals(1,count(source,"SELECT count(*) FROM public.flyway_schema_history WHERE success AND type='SQL'"));
+                assertEquals(0,count(source,"SELECT count(*) FROM information_schema.tables WHERE table_schema='vernac' AND table_name='flyway_schema_history'"));
+                var name=code.loadClass("db.required.domain.Name");
                 Object submit=context.getBean("db.dependent.Submit");
                 submit.getClass().getMethod("execute",name).invoke(submit,name.getMethod("of",String.class).invoke(null,"durable"));
                 assertEquals(2,count(source,"SELECT count(*) FROM \"vernac\".\"@delivery\" WHERE status='PENDING'"));

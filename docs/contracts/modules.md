@@ -823,3 +823,12 @@ metadata MUST produce an actionable diagnostic on open application/module/model 
 not silently retain old symbols. Rebuild the consumer after changing Maven dependencies;
 watch notifications alone cannot resolve dependencies or invent a new index. Restoring
 compatible inputs and refreshing the editor clears the corresponding diagnostics.
+
+### Stable application migration history
+
+For persistent-module coordination, application Flyway history defaults to `public`
+when neither `defaultSchema` nor `schemas` is explicitly configured. This default
+MUST NOT follow PostgreSQL's implicit `$user` search path: creation of the technical
+`vernac` event schema must not relocate history for a login also named `vernac`.
+Explicit Flyway history/schema configuration is preserved. This changes no domain
+table ownership and does not enable automatic baselining of an existing schema.

@@ -42,16 +42,24 @@ public final class ModuleMigrationStrategy implements FlywayMigrationStrategy,Be
         operations.migrateApplication();operations.validateApplication(application,owned);
     }
     private static void claim(Map<String,String> owners,String table,String owner){String previous=owners.putIfAbsent(table,owner);if(previous!=null)throw new IllegalStateException("Schema ownership collision: "+table+" belongs to "+previous+" and "+owner);}
+    /** Do not let PostgreSQL's implicit $user search path move history after a schema is created. */
+    static Flyway stableApplicationHistory(Flyway application) {
+        var configuration=application.getConfiguration();
+        if(configuration.getDefaultSchema()!=null||configuration.getSchemas().length>0)return application;
+        return Flyway.configure(configuration.getClassLoader()).configuration(configuration)
+            .defaultSchema("public").load();
+    }
     @Override public void migrate(Flyway application) {
         if(unwrap(application.getConfiguration().getDataSource())!=unwrap(dataSource))throw new IllegalStateException("Persistent modules require the application Flyway and JDBC infrastructure to share one DataSource. A separate spring.flyway.url/DataSource is not supported yet.");
+        var history=stableApplicationHistory(application);
         try {
             var node=JSON.readTree(resource(applicationSchema));
             var app=JSON.treeToValue(node.get("schema"),SchemaDescription.class);
             Set<String> appOwned=new TreeSet<>();node.path("ownedTables").forEach(t->appOwned.add(t.asText()));
             List<Prepared> modules=new ArrayList<>();
             for(String module:bindings.persistentModules())modules.add(prepare(module));
-            if(Arrays.stream(application.info().all()).anyMatch(m->m.getState().name().startsWith("FUTURE")))throw new IllegalStateException("Application database contains migration versions newer than this artifact. Refusing persistent module startup.");
-            for(var location:application.getConfiguration().getLocations()) {
+            if(Arrays.stream(history.info().all()).anyMatch(m->m.getState().name().startsWith("FUTURE")))throw new IllegalStateException("Application database contains migration versions newer than this artifact. Refusing persistent module startup.");
+            for(var location:history.getConfiguration().getLocations()) {
                 String path=location.getDescriptor();
                 if(path.startsWith("classpath:")) {
                     String prefix=path.substring("classpath:".length()).replaceFirst("^/+","").replaceFirst("[*?].*$","");
@@ -61,7 +69,7 @@ public final class ModuleMigrationStrategy implements FlywayMigrationStrategy,Be
             coordinate(modules,app,appOwned,new Operations(){
                 public void migrate(Prepared module){Flyway.configure(loader).dataSource(dataSource).locations(module.location()).schemas(module.historySchema()).defaultSchema(module.historySchema()).table("flyway_schema_history").validateMigrationNaming(true).ignoreMigrationPatterns(new String[0]).load().migrate();}
                 public void validate(Prepared module){JdbcModuleSchemaValidator.validate(dataSource,module.schema(),module.owned(),module.module());}
-                public void migrateApplication(){application.migrate();}
+                public void migrateApplication(){history.migrate();}
                 public void validateApplication(SchemaDescription schema,Set<String> owned){JdbcModuleSchemaValidator.validate(dataSource,schema,owned,"@application");}
             });
         }catch(IOException e){throw new IllegalStateException("Invalid/missing module migration or application schema resources. Rebuild the application and its dependency artifacts.",e);}
