@@ -33,6 +33,8 @@ For a source checkout, use the [example build guide](https://github.com/DannyRei
 6. [Lists, sets and repeated values](collections.md): make multiplicity and identity intentional.
 7. [Domain behavior](behavior.md): inline Java, private helpers and external implementations.
 
+8. [Keep the meaning beside the model](ubiquitous-language.md): a shared glossary, type hover and vocabulary for AI-assisted work.
+
 ## 2. Turn behavior into an application operation
 
 1. [Usecases](usecases.md): one operation, declared results and one transaction boundary.

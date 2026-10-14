@@ -89,6 +89,7 @@ public final class VernacProjectLoader {
                                 collection.definition().location(), symbols, diagnostics));
             }
         }
+        org.vernac.compiler.vocabulary.Vocabulary.collect(root,sources,diagnostics);
         var index = new ProjectSymbolIndex(symbols);
         for (var problem : index.problems()) {
             String origins = problem.declarations().stream().map(symbol -> symbol.location().toString())

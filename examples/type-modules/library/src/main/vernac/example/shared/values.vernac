@@ -1,4 +1,9 @@
 namespace example.shared;
+term Money {
+    description "An amount paired with its currency; currency conversion is explicit.";
+    example "12.30 EUR and 12.30 USD are different monetary values.";
+    note "No automatic rounding or currency conversion is implied.";
+}
 id ExternalRef;
 value Label(String) validates {
     require(!self.string().isBlank(), "Label must not be blank");

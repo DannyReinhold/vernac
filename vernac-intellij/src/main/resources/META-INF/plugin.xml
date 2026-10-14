@@ -98,6 +98,11 @@
 ]]></description>
 
     <change-notes><![CDATA[
+        <h3>Ubiquitous language beside the model</h3>
+        <ul><li>Define namespaced terms, including quoted concepts with spaces, with descriptions, examples and notes.</li>
+        <li>Type hover displays exact-name vocabulary, including documentation from exported module types without source attachments.</li>
+        <li>Term navigation, entry completion and highlighting share compiler semantics.</li>
+        <li>Maven compilation produces readable and machine-readable glossaries; generated Java source carries associated JavaDoc.</li></ul>
         <h3>Versioned modules: complete 0.4.0 scope</h3>
         <ul>
             <li>Publish explicit contracts and reuse compiled implementations from Maven dependencies.</li>
@@ -107,7 +112,7 @@
             <li>Refresh dependency symbols after rebuilt indexes; show incompatible-module diagnostics on open composition files.</li>
             <li>Preserve source navigation for events and multiple collections in dependency contract views.</li>
         </ul>
-        <p>Metadata uses module-contracts-8. Rebuild producers and consumers after updating development tools.
+        <p>Metadata uses module-contracts-9. Rebuild producers and consumers after updating development tools.
         Updated contracts, language/AI references, FAQs, project guidance and lifecycle examples describe the supported scope.</p>
         <h3>Declarative inbound error policies</h3>
         <p>Added ordered endpoint and adapter error rules with typed rejection codes,

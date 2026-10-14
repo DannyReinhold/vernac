@@ -57,7 +57,7 @@ provider selection is implied. This shows the prerequisite for a separate provid
 artifact; the separate providers artifact now demonstrates implementation exports and selection.
 
 After this compiler update, rebuild producer artifacts: the metadata contract version
-is `module-contracts-8`. Existing development metadata is intentionally not accepted.
+is `module-contracts-9`. Existing development metadata is intentionally not accepted.
 
 ## Run the Spring profile demonstration
 
@@ -86,3 +86,12 @@ that run configuration. ProfileBindingTest exercises both selections automatical
 Functional-module activation and independent module migrations are supported in
 [the persistent module example](../persistent-modules/README.md). Importing the shared
 contracts and selecting a fixture here does not require activate.
+
+
+## Vocabulary travels with exported types
+
+The library defines a term named Money in the same namespace as its Money value object.
+After building the updated producer and consumer, hover over Money in the application's
+Vernac source: its definition, example and note come from module metadata, even without
+a sources JAR. Inspect target/vernac-glossary.md or .json in either project for build-generated
+vocabulary. Module metadata is module-contracts-9; rebuild development artifacts together.

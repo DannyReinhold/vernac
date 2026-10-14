@@ -1241,7 +1241,7 @@ in the port's public methods. Consumers import the port and its parameter/result
 values, then write `adapter Name implements ImportedPort { behavior { ... } }` using
 normal port/adapter syntax. The dependency supplies the original compiled interface.
 Adding a port operation requires implementation rebuilds. Contract metadata is now
-`module-contracts-8`; rebuild older development module artifacts. Outbound adapter publication and application bindings are supported as described below;
+`module-contracts-9`; rebuild older development module artifacts. Outbound adapter publication and application bindings are supported as described below;
 Persistent and nonpersistent functional activation are supported; module histories run
 in dependency order before the application history. Module event contracts, recorded payloads and synchronous/deferred
 receivers are supported. Inbound HTTP entrypoints are internal module components, enabled only through activation.
@@ -1320,7 +1320,7 @@ classes. External VOs in local aggregates still flatten into locally owned table
 
 Persistent publication requires a matching source migration history and automatically
 packages/verifies the isolated bundle. Field mutability, read/modify modes and repository
-query/pagination signatures are part of `module-contracts-8` compatibility metadata.
+query/pagination signatures are part of `module-contracts-9` compatibility metadata.
 Explicit persistent activation coordinates verified module histories in dependency order,
 then application migrations, before dependent beans become callable. It requires the
 application DataSource, transaction manager and Spring Boot Flyway initializer. No SQL is run by import,
@@ -1377,7 +1377,7 @@ synchronous listener ObserveInvoiceOpened on InvoiceOpened behavior {
 
 The receiving artifact declares `module example.observer {}` if it exports no callable
 API, and the application uses `activate example.observer;`. Metadata is
-`module-contracts-8`; rebuild producer and dependant artifacts together.
+`module-contracts-9`; rebuild producer and dependant artifacts together.
 
 ### Durable event ownership and startup
 
@@ -1401,7 +1401,7 @@ module and application migrations/validation have completed. It preserves the ex
 lease, at-least-once, per-recipient acknowledgment, retry and blocked-job semantics.
 Receivers must make external effects idempotent; SQL rollback does not undo them.
 
-Record flags and storage capability participate in module-contracts-8 metadata.
+Record flags and storage capability participate in module-contracts-9 metadata.
 Rebuild all producers/dependants. Structural event/VO changes can make pending payloads
 incompatible; migrate deliberately or introduce a new versioned event type. Review
 event evolution independently of an ordinary aggregate upgrade.
@@ -1437,3 +1437,27 @@ for the API module and a real cross-module HTTP call.
   flattened columns require separately reviewed migrations/backfills.
 - This module scope is implemented. SaaS permission/quota policies, ready-made billing
   providers, distributed transactions and cross-artifact refactoring are separate work.
+
+
+### Ubiquitous-language terms (0.4.0)
+
+`term Name { description "Meaning."; example "A concrete case."; note "An exclusion."; }`
+is a top-level documentation declaration in an ordinary namespaced `.vernac` file.
+Exactly one nonblank description is required; examples and notes are repeatable and
+optional. Quoted names such as `term "Outstanding balance"` permit spaces. Names must
+not be blank, contain controls or have surrounding whitespace. Name equality is exact
+and case-sensitive; `term Name` and `term "Name"` are duplicates in the same namespace.
+
+Terms are not types. They may coexist with same-named types and may describe concepts
+without classes. Only exact namespace/name equality associates documentation with a
+model definition; there are no explicit links, inherited meanings or synonym aliases.
+Do not invent term imports or exports. Module metadata carries documentation for
+exported types automatically; it does not publish standalone or internal-only terms.
+
+Vernac type hover includes associated text, including imported module types without
+sources JARs. JavaDoc is added to associated generated domain/usecase/outbound classes.
+Maven compilation writes target/vernac-glossary.md and target/vernac-glossary.json.
+Text changes do not alter structural API fingerprints or SQL schemas. Module metadata
+is module-contracts-9; rebuild development producers and consumers. No LLM integration
+is implied. See [the term contract](contracts/ubiquitous-language.md) and
+[the tutorial](tutorials/ubiquitous-language.md).

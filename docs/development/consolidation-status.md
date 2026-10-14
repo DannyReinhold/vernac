@@ -75,6 +75,9 @@ and flattening coverage is retained.
   not implemented in this consolidation.**
 - [Capabilities and usecase authorization](capabilities-and-usecase-authorization.md):
   reusable modules, explicit execution permissions and domain-specific limits.
+- [DDD modeling follow-up](ddd-modeling-roadmap.md): aggregate boundaries, scoped uniqueness,
+  reusable rules, named creation and domain variants; planning only.
+- [Ubiquitous language](ubiquitous-language.md): implemented terms, type hover, glossary output and exported-type documentation; AI integration remains planned.
 - Continue applying the [feature review checklist](feature-review-checklist.md), including
   shared compiler/tooling semantics and the quality of generated Java.
 

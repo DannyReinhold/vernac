@@ -16,6 +16,8 @@ resolution and feature contracts also constrain accepted programs.
 - [Domain field types and nullness](domain-field-types.md): allowed types and optional values.
 - [Names and Unicode](../contracts/names-and-unicode.md): identifiers, defaults and collisions.
 
+- [Ubiquitous language](../contracts/ubiquitous-language.md): term documentation and exact-name model associations.
+
 ## Domain and application contracts
 
 - [Value objects](../contracts/value-objects.md)

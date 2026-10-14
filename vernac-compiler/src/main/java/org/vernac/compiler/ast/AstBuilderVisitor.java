@@ -36,7 +36,9 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 .filter(Objects::nonNull)
                 .toList();
 
-        return new CompilationUnitNode(toLocation(ctx.namespaceDeclaration()), namespace, imports, definitions);
+        var terms=ctx.topLevelDeclaration().stream().map(VernacParser.TopLevelDeclarationContext::termDefinition)
+            .filter(Objects::nonNull).map(t->org.vernac.compiler.vocabulary.Vocabulary.parse(sourceName,t)).toList();
+        return new CompilationUnitNode(toLocation(ctx.namespaceDeclaration()), namespace, imports, definitions,terms);
     }
 
     private TopLevelDefinition toTopLevelDefinition(VernacParser.TopLevelDeclarationContext ctx) {

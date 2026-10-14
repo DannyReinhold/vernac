@@ -66,6 +66,10 @@ final class VernacProjectDiagnostics {
         return symbols == null ? List.of() : uri.endsWith(".vmodule") ? symbols.moduleComplete(text(uri),position) : symbols.complete(path(uri), position);
     }
 
+    synchronized String hover(String uri,Position at) {
+        var symbols=symbols(uri);return symbols==null?"":symbols.hover(path(uri),at);
+    }
+
     synchronized List<Location> definition(String uri, Position position) {
         var symbols = symbols(uri);
         if(uri.endsWith(".vapplication"))return symbols==null?List.of():symbols.applicationDefinition(text(uri),position,moduleLocations.getOrDefault(rootFor(path(uri)),Map.of()));

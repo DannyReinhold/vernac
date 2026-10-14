@@ -407,7 +407,7 @@ A port interface owns no beans or tables and requires no activation. Its inclusi
 in a contract module does not mean functional-module activation is available. The separate `providers` artifact now exports two local fixture implementations
 selected by the application binding. This is adapter selection, not activation of
 a whole billing implementation with usecases, repositories and migrations. Rebuild existing
-module JARs after this compiler update (`module-contracts-8` metadata).
+module JARs after this compiler update (`module-contracts-9` metadata).
 
 ## Run profile-driven selection
 
@@ -671,7 +671,7 @@ transitively, while merely knowing another module's event does not activate the 
 Use this mode only for immediate transactional participation. Deferred module delivery and recorded storage are now supported. The producer owns
 the prepared payload; the application owns shared delivery jobs. The runnable example
 also shows two deferred recipients and a deliberate first-attempt rollback/retry. Metadata
-is module-contracts-8, so rebuild all producers and consumers after updating the tools.
+is module-contracts-9, so rebuild all producers and consumers after updating the tools.
 
 
 ## Add a module-owned HTTP API

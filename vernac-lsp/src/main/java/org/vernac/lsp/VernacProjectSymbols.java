@@ -29,6 +29,8 @@ final class VernacProjectSymbols {
     private final Set<TypeIdentity> valueCollections = new HashSet<>();
     private final Set<String> namespaces = new TreeSet<>();
     private final ProjectSymbolIndex index;
+    private record TermView(org.vernac.compiler.vocabulary.Vocabulary.Entry entry,Location location,Range nameRange) { }
+    private final Map<org.vernac.compiler.vocabulary.Vocabulary.Key,TermView> terms=new LinkedHashMap<>();
     private Map<String,Location> dependencyLocations=Map.of();
     void dependencyLocations(Map<String,Location> locations) {dependencyLocations=Map.copyOf(locations);}
     private Location location(TypeSymbol symbol) {
@@ -57,6 +59,17 @@ final class VernacProjectSymbols {
             var unit = new CompilationUnitNode(location(path, header.getStart()), namespace, imports, List.of());
             files.put(path, new Parsed(text, tree, unit));
             namespaces.add(namespace);
+            for(var top:tree.topLevelDeclaration())if(top.termDefinition()!=null) {
+                var term=top.termDefinition();
+                try {
+                    var node=org.vernac.compiler.vocabulary.Vocabulary.parse(path.toString(),term);
+                    var token=term.name==null?term.label:term.name.getStart();
+                    int a=utf16(text,token.getStartIndex()),b=utf16(text,token.getStopIndex()+1);
+                    var range=new Range(position(text,a),position(text,b));
+                    var entry=new org.vernac.compiler.vocabulary.Vocabulary.Entry(namespace,node.name(),node.description(),node.examples(),node.notes(),path.getFileName().toString(),node.location().line(),node.location().column());
+                    terms.putIfAbsent(entry.key(),new TermView(entry,new Location(path.toUri().toString(),range),range));
+                }catch(org.vernac.compiler.analyzer.SemanticValidationException ignored){ /* Keep unrelated symbols available while a term is edited. */ }
+            }
             for (var top : tree.topLevelDeclaration()) {
                 if (top.idDeclaration() != null) {
                     add(path, namespace, top.idDeclaration().name, TypeSymbol.Kind.ID);
@@ -212,6 +225,18 @@ final class VernacProjectSymbols {
         Parsed file = files.get(path);
         if (file == null) return List.of();
         int cursor = offset(file.text(), position);
+        if(cursor<0)return List.of();
+        if(excluded(file,cursor))return List.of();
+        int termPoint=file.text().codePointCount(0,cursor);
+        for(var top:file.tree().topLevelDeclaration())if(top.termDefinition()!=null&&contains(top.termDefinition(),termPoint)) {
+            var items=new ArrayList<CompletionItem>();
+            for(String keyword:List.of("description","example","note")) {
+                var item=new CompletionItem(keyword);item.setInsertText(keyword+" \"${1:text}\";");
+                item.setInsertTextFormat(InsertTextFormat.Snippet);items.add(item);
+            }
+            return items;
+        }
+
         if (cursor < 0) return List.of();
         int start = cursor, end = cursor;
         while (start > 0 && nameCharacter(file.text().codePointBefore(start)))
@@ -354,9 +379,37 @@ final class VernacProjectSymbols {
         return result;
     }
 
+    private TermView termAt(Path path,Position at) {
+        return terms.values().stream().filter(t->t.location().getUri().equals(path.toUri().toString())
+            && compare(at,t.nameRange().getStart())>=0&&compare(at,t.nameRange().getEnd())<0).findFirst().orElse(null);
+    }
+    private static int compare(Position a,Position b) {
+        int lines=Integer.compare(a.getLine(),b.getLine());return lines==0?Integer.compare(a.getCharacter(),b.getCharacter()):lines;
+    }
+    String hover(Path path,Position at) {
+        var direct=termAt(path,at);
+        if(direct!=null)return org.vernac.compiler.vocabulary.Vocabulary.markdown(direct.entry());
+        TypeSymbol symbol=declarations.stream().filter(d->d.sourceFile().equals(path)&&declarationRanges.containsKey(d)
+            &&compare(at,declarationRanges.get(d).getStart())>=0&&compare(at,declarationRanges.get(d).getEnd())<0).findFirst().orElse(null);
+        if(symbol==null) {
+            var targets=definition(path,at);
+            symbol=declarations.stream().filter(d->targets.contains(location(d))).findFirst().orElse(null);
+        }
+        if(symbol==null)return "";
+        String header="**"+symbol.kind().name()+"** `"+symbol.identity().qualifiedName()+"`";
+        var term=terms.get(new org.vernac.compiler.vocabulary.Vocabulary.Key(symbol.identity().namespace(),symbol.identity().name()));
+        return term==null?header:header+"\n\n"+org.vernac.compiler.vocabulary.Vocabulary.markdown(term.entry())
+            +"\n\n[Vocabulary definition]("+term.location().getUri()+")";
+    }
+
     List<Location> definition(Path path, Position position) {
         Parsed file = files.get(path);
         if (file == null) return List.of();
+        var term=termAt(path,position);
+        if(term!=null) {
+            var type=index.find(term.entry().qualifiedName()).orElse(null);
+            return type==null?List.of(term.location()):List.of(location(type));
+        }
         int offset = offset(file.text(), position);
         if (offset < 0) return List.of();
         int point = file.text().codePointCount(0, offset);

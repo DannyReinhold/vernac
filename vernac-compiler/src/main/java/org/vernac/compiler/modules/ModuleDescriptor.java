@@ -8,13 +8,17 @@ import org.vernac.compiler.ast.*;
 
 /** Versioned data, never executable source or Java serialization. */
 public record ModuleDescriptor(int formatVersion,String contractVersion,String module,String groupId,
-        String artifactId,String version,List<Definition> exports,List<Requirement> externalContracts,List<String> internalTypes,List<Component> components,boolean persistent) {
+        String artifactId,String version,List<Definition> exports,List<Requirement> externalContracts,List<String> internalTypes,List<Component> components,boolean persistent,List<org.vernac.compiler.vocabulary.Vocabulary.Entry> vocabulary) {
+    public ModuleDescriptor(int formatVersion,String contractVersion,String module,String groupId,String artifactId,String version,
+            List<Definition> exports,List<Requirement> externalContracts,List<String> internalTypes,List<Component> components,boolean persistent) {
+        this(formatVersion,contractVersion,module,groupId,artifactId,version,exports,externalContracts,internalTypes,components,persistent,List.of());
+    }
     public boolean activatable() {
         return persistent || components.stream().anyMatch(c->org.vernac.runtime.application.ActivationPlan.isFunctionalKind(c.kind()));
     }
     public static final String RESOURCE="META-INF/vernac/module.json";
     public static final ObjectMapper JSON=new ObjectMapper();
-    public static final String CONTRACT="module-contracts-8";
+    public static final String CONTRACT="module-contracts-9";
     public record Type(String name,boolean optional,String pageKind) {
         public Type(String name,boolean optional) {this(name,optional,"NONE");}
         public Type {pageKind=pageKind==null?"NONE":pageKind;TypeNode.PageKind.valueOf(pageKind);}
@@ -57,6 +61,7 @@ public record ModuleDescriptor(int formatVersion,String contractVersion,String m
         this(formatVersion,contractVersion,module,groupId,artifactId,version,exports,externalContracts,internalTypes,components,false);
     }
     public ModuleDescriptor {
+        vocabulary=vocabulary==null?List.of():List.copyOf(vocabulary);
         components=components==null?List.of():components.stream().sorted(Comparator.comparing(Component::identity)).toList();
         exports=List.copyOf(exports);externalContracts=List.copyOf(externalContracts);internalTypes=internalTypes==null?List.of():List.copyOf(internalTypes);
         if(formatVersion!=1 || !CONTRACT.equals(contractVersion))throw new IllegalArgumentException("Unsupported Vernac module format/contract version");

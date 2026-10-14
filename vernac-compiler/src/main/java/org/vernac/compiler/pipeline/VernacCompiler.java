@@ -102,7 +102,7 @@ public class VernacCompiler {
         for (StoragePlan plan : persistence.plans()) files.addAll(new JdbcRepositoryGenerator(project,schema).generate(plan));
         for (var plan : persistence.eventPlans()) files.add(new JdbcRepositoryGenerator(project,schema).generate(plan));
         GeneratedTypeNames.check(files);
-        return new VernacProjectCompilationResult(files, project.diagnostics());
+        return new VernacProjectCompilationResult(org.vernac.compiler.vocabulary.Vocabulary.documentJava(project.project(),files), project.diagnostics());
     }
 
     private List<JavaFile> valueValidation(ValueObjectNode value, CompilationUnitNode unit, ResolvedProject project) {

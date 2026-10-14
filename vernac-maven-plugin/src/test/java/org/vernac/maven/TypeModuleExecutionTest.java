@@ -33,13 +33,15 @@ class TypeModuleExecutionTest {
         return classes;
     }
     @Test void separateJarPublishesContractsAndConsumerUsesCompiledClassesWithoutRegeneration() throws Exception {
-        var producer=project(root.resolve("producer"),"values");Path model=producer.getBasedir().toPath().resolve("src/main/vernac/lib/values/model.vernac");Files.createDirectories(model.getParent());Files.writeString(model,"namespace lib.values; id Ref; value Name(String) list Names; value Detail(Name, int count); port Provider {Detail echo(Detail);}");
+        var producer=project(root.resolve("producer"),"values");Path model=producer.getBasedir().toPath().resolve("src/main/vernac/lib/values/model.vernac");Files.createDirectories(model.getParent());Files.writeString(model,"namespace lib.values; term Name {description \"Published name documentation.\";} id Ref; value Name(String) list Names; value Detail(Name, int count); port Provider {Detail echo(Detail);}");
         Files.writeString(producer.getBasedir().toPath().resolve(ModuleDefinition.FILE),"module lib.values {export lib.values.Ref;export lib.values.Name;export lib.values.Names;export lib.values.Detail;export lib.values.Provider;}");
         Path classes=compile(producer),jar=root.resolve("values.jar");
         try(var out=new JarOutputStream(Files.newOutputStream(jar));var files=Files.walk(classes)){for(var file:files.filter(Files::isRegularFile).toList()){out.putNextEntry(new JarEntry(classes.relativize(file).toString().replace('\\','/')));Files.copy(file,out);out.closeEntry();}}
         var consumer=project(root.resolve("consumer"),"app");var artifact=new DefaultArtifact("org.example","values","1.0.0","compile","jar",null,new DefaultArtifactHandler("jar"));artifact.setFile(jar.toFile());consumer.setArtifacts(Set.of(artifact));
         Path local=consumer.getBasedir().toPath().resolve("src/main/vernac/app/model.vernac");Files.createDirectories(local.getParent());Files.writeString(local,"namespace app; import lib.values.Detail; import lib.values.Provider; value Snapshot(Detail); adapter LocalProvider implements Provider {behavior {public Detail echo(Detail detail) {return detail;}}}");
         Path consumerClasses=compile(consumer);
+        assertEquals("Published name documentation.",ModuleArtifacts.read(List.of(jar)).getFirst().vocabulary().getFirst().description());
+        assertTrue(Files.readString(consumer.getBasedir().toPath().resolve("target/vernac-glossary.md")).contains("Published name documentation."));
         try(var code=new URLClassLoader(new URL[]{consumerClasses.toUri().toURL(),jar.toUri().toURL()},getClass().getClassLoader())) {
             var name=code.loadClass("lib.values.domain.Name");Object n=name.getMethod("of",String.class).invoke(null,"Example");
             var detail=code.loadClass("lib.values.domain.Detail");Object d=detail.getMethod("of",name,int.class).invoke(null,n,7);

@@ -10,15 +10,21 @@ public record CompilationUnitNode(
         SourceLocation location,
         String namespace,
         List<ImportNode> imports,
-        List<TopLevelDefinition> definitions
+        List<TopLevelDefinition> definitions,
+        List<TermNode> terms
 ) implements AstNode {
     public CompilationUnitNode {
         Objects.requireNonNull(location);
         Objects.requireNonNull(namespace);
         imports = List.copyOf(imports);
         definitions = List.copyOf(definitions);
+        terms = List.copyOf(terms);
     }
 
+
+    public CompilationUnitNode(SourceLocation location,String namespace,List<ImportNode> imports,List<TopLevelDefinition> definitions) {
+        this(location,namespace,imports,definitions,List.of());
+    }
 
     public List<ValueObjectNode> valueObjects() {
         return definitions.stream()

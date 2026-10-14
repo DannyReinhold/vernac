@@ -72,3 +72,19 @@ compiler/LSP build alone does not establish IDE refactoring or debugger correctn
 
 See [the feature checklist](feature-review-checklist.md),
 [embedded Java](intellij-java-behavior.md) and [Java navigation](java-to-vernac-navigation.md).
+
+
+## Later: model-assisted editing
+
+Plan a separate, optional in-plugin LLM experiment for fill-in-the-middle completion,
+quick fixes and documentation suggestions. This is not part of the ubiquitous-language
+increment. Danny's candidate is a small Qwen code model (approximately 1.5B parameters),
+to be evaluated experimentally rather than treated as a selected or proven integration.
+
+Fine-tuning concerns Vernac syntax and recurring language patterns, not application
+vocabulary. Supply current project terms through the shared glossary/model context,
+including imported type documentation, without retraining for every domain edit.
+Validate code suggestions through the existing compiler and resolve diagnostics before
+presenting fixes as correct. Documentation suggestions require human domain review.
+Measure completion quality, latency and review effort before committing to model,
+provider, packaging or automatic application of changes.

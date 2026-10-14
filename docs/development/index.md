@@ -24,6 +24,11 @@ Release acceptance also includes installation of the packaged IntelliJ plugin.
 - [Schema tooling](postgresql-schema-tooling.md) and [scalar mapping decisions](scalar-persistence-audit.md).
 - [Event delivery](event-delivery.md) and [ports implementation](ports-adapters-and-acl.md).
 
+## Modeling follow-up
+
+- [DDD modeling roadmap](ddd-modeling-roadmap.md): aggregate protection, concurrency-safe uniqueness, reusable rules, factories and domain variants.
+- [Ubiquitous-language proposal](ubiquitous-language.md): implemented initial term/hover/glossary support, with broader vocabulary and AI work deferred.
+
 ## Project maintenance
 
 - [Documentation ownership and validation](documentation.md)

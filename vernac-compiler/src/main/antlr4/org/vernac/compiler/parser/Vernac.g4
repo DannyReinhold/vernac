@@ -25,8 +25,12 @@ importDeclaration
     : 'import' qualifiedName ('.' '*')? ';'
     ;
 
+termDefinition : 'term' (name=qualifiedNameSegment | label=STRING_LITERAL) '{' termEntry* '}' ';'? ;
+termEntry : kind=('description' | 'example' | 'note') text=STRING_LITERAL ';' ;
+
 topLevelDeclaration
-    : idDeclaration
+    : termDefinition
+    | idDeclaration
     | valueDefinition
     | eventDefinition
     | aggregateDefinition
@@ -337,7 +341,7 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | IDENTIFIER
     | BOOLEAN_LITERAL
     | 'null'
@@ -440,7 +444,7 @@ typeName
     ;
 
 methodName
-    : 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'read' | 'modify' | 'load' | 'save'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
@@ -450,7 +454,7 @@ methodName
     ;
 
 variableName
-    : 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
     | IDENTIFIER

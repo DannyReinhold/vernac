@@ -140,7 +140,9 @@ public final class ModuleContracts {
         if(generated!=null)for(var component:components)for(String dependency:component.dependencies())if(dependency.startsWith("@storage:")&&components.stream().noneMatch(c->c.identity().equals(dependency))&&dependencies.stream().flatMap(m->m.components().stream()).noneMatch(c->c.identity().equals(dependency)))
             errors.add(CompilerDiagnostic.error(local.get(component.identity()).location(),"Deferred listener requires prepared event storage "+dependency+". Rebuild the producer with reviewed event migrations."));
         if(!errors.isEmpty())throw new SemanticValidationException(errors);
-        return new ModuleDescriptor(1,CONTRACT,module.name(),group,artifact,version,definitions,requirements,List.copyOf(internal),components,components.stream().anyMatch(c->Set.of("REPOSITORY","EVENT_STORAGE","DEFERRED_LISTENER").contains(c.kind())));
+        return new ModuleDescriptor(1,CONTRACT,module.name(),group,artifact,version,definitions,requirements,List.copyOf(internal),components,components.stream().anyMatch(c->Set.of("REPOSITORY","EVENT_STORAGE","DEFERRED_LISTENER").contains(c.kind())),
+            org.vernac.compiler.vocabulary.Vocabulary.entries(project.project()).stream()
+                .filter(t->exports.stream().anyMatch(t::describes)).toList());
     }
     public static void validateExports(ModuleDefinition definition,ResolvedProject project) {
         publish(definition,project,null,"editor","editor","editor",List.of());
@@ -192,6 +194,10 @@ public final class ModuleContracts {
             }
             if(module.components().stream().anyMatch(c->c.kind().equals("REPOSITORY"))&&!module.persistent())throw new IllegalArgumentException("Repository module must declare persistence ownership: "+module.module());
             Set<String> componentIds=new HashSet<>();
+            Set<org.vernac.compiler.vocabulary.Vocabulary.Key> documented=new HashSet<>();
+            for(var term:module.vocabulary())if(!documented.add(term.key())||term.description()==null||term.description().isBlank()
+                    ||module.exports().stream().noneMatch(d->term.describes(d.identity())))
+                throw new IllegalArgumentException("Invalid exported-type vocabulary in module "+module.module());
             for(var component:module.components()) {
                 if(!componentIds.add(component.identity())||!Set.of("USE_CASE","DOMAIN_SERVICE","OUTBOUND_ADAPTER","REPOSITORY","LISTENER","DEFERRED_LISTENER","EVENT_STORAGE","INBOUND_HTTP_ADAPTER","INBOUND_HTTP_ADVICE").contains(component.kind()))throw new IllegalArgumentException("Invalid/duplicate runtime component: "+component.identity());
                 if(component.kind().equals("INBOUND_HTTP_ADVICE")) {

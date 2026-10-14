@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
 public class VernacTextDocumentService implements TextDocumentService {
 
     private static final Set<String> DSL_KEYWORDS = Set.of(
-            "GET", "POST", "PUT", "PATCH", "DELETE",
+            "term", "description", "example", "note", "GET", "POST", "PUT", "PATCH", "DELETE",
             "application", "activate", "bind", "to", "module", "export", "rejection", "integration", "invalid", "request", "validation", "found", "optimistic", "conflict", "domain", "when", "then", "otherwise", "default", "reject", "fail", "local", "remote", "unknown", "status",
             "client", "base", "body", "response", "errors", "path", "query", "header",
             "counted", "cursor", "offset", "counting", "where", "and", "or", "not", "order", "asc", "desc", "is", "absent", "present", "like", "contains", "starts", "ends", "with",
@@ -305,6 +305,7 @@ public class VernacTextDocumentService implements TextDocumentService {
     }
 
     private void addTopLevelCompletions(List<CompletionItem> items) {
+        addKeywordCompletion(items, "term", "term ${1:Name} {\n    description \"${2:Meaning in this domain.}\";\n}");
         addKeywordCompletion(items, "namespace", "namespace ${1:com.example};");
         addKeywordCompletion(items, "import", "import ${1:package.Type};");
         addKeywordCompletion(items, "aggregate", "aggregate ${1:Name}[${2:IdType} id](\n    $0\n);");
@@ -342,7 +343,8 @@ public class VernacTextDocumentService implements TextDocumentService {
 
     @Override
     public CompletableFuture<Hover> hover(HoverParams params) {
-        MarkupContent content = new MarkupContent(MarkupKind.MARKDOWN, "**Vernac Domain Model**");
+        String documentation=projects.hover(params.getTextDocument().getUri(),params.getPosition());
+        MarkupContent content = new MarkupContent(MarkupKind.MARKDOWN, documentation.isEmpty()?"**Vernac Domain Model**":documentation);
         return CompletableFuture.completedFuture(new Hover(content));
     }
 

@@ -428,3 +428,17 @@ also works for listener-only or HTTP API modules with no exported types. To insp
 individual exported type, navigate its import/use instead: available source attachments
 are preferred, with a clearly marked contract view as fallback. Internal component names
 shown in the overview do not make those components public imports.
+
+
+### Can I explain what a domain word means without creating another Java class?
+
+Yes. Declare a term in the relevant namespace: `term Order { description "A submitted
+purchase request."; }`. A term may share a name with an aggregate or value object;
+exact namespace/name equality associates the text with that definition. Quoted names
+allow concepts with spaces and no corresponding class. Terms never become field types.
+
+Use examples and notes to explain distinctions that a class name cannot convey. The
+IDE presents them in type hover, and a successful Vernac Maven compile writes readable
+and machine-readable glossaries under target. Exported module types carry their associated
+documentation so consuming Vernac editors do not need source attachments for that hover.
+[Follow the vocabulary tutorial](../tutorials/ubiquitous-language.md).

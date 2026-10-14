@@ -33,7 +33,7 @@ class DocumentationExamplesTest {
     }
 
     @Test void completeTutorialModelsResolveAndGenerate() throws Exception {
-        for (String name : List.of("repository-queries", "usecases", "enum-value-objects",
+        for (String name : List.of("ubiquitous-language", "repository-queries", "usecases", "enum-value-objects",
                 "outbound-ports", "declarative-rest", "declarative-errors", "default-names",
                 "adapter-dtos", "domain-events", "http-adapter-runtime", "collections",
                 "your-first-domain-model", "adapter-mappings", "inbound-http", "pagination")) {

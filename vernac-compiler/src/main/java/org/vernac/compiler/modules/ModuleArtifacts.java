@@ -80,7 +80,9 @@ public final class ModuleArtifacts {
                     }
                     else throw new IllegalArgumentException("Unsupported type-module definition: "+d.identity());
                 }
-                sources.add(new VernacSourceFile(path,new CompilationUnitNode(at,entry.getKey(),List.of(),definitions),true));
+                sources.add(new VernacSourceFile(path,new CompilationUnitNode(at,entry.getKey(),List.of(),definitions,
+                    module.vocabulary().stream().filter(t->t.namespace().equals(entry.getKey()))
+                        .map(t->new TermNode(at,t.name(),t.description(),t.examples(),t.notes())).toList()),true));
             }
         }
         var merged=new VernacProjectLoader().index(local.sourceRoot(),sources,issues);
@@ -144,6 +146,7 @@ public final class ModuleArtifacts {
     }
     public static String view(ModuleDescriptor module,String namespace) {
         StringBuilder text=new StringBuilder("// Dependency contract view; implementation sources are not shown.\n// "+module.module()+" "+module.coordinates()+"\nnamespace "+namespace+";\n");
+        for(var term:module.vocabulary())if(term.namespace().equals(namespace))text.append(org.vernac.compiler.vocabulary.Vocabulary.source(term));
         for(var d:module.exports()) if(namespace(d.identity()).equals(namespace)&&!d.kind().equals("COLLECTION")) {
             if(d.kind().equals("ENTITY")||d.kind().equals("AGGREGATE")) {
                 text.append(d.kind().toLowerCase(Locale.ROOT)).append(" ").append(simple(d.identity())).append("[").append(d.element()).append("](")

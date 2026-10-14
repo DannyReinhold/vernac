@@ -162,3 +162,8 @@ publication through consumption and schema evolution. The
 [persistent module application](../examples/persistent-modules/README.md) demonstrates
 Billing, Receipts, durable events, an HTTP API and independent migration histories.
 Migration candidates remain subject to application-owner review and testing.
+
+
+The [ubiquitous-language tutorial](tutorials/ubiquitous-language.md) shows how
+to keep domain meanings beside model definitions. Namespaced terms appear in type hover,
+travel with exported module types and produce readable/machine-readable glossaries.

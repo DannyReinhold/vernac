@@ -163,6 +163,7 @@ public class VernacCompileMojo extends AbstractMojo {
                     Files.delete(autoImports);
                 }
             }
+            if(project!=null&&resolved!=null)org.vernac.compiler.vocabulary.Vocabulary.write(base.resolve("target"),resolved.project());
             if(project!=null) {
                 Files.createDirectories(base.resolve("target"));
                 ModuleDescriptor.write(base.resolve("target/vernac-module-index.json"),dependencies);
