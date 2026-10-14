@@ -154,3 +154,6 @@ Migration candidates remain subject to application-owner review and testing.
 The [ubiquitous-language tutorial](docs/tutorials/ubiquitous-language.md) shows how
 to keep domain meanings beside model definitions. Namespaced terms appear in type hover,
 travel with exported module types and produce readable/machine-readable glossaries.
+
+[See the architecture as a diagram](docs/tutorials/domain-diagrams.md): export a namespace
+from Maven or open its diagram directly from IntelliJ.

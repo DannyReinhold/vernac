@@ -442,3 +442,16 @@ IDE presents them in type hover, and a successful Vernac Maven compile writes re
 and machine-readable glossaries under target. Exported module types carry their associated
 documentation so consuming Vernac editors do not need source attachments for that hover.
 [Follow the vocabulary tutorial](../tutorials/ubiquitous-language.md).
+
+
+### Can I see a diagram without inspecting all generated Java classes?
+
+Yes. Select Tools → Vernac → Show Domain Diagram while editing a Vernac file, or run
+`mvn vernac:diagram`. The generated Markdown page shows the selected namespace's model,
+its explicit relationships and associated vocabulary. Use Markdown Preview with the
+Mermaid extension enabled. PlantUML source is also exported.
+
+The diagram deliberately omits technical generated classes. Arrows describe declarations,
+not a reconstructed runtime call sequence. Run the action again after edits; automatic
+live diagrams and clickable graph navigation are outside this first increment.
+[Follow the diagram tutorial](../tutorials/domain-diagrams.md).

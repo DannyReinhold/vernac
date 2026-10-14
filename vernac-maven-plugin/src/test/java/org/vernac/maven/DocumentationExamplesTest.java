@@ -18,6 +18,16 @@ import static org.junit.jupiter.api.Assertions.*;
 class DocumentationExamplesTest {
     @TempDir Path temporary;
 
+    @Test void diagramTutorialShowsTheActualGeneratedGraph() throws Exception {
+        String document=Files.readString(Path.of("../docs/tutorials/domain-diagrams.md")).replace("\r\n","\n");
+        var model=Pattern.compile("```vernac\\n(.*?)```",Pattern.DOTALL).matcher(document);
+        var graph=Pattern.compile("```mermaid\\n(.*?)```",Pattern.DOTALL).matcher(document);
+        assertTrue(model.find());assertTrue(graph.find());
+        Path file=temporary.resolve("example/diagrams/model.vernac");Files.createDirectories(file.getParent());Files.writeString(file,model.group(1));
+        var resolved=new VernacCompiler().analyzeProject(temporary);
+        assertEquals(org.vernac.compiler.diagram.DomainDiagrams.mermaid(org.vernac.compiler.diagram.DomainDiagrams.model(resolved,"example.diagrams")),graph.group(1));
+    }
+
     @Test void persistentModuleTutorialHasACompleteExportableProducerModel() throws Exception {
         String document=Files.readString(Path.of("../docs/tutorials/type-modules.md")).replace("\r\n","\n");
         var blocks=Pattern.compile("```vernac\\n(.*?)```",Pattern.DOTALL).matcher(document);String model=null;
@@ -33,7 +43,7 @@ class DocumentationExamplesTest {
     }
 
     @Test void completeTutorialModelsResolveAndGenerate() throws Exception {
-        for (String name : List.of("ubiquitous-language", "repository-queries", "usecases", "enum-value-objects",
+        for (String name : List.of("domain-diagrams", "ubiquitous-language", "repository-queries", "usecases", "enum-value-objects",
                 "outbound-ports", "declarative-rest", "declarative-errors", "default-names",
                 "adapter-dtos", "domain-events", "http-adapter-runtime", "collections",
                 "your-first-domain-model", "adapter-mappings", "inbound-http", "pagination")) {

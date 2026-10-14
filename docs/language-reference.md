@@ -759,3 +759,13 @@ Text changes do not alter structural API fingerprints or SQL schemas. Module met
 is module-contracts-9; rebuild development producers and consumers. No LLM integration
 is implied. See [the term contract](contracts/ubiquitous-language.md) and
 [the tutorial](tutorials/ubiquitous-language.md).
+
+### Domain diagram tooling (0.4.0)
+
+`mvn vernac:diagram` exports every local namespace; `-Dvernac.diagramNamespace=example.orders`
+selects one. Output defaults to target/vernac-diagrams, with Markdown/Mermaid, .mmd,
+PlantUML .puml and versioned JSON per namespace. Diagrams come from resolved declarations,
+not generated Java or guessed behavior. Referenced outside types are boundary nodes.
+IntelliJ's Show Domain Diagram action includes unsaved source snapshots and opens Markdown;
+enable its Mermaid preview extension if needed. No rendered image or live model explorer
+is implied. See [the diagram tutorial](tutorials/domain-diagrams.md).

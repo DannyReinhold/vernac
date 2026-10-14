@@ -15,3 +15,5 @@ Use the specification index for the full feature catalog. In this revision:
 - [Versioned modules](modules.md): versioned exports/imports, explicit activation, provider selection, independent migrations and module-owned events/HTTP entrypoints.
 
 - [Ubiquitous language](ubiquitous-language.md): namespaced terms, model association, hover, glossary output and exported-type documentation.
+
+- [Domain diagrams](domain-diagrams.md): resolved namespace graphs and shared Maven/IDE exports.

@@ -35,6 +35,8 @@ For a source checkout, use the [example build guide](https://github.com/DannyRei
 
 8. [Keep the meaning beside the model](ubiquitous-language.md): a shared glossary, type hover and vocabulary for AI-assisted work.
 
+9. [See the architecture](domain-diagrams.md): a namespace diagram, vocabulary and export for documentation.
+
 ## 2. Turn behavior into an application operation
 
 1. [Usecases](usecases.md): one operation, declared results and one transaction boundary.

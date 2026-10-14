@@ -88,3 +88,11 @@ Validate code suggestions through the existing compiler and resolve diagnostics 
 presenting fixes as correct. Documentation suggestions require human domain review.
 Measure completion quality, latency and review effort before committing to model,
 provider, packaging or automatic application of changes.
+
+
+## Diagram explorer follow-up
+
+The bounded namespace export/action is implemented: shared resolved graph, Mermaid/PlantUML
+sources, JSON and a Markdown catalog with vocabulary. A later model explorer can build on
+that graph for live refresh, filtering, custom zoom/layout, clickable source navigation and
+module/application-level views. These interactions are not promised by the initial export.

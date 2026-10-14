@@ -146,3 +146,10 @@ Scoped codecs validate counts/windows without global Jackson changes. Invalid cu
 have a safe 400/INVALID_CURSOR default. Tutorial/AI reference/FAQ, compiler diagnostics,
 LSP field navigation and the Dispatch paging endpoint are included. Request headers
 remain ordinary domain VOs; dynamic filters and backward cursor navigation are deferred.
+
+## Domain diagram tooling
+
+Implemented for 0.4.0: one shared resolved declaration graph exports Mermaid, PlantUML,
+Markdown and versioned JSON per namespace. The IntelliJ action opens its Markdown
+view using existing preview support. See the [tutorial](../tutorials/domain-diagrams.md)
+and [contract](../contracts/domain-diagrams.md). Interactive exploration remains follow-up work.

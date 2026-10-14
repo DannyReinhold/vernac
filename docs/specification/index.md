@@ -44,6 +44,8 @@ resolution and feature contracts also constrain accepted programs.
 - [REST declarations](../contracts/declarative-rest.md)
 - [HTTP runtime and failures](../contracts/http-adapter-runtime.md)
 
+- [Domain diagram tooling](../contracts/domain-diagrams.md): source/model projection and its limits.
+
 ## Authority and maintenance
 
 Each rule has one authoritative home. Tutorials explain it and references summarize

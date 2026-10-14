@@ -98,6 +98,10 @@
 ]]></description>
 
     <change-notes><![CDATA[
+        <h3>See the architecture</h3>
+        <p>Tools → Vernac → Show Domain Diagram exports the current namespace and opens a
+        Mermaid Markdown view with domain vocabulary. PlantUML and JSON exports accompany it.
+        The action includes unsaved Vernac documents and uses the built dependency index.</p>
         <h3>Ubiquitous language beside the model</h3>
         <ul><li>Define namespaced terms, including quoted concepts with spaces, with descriptions, examples and notes.</li>
         <li>Type hover displays exact-name vocabulary, including documentation from exported module types without source attachments.</li>
@@ -249,6 +253,13 @@
                 implementation="org.vernac.intellij.VernacLspIntegrationProvider"/>
     </extensions>
     <actions>
+        <group id="org.vernac.Tools" text="Vernac" popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <action id="org.vernac.ShowDiagram" class="org.vernac.intellij.VernacShowDiagramAction">
+                <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+                <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+            </action>
+        </group>
         <group id="org.vernac.NewActions" popup="false">
             <add-to-group group-id="NewGroup" anchor="first"/>
             <action id="org.vernac.NewNamespace" class="org.vernac.intellij.VernacNewNamespaceAction"
