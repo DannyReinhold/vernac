@@ -6,14 +6,12 @@ owns its aggregates, their tables and the decisions about deploying changes.
 
 This tutorial follows the separate `examples/type-modules` reactor from its first
 build through an exported value change and the application's next migration. It
-then explains how activation and independent migration histories will extend that
-lifecycle for functional modules.
+then demonstrates nonpersistent functional activation and explains how independent
+migration histories will extend the lifecycle for persistent modules.
 
-**Availability:** the executable steps require the type-module implementation in
-**0.4.0-SNAPSHOT**. IDs, value objects, enums and their value collections are
-supported. Functional-module activation, exported usecases/repositories and the
-coordinator for module-owned migration histories are **planned, not executable
-features**. There is no activation command or configuration syntax to copy yet.
+**Availability:** the executable steps require **0.4.0-SNAPSHOT**. Values, collections,
+ports, adapters, nonpersistent domain services and usecases are supported. Nonpersistent functional activation is described below. Persistent contract publication
+and bundle verification are supported; coordinated runtime migration execution is supported; the initial migration exercise here concerns application-owned data.
 
 **Migration responsibility:** you alone must review, test and approve every
 migration before applying it. Candidates and successful automated checks do not
@@ -55,7 +53,8 @@ value Amount(BigDecimal);
 value Money(Amount, Currency);
 ```
 
-The complete file also defines ExternalRef, Label, Labels, Kind and InternalNote.
+The complete file also defines ExternalRef, Label, Labels, Kind, PaymentProvider
+and InternalNote.
 Its project-level `library/vernac-module.vmodule` selects the public surface:
 
 ```vernac-module
@@ -66,6 +65,7 @@ module example.shared.values {
     export example.shared.Amount;
     export example.shared.Money;
     export example.shared.Kind;
+    export example.shared.PaymentProvider;
 }
 ```
 
@@ -155,8 +155,8 @@ part of the application's persisted model.
 
 ## 5. Check, then apply with Flyway
 
-The example's default test is database-free; it is not a Spring Boot application
-and does not automatically apply migrations. Use a dedicated development database
+The example now includes a database-free Spring Boot profile-selection runner.
+It does not configure a DataSource or automatically apply migrations. Use a dedicated development database
 and your application's Flyway integration for this part of the exercise.
 
 For structural verification, you can use the repository's disposable test server.
@@ -240,7 +240,9 @@ value Money(Amount, Currency, PricingBasis);
 Also add `export example.shared.PricingBasis;` to the module declaration. Do not
 paste a second Money definition next to the existing one.
 
-The factory now requires the new value. Update the example test's price creation:
+The factory now requires the new value. Update the example test's price creation and the runner's money creation
+(`TypeModuleDemoTest` and `ModuleDemoApplication`). Keep each local variable's
+existing name; both calls now need PricingBasis:
 
 ```java
 var price = Money.of(Amount.of(new BigDecimal("12.30")),
@@ -322,12 +324,11 @@ application's SQL/snapshot pair through your normal release process. Published
 migration files stay unchanged. Do not regenerate an initial schema over an existing
 database, repair checksums to hide divergence, or delete data to make an upgrade pass.
 
-## 8. Where activation fits: the planned functional-module lifecycle
+## 8. Separate functional activation from module migrations
 
-A future billing module may expose a usecase, require a payment port and own Invoice
-tables. That is a different lifecycle from importing Money. The current producer
-accepts only type definitions; this scenario is architectural guidance, not a
-supported export or configuration example.
+A billing module can now expose a nonpersistent usecase and require a payment port.
+That lifecycle is demonstrated below. A module owning Invoice tables additionally
+uses the startup migration coordinator described below.
 
 | Action | Type module today | Functional module target |
 | --- | --- | --- |
@@ -357,10 +358,9 @@ transaction manager. REQUIRED usecases join an outer transaction. Deployment
 migrations are separate from these usecase transactions.
 
 Each owner needs an isolated migration resource location **and a distinct Flyway
-history identity**. Directories alone do not isolate version numbers. The planned
+history identity**. Directories alone do not isolate version numbers. The startup
 coordinator applies required modules before dependants and the application, then
-starts runtime components. Exact activation syntax, resource paths and history
-names remain to be specified; do not simulate this by broad component scanning or
+starts runtime components. Persistence bundle resource paths and history identities are now fixed in the contract; do not bypass the coordinator through broad component scanning or
 combining all module SQL files into the application's migration directory.
 
 If Billing changes both its internal Invoice storage and an exported Money shape,
@@ -386,7 +386,7 @@ against a changed schema.
 | Migration asks for a backfill | Decide a valid historical value and supply an explicit SQL expression |
 | Flyway says a column already exists | Inspect history in the correct database; check for a previously applied experiment |
 | Schema-check passes but deployment fails | Test real data, permissions, ordering and runtime constraints separately |
-| Imported value seems to require activation | Type-only use needs none; functional activation remains a future feature |
+| Imported value seems to require activation | Type-only use needs none; usecases/services require explicit activation |
 
 Restore exercise source changes and remove only unpublished exercise candidates
 when returning to the original example. A Git reset does not undo applied database
@@ -395,3 +395,299 @@ migrations. Keep an experimental database separate from other walkthroughs.
 Continue with the [module contract](../contracts/modules.md),
 [schema tooling](postgresql-migrations.md), and
 [the runnable database walkthrough](database-persistence.md).
+
+## Share a capability contract as well as values
+
+The example now exports `example.shared.PaymentProvider` with a `charge(Money)`
+operation returning ExternalRef. Both argument and result types are explicit exports.
+Its application defines DevelopmentPaymentProvider and invokes it through the
+library's compiled interface. This fixture does not call an external provider.
+
+A port interface owns no beans or tables and requires no activation. Its inclusion
+in a contract module does not mean functional-module activation is available. The separate `providers` artifact now exports two local fixture implementations
+selected by the application binding. This is adapter selection, not activation of
+a whole billing implementation with usecases, repositories and migrations. Rebuild existing
+module JARs after this compiler update (`module-contracts-8` metadata).
+
+## Run profile-driven selection
+
+The reactor now contains `library`, `providers` and `application`. The providers
+artifact depends on the library's PaymentProvider contract. It exports
+NoopPaymentProvider and ConfiguredTestPaymentProvider; neither makes network calls
+or payments. The application selects one through `billing.payment-provider`.
+
+From the repository root:
+
+```text
+mvn -f examples/type-modules/pom.xml clean install
+mvn -f examples/type-modules/application/pom.xml spring-boot:run
+```
+
+The default dev profile uses Noop without credentials. For the prod-profile fixture,
+supply a development-only value in the terminal that starts Maven:
+
+```powershell
+$env:PAYMENT_FIXTURE_API_KEY = 'local-fixture-only'
+mvn -f examples/type-modules/application/pom.xml spring-boot:run "-Dspring-boot.run.profiles=prod"
+```
+
+In IntelliJ's Maven field, omit quotes and pass the variable in that run configuration.
+The runner logs the selected provider and a generated reference. Production here
+means the Spring profile name, not a real payment integration or production credential.
+
+ProfileBindingTest verifies that Boot discovers the generated configuration without
+an explicit Java Import. The application remains database-free; its Account migrations
+are still applied through the explicit Flyway workflow earlier in this chapter.
+
+## Activate a reusable usecase without exposing its helpers
+
+For a small, database-independent billing module, use this complete model in
+`src/main/vernac/example/billing/model.vernac`:
+
+```vernac
+namespace example.billing;
+value Receipt(String);
+service ReceiptFactory behavior {
+    public Receipt accepted() { return Receipt.of("accepted"); }
+}
+usecase ConfirmPayment() returns Receipt uses ReceiptFactory receiptFactory behavior {
+    execute { return self.receiptFactory().accepted(); }
+}
+```
+
+Publish only the caller's contract in the producer's `vernac-module.vmodule`:
+
+```vernac-module
+module example.billing {
+    export example.billing.Receipt;
+    export example.billing.ConfirmPayment;
+}
+```
+
+Build/install the producer, add its Maven dependency to your application, then write
+`vernac-application.vapplication` beside the application's POM:
+
+```vernac-application
+application example.shop {
+    activate example.billing;
+}
+```
+
+The application's model can now call the published operation:
+
+```vernac
+namespace example.shop;
+import example.billing.ConfirmPayment;
+import example.billing.Receipt;
+usecase Checkout() returns Receipt uses ConfirmPayment confirmPayment behavior {
+    execute { return self.confirmPayment().execute(); }
+}
+```
+
+Spring Boot discovers the generated configuration automatically. Keep the existing
+application setup that supplies its transaction manager. A plain Spring context must
+import `example.shop.configuration.__VernacApplication` and supply a
+`PlatformTransactionManager`. Nonpersistent means the module owns no tables; its
+usecase still participates in the application's transaction.
+
+ReceiptFactory is registered as an internal module bean without exporting it or
+scanning the dependency. Checkout and ConfirmPayment join the same REQUIRED
+transaction. Removing `activate example.billing;` produces a targeted diagnostic
+rather than leaving an unresolved constructor dependency for later.
+
+```mermaid
+flowchart TD
+    A["Application activation"] --> B["Billing: exported usecase"]
+    B --> C["Billing: internal service"]
+    B --> D["Required functional modules"]
+    D --> E["Dependency-first registration"]
+    C --> E
+```
+
+A declared dependency on another module's service/usecase extends activation
+transitively. A dependency on its Money value or PaymentProvider interface does not.
+Selected adapters still come from fixed or profile-based bindings. Binding a payment
+adapter does not by itself activate Billing merely because Billing owns the port.
+
+Invoice aggregates and repository contracts can now be published as described below.
+Explicit activation now coordinates their independent histories at startup.
+
+## Prepare a persistent module's migration contract
+
+This step prepares an artifact, **not an executable persistent module**. Normal publication now accepts entity/aggregate/repository contracts and automatically
+prepares/verifies their persistence bundle. Do not use
+broad component scanning or manually combine SQL histories to bypass that boundary.
+The next implementation stage connects persistent exports and this bundle to coordinated startup.
+
+For a module prototype, keep `vernac-module.vmodule` beside its POM. Existing schema
+and migration tooling now selects `src/main/vernac-schema/migration` for that project,
+keeping module SQL outside ordinary Maven resources. Snapshot JSON files remain in
+`src/main/vernac-schema/history`. Application projects retain `db/migration` under
+`src/main/resources`.
+
+Run these goals in the module project, using the current Maven plugin:
+
+```text
+mvn vernac:schema
+mvn vernac:migration -Dvernac.migrationDescription=initial_billing
+mvn vernac:schema-check
+mvn vernac:module-persistence
+```
+
+Use the previously described disposable PostgreSQL configuration for schema-check.
+Review the candidate **before applying it**, including testing on representative
+historical data. You remain solely responsible for approval and deployment safety.
+The preparation goal does not establish that human review happened.
+
+The last goal requires the current model to match the source-controlled history. A
+model change without a matching next migration stops preparation. Missing snapshots,
+unpaired SQL and duplicate version numbers also stop it. The generated target contains
+`META-INF/vernac/modules/<module>/persistence.json`, original SQL and original snapshots,
+and is registered as a Maven resource for packaging. It contains no absolute paths or
+credentials. The existing module-definition contract is not changed by this goal.
+
+Inspect `persistence.json`: it records each file hash, the expected schema, the future
+Flyway location, and an isolated technical history schema. Billing and Identity can
+use the same timestamp; their Flyway histories will still be independent. The history
+schema name is stable across releases, so upgrading a Maven version cannot create a
+new history that accidentally replays old migrations.
+
+No SQL has been applied by module-persistence. No module migration runs automatically
+at application startup yet. Continue with the [module completion checklist](../development/module-completion-roadmap.md)
+for the remaining activation and upgrade tests.
+
+## Publish an Invoice contract without transferring table ownership
+
+This complete producer model can be placed in
+`src/main/vernac/example/billing/invoice.vernac`:
+
+```vernac
+namespace example.billing;
+id InvoiceId;
+value InvoiceReference(String);
+aggregate Invoice[InvoiceId](InvoiceReference) list Invoices;
+repository InvoiceRepository for Invoice {
+    find offset Invoices all() order by createdAt desc, id counting;
+}
+```
+
+Export the entire public type closure in `vernac-module.vmodule`:
+
+```vernac-module
+module example.billing {
+    export example.billing.InvoiceId;
+    export example.billing.InvoiceReference;
+    export example.billing.Invoice;
+    export example.billing.Invoices;
+    export example.billing.InvoiceRepository;
+}
+```
+
+Use the producer's normal JDBC runtime dependencies. Generate/review the initial
+migration with the tooling above, run schema-check on a disposable PostgreSQL server,
+then build/install the module. Compile checks that the migration head matches the
+model and packages the verified bundle automatically; no additional execution of
+module-persistence is required for publication.
+
+A consumer can import these types by their original identities after adding the Maven
+dependency. InvoiceRepository refers to the producer's Invoice and uses its existing
+compiled JDBC implementation. Importing it does not generate an application-owned
+Invoice table. A local `repository ... for Invoice` is rejected because that aggregate
+belongs to the dependency. InvoiceReference can still be embedded in a local VO or
+aggregate; those local flattened columns belong to the consuming application's history.
+
+You can publish a second module whose usecase declares the imported repository through
+`uses`. The compiled dependency and contract checks work now. Executing that operation
+in an application requires explicit activation and the shared JDBC/Flyway infrastructure.
+The coordinator migrates the required module before its dependant, then your application.
+Do not compensate with manual component scanning.
+
+## Start an application using persistent modules
+
+Add the Vernac JDBC Spring Boot starter and the module Maven dependencies. Configure
+your application's usual `spring.datasource` connection and keep application migrations
+in `classpath:db/migration`. Do not add module SQL directories to `spring.flyway.locations`:
+the coordinator selects them from verified module bundles. Keep Flyway enabled and
+provide the application transaction manager. Separate `spring.flyway.url` connections
+and a custom FlywayMigrationStrategy are not supported by this integration.
+
+Explicitly activate the module in your existing `.vapplication` file. Functional
+dependencies participate transitively; a type import alone does not activate a module.
+The same migration version can exist in two modules because their history schemas differ.
+
+```mermaid
+flowchart TD
+    A[Verify bundles and ownership] --> B[Required module history]
+    B --> C[Dependent module history]
+    C --> D[Application history]
+    D --> E[Initialize callable components]
+    B --> F[Stop on failure]
+    C --> F
+    D --> F
+```
+
+Each history is followed by an owned-schema structural check. Unexpected owned columns,
+missing tables or incompatible keys stop startup before module operations become callable.
+This check does not replace schema-check or migration review; exact CHECK expression
+semantics and arbitrary triggers are outside its scope.
+
+If a later history fails, an earlier completed history can remain applied. Correct the
+unpublished candidate or deploy an appropriate reviewed follow-up, then restart. Do not
+edit published migrations or assume one transaction spans every owner's deployment.
+Normal module usecases continue to join REQUIRED application transactions.
+
+The automated `ModuleMigrationPostgresTest` exercises fresh installation, restart,
+independent history versions, nested transaction joining/rollback, partial failure/retry
+and owned-schema drift. Set the usual VERNAC_PG_TEST_URL, VERNAC_PG_TEST_USER and
+VERNAC_PG_TEST_PASSWORD for a disposable PostgreSQL server and run:
+
+```text
+mvn -pl vernac-maven-plugin -am test -Dtest=ModuleMigrationPostgresTest -Dsurefire.failIfNoSpecifiedTests=false
+```
+
+All eight tests should run without skips. The database account must be able to create
+and remove disposable databases. The additional upgrade scenario covers existing module/application rows and a required
+external-VO field backfill, followed by rejection of old artifacts.
+
+For a complete runnable reactor and step-by-step version upgrade, follow
+[the persistent module example](../../examples/persistent-modules/README.md). It keeps
+Billing, Receipts and application migrations separate and shows why an exported value
+change can require all three owners to migrate.
+
+## Receive a public module event synchronously
+
+The persistent example now exports Billing's plain InvoiceOpened event. Receipts has
+an internal synchronous listener; the application has another. Both log the same
+EventId during the purchase. Neither receives an independently committed notification:
+the rejected-purchase demonstration still rolls back, although its synchronous logs
+already exist. A log line is not a transaction commit acknowledgment.
+
+Export the event plus all local payload types. Keep receivers internal; activate their
+module rather than importing or exporting listener classes. Event imports alone do
+not install receivers. A receiver-only module may have an empty export declaration
+and can still be explicitly activated. Its declared functional dependencies activate
+transitively, while merely knowing another module's event does not activate the emitter.
+
+Use this mode only for immediate transactional participation. Deferred module delivery and recorded storage are now supported. The producer owns
+the prepared payload; the application owns shared delivery jobs. The runnable example
+also shows two deferred recipients and a deliberate first-attempt rollback/retry. Metadata
+is module-contracts-8, so rebuild all producers and consumers after updating the tools.
+
+
+## Add a module-owned HTTP API
+
+A capability can supply an HTTP entrypoint in a separate module. This keeps its domain
+usable from non-web applications. The standalone persistent-modules example now includes
+`api`, which imports Billing values and the Receipts `RecordPurchase` usecase. Its inbound
+adapter maps a request DTO to `CustomerName`, invokes the usecase and maps `InvoiceId`
+to a response DTO. No application registration code or copied module sources are needed.
+
+The API has an empty export list: controllers are entrypoints, not types to import.
+The application activates `example.api`; its functional dependencies activate Receipts
+and Billing. Their histories run before requests can reach the usecase. Without that
+activation, the API's presence on the Maven classpath does not expose its routes.
+
+Follow [the executable HTTP walkthrough](../../examples/persistent-modules/README.md#call-the-module-owned-http-api)
+to start the servlet profile and try a request. Its transport and validation failures
+use the API producer's declarative error policy. The application adds the HTTP runtime
+and Spring MVC explicitly. Activation does not configure authentication or authorization.

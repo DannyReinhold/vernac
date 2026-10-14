@@ -29,10 +29,15 @@ public final class ModuleSources {
                     if(tree.namespaceDeclaration()==null||!tree.namespaceDeclaration().qualifiedName().getText().equals(namespace))continue;
                     ParserRuleContext token=null;
                     for(var top:tree.topLevelDeclaration()) {
-                        ParserRuleContext owner=top.idDeclaration()!=null?top.idDeclaration().name:top.valueDefinition()!=null?top.valueDefinition().name:null;
+                        ParserRuleContext owner=top.idDeclaration()!=null?top.idDeclaration().name:top.valueDefinition()!=null?top.valueDefinition().name:top.portDefinition()!=null?top.portDefinition().name:top.outboundAdapterDefinition()!=null?top.outboundAdapterDefinition().name:top.entityDefinition()!=null?top.entityDefinition().name:top.aggregateDefinition()!=null?top.aggregateDefinition().name:top.repositoryDefinition()!=null?top.repositoryDefinition().name:top.usecaseDefinition()!=null?top.usecaseDefinition().name:top.domainServiceDefinition()!=null?top.domainServiceDefinition().name:top.eventDefinition()!=null?top.eventDefinition().name:null;
+                        if(owner==null && top.repositoryDefinition()!=null) {
+                            var aggregate=top.repositoryDefinition().aggregateName;
+                            if((aggregate.getText()+"Repository").equals(name))token=aggregate;
+                            continue;
+                        }
                         if(owner==null)continue;
                         if(owner.getText().equals(name))token=owner;
-                        var collections=top.idDeclaration()!=null?top.idDeclaration().collectionDefinition():top.valueDefinition().collectionDefinition();
+                        var collections=top.idDeclaration()!=null?top.idDeclaration().collectionDefinition():top.valueDefinition()!=null?top.valueDefinition().collectionDefinition():top.entityDefinition()!=null?top.entityDefinition().collectionDefinition():top.aggregateDefinition()!=null?top.aggregateDefinition().collectionDefinition():java.util.List.<org.vernac.compiler.parser.VernacParser.CollectionDefinitionContext>of();
                         for(var c:collections)if((c.collectionName==null?owner.getText()+"s":c.collectionName.getText()).equals(name))token=c.collectionName==null?owner:c.collectionName;
                     }
                     if(token==null)continue;

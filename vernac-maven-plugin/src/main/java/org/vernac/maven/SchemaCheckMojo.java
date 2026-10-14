@@ -45,7 +45,7 @@ public final class SchemaCheckMojo extends SchemaMojo {
                         created.add(db);
                     }
                     Flyway.configure().dataSource(databaseUrl(adminUrl, actual), user, password)
-                            .locations("filesystem:" + migrationDirectory.getAbsolutePath())
+                            .locations("filesystem:" + migrations().getAbsolutePath())
                             .validateMigrationNaming(true).load().migrate();
                     try (Connection c = connect(databaseUrl(adminUrl, expected)); Statement s = c.createStatement()) {
                         s.execute(new MigrationPlanner().plan(SchemaModel.empty(), target, MigrationPlanner.Options.safe()).sql());

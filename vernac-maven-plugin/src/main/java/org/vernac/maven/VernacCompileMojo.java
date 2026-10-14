@@ -55,14 +55,14 @@ public class VernacCompileMojo extends AbstractMojo {
 
     @Parameter(property="vernac.schemaHistory", defaultValue="${project.basedir}/src/main/vernac-schema/history")
     private File historyDirectory;
-    @Parameter(property="vernac.migrations", defaultValue="${project.basedir}/src/main/resources/db/migration")
+    @Parameter(property="vernac.migrations")
     private File migrationDirectory;
     @Parameter(property="vernac.enumCodes")
     private File enumCodes;
 
     private org.vernac.compiler.persistence.SchemaModel previousSchema() throws java.io.IOException {
-        if (historyDirectory == null || migrationDirectory == null) return org.vernac.compiler.persistence.SchemaModel.empty();
-        return new org.vernac.compiler.persistence.SchemaHistory(historyDirectory.toPath(),migrationDirectory.toPath()).read();
+        Path base=project!=null&&project.getBasedir()!=null?project.getBasedir().toPath():ModuleArtifacts.projectDirectory(sourceDirectory.toPath());
+        return new org.vernac.compiler.persistence.SchemaHistory(historyDirectory==null?base.resolve("src/main/vernac-schema/history"):historyDirectory.toPath(),MigrationLocations.resolve(base,migrationDirectory).toPath()).read();
     }
     private java.util.Map<String,java.util.Map<String,String>> enumOverrides() throws java.io.IOException {
         return enumCodes == null ? java.util.Map.of() : org.vernac.compiler.persistence.SchemaModel.JSON.readValue(
@@ -85,18 +85,83 @@ public class VernacCompileMojo extends AbstractMojo {
             // Resolve the entire source tree before writing any generated Java.
             var dependencies=ModuleClasspath.read(project);
             var resolved=sourceDirectory.exists()?compiler.analyzeProject(sourceDirectory.toPath(),dependencies):null;
-            VernacProjectCompilationResult result=resolved==null?new VernacProjectCompilationResult(List.of(),List.of())
-                    :compiler.generate(resolved,previousSchema(),enumOverrides());
             Path base=project!=null&&project.getBasedir()!=null?project.getBasedir().toPath():ModuleArtifacts.projectDirectory(sourceDirectory.toPath());
             Path manifest=base.resolve(ModuleDefinition.FILE);
+            org.vernac.compiler.application.ApplicationDefinition applicationDefinition=null;
+            Path application=base.resolve(org.vernac.compiler.application.ApplicationDefinition.FILE);
+            if(Files.isRegularFile(application)) {
+                var definition=org.vernac.compiler.application.ApplicationDefinition.parse(application,Files.readString(application));
+                applicationDefinition=definition;
+                if(resolved!=null&&!Files.isRegularFile(manifest)) {
+                    var issues=definition.diagnostics(resolved,dependencies);
+                    if(!issues.isEmpty())throw new org.vernac.compiler.analyzer.SemanticValidationException(issues);
+                }
+                definition.requireBuildSupport();
+            }
+            if(resolved!=null && applicationDefinition==null && !Files.isRegularFile(manifest)) {
+                var empty=new org.vernac.compiler.application.ApplicationDefinition("internal",List.of(),List.of());
+                var issues=empty.diagnostics(resolved,dependencies);
+                if(!issues.isEmpty())throw new org.vernac.compiler.analyzer.SemanticValidationException(issues);
+            }
+            var schemaOptions=resolved==null?new org.vernac.compiler.persistence.SchemaBuilder.Options(false,false):ModuleSchemaOptions.read(base,resolved,dependencies);
+            VernacProjectCompilationResult result=resolved==null?new VernacProjectCompilationResult(List.of(),List.of())
+                    :compiler.generate(resolved,previousSchema(),enumOverrides(),schemaOptions);
             Path resources=base.resolve("target/generated-resources/vernac-module");
             Path descriptor=resources.resolve(ModuleDescriptor.RESOURCE);
+            if(Files.isRegularFile(manifest)&&applicationDefinition!=null&&(!applicationDefinition.bindings().isEmpty()||!applicationDefinition.activations().isEmpty()))
+                throw new IOException("Published modules cannot contain application bindings or activations. Configure providers in the consuming application's vernac-application.vapplication.");
             ModuleDescriptor published=null;
+            org.vernac.compiler.application.ApplicationBindings.Generated composition=null;
+            if(resolved!=null) {
+                composition=org.vernac.compiler.application.ApplicationBindings.generate(
+                        applicationDefinition==null?new org.vernac.compiler.application.ApplicationDefinition("internal",List.of(),List.of()):applicationDefinition,
+                        resolved,dependencies,result.generatedFiles(),Files.isRegularFile(manifest));
+                result=new VernacProjectCompilationResult(composition.files(),result.diagnostics());
+            }
+            Path compositionResources=base.resolve("target/generated-resources/vernac-application");
+            Path autoImports=compositionResources.resolve(org.vernac.compiler.application.ApplicationBindings.IMPORTS);
             if(Files.isRegularFile(manifest)) {
                 if(project==null)throw new IOException("Publishing a module requires Maven project coordinates.");
                 if(resolved==null)throw new IOException("Module definition requires a Vernac source root.");
                 var definition=ModuleDefinition.parse(manifest,Files.readString(manifest));
                 published=ModuleContracts.publish(definition,resolved,result.generatedFiles(),project.getGroupId(),project.getArtifactId(),project.getVersion(),dependencies);
+                Path sourceHistory=historyDirectory==null?base.resolve("src/main/vernac-schema/history"):historyDirectory.toPath();
+                boolean recordedHistory=false;
+                if(Files.isDirectory(sourceHistory))try(var files=Files.list(sourceHistory)){recordedHistory=files.anyMatch(f->f.getFileName().toString().endsWith(".json"));}
+                if(published.persistent()||recordedHistory) {
+                    Path sql=MigrationLocations.resolve(base,migrationDirectory).toPath().toAbsolutePath().normalize();
+                    ModulePersistenceResources.validateSource(project,sql);
+                    var expected=new org.vernac.compiler.persistence.SchemaBuilder(resolved,previousSchema(),enumOverrides(),schemaOptions).build();
+                    var bundle=ModulePersistence.prepare(published.module(),expected,sourceHistory,sql);
+                    ModulePersistence.verify(bundle.descriptor(),bundle.resources());
+                    ModulePersistenceResources.write(project,base.resolve("target/generated-resources/vernac-module-persistence"),bundle);
+                    if(!published.persistent())published=new ModuleDescriptor(published.formatVersion(),published.contractVersion(),published.module(),published.groupId(),published.artifactId(),published.version(),published.exports(),published.externalContracts(),published.internalTypes(),published.components(),true);
+                }
+
+            }
+            if(composition!=null&&composition.configuration().isPresent()) {
+                if(project==null)throw new IOException("Application bindings require Maven project context.");
+                if(Files.isRegularFile(base.resolve("src/main/resources").resolve(org.vernac.compiler.application.ApplicationBindings.IMPORTS)))
+                    throw new IOException("Application binding auto-configuration conflicts with an existing source AutoConfiguration.imports resource. Keep application composition metadata owned by Vernac.");
+                Files.createDirectories(autoImports.getParent());Files.writeString(autoImports,composition.configuration().get()+"\n");
+                if(dependencies.stream().anyMatch(ModuleDescriptor::persistent)) {
+                    var schema=new org.vernac.compiler.persistence.SchemaBuilder(resolved,previousSchema(),enumOverrides(),schemaOptions).build();
+                    Path schemaResource=compositionResources.resolve(org.vernac.compiler.application.ApplicationBindings.schemaResource(applicationDefinition.name()));
+                    java.util.Set<String> owned=new java.util.TreeSet<>();schema.tables().forEach(t->owned.add(org.vernac.compiler.persistence.SqlNames.physical(t.namespace())+"/"+org.vernac.compiler.persistence.SqlNames.physical(t.name())));
+                    Path sourceHistory=historyDirectory==null?base.resolve("src/main/vernac-schema/history"):historyDirectory.toPath();
+                    if(Files.isDirectory(sourceHistory))try(var files=Files.list(sourceHistory)){for(var file:files.filter(f->f.getFileName().toString().endsWith(".json")).toList()){var snapshot=org.vernac.compiler.persistence.SchemaModel.JSON.readValue(Files.readString(file),org.vernac.compiler.persistence.SchemaHistory.Snapshot.class);snapshot.model().tables().forEach(t->owned.add(org.vernac.compiler.persistence.SqlNames.physical(t.namespace())+"/"+org.vernac.compiler.persistence.SqlNames.physical(t.name())));}}
+                    ModuleDescriptor.write(schemaResource,java.util.Map.of("schema",schema,"ownedTables",owned));
+                }
+                Resource resource=new Resource();resource.setDirectory(compositionResources.toString());project.addResource(resource);
+            } else {
+                if(Files.isRegularFile(autoImports)) {
+                    String owned=Files.readString(autoImports);
+                    if(project!=null&&project.getBuild().getOutputDirectory()!=null) {
+                        Path output=Path.of(project.getBuild().getOutputDirectory()).resolve(org.vernac.compiler.application.ApplicationBindings.IMPORTS);
+                        if(Files.isRegularFile(output)&&Files.readString(output).equals(owned))Files.delete(output);
+                    }
+                    Files.delete(autoImports);
+                }
             }
             if(project!=null) {
                 Files.createDirectories(base.resolve("target"));
@@ -121,7 +186,7 @@ public class VernacCompileMojo extends AbstractMojo {
                 }
                 Files.copy(manifest,attachment.resolve(ModuleDefinition.FILE),java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                 project.addCompileSourceRoot(base.resolve("target/generated-module-sources").toString());
-                getLog().info("Published Vernac type-module contract: "+published.module()+" ("+published.exports().size()+" exports)");
+                getLog().info("Published Vernac module contract: "+published.module()+" ("+published.exports().size()+" exports)");
             } else {
                 Files.deleteIfExists(descriptor);
                 if(project!=null && project.getBuild().getOutputDirectory()!=null)Files.deleteIfExists(Path.of(project.getBuild().getOutputDirectory()).resolve(ModuleDescriptor.RESOURCE));

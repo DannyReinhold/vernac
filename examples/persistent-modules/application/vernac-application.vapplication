@@ -1,0 +1,3 @@
+application example.shop {
+    activate example.api;
+}

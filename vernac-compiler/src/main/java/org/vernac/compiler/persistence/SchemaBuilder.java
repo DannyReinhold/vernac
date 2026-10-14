@@ -12,6 +12,12 @@ import static org.vernac.compiler.persistence.SchemaModel.*;
 
 /** Builds the reviewed relational slice: repository roots, values and aggregate-owned entity graphs. */
 public final class SchemaBuilder {
+    public record Options(boolean module,boolean applicationDelivery) {
+        public static Options forProject(ResolvedProject project) {
+            return new Options(java.nio.file.Files.isRegularFile(org.vernac.compiler.modules.ModuleArtifacts.projectDirectory(project.project().sourceRoot()).resolve(org.vernac.compiler.modules.ModuleDefinition.FILE)),false);
+        }
+    }
+    private final Options options;
     private final ResolvedProject project;
     private final SchemaModel previous;
     private final Map<String, Map<String, String>> enumOverrides;
@@ -35,6 +41,10 @@ public final class SchemaBuilder {
         this(project, previous, Map.of());
     }
     public SchemaBuilder(ResolvedProject project, SchemaModel previous, Map<String, Map<String, String>> enumOverrides) {
+        this(project,previous,enumOverrides,Options.forProject(project));
+    }
+    public SchemaBuilder(ResolvedProject project,SchemaModel previous,Map<String,Map<String,String>> enumOverrides,Options options) {
+        this.options=options;
         this.enumOverrides = Map.copyOf(enumOverrides);
         this.project = project;
         this.previous = previous;
@@ -46,7 +56,7 @@ public final class SchemaBuilder {
     }
     public SchemaModel build() {
         Set<String> roots = new HashSet<>();
-        for (var source : project.project().sources()) for (var def : source.unit().definitions()) {
+        for (var source : project.project().sources()) if(!source.external()) for (var def : source.unit().definitions()) {
             if (!(def instanceof RepositoryNode repo)) continue;
             var lookup = project.scopes().get(source.path()).resolve(repo.aggregateName(), repo.location());
             if (lookup.type().orElse(null) instanceof ResolvedType.Declared type
@@ -76,16 +86,16 @@ public final class SchemaBuilder {
     }
     private void buildEvents() {
         Set<String> deferredEvents = new HashSet<>();
-        for(var source:project.project().sources()) for(var definition:source.unit().definitions()) {
+        for(var source:project.project().sources()) if(!source.external()) for(var definition:source.unit().definitions()) {
             if(definition instanceof ListenerNode listener && listener.deferred()) {
                 var type=(ResolvedType.Declared)project.typeOf(listener.eventType());
                 deferredEvents.add(type.symbol().identity().qualifiedName());
             }
         }
-        for(var source:project.project().sources()) for(var definition:source.unit().definitions()) {
+        for(var source:project.project().sources()) if(!source.external()) for(var definition:source.unit().definitions()) {
             if(!(definition instanceof EventNode event)) continue;
             String identity=source.unit().namespace()+"."+event.name();
-            if(!event.recorded() && !deferredEvents.contains(identity)) continue;
+            if(!options.module() && !event.recorded() && !deferredEvents.contains(identity)) continue;
             MutableTable t=new MutableTable(source.unit().namespace(),"@event:"+event.name(),identity,List.of("@eventId"));
             root=t; relations.clear(); entities.clear(); expandingEntities.clear();
             t.predicate=name("@eventId")+" = :aggregateId";
@@ -95,7 +105,7 @@ public final class SchemaBuilder {
             publish(t);
             eventPlans.add(new EventStoragePlan(source.unit().namespace(),event,List.copyOf(relations)));
         }
-        if(!deferredEvents.isEmpty()) {
+        if(!options.module() && (!deferredEvents.isEmpty() || options.applicationDelivery())) {
             MutableTable t=new MutableTable("vernac","@delivery","@event-delivery",List.of("id"));
             for(String c:List.of("id","eventId")) t.column(c,"UUID",false,"UUID",t.origin);
             for(String c:List.of("eventType","listenerId","status")) t.column(c,"TEXT",false,"String",t.origin);

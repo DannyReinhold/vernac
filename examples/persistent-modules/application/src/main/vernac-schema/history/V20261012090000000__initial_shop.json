@@ -1,0 +1,79 @@
+{
+  "formatVersion" : 1,
+  "migration" : "V20261012090000000__initial_shop.sql",
+  "previousFingerprint" : "80a947793d1802db05dd3d1246d9b9534a6c51dd00f17d796277da3e0441da66",
+  "modelFingerprint" : "8e30900a2fde7b35cb6ae7545918795dd96f47653b6c71f120cb4962cdb6e3d8",
+  "model" : {
+    "formatVersion" : 1,
+    "mappingVersion" : 1,
+    "tables" : [ {
+      "namespace" : "example.shop",
+      "name" : "Account",
+      "origin" : "example.shop.Account",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "example.shop.Account"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "example.shop.Account"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "example.shop.Account"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "example.shop.Account"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "example.shop.Account"
+      }, {
+        "name" : "customerName.alias",
+        "sqlType" : "TEXT",
+        "nullable" : true,
+        "codec" : "String:",
+        "origin" : "example.shop.Account.customerName.alias"
+      }, {
+        "name" : "customerName.text",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "example.shop.Account.customerName.text"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "example.shop.Account.id"
+      }, {
+        "name" : "invoiceId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "example.billing.InvoiceId"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      } ]
+    } ],
+    "enumCodes" : { }
+  }
+}

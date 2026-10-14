@@ -148,3 +148,17 @@ Vernac usecases. Business decisions stay in the domain.
 [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) ·  
 [Impressum](impressum.md) ·  
 [Privacy](privacy.md)
+
+
+## Reuse architecture across applications
+
+Publish a Vernac capability as a versioned Maven module. Export its public domain
+contracts, keep implementation helpers internal, and consume the compiled JAR without
+copying or regenerating its definitions. Applications explicitly select providers and
+activate usecases, listeners or HTTP entrypoints; required modules activate transitively.
+
+The [module lifecycle tutorial](tutorials/type-modules.md) follows values from
+publication through consumption and schema evolution. The
+[persistent module application](../examples/persistent-modules/README.md) demonstrates
+Billing, Receipts, durable events, an HTTP API and independent migration histories.
+Migration candidates remain subject to application-owner review and testing.

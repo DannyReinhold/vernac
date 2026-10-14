@@ -25,7 +25,7 @@ public class VernacTextDocumentService implements TextDocumentService {
 
     private static final Set<String> DSL_KEYWORDS = Set.of(
             "GET", "POST", "PUT", "PATCH", "DELETE",
-            "module", "export", "rejection", "integration", "invalid", "request", "validation", "found", "optimistic", "conflict", "domain", "when", "then", "otherwise", "default", "reject", "fail", "local", "remote", "unknown", "status",
+            "application", "activate", "bind", "to", "module", "export", "rejection", "integration", "invalid", "request", "validation", "found", "optimistic", "conflict", "domain", "when", "then", "otherwise", "default", "reject", "fail", "local", "remote", "unknown", "status",
             "client", "base", "body", "response", "errors", "path", "query", "header",
             "counted", "cursor", "offset", "counting", "where", "and", "or", "not", "order", "asc", "desc", "is", "absent", "present", "like", "contains", "starts", "ends", "with",
             "namespace", "package", "import", "as", "id",

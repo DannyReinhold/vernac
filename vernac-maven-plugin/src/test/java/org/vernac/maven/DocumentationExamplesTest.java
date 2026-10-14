@@ -18,6 +18,20 @@ import static org.junit.jupiter.api.Assertions.*;
 class DocumentationExamplesTest {
     @TempDir Path temporary;
 
+    @Test void persistentModuleTutorialHasACompleteExportableProducerModel() throws Exception {
+        String document=Files.readString(Path.of("../docs/tutorials/type-modules.md")).replace("\r\n","\n");
+        var blocks=Pattern.compile("```vernac\\n(.*?)```",Pattern.DOTALL).matcher(document);String model=null;
+        while(blocks.find())model=blocks.group(1);
+        assertNotNull(model);assertTrue(model.contains("namespace example.billing;"));
+        Path root=temporary.resolve("persistent-module-doc"),source=root.resolve("example/billing/invoice.vernac");Files.createDirectories(source.getParent());Files.writeString(source,model);
+        var compiler=new VernacCompiler();var resolved=compiler.analyzeProject(root);var generated=compiler.generate(resolved,org.vernac.compiler.persistence.SchemaModel.empty(),java.util.Map.of());
+        var manifests=Pattern.compile("```vernac-module\\n(.*?)```",Pattern.DOTALL).matcher(document);String manifest=null;
+        while(manifests.find())manifest=manifests.group(1);
+        assertNotNull(manifest);
+        var descriptor=org.vernac.compiler.modules.ModuleContracts.publish(org.vernac.compiler.modules.ModuleDefinition.parse(root.resolve("vernac-module.vmodule"),manifest),resolved,generated.generatedFiles(),"example","billing","1",List.of());
+        assertTrue(descriptor.persistent());assertEquals(5,descriptor.exports().size());
+    }
+
     @Test void completeTutorialModelsResolveAndGenerate() throws Exception {
         for (String name : List.of("repository-queries", "usecases", "enum-value-objects",
                 "outbound-ports", "declarative-rest", "declarative-errors", "default-names",

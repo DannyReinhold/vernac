@@ -216,4 +216,41 @@ class VernacProjectTemplateTest {
                 VernacProjectTemplate.suggestArtifactId("HTTPClient")
         );
     }
+    @Test
+    void applicationAndTypeModuleHaveDistinctPublicationContracts() throws Exception {
+        Path app = temporaryDirectory.resolve("app");
+        Path module = temporaryDirectory.resolve("module");
+        VernacProjectTemplate.copyTo(app, "App", "org.example", "app", "org.example.app",
+                VernacProjectTemplate.ProjectKind.APPLICATION);
+        VernacProjectTemplate.copyTo(module, "Values", "org.example", "values", "org.example.values",
+                VernacProjectTemplate.ProjectKind.TYPE_MODULE);
+        assertEquals("application org.example.app {\n}\n",
+                Files.readString(app.resolve("vernac-application.vapplication")));
+        assertFalse(Files.exists(app.resolve("vernac-module.vmodule")));
+        assertFalse(Files.exists(module.resolve("vernac-application.vapplication")));
+        String model = Files.readString(module.resolve("src/main/vernac/org/example/values/tasks.vernac"));
+        assertFalse(model.contains("aggregate"));
+        assertFalse(Files.exists(module.resolve("src/test/java/org/example/values/TaskTest.java")));
+        var definition = org.vernac.compiler.modules.ModuleDefinition.parse(
+                module.resolve("vernac-module.vmodule"), Files.readString(module.resolve("vernac-module.vmodule")));
+        var project = new org.vernac.compiler.pipeline.VernacCompiler()
+                .analyzeProject(module.resolve("src/main/vernac"), java.util.List.of());
+        org.vernac.compiler.modules.ModuleContracts.validateExports(definition, project);
+        assertTrue(Files.readString(module.resolve("pom.xml")).contains("maven-source-plugin"));
+        String guidance=Files.readString(module.resolve("README.md"));
+        assertTrue(guidance.contains("Type-only modules need no activation or database"));
+        assertTrue(guidance.contains("Persistent modules own reviewed migrations"));
+        assertTrue(guidance.contains(".vapplication"));
+    }
+
+    @Test
+    void existingApplicationDefinitionIsRejectedBeforeAnyTemplateWrite() throws Exception {
+        Path project = temporaryDirectory.resolve("occupied");
+        Files.createDirectories(project);
+        Files.writeString(project.resolve("vernac-application.vapplication"), "keep me");
+        assertThrows(java.io.IOException.class, () -> VernacProjectTemplate.copyTo(
+                project, "App", "org.example", "app", "org.example.app"));
+        assertEquals("keep me", Files.readString(project.resolve("vernac-application.vapplication")));
+        assertFalse(Files.exists(project.resolve("pom.xml")));
+    }
 }

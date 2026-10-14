@@ -36,6 +36,13 @@ public final class QueryResolver {
                     || target.symbol().kind()!=TypeSymbol.Kind.AGGREGATE) {
                 error(repo.location(),"Repository requires an aggregate root."); continue;
             }
+            if(source.external()) {
+                for(var method:repo.methods()){resolveType(scope,method.returnType());for(var parameter:method.parameters())resolveType(scope,parameter.type());}
+                continue;
+            }
+            if(project.sources().stream().anyMatch(s->s.external()&&s.path().equals(target.symbol().sourceFile()))) {
+                error(repo.location(),"Cannot create a local repository for a module-owned aggregate: "+target.symbol().identity().qualifiedName()+". Import its exported repository instead.");continue;
+            }
             AggregateNode aggregate=(AggregateNode)definitions.get(target.symbol().identity().qualifiedName());
             Set<String> names=new HashSet<>(Set.of("byId","save","delete","getClass","hashCode","equals","toString","wait","notify","notifyAll","finalize","clone","rootMapping","entityMappings","tables"));
             for(var method:repo.methods()) {

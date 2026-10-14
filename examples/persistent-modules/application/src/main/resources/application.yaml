@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: vernac-module-lifecycle
+  main:
+    web-application-type: none
+  datasource:
+    url: ${MODULE_DEMO_DB_URL:jdbc:postgresql://localhost:55435/module_demo}
+    username: ${MODULE_DEMO_DB_USER:module_demo}
+    password: ${MODULE_DEMO_DB_PASSWORD:local-demo-only}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  sql:
+    init:
+      mode: never
+
+# Short intervals only for this interactive demonstration.
+vernac:
+  events:
+    poll-interval: PT0.1S
+    initial-backoff: PT0.2S
+    max-backoff: PT1S

@@ -3,6 +3,16 @@ import example.shared.ExternalRef;
 import example.shared.Money;
 import example.shared.Labels;
 import example.shared.Kind;
+import example.shared.PaymentProvider;
 id AccountId;
 aggregate Account[AccountId](ExternalRef, Money, Labels, Kind) list Accounts;
 repository AccountRepository for Account {}
+
+// Development fixture: no external payment is made.
+adapter DevelopmentPaymentProvider implements PaymentProvider {
+    behavior {
+        public ExternalRef charge(Money money) {
+            return ExternalRef.create();
+        }
+    }
+}

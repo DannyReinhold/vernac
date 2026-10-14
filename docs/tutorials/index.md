@@ -68,5 +68,7 @@ transactions, PostgreSQL, durable events and a carrier ACL.
 
 [Reuse and evolve a type module](type-modules.md): publish domain values, import
 them, create the initial application migration and upgrade a flattened external VO.
-The chapter also explains the planned activation and independent migration lifecycle
-for functional modules.
+The chapter explains explicit activation, provider selection, dependency navigation and independent migration histories.
+[Run the persistent module lifecycle](../../examples/persistent-modules/README.md):
+call two persistent modules from an application, then upgrade their shared value
+with reviewed backfills while retaining existing data. Its separate API module and durable event receivers demonstrate the same activation graph.

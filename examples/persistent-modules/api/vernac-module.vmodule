@@ -1,0 +1,3 @@
+module example.api {
+    // HTTP entrypoints are internal components; activation exposes their routes.
+}

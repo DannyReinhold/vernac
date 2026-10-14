@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: vernac-module-demo
+  profiles:
+    default: dev
+  main:
+    web-application-type: none

@@ -8,3 +8,8 @@ value Money(Amount, Currency);
 value Kind = BASIC | PREMIUM;
 // Compiled into the JAR, but not importable through the module contract.
 value InternalNote(String);
+
+// A reusable capability contract; its implementation belongs to a consumer.
+port PaymentProvider {
+    ExternalRef charge(Money);
+}

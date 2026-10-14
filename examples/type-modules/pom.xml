@@ -5,5 +5,5 @@
     <parent><groupId>org.vernac</groupId><artifactId>vernac</artifactId><version>${revision}</version><relativePath>../../pom.xml</relativePath></parent>
     <artifactId>vernac-example-type-modules</artifactId><packaging>pom</packaging>
     <properties><maven.deploy.skip>true</maven.deploy.skip></properties>
-    <modules><module>library</module><module>application</module></modules>
+    <modules><module>library</module><module>providers</module><module>application</module></modules>
 </project>

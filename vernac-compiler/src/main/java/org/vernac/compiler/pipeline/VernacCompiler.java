@@ -62,6 +62,10 @@ public class VernacCompiler {
 
     public VernacProjectCompilationResult generate(ResolvedProject project, SchemaModel previous,
             Map<String, Map<String, String>> enumCodes) {
+        return generate(project,previous,enumCodes,SchemaBuilder.Options.forProject(project));
+    }
+    public VernacProjectCompilationResult generate(ResolvedProject project,SchemaModel previous,
+            Map<String,Map<String,String>> enumCodes,SchemaBuilder.Options options) {
         if (!project.deferredTypes().isEmpty()) {
             throw new SemanticValidationException(project.deferredTypes().stream().map(symbol ->
                     CompilerDiagnostic.error(symbol.location(), "Project generation for " + symbol.kind()
@@ -93,7 +97,7 @@ public class VernacCompiler {
                 });
             }
         }
-        SchemaBuilder persistence = new SchemaBuilder(project, previous, enumCodes);
+        SchemaBuilder persistence = new SchemaBuilder(project, previous, enumCodes, options);
         SchemaModel schema = persistence.build();
         for (StoragePlan plan : persistence.plans()) files.addAll(new JdbcRepositoryGenerator(project,schema).generate(plan));
         for (var plan : persistence.eventPlans()) files.add(new JdbcRepositoryGenerator(project,schema).generate(plan));

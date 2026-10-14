@@ -1,0 +1,47 @@
+namespace example.shop;
+import example.billing.CustomerName;
+import example.billing.InvoiceId;
+import example.billing.InvoiceOpened;
+import example.receipts.RecordPurchase;
+id AccountId;
+aggregate Account[AccountId](CustomerName, InvoiceId);
+repository AccountRepository for Account {}
+usecase RegisterPurchase(CustomerName) returns AccountId
+    uses RecordPurchase, AccountRepository behavior {
+    execute {
+        var invoiceId = self.recordPurchase().execute(customerName);
+        var account = Account.create(customerName, invoiceId);
+        self.accountRepository().save(account);
+        return account.id();
+    }
+}
+usecase ReadCustomer(AccountId) returns CustomerName uses AccountRepository behavior {
+    execute { return self.accountRepository().byId(accountId).customerName(); }
+}
+
+// A failure after all three writes must roll back the complete usecase transaction.
+usecase RejectPurchase(CustomerName) uses RecordPurchase, AccountRepository behavior {
+    execute {
+        var invoiceId = self.recordPurchase().execute(customerName);
+        self.accountRepository().save(Account.create(customerName, invoiceId));
+        throw new org.vernac.runtime.DomainValidationException("Demonstration: purchase rejected");
+    }
+}
+
+// The application and Receipts both receive the same public module event.
+synchronous listener ObserveInvoiceOpened on InvoiceOpened behavior {
+    java imports { org.slf4j.LoggerFactory; }
+    execute {
+        LoggerFactory.getLogger("example.shop.ObserveInvoiceOpened").info(
+            "Application observed the same InvoiceOpened {} for invoice {}", event.eventId(), event.invoiceId());
+    }
+}
+
+// A separate delivery job and confirmation for the same persisted producer payload.
+deferred listener RecordInvoiceObservation on InvoiceOpened behavior {
+    java imports { org.slf4j.LoggerFactory; }
+    execute {
+        LoggerFactory.getLogger("example.shop.RecordInvoiceObservation").info(
+            "Application received persisted InvoiceOpened {} in its own processing transaction", event.eventId());
+    }
+}

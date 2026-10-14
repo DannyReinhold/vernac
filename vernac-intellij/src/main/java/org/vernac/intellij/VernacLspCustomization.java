@@ -13,7 +13,7 @@ final class VernacLspCustomization extends LspCustomization {
         @Override public boolean shouldAskServerForSemanticTokens(@NotNull PsiFile file) {
             // The platform default only opts in TEXT/textmate, not custom PSI languages.
             // Injected Java files keep their native Java highlighting.
-            return file.getLanguage() == VernacLanguage.INSTANCE || file.getLanguage() == VernacModuleLanguage.INSTANCE;
+            return file.getLanguage() == VernacLanguage.INSTANCE || file.getLanguage() == VernacModuleLanguage.INSTANCE || file.getLanguage() == VernacApplicationLanguage.INSTANCE;
         }
     };
 

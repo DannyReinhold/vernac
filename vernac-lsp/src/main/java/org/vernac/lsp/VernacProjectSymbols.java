@@ -97,12 +97,71 @@ final class VernacProjectSymbols {
         index = new ProjectSymbolIndex(declarations);
     }
 
+    List<CompletionItem> applicationComplete(String text,Position at) {
+        return applicationComplete(text,at,List.of());
+    }
+    List<CompletionItem> applicationComplete(String text,Position at,List<org.vernac.compiler.modules.ModuleDescriptor> modules) {
+        if(text==null)return List.of();
+        int point=offset(text,at),start=point;
+        while(start>0) {int cp=text.codePointBefore(start);if(!Character.isJavaIdentifierPart(cp)&&cp!='.')break;start-=Character.charCount(cp);}
+        String before=text.substring(0,start).stripTrailing(),prefix=text.substring(start,point);
+        java.util.stream.Stream<String> names;
+        if(before.endsWith("activate")) {
+            names=modules.stream().filter(org.vernac.compiler.modules.ModuleDescriptor::activatable).map(org.vernac.compiler.modules.ModuleDescriptor::module);
+        } else if(before.endsWith("bind")) {
+            names=declarations.stream().filter(d->d.kind()==TypeSymbol.Kind.PORT).map(d->d.identity().qualifiedName());
+        } else if(before.endsWith("to")) {
+            var match=java.util.regex.Pattern.compile("bind\\s+([\\p{javaJavaIdentifierPart}.]+)\\s+to$").matcher(before);
+            String port=match.find()?match.group(1):null;
+            names=declarations.stream().filter(d->d.kind()==TypeSymbol.Kind.OUTBOUND_ADAPTER)
+                    .filter(d->port!=null&&adapterPort(d).filter(port::equals).isPresent()).map(d->d.identity().qualifiedName());
+        } else {
+            names=java.util.stream.Stream.of("activate", "bind");
+            if(!before.endsWith("{")&&!before.endsWith(";"))return List.of();
+        }
+        Range range=new Range(position(text,start),at);
+        return names.distinct().sorted().filter(n->n.startsWith(prefix)).map(n->{var item=new CompletionItem(n);item.setTextEdit(Either.forLeft(new TextEdit(range,n)));return item;}).toList();
+    }
+
+    private Optional<String> adapterPort(TypeSymbol symbol) {
+        var parsed=files.get(symbol.sourceFile());
+        if(parsed==null)return Optional.empty();
+        for(var top:parsed.tree().topLevelDeclaration()) {
+            var adapter=top.outboundAdapterDefinition();
+            if(adapter==null||!adapter.name.getText().equals(symbol.identity().name()))continue;
+            var scope=new FileTypeScope(parsed.unit(),index,namespaces);
+            if(!scope.diagnostics().isEmpty())return Optional.empty();
+            var lookup=scope.resolve(adapter.portType.getText(),symbol.location());
+            return lookup.type().filter(t->t instanceof ResolvedType.Declared)
+                    .map(t->((ResolvedType.Declared)t).symbol().identity().qualifiedName());
+        }
+        return Optional.empty();
+    }
+
+    List<Location> applicationDefinition(String text,Position at) {
+        return applicationDefinition(text,at,Map.of());
+    }
+    List<Location> applicationDefinition(String text,Position at,Map<String,Location> modules) {
+        if(text==null)return List.of();
+        int point=offset(text,at),start=point;
+        while(start>0) {int cp=text.codePointBefore(start);if(!Character.isJavaIdentifierPart(cp)&&cp!='.')break;start-=Character.charCount(cp);}
+        String before=text.substring(0,start).stripTrailing();
+        if(before.endsWith("activate")) {
+            int end=point;
+            while(end<text.length()) {int cp=text.codePointAt(end);if(!Character.isJavaIdentifierPart(cp)&&cp!='.')break;end+=Character.charCount(cp);}
+            var location=modules.get(text.substring(start,end));
+            return location==null?List.of():List.of(location);
+        }
+        return before.endsWith("bind")||before.endsWith("to")?moduleDefinition(text,at):List.of();
+    }
+
     List<CompletionItem> moduleComplete(String text,Position at) {
         int point=offset(text,at),start=point;
         while(start>0) {int cp=text.codePointBefore(start);if(!Character.isJavaIdentifierPart(cp)&&cp!='.')break;start-=Character.charCount(cp);}
         if(!text.substring(0,start).stripTrailing().endsWith("export"))return List.of();
         String prefix=text.substring(start,point);Range range=new Range(position(text,start),at);
         return declarations.stream().filter(d->d.sourceFile().startsWith(root) && !d.sourceFile().toString().contains(".module-contracts"))
+            .filter(d->d.kind()!=TypeSymbol.Kind.LISTENER && d.kind()!=TypeSymbol.Kind.INBOUND_HTTP_ADAPTER)
             .map(d->d.identity().qualifiedName()).distinct().sorted().filter(n->n.startsWith(prefix)).map(n->{var item=new CompletionItem(n);item.setTextEdit(Either.forLeft(new TextEdit(range,n)));return item;}).toList();
     }
     List<Location> moduleDefinition(String text,Position at) {
@@ -111,7 +170,7 @@ final class VernacProjectSymbols {
         while(end<text.length()) {int cp=text.codePointAt(end);if(!Character.isJavaIdentifierPart(cp)&&cp!='.')break;end+=Character.charCount(cp);}
         String name=text.substring(start,end);
         var symbol=index.find(name).orElse(null);
-        return symbol==null?List.of():List.of(new Location(symbol.sourceFile().toUri().toString(),declarationRanges.get(symbol)));
+        return symbol==null?List.of():List.of(location(symbol));
     }
 
     private void collection(Path path, String namespace, ParserRuleContext owner,

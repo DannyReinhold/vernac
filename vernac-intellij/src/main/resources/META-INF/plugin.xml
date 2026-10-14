@@ -98,10 +98,17 @@
 ]]></description>
 
     <change-notes><![CDATA[
-        <h3>Reusable Vernac type modules</h3>
-        <p>Added the .vmodule publication file type and New → Vernac Module Definition.
-        Explicit export diagnostics, completion and navigation share the compiler;
-        built dependency indexes expose public external values with source/contract navigation.</p>
+        <h3>Versioned modules: complete 0.4.0 scope</h3>
+        <ul>
+            <li>Publish explicit contracts and reuse compiled implementations from Maven dependencies.</li>
+            <li>Activate usecases, services, repositories, listeners and HTTP entrypoints; select outbound providers through fixed or profile-dependent bindings.</li>
+            <li>Coordinate independent module/application histories and durable event delivery.</li>
+            <li>Navigate activation identities to read-only module overviews, including modules without exports.</li>
+            <li>Refresh dependency symbols after rebuilt indexes; show incompatible-module diagnostics on open composition files.</li>
+            <li>Preserve source navigation for events and multiple collections in dependency contract views.</li>
+        </ul>
+        <p>Metadata uses module-contracts-8. Rebuild producers and consumers after updating development tools.
+        Updated contracts, language/AI references, FAQs, project guidance and lifecycle examples describe the supported scope.</p>
         <h3>Declarative inbound error policies</h3>
         <p>Added ordered endpoint and adapter error rules with typed rejection codes,
         integration responsibility/category selectors and safe public replies.
@@ -209,6 +216,8 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <gotoDeclarationHandler implementation="org.vernac.intellij.VernacJavaDeclarationHandler" order="first"/>
+        <lang.parserDefinition language="VernacApplication" implementationClass="org.vernac.intellij.VernacApplicationParserDefinition"/>
+        <fileType name="Vernac Application Definition" implementationClass="org.vernac.intellij.VernacApplicationFileType" fieldName="INSTANCE" language="VernacApplication" extensions="vapplication"/>
         <lang.parserDefinition language="VernacModule" implementationClass="org.vernac.intellij.VernacModuleParserDefinition"/>
         <lang.parserDefinition language="Vernac" implementationClass="org.vernac.intellij.VernacParserDefinition"/>
         <multiHostInjector implementation="org.vernac.intellij.VernacJavaInjector"/>
@@ -239,6 +248,7 @@
             <add-to-group group-id="NewGroup" anchor="first"/>
             <action id="org.vernac.NewNamespace" class="org.vernac.intellij.VernacNewNamespaceAction"
                     text="Vernac Namespace" description="Create a namespace below the Vernac source root"/>
+            <action id="org.vernac.NewApplication" class="org.vernac.intellij.VernacNewApplicationAction" text="Vernac Application Definition"/>
             <action id="org.vernac.NewModule" class="org.vernac.intellij.VernacNewModuleAction" text="Vernac Module Definition"/>
             <action id="org.vernac.NewFile" class="org.vernac.intellij.VernacNewFileAction"/>
         </group>

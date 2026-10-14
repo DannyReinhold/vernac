@@ -1,0 +1,3 @@
+module example.receipts {
+    export example.receipts.RecordPurchase;
+}

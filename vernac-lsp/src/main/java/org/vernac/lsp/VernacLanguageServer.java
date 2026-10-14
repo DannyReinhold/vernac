@@ -70,8 +70,9 @@ public class VernacLanguageServer implements LanguageServer, LanguageClientAware
             FileSystemWatcher watcher = new FileSystemWatcher();
             watcher.setGlobPattern(org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft("**/*.vernac"));
             var moduleWatcher=new FileSystemWatcher();moduleWatcher.setGlobPattern(org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft("**/*.vmodule"));
+            var applicationWatcher=new FileSystemWatcher();applicationWatcher.setGlobPattern(org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft("**/*.vapplication"));
             var indexWatcher=new FileSystemWatcher();indexWatcher.setGlobPattern(org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft("**/target/vernac-module-index.json"));
-            var options = new DidChangeWatchedFilesRegistrationOptions(List.of(watcher,moduleWatcher,indexWatcher));
+            var options = new DidChangeWatchedFilesRegistrationOptions(List.of(watcher,moduleWatcher,applicationWatcher,indexWatcher));
             client.registerCapability(new RegistrationParams(List.of(
                     new Registration("vernac-source-files", "workspace/didChangeWatchedFiles", options))))
                     .exceptionally(error -> {

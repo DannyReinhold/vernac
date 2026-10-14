@@ -25,6 +25,7 @@ resolution and feature contracts also constrain accepted programs.
 - [Entities and aggregates](../contracts/entities-and-aggregates.md)
 - [Usecases](../contracts/usecases.md)
 - [Domain services](../contracts/domain-services.md)
+- [Versioned modules](../contracts/modules.md): exports, compiled reuse, activation and independent histories.
 - [Events and listeners](../contracts/events.md)
 
 ## Persistence and integration contracts
@@ -56,6 +57,7 @@ a generated excerpt as a new supported feature.
 See [documentation maintenance](../development/documentation.md) and the
 [release plan](../development/release-0.3.0.md) for remaining verification work.
 
-## Accepted designs awaiting implementation
+## Subsequent design work
 
-- [Versioned modules](../contracts/modules.md): implemented type-module slice plus explicit functional-module prerequisites.
+SaaS policies and deeper cross-language IDE integration remain separately planned. The
+[module completion record](../development/module-completion-roadmap.md) defines the delivered 0.4.0 scope.

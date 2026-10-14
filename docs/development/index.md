@@ -29,8 +29,8 @@ Release acceptance also includes installation of the packaged IntelliJ plugin.
 - [Documentation ownership and validation](documentation.md)
 - [Deep IntelliJ integration roadmap](intellij-deep-integration.md): cross-language refactoring and debugger
   investigation (planned).
-- [Capabilities and usecase authorization](capabilities-and-usecase-authorization.md): planned module and SaaS policy
-  design.
+- [Versioned module completion](module-completion-roadmap.md): implemented scope, regression entrypoints and operational boundaries.
+- [Capabilities and usecase authorization](capabilities-and-usecase-authorization.md): future SaaS policy and reusable capability design on the implemented module system.
 - [Consolidation status](consolidation-status.md)
 - [Pagination implementation sequence](pagination.md): runtime foundation and remaining repository/Result/HTTP work.
 - [0.3.0 release plan](release-0.3.0.md)

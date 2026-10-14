@@ -23,7 +23,7 @@ import org.vernac.runtime.jdbc.*;
 /** Polls only when a deferred handler is registered. Recorded-only applications need no delivery table. */
 @NullMarked
 @AutoConfiguration(after={JdbcTemplateAutoConfiguration.class,TransactionAutoConfiguration.class})
-@ConditionalOnBean({NamedParameterJdbcTemplate.class,PlatformTransactionManager.class,EventStorage.class})
+@ConditionalOnBean({NamedParameterJdbcTemplate.class,PlatformTransactionManager.class})
 @ConditionalOnProperty(prefix="vernac.events",name="enabled",havingValue="true",matchIfMissing=true)
 public class EventDeliveryAutoConfiguration {
     @Bean @ConditionalOnMissingBean @DependsOnDatabaseInitialization

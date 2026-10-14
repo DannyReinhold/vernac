@@ -12,4 +12,4 @@ Use the specification index for the full feature catalog. In this revision:
 
 ## Accepted designs awaiting implementation
 
-- [Versioned modules](modules.md): implemented type-module exports/imports and accepted future activation/migration rules.
+- [Versioned modules](modules.md): versioned exports/imports, explicit activation, provider selection, independent migrations and module-owned events/HTTP entrypoints.

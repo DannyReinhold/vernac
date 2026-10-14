@@ -73,6 +73,7 @@ public final class InboundResolver {
                     || !(lookup.type().orElse(null) instanceof ResolvedType.Declared d) || d.symbol().kind()!=TypeSymbol.Kind.USE_CASE) {
                 error(field.location(),"Inbound uses requires a non-optional usecase and a valid dependency name."); continue;
             }
+            types.put(field.type(),lookup.type().orElseThrow());
             var symbol=((ResolvedType.Declared)lookup.type().orElseThrow()).symbol();
             var usecase=project.sources().stream().filter(s->s.unit().namespace().equals(symbol.identity().namespace()))
                     .flatMap(s->s.unit().definitions().stream()).filter(definition->definition instanceof UseCaseNode u && u.name().equals(symbol.identity().name()))

@@ -135,3 +135,17 @@ Apache License 2.0. See [LICENSE](LICENSE).
 application: move stops, enforce capacity, dispatch tours and observe durable event
 delivery through a generated REST adapter. It runs locally with PostgreSQL and a
 carrier simulator.
+
+
+## Reuse architecture across applications
+
+Publish a Vernac capability as a versioned Maven module. Export its public domain
+contracts, keep implementation helpers internal, and consume the compiled JAR without
+copying or regenerating its definitions. Applications explicitly select providers and
+activate usecases, listeners or HTTP entrypoints; required modules activate transitively.
+
+The [module lifecycle tutorial](docs/tutorials/type-modules.md) follows values from
+publication through consumption and schema evolution. The
+[persistent module application](examples/persistent-modules/README.md) demonstrates
+Billing, Receipts, durable events, an HTTP API and independent migration histories.
+Migration candidates remain subject to application-owner review and testing.

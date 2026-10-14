@@ -52,35 +52,20 @@ language differs. Do not require a redundant wrapper for every direct module API
 
 The [accepted module design contract](../contracts/modules.md) is authoritative for
 export/import semantics, activation boundaries, persisted external VOs and migration
-ownership. The ID/VO/enum/value-collection publication and import slice is implemented;
-functional-module activation and SaaS policies remain planned. Open implementation
-decisions are listed in that contract.
+ownership. Versioned type and functional modules, persistent coordination, module events
+and HTTP entrypoints are implemented. The prerequisite module work is complete; SaaS
+policies and ready-made capabilities remain future work.
 
+The implemented package contains compiled Java, `META-INF/vernac/module.json` and
+optional source attachments. Its data-only descriptor records public names/signatures,
+compatibility information, source locations, component dependencies and ownership.
+Persistent owners package verified migrations in isolated resource locations. Consumers
+reuse exported types and compiled classes, while the application explicitly selects
+providers and activates functionality. The compiler/LSP share Maven's resolved index.
 
-Proposed packaging: compiled Java artifacts plus a versioned public descriptor,
-for example `META-INF/vernac/module.json`, and optional source attachments. The
-path and schema remain provisional. The descriptor should record:
-
-- Descriptor format version and compatible compiler/runtime expectations.
-- Public namespace/type identities and their exact generated Java names.
-- Type category, public fields/signatures, optionality and collection semantics.
-- Public entrypoints/events and source/navigation locations.
-- Required module dependencies and ownership information where needed.
-
-Reuse normal Vernac imports; do not textually include dependency sources or
-regenerate their Java. Maven selects artifact versions. Compiler/LSP read the
-same resolved index. A descriptor must not execute arbitrary code at compile time.
-
-Before implementation, decide exported/internal visibility, transitive visibility,
-name collisions, duplicate identities, incompatible descriptor versions, dependency
-cycles and Java/classpath compatibility. Do not silently prefer a project type over
-an imported module type with the same qualified identity. Published API changes
-need versioning independently of source attachment availability.
-
-Persistent modules own their tables and ship migrations. Define migration locations,
-namespace/table ownership, ordering and compatibility with application schema-check.
-Do not include dependency internals in application-generated migration diffs or
-rewrite a published module migration. Test two independent modules and an upgrade.
+Do not duplicate or redefine these mechanisms in the authorization workstream. Build
+capabilities on the accepted contract and its lifecycle tutorial, retaining explicit
+ownership and reviewed migrations when values change across module boundaries.
 
 ## Workstream B: authorization contract
 

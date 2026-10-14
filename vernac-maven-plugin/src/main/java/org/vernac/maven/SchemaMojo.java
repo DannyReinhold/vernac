@@ -20,19 +20,26 @@ public class SchemaMojo extends AbstractMojo {
     protected File sourceDirectory;
     @Parameter(property="vernac.schemaHistory", defaultValue="${project.basedir}/src/main/vernac-schema/history")
     protected File historyDirectory;
-    @Parameter(property="vernac.migrations", defaultValue="${project.basedir}/src/main/resources/db/migration")
+    @Parameter(property="vernac.migrations")
     protected File migrationDirectory;
     @Parameter(property="vernac.schemaOutput", defaultValue="${project.build.directory}/vernac-schema")
     protected File schemaOutput;
     /** Optional complete enum-code overrides, keyed by fully qualified Vernac enum identity. */
     @Parameter(property="vernac.enumCodes")
     protected File enumCodes;
-    protected SchemaHistory history() { return new SchemaHistory(historyDirectory.toPath(), migrationDirectory.toPath()); }
+    protected File migrations() {
+        if(migrationDirectory!=null)return migrationDirectory;
+        java.nio.file.Path base=project!=null&&project.getBasedir()!=null?project.getBasedir().toPath():org.vernac.compiler.modules.ModuleArtifacts.projectDirectory(sourceDirectory.toPath());
+        return MigrationLocations.resolve(base,null);
+    }
+    protected SchemaHistory history() { return new SchemaHistory(historyDirectory.toPath(), migrations().toPath()); }
     protected SchemaModel model(SchemaModel previous) throws Exception {
         if (!sourceDirectory.isDirectory()) throw new IllegalArgumentException("Vernac source root does not exist: " + sourceDirectory);
         java.util.Map<String, java.util.Map<String, String>> overrides = enumCodes == null ? java.util.Map.of()
                 : SchemaModel.JSON.readValue(Files.readString(enumCodes.toPath()), new com.fasterxml.jackson.core.type.TypeReference<>() { });
-        return new SchemaBuilder(new VernacCompiler().analyzeProject(sourceDirectory.toPath(),ModuleClasspath.read(project)), previous, overrides).build();
+        var dependencies=ModuleClasspath.read(project);var resolved=new VernacCompiler().analyzeProject(sourceDirectory.toPath(),dependencies);
+        var base=project!=null&&project.getBasedir()!=null?project.getBasedir().toPath():org.vernac.compiler.modules.ModuleArtifacts.projectDirectory(sourceDirectory.toPath());
+        return new SchemaBuilder(resolved,previous,overrides,ModuleSchemaOptions.read(base,resolved,dependencies)).build();
     }
     @Override public void execute() throws MojoExecutionException, MojoFailureException {
         try {

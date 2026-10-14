@@ -3,7 +3,7 @@
 Use JDK 25. Generated application code targets Java 21. The snapshot examples use
 `0.4.0-SNAPSHOT`; install the matching Vernac artifacts before running a standalone
 example. Commands below run from the repository root. In IntelliJ's Maven command
-window, omit the leading `mvn`; in PowerShell keep it and quote complete `-D...`
+window, use the commands shown below. In PowerShell quote complete `-D...`
 arguments if they contain dots.
 
 ## Choose your starting point
@@ -15,6 +15,7 @@ arguments if they contain dots.
 | [Schema basics](persistence-schema/README.md) | Flattening and a simple entity containment chain | SQL schema and migration candidate generation | No, until you apply/verify SQL |
 | [Shared entity schema](persistence-entities/README.md) | Multiple references to the same entity, lists versus sets | SQL schema and migration candidate generation | No, until you apply/verify SQL |
 | [Dispatch](dispatch/README.md) | Complete delivery application, web boundary, transactional planning and durable carrier work | Interactive browser UI and automated walkthrough | PostgreSQL to run; domain/HTTP tests need none |
+| [Versioned modules](persistent-modules/README.md) | Independent producer histories, transitive activation, REQUIRED calls and external-VO upgrades | Boot Runner and disposable-database test | PostgreSQL for runtime; not for generation/build |
 | [Persistence walkthrough](persistence-demo/README.md) | Aggregate graphs, queries, optimistic locking, events, ports and ACL | Spring Boot runners and tests | PostgreSQL for persistence/events; not for ports/domain tests |
 
 Read them in this order. The schema examples intentionally isolate SQL layout;
@@ -38,6 +39,8 @@ mvn -f examples/persistence-schema/pom.xml clean vernac:schema
 mvn -f examples/persistence-entities/pom.xml clean vernac:schema
 mvn -f examples/persistence-demo/pom.xml clean test
 mvn -f examples/dispatch/pom.xml clean verify
+mvn -f examples/type-modules/pom.xml clean install
+mvn -f examples/persistent-modules/pom.xml clean install
 ```
 
 The persistence-demo command runs domain-service and HTTP tests; its PostgreSQL tests

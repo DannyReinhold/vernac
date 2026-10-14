@@ -22,7 +22,7 @@ CENTRAL = "https://repo.maven.apache.org/maven2/org/vernac"
 MARKETPLACE = "https://plugins.jetbrains.com/api/updates/upload"
 PLUGIN_ID = "org.vernac"
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
-REQUIRED_TESTS = ("TypeModuleTest", "TypeModuleExecutionTest", "ModuleDefinitionSymbolsTest", "InboundErrorPolicyExecutionTest", "InboundErrorPolicyContractTest", "InboundErrorPolicySymbolsTest", "EntitySchemaPostgresTest", "EventStoragePostgresTest", "EventWorkerPostgresTest",
+REQUIRED_TESTS = ("AdapterBindingsTest","PortModuleTest", "PortModuleSymbolsTest", "TypeModuleTest", "TypeModuleExecutionTest", "ApplicationDefinitionTest", "ApplicationDefinitionSymbolsTest", "ModuleDefinitionSymbolsTest", "InboundErrorPolicyExecutionTest", "InboundErrorPolicyContractTest", "InboundErrorPolicySymbolsTest", "EntitySchemaPostgresTest", "EventStoragePostgresTest", "EventWorkerPostgresTest",
                   "RepositoryQueryPostgresTest", "ScalarQueryPostgresTest", "ScalarStoragePostgresTest",
                   "RequiredFieldBackfillTest", "SchemaMojoTest", "PluginDistributionIT",
     "DocumentationExamplesTest", "InboundHttpContractTest", "InboundHttpExecutionTest",

@@ -1,0 +1,119 @@
+{
+  "formatVersion" : 1,
+  "migration" : "V20261013190000000__module_event_payload.sql",
+  "previousFingerprint" : "900791a14d15baa375f41e4e8a00768b47f821949a73bf90aeb3a10b13c16d27",
+  "modelFingerprint" : "590c27401db2c1523a38436d3369635e39dc5093f054fe809058ea97957f33fd",
+  "model" : {
+    "formatVersion" : 1,
+    "mappingVersion" : 1,
+    "tables" : [ {
+      "namespace" : "example.billing",
+      "name" : "@event:InvoiceOpened",
+      "origin" : "example.billing.InvoiceOpened",
+      "columns" : [ {
+        "name" : "@eventId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "EventId",
+        "origin" : "example.billing.InvoiceOpened"
+      }, {
+        "name" : "@nanoRemainder:@occurredAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "example.billing.InvoiceOpened"
+      }, {
+        "name" : "@occurredAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "example.billing.InvoiceOpened"
+      }, {
+        "name" : "customerName.alias",
+        "sqlType" : "TEXT",
+        "nullable" : true,
+        "codec" : "String:",
+        "origin" : "example.billing.InvoiceOpened.customerName.alias"
+      }, {
+        "name" : "customerName.text",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "example.billing.InvoiceOpened.customerName.text"
+      }, {
+        "name" : "invoiceId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "example.billing.InvoiceId"
+      } ],
+      "primaryKey" : [ "@eventId" ],
+      "constraints" : [ {
+        "name" : "@check:range:@nanoRemainder:@occurredAt",
+        "clause" : "CHECK (\"@nanoRemainder:@occurredAt\" BETWEEN 0 AND 999)"
+      } ]
+    }, {
+      "namespace" : "example.billing",
+      "name" : "Invoice",
+      "origin" : "example.billing.Invoice",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "example.billing.Invoice"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "example.billing.Invoice"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "example.billing.Invoice"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "example.billing.Invoice"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "example.billing.Invoice"
+      }, {
+        "name" : "customerName.alias",
+        "sqlType" : "TEXT",
+        "nullable" : true,
+        "codec" : "String:",
+        "origin" : "example.billing.Invoice.customerName.alias"
+      }, {
+        "name" : "customerName.text",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "example.billing.Invoice.customerName.text"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "example.billing.Invoice.id"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      } ]
+    } ],
+    "enumCodes" : { }
+  }
+}

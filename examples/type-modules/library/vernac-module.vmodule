@@ -5,4 +5,5 @@ module example.shared.values {
     export example.shared.Amount;
     export example.shared.Money;
     export example.shared.Kind;
+    export example.shared.PaymentProvider;
 }

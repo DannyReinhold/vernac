@@ -508,7 +508,7 @@ See the [normative inbound contract](contracts/inbound-http.md#declarative-inbou
 A producer declares `vernac-module.vmodule` beside its POM, not below
 src/main/vernac. Its separate grammar is `module qualified.identifier { export
 fully.qualified.Type; ... }`. Explicit exports currently support IDs, VOs, enums
-and named value collections. Publicly referenced local types and collection elements
+and named value collections, plus port interfaces. Publicly referenced local types and collection elements
 need their own exports. No wildcard exports or foreign re-exports.
 
 A normal compile-scoped Maven dependency makes public contracts available to ordinary
@@ -521,3 +521,217 @@ Build producer and consumer with the current Vernac Maven plugin. In IntelliJ,
 New → Vernac Module Definition creates the project file. Build after dependency
 changes to refresh the shared resolved editor index. For a runnable two-artifact
 example see [type modules](../examples/type-modules/README.md).
+
+### Application composition status
+
+The project wizard distinguishes applications and reusable type libraries. An
+application starts with an empty `vernac-application.vapplication`; a type library
+gets `vernac-module.vmodule` and explicit exports. The application parser accepts `activate`, fixed `bind ... to ...` and
+`bind ... from configuration "key"`. Identity checks and IDE support are available,
+and adapter bindings are operational. Explicit `activate` entries register module
+usecases, services, repositories, listeners and HTTP entrypoints, including required
+functional dependencies; persistent histories are coordinated before startup. See the [module contract](contracts/modules.md).
+
+### Export and implement a port across artifacts (0.4.0)
+
+Contract-only modules can also export ports. Explicitly export every local type used
+in the port's public methods. Consumers import the port and its parameter/result
+values, then write `adapter Name implements ImportedPort { behavior { ... } }` using
+normal port/adapter syntax. The dependency supplies the original compiled interface.
+Adding a port operation requires implementation rebuilds. Contract metadata is now
+`module-contracts-8`; rebuild older development module artifacts. Outbound adapter publication and application bindings are supported as described below;
+Persistent and nonpersistent functional activation are supported; module histories run
+in dependency order before the application history. Module event contracts, recorded payloads and synchronous/deferred
+receivers are supported. Inbound HTTP entrypoints are internal module components, enabled only through activation.
+
+### Select an exported adapter with Spring profiles (0.4.0)
+
+Modules may export outbound adapters that implement exported ports, including ports
+from other Maven dependencies. Their bodies are compiled only by their producer;
+consumers use the published implementation class. Register a fixed or property-driven
+binding in the consuming project's `vernac-application.vapplication`:
+
+```vernac-application
+application example.app {
+    bind example.shared.PaymentProvider
+        from configuration "billing.payment-provider";
+}
+```
+
+The property value is an exported/local adapter's qualified Vernac identity, e.g.
+`example.providers.NoopPaymentProvider`, not a Java class name. Fixed syntax is
+`bind example.shared.PaymentProvider to example.providers.NoopPaymentProvider;`.
+Only the selected adapter is registered. Spring resolves its constructor dependencies
+and required configuration. Unselected module adapters are not component-scanned.
+The generated Boot auto-configuration registers the binding automatically; a plain
+Spring context imports the generated `<application name>.configuration.__VernacApplication`
+explicitly. Persistent and nonpersistent components support `activate`; the startup
+coordinator runs required module histories before dependants and the application.
+Use `mvn clean install` with the current compiler to rebuild earlier metadata artifacts.
+
+### Activate nonpersistent module functions (0.4.0)
+
+A module may export domain services and usecases in addition to values, ports and
+adapters. Export all local types used in public signatures and inline result fields.
+Private service dependencies need no export. Consumer imports use original Vernac
+identities; implementations come from compiled dependency classes.
+
+```vernac-application
+application example.shop {
+    activate example.billing;
+    bind example.billing.PaymentProvider from configuration "billing.payment-provider";
+}
+```
+
+Activation registers all services/usecases in that module, including internal helpers,
+and transitively activates modules supplying declared functional dependencies. Type
+imports and port implementations do not imply activation. Selected adapters remain
+profile-controlled. An application-supplied transaction manager is required for
+executing usecases; REQUIRED calls join the current transaction. Module-owned entity/aggregate/repository contracts can be published, imported and
+activated with coordinated migration histories. Module event contracts and synchronous/deferred receivers are supported; payload
+tables belong to producers and the shared delivery table belongs to the application. See [the executable functional model](tutorials/type-modules.md#activate-a-reusable-usecase-without-exposing-its-helpers).
+
+### Prepare a module migration bundle (0.4.0 foundation)
+
+The standalone Maven goal `vernac:module-persistence` packages an ordered, checksum-
+verified SQL/snapshot chain and expected schema beneath
+`META-INF/vernac/modules/<logical-module>/`. It does not apply SQL or enable persistent
+module exports. In projects with a `.vmodule`, schema/migration/check/compile goals
+now default SQL sources to `src/main/vernac-schema/migration`, outside ordinary Maven
+resources. Applications retain `src/main/resources/db/migration`. An explicit
+`vernac.migrations` override remains available.
+
+Generate/review the next migration before preparing a changed schema. Every module
+SQL file needs its source snapshot; repeatable migrations are not supported here.
+Persistent contract publication automatically prepares/verifies the bundle. Persistent
+activation coordinates verified histories at startup. Recorded module events and synchronous/deferred receivers use those verified histories;
+the shared delivery schema is generated only by the application.
+See [the persistence preparation contract](contracts/modules.md#module-persistence-bundle-preparation-current).
+
+### Persistent module contracts (0.4.0 foundation)
+
+Entities, aggregates, their collections and repositories may be explicitly exported.
+Export all local ID, field and public signature types. Consumers use the compiled
+classes/interface from the dependency and MUST NOT define a local repository for a
+foreign aggregate. Imported repositories contribute no local tables or generated JDBC
+classes. External VOs in local aggregates still flatten into locally owned tables.
+
+Persistent publication requires a matching source migration history and automatically
+packages/verifies the isolated bundle. Field mutability, read/modify modes and repository
+query/pagination signatures are part of `module-contracts-8` compatibility metadata.
+Explicit persistent activation coordinates verified module histories in dependency order,
+then application migrations, before dependent beans become callable. It requires the
+application DataSource, transaction manager and Spring Boot Flyway initializer. No SQL is run by import,
+compile or packaging. Do not bypass activation with dependency component scanning.
+
+### Executable persistent-module lifecycle example
+
+See [examples/persistent-modules](../examples/persistent-modules/README.md): two Maven
+producer artifacts export values and usecases while retaining private repositories;
+the application activates the dependant module explicitly. Required modules migrate
+before dependants, then the application's own history runs. If an exported VO shape
+changes, every owner embedding it MUST generate and review its own migration. Rebuild
+dependants against the changed public contract; a required field needs an explicit
+backfill for existing rows. Importing a value alone does not activate its producer.
+
+### Exported events and module listeners (0.4.0)
+
+A module MAY export an `event` or `recorded event` and MUST explicitly export every local payload type
+in its public contract. Consumers import the original qualified event name, construct
+it through the compiled factory, emit it from an active usecase context, or declare a
+synchronous or deferred listener on it. No dependency event classes are regenerated.
+
+Listeners are internal runtime receivers rather than exported callable APIs. Activating
+the receiver's module registers its listeners under qualified identities.
+A listener-only module can be activated. Deferred receivers require the producer's
+compiled storage component and activate that required producer transitively. Event imports alone do not activate a publisher
+or receiver. Declared usecase/service/repository dependencies of active listeners can
+activate the required functional modules transitively.
+
+A synchronous listener executes immediately in the emitting usecase's transaction.
+Its exception fails that transaction. A deferred listener has its own persisted job,
+processing transaction, confirmation and retry. Several active receivers may observe
+the same event; their deferred jobs succeed/fail independently.
+
+An illustrative publisher model (the receiving code below uses this public contract):
+
+```vernac
+namespace example.billing;
+id InvoiceId;
+value CustomerName(String text);
+event InvoiceOpened(InvoiceId, CustomerName);
+```
+
+```vernac
+namespace example.observer;
+import example.billing.InvoiceOpened;
+synchronous listener ObserveInvoiceOpened on InvoiceOpened behavior {
+    java imports { org.slf4j.LoggerFactory; }
+    execute {
+        LoggerFactory.getLogger("example.observer").info("Invoice {} opened", event.invoiceId());
+    }
+}
+```
+
+The receiving artifact declares `module example.observer {}` if it exports no callable
+API, and the application uses `activate example.observer;`. Metadata is
+`module-contracts-8`; rebuild producer and dependant artifacts together.
+
+### Durable event ownership and startup
+
+For a `.vmodule` producer, every local event has a prepared payload table and compiled
+storage adapter, including plain events whose later consumers are not known yet.
+Creating a table does not imply recording: emission persists the payload only for a
+recorded event or at least one active deferred recipient. Module schemas MUST NOT
+contain `vernac.@delivery`; the consuming application's migration owns that shared
+table. Merely importing a module event does not activate its producer or execute SQL.
+
+A module deferred listener depends on the producer's EVENT_STORAGE component. Local
+application deferred listeners on dependency events require explicit activation of
+the producer. Likewise, code emitting an imported recorded event must arrange producer
+activation; a Java import alone supplies no runtime storage adapter. Do not declare
+repositories or storage classes for foreign event payloads in the consumer.
+
+The application determines its delivery schema from local deferred listeners and its
+activated/profile-eligible module graph. Generate/review application migrations after
+changing this graph. One Boot worker polls all active recipients only after required
+module and application migrations/validation have completed. It preserves the existing
+lease, at-least-once, per-recipient acknowledgment, retry and blocked-job semantics.
+Receivers must make external effects idempotent; SQL rollback does not undo them.
+
+Record flags and storage capability participate in module-contracts-8 metadata.
+Rebuild all producers/dependants. Structural event/VO changes can make pending payloads
+incompatible; migrate deliberately or introduce a new versioned event type. Review
+event evolution independently of an ordinary aggregate upgrade.
+
+
+### HTTP entrypoints supplied by modules
+
+A module may contain ordinary `adapter ... inbound http` definitions. These are internal
+entrypoints, not exported callable types. Activate the owning logical module in the
+application's `.vapplication` file to register its controllers and scoped error policies.
+Required usecase modules activate transitively. A dependency or type import alone exposes
+no routes, even under component scanning. DTOs, mappings and errors remain producer-owned;
+consumer compilation does not regenerate them. The application supplies
+`vernac-runtime-http` and `spring-boot-starter-web`. Route paths are unchanged; ambiguous
+routes fail at MVC startup. See the [persistent module walkthrough](../examples/persistent-modules/README.md)
+for the API module and a real cross-module HTTP call.
+
+
+### Module authoring and dependency refresh checklist
+
+- A `.vmodule` exports public contracts; a `.vapplication` selects/activates runtime
+  composition. Do not put application bindings in a producer module.
+- Build/install the producer, declare the consumer Maven dependency, then build the
+  consumer. Maven selects versions; the LSP reads the build-written index.
+- Export every local type referenced by a public signature, including result fields
+  and collection types. Internal services/listeners/HTTP adapters need no public export.
+- Use Go To Declaration on an activation identity for a read-only module overview.
+  Type navigation opens available producer sources or a marked contract view.
+- After dependency builds, completion/navigation detect changed indexes. Incompatible
+  metadata is diagnosed on open files. Never edit generated contract views as a fix.
+- Keep module SQL histories immutable after publication. When an exported VO changes,
+  inspect all owners that persist it: the producer's tables and each consumer's own
+  flattened columns require separately reviewed migrations/backfills.
+- This module scope is implemented. SaaS permission/quota policies, ready-made billing
+  providers, distributed transactions and cross-artifact refactoring are separate work.

@@ -1,6 +1,6 @@
 # Publish domain values, consume their contracts
 
-Two separate Maven artifacts demonstrate a reusable type module. The `library`
+Three separate Maven artifacts demonstrate a reusable type module. The `library`
 project publishes IDs, values, an enum and a named list. The `application` project
 imports them through an ordinary dependency, includes them in an aggregate and
 uses the library's actual compiled factories. No dependency classes are regenerated.
@@ -39,9 +39,50 @@ marked read-only contract view under target. No artifact versions are independen
 selected by the language server.
 
 See [the module contract](../../docs/contracts/modules.md) for the distinction between
-this implemented type-module slice and planned functional-module activation/migrations.
+type-only imports and explicit functional-module activation/migrations.
 
 Follow [the module lifecycle tutorial](../../docs/tutorials/type-modules.md) for
 initial migrations, an exported-value change, application backfills and Flyway
-application. It distinguishes the executable type-module workflow from planned
-functional activation and module-owned histories.
+application. It covers type-only imports, functional activation and module-owned
+histories. For the executable cross-module lifecycle and HTTP API, see
+[the persistent module example](../persistent-modules/README.md).
+
+## A reusable port contract
+
+The library also exports PaymentProvider with `ExternalRef charge(Money)`. The
+application imports that interface and defines DevelopmentPaymentProvider using
+ordinary adapter behavior. The test invokes it directly through PaymentProvider;
+it is a local fixture and makes no payment. No Spring activation or automatic
+provider selection is implied. This shows the prerequisite for a separate provider
+artifact; the separate providers artifact now demonstrates implementation exports and selection.
+
+After this compiler update, rebuild producer artifacts: the metadata contract version
+is `module-contracts-8`. Existing development metadata is intentionally not accepted.
+
+## Run the Spring profile demonstration
+
+The `providers` project exports NoopPaymentProvider and ConfiguredTestPaymentProvider.
+Both are local fixtures and make no payment. The application definition selects the
+provider from `billing.payment-provider`, supplied by application-dev.yaml or
+application-prod.yaml. Generated Boot auto-configuration performs registration;
+there is no broad component scan of the provider module.
+
+After installing the example reactor, from the Vernac repository root:
+
+```text
+mvn -f examples/type-modules/application/pom.xml spring-boot:run
+```
+
+The default dev profile requires no fixture API key. In PowerShell, test the prod
+profile using a local fixture value (never a real provider credential):
+
+```powershell
+$env:PAYMENT_FIXTURE_API_KEY = 'local-fixture-only'
+mvn -f examples/type-modules/application/pom.xml spring-boot:run "-Dspring-boot.run.profiles=prod"
+```
+
+For IntelliJ, use the unquoted Maven argument and set the environment variable in
+that run configuration. ProfileBindingTest exercises both selections automatically.
+Functional-module activation and independent module migrations are supported in
+[the persistent module example](../persistent-modules/README.md). Importing the shared
+contracts and selecting a fixture here does not require activate.

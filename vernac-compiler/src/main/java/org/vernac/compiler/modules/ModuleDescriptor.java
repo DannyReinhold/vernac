@@ -8,13 +8,25 @@ import org.vernac.compiler.ast.*;
 
 /** Versioned data, never executable source or Java serialization. */
 public record ModuleDescriptor(int formatVersion,String contractVersion,String module,String groupId,
-        String artifactId,String version,List<Definition> exports,List<Requirement> externalContracts,List<String> internalTypes) {
+        String artifactId,String version,List<Definition> exports,List<Requirement> externalContracts,List<String> internalTypes,List<Component> components,boolean persistent) {
+    public boolean activatable() {
+        return persistent || components.stream().anyMatch(c->org.vernac.runtime.application.ActivationPlan.isFunctionalKind(c.kind()));
+    }
     public static final String RESOURCE="META-INF/vernac/module.json";
     public static final ObjectMapper JSON=new ObjectMapper();
-    public static final String CONTRACT="type-modules-1";
-    public record Type(String name,boolean optional) { }
-    public record Field(String name,Type type) { }
-    public record Method(String name,Type returns,List<Field> parameters) { public Method {parameters=List.copyOf(parameters);} }
+    public static final String CONTRACT="module-contracts-8";
+    public record Type(String name,boolean optional,String pageKind) {
+        public Type(String name,boolean optional) {this(name,optional,"NONE");}
+        public Type {pageKind=pageKind==null?"NONE":pageKind;TypeNode.PageKind.valueOf(pageKind);}
+    }
+    public record Component(String identity,String kind,String javaName,List<String> dependencies) {
+        public Component {dependencies=List.copyOf(dependencies);}
+    }
+    public record Field(String name,Type type,boolean mutable) {public Field(String name,Type type){this(name,type,false);}}
+    public record Method(String name,Type returns,List<Field> parameters,String mode) {
+        public Method(String name,Type returns,List<Field> parameters){this(name,returns,parameters,"DEFAULT");}
+        public Method {parameters=List.copyOf(parameters);if(!Set.of("DEFAULT","READ","MODIFY","OFFSET_QUERY","COUNTED_OFFSET_QUERY","CURSOR_QUERY").contains(mode))throw new IllegalArgumentException("Invalid public method mode: "+mode);}
+    }
     public record Definition(String identity,String kind,String javaName,List<Field> fields,List<String> constants,
             String element,String collectionKind,List<Method> methods,Map<String,String> javaMembers,
             String source,int line,int column,String fingerprint) {
@@ -36,9 +48,16 @@ public record ModuleDescriptor(int formatVersion,String contractVersion,String m
     }
     public String coordinates() { return groupId+":"+artifactId+":"+version; }
     public ModuleDescriptor(int formatVersion,String contractVersion,String module,String groupId,String artifactId,String version,List<Definition> exports,List<Requirement> externalContracts) {
-        this(formatVersion,contractVersion,module,groupId,artifactId,version,exports,externalContracts,List.of());
+        this(formatVersion,contractVersion,module,groupId,artifactId,version,exports,externalContracts,List.of(),List.of(),false);
+    }
+    public ModuleDescriptor(int formatVersion,String contractVersion,String module,String groupId,String artifactId,String version,List<Definition> exports,List<Requirement> externalContracts,List<String> internalTypes) {
+        this(formatVersion,contractVersion,module,groupId,artifactId,version,exports,externalContracts,internalTypes,List.of(),false);
+    }
+    public ModuleDescriptor(int formatVersion,String contractVersion,String module,String groupId,String artifactId,String version,List<Definition> exports,List<Requirement> externalContracts,List<String> internalTypes,List<Component> components) {
+        this(formatVersion,contractVersion,module,groupId,artifactId,version,exports,externalContracts,internalTypes,components,false);
     }
     public ModuleDescriptor {
+        components=components==null?List.of():components.stream().sorted(Comparator.comparing(Component::identity)).toList();
         exports=List.copyOf(exports);externalContracts=List.copyOf(externalContracts);internalTypes=internalTypes==null?List.of():List.copyOf(internalTypes);
         if(formatVersion!=1 || !CONTRACT.equals(contractVersion))throw new IllegalArgumentException("Unsupported Vernac module format/contract version");
         Objects.requireNonNull(module);Objects.requireNonNull(groupId);Objects.requireNonNull(artifactId);Objects.requireNonNull(version);

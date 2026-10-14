@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: module_demo
+      POSTGRES_USER: module_demo
+      POSTGRES_PASSWORD: local-demo-only
+    ports:
+      - "127.0.0.1:55435:5432"
+    volumes:
+      - module-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U module_demo -d module_demo"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  module-data:

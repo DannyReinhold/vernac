@@ -357,5 +357,74 @@ Yes. A type library publishes explicit exports through `vernac-module.vmodule` b
 its POM. Add its Maven dependency and import the exported namespace/type normally.
 The consumer references the existing Java classes; it does not regenerate them.
 External VO fields can be flattened into your own aggregate tables, so a library
-update may require an application migration. Functional-module activation and module
-migration streams are later scope. See the [two-artifact example](../../examples/type-modules/README.md).
+update may require an application migration. Functional modules also support explicit
+activation and coordinated, independent migration histories. See the [two-artifact example](../../examples/type-modules/README.md).
+
+## Versioned modules in the 0.4.0 development line
+
+### I changed a library VO. Why does my application need its own migration?
+
+A module owns only its own tables. If your application embeds an exported CustomerName
+in Account, its flattened columns belong to Account's application history. Updating
+the module cannot migrate that other owner's columns. Generate and review a migration
+for every owner embedding the changed value, then rebuild all dependent contracts.
+An added required field needs an explicit backfill decision for existing rows.
+[Try the complete three-owner upgrade](../../examples/persistent-modules/README.md#upgrade-the-exported-value-with-existing-data).
+
+### Does adding a module dependency automatically create its database tables?
+
+No. Maven makes exported contracts available; type imports alone do not activate
+components or execute SQL. Explicit activation starts the selected capability. A
+usecase dependency can require another functional module transitively; the coordinator
+runs its history first. A mere dependency on a port or value does not trigger that
+activation. This keeps a reusable type library free from unwanted runtime side effects.
+[Follow activation and ownership](../tutorials/type-modules.md).
+
+### Which module owns a stored event and which owns its delivery jobs?
+
+The producer owns the typed payload table and storage adapter. The application owns
+the one shared delivery table, with one job per deferred recipient. Activating a
+module receiver requires the producer's storage; importing the event type alone does
+not start anything. The worker starts after required module histories and the
+application history have migrated and passed schema validation.
+
+A failed receiver's SQL rolls back before a retry is scheduled. Other recipients
+can succeed independently. External API effects still require idempotency.
+[Run the restart/retry example](../../examples/persistent-modules/README.md).
+
+
+### Will adding an API module dependency immediately expose its HTTP endpoints?
+
+No. A module can package an inbound HTTP adapter, but its routes and scoped error
+handler are registered only when that module is activated. Merely importing one of its
+values does not expose an API. This also holds when dependency packages are scanned.
+
+Activate the API module in your `.vapplication` file. Its usecase dependencies require
+other functional modules transitively, and their database migrations run first. The
+application supplies the HTTP runtime and Spring MVC. The producer owns request/response
+DTOs, mappings and the public error policy; none needs copying into the application.
+Authentication and authorization still belong to your application's security policy.
+[Try the module-owned API](../../examples/persistent-modules/README.md#call-the-module-owned-http-api).
+
+
+### I upgraded a module dependency. Why does the editor still show its old types?
+
+The language server deliberately uses Maven's resolved dependency index instead of
+resolving a second, possibly different version itself. Changing a dependency version
+in the POM is therefore not enough: rebuild the consuming project with the matching
+Vernac tools. The build writes `target/vernac-module-index.json` and source hints.
+Editor/watch events and subsequent completion/navigation requests detect updated indexes.
+
+An incompatible descriptor or required public contract produces a diagnostic, rather
+than silently keeping stale types. Rebuild an older development module with the current
+tools, or select a compatible dependency. Generated read-only views under `target` are
+navigation aids; editing them cannot repair a published contract.
+
+### Where does Go To Declaration on an activated module take me?
+
+An activation names a whole logical module, not one exported class. Navigation opens a
+read-only overview with its Maven coordinates, exports and runtime dependencies. This
+also works for listener-only or HTTP API modules with no exported types. To inspect an
+individual exported type, navigate its import/use instead: available source attachments
+are preferred, with a clearly marked contract view as fallback. Internal component names
+shown in the overview do not make those components public imports.
