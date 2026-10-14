@@ -1,6 +1,6 @@
 # Versioned Vernac modules
 
-Status: 0.4.0-SNAPSHOT supports value, entity/aggregate, collection, repository,
+Status: 0.4.0 supports value, entity/aggregate, collection, repository,
 port/adapter and service/usecase export contracts. Persistent producers package a
 matching schema/migration bundle, and consumers verify it before importing types.
 Persistent and nonpersistent functions support explicit runtime activation with

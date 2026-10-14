@@ -2,8 +2,8 @@
 
 You have a model compiling. Now you want to understand its generated API, connect it
 to an application, or explain an unexpected result. Start with the situation closest
-to yours below. These answers describe Vernac **0.3.0**; source checkouts use matching
-**0.4.0-SNAPSHOT** artifacts for the next development line.
+to yours below. These answers describe Vernac **0.4.0**; source checkouts use matching
+**0.4.0-SNAPSHOT** artifacts for local development.
 
 New to the language? Follow [your first domain model](../tutorials/your-first-domain-model.md)
 first. For exact requirements, use the [specification](../specification/index.md).
@@ -37,7 +37,7 @@ The IntelliJ plugin bundles its language server; it does not install the Maven
 compiler/runtime artifacts. Check the application's `vernac.version`, the Maven
 runner's JDK/settings and the selected Maven repository.
 
-A released 0.3.0 consumer downloads matching artifacts from Maven Central **after
+A released 0.4.0 consumer downloads matching artifacts from Maven Central **after
 publication**. A source checkout using 0.4.0-SNAPSHOT requires a local installation:
 run `mvn clean install` from the Vernac repository root with JDK 25. `verify` tests
 and packages artifacts but does not install them. Restarting IntelliJ also discards
@@ -258,7 +258,7 @@ skipped counts before claiming database coverage.
 
 The release workflow requires its named database and plugin suites to execute and
 rejects skipped reactor reports. [Run the database tests](../tutorials/database-persistence.md#7-run-the-database-tests)
-and [review the release gates](../development/release-0.3.0.md).
+and [review the release gates](../development/release-0.4.0.md).
 
 
 ### How can I show a numbered page without loading every matching aggregate?
@@ -360,7 +360,7 @@ External VO fields can be flattened into your own aggregate tables, so a library
 update may require an application migration. Functional modules also support explicit
 activation and coordinated, independent migration histories. See the [two-artifact example](../../examples/type-modules/README.md).
 
-## Versioned modules in the 0.4.0 development line
+## Versioned modules in 0.4.0
 
 ### I changed a library VO. Why does my application need its own migration?
 

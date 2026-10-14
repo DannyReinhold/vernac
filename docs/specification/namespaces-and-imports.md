@@ -1,6 +1,6 @@
 # Namespaces and Imports
 
-Status: normative requirements for the 0.3.0 language revision.
+Status: normative requirements for the 0.4.0 language revision.
 
 This specification defines namespace and import semantics. Compiler and editor
 implementations MUST use the same resolution rules. Verification evidence and

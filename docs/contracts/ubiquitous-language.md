@@ -1,6 +1,6 @@
 # Ubiquitous language and term documentation
 
-Status: implemented in 0.4.0-SNAPSHOT. A term documents a concept; it is not an
+Status: implemented in 0.4.0. A term documents a concept; it is not an
 executable definition, field type, dependency, table or Spring bean.
 
 ## Declarations and identity

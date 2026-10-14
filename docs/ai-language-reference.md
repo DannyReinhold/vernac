@@ -1,6 +1,6 @@
 # Vernac: self-contained reference for AI code generation
 
-Language baseline: **Vernac 0.4.0-SNAPSHOT development**, extending released 0.3.0.
+Language baseline: **Vernac 0.4.0**. Source checkouts default to 0.4.0-SNAPSHOT.
 Multiple attached collections require the 0.4.0 compiler/runtime/tooling described
 here; HTTP inbound adapters require at least 0.3.0. This document describes implemented
 project compilation, not proposed features. Provide this entire file to an AI together
@@ -643,11 +643,15 @@ Do NOT generate these as supported language:
 - `new Title(...)`, `Task.create(id, ...)`, implicit value(), ordinary VO asString().
 - Generic domain List/Map, built-ins as aggregate fields, aggregate-valued VO fields.
 - Unspecified public usecase methods, usecase Result inferred from Java, uses(...).
-- `permission`, `requires`, entitlement/quota/subscription declarations or module exports.
-- External nonpersistent usecases and domain services support explicit activation. Module-owned entity/aggregate/repository contracts can be published and imported. Persistent activation and coordinated migrations are supported, as are plain module
-  events and synchronous/deferred receivers, including producer-owned payload storage. See the module sections below.
+- `permission`, `requires`, entitlement/quota/subscription declarations.
+- Module export declarations inside `.vernac` sources; exports belong in `.vmodule`.
 - Generated MCP/Kafka/RabbitMQ endpoints, automatic async ports.
 - Database rollback restoring object state or guaranteeing rollback of remote effects.
+
+Module usecases and domain services support explicit activation. Module-owned
+entity/aggregate/repository contracts can be published and imported. Persistent
+activation, coordinated migrations, module events and synchronous/deferred receivers
+are supported. See the module sections below for their exact syntax and limits.
 
 Obsolete entity/package/custom-repository productions have been removed from the
 0.3.0 compiler. Parsing still does not validate embedded Java: verify the current

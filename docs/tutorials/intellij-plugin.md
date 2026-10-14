@@ -31,7 +31,7 @@ generates and compiles Java sources. Editor diagnostics do not replace a success
 
 ## 1. Prepare your environment
 
-This guide describes the **0.3.0 plugin**. Match its compiler/runtime version, and
+This guide describes the **0.4.0 plugin**. Match its compiler/runtime version, and
 check the packaged descriptor for IDE compatibility.
 
 - Use a compatible IntelliJ IDEA installation. The current plugin descriptor targets build `262.10968.63` through the
@@ -43,7 +43,7 @@ check the packaged descriptor for IDE compatibility.
 
 ### Released plugin versus a source build
 
-For the published 0.3.0 plugin, the wizard selects matching 0.3.0 Maven artifacts.
+For the published 0.4.0 plugin, the wizard selects matching 0.4.0 Maven artifacts.
 They are downloaded from Central; building the Vernac repository is unnecessary.
 Before that release is published, use the source-build route below instead.
 

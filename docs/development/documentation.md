@@ -31,9 +31,9 @@ member naming, enums and collections) were consolidated into compiler-architectu
 Git history retains their patch-by-patch evidence. Candidate-state design, scalar
 representation rationale and other still-relevant technical decisions remain.
 
-Reference, contracts and tutorials describe the **0.3.0 language revision**. Source-checkout
-instructions explicitly distinguish the next **0.4.0-SNAPSHOT** development artifact
-from the published **0.3.0** release. Release builds select their version through revision. Documentation MUST NOT declare a release
+Reference, contracts and tutorials describe the **0.4.0 language revision**. Source-checkout
+instructions explicitly distinguish the local **0.4.0-SNAPSHOT** development artifact
+from the **0.4.0** publication. Release builds select their version through revision. Documentation MUST NOT declare a release
 published before publication, or introduce a future development target prematurely.
 Historical release records retain their original versions and are labelled historical.
 The example application version (such as 0.1.0-SNAPSHOT) is independent of its

@@ -2,7 +2,7 @@
 
 Status: **planned, not implemented**. Planning baseline: 2026-10-12, after Vernac
 0.2.0; development line 0.4.0-SNAPSHOT. This is an actionable design backlog, not
-an accepted language contract or a promise that all work will ship in 0.3.0.
+an accepted language contract or a promise that this work ships in 0.4.0.
 
 ## Goal
 

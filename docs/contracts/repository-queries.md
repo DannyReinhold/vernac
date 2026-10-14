@@ -71,7 +71,7 @@ compiler diagnostics. Arbitrary Java types, expressions, SQL and projections are
 not accepted. `is absent` refers to model presence, not to an arbitrary nullable
 storage column; any later extension must reuse the storage plan's presence rules.
 
-In 0.4.0-SNAPSHOT, a root may declare several collections. A query selects its return type explicitly;
+In 0.4.0, a root may declare several collections. A query selects its return type explicitly;
 the resolver checks that particular collection's element identity and list/set kind,
 rather than treating the first declaration as a default.
 

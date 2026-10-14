@@ -1,6 +1,6 @@
 # Names, Unicode and source encoding
 
-Status: normative naming contract for the 0.3.0 language revision.
+Status: normative naming contract for the 0.4.0 language revision.
 
 This contract applies to namespace segments, declared type names, field names,
 parameter names, method names and enum constants. Existing type-specific naming

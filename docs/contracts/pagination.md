@@ -1,6 +1,6 @@
 # Pagination contract
 
-Status: **runtime, offset and cursor JDBC repository pagination implemented in 0.4.0-SNAPSHOT**.
+Status: **runtime, offset and cursor JDBC repository pagination implemented in 0.4.0**.
 Paginated usecase results, adapter-local DTO page fields and HTTP response mappings
 are also implemented. Technical request types remain Java APIs, not global domain
 built-ins; modeled inputs continue to use application-defined domain values. Ordinary, unqualified

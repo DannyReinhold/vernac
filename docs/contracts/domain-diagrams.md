@@ -1,6 +1,6 @@
 # Domain diagram export
 
-Status: implemented as a bounded tooling feature in 0.4.0-SNAPSHOT. Diagram output is
+Status: implemented as a bounded tooling feature in 0.4.0. Diagram output is
 a read-only projection of the resolved model, not another source of language semantics.
 
 ## Scope and identity

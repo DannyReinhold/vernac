@@ -70,7 +70,7 @@ framework convention.
 
 ## Start with a passing test
 
-This documentation describes the **Vernac 0.4.0-SNAPSHOT development language and API**. Use matching
+This documentation describes the **Vernac 0.4.0 language and API**. Use matching
 compiler, runtime and IntelliJ plugin versions; earlier releases do not support all
 constructs documented here. For a source checkout, the commands below build and install
 the version configured in its root POM (currently `0.4.0-SNAPSHOT`).
@@ -120,7 +120,7 @@ part of the documented contracts, not details to discover in production.
 
 The repository contains the compiler, Maven plugin, runtime modules for core/JDBC/JSON/HTTP,
 and IntelliJ/LSP tooling. See [contributor documentation](docs/development/index.md)
-and the [0.3.0 release plan](docs/development/release-0.3.0.md).
+and the [0.4.0 release plan](docs/development/release-0.4.0.md).
 The 0.3.0 compiler also generates HTTP inbound adapters around usecases;
 see [the tutorial](docs/tutorials/inbound-http.md). MCP and messaging adapters remain
 planned. Ordinary Java/Spring entry points continue to work alongside generated ones.

@@ -1,10 +1,9 @@
 # Vernac consolidation status
 
-Status: **0.3.0 released; next development version 0.4.0-SNAPSHOT**.
-The published release was built from `e81edf7738c4f7bceea2cdc07b74ed58d725f912`
-in [the successful release workflow](https://github.com/DannyReinhold/vernac/actions/runs/38251115877).
-This separates implemented functionality from planned work, not a blanket claim of
-production readiness. The [0.3.0 plan](release-0.3.0.md) is now historical release context.
+Status: **0.4.0 release preparation; source defaults to 0.4.0-SNAPSHOT**.
+The previous published release is 0.3.0. This page records implementation scope,
+not publication or production-readiness guarantees. Follow the [0.4.0 acceptance plan](release-0.4.0.md)
+and retain actual CI/distribution evidence before declaring publication complete.
 
 ## Reviewed and implemented
 

@@ -4,12 +4,12 @@ Start with a passing domain test. Then follow a delivery operation through behav
 transactions, persistence, events and an external carrier. Each chapter answers a
 practical question; focused examples isolate details when the full system would distract.
 
-These tutorials describe **Vernac 0.3.0**. Use JDK 25 for the documented builds;
-generated application code targets Java 21. Released consumers use 0.3.0 artifacts
+These tutorials describe **Vernac 0.4.0**. Use JDK 25 for the documented builds;
+generated application code targets Java 21. Released consumers use 0.4.0 artifacts
 from Maven Central after publication. Repository examples use 0.4.0-SNAPSHOT by
 default: install matching local artifacts first, or select the release with
-`-Dvernac.version=0.3.0` after publication.
-Commands with `mvn` are terminal commands; omit `mvn` in IntelliJ's Maven command window.
+`-Dvernac.version=0.4.0` after publication.
+Commands below include `mvn`; use the full command in the IntelliJ Maven run configuration used for these examples.
 In PowerShell, quote a complete dotted `-Dproperty=value` argument when necessary.
 
 ## How to use the examples

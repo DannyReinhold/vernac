@@ -1,8 +1,8 @@
 # Vernac language reference
 
-This reference describes the **Vernac 0.4.0-SNAPSHOT development language and generated API**. Use matching
-compiler and runtime versions. The next development checkout builds 0.4.0-SNAPSHOT;
-published 0.3.0 consumers use its earlier contract, with one collection per element. Obsolete experimental syntax is not supported.
+This reference describes the **Vernac 0.4.0 language and generated API**. Use matching
+compiler and runtime versions. Source checkouts default to 0.4.0-SNAPSHOT;
+released consumers select matching 0.4.0 artifacts after publication. Obsolete experimental syntax is not supported.
 The [specification index](specification/index.md) identifies the normative document
 for each rule. A discrepancy between implementation and contract is a defect to
 investigate, not permission to silently redefine the contract.

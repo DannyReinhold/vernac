@@ -1,6 +1,6 @@
 # Domain Collection Contract
 
-Status: normative contract for the 0.4.0-SNAPSHOT language revision. MUST denotes a requirement.
+Status: normative contract for the 0.4.0 language revision. MUST denotes a requirement.
 Build and installed-plugin verification are release checks, not alternative semantics.
 
 ## Purpose
