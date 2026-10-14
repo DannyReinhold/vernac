@@ -1,6 +1,6 @@
 # Vernac: self-contained reference for AI code generation
 
-Language baseline: **Vernac 0.4.0**. Source checkouts default to 0.4.0-SNAPSHOT.
+Language baseline: **Vernac 0.4.0**. Source checkouts default to 0.5.0-SNAPSHOT.
 Multiple attached collections require the 0.4.0 compiler/runtime/tooling described
 here; HTTP inbound adapters require at least 0.3.0. This document describes implemented
 project compilation, not proposed features. Provide this entire file to an AI together
@@ -1085,7 +1085,7 @@ response is not permission to repeat a command. Authentication, authorization,
 idempotency keys, OpenAPI, streaming and asynchronous transports are not generated
 by this syntax. Configure those concerns explicitly outside this initial slice.
 
-## 23. Offset and cursor pagination (0.4.0-SNAPSHOT)
+## 23. Offset and cursor pagination (0.4.0)
 
 Accepted repository syntax (Issues MUST be a declared list of Issue):
 

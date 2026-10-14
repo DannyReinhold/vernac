@@ -54,7 +54,7 @@ public final class VernacShowDiagramAction extends AnAction implements DumbAware
         var selected = selection.get();
         // Capture unsaved source documents under a short read action; do not save user files.
         Map<Path, String> snapshots =
-                ReadAction.compute(
+                ReadAction.computeBlocking(
                         () -> {
                             Map<Path, String> result = new HashMap<>();
                             var manager = FileDocumentManager.getInstance();

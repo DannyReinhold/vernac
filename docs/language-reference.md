@@ -1,7 +1,7 @@
 # Vernac language reference
 
 This reference describes the **Vernac 0.4.0 language and generated API**. Use matching
-compiler and runtime versions. Source checkouts default to 0.4.0-SNAPSHOT;
+compiler and runtime versions. Source checkouts default to 0.5.0-SNAPSHOT;
 released consumers select matching 0.4.0 artifacts after publication. Obsolete experimental syntax is not supported.
 The [specification index](specification/index.md) identifies the normative document
 for each rule. A discrepancy between implementation and contract is a defect to
@@ -151,7 +151,7 @@ id TourId set TourIds;
 Each comma-separated list/set clause declares its own collection type and may
 have its own behavior block. Names are independently optional; `value Wert(String)
 list, set Werte;` generates Werts and Werte. Conflicting defaults or explicit names
-are errors. Multiple clauses require the 0.4.0-SNAPSHOT compiler.
+are errors. Multiple clauses require the 0.4.0 compiler.
 
 Collections are explicit final domain classes. Lists preserve order/multiplicity;
 sets retain the first equal instance. Input structure is copied, output views are

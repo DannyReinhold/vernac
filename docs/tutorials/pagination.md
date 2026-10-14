@@ -1,6 +1,6 @@
 # Build a board with independent pages
 
-Status: **0.4.0-SNAPSHOT offset and cursor repository queries implemented**. This chapter shows
+Status: **0.4.0 offset and cursor repository queries implemented**. This chapter shows
 numbered pages, opt-in totals, eager projections and lazy traversal. Paginated Result and GET/DTO declarations are implemented.
 
 ## A board is more than one page

@@ -1,16 +1,17 @@
 # Publishing a Vernac release
 
-This procedure prepares **0.4.0** from **feature/0.4.0**, then main. The latest
-previous release is 0.3.0. Publication is not implied by these instructions:
-confirm Central and Marketplace independently. See the [acceptance checklist](../development/release-0.4.0.md)
-and [release notes](releases/0.4.0.md). Historical 0.3.0 records remain unchanged.
+The release baseline is **0.4.0**; the next development checkout uses **0.5.0-SNAPSHOT**.
+The procedure below retains **0.4.0** as a worked example. Do not rerun publication
+for existing coordinates. For the next release, substitute its agreed version and
+source branch throughout. The [historical checklist](../development/release-0.4.0.md)
+and [release notes](releases/0.4.0.md) retain the 0.4.0 scope.
 
 ## Scope and one version input
 
 `revision` in the root POM drives Maven modules, the IntelliJ ZIP and the dependency
 version inserted by the project wizard. A release invocation uses `-Drevision=0.4.0`;
 the development default is not changed by that invocation. The workflow supplies
-that argument; the source checkout defaults to 0.4.0-SNAPSHOT.
+that argument; the source checkout defaults to 0.5.0-SNAPSHOT.
 You do not need to edit every module POM or pre-install a 0.4.0 release locally.
 
 Standalone application examples generally use their own `vernac.version` property. Select

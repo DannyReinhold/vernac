@@ -1,6 +1,8 @@
 # Vernac 0.4.0 release preparation
 
-Status: **prepared for acceptance, not yet a publication record**.
+Status: **historical 0.4.0 preparation and acceptance record**.
+The next development branch uses 0.5.0-SNAPSHOT. Commands and evidence below
+retain their 0.4.0 context; distribution evidence belongs in the GitHub Release.
 Source branch: feature/0.4.0. Root revision remains 0.4.0-SNAPSHOT; the workflow
 selects 0.4.0 without committing a POM-version change. The [release notes](../maintainers/releases/0.4.0.md)
 define the scope. The [operations guide](../maintainers/releasing.md) describes recovery.

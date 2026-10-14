@@ -3,7 +3,7 @@
 You have a model compiling. Now you want to understand its generated API, connect it
 to an application, or explain an unexpected result. Start with the situation closest
 to yours below. These answers describe Vernac **0.4.0**; source checkouts use matching
-**0.4.0-SNAPSHOT** artifacts for local development.
+**0.5.0-SNAPSHOT** artifacts for local development.
 
 New to the language? Follow [your first domain model](../tutorials/your-first-domain-model.md)
 first. For exact requirements, use the [specification](../specification/index.md).
@@ -38,7 +38,7 @@ compiler/runtime artifacts. Check the application's `vernac.version`, the Maven
 runner's JDK/settings and the selected Maven repository.
 
 A released 0.4.0 consumer downloads matching artifacts from Maven Central **after
-publication**. A source checkout using 0.4.0-SNAPSHOT requires a local installation:
+publication**. A source checkout using 0.5.0-SNAPSHOT requires a local installation:
 run `mvn clean install` from the Vernac repository root with JDK 25. `verify` tests
 and packages artifacts but does not install them. Restarting IntelliJ also discards
 terminal-only environment settings. [Check the plugin setup](../tutorials/intellij-plugin.md).

@@ -98,6 +98,8 @@
 ]]></description>
 
     <change-notes><![CDATA[
+        <h3>0.5.0 development</h3>
+        <p>Domain diagram export uses the supported blocking read-action API for its short document snapshot on the UI thread.</p>
         <h3>Vernac 0.4.0</h3>
         <p>Versioned modules, pagination, inbound error policies, ubiquitous language and domain diagrams.</p>
         <h3>See the architecture</h3>

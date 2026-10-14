@@ -1,7 +1,7 @@
 # Learn Vernac by running examples
 
 Use JDK 25. Generated application code targets Java 21. The snapshot examples use
-`0.4.0-SNAPSHOT`; install the matching Vernac artifacts before running a standalone
+`0.5.0-SNAPSHOT`; install the matching Vernac artifacts before running a standalone
 example. Commands below run from the repository root. In IntelliJ's Maven command
 window, use the commands shown below. In PowerShell quote complete `-D...`
 arguments if they contain dots.

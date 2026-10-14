@@ -9,7 +9,7 @@ build through an exported value change and the application's next migration. It
 then demonstrates nonpersistent functional activation and explains how independent
 migration histories will extend the lifecycle for persistent modules.
 
-**Availability:** the executable steps require **0.4.0-SNAPSHOT**. Values, collections,
+**Availability:** the executable steps require **0.4.0 or newer**. Values, collections,
 ports, adapters, nonpersistent domain services and usecases are supported. Nonpersistent functional activation is described below. Persistent contract publication
 and bundle verification are supported; coordinated runtime migration execution is supported; the initial migration exercise here concerns application-owned data.
 
@@ -23,7 +23,7 @@ The example library has three identities serving different purposes:
 
 | Identity | Example | Purpose |
 | --- | --- | --- |
-| Maven artifact | `org.vernac:vernac-example-shared-values:0.4.0-SNAPSHOT` | Select and distribute a compiled version |
+| Maven artifact | `org.vernac:vernac-example-shared-values:0.5.0-SNAPSHOT` | Select and distribute a compiled version |
 | Logical module | `example.shared.values` | Identify the module and its contracts in diagnostics |
 | Vernac type | `example.shared.Money` | Name the type in an import and in the model |
 

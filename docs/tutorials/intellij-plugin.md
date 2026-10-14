@@ -47,7 +47,7 @@ For the published 0.4.0 plugin, the wizard selects matching 0.4.0 Maven artifact
 They are downloaded from Central; building the Vernac repository is unnecessary.
 Before that release is published, use the source-build route below instead.
 
-A development plugin built from this checkout uses **0.4.0-SNAPSHOT**. Install its
+A development plugin built from this checkout uses **0.5.0-SNAPSHOT**. Install its
 matching artifacts from the repository root first:
 
 ```shell
