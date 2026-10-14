@@ -36,6 +36,13 @@ public final class QueryResolver {
                     || target.symbol().kind()!=TypeSymbol.Kind.AGGREGATE) {
                 error(repo.location(),"Repository requires an aggregate root."); continue;
             }
+            if(source.external()) {
+                for(var method:repo.methods()){resolveType(scope,method.returnType());for(var parameter:method.parameters())resolveType(scope,parameter.type());}
+                continue;
+            }
+            if(project.sources().stream().anyMatch(s->s.external()&&s.path().equals(target.symbol().sourceFile()))) {
+                error(repo.location(),"Cannot create a local repository for a module-owned aggregate: "+target.symbol().identity().qualifiedName()+". Import its exported repository instead.");continue;
+            }
             AggregateNode aggregate=(AggregateNode)definitions.get(target.symbol().identity().qualifiedName());
             Set<String> names=new HashSet<>(Set.of("byId","save","delete","getClass","hashCode","equals","toString","wait","notify","notifyAll","finalize","clone","rootMapping","entityMappings","tables"));
             for(var method:repo.methods()) {
@@ -49,14 +56,22 @@ public final class QueryResolver {
                     if(!target.equals(returns)) error(method.location(),"Optional query result must be the repository aggregate: "+aggregate.name()+"?");
                     if(!method.orders().isEmpty()) error(method.location(),"Optional singleton queries cannot use order by; multiple matches are an error.");
                 } else {
-                    var collection=aggregate.collection();
-                    String expected=collection.map(c->target.symbol().identity().namespace()+"."+c.nameFor(aggregate.name())).orElse("");
-                    if(!(returns instanceof ResolvedType.Declared rt) || rt.symbol().kind()!=TypeSymbol.Kind.COLLECTION
-                            || !rt.symbol().identity().qualifiedName().equals(expected))
+                    var collection = returns instanceof ResolvedType.Declared rt
+                            && rt.symbol().kind() == TypeSymbol.Kind.COLLECTION
+                            ? CollectionTypes.find(project, rt.symbol().identity()) : Optional.<CollectionDeclaration>empty();
+                    if (collection.isEmpty() || !((ResolvedType.Declared) returns).symbol().identity().namespace().equals(target.symbol().identity().namespace())
+                            || !collection.get().elementName().equals(aggregate.name()))
                         error(method.location(),"Query result requires an explicitly declared list or set of "+aggregate.name()+". Declare it on the aggregate, or use "+aggregate.name()+"?.");
-                    list=collection.isPresent() && collection.get().kind()==CollectionDefinitionNode.Kind.LIST;
+                    list = collection.isPresent() && collection.get().definition().kind() == CollectionDefinitionNode.Kind.LIST;
                     if(!list && !method.orders().isEmpty()) error(method.location(),"A set result cannot preserve order by; use a list result.");
                     if(list && method.orders().isEmpty()) diagnostics.add(CompilerDiagnostic.warning(method.location(),"List query has no order by; result order is unspecified."));
+                }
+                if(method.counting() && !method.offset())
+                    error(method.location(), "counting requires an offset query.");
+                if(method.paginated()) {
+                    if(singleton || !list) error(method.location(), "Pagination requires a declared list of complete aggregates.");
+                    if(method.orders().isEmpty() || !method.orders().getLast().field().equals("id"))
+                        error(method.location(), "Pagination requires order by with the aggregate id as its final explicit tie-breaker.");
                 }
                 Map<String,FieldNode> params=new HashMap<>();
                 for(var p:method.parameters()) {
@@ -94,7 +109,8 @@ public final class QueryResolver {
                 for(var o:method.orders()) {
                     var f=field(aggregate,o.field(),o.location());
                     if(f==null) continue;
-                    if(!ORDERED.contains(f.scalar())) error(o.location(),"Ordering is not supported for "+o.field()+" ("+f.scalar()+").");
+                    if(!ORDERED.contains(f.scalar()) && !(method.paginated() && o.field().equals("id"))) error(o.location(),"Ordering is not supported for "+o.field()+" ("+f.scalar()+").");
+                    if(method.cursor() && f.optional()) error(o.location(), "Cursor sort fields must be required: " + o.field());
                     if(!sorted.add(o.field())) error(o.location(),"Duplicate sort field: "+o.field());
                     orders.add(new ResolvedQuery.Order(f,o.descending()));
                 }

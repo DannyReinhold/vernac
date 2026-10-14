@@ -31,9 +31,9 @@ member naming, enums and collections) were consolidated into compiler-architectu
 Git history retains their patch-by-patch evidence. Candidate-state design, scalar
 representation rationale and other still-relevant technical decisions remain.
 
-Reference, contracts and tutorials describe the **0.3.0 language revision**. Source-checkout
-instructions explicitly distinguish the **0.3.0-SNAPSHOT** development artifact from the
-**0.3.0** release selected by the workflow. Documentation MUST NOT declare a release
+Reference, contracts and tutorials describe the **0.4.0 language revision**. Source-checkout
+instructions explicitly distinguish the local **0.4.0-SNAPSHOT** development artifact
+from the **0.4.0** publication. Release builds select their version through revision. Documentation MUST NOT declare a release
 published before publication, or introduce a future development target prematurely.
 Historical release records retain their original versions and are labelled historical.
 The example application version (such as 0.1.0-SNAPSHOT) is independent of its
@@ -43,7 +43,7 @@ vernac.version dependency. Automatic website version injection is not introduced
 
 DocumentationExamplesTest extracts the complete entry-point models from Markdown,
 compiles their generated Java and exercises domain behavior. Existing mapping/REST
-tutorial execution tests remain. Fourteen complete tutorial models are also checked
+tutorial execution tests remain. Fifteen complete tutorial models are also checked
 for semantic validity and code generation. These checks do not validate every partial snippet,
 IDE gesture, website renderer or production runtime claim.
 

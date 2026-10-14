@@ -1,0 +1,4 @@
+application example.app {
+    bind example.shared.PaymentProvider
+        from configuration "billing.payment-provider";
+}

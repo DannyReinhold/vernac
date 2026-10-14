@@ -31,7 +31,7 @@ public final class VernacLspIntegrationProvider
             VirtualFile file,
             LspClientStarter clientStarter
     ) {
-        boolean supported = file.getFileType() == VernacFileType.INSTANCE;
+        boolean supported = (file.getFileType() == VernacFileType.INSTANCE || file.getFileType() == VernacModuleFileType.INSTANCE || file.getFileType() == VernacApplicationFileType.INSTANCE);
 
         if (supported) {
             clientStarter.ensureClientStarted(
@@ -76,12 +76,12 @@ public final class VernacLspIntegrationProvider
 
         @Override
         public boolean isSupportedFile(VirtualFile file) {
-            return file.getFileType() == VernacFileType.INSTANCE;
+            return (file.getFileType() == VernacFileType.INSTANCE || file.getFileType() == VernacModuleFileType.INSTANCE || file.getFileType() == VernacApplicationFileType.INSTANCE);
         }
 
         @Override
         public String getLanguageId(VirtualFile file) {
-            return "vernac";
+            return file.getFileType() == VernacApplicationFileType.INSTANCE ? "vernac-application" : file.getFileType() == VernacModuleFileType.INSTANCE ? "vernac-module" : "vernac";
         }
 
         @Override

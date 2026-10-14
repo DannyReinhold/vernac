@@ -2,8 +2,8 @@
 
 You have a model compiling. Now you want to understand its generated API, connect it
 to an application, or explain an unexpected result. Start with the situation closest
-to yours below. These answers describe Vernac **0.3.0**; source checkouts use matching
-**0.3.0-SNAPSHOT** artifacts before release.
+to yours below. These answers describe Vernac **0.4.0**; source checkouts use matching
+**0.4.0-SNAPSHOT** artifacts for local development.
 
 New to the language? Follow [your first domain model](../tutorials/your-first-domain-model.md)
 first. For exact requirements, use the [specification](../specification/index.md).
@@ -37,8 +37,8 @@ The IntelliJ plugin bundles its language server; it does not install the Maven
 compiler/runtime artifacts. Check the application's `vernac.version`, the Maven
 runner's JDK/settings and the selected Maven repository.
 
-A released 0.3.0 consumer downloads matching artifacts from Maven Central **after
-publication**. A source checkout using 0.3.0-SNAPSHOT requires a local installation:
+A released 0.4.0 consumer downloads matching artifacts from Maven Central **after
+publication**. A source checkout using 0.4.0-SNAPSHOT requires a local installation:
 run `mvn clean install` from the Vernac repository root with JDK 25. `verify` tests
 and packages artifacts but does not install them. Restarting IntelliJ also discards
 terminal-only environment settings. [Check the plugin setup](../tutorials/intellij-plugin.md).
@@ -258,6 +258,200 @@ skipped counts before claiming database coverage.
 
 The release workflow requires its named database and plugin suites to execute and
 rejects skipped reactor reports. [Run the database tests](../tutorials/database-persistence.md#7-run-the-database-tests)
-and [review the release gates](../development/release-0.3.0.md).
+and [review the release gates](../development/release-0.4.0.md).
+
+
+### How can I show a numbered page without loading every matching aggregate?
+
+Declare a paginated repository query with a named **list** result and a complete
+explicit order, for example `find offset Issues open() order by createdAt desc, id asc;`.
+Its generated query object accepts `page(OffsetRequest.ofPage(3, 20))`; only that
+window is returned, and every entry is a fully reconstructed aggregate. Existing
+unqualified find methods keep returning their whole collection.
+
+Add `counting` before the semicolon when the UI needs “page 3 of 27”. The returned
+CountedOffsetPage exposes totalElements and totalPages. An offset past the last row
+returns an empty items list with the original total, not an invented last page.
+Without counting, OffsetPage provides hasNext without computing the total.
+
+### Does pagination make repeated requests observe one unchanged dataset?
+
+No. A counted page's root selection and count share one SQL statement snapshot, and
+child reconstruction verifies root versions. Concurrent changes to selected roots
+may raise an optimistic-lock conflict. Separate requests/traversal steps may observe
+new data, so inserts/deletes can shift offsets. Vernac does not silently change your
+transaction isolation or retry. Use stable sorting with explicit id as the final
+tie-breaker; cursor queries avoid offset shifting for unchanged sort keys, but do not freeze the
+dataset either.
+
+### Can I return the lazy page iterator from a usecase to an HTTP serializer?
+
+No. Its next load needs the usecase transaction. Consume `.pages(request).items()`
+inside that transaction, or load one materialized page and project its entries eagerly.
+Every JDBC load checks the active transaction and rejects requests above the configured
+maximum (`vernac.pagination.max-page-size`, default 1000). Pagination components in
+Vernac Result declarations and HTTP mappings are supported. The
+[pagination tutorial](../tutorials/pagination.md) shows the currently executable API.
+
+### When should I use a cursor instead of a numbered page?
+
+Use `find cursor` for successive sections of an explicitly ordered list, such as an
+activity feed or sequential processing. Start with CursorRequest.first(size), then
+send the returned nextCursor with the same filters. The last returned root may be
+deleted: its saved boundary still works. A cursor has no absolute page number or
+count; choose `find offset ... counting` for “page 3 of 27”. Neither freezes future
+requests against concurrent changes.
+
+### Why does my cursor stop working after a restart or on another server?
+
+Without configuration, Vernac encrypts/authenticates cursors with a random process-local
+key. Set `vernac.pagination.cursor-key` to the same secret (Base64 of 32 random bytes)
+across restarts and replicas to retain continuations. Changing the key, filters,
+repository method or owned schema invalidates old tokens; start a new traversal.
+Never use tokens as authorization and never commit the key. See the
+[cursor configuration tutorial](../tutorials/pagination.md#continue-after-the-last-ordered-key).
+
+### Can one HTTP response contain two separately paged lists and other information?
+
+Yes. Declare a tuple result such as `returns (Title heading, counted offset Summaries
+openItems, counted offset Summaries closedItems, cursor Summaries activity)`. Each
+component keeps its own request position and metadata. Project whole aggregate pages
+into a named value list before Result.of. The adapter maps these into corresponding
+`counted offset list<ItemDto>`/`cursor list<ItemDto>` fields; an entry mapping converts
+the values while metadata is preserved. Each load is independent, rather than a
+promise of one frozen snapshot across all board components. The
+[pagination tutorial](../tutorials/pagination.md) shows the full model and GET.
+
+### Why does the result require values rather than pages of aggregates?
+
+An aggregate is mutable domain state. Returning immutable summaries makes the
+application boundary explicit and lets serialization finish without accessing the
+repository. Use page.mapItems(Summaries::of, mapper), then declare the matching result
+variant. Sets lose order, optional pages confuse absence with an empty window, and
+lazy sequences would perform database work after the usecase transaction; all are
+rejected as result contracts.
+
+### Do I need special pagination types in my domain model?
+
+No. Technical request factories live in the runtime Java API. You can define ordinary
+PageNumber/PageSize/CursorToken VOs with your own validation and pass them to a usecase.
+Unpack their getters explicitly into OffsetRequest/CursorRequest. Their spelling has
+no magic and does not reserve those names globally. The result uses a page qualifier,
+which is a completed application result, not a field type for a persisted aggregate.
 
 [All tutorials](../tutorials/index.md) · [Language reference](../language-reference.md)
+
+## How can an HTTP endpoint report a business failure without exposing internal details?
+
+Use an inbound `errors` policy. A status-only rule keeps the existing safe code and
+message; two explicit strings provide an application-specific public code and message.
+Rules on an endpoint run before shared adapter rules. Unmatched errors retain defaults.
+Technical integration failures can be selected by their existing responsibility and
+category: a remote timeout can become 503, while an invalid upstream response can
+become 502. The HTTP reply does not erase the original integration diagnostics.
+See [inbound error policies](../contracts/inbound-http.md#declarative-inbound-error-policies-040).
+
+## Can I reuse values from a separately published Vernac library?
+
+Yes. A type library publishes explicit exports through `vernac-module.vmodule` beside
+its POM. Add its Maven dependency and import the exported namespace/type normally.
+The consumer references the existing Java classes; it does not regenerate them.
+External VO fields can be flattened into your own aggregate tables, so a library
+update may require an application migration. Functional modules also support explicit
+activation and coordinated, independent migration histories. See the [two-artifact example](../../examples/type-modules/README.md).
+
+## Versioned modules in 0.4.0
+
+### I changed a library VO. Why does my application need its own migration?
+
+A module owns only its own tables. If your application embeds an exported CustomerName
+in Account, its flattened columns belong to Account's application history. Updating
+the module cannot migrate that other owner's columns. Generate and review a migration
+for every owner embedding the changed value, then rebuild all dependent contracts.
+An added required field needs an explicit backfill decision for existing rows.
+[Try the complete three-owner upgrade](../../examples/persistent-modules/README.md#upgrade-the-exported-value-with-existing-data).
+
+### Does adding a module dependency automatically create its database tables?
+
+No. Maven makes exported contracts available; type imports alone do not activate
+components or execute SQL. Explicit activation starts the selected capability. A
+usecase dependency can require another functional module transitively; the coordinator
+runs its history first. A mere dependency on a port or value does not trigger that
+activation. This keeps a reusable type library free from unwanted runtime side effects.
+[Follow activation and ownership](../tutorials/type-modules.md).
+
+### Which module owns a stored event and which owns its delivery jobs?
+
+The producer owns the typed payload table and storage adapter. The application owns
+the one shared delivery table, with one job per deferred recipient. Activating a
+module receiver requires the producer's storage; importing the event type alone does
+not start anything. The worker starts after required module histories and the
+application history have migrated and passed schema validation.
+
+A failed receiver's SQL rolls back before a retry is scheduled. Other recipients
+can succeed independently. External API effects still require idempotency.
+[Run the restart/retry example](../../examples/persistent-modules/README.md).
+
+
+### Will adding an API module dependency immediately expose its HTTP endpoints?
+
+No. A module can package an inbound HTTP adapter, but its routes and scoped error
+handler are registered only when that module is activated. Merely importing one of its
+values does not expose an API. This also holds when dependency packages are scanned.
+
+Activate the API module in your `.vapplication` file. Its usecase dependencies require
+other functional modules transitively, and their database migrations run first. The
+application supplies the HTTP runtime and Spring MVC. The producer owns request/response
+DTOs, mappings and the public error policy; none needs copying into the application.
+Authentication and authorization still belong to your application's security policy.
+[Try the module-owned API](../../examples/persistent-modules/README.md#call-the-module-owned-http-api).
+
+
+### I upgraded a module dependency. Why does the editor still show its old types?
+
+The language server deliberately uses Maven's resolved dependency index instead of
+resolving a second, possibly different version itself. Changing a dependency version
+in the POM is therefore not enough: rebuild the consuming project with the matching
+Vernac tools. The build writes `target/vernac-module-index.json` and source hints.
+Editor/watch events and subsequent completion/navigation requests detect updated indexes.
+
+An incompatible descriptor or required public contract produces a diagnostic, rather
+than silently keeping stale types. Rebuild an older development module with the current
+tools, or select a compatible dependency. Generated read-only views under `target` are
+navigation aids; editing them cannot repair a published contract.
+
+### Where does Go To Declaration on an activated module take me?
+
+An activation names a whole logical module, not one exported class. Navigation opens a
+read-only overview with its Maven coordinates, exports and runtime dependencies. This
+also works for listener-only or HTTP API modules with no exported types. To inspect an
+individual exported type, navigate its import/use instead: available source attachments
+are preferred, with a clearly marked contract view as fallback. Internal component names
+shown in the overview do not make those components public imports.
+
+
+### Can I explain what a domain word means without creating another Java class?
+
+Yes. Declare a term in the relevant namespace: `term Order { description "A submitted
+purchase request."; }`. A term may share a name with an aggregate or value object;
+exact namespace/name equality associates the text with that definition. Quoted names
+allow concepts with spaces and no corresponding class. Terms never become field types.
+
+Use examples and notes to explain distinctions that a class name cannot convey. The
+IDE presents them in type hover, and a successful Vernac Maven compile writes readable
+and machine-readable glossaries under target. Exported module types carry their associated
+documentation so consuming Vernac editors do not need source attachments for that hover.
+[Follow the vocabulary tutorial](../tutorials/ubiquitous-language.md).
+
+
+### Can I see a diagram without inspecting all generated Java classes?
+
+Yes. Select Tools → Vernac → Show Domain Diagram while editing a Vernac file, or run
+`mvn vernac:diagram`. The generated Markdown page shows the selected namespace's model,
+its explicit relationships and associated vocabulary. Use Markdown Preview with the
+Mermaid extension enabled. PlantUML source is also exported.
+
+The diagram deliberately omits technical generated classes. Arrows describe declarations,
+not a reconstructed runtime call sequence. Run the action again after edits; automatic
+live diagrams and clickable graph navigation are outside this first increment.
+[Follow the diagram tutorial](../tutorials/domain-diagrams.md).

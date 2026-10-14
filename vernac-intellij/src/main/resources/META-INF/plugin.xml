@@ -98,6 +98,55 @@
 ]]></description>
 
     <change-notes><![CDATA[
+        <h3>Vernac 0.4.0</h3>
+        <p>Versioned modules, pagination, inbound error policies, ubiquitous language and domain diagrams.</p>
+        <h3>See the architecture</h3>
+        <p>Tools → Vernac → Show Domain Diagram exports the current namespace and opens a
+        Mermaid Markdown view with domain vocabulary. PlantUML and JSON exports accompany it.
+        The action includes unsaved Vernac documents and uses the built dependency index.</p>
+        <h3>Ubiquitous language beside the model</h3>
+        <ul><li>Define namespaced terms, including quoted concepts with spaces, with descriptions, examples and notes.</li>
+        <li>Type hover displays exact-name vocabulary, including documentation from exported module types without source attachments.</li>
+        <li>Term navigation, entry completion and highlighting share compiler semantics.</li>
+        <li>Maven compilation produces readable and machine-readable glossaries; generated Java source carries associated JavaDoc.</li></ul>
+        <h3>Versioned modules: complete 0.4.0 scope</h3>
+        <ul>
+            <li>Publish explicit contracts and reuse compiled implementations from Maven dependencies.</li>
+            <li>Activate usecases, services, repositories, listeners and HTTP entrypoints; select outbound providers through fixed or profile-dependent bindings.</li>
+            <li>Coordinate independent module/application histories and durable event delivery.</li>
+            <li>Navigate activation identities to read-only module overviews, including modules without exports.</li>
+            <li>Refresh dependency symbols after rebuilt indexes; show incompatible-module diagnostics on open composition files.</li>
+            <li>Preserve source navigation for events and multiple collections in dependency contract views.</li>
+        </ul>
+        <p>Metadata uses module-contracts-9. Rebuild producers and consumers after updating development tools.
+        Updated contracts, language/AI references, FAQs, project guidance and lifecycle examples describe the supported scope.</p>
+        <h3>Declarative inbound error policies</h3>
+        <p>Added ordered endpoint and adapter error rules with typed rejection codes,
+        integration responsibility/category selectors and safe public replies.
+        Diagnostics, enum navigation, category completion and highlighting share
+        the compiler contract.</p>
+        <h3>Multiple domain collections</h3>
+        <p>Declare several lists and sets per ID, value, enum, entity or aggregate.
+        Each collection has an independent optional name and behavior. Completion,
+        declaration navigation and embedded-Java receivers include every collection.</p>
+        <h3>Paginated usecase results and HTTP</h3>
+        <p>Added explicit offset, counted offset and cursor value-list results, independent
+        Result components and page DTO fields. ACL maps entries while retaining metadata;
+        GET responses contain completed pages. Updated completion/navigation and added
+        safe INVALID_CURSOR error handling. Dispatch now includes a paged board API.</p>
+        <h3>Cursor repository pagination</h3>
+        <p>Added find cursor with ordered aggregate lists, deletion-independent continuation,
+        mixed sort directions and query/filter/schema-bound encrypted cursors. Added cursor
+        completion/highlighting and shared key configuration.</p>
+        <h3>Offset repository pagination</h3>
+        <p>Added find offset queries with optional counting, ordered aggregate lists,
+        typed page/traversal APIs, configurable page-size limits and snapshot-consistent
+        root counts. Added completion and semantic highlighting for offset/counting.
+        </p>
+        <h3>Pagination runtime foundation</h3>
+        <p>Typed requests, completed offset/counted/cursor pages and sequential lazy
+        traversal are available in the runtime. Repository offset/cursor queries and
+        materialized usecase/HTTP page results are supported.</p>
         <p>Typed adapter configuration: diagnostics, configuration-type completion,
         and navigation from a REST base to its configuration declaration.</p>
         <h3>Generated API readability</h3>
@@ -178,12 +227,16 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <gotoDeclarationHandler implementation="org.vernac.intellij.VernacJavaDeclarationHandler" order="first"/>
+        <lang.parserDefinition language="VernacApplication" implementationClass="org.vernac.intellij.VernacApplicationParserDefinition"/>
+        <fileType name="Vernac Application Definition" implementationClass="org.vernac.intellij.VernacApplicationFileType" fieldName="INSTANCE" language="VernacApplication" extensions="vapplication"/>
+        <lang.parserDefinition language="VernacModule" implementationClass="org.vernac.intellij.VernacModuleParserDefinition"/>
         <lang.parserDefinition language="Vernac" implementationClass="org.vernac.intellij.VernacParserDefinition"/>
         <multiHostInjector implementation="org.vernac.intellij.VernacJavaInjector"/>
         <lang.elementManipulator forClass="org.vernac.intellij.VernacInjectionHost"
                                  implementationClass="org.vernac.intellij.VernacHostManipulator"/>
         <newProjectWizard.generator
                 implementation="org.vernac.intellij.VernacNewProjectWizard"/>
+        <fileType name="Vernac Module Definition" implementationClass="org.vernac.intellij.VernacModuleFileType" fieldName="INSTANCE" language="VernacModule" extensions="vmodule"/>
         <fileType
                 name="Vernac"
                 implementationClass="org.vernac.intellij.VernacFileType"
@@ -202,10 +255,19 @@
                 implementation="org.vernac.intellij.VernacLspIntegrationProvider"/>
     </extensions>
     <actions>
+        <group id="org.vernac.Tools" text="Vernac" popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <action id="org.vernac.ShowDiagram" class="org.vernac.intellij.VernacShowDiagramAction">
+                <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+                <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+            </action>
+        </group>
         <group id="org.vernac.NewActions" popup="false">
             <add-to-group group-id="NewGroup" anchor="first"/>
             <action id="org.vernac.NewNamespace" class="org.vernac.intellij.VernacNewNamespaceAction"
                     text="Vernac Namespace" description="Create a namespace below the Vernac source root"/>
+            <action id="org.vernac.NewApplication" class="org.vernac.intellij.VernacNewApplicationAction" text="Vernac Application Definition"/>
+            <action id="org.vernac.NewModule" class="org.vernac.intellij.VernacNewModuleAction" text="Vernac Module Definition"/>
             <action id="org.vernac.NewFile" class="org.vernac.intellij.VernacNewFileAction"/>
         </group>
     </actions>

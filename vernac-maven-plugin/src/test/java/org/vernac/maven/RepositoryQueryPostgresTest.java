@@ -27,6 +27,23 @@ class RepositoryQueryPostgresTest {
     @Test void generatedRepositoryCompiles() throws Exception {
         try(var code=compile(model())) { assertNotNull(code.loadClass("querydemo.QueryProbe")); }
     }
+    @Test void generatedRepositoryCompilesWithSeveralExplicitReturnCollections() throws Exception {
+        Path root = model();
+        Path file = root.resolve("querydemo/model.vernac");
+        String source = Files.readString(file)
+                .replace("list Tours;", "set SelectedTours, list Tours, list RecentTours;")
+                .replace("find Tours all() order by title;", """
+                        find Tours all() order by title;
+                        find RecentTours recent() order by createdAt desc;
+                        find SelectedTours selected() where reference is present;
+                        """);
+        Files.writeString(file, source);
+        try (var code = compile(root)) {
+            Class<?> repository = code.loadClass("querydemo.domain.TourRepository");
+            assertEquals("querydemo.domain.RecentTours", repository.getMethod("recent").getReturnType().getName());
+            assertEquals("querydemo.domain.SelectedTours", repository.getMethod("selected").getReturnType().getName());
+        }
+    }
     @Test @EnabledIfEnvironmentVariable(named="VERNAC_PG_TEST_URL",matches=".+")
     void generatedRepositoryExecutesQueriesAndLoadsCompleteGraphs() throws Exception {
         Path root=model();
@@ -48,8 +65,14 @@ class RepositoryQueryPostgresTest {
                 try {
                     var probe=code.loadClass("querydemo.QueryProbe");
                     probe.getMethod("run",DataSource.class).invoke(null,data);
+                    probe.getMethod("pagination",DataSource.class).invoke(null,data);
+                    probe.getMethod("cursors",DataSource.class).invoke(null,data);
                     probe.getMethod("concurrent",DataSource.class,boolean.class).invoke(null,data,false);
                     probe.getMethod("concurrent",DataSource.class,boolean.class).invoke(null,data,true);
+                    probe.getMethod("concurrent",DataSource.class,boolean.class,boolean.class).invoke(null,data,false,true);
+                    probe.getMethod("concurrent",DataSource.class,boolean.class,boolean.class).invoke(null,data,true,true);
+                    probe.getMethod("concurrentCursor",DataSource.class,boolean.class).invoke(null,data,false);
+                    probe.getMethod("concurrentCursor",DataSource.class,boolean.class).invoke(null,data,true);
                 }
                 catch(java.lang.reflect.InvocationTargetException e) {
                     if(e.getCause() instanceof Error error) throw error;

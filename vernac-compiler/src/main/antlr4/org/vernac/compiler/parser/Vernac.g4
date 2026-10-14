@@ -1,5 +1,18 @@
 grammar Vernac;
 
+applicationDefinition
+    : 'application' name=qualifiedName '{' applicationEntry* '}' EOF
+    ;
+applicationEntry
+    : 'activate' moduleName=qualifiedName ';'
+    | 'bind' port=qualifiedName ('to' adapter=qualifiedName | 'from' 'configuration' property=STRING_LITERAL) ';'
+    ;
+
+moduleDefinition
+    : 'module' name=qualifiedName '{' moduleExport* '}' EOF
+    ;
+moduleExport : 'export' exportedType=qualifiedName ';' ;
+
 compilationUnit
     : namespaceDeclaration importDeclaration* topLevelDeclaration* EOF
     ;
@@ -12,8 +25,12 @@ importDeclaration
     : 'import' qualifiedName ('.' '*')? ';'
     ;
 
+termDefinition : 'term' (name=qualifiedNameSegment | label=STRING_LITERAL) '{' termEntry* '}' ';'? ;
+termEntry : kind=('description' | 'example' | 'note') text=STRING_LITERAL ';' ;
+
 topLevelDeclaration
-    : idDeclaration
+    : termDefinition
+    | idDeclaration
     | valueDefinition
     | eventDefinition
     | aggregateDefinition
@@ -31,7 +48,7 @@ topLevelDeclaration
 // 0. Identifier Types
 // ==========================================
 idDeclaration
-    : 'id' name=typeName collectionDefinition? ';'?
+    : 'id' name=typeName (collectionDefinition (',' collectionDefinition)*)? ';'?
     ;
 
 // ==========================================
@@ -43,7 +60,7 @@ valueDefinition
       | '=' enumConstantList
       )
       behaviorBlock?
-      collectionDefinition?
+      (collectionDefinition (',' collectionDefinition)*)?
       ';'?
     ;
 
@@ -95,7 +112,7 @@ aggregateDefinition
     : 'aggregate' name=typeName '[' idReference ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
       behaviorBlock?
-      collectionDefinition?
+      (collectionDefinition (',' collectionDefinition)*)?
       ';'?
     ;
 
@@ -107,7 +124,7 @@ entityDefinition
     : 'entity' name=typeName '[' idReference ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
       behaviorBlock?
-      ( collectionDefinition )?
+      (collectionDefinition (',' collectionDefinition)*)?
       ';'?
     ;
 
@@ -131,14 +148,31 @@ inboundHttpAdapterDefinition
       ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
       '{' 'base' base=STRING_LITERAL ';'
       (inboundEndpoint | schemaDefinition | mappingDefinition)*
-      ('errors' 'implemented' 'by' errorImplementation=qualifiedName ';')? '}' ';'?
+      inboundErrorPolicy? '}' ';'?
     ;
 inboundEndpoint
     : name=methodName '{' verb=('GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE') route=STRING_LITERAL ';'
       inboundBinding* ('body' bodyType=type ';')?
       'execute' dependency=variableName '{' mappingAssignment* '}'
       'respond' status=INT_LITERAL (responseType=type 'using' responseMapping=methodName)? ';'
-      ('on' 'absent' 'respond' absentStatus=INT_LITERAL ';')? '}'
+      ('on' 'absent' 'respond' absentStatus=INT_LITERAL ';')? inboundErrorPolicy? '}'
+    ;
+inboundErrorPolicy
+    : 'errors' ('implemented' 'by' implementation=qualifiedName ';'
+      | '{' inboundErrorRule+ ('otherwise' 'default' ';')? '}')
+    ;
+inboundErrorRule
+    : 'when' inboundErrorSelector 'then' 'respond' status=INT_LITERAL
+      (code=STRING_LITERAL message=STRING_LITERAL)? ';'
+    ;
+inboundErrorSelector
+    : 'rejection' rejectionCode=qualifiedName
+    | 'integration' responsibility=('local' | 'remote' | 'unknown') category=variableName
+    | 'invalid' ('request' | 'cursor')
+    | 'validation'
+    | 'not' 'found'
+    | 'optimistic' 'conflict'
+    | 'domain' 'rejection'
     ;
 inboundBinding
     : kind=('path' | 'query' | 'header') valueType=type name=variableName?
@@ -188,7 +222,7 @@ restBinding
     ;
 
 mappingDefinition
-    : 'mapping' name=methodName ':' targetType=type '<-' sourceType=type
+    : 'mapping' name=methodName ':' targetType=pageType '<-' sourceType=pageType
       ('{' (mappingAssignment* | javaImports? 'java' '{' rawJavaBlock '}') '}'
        | 'implemented' 'by' implementation=qualifiedName ';')
     ;
@@ -201,7 +235,7 @@ schemaDefinition
     ;
 
 schemaField
-    : patch='patch'? fieldType=type name=variableName? ('named' externalName=STRING_LITERAL)?
+    : patch='patch'? fieldType=pageType name=variableName? ('named' externalName=STRING_LITERAL)?
       ('absent' 'as' explicitNull='null')?
     ;
 
@@ -223,9 +257,9 @@ repositoryDefinition
     ;
 
 repositoryFindMethod
-    : 'find' returnType=type name=qualifiedNameSegment '(' parameterList? ')'
+    : 'find' pagination=('offset' | 'cursor')? returnType=type name=qualifiedNameSegment '(' parameterList? ')'
       ('where' repositoryExpression)?
-      ('order' 'by' repositoryOrder (',' repositoryOrder)*)? ';'
+      ('order' 'by' repositoryOrder (',' repositoryOrder)*)? counting='counting'? ';'
     ;
 
 repositoryExpression : repositoryAnd ('or' repositoryAnd)* ;
@@ -244,7 +278,7 @@ repositoryOrder
 // ==========================================
 usecaseDefinition
     : 'usecase' name=typeName '(' inputs=parameterList? ')'
-      ('returns' (resultType=type | '(' results=parameterList ')'))?
+      ('returns' (resultType=pageType | '(' results=resultParameterList ')'))?
       ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
       ('validates' validationBlock)?
       'behavior' '{' javaImports? usecaseBehaviorMember* '}' ';'?
@@ -293,6 +327,10 @@ type
     : rawType=qualifiedName ('<' typeArguments '>')? isOptional='?'?
     ;
 
+pageType : (counted='counted' 'offset' | pageMode=('offset' | 'cursor'))? type ;
+resultParameterList : resultParameter (',' resultParameter)* ;
+resultParameter : isMut='mut'? paramType=pageType name=variableName? ;
+
 typeArguments
     : type (',' type)*
     ;
@@ -303,7 +341,7 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | IDENTIFIER
     | BOOLEAN_LITERAL
     | 'null'
@@ -406,7 +444,7 @@ typeName
     ;
 
 methodName
-    : 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'read' | 'modify' | 'load' | 'save'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
@@ -416,7 +454,7 @@ methodName
     ;
 
 variableName
-    : 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
     | IDENTIFIER

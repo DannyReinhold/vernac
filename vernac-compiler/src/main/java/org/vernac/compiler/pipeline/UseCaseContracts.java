@@ -83,6 +83,19 @@ final class UseCaseContracts {
     }
     private void domain(TypeNode t,FileTypeScope scope,Map<TypeNode,ResolvedType> types,List<CompilerDiagnostic> errors,VernacProject project) {
         var resolved=resolve(t,scope,types,errors);
+        if(t.paginated()) {
+            if(t.isOptional()) error(errors,t.location(),"Paginated usecase results must be required; an empty page represents no matches.");
+            var c=resolved instanceof ResolvedType.Declared d && d.symbol().kind()==TypeSymbol.Kind.COLLECTION
+                    ?CollectionTypes.find(project,d.symbol().identity()):Optional.<CollectionDeclaration>empty();
+            if(c.isEmpty() || !c.get().valueElements() || c.get().definition().kind()!=CollectionDefinitionNode.Kind.LIST) {
+                error(errors,t.location(),"Paginated usecase results require a declared list of IDs, value objects or enums; project aggregates first.");
+            } else {
+                var collection=(ResolvedType.Declared)resolved;
+                var element=new ResolvedType.Declared(project.symbols().find(collection.symbol().identity().namespace()+"."+c.get().elementName()).orElseThrow());
+                types.put(t,new ResolvedType.Page(t.pageKind(),collection,element));
+            }
+            return;
+        }
         boolean valid=resolved instanceof ResolvedType.Declared d && (Set.of(TypeSymbol.Kind.ID,TypeSymbol.Kind.VALUE_OBJECT,TypeSymbol.Kind.ENUM).contains(d.symbol().kind())
                 || d.symbol().kind()==TypeSymbol.Kind.COLLECTION && CollectionTypes.find(project,d.symbol().identity()).map(c -> c.valueElements()).orElse(false));
         if(!valid) error(errors,t.location(),"Usecase inputs/results require IDs, value objects, enums or their collections; wrap Java scalars and pass entity/aggregate IDs.");

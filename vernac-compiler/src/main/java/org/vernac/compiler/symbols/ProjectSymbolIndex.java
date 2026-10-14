@@ -27,6 +27,7 @@ public final class ProjectSymbolIndex {
     private final Map<String, TypeSymbol> symbols;
     private final Map<String, List<TypeSymbol>> namespaces;
     private final List<Problem> problems;
+    private final Map<String,String> hiddenTypes;
 
     public ProjectSymbolIndex(Collection<TypeSymbol> declarations) {
         Map<String, List<TypeSymbol>> groups = new TreeMap<>();
@@ -53,11 +54,18 @@ public final class ProjectSymbolIndex {
                         .add(first);
             }
         }
+        hiddenTypes=Map.of();
         symbols = Collections.unmodifiableMap(accepted);
         byNamespace.replaceAll((key, value) -> List.copyOf(value));
         namespaces = Collections.unmodifiableMap(byNamespace);
         problems = List.copyOf(issues);
     }
+
+    private ProjectSymbolIndex(ProjectSymbolIndex original,Map<String,String> hidden) {
+        symbols=original.symbols;namespaces=original.namespaces;problems=original.problems;hiddenTypes=Map.copyOf(hidden);
+    }
+    public ProjectSymbolIndex withHiddenTypes(Map<String,String> hidden) {return new ProjectSymbolIndex(this,hidden);}
+    public Optional<String> hiddenOwner(String identity) {return Optional.ofNullable(hiddenTypes.get(identity));}
 
     /** Exact Vernac identity lookup. Unknown and invalid declarations have no symbol. */
     public Optional<TypeSymbol> find(String qualifiedName) {

@@ -28,16 +28,16 @@ final class UseCaseJavaProjection {
             List<Fragment> fragments=new ArrayList<>();
             for(var member:members) {
                 if(member.rawJavaBlock()!=null) {
-                    String result=u.resultFields().isEmpty()?u.resultType().map(t -> type(t,scope,owner)).orElse("void"):owner+".Result";
+                    String result=u.resultFields().isEmpty()?u.resultType().map(t -> type(t,scope,owner,project)).orElse("void"):owner+".Result";
                     var params=new ArrayList<String>();
                     params.add(pkg+".access."+u.name()+"Access self");
-                    u.parameters().forEach(p -> params.add(type(p.type(),scope,owner)+" "+p.name()));
+                    u.parameters().forEach(p -> params.add(type(p.type(),scope,owner,project)+" "+p.name()));
                     add(fragments,member.rawJavaBlock(),text,"static "+result+" execute("+String.join(", ",params)+") {\n","}\n");
                 } else if(member.behaviorMethod()!=null && member.behaviorMethod().rawJavaBlock()!=null) {
                     var m=member.behaviorMethod();
                     var node=u.methods().stream().filter(n -> n.location().line()==m.getStart().getLine() && n.name().equals(m.name.getText())).findFirst().orElseThrow();
-                    var params=node.parameters().stream().map(p -> type(p.type(),scope,owner)+" "+p.name()).toList();
-                    add(fragments,m.rawJavaBlock(),text,"private static "+type(node.returnType(),scope,owner)+" "+node.name()+"("+String.join(", ",params)+") {\n","}\n");
+                    var params=node.parameters().stream().map(p -> type(p.type(),scope,owner,project)+" "+p.name()).toList();
+                    add(fragments,m.rawJavaBlock(),text,"private static "+type(node.returnType(),scope,owner,project)+" "+node.name()+"("+String.join(", ",params)+") {\n","}\n");
                 }
             }
             List<Block> blocks=new ArrayList<>();
@@ -50,7 +50,7 @@ final class UseCaseJavaProjection {
             return blocks;
         } catch(IllegalArgumentException | NoSuchElementException incomplete) { return List.of(); }
     }
-    String type(TypeNode t,FileTypeScope scope,String owner) {
+    String type(TypeNode t,FileTypeScope scope,String owner,VernacProject project) {
         String name;
         if(t.name().equals("Result")) name=owner+".Result";
         else if(t.name().equals("void")) name="void";
@@ -58,6 +58,12 @@ final class UseCaseJavaProjection {
             var resolved=scope.resolve(t.name(),t.location()).type().orElseThrow();
             if(resolved instanceof ResolvedType.Declared d) name=d.symbol().identity().namespace()+(d.symbol().kind()==TypeSymbol.Kind.USE_CASE?".usecase.":".domain.")+d.symbol().identity().name();
             else name=JavaTypeNames.canonicalName(resolved);
+        }
+        if(t.paginated()) {
+            var collection=(ResolvedType.Declared)scope.resolve(t.name(),t.location()).type().orElseThrow();
+            var declaration=CollectionTypes.find(project,collection.symbol().identity()).orElseThrow();
+            String element=collection.symbol().identity().namespace()+".domain."+declaration.elementName();
+            name="org.vernac.runtime.pagination."+t.pageKind().javaName()+"<"+element+", "+name+">";
         }
         return t.isOptional()?"java.util.Optional<"+name+">":name;
     }

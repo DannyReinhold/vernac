@@ -71,7 +71,7 @@ public final class VernacProjectLoader {
         return project;
     }
 
-    private VernacProject index(Path sourceRoot, List<VernacSourceFile> sources,
+    public VernacProject index(Path sourceRoot, List<VernacSourceFile> sources,
                                 List<CompilerDiagnostic> diagnostics) {
         Path root = sourceRoot.toAbsolutePath().normalize();
         List<TypeSymbol> symbols = new ArrayList<>();
@@ -84,11 +84,12 @@ public final class VernacProjectLoader {
             for (var definition : source.unit().definitions()) {
                 var declaration = describe(definition);
                 addSymbol(source, declaration.name(), declaration.kind(), definition.location(), symbols, diagnostics);
-                CollectionDeclaration.of(definition).ifPresent(collection ->
+                CollectionDeclaration.of(definition).forEach(collection ->
                         addSymbol(source, collection.name(), TypeSymbol.Kind.COLLECTION,
                                 collection.definition().location(), symbols, diagnostics));
             }
         }
+        org.vernac.compiler.vocabulary.Vocabulary.collect(root,sources,diagnostics);
         var index = new ProjectSymbolIndex(symbols);
         for (var problem : index.problems()) {
             String origins = problem.declarations().stream().map(symbol -> symbol.location().toString())

@@ -21,6 +21,8 @@ final class VernacProjectDiagnostics {
     private final Set<Path> folders = new LinkedHashSet<>();
     private final Set<String> published = new LinkedHashSet<>();
     private final Map<Path, VernacProjectSymbols> symbolSnapshots = new HashMap<>();
+    private final Map<Path,List<String>> moduleInputStamps=new HashMap<>();
+    private final Map<Path,Map<String,Location>> moduleLocations=new HashMap<>();
     private LanguageClient client;
     private boolean workspaceBound;
 
@@ -28,6 +30,8 @@ final class VernacProjectDiagnostics {
 
     synchronized void initialize(InitializeParams params) {
         symbolSnapshots.clear();
+        moduleLocations.clear();
+        moduleInputStamps.clear();
         folders.clear();
         if (params.getWorkspaceFolders() != null && !params.getWorkspaceFolders().isEmpty()) {
             params.getWorkspaceFolders().forEach(folder -> addFolder(folder.getUri()));
@@ -58,12 +62,25 @@ final class VernacProjectDiagnostics {
 
     synchronized List<CompletionItem> complete(String uri, Position position) {
         var symbols = symbols(uri);
-        return symbols == null ? List.of() : symbols.complete(path(uri), position);
+        if(uri.endsWith(".vapplication"))return symbols==null?List.of():applicationComplete(uri,position,symbols);
+        return symbols == null ? List.of() : uri.endsWith(".vmodule") ? symbols.moduleComplete(text(uri),position) : symbols.complete(path(uri), position);
+    }
+
+    synchronized String hover(String uri,Position at) {
+        var symbols=symbols(uri);return symbols==null?"":symbols.hover(path(uri),at);
     }
 
     synchronized List<Location> definition(String uri, Position position) {
         var symbols = symbols(uri);
-        return symbols == null ? List.of() : symbols.definition(path(uri), position);
+        if(uri.endsWith(".vapplication"))return symbols==null?List.of():symbols.applicationDefinition(text(uri),position,moduleLocations.getOrDefault(rootFor(path(uri)),Map.of()));
+        return symbols == null ? List.of() : uri.endsWith(".vmodule") ? symbols.moduleDefinition(text(uri),position) : symbols.definition(path(uri), position);
+    }
+
+    private List<CompletionItem> applicationComplete(String uri,Position position,VernacProjectSymbols symbols) {
+        String source=text(uri);
+        if(source==null)return List.of();
+        try {return symbols.applicationComplete(source,position,org.vernac.compiler.modules.ModuleArtifacts.editorModules(rootFor(path(uri))));}
+        catch(java.io.IOException|RuntimeException e) {return symbols.applicationComplete(source,position);}
     }
 
     private VernacProjectSymbols symbols(String uri) {
@@ -71,29 +88,90 @@ final class VernacProjectDiagnostics {
         if (file == null) return null;
         Path root = rootFor(file);
         if (root == null) return null;
-        if (symbolSnapshots.containsKey(root)) return symbolSnapshots.get(root);
+        var stamp=moduleInputStamp(root);
+        if(moduleInputStamps.containsKey(root)&&!stamp.equals(moduleInputStamps.get(root))) {
+            // Build-produced indexes can change without a client file-watch notification.
+            refresh();
+        }
+        moduleInputStamps.put(root,stamp);
+        if(symbolSnapshots.containsKey(root))return symbolSnapshots.get(root);
         Map<Path, String> texts = new TreeMap<>();
         try {
             if (Files.isDirectory(root)) {
                 try (var paths = Files.walk(root)) {
                     for (Path source : paths.filter(p -> Files.isRegularFile(p, LinkOption.NOFOLLOW_LINKS)
-                            && p.toString().endsWith(".vernac")).toList()) {
+                            && p.toString().endsWith(".vernac") && !p.toString().contains(".module-contracts")).toList()) {
                         Document document = open.get(source);
                         texts.put(source, document == null ? Files.readString(source) : document.text());
                     }
                 }
             }
             open.forEach((source, document) -> {
-                if (root.equals(rootFor(source))) texts.put(source, document.text());
+                if (root.equals(rootFor(source)) && source.toString().endsWith(".vernac")) texts.put(source, document.text());
             });
-            var symbols = new VernacProjectSymbols(root, texts);
+            Set<Path> external=new HashSet<>();
+            Map<String,Location> moduleTargets=new HashMap<>();
+            var dependencies=org.vernac.compiler.modules.ModuleArtifacts.editorModules(root);
+            for(var module:dependencies) {
+                Path manifest=org.vernac.compiler.modules.ModuleArtifacts.projectDirectory(root)
+                    .resolve("target/vernac-module-contracts").resolve(module.module()).resolve("module.vmodule");
+                String overview=org.vernac.compiler.modules.ModuleArtifacts.manifestView(module);
+                Files.createDirectories(manifest.getParent());
+                if(!Files.exists(manifest)||!Files.readString(manifest).equals(overview)) {
+                    if(Files.exists(manifest))manifest.toFile().setWritable(true);
+                    Files.writeString(manifest,overview);
+                }
+                manifest.toFile().setWritable(false);
+                int nameStart=overview.indexOf("\nmodule ")+8;
+                String prefix=overview.substring(0,nameStart);
+                var nameAt=new Position((int)prefix.chars().filter(c->c=='\n').count(),nameStart-prefix.lastIndexOf('\n')-1);
+                moduleTargets.put(module.module(),new Location(manifest.toUri().toString(),
+                    new Range(nameAt,new Position(nameAt.getLine(),nameAt.getCharacter()+module.module().length()))));
+                Set<String> namespaces=module.exports().stream().map(d->d.identity().substring(0,d.identity().lastIndexOf('.'))).collect(java.util.stream.Collectors.toSet());
+                for(String namespace:namespaces) {
+                    Path viewFile=org.vernac.compiler.modules.ModuleArtifacts.projectDirectory(root).resolve("target/vernac-module-contracts").resolve(module.module()).resolve(namespace.replace('.','/')).resolve("contract.vernac");
+                    String view=org.vernac.compiler.modules.ModuleArtifacts.view(module,namespace);
+                    // Navigation fallback is an explicit, non-executable dependency contract view.
+                    java.nio.file.Files.createDirectories(viewFile.getParent());
+                    if(!Files.exists(viewFile)||!Files.readString(viewFile).equals(view)) {
+                        if(Files.exists(viewFile))viewFile.toFile().setWritable(true);
+                        Files.writeString(viewFile,view);
+                    }
+                    viewFile.toFile().setWritable(false);
+                    texts.put(viewFile,view);external.add(viewFile);
+                }
+            }
+            var symbols = new VernacProjectSymbols(root, texts,external);
+            Map<String,Location> origins=new HashMap<>();
+            for(var entry:org.vernac.compiler.modules.ModuleSources.locations(root,dependencies).entrySet()) {
+                var view=entry.getValue();int a=view.start(),b=view.end();
+                String prefix=view.text().substring(0,a),end=view.text().substring(0,b);
+                var start=new Position((int)prefix.chars().filter(c->c=='\n').count(),a-(prefix.lastIndexOf('\n')+1));
+                var finish=new Position((int)end.chars().filter(c->c=='\n').count(),b-(end.lastIndexOf('\n')+1));
+                origins.put(entry.getKey(),new Location(view.path().toUri().toString(),new Range(start,finish)));
+            }
+            symbols.dependencyLocations(origins);
+            moduleLocations.put(root,Map.copyOf(moduleTargets));
+            moduleInputStamps.put(root,stamp);
             symbolSnapshots.put(root, symbols);
             return symbols;
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             if (client != null) client.logMessage(new MessageParams(MessageType.Error,
                     "Could not read Vernac symbols: " + e.getMessage()));
             return null;
         }
+    }
+
+    private static List<String> moduleInputStamp(Path root) {
+        Path target=org.vernac.compiler.modules.ModuleArtifacts.projectDirectory(root).resolve("target");
+        List<String> stamps=new ArrayList<>();
+        for(String name:List.of("vernac-module-index.json","vernac-module-sources.json")) {
+            try {
+                var attributes=Files.readAttributes(target.resolve(name),java.nio.file.attribute.BasicFileAttributes.class);
+                stamps.add(name+":"+attributes.lastModifiedTime()+":"+attributes.size()+":"+attributes.fileKey());
+            }catch(IOException e){stamps.add(name+":unavailable");}
+        }
+        return List.copyOf(stamps);
     }
 
     synchronized void open(String uri, String text, int version) {
@@ -123,6 +201,8 @@ final class VernacProjectDiagnostics {
     /** Save/watch notifications reread disk while preserving all open editor snapshots. */
     synchronized void refresh() {
         symbolSnapshots.clear();
+        moduleLocations.clear();
+        moduleInputStamps.clear();
         Map<String, List<Diagnostic>> diagnostics = new LinkedHashMap<>();
         Set<Path> roots = new LinkedHashSet<>();
         for (var entry : open.entrySet()) {
@@ -130,7 +210,11 @@ final class VernacProjectDiagnostics {
             Path root = rootFor(entry.getKey());
             if (root == null) {
                 diagnostics.get(entry.getValue().uri()).add(problem(
-                        "Place this file below a workspace src/main/vernac directory; its namespace must match the relative directory."));
+                        entry.getKey().toString().endsWith(".vapplication")
+                            ? "Application definitions must be named vernac-application.vapplication and stored beside the Maven project's pom.xml."
+                            : entry.getKey().toString().endsWith(".vmodule")
+                            ? "Module definitions must be named vernac-module.vmodule and stored beside the Maven project's pom.xml."
+                            : "Place this file below a workspace src/main/vernac directory; its namespace must match the relative directory."));
             } else roots.add(root);
         }
         for (Path root : roots) analyze(root, diagnostics);
@@ -147,18 +231,36 @@ final class VernacProjectDiagnostics {
     private void analyze(Path root, Map<String, List<Diagnostic>> diagnostics) {
         Map<Path, String> snapshots = new LinkedHashMap<>();
         open.forEach((path, document) -> {
-            if (root.equals(rootFor(path))) snapshots.put(path, document.text());
+            if (root.equals(rootFor(path)) && path.startsWith(root) && path.toString().endsWith(".vernac")) snapshots.put(path, document.text());
         });
         List<CompilerDiagnostic> problems = new ArrayList<>();
         try {
             var project = new VernacProjectLoader().loadForAnalysis(root, snapshots, problems);
-            problems.addAll(new ProjectTypeResolver().resolve(project).diagnostics());
+            project=org.vernac.compiler.modules.ModuleArtifacts.merge(project,org.vernac.compiler.modules.ModuleArtifacts.editorModules(root),problems);
+            var resolved=new ProjectTypeResolver().resolve(project);
+            problems.addAll(resolved.diagnostics());
+            Path application=org.vernac.compiler.modules.ModuleArtifacts.projectDirectory(root).resolve(org.vernac.compiler.application.ApplicationDefinition.FILE);
+            var appSnapshot=open.get(application);
+            if(appSnapshot!=null||Files.isRegularFile(application)) {
+                try {
+                    var definition=org.vernac.compiler.application.ApplicationDefinition.parse(application,appSnapshot==null?Files.readString(application):appSnapshot.text());
+                    problems.addAll(definition.diagnostics(resolved,org.vernac.compiler.modules.ModuleArtifacts.editorModules(root)));
+                    try {definition.requireBuildSupport();}catch(SemanticValidationException e){problems.addAll(e.diagnostics());}
+                }catch(SemanticValidationException e){problems.addAll(e.diagnostics());}
+            }
+            Path manifest=org.vernac.compiler.modules.ModuleArtifacts.projectDirectory(root).resolve(org.vernac.compiler.modules.ModuleDefinition.FILE);
+            var snapshot=open.get(manifest);
+            if(snapshot!=null||Files.isRegularFile(manifest)) {
+                var definition=org.vernac.compiler.modules.ModuleDefinition.parse(manifest,snapshot==null?Files.readString(manifest):snapshot.text());
+                org.vernac.compiler.modules.ModuleContracts.validateExports(definition,resolved);
+            }
         } catch (SemanticValidationException e) {
             problems.addAll(e.diagnostics());
         } catch (IOException | RuntimeException e) {
             if (client != null) client.logMessage(new MessageParams(MessageType.Error,
                     "Vernac project analysis failed for " + root + ": " + e));
-            snapshots.keySet().forEach(path -> diagnostics.computeIfAbsent(uri(path), ignored -> new ArrayList<>())
+            open.keySet().stream().filter(path->root.equals(rootFor(path))).forEach(path ->
+                diagnostics.computeIfAbsent(uri(path), ignored -> new ArrayList<>())
                     .add(problem("Could not analyze Vernac project: " + e.getMessage())));
             return;
         }
@@ -171,7 +273,7 @@ final class VernacProjectDiagnostics {
             int column = Math.max(0, diagnostic.location().column() - 1);
             // ANTLR counts code points; LSP's default position encoding is UTF-16.
             try {
-                String text = snapshots.containsKey(file) ? snapshots.get(file) : Files.readString(file);
+                String text = open.containsKey(file) ? open.get(file).text() : snapshots.containsKey(file) ? snapshots.get(file) : Files.readString(file);
                 String[] lines = text.split("\n", -1);
                 line = Math.min(line, lines.length - 1);
                 String current = lines[line];
@@ -192,7 +294,19 @@ final class VernacProjectDiagnostics {
 
     private Path rootFor(Path file) {
         if (workspaceBound && folders.stream().noneMatch(file::startsWith)) return null;
+        for(Path candidate=file.getParent();candidate!=null;candidate=candidate.getParent())
+            if(candidate.endsWith(Path.of("target","vernac-module-contracts")))
+                return candidate.getParent().getParent().resolve("src/main/vernac");
+        if(file.getFileName().toString().endsWith(".vapplication")) {
+            return file.getFileName().toString().equals(org.vernac.compiler.application.ApplicationDefinition.FILE)
+                    && Files.isRegularFile(file.getParent().resolve("pom.xml")) ? file.getParent().resolve("src/main/vernac") : null;
+        }
+        if(file.getFileName().toString().endsWith(".vmodule")) {
+            return file.getFileName().toString().equals(org.vernac.compiler.modules.ModuleDefinition.FILE)
+                    && Files.isRegularFile(file.getParent().resolve("pom.xml")) ? file.getParent().resolve("src/main/vernac") : null;
+        }
         for (Path candidate = file.getParent(); candidate != null; candidate = candidate.getParent()) {
+            if(candidate.endsWith(Path.of("target","vernac-module-contracts"))) return candidate.getParent().getParent().resolve("src/main/vernac");
             if (candidate.endsWith(Path.of("src", "main", "vernac"))) return candidate;
         }
         return null;

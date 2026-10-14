@@ -70,10 +70,10 @@ framework convention.
 
 ## Start with a passing test
 
-This documentation describes the **Vernac 0.3.0 language and API**. Use matching
+This documentation describes the **Vernac 0.4.0 language and API**. Use matching
 compiler, runtime and IntelliJ plugin versions; earlier releases do not support all
 constructs documented here. For a source checkout, the commands below build and install
-the version configured in its root POM (currently `0.3.0-SNAPSHOT`).
+the version configured in its root POM (currently `0.4.0-SNAPSHOT`).
 
 Use JDK 25 and Maven 3.9.x (release automation pins 3.9.16). Generated application code targets Java 21.
 From this repository, install the compiler and runtime, then try the minimal template:
@@ -120,7 +120,7 @@ part of the documented contracts, not details to discover in production.
 
 The repository contains the compiler, Maven plugin, runtime modules for core/JDBC/JSON/HTTP,
 and IntelliJ/LSP tooling. See [contributor documentation](docs/development/index.md)
-and the [0.3.0 release plan](docs/development/release-0.3.0.md).
+and the [0.4.0 release plan](docs/development/release-0.4.0.md).
 The 0.3.0 compiler also generates HTTP inbound adapters around usecases;
 see [the tutorial](docs/tutorials/inbound-http.md). MCP and messaging adapters remain
 planned. Ordinary Java/Spring entry points continue to work alongside generated ones.
@@ -135,3 +135,25 @@ Apache License 2.0. See [LICENSE](LICENSE).
 application: move stops, enforce capacity, dispatch tours and observe durable event
 delivery through a generated REST adapter. It runs locally with PostgreSQL and a
 carrier simulator.
+
+
+## Reuse architecture across applications
+
+Publish a Vernac capability as a versioned Maven module. Export its public domain
+contracts, keep implementation helpers internal, and consume the compiled JAR without
+copying or regenerating its definitions. Applications explicitly select providers and
+activate usecases, listeners or HTTP entrypoints; required modules activate transitively.
+
+The [module lifecycle tutorial](docs/tutorials/type-modules.md) follows values from
+publication through consumption and schema evolution. The
+[persistent module application](examples/persistent-modules/README.md) demonstrates
+Billing, Receipts, durable events, an HTTP API and independent migration histories.
+Migration candidates remain subject to application-owner review and testing.
+
+
+The [ubiquitous-language tutorial](docs/tutorials/ubiquitous-language.md) shows how
+to keep domain meanings beside model definitions. Namespaced terms appear in type hover,
+travel with exported module types and produce readable/machine-readable glossaries.
+
+[See the architecture as a diagram](docs/tutorials/domain-diagrams.md): export a namespace
+from Maven or open its diagram directly from IntelliJ.

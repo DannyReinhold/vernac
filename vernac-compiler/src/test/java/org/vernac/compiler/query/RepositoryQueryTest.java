@@ -92,4 +92,61 @@ class RepositoryQueryTest {
         source(MODEL.replace("list Tours","set Tours"),"find Tours all() order by title;");
         assertThrows(SemanticValidationException.class,()->new VernacCompiler().analyzeProject(root));
     }
+    @Test void queryResultsSelectAnyDeclaredCollectionAndRespectItsKind() throws Exception {
+        String model = MODEL.replace("list Tours;", "set SelectedTours, list Tours, list RecentTours;");
+        source(model, "find RecentTours recent() where reference is absent order by createdAt; find SelectedTours selected() where reference is present;");
+        var result = new VernacCompiler().compileProject(root);
+        String jdbc = result.generatedFiles().stream().filter(f -> f.typeSpec().name().startsWith("Jdbc"))
+                .map(Object::toString).reduce("", String::concat);
+        assertTrue(jdbc.contains("RecentTours"));
+        assertTrue(jdbc.contains("SelectedTours"));
+        source(model, "find SelectedTours selected() where reference is present order by createdAt;");
+        var failure = assertThrows(SemanticValidationException.class, () -> new VernacCompiler().analyzeProject(root));
+        assertTrue(failure.getMessage().contains("set result cannot preserve order by"), failure.getMessage());
+    }
+
+    @Test void resultCannotBorrowACollectionFromAnotherAggregateWithTheSameIdType() throws Exception {
+        source(MODEL + "aggregate Other[TourId]() list Others;", "find Others all() where reference is absent;");
+        var failure = assertThrows(SemanticValidationException.class, () -> new VernacCompiler().analyzeProject(root));
+        assertTrue(failure.getMessage().contains("explicitly declared list or set of Tour"), failure.getMessage());
+    }
+
+    @Test void offsetQueriesRequireListsAndAnExplicitIdentityTieBreaker() throws Exception {
+        source(MODEL, "find offset Tours paged(Title title) where title = :title order by createdAt desc, id asc; find offset Tours counted() order by id desc counting;");
+        String java=new VernacCompiler().compileProject(root).generatedFiles().stream().map(Object::toString).reduce("",String::concat);
+        assertTrue(java.contains("OffsetQuery<Tour, Tours> paged"));
+        assertTrue(java.contains("CountedOffsetQuery<Tour, Tours> counted"));
+        assertTrue(java.contains("CountedOffsetPage.of"));
+        assertTrue(java.contains("store.offset"));
+        rejects("find offset Tours paged();", "final explicit tie-breaker");
+        rejects("find offset Tours paged() order by title;", "final explicit tie-breaker");
+        rejects("find offset Tour? paged() order by id;", "declared list");
+        rejects("find Tours counted() order by title counting;", "counting requires");
+        source(MODEL.replace("list Tours", "set Tours"), "find offset Tours paged() order by id;");
+        var failure=assertThrows(SemanticValidationException.class,()->new VernacCompiler().analyzeProject(root));
+        assertTrue(failure.getMessage().contains("declared list"),failure.getMessage());
+    }
+
+    @Test void paginationKeywordsRemainUsableAsNamespaceAndMemberSegments() throws Exception {
+        Path folder=Files.createDirectories(root.resolve("queries/offset/counting"));
+        Files.writeString(folder.resolve("model.vernac"),MODEL.replace("namespace queries;","namespace queries.offset.counting;")
+                + "repository TourRepository for Tour { find offset Tours offset(Title counting) where title = :counting order by id counting; }");
+        assertEquals(1,new VernacCompiler().analyzeProject(root).queries().size());
+    }
+
+    @Test void cursorQueriesRequireStableTotalOrderingAndRequiredSortFields() throws Exception {
+        source(MODEL,"find cursor Tours following(Title title) where title = :title order by price desc, createdAt asc, id desc;");
+        var project=new VernacCompiler().analyzeProject(root);
+        assertTrue(project.queries().values().iterator().next().method().cursor());
+        String java=new VernacCompiler().compileProject(root).generatedFiles().stream().map(Object::toString).reduce("",String::concat);
+        assertTrue(java.contains("CursorQuery<Tour, Tours> following"));
+        assertTrue(java.contains("JdbcCursorSort"));
+        assertTrue(java.contains("CursorPage.of"));
+        rejects("find cursor Tours following() order by title;","final explicit tie-breaker");
+        rejects("find cursor Tours following() order by reference, id;","must be required");
+        rejects("find cursor Tours following() order by ratio, id;","Ordering is not supported");
+        rejects("find cursor Tours following() order by id counting;","counting requires an offset");
+        rejects("find cursor Tour? following() order by id;","declared list");
+    }
+
 }

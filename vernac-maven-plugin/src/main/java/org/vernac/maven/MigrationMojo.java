@@ -12,7 +12,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 /** Creates a new, reviewable Flyway candidate and its source-controlled model snapshot. */
-@Mojo(name = "migration", threadSafe = false)
+@Mojo(name = "migration", threadSafe = false, requiresDependencyResolution = org.apache.maven.plugins.annotations.ResolutionScope.COMPILE)
 public final class MigrationMojo extends SchemaMojo {
     @Parameter(property="vernac.migrationDescription", required=true)
     private String description;

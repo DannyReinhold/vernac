@@ -1,0 +1,25 @@
+namespace example.providers;
+import example.shared.PaymentProvider;
+import example.shared.ExternalRef;
+import example.shared.Money;
+
+// Both providers are development fixtures: neither makes a payment or a network call.
+adapter NoopPaymentProvider implements PaymentProvider {
+    behavior {
+        public ExternalRef charge(Money money) {
+            return ExternalRef.create();
+        }
+    }
+}
+
+adapter ConfiguredTestPaymentProvider implements PaymentProvider {
+    configuration {
+        String apiKey from "payment-fixture.api-key";
+    }
+    behavior {
+        public ExternalRef charge(Money money) {
+            // The fixture demonstrates selected-only configuration, not a real integration.
+            return ExternalRef.create();
+        }
+    }
+}

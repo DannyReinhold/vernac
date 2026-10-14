@@ -1,6 +1,6 @@
 # Domain Collection Contract
 
-Status: normative contract for the 0.3.0 language revision. MUST denotes a requirement.
+Status: normative contract for the 0.4.0 language revision. MUST denotes a requirement.
 Build and installed-plugin verification are release checks, not alternative semantics.
 
 ## Purpose
@@ -39,9 +39,35 @@ value Name(String value) behavior {
 };
 ```
 
-One list or set declaration may be attached to each element definition in this
-version. Defining multiple collection types for one element is a possible future
-extension, not implicit behavior.
+An element definition MAY have zero or more attached list/set declarations,
+separated by commas. Each declaration MAY omit its name independently:
+
+```vernac
+value Wert(String) list, set Werte;
+value Name(String) list History, list Archive, set SelectedNames;
+```
+
+The first declaration produces Werts and Werte. Multiple lists or multiple sets
+are also permitted. Collections remain separate nominal types even when they
+have the same element type and kind. Declaration order does not give one collection
+priority over another.
+
+Each declaration MAY have its own behavior block. Java imports and private helpers
+are local to that block; they MUST NOT leak into another collection's behavior.
+The optional element behavior precedes the collection clauses. A trailing comma
+without another list/set clause is invalid.
+
+Every omitted name derives independently from the same element-name-plus-s rule.
+Two omitted names therefore collide: `value Name(String) list, set;` MUST fail.
+An explicit name can also collide with an inferred name or any namespace type.
+Vernac MUST report the conflict at the declarations, without numbering, silently
+selecting a collection or changing the existing collection's name. Adding a distinctly
+named collection MUST preserve the existing collection's generated API.
+
+Ordinary fields, imports, DTO mappings and persistence select a collection by its
+own type identity. Repository queries MAY return any declared collection of their
+aggregate; ordering rules apply to that selected list/set kind. A collection of a
+different aggregate remains invalid, even if both aggregates use the same ID type.
 
 The default collection name is exactly the element type name plus `s`, with no
 linguistic inflection. TaskId becomes TaskIds; Category becomes Categorys. Authors
@@ -49,7 +75,8 @@ can explicitly choose Categories. No numbering or automatic collision repair is
 permitted. Collections are namespace-level types and participate in ordinary type
 collision checks, reserved built-in type names, imports, and Unicode rules.
 
-Each collection MUST generate one public final class implementing Iterable<T>,
+Each collection MUST generate one public final class implementing Iterable<T>
+(directly for sets, through DomainList<T> for lists),
 annotated @NullMarked, in `<namespace>.domain`. It has private construction and
 private final storage. No collection-specific or inherited package override is
 permitted. The old `collection` keyword is replaced by `list`/`set`.
@@ -260,3 +287,10 @@ completion/navigation across namespaces, field eligibility, and generated symbol
 Collection declarations participate in the multi-file project pipeline for all
 supported owner kinds. Persistence and adapter mappings have separate capability
 rules; see [persistence](postgresql-persistence.md) and [mappings](adapter-mappings.md).
+
+## Pagination type boundary
+
+Generated lists additionally implement the runtime DomainList<T> contract while
+retaining their concrete type and existing asList API. Sets do not. This permits
+[materialized pagination wrappers](pagination.md) to require order at the Java type
+level; it does not add repository pagination syntax or change field eligibility.

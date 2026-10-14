@@ -1,9 +1,9 @@
 # Vernac consolidation status
 
-Status: release preparation for **0.3.0**. The source checkout uses **0.3.0-SNAPSHOT**;
-publication and Marketplace approval are separate release steps.
-This separates implemented functionality from planned work, not a blanket claim of
-production readiness. The [0.3.0 plan](release-0.3.0.md) records the current acceptance gates.
+Status: **0.4.0 release preparation; source defaults to 0.4.0-SNAPSHOT**.
+The previous published release is 0.3.0. This page records implementation scope,
+not publication or production-readiness guarantees. Follow the [0.4.0 acceptance plan](release-0.4.0.md)
+and retain actual CI/distribution evidence before declaring publication complete.
 
 ## Reviewed and implemented
 
@@ -23,7 +23,7 @@ production readiness. The [0.3.0 plan](release-0.3.0.md) records the current acc
 | Usecases                | Named application operations, REQUIRED transactions, explicit results and external implementations                                                                     |
 | Domain services         | Named methods, injected dependencies through self, per-operation preconditions and external implementations                                                            |
 | Events                  | Immutable occurrences, shared EventId, validation, synchronous listeners, relational recording, deferred delivery and workers                                          |
-| HTTP inbound adapters   | Typed path/query/header/body input, usecase invocation, shared mappings including explicit Result sources, scoped error policies                                       |
+| HTTP inbound adapters   | Typed path/query/header/body input, usecase invocation, shared mappings including explicit Result sources, ordered declarative endpoint/adapter error policies, typed rejection and integration selectors, safe defaults                                       |
 | Outbound ports and ACL  | Java adapters, DTO/PATCH semantics, mappings, REST bindings, typed error rules and local HTTP walkthrough                                                              |
 | Schema tooling          | Versioned source snapshots, initial/next migration candidates, explicit transformations, risk gates and Flyway replay checks                                           |
 
@@ -38,7 +38,7 @@ not exhaustive concurrency, platform, historical-data or deployment verification
   Candidate-state atomic mutation remains a documented design, not an implementation.
 - Repositories require a usecase transaction. They do not start transactions or lazy-load.
 - Declarative root queries are implemented; handwritten JDBC/custom query extensions,
-  nested collection predicates, multi-value equality and pagination remain deferred.
+  nested collection predicates, multi-value equality remains deferred.
   Boolean OR/NOT/parentheses and literal/pattern text searches are implemented.
 - Event recording, durable delivery and workers are implemented; event evolution
   and retry/idempotency responsibilities remain explicit operational concerns.
@@ -49,6 +49,15 @@ not exhaustive concurrency, platform, historical-data or deployment verification
   project templates have a source/documentation audit and focused tests; full release
   acceptance still requires database and installed-IDE checks. A green root build alone is
   not evidence that every generated starter project works.
+
+## First 0.4.0 increment: multiple collections
+
+Implemented: comma-separated lists/sets per ID, VO, enum, entity or aggregate.
+Each name is independently optional, each behavior has its own receiver/imports,
+and duplicate derived names fail. Query return types select their actual collection.
+Compiler resolution, generation, Java projection, Java-to-Vernac navigation and LSP
+completion/navigation share the complete set of declarations. [Pagination](../contracts/pagination.md)
+now includes offset/counted and cursor JDBC queries; Result/HTTP integration is now implemented.
 
 ## Next work
 
@@ -65,6 +74,9 @@ and flattening coverage is retained.
   not implemented in this consolidation.**
 - [Capabilities and usecase authorization](capabilities-and-usecase-authorization.md):
   reusable modules, explicit execution permissions and domain-specific limits.
+- [DDD modeling follow-up](ddd-modeling-roadmap.md): aggregate boundaries, scoped uniqueness,
+  reusable rules, named creation and domain variants; planning only.
+- [Ubiquitous language](ubiquitous-language.md): implemented terms, type hover, glossary output and exported-type documentation; AI integration remains planned.
 - Continue applying the [feature review checklist](feature-review-checklist.md), including
   shared compiler/tooling semantics and the quality of generated Java.
 
@@ -98,3 +110,45 @@ graph loading and LSP field/parameter support. See the
 remains an explicit opt-in test step; local generated-Java compilation alone is
 not proof of database semantics. Literal text searches and LIKE predicates are
 implemented; alternative locale-aware sort orders remain deferred.
+
+## Pagination foundation
+
+Implemented technical request values, three materialized result contracts, explicit
+named-list projection and sequential lazy query traversal. Generated list types have
+the DomainList marker, preserving their immutable structure and concrete identity.
+Runtime tests do not establish SQL snapshot/count/cursor behavior. See the
+[remaining implementation sequence](pagination.md).
+
+## Offset repository increment
+
+Implemented list-only offset query declarations with explicit id tie-breakers,
+count-free lookahead, single-statement matching-root count/page snapshots, full-graph
+reconstruction, root-version checks and configurable per-load size limits. The query
+interface supports one completed page or sequential lazy traversal inside the usecase
+transaction. Cursor SQL is now implemented by the following increment; paginated usecase
+Result/HTTP declarations are now implemented.
+
+## Cursor repository increment
+
+Implemented required-key list queries with explicit id tie-breakers, exclusive keyset
+boundaries, decimal ordering-equivalence prefix comparisons, nanosecond components,
+query/filter/schema-bound encrypted/authenticated v1 cursors and configurable durable
+keys. The last returned root need not exist for continuation. Size/transaction/version
+checks remain shared with offset loading. Result/HTTP declarations are now implemented.
+
+## Completed application pages and HTTP
+
+Implemented explicit offset/counted-offset/cursor result qualifiers, required named
+value-list projections, independent Result components and adapter-local page DTOs.
+Mappings preserve the variant/metadata and convert entries through existing ACL.
+Scoped codecs validate counts/windows without global Jackson changes. Invalid cursors
+have a safe 400/INVALID_CURSOR default. Tutorial/AI reference/FAQ, compiler diagnostics,
+LSP field navigation and the Dispatch paging endpoint are included. Request headers
+remain ordinary domain VOs; dynamic filters and backward cursor navigation are deferred.
+
+## Domain diagram tooling
+
+Implemented for 0.4.0: one shared resolved declaration graph exports Mermaid, PlantUML,
+Markdown and versioned JSON per namespace. The IntelliJ action opens its Markdown
+view using existing preview support. See the [tutorial](../tutorials/domain-diagrams.md)
+and [contract](../contracts/domain-diagrams.md). Interactive exploration remains follow-up work.

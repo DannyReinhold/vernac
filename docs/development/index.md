@@ -24,15 +24,21 @@ Release acceptance also includes installation of the packaged IntelliJ plugin.
 - [Schema tooling](postgresql-schema-tooling.md) and [scalar mapping decisions](scalar-persistence-audit.md).
 - [Event delivery](event-delivery.md) and [ports implementation](ports-adapters-and-acl.md).
 
+## Modeling follow-up
+
+- [DDD modeling roadmap](ddd-modeling-roadmap.md): aggregate protection, concurrency-safe uniqueness, reusable rules, factories and domain variants.
+- [Ubiquitous-language proposal](ubiquitous-language.md): implemented initial term/hover/glossary support, with broader vocabulary and AI work deferred.
+
 ## Project maintenance
 
 - [Documentation ownership and validation](documentation.md)
 - [Deep IntelliJ integration roadmap](intellij-deep-integration.md): cross-language refactoring and debugger
   investigation (planned).
-- [Capabilities and usecase authorization](capabilities-and-usecase-authorization.md): planned module and SaaS policy
-  design.
+- [Versioned module completion](module-completion-roadmap.md): implemented scope, regression entrypoints and operational boundaries.
+- [Capabilities and usecase authorization](capabilities-and-usecase-authorization.md): future SaaS policy and reusable capability design on the implemented module system.
 - [Consolidation status](consolidation-status.md)
-- [0.3.0 release plan](release-0.3.0.md)
+- [Pagination implementation sequence](pagination.md): runtime foundation and remaining repository/Result/HTTP work.
+- [0.4.0 release plan](release-0.4.0.md)
 - [Release operations](../maintainers/releasing.md)
 
 Implementation notes explain mechanisms and trade-offs. They do not override the

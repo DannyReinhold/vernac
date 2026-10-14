@@ -1,19 +1,24 @@
 // Copyright 2026 Danny Reinhold
 // SPDX-License-Identifier: Apache-2.0
 package org.vernac.compiler.ast;
+import java.util.List;
 import java.util.Optional;
 
-/** One uniform view of explicitly requested collections on supported domain declarations. */
+/** Uniform views of all explicitly requested collections on a domain declaration. */
 public record CollectionDeclaration(String elementName, CollectionDefinitionNode definition,
                                     Optional<TypeNode> idType, boolean valueElements) {
     public String name() { return definition.nameFor(elementName); }
-    public static Optional<CollectionDeclaration> of(TopLevelDefinition node) {
+    public static List<CollectionDeclaration> of(TopLevelDefinition node) {
         return switch (node) {
-            case IdDeclarationNode id -> id.collection().map(c -> new CollectionDeclaration(id.name(), c, Optional.empty(), true));
-            case ValueObjectNode value -> value.collection().map(c -> new CollectionDeclaration(value.name(), c, Optional.empty(), true));
-            case EntityNode entity -> entity.collection().map(c -> new CollectionDeclaration(entity.name(), c, Optional.of(entity.idDefinition().type()), false));
-            case AggregateNode aggregate -> aggregate.collection().map(c -> new CollectionDeclaration(aggregate.name(), c, Optional.of(aggregate.idDefinition().type()), false));
-            default -> Optional.empty();
+            case IdDeclarationNode id -> declarations(id.name(), id.collections(), Optional.empty(), true);
+            case ValueObjectNode value -> declarations(value.name(), value.collections(), Optional.empty(), true);
+            case EntityNode entity -> declarations(entity.name(), entity.collections(), Optional.of(entity.idDefinition().type()), false);
+            case AggregateNode aggregate -> declarations(aggregate.name(), aggregate.collections(), Optional.of(aggregate.idDefinition().type()), false);
+            default -> List.of();
         };
+    }
+    private static List<CollectionDeclaration> declarations(String element, List<CollectionDefinitionNode> collections,
+                                                            Optional<TypeNode> id, boolean values) {
+        return collections.stream().map(c -> new CollectionDeclaration(element, c, id, values)).toList();
     }
 }

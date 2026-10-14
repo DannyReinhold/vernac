@@ -31,7 +31,7 @@ generates and compiles Java sources. Editor diagnostics do not replace a success
 
 ## 1. Prepare your environment
 
-This guide describes the **0.3.0 plugin**. Match its compiler/runtime version, and
+This guide describes the **0.4.0 plugin**. Match its compiler/runtime version, and
 check the packaged descriptor for IDE compatibility.
 
 - Use a compatible IntelliJ IDEA installation. The current plugin descriptor targets build `262.10968.63` through the
@@ -43,11 +43,11 @@ check the packaged descriptor for IDE compatibility.
 
 ### Released plugin versus a source build
 
-For the published 0.3.0 plugin, the wizard selects matching 0.3.0 Maven artifacts.
+For the published 0.4.0 plugin, the wizard selects matching 0.4.0 Maven artifacts.
 They are downloaded from Central; building the Vernac repository is unnecessary.
 Before that release is published, use the source-build route below instead.
 
-A development plugin built from this checkout uses **0.3.0-SNAPSHOT**. Install its
+A development plugin built from this checkout uses **0.4.0-SNAPSHOT**. Install its
 matching artifacts from the repository root first:
 
 ```shell
@@ -306,3 +306,19 @@ Follow [Your First Domain Model](your-first-domain-model.md) for more exercises 
 already created a project here, adapt that tutorial's package-specific examples to your selected package.
 
 [All tutorials](index.md) · [Documentation home](../index.md)
+
+## Choose an application or a reusable type library
+
+In New Project → Vernac, select **Application** for a local domain model and test,
+or **Module / Type Library** for reusable IDs, values, enums and value collections.
+The type library generates explicit exports and source-JAR packaging; it does not
+generate aggregates or an application definition. Application projects receive an
+empty `vernac-application.vapplication` beside their POM. Its runtime activation
+configuration is still planned. **New → Vernac Application Definition** adds this
+file to an existing Maven project without overwriting an existing definition.
+Continue with the [module lifecycle tutorial](type-modules.md).
+
+Application definitions now receive shared syntax and identity diagnostics. Completion
+after `bind` proposes available ports; after `to` it proposes adapters for that port.
+Go To Declaration follows those type references. Adapter bindings now generate Spring registration and profile-driven selection.
+Explicit activation of full functional modules still fails the build explicitly. Type-module dependencies do not need `activate`.

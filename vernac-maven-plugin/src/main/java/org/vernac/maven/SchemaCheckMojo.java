@@ -13,7 +13,7 @@ import java.util.*;
 import java.nio.file.Files;
 
 /** Replays migrations and compares PostgreSQL catalogs in two newly created disposable databases. */
-@Mojo(name="schema-check", threadSafe=false)
+@Mojo(name="schema-check", threadSafe=false, requiresDependencyResolution=org.apache.maven.plugins.annotations.ResolutionScope.COMPILE)
 public final class SchemaCheckMojo extends SchemaMojo {
     /** Administrative connection to a disposable test server; requires CREATEDB, never uses an application database. */
     @Parameter(property="vernac.checkUrl", defaultValue="${env.VERNAC_CHECK_URL}", required=true)
@@ -45,7 +45,7 @@ public final class SchemaCheckMojo extends SchemaMojo {
                         created.add(db);
                     }
                     Flyway.configure().dataSource(databaseUrl(adminUrl, actual), user, password)
-                            .locations("filesystem:" + migrationDirectory.getAbsolutePath())
+                            .locations("filesystem:" + migrations().getAbsolutePath())
                             .validateMigrationNaming(true).load().migrate();
                     try (Connection c = connect(databaseUrl(adminUrl, expected)); Statement s = c.createStatement()) {
                         s.execute(new MigrationPlanner().plan(SchemaModel.empty(), target, MigrationPlanner.Options.safe()).sql());

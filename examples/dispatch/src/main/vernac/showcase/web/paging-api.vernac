@@ -1,0 +1,31 @@
+namespace showcase.web;
+import showcase.routing.ReadTourBoard;
+import showcase.routing.TourSummary;
+
+adapter PagingApi inbound http uses ReadTourBoard readTourBoard {
+    base "/api/tour-board";
+    board {
+        GET "/";
+        query int plannedPage;
+        query int dispatchedPage;
+        query int pageSize;
+        query String? cursor;
+        execute readTourBoard {
+            plannedPage <- query.plannedPage;
+            dispatchedPage <- query.dispatchedPage;
+            pageSize <- query.pageSize;
+            cursorToken <- query.cursor;
+        }
+        respond 200 Board using board;
+    }
+    schema TourDto(UUID id, String title);
+    schema Board(String heading, counted offset list<TourDto> plannedTours,
+        counted offset list<TourDto> dispatchedTours, cursor list<TourDto> recentTours);
+    mapping tour: TourDto <- TourSummary { id <- source.tourId; title <- source.title; }
+    mapping board: Board <- ReadTourBoard.Result {
+        heading <- source.heading;
+        plannedTours <- source.plannedTours using tour;
+        dispatchedTours <- source.dispatchedTours using tour;
+        recentTours <- source.recentTours using tour;
+    }
+}

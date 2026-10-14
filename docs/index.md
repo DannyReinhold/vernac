@@ -116,8 +116,9 @@ See the **AI‑specific language reference**:
 
 ## Version and prerequisites
 
-These pages describe the **Vernac 0.3.0 language and API**.
-Source checkouts use **0.3.0-SNAPSHOT** until the release workflow selects 0.3.0.
+These pages describe the **Vernac 0.4.0 language and API**.
+Source checkouts default to **0.4.0-SNAPSHOT**. Released consumers select matching
+**0.4.0** artifacts after publication; older versions do not support all features below.
 Use JDK 25 to build the repository; generated applications target Java 21.  
 Persistence examples use PostgreSQL 17.
 
@@ -147,3 +148,25 @@ Vernac usecases. Business decisions stay in the domain.
 [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) ·  
 [Impressum](impressum.md) ·  
 [Privacy](privacy.md)
+
+
+## Reuse architecture across applications
+
+Publish a Vernac capability as a versioned Maven module. Export its public domain
+contracts, keep implementation helpers internal, and consume the compiled JAR without
+copying or regenerating its definitions. Applications explicitly select providers and
+activate usecases, listeners or HTTP entrypoints; required modules activate transitively.
+
+The [module lifecycle tutorial](tutorials/type-modules.md) follows values from
+publication through consumption and schema evolution. The
+[persistent module application](../examples/persistent-modules/README.md) demonstrates
+Billing, Receipts, durable events, an HTTP API and independent migration histories.
+Migration candidates remain subject to application-owner review and testing.
+
+
+The [ubiquitous-language tutorial](tutorials/ubiquitous-language.md) shows how
+to keep domain meanings beside model definitions. Namespaced terms appear in type hover,
+travel with exported module types and produce readable/machine-readable glossaries.
+
+[See the architecture as a diagram](tutorials/domain-diagrams.md): export a namespace
+from Maven or open its diagram directly from IntelliJ.

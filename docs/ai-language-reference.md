@@ -1,12 +1,11 @@
 # Vernac: self-contained reference for AI code generation
 
-Language baseline: **Vernac 0.3.0**. The source checkout defaults to
-**0.3.0-SNAPSHOT**; release builds select 0.3.0 explicitly. HTTP inbound adapters
-require the 0.3.0 compiler/runtime and are not available in 0.2.0.
-This document describes implemented project compilation, not proposed features.
-It is intentionally self-contained: provide this entire file to an AI together
-with the application requirements and existing model files. Artifact versions
-must match the project; do not assume a release is published solely from this document.
+Language baseline: **Vernac 0.4.0**. Source checkouts default to 0.4.0-SNAPSHOT.
+Multiple attached collections require the 0.4.0 compiler/runtime/tooling described
+here; HTTP inbound adapters require at least 0.3.0. This document describes implemented
+project compilation, not proposed features. Provide this entire file to an AI together
+with the application requirements and existing model files. Match artifact versions;
+do not assume a development feature is available in an older published compiler.
 
 ## 1. Instruction to the code-generating assistant
 
@@ -110,18 +109,23 @@ metanotation, not literal source. `params` is comma-separated `[mut] Type[?] [na
 `mut` is allowed only for entity/aggregate fields, not general parameters.
 
 ```text
-id Name [collection];
-value Name(params) [validates {...}] [behavior {...}] [collection];
-value Name = CONSTANT { | CONSTANT } [behavior {...}] [collection];
-entity Name[IdType](params) [validates {...}] [behavior {...}] [collection];
-aggregate Name[IdType](params) [validates {...}] [behavior {...}] [collection];
+id Name [(list | set) [CollectionName] [behavior {...}] {, (list | set) [CollectionName] [behavior {...}]}];
+value Name(params) [validates {...}] [behavior {...}] [list/set clauses];
+value Name = CONSTANT { | CONSTANT } [behavior {...}] [list/set clauses];
+entity Name[IdType](params) [validates {...}] [behavior {...}] [list/set clauses];
+aggregate Name[IdType](params) [validates {...}] [behavior {...}] [list/set clauses];
 [recorded] event Name(params) [validates {...}];
-collection := (list | set) [CollectionName] [behavior {...}]
 ```
 
+`list/set clauses` is explanatory notation for the same comma-separated suffix
+shown on id, never literal Vernac. The old `collection` keyword is forbidden.
 Use semicolons as shown even where a declaration terminator is optional. A type
-can have **one** attached list or set, not both. Default collection name is exact
-`ElementName + s`: `Categorys`, not guessed `Categories`.
+can declare multiple lists and sets, including several of the same kind. Each
+clause has its own optional name and behavior. Default collection name is exact
+`ElementName + s`: `Categorys`, not guessed `Categories`. For example
+`value Wert(String) list, set Werte;` produces Werts and Werte. `list, set` with both
+names omitted collides and is rejected. No numbering or automatic selection occurs.
+Repository queries select their declared return collection, not the first suffix.
 
 ## 5. Generated domain Java API
 
@@ -639,10 +643,15 @@ Do NOT generate these as supported language:
 - `new Title(...)`, `Task.create(id, ...)`, implicit value(), ordinary VO asString().
 - Generic domain List/Map, built-ins as aggregate fields, aggregate-valued VO fields.
 - Unspecified public usecase methods, usecase Result inferred from Java, uses(...).
-- `permission`, `requires`, entitlement/quota/subscription declarations or module exports.
-- Imports of external Vernac modules from dependency metadata: this is planned, not implemented.
+- `permission`, `requires`, entitlement/quota/subscription declarations.
+- Module export declarations inside `.vernac` sources; exports belong in `.vmodule`.
 - Generated MCP/Kafka/RabbitMQ endpoints, automatic async ports.
 - Database rollback restoring object state or guaranteeing rollback of remote effects.
+
+Module usecases and domain services support explicit activation. Module-owned
+entity/aggregate/repository contracts can be published and imported. Persistent
+activation, coordinated migrations, module events and synchronous/deferred receivers
+are supported. See the module sections below for their exact syntax and limits.
 
 Obsolete entity/package/custom-repository productions have been removed from the
 0.3.0 compiler. Parsing still does not validate embedded Java: verify the current
@@ -712,7 +721,7 @@ implicitly generated. Completing an already completed task emits no new event.
 ## 16. Few-shot pair A: names, optionals and cross-file imports
 
 **Request:** Define a person name with uppercase display, an optional nickname,
-and an explicit collection. Reference it from another namespace.
+and several explicit collections. Reference it from another namespace.
 
 **Answer, file 1:** `src/main/vernac/ai/people/names.vernac`
 
@@ -725,7 +734,7 @@ value PersonName(String text) validates {
     java imports { java.util.Locale; }
     public String upper() { return self.text().toUpperCase(Locale.ROOT); }
     public int length() implemented by ai.helpers.NameBehavior;
-} list PersonNames;
+} list PersonNames, set UniquePersonNames, list ArchivedPersonNames;
 
 value PersonProfile(PersonName legalName, PersonName? nickname);
 ```
@@ -1075,3 +1084,394 @@ A response-mapping failure can occur after the usecase transaction commits. Its 
 response is not permission to repeat a command. Authentication, authorization,
 idempotency keys, OpenAPI, streaming and asynchronous transports are not generated
 by this syntax. Configure those concerns explicitly outside this initial slice.
+
+## 23. Offset and cursor pagination (0.4.0-SNAPSHOT)
+
+Accepted repository syntax (Issues MUST be a declared list of Issue):
+
+```text
+find offset Issues withStatus(IssueStatus status)
+    where issueStatus = :status order by createdAt desc, id asc;
+find offset Issues countedWithStatus(IssueStatus status)
+    where issueStatus = :status order by createdAt desc, id asc counting;
+```
+
+Only offset- or cursor-qualified methods return query objects. Ordinary finds return their
+existing collection/singleton. `counting` is optional and requires offset. The compiler
+requires a list result and an explicit sort whose final field is the root id.
+Sets, optional singleton pages, missing order and a non-id final key are errors.
+No hidden ordering or implicit pagination parameters are generated.
+
+In Java bodies import OffsetRequest from org.vernac.runtime.pagination:
+`self.issueRepository().withStatus(status).page(OffsetRequest.ofPage(3, 20))`.
+Or use `ofOffset(40, 20)`. The counted query returns CountedOffsetPage with totalElements
+and totalPages; the uncounted query returns OffsetPage without totals. Both expose
+items(), request(), hasNext(), nextRequest(), offset(), pageSize() and pageNumber()
+(OptionalLong: present only for offsets aligned to pageSize). Page numbers start at 1.
+Empty/out-of-range counted pages retain the true total; an empty dataset has 0 pages.
+
+Use `.pages(request).items().forEach(...)` for sequential lazy traversal **inside the
+usecase transaction**; do not return a lazy sequence. Each page is materialized and
+loads complete aggregates. Project eagerly with `page.mapItems(TargetList::of, mapper)`:
+explicit destination factory FIRST; no filtering/reordering while keeping page metadata.
+Generated lists implement DomainList<T>, sets do not. Filters bind at query creation.
+The runtime checks an active transaction for every JDBC load, even on an escaped query.
+
+Count and selected roots share one PostgreSQL statement snapshot. Child loads verify
+root versions and can raise optimistic-lock failures under concurrent modification.
+No automatic retry, isolation change or frozen multi-request dataset is promised.
+`vernac.pagination.max-page-size` defaults to 1000; each request exceeding it fails
+before SQL.
+
+Cursor syntax is implemented:
+
+```text
+find cursor Issues following(IssueStatus status)
+    where issueStatus = :status order by createdAt desc, id asc;
+```
+
+It returns CursorQuery<Issue, Issues>. Import CursorRequest in Java bodies and use
+`.page(CursorRequest.first(20))`, `.page(CursorRequest.after(cursor, 20))` or
+`.pages(CursorRequest.first(20)).items().forEach(...)` inside the usecase transaction.
+CursorPage has items(), request(), pageSize(), nextCursor(), nextRequest(), mapItems();
+NO totalElements, totalPages or absolute pageNumber. All sort fields MUST be required,
+and the final explicit sort key MUST be id. `counting` on a cursor query is an error.
+The cursor stores the last returned storage-key tuple, so deleting that root does not
+break continuation. Mixed directions, decimal numeric ties and nanosecond components
+follow SQL ordering. Changing the page size is allowed; changing filters is not.
+Tokens are v1 authenticated/encrypted, binding method identity, filters, ordering,
+complete owned schema fingerprint and codec. Invalid/modified/incompatible tokens raise
+InvalidCursorException. Configure vernac.pagination.cursor-key with Base64 of 32 random
+bytes for shared durable tokens; blank uses a process-local key invalidated on restart.
+Reapply all permission/tenant conditions every request: cursors do not authorize access.
+No frozen dataset, backward cursor navigation, expiration or automatic key rotation.
+
+### Paginated usecase results and HTTP DTO fields (implemented)
+
+Result qualifiers are explicit: `offset ValueList`, `counted offset ValueList`,
+`cursor ValueList`. Use them as a single result or independent tuple components:
+
+```text
+returns (Title heading, counted offset Summaries openItems,
+    counted offset Summaries closedItems, cursor Summaries recentItems)
+```
+
+The corresponding Java types are OffsetPage<Value, ValueList>,
+CountedOffsetPage<Value, ValueList>, CursorPage<Value, ValueList>. ValueList MUST be a
+named list of IDs/VOs/enums; no aggregate/entity entries or sets. Project repository
+aggregate pages eagerly with mapItems(ValueList::of, mapper). Pages MUST be required,
+not optional/mut, and never lazy. A tuple uses the existing Result.of; a single page
+has no implicit Result. Repeated collection types require explicit different names.
+
+Do NOT use qualifiers in domain fields, port signatures or usecase input headers.
+Technical runtime requests are still Java APIs, not global modeled built-ins. Define
+ordinary application PageNumber/PageSize/CursorToken VOs as needed and explicitly use
+their intValue()/longValue()/string() getters when building runtime requests. Avoid
+importing runtime PageNumber into a scope containing your own PageNumber type.
+
+Adapter DTO fields accept `offset list<LocalDto>`, `counted offset list<LocalDto>` or
+`cursor list<LocalDto>` (also approved scalar entries). Entries cannot be nullable,
+containers or PATCH fields. Outer optional/naming rules still apply. Metadata names
+are fixed lowerCamelCase. Offset envelopes have items/offset/pageSize/hasNext and
+pageNumber only for aligned offsets; counted envelopes add totalElements/totalPages.
+Cursor envelopes have items/pageSize and nextCursor only when continuation exists.
+No internal request/Optional/query/aggregate is serialized.
+
+Map a page as a whole: `openItems <- source.openItems using item;`. This applies the
+named item mapping to every entry and retains all metadata. Exact scalar/VO automatic
+entry conversions also work. Source and target page variants MUST match. Do NOT map
+`source.openItems.items`, flatten a page into a list, silently drop counts or rebuild
+a domain page from DTO metadata declaratively. DTO-to-DTO page projection is supported.
+Use explicit Java for deliberately different semantics. Root HTTP responses remain
+named local schemas; a single usecase page may be a field in that schema.
+
+Multiple pages do not implicitly share a frozen multi-query snapshot. Usecases keep
+REQUIRED transactions and complete each page/projection before returning. Invalid
+cursors return HTTP 400/INVALID_CURSOR; ordinary domain validation stays 422. Never
+use cursors as authorization. See docs/tutorials/pagination.md for a complete compiled
+multi-page board and GET, and examples/dispatch for its executable repository-backed
+counterpart. Dynamic filters, backward cursors and global technical request built-ins
+remain outside this increment.
+
+## Inbound error policies
+
+HTTP adapters and endpoints support ordered `errors { when ... then respond ...; }`
+policies. Endpoint rules are checked first, then adapter rules, then safe defaults.
+Selectors: `rejection EnumType.CONSTANT`, `integration local|remote|unknown CATEGORY`,
+`invalid request`, `invalid cursor`, `validation`, `not found`, `optimistic conflict`,
+`domain rejection`. A category is an existing IntegrationCategory constant. Typed
+rejections match PortRejectedException; no implicit typed usecase rejection is added.
+`then respond 409;` preserves the safe default code/message. `then respond 409
+"PUBLIC_CODE" "Public message";` replaces them. Both strings are required together.
+Statuses are 400–599. Optional `otherwise default;` retains the final default fallback.
+A policy block or `errors implemented by ...;` may follow an endpoint response, or
+appear last in an adapter. The forms are exclusive per scope. Response-mapping failures
+stay technical; policies never change transactions, retries or authentication.
+See the [normative inbound contract](contracts/inbound-http.md#declarative-inbound-error-policies-040).
+
+## Reusable type modules (0.4.0)
+
+A producer declares `vernac-module.vmodule` beside its POM, not below
+src/main/vernac. Its separate grammar is `module qualified.identifier { export
+fully.qualified.Type; ... }`. Explicit exports currently support IDs, VOs, enums
+and named value collections, plus port interfaces. Publicly referenced local types and collection elements
+need their own exports. No wildcard exports or foreign re-exports.
+
+A normal compile-scoped Maven dependency makes public contracts available to ordinary
+Vernac imports, including compile-visible transitive dependencies. Type identities do
+not gain a module prefix. The compiler consumes META-INF/vernac/module.json and never
+regenerates dependency classes. External VO structure participates in local schema
+flattening/diffs. Module dependencies do not activate beans or migrations.
+
+Build producer and consumer with the current Vernac Maven plugin. In IntelliJ,
+New → Vernac Module Definition creates the project file. Build after dependency
+changes to refresh the shared resolved editor index. For a runnable two-artifact
+example see [type modules](../examples/type-modules/README.md).
+
+### Application composition status
+
+The project wizard distinguishes applications and reusable type libraries. An
+application starts with an empty `vernac-application.vapplication`; a type library
+gets `vernac-module.vmodule` and explicit exports. The application parser accepts `activate`, fixed `bind ... to ...` and
+`bind ... from configuration "key"`. Identity checks and IDE support are available,
+and adapter bindings are operational. Explicit `activate` entries register module
+usecases, services, repositories, listeners and HTTP entrypoints, including required
+functional dependencies; persistent histories are coordinated before startup. See the [module contract](contracts/modules.md).
+
+### Export and implement a port across artifacts (0.4.0)
+
+Contract-only modules can also export ports. Explicitly export every local type used
+in the port's public methods. Consumers import the port and its parameter/result
+values, then write `adapter Name implements ImportedPort { behavior { ... } }` using
+normal port/adapter syntax. The dependency supplies the original compiled interface.
+Adding a port operation requires implementation rebuilds. Contract metadata is now
+`module-contracts-9`; rebuild older development module artifacts. Outbound adapter publication and application bindings are supported as described below;
+Persistent and nonpersistent functional activation are supported; module histories run
+in dependency order before the application history. Module event contracts, recorded payloads and synchronous/deferred
+receivers are supported. Inbound HTTP entrypoints are internal module components, enabled only through activation.
+
+### Select an exported adapter with Spring profiles (0.4.0)
+
+Modules may export outbound adapters that implement exported ports, including ports
+from other Maven dependencies. Their bodies are compiled only by their producer;
+consumers use the published implementation class. Register a fixed or property-driven
+binding in the consuming project's `vernac-application.vapplication`:
+
+```vernac-application
+application example.app {
+    bind example.shared.PaymentProvider
+        from configuration "billing.payment-provider";
+}
+```
+
+The property value is an exported/local adapter's qualified Vernac identity, e.g.
+`example.providers.NoopPaymentProvider`, not a Java class name. Fixed syntax is
+`bind example.shared.PaymentProvider to example.providers.NoopPaymentProvider;`.
+Only the selected adapter is registered. Spring resolves its constructor dependencies
+and required configuration. Unselected module adapters are not component-scanned.
+The generated Boot auto-configuration registers the binding automatically; a plain
+Spring context imports the generated `<application name>.configuration.__VernacApplication`
+explicitly. Persistent and nonpersistent components support `activate`; the startup
+coordinator runs required module histories before dependants and the application.
+Use `mvn clean install` with the current compiler to rebuild earlier metadata artifacts.
+
+### Activate nonpersistent module functions (0.4.0)
+
+A module may export domain services and usecases in addition to values, ports and
+adapters. Export all local types used in public signatures and inline result fields.
+Private service dependencies need no export. Consumer imports use original Vernac
+identities; implementations come from compiled dependency classes.
+
+```vernac-application
+application example.shop {
+    activate example.billing;
+    bind example.billing.PaymentProvider from configuration "billing.payment-provider";
+}
+```
+
+Activation registers all services/usecases in that module, including internal helpers,
+and transitively activates modules supplying declared functional dependencies. Type
+imports and port implementations do not imply activation. Selected adapters remain
+profile-controlled. An application-supplied transaction manager is required for
+executing usecases; REQUIRED calls join the current transaction. Module-owned entity/aggregate/repository contracts can be published, imported and
+activated with coordinated migration histories. Module event contracts and synchronous/deferred receivers are supported; payload
+tables belong to producers and the shared delivery table belongs to the application. See [the executable functional model](tutorials/type-modules.md#activate-a-reusable-usecase-without-exposing-its-helpers).
+
+### Prepare a module migration bundle (0.4.0 foundation)
+
+The standalone Maven goal `vernac:module-persistence` packages an ordered, checksum-
+verified SQL/snapshot chain and expected schema beneath
+`META-INF/vernac/modules/<logical-module>/`. It does not apply SQL or enable persistent
+module exports. In projects with a `.vmodule`, schema/migration/check/compile goals
+now default SQL sources to `src/main/vernac-schema/migration`, outside ordinary Maven
+resources. Applications retain `src/main/resources/db/migration`. An explicit
+`vernac.migrations` override remains available.
+
+Generate/review the next migration before preparing a changed schema. Every module
+SQL file needs its source snapshot; repeatable migrations are not supported here.
+Persistent contract publication automatically prepares/verifies the bundle. Persistent
+activation coordinates verified histories at startup. Recorded module events and synchronous/deferred receivers use those verified histories;
+the shared delivery schema is generated only by the application.
+See [the persistence preparation contract](contracts/modules.md#module-persistence-bundle-preparation-current).
+
+### Persistent module contracts (0.4.0 foundation)
+
+Entities, aggregates, their collections and repositories may be explicitly exported.
+Export all local ID, field and public signature types. Consumers use the compiled
+classes/interface from the dependency and MUST NOT define a local repository for a
+foreign aggregate. Imported repositories contribute no local tables or generated JDBC
+classes. External VOs in local aggregates still flatten into locally owned tables.
+
+Persistent publication requires a matching source migration history and automatically
+packages/verifies the isolated bundle. Field mutability, read/modify modes and repository
+query/pagination signatures are part of `module-contracts-9` compatibility metadata.
+Explicit persistent activation coordinates verified module histories in dependency order,
+then application migrations, before dependent beans become callable. It requires the
+application DataSource, transaction manager and Spring Boot Flyway initializer. No SQL is run by import,
+compile or packaging. Do not bypass activation with dependency component scanning.
+
+### Executable persistent-module lifecycle example
+
+See [examples/persistent-modules](../examples/persistent-modules/README.md): two Maven
+producer artifacts export values and usecases while retaining private repositories;
+the application activates the dependant module explicitly. Required modules migrate
+before dependants, then the application's own history runs. If an exported VO shape
+changes, every owner embedding it MUST generate and review its own migration. Rebuild
+dependants against the changed public contract; a required field needs an explicit
+backfill for existing rows. Importing a value alone does not activate its producer.
+
+### Exported events and module listeners (0.4.0)
+
+A module MAY export an `event` or `recorded event` and MUST explicitly export every local payload type
+in its public contract. Consumers import the original qualified event name, construct
+it through the compiled factory, emit it from an active usecase context, or declare a
+synchronous or deferred listener on it. No dependency event classes are regenerated.
+
+Listeners are internal runtime receivers rather than exported callable APIs. Activating
+the receiver's module registers its listeners under qualified identities.
+A listener-only module can be activated. Deferred receivers require the producer's
+compiled storage component and activate that required producer transitively. Event imports alone do not activate a publisher
+or receiver. Declared usecase/service/repository dependencies of active listeners can
+activate the required functional modules transitively.
+
+A synchronous listener executes immediately in the emitting usecase's transaction.
+Its exception fails that transaction. A deferred listener has its own persisted job,
+processing transaction, confirmation and retry. Several active receivers may observe
+the same event; their deferred jobs succeed/fail independently.
+
+An illustrative publisher model (the receiving code below uses this public contract):
+
+```vernac
+namespace example.billing;
+id InvoiceId;
+value CustomerName(String text);
+event InvoiceOpened(InvoiceId, CustomerName);
+```
+
+```vernac
+namespace example.observer;
+import example.billing.InvoiceOpened;
+synchronous listener ObserveInvoiceOpened on InvoiceOpened behavior {
+    java imports { org.slf4j.LoggerFactory; }
+    execute {
+        LoggerFactory.getLogger("example.observer").info("Invoice {} opened", event.invoiceId());
+    }
+}
+```
+
+The receiving artifact declares `module example.observer {}` if it exports no callable
+API, and the application uses `activate example.observer;`. Metadata is
+`module-contracts-9`; rebuild producer and dependant artifacts together.
+
+### Durable event ownership and startup
+
+For a `.vmodule` producer, every local event has a prepared payload table and compiled
+storage adapter, including plain events whose later consumers are not known yet.
+Creating a table does not imply recording: emission persists the payload only for a
+recorded event or at least one active deferred recipient. Module schemas MUST NOT
+contain `vernac.@delivery`; the consuming application's migration owns that shared
+table. Merely importing a module event does not activate its producer or execute SQL.
+
+A module deferred listener depends on the producer's EVENT_STORAGE component. Local
+application deferred listeners on dependency events require explicit activation of
+the producer. Likewise, code emitting an imported recorded event must arrange producer
+activation; a Java import alone supplies no runtime storage adapter. Do not declare
+repositories or storage classes for foreign event payloads in the consumer.
+
+The application determines its delivery schema from local deferred listeners and its
+activated/profile-eligible module graph. Generate/review application migrations after
+changing this graph. One Boot worker polls all active recipients only after required
+module and application migrations/validation have completed. It preserves the existing
+lease, at-least-once, per-recipient acknowledgment, retry and blocked-job semantics.
+Receivers must make external effects idempotent; SQL rollback does not undo them.
+
+Record flags and storage capability participate in module-contracts-9 metadata.
+Rebuild all producers/dependants. Structural event/VO changes can make pending payloads
+incompatible; migrate deliberately or introduce a new versioned event type. Review
+event evolution independently of an ordinary aggregate upgrade.
+
+
+### HTTP entrypoints supplied by modules
+
+A module may contain ordinary `adapter ... inbound http` definitions. These are internal
+entrypoints, not exported callable types. Activate the owning logical module in the
+application's `.vapplication` file to register its controllers and scoped error policies.
+Required usecase modules activate transitively. A dependency or type import alone exposes
+no routes, even under component scanning. DTOs, mappings and errors remain producer-owned;
+consumer compilation does not regenerate them. The application supplies
+`vernac-runtime-http` and `spring-boot-starter-web`. Route paths are unchanged; ambiguous
+routes fail at MVC startup. See the [persistent module walkthrough](../examples/persistent-modules/README.md)
+for the API module and a real cross-module HTTP call.
+
+
+### Module authoring and dependency refresh checklist
+
+- A `.vmodule` exports public contracts; a `.vapplication` selects/activates runtime
+  composition. Do not put application bindings in a producer module.
+- Build/install the producer, declare the consumer Maven dependency, then build the
+  consumer. Maven selects versions; the LSP reads the build-written index.
+- Export every local type referenced by a public signature, including result fields
+  and collection types. Internal services/listeners/HTTP adapters need no public export.
+- Use Go To Declaration on an activation identity for a read-only module overview.
+  Type navigation opens available producer sources or a marked contract view.
+- After dependency builds, completion/navigation detect changed indexes. Incompatible
+  metadata is diagnosed on open files. Never edit generated contract views as a fix.
+- Keep module SQL histories immutable after publication. When an exported VO changes,
+  inspect all owners that persist it: the producer's tables and each consumer's own
+  flattened columns require separately reviewed migrations/backfills.
+- This module scope is implemented. SaaS permission/quota policies, ready-made billing
+  providers, distributed transactions and cross-artifact refactoring are separate work.
+
+
+### Ubiquitous-language terms (0.4.0)
+
+`term Name { description "Meaning."; example "A concrete case."; note "An exclusion."; }`
+is a top-level documentation declaration in an ordinary namespaced `.vernac` file.
+Exactly one nonblank description is required; examples and notes are repeatable and
+optional. Quoted names such as `term "Outstanding balance"` permit spaces. Names must
+not be blank, contain controls or have surrounding whitespace. Name equality is exact
+and case-sensitive; `term Name` and `term "Name"` are duplicates in the same namespace.
+
+Terms are not types. They may coexist with same-named types and may describe concepts
+without classes. Only exact namespace/name equality associates documentation with a
+model definition; there are no explicit links, inherited meanings or synonym aliases.
+Do not invent term imports or exports. Module metadata carries documentation for
+exported types automatically; it does not publish standalone or internal-only terms.
+
+Vernac type hover includes associated text, including imported module types without
+sources JARs. JavaDoc is added to associated generated domain/usecase/outbound classes.
+Maven compilation writes target/vernac-glossary.md and target/vernac-glossary.json.
+Text changes do not alter structural API fingerprints or SQL schemas. Module metadata
+is module-contracts-9; rebuild development producers and consumers. No LLM integration
+is implied. See [the term contract](contracts/ubiquitous-language.md) and
+[the tutorial](tutorials/ubiquitous-language.md).
+
+### Domain diagram tooling (0.4.0)
+
+`mvn vernac:diagram` exports every local namespace; `-Dvernac.diagramNamespace=example.orders`
+selects one. Output defaults to target/vernac-diagrams, with Markdown/Mermaid, .mmd,
+PlantUML .puml and versioned JSON per namespace. Diagrams come from resolved declarations,
+not generated Java or guessed behavior. Referenced outside types are boundary nodes.
+IntelliJ's Show Domain Diagram action includes unsaved source snapshots and opens Markdown;
+enable its Mermaid preview extension if needed. No rendered image or live model explorer
+is implied. See [the diagram tutorial](tutorials/domain-diagrams.md).

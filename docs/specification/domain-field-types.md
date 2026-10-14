@@ -1,6 +1,6 @@
 # Domain Field Types and Nullness
 
-Status: normative requirements for the 0.3.0 language revision.
+Status: normative requirements for the 0.4.0 language revision.
 
 Related specification: [Namespaces and Imports](namespaces-and-imports.md).
 

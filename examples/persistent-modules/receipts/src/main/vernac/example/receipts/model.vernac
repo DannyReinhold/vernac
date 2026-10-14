@@ -1,0 +1,38 @@
+namespace example.receipts;
+import example.billing.CustomerName;
+import example.billing.InvoiceId;
+import example.billing.InvoiceOpened;
+import example.billing.OpenInvoice;
+id ReceiptId;
+aggregate Receipt[ReceiptId](InvoiceId, CustomerName);
+repository ReceiptRepository for Receipt {}
+usecase RecordPurchase(CustomerName) returns InvoiceId
+    uses OpenInvoice, ReceiptRepository behavior {
+    execute {
+        var invoiceId = self.openInvoice().execute(customerName);
+        self.receiptRepository().save(Receipt.create(invoiceId, customerName));
+        return invoiceId;
+    }
+}
+
+// Registered only when the Receipts module is activated; no independent transaction.
+synchronous listener ObserveInvoiceOpened on InvoiceOpened behavior {
+    java imports { org.slf4j.LoggerFactory; }
+    execute {
+        LoggerFactory.getLogger("example.receipts.ObserveInvoiceOpened").info(
+            "Receipts observed InvoiceOpened {} for {} synchronously", event.eventId(), event.customerName().text());
+    }
+}
+
+// Private persisted processing effect, independent of the immediate purchase receipt.
+id NotificationId;
+aggregate Notification[NotificationId](InvoiceId, CustomerName);
+repository NotificationRepository for Notification {}
+
+deferred listener NotifyInvoiceOpened on InvoiceOpened uses NotificationRepository behavior {
+    java imports { example.receipts.adapter.inbound.event.fixture.DeliveryProbe; }
+    execute {
+        self.notificationRepository().save(Notification.create(event.invoiceId(), event.customerName()));
+        DeliveryProbe.afterWrite(event.eventId().toString());
+    }
+}

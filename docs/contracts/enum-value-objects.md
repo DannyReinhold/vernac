@@ -1,6 +1,6 @@
 # Enum Value Object Contract
 
-Status: normative contract for the 0.3.0 language revision. MUST and MUST NOT
+Status: normative contract for the 0.4.0 language revision. MUST and MUST NOT
 express requirements; implementation verification is tracked separately.
 MUST and MUST NOT express requirements, not claims about the current compiler.
 

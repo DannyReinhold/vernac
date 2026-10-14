@@ -1,6 +1,6 @@
 # Ports, adapters, DTOs and mappings
 
-Status: normative outbound architecture contract for 0.3.0. The linked DTO, mapping,
+Status: normative outbound architecture contract for 0.4.0. The linked DTO, mapping,
 REST and runtime contracts define exact syntax and APIs. Inbound generators, async
 ports and other extensions remain outside this contract.
 

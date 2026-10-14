@@ -71,6 +71,8 @@ public final class VernacNewProjectWizard
         private final JBTextField artifactIdField = new JBTextField();
         private final JBTextField groupIdField = new JBTextField("org.example");
         private final JBTextField packageField = new JBTextField("org.example.tasks");
+        private final JComboBox<VernacProjectTemplate.ProjectKind> kindField =
+                new JComboBox<>(VernacProjectTemplate.ProjectKind.values());
         private final JComboBox<Sdk> jdkField = new JComboBox<>();
         private String lastSuggestedArtifactId;
 
@@ -140,8 +142,13 @@ public final class VernacNewProjectWizard
             return null;
         }
 
-        private static ValidationInfo validatePackage(JBTextField field) {
+        private ValidationInfo validatePackage(JBTextField field) {
             String value = field.getText().strip();
+
+            if (kindField.getSelectedItem() == VernacProjectTemplate.ProjectKind.TYPE_MODULE
+                    && !value.contains(".")) {
+                return new ValidationInfo("Use a qualified namespace with at least two segments for a type module.", field);
+            }
 
             if (!VernacNames.isNamespace(value)) {
                 return new ValidationInfo(
@@ -204,6 +211,11 @@ public final class VernacNewProjectWizard
 
         @Override
         public void setupUI(Panel builder) {
+            builder.row("Project kind:", row -> {
+                row.cell(kindField);
+                return Unit.INSTANCE;
+            });
+
             builder.row("GroupId:", row -> {
                 row.cell(groupIdField)
                         .validationOnInput((validation, field) -> validateGroupId(field))
@@ -220,7 +232,7 @@ public final class VernacNewProjectWizard
                 return Unit.INSTANCE;
             });
 
-            builder.row("Java package:", row -> {
+            builder.row("Namespace:", row -> {
                 row.cell(packageField)
                         .validationOnInput((validation, field) -> validatePackage(field))
                         .validationOnApply((validation, field) -> validatePackage(field));
@@ -254,7 +266,8 @@ public final class VernacNewProjectWizard
                         baseStep.getName(),
                         groupIdField.getText().strip(),
                         artifactIdField.getText().strip(),
-                        packageField.getText().strip()
+                        packageField.getText().strip(),
+                        (VernacProjectTemplate.ProjectKind) kindField.getSelectedItem()
                 );
 
                 Path pomPath = projectDirectory.resolve("pom.xml");
@@ -279,7 +292,8 @@ public final class VernacNewProjectWizard
 
                 VernacProjectOpenActivity.openAfterProjectCreation(
                         project,
-                        projectDirectory.resolve("src/main/vernac/tasks.vernac")
+                        projectDirectory.resolve("src/main/vernac/"
+                                + packageField.getText().strip().replace('.', '/') + "/tasks.vernac")
                 );
 
             } catch (IOException exception) {

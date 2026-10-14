@@ -1,0 +1,2 @@
+billing:
+  payment-provider: example.providers.NoopPaymentProvider

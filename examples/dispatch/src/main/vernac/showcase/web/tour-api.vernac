@@ -15,6 +15,10 @@ adapter TourApi inbound http uses CreateTour createTour, ReleaseTour releaseTour
             capacity <- body.capacity;
         }
         respond 201 CreatedTour using toCreated;
+        errors {
+            when validation then respond 422 "INVALID_TOUR" "Check the tour title and capacity.";
+            otherwise default;
+        }
     }
 
     release {
@@ -30,5 +34,11 @@ adapter TourApi inbound http uses CreateTour createTour, ReleaseTour releaseTour
     schema CreatedTour(UUID id);
     mapping toCreated: CreatedTour <- TourId {
         id <- source;
+    }
+    errors {
+        when invalid request then respond 400 "INVALID_REQUEST" "Supply the required tour fields in their expected formats.";
+        when not found then respond 404;
+        when optimistic conflict then respond 409;
+        otherwise default;
     }
 }

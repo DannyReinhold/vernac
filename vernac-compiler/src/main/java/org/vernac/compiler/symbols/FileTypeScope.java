@@ -49,7 +49,8 @@ public final class FileTypeScope {
             if (imported.isEmpty()) {
                 issues.add(CompilerDiagnostic.error(declaration.location(),
                         "Cannot import '" + declaration.target()
-                                + "': no Vernac type with this identity exists in the project."
+                                + "': " + index.hiddenOwner(declaration.target()).map(owner -> "this type is internal and not exported by module " + owner)
+                                .orElse("no public Vernac type with this identity exists in the project or resolved modules.")
                                 + " File-level imports do not import Java classes."));
                 continue;
             }
@@ -92,7 +93,7 @@ public final class FileTypeScope {
         if (name.contains(".")) {
             return index.find(name).map(symbol -> TypeLookup.found(new ResolvedType.Declared(symbol)))
                     .orElseGet(() -> TypeLookup.error(location,
-                            "Unknown Vernac type '" + name + "'. Use its Vernac namespace, not a generated Java"
+                            "Unknown Vernac type '" + name + "'. " + index.hiddenOwner(name).map(owner -> "Internal type owned by " + owner + ". ").orElse("") + "Use its Vernac namespace, not a generated Java"
                                     + " package. Arbitrary Java field types are not supported."));
         }
         var builtin = BuiltinTypes.find(name);

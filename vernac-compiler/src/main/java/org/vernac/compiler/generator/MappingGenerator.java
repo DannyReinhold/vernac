@@ -78,6 +78,9 @@ public final class MappingGenerator {
     }
     public CodeBlock convert(Conversion conversion,CodeBlock value,ClassName owner,String label,CodeBlock path,int depth) {
         if(conversion instanceof Identity)return value;
+        if(conversion instanceof Pages p)return CodeBlock.of("$T.map$L($L, (element$L, index$L) -> $T.field($S, $L + $S + index$L + $S, () -> $L))",
+                ClassName.get("org.vernac.runtime.json.pagination","JsonPages"),p.target().pageKind().javaName(),value,depth,depth,CHECKS,label,path,".items[",depth,"]",
+                convert(p.element(),CodeBlock.of("element$L",depth),owner,label,CodeBlock.of("$L + $S + index$L + $S",path,".items[",depth,"]"),depth+1));
         if(conversion instanceof Named n)return CodeBlock.of("$T.$N($L)",owner,n.name(),value);
         if(conversion instanceof Unwrap u)return convert(u.next(),CodeBlock.of("$L.$N()",value,u.field().name()),owner,label,path,depth);
         if(conversion instanceof Wrap w)return CodeBlock.of("$T.of($L)",w.target().javaType(),convert(w.next(),value,owner,label,path,depth));

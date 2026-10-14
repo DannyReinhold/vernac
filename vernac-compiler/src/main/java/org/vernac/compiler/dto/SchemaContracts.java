@@ -34,6 +34,7 @@ public final class SchemaContracts {
                 if(field.absentAsNull() && (field.patch() || !field.type().isOptional())) error(errors,field.location(),"absent as null requires an ordinary optional DTO field, not a PATCH field.");
                 String wire=field.externalName().orElseGet(()->schema.naming().equals("snake_case")?snakeCase(field.name()):field.name());
                 if(!external.add(wire)) error(errors,field.location(),"Duplicate external JSON field name: " + wire);
+                if(field.patch() && field.type().paginated()) error(errors,field.location(),"PATCH page fields are not supported.");
                 Shape shape=resolveType(field.type(),names,errors,false);
                 if(shape!=null) resolved.add(new Field(field,wire,shape));
             }
@@ -45,6 +46,15 @@ public final class SchemaContracts {
         return List.copyOf(result);
     }
     private Shape resolveType(TypeNode type,Map<String,SchemaNode> names,List<CompilerDiagnostic> errors,boolean element) {
+        if(type.paginated()) {
+            if(element) error(errors,type.location(),"DTO pages cannot be nested as list elements.");
+            if(!type.name().equals("list") || type.typeArguments().size()!=1) {
+                error(errors,type.location(),"DTO page types require list<DTO> or list<scalar>."); return null;
+            }
+            var nested=resolveType(type.typeArguments().getFirst(),names,errors,true);
+            if(nested instanceof Sequence || nested instanceof Page) { error(errors,type.location(),"DTO page entries must be scalars or local schemas, not containers."); return null; }
+            return nested==null?null:new Page(type.pageKind(),nested);
+        }
         if(element && type.isOptional()) error(errors,type.location(),"DTO list elements cannot be optional.");
         if(type.name().equals("list") && type.typeArguments().size()==1) {
             Shape nested=resolveType(type.typeArguments().getFirst(),names,errors,true);
@@ -61,7 +71,7 @@ public final class SchemaContracts {
         if(active.contains(name)) { error(errors,schema.source().location(),"Cyclic DTO containment: "+String.join(" -> ",active)+" -> "+name);return; }
         if(done.contains(name))return;
         active.add(name);
-        for(var field:schema.fields()) { Shape type=field.shape();while(type instanceof Sequence s)type=s.element();if(type instanceof Nested n)cycle(all.get(n.schemaName()),all,active,done,errors); }
+        for(var field:schema.fields()) { Shape type=field.shape();while(type instanceof Sequence || type instanceof Page) type=type instanceof Sequence s?s.element():((Page)type).element();if(type instanceof Nested n)cycle(all.get(n.schemaName()),all,active,done,errors); }
         active.remove(name);done.add(name);
     }
     /** Code-point based, locale-independent acronym boundary rule. No dictionary. */

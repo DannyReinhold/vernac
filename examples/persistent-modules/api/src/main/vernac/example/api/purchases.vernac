@@ -1,0 +1,26 @@
+namespace example.api;
+import example.billing.CustomerName;
+import example.billing.InvoiceId;
+import example.receipts.RecordPurchase;
+
+adapter PurchaseApi inbound http uses RecordPurchase {
+    base "/api/module-purchases";
+    create {
+        POST "/";
+        body PurchaseRequest;
+        execute recordPurchase {customerName <- body using customer;}
+        respond 201 PurchaseResponse using response;
+    }
+    schema PurchaseRequest(String text, String? alias);
+    schema PurchaseResponse(UUID invoiceId);
+    mapping customer: CustomerName <- PurchaseRequest {
+        text <- source.text;
+        alias <- source.alias;
+    }
+    mapping response: PurchaseResponse <- InvoiceId {invoiceId <- source;}
+    errors {
+        when invalid request then respond 400 "INVALID_PURCHASE_REQUEST" "Supply a customer name.";
+        when validation then respond 422 "INVALID_CUSTOMER" "Customer name must not be blank.";
+        otherwise default;
+    }
+}

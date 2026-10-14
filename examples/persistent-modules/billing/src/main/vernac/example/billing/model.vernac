@@ -1,0 +1,16 @@
+namespace example.billing;
+value CustomerName(String text, String? alias) validates {
+    require(!self.text().isBlank(), "Customer name must not be blank");
+};
+id InvoiceId;
+recorded event InvoiceOpened(InvoiceId, CustomerName);
+aggregate Invoice[InvoiceId](CustomerName);
+repository InvoiceRepository for Invoice {}
+usecase OpenInvoice(CustomerName) returns InvoiceId uses InvoiceRepository behavior {
+    execute {
+        var invoice = Invoice.create(customerName);
+        self.invoiceRepository().save(invoice);
+        self.emit(InvoiceOpened.create(invoice.id(), customerName));
+        return invoice.id();
+    }
+}

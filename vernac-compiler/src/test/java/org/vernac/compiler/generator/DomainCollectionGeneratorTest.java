@@ -44,12 +44,12 @@ class DomainCollectionGeneratorTest {
                 .findFirst().orElseThrow();
 
         JavaFile file = new org.vernac.compiler.pipeline.VernacCompiler().compileSource(src).generatedFiles().stream()
-                .filter(f -> f.typeSpec().name().equals(node.collection().orElseThrow().nameFor(node.name()))).findFirst().orElseThrow();
+                .filter(f -> f.typeSpec().name().equals(node.collections().getFirst().nameFor(node.name()))).findFirst().orElseThrow();
         String code = file.toString();
 
         assertThat(code)
                 .contains("package com.example.domain;")
-                .contains("public final class Cars implements Iterable<Car>")
+                .contains("public final class Cars implements DomainList<Car>")
                 .contains("private final List<Car> items;")
                 .contains("this.items = DomainCollections.list(items);")
                 .contains("public static Cars empty()")
@@ -81,12 +81,12 @@ class DomainCollectionGeneratorTest {
                 .findFirst().orElseThrow();
 
         JavaFile file = new org.vernac.compiler.pipeline.VernacCompiler().compileSource(src).generatedFiles().stream()
-                .filter(f -> f.typeSpec().name().equals(node.collection().orElseThrow().nameFor(node.name()))).findFirst().orElseThrow();
+                .filter(f -> f.typeSpec().name().equals(node.collections().getFirst().nameFor(node.name()))).findFirst().orElseThrow();
         String code = file.toString();
 
         assertThat(code)
                 .contains("package com.example.domain;")
-                .contains("public final class MoneyTransactions implements Iterable<Money>")
+                .contains("public final class MoneyTransactions implements DomainList<Money>")
                 .contains("public Money sum()");
     }
 
@@ -106,12 +106,12 @@ class DomainCollectionGeneratorTest {
                 .findFirst().orElseThrow();
 
         JavaFile file = new org.vernac.compiler.pipeline.VernacCompiler().compileSource(src).generatedFiles().stream()
-                .filter(f -> f.typeSpec().name().equals(entity.collection().orElseThrow().nameFor(entity.name()))).findFirst().orElseThrow();
+                .filter(f -> f.typeSpec().name().equals(entity.collections().getFirst().nameFor(entity.name()))).findFirst().orElseThrow();
         String code = file.toString();
 
         assertThat(code)
                 .contains("package com.example.domain;")
-                .contains("public final class Tasks implements Iterable<Task>")
+                .contains("public final class Tasks implements DomainList<Task>")
                 .contains("public Tasks plus(Task element)")
                 .contains("public Tasks minus(Task element)")
                 .contains("public Tasks minusId(TaskId id)")

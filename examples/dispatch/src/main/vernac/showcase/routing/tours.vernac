@@ -35,5 +35,8 @@ behavior {
 
 repository TourRepository for Tour {
     find Tours all() order by title;
+    find offset Tours pageWithState(TourState state)
+        where tourState = :state order by createdAt desc, id asc counting;
+    find cursor Tours recent() order by createdAt desc, id asc;
     find Tours search(String text) where title contains :text order by title;
 }

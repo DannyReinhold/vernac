@@ -15,6 +15,7 @@ public final class JavaTypeNames {
         return switch (type) {
             case ResolvedType.Builtin builtin -> builtin.javaType().getName();
             case ResolvedType.VoidReturn ignored -> "void";
+            case ResolvedType.Page page -> "org.vernac.runtime.pagination."+page.kind().javaName()+"<"+canonicalName(page.element())+", "+canonicalName(page.collection())+">";
             case ResolvedType.Declared declared -> switch (declared.symbol().kind()) {
                 case EVENT, ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, DOMAIN_SERVICE, REPOSITORY, PORT -> domainPackage(declared.symbol().identity())
                         + "." + declared.symbol().identity().name();

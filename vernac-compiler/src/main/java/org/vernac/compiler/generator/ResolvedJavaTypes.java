@@ -20,6 +20,8 @@ public final class ResolvedJavaTypes {
         return switch (type) {
             case ResolvedType.Builtin builtin -> TypeName.get(builtin.javaType());
             case ResolvedType.VoidReturn ignored -> TypeName.VOID;
+            case ResolvedType.Page page -> com.palantir.javapoet.ParameterizedTypeName.get(
+                    ClassName.get("org.vernac.runtime.pagination",page.kind().javaName()),javaType(page.element()),javaType(page.collection()));
             case ResolvedType.Declared declared -> switch (declared.symbol().kind()) {
                 case EVENT, ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, DOMAIN_SERVICE, REPOSITORY, PORT -> domainClass(declared.symbol().identity());
                 default -> throw new IllegalArgumentException("No reviewed Java mapping for " + declared.symbol().kind());

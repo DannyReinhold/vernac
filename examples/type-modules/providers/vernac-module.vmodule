@@ -1,0 +1,4 @@
+module example.payment.providers {
+    export example.providers.NoopPaymentProvider;
+    export example.providers.ConfiguredTestPaymentProvider;
+}

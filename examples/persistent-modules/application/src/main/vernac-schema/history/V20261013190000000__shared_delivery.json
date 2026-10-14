@@ -1,0 +1,176 @@
+{
+  "formatVersion" : 1,
+  "migration" : "V20261013190000000__shared_delivery.sql",
+  "previousFingerprint" : "8e30900a2fde7b35cb6ae7545918795dd96f47653b6c71f120cb4962cdb6e3d8",
+  "modelFingerprint" : "34ab3115981647cfd1def8fb3a23c74b4f09ccddf97f8053c474df25f99cb86d",
+  "model" : {
+    "formatVersion" : 1,
+    "mappingVersion" : 1,
+    "tables" : [ {
+      "namespace" : "example.shop",
+      "name" : "Account",
+      "origin" : "example.shop.Account",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "example.shop.Account"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "example.shop.Account"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "example.shop.Account"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "example.shop.Account"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "example.shop.Account"
+      }, {
+        "name" : "customerName.alias",
+        "sqlType" : "TEXT",
+        "nullable" : true,
+        "codec" : "String:",
+        "origin" : "example.shop.Account.customerName.alias"
+      }, {
+        "name" : "customerName.text",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "example.shop.Account.customerName.text"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "example.shop.Account.id"
+      }, {
+        "name" : "invoiceId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "example.billing.InvoiceId"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      } ]
+    }, {
+      "namespace" : "vernac",
+      "name" : "@delivery",
+      "origin" : "@event-delivery",
+      "columns" : [ {
+        "name" : "attempts",
+        "sqlType" : "INTEGER",
+        "nullable" : false,
+        "codec" : "int",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "claimToken",
+        "sqlType" : "UUID",
+        "nullable" : true,
+        "codec" : "UUID",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "completedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : true,
+        "codec" : "delivery-time",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "delivery-time",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "eventId",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "eventType",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "lastAttemptAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : true,
+        "codec" : "delivery-time",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "lastError",
+        "sqlType" : "TEXT",
+        "nullable" : true,
+        "codec" : "String",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "leaseUntil",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : true,
+        "codec" : "delivery-time",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "listenerId",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "nextAttemptAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "delivery-time",
+        "origin" : "@event-delivery"
+      }, {
+        "name" : "status",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String",
+        "origin" : "@event-delivery"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:attempts",
+        "clause" : "CHECK (\"attempts\" >= 0)"
+      }, {
+        "name" : "@check:claim",
+        "clause" : "CHECK ((\"status\" = 'PROCESSING' AND \"claimToken\" IS NOT NULL AND \"leaseUntil\" IS NOT NULL) OR (\"status\" <> 'PROCESSING' AND \"claimToken\" IS NULL AND \"leaseUntil\" IS NULL))"
+      }, {
+        "name" : "@check:status",
+        "clause" : "CHECK (\"status\" IN ('PENDING', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'BLOCKED'))"
+      }, {
+        "name" : "@unique:delivery",
+        "clause" : "UNIQUE (\"eventType\", \"eventId\", \"listenerId\")"
+      } ]
+    } ],
+    "enumCodes" : { }
+  }
+}

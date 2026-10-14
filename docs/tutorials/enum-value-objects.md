@@ -1,6 +1,6 @@
 # Closed Domain Values with Enums
 
-Use a Vernac 0.3.0 Maven project and matching IntelliJ plugin. This exercise
+Use a Vernac 0.4.0 Maven project and matching IntelliJ plugin. This exercise
 models a closed set of domain states and needs no database. If your project
 already defines Status in example.tasks, use a fresh project or another namespace.
 

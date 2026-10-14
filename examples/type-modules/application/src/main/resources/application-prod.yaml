@@ -1,0 +1,5 @@
+# This example still uses a local fixture, not a production payment provider.
+billing:
+  payment-provider: example.providers.ConfiguredTestPaymentProvider
+payment-fixture:
+  api-key: ${PAYMENT_FIXTURE_API_KEY}

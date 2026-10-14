@@ -106,33 +106,32 @@ public final class ProjectTypeResolver {
                         diagnostics.addAll(BehaviorImports.validateLowered(source.unit().namespace(), model.name(), model.methods(), fieldTypes));
                     }
                 }
-                var requested = CollectionDeclaration.of(definition);
-                if (requested.isEmpty()) continue;
-                var collection = requested.get();
-                if (validScope) diagnostics.addAll(BehaviorImports.validate(project, scope, source.unit().namespace(),
-                        collection.name(), collection.definition().javaImports(), collection.definition().customMethods()));
-                if (validScope) collection.idType().ifPresent(id -> {
-                    var lookup = scope.resolve(id.name(), id.location());
-                    diagnostics.addAll(lookup.diagnostics());
-                    if (lookup.type().orElse(null) instanceof ResolvedType.Declared declared
-                            && declared.symbol().kind() == TypeSymbol.Kind.ID && !id.isOptional() && id.typeArguments().isEmpty())
-                        fieldTypes.put(id, declared);
-                    else if (lookup.type().isPresent()) diagnostics.add(CompilerDiagnostic.error(id.location(),
-                            "Collection ID helpers require a non-optional Vernac id type."));
-                });
-                for (var method : collection.definition().customMethods()) {
-                    if (method.mode() != MethodNode.Mode.DEFAULT) diagnostics.add(CompilerDiagnostic.error(method.location(), "read/modify currently belong to entity and aggregate behavior. Collection behavior remains public/private."));
-                    if (method.returnType().name().equals("void") && !method.returnType().isOptional()
-                            && method.returnType().typeArguments().isEmpty())
-                        fieldTypes.put(method.returnType(), new ResolvedType.VoidReturn());
-                    else if (validScope) resolveField(new FieldNode(method.location(), method.returnType(), method.name()),
-                            scope, fieldTypes, diagnostics, project, true);
-                    if (validScope) for (var parameter : method.parameters())
-                        resolveField(parameter, scope, fieldTypes, diagnostics, project, true);
+                for (var collection : CollectionDeclaration.of(definition)) {
+                    if (validScope) diagnostics.addAll(BehaviorImports.validate(project, scope, source.unit().namespace(),
+                            collection.name(), collection.definition().javaImports(), collection.definition().customMethods()));
+                    if (validScope) collection.idType().ifPresent(id -> {
+                        var lookup = scope.resolve(id.name(), id.location());
+                        diagnostics.addAll(lookup.diagnostics());
+                        if (lookup.type().orElse(null) instanceof ResolvedType.Declared declared
+                                && declared.symbol().kind() == TypeSymbol.Kind.ID && !id.isOptional() && id.typeArguments().isEmpty())
+                            fieldTypes.put(id, declared);
+                        else if (lookup.type().isPresent()) diagnostics.add(CompilerDiagnostic.error(id.location(),
+                                "Collection ID helpers require a non-optional Vernac id type."));
+                    });
+                    for (var method : collection.definition().customMethods()) {
+                        if (method.mode() != MethodNode.Mode.DEFAULT) diagnostics.add(CompilerDiagnostic.error(method.location(), "read/modify currently belong to entity and aggregate behavior. Collection behavior remains public/private."));
+                        if (method.returnType().name().equals("void") && !method.returnType().isOptional()
+                                && method.returnType().typeArguments().isEmpty())
+                            fieldTypes.put(method.returnType(), new ResolvedType.VoidReturn());
+                        else if (validScope) resolveField(new FieldNode(method.location(), method.returnType(), method.name()),
+                                scope, fieldTypes, diagnostics, project, true);
+                        if (validScope) for (var parameter : method.parameters())
+                            resolveField(parameter, scope, fieldTypes, diagnostics, project, true);
+                    }
+                    diagnostics.addAll(new CollectionApiValidator().validate(collection, fieldTypes, source.unit().namespace()));
+                    diagnostics.addAll(BehaviorImports.validateLowered(source.unit().namespace(), collection.name(),
+                            collection.definition().customMethods(), fieldTypes));
                 }
-                diagnostics.addAll(new CollectionApiValidator().validate(collection, fieldTypes, source.unit().namespace()));
-                diagnostics.addAll(BehaviorImports.validateLowered(source.unit().namespace(), collection.name(),
-                        collection.definition().customMethods(), fieldTypes));
             }
         }
         for (var source : project.sources()) {

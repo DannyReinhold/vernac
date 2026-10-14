@@ -36,7 +36,9 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 .filter(Objects::nonNull)
                 .toList();
 
-        return new CompilationUnitNode(toLocation(ctx.namespaceDeclaration()), namespace, imports, definitions);
+        var terms=ctx.topLevelDeclaration().stream().map(VernacParser.TopLevelDeclarationContext::termDefinition)
+            .filter(Objects::nonNull).map(t->org.vernac.compiler.vocabulary.Vocabulary.parse(sourceName,t)).toList();
+        return new CompilationUnitNode(toLocation(ctx.namespaceDeclaration()), namespace, imports, definitions,terms);
     }
 
     private TopLevelDefinition toTopLevelDefinition(VernacParser.TopLevelDeclarationContext ctx) {
@@ -58,7 +60,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     @Override
     public IdDeclarationNode visitIdDeclaration(VernacParser.IdDeclarationContext ctx) {
         String name = ctx.name.getText();
-        return new IdDeclarationNode(toLocation(ctx), name, collection(ctx.collectionDefinition()));
+        return new IdDeclarationNode(toLocation(ctx), name, collections(ctx.collectionDefinition()));
     }
 
     @Override
@@ -91,7 +93,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
 
         List<MethodNode> voMethods = behaviorMethods(ctx.behaviorBlock());
 
-        Optional<CollectionDefinitionNode> collection = collection(ctx.collectionDefinition());
+        List<CollectionDefinitionNode> collections = collections(ctx.collectionDefinition());
 
         return new ValueObjectNode(
                 toLocation(ctx),
@@ -100,7 +102,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 enumConstants,
                 validations,
                 voMethods,
-                collection,
+                collections,
                 behaviorImports(ctx.behaviorBlock())
         );
     }
@@ -121,12 +123,11 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 method.effect == null ? MethodNode.Mode.DEFAULT : MethodNode.Mode.valueOf(method.effect.getText().toUpperCase(java.util.Locale.ROOT)))).toList();
     }
 
-    private Optional<CollectionDefinitionNode> collection(VernacParser.CollectionDefinitionContext ctx) {
-        if (ctx == null) return Optional.empty();
-        return Optional.of(new CollectionDefinitionNode(toLocation(ctx),
+    private List<CollectionDefinitionNode> collections(List<VernacParser.CollectionDefinitionContext> contexts) {
+        return contexts.stream().map(ctx -> new CollectionDefinitionNode(toLocation(ctx),
                 ctx.kind.getText().equals("list") ? CollectionDefinitionNode.Kind.LIST : CollectionDefinitionNode.Kind.SET,
                 Optional.ofNullable(ctx.collectionName).map(ParserRuleContext::getText),
-                behaviorMethods(ctx.behaviorBlock()), behaviorImports(ctx.behaviorBlock())));
+                behaviorMethods(ctx.behaviorBlock()), behaviorImports(ctx.behaviorBlock()))).toList();
     }
 
     @Override
@@ -151,7 +152,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         }
 
         return new AggregateNode(toLocation(ctx), name, idDef, fields, validations,
-                behaviorMethods(ctx.behaviorBlock()), collection(ctx.collectionDefinition()), behaviorImports(ctx.behaviorBlock()));
+                behaviorMethods(ctx.behaviorBlock()), collections(ctx.collectionDefinition()), behaviorImports(ctx.behaviorBlock()));
     }
 
     @Override
@@ -176,7 +177,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         }
 
         return new EntityNode(toLocation(ctx), name, idDef, fields, validations,
-                behaviorMethods(ctx.behaviorBlock()), collection(ctx.collectionDefinition()), behaviorImports(ctx.behaviorBlock()));
+                behaviorMethods(ctx.behaviorBlock()), collections(ctx.collectionDefinition()), behaviorImports(ctx.behaviorBlock()));
     }
 
     @Override
@@ -195,7 +196,9 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                     findCtx.parameterList() == null ? List.of() : extractParameters(findCtx.parameterList()),
                     predicates, findCtx.repositoryOrder().stream().map(o -> new RepositoryMethodNode.Order(
                             toLocation(o), o.field.getText(), o.direction != null && o.direction.getText().equals("desc"))).toList(),
-                    condition));
+                    condition, findCtx.pagination == null ? RepositoryMethodNode.Pagination.NONE
+                            : RepositoryMethodNode.Pagination.valueOf(findCtx.pagination.getText().toUpperCase(java.util.Locale.ROOT)),
+                    findCtx.counting != null));
         }
         return new RepositoryNode(toLocation(ctx), name, aggregateName, methods);
     }
@@ -228,14 +231,34 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                         List.of(a.path.getText().split("\\.")), Optional.ofNullable(a.mapper).map(ParserRuleContext::getText))).toList(),
                 httpStatus(e.status.getText()), Optional.ofNullable(e.responseType).map(this::toTypeNode),
                 Optional.ofNullable(e.responseMapping).map(ParserRuleContext::getText),
-                Optional.ofNullable(e.absentStatus).map(t -> httpStatus(t.getText())))).toList();
+                Optional.ofNullable(e.absentStatus).map(t -> httpStatus(t.getText())),
+                inboundImplementation(e.inboundErrorPolicy()), inboundRules(e.inboundErrorPolicy()))).toList();
         return new InboundHttpAdapterNode(toLocation(ctx), ctx.name.getText(), unquote(ctx.base.getText()),
                 ctx.dependencies.stream().map(this::adapterParameter).toList(), endpoints,
                 ctx.schemaDefinition().stream().map(this::visitSchemaDefinition).toList(),
                 ctx.mappingDefinition().stream().map(this::visitMappingDefinition).toList(),
-                Optional.ofNullable(ctx.errorImplementation).map(ParserRuleContext::getText));
+                inboundImplementation(ctx.inboundErrorPolicy()), inboundRules(ctx.inboundErrorPolicy()));
     }
 
+    private Optional<String> inboundImplementation(VernacParser.InboundErrorPolicyContext policy) {
+        return policy == null ? Optional.empty() : Optional.ofNullable(policy.implementation).map(ParserRuleContext::getText);
+    }
+    private List<InboundHttpAdapterNode.ErrorRule> inboundRules(VernacParser.InboundErrorPolicyContext policy) {
+        if (policy == null) return List.of();
+        return policy.inboundErrorRule().stream().map(rule -> {
+            var selector = rule.inboundErrorSelector();
+            String code = selector.rejectionCode == null ? "" : selector.rejectionCode.getText();
+            int dot = code.lastIndexOf('.');
+            return new InboundHttpAdapterNode.ErrorRule(toLocation(rule),
+                selector.rejectionCode != null ? "rejection" : selector.responsibility != null ? "integration" : selector.getText(),
+                dot < 0 ? Optional.empty() : Optional.of(new TypeNode(toLocation(selector.rejectionCode), code.substring(0,dot))),
+                dot < 0 ? code : code.substring(dot+1),
+                selector.responsibility == null ? "" : selector.responsibility.getText(),
+                selector.category == null ? "" : selector.category.getText(), httpStatus(rule.status.getText()),
+                Optional.ofNullable(rule.code).map(t -> errorString(t.getText(), toLocation(rule))),
+                Optional.ofNullable(rule.message).map(t -> errorString(t.getText(), toLocation(rule))));
+        }).toList();
+    }
     private int httpStatus(String value) {
         try { return Integer.parseInt(value); }
         catch (NumberFormatException invalid) { return -1; }
@@ -346,6 +369,8 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     }
 
     @Override
+    public TypeNode visitPageType(VernacParser.PageTypeContext ctx) { return toTypeNode(ctx); }
+
     public TypeNode visitType(VernacParser.TypeContext ctx) {
         // 1. Den Haupt-Typnamen auslesen (z.B. "Optional" oder "LocalDate")
         String name = ctx.rawType.getText();
@@ -412,6 +437,19 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 .toList();
     }
 
+    private TypeNode toTypeNode(VernacParser.PageTypeContext ctx) {
+        var base=toTypeNode(ctx.type());
+        var kind=ctx.counted!=null?TypeNode.PageKind.COUNTED_OFFSET:ctx.pageMode==null?TypeNode.PageKind.NONE
+                :ctx.pageMode.getText().equals("offset")?TypeNode.PageKind.OFFSET:TypeNode.PageKind.CURSOR;
+        return new TypeNode(toLocation(ctx),base.name(),base.typeArguments(),base.isOptional(),kind);
+    }
+    private List<FieldNode> extractParameters(VernacParser.ResultParameterListContext ctx) {
+        return ctx.resultParameter().stream().map(p->{
+            var type=toTypeNode(p.paramType);
+            String name=p.name==null?org.vernac.language.VernacNames.defaultMemberName(type.name()):p.name.getText();
+            return new FieldNode(toLocation(p),type,name,p.isMut!=null,p.name!=null);
+        }).toList();
+    }
     private TypeNode toTypeNode(VernacParser.TypeContext ctx) {
         String typeName = ctx.rawType.getText();
         List<TypeNode> typeArgs = ctx.typeArguments() != null

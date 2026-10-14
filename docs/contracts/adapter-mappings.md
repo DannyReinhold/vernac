@@ -198,3 +198,13 @@ Tests compile and execute generated code: domain/DTO roundtrips, IDs, validation
 optional paths, lists and duplicates, PATCH states, Java imports, external delegates,
 null results and preserved programming exceptions. Compiler tests cover malformed
 assignments and incompatible types; editor tests cover local navigation/completion.
+
+## Mapping pages without losing metadata
+
+Pages are a separate conversion shape, not another sequence. A page field assignment
+maps the entire page; `using <mapping>` selects its entry conversion. Automatic exact
+VO/scalar conversion is also available for entries. Source and target variants must
+match; counts/navigation/order/multiplicity are retained eagerly. Source paths cannot
+traverse page internals, and no page is implicitly flattened into a list or rebuilt
+as a domain result from a transport DTO. Explicit Java remains available for deliberate
+alternative semantics. See [the pagination contract](pagination.md).

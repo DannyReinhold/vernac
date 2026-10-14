@@ -155,4 +155,94 @@ class CollectionContractTest {
                 "id TaskId; value NumberValue(int); entity Task[TaskId](NumberValue value) list behavior { public String by(TaskId id) { return \"x\"; } };"))
             assertThrows(SemanticValidationException.class, () -> new VernacCompiler().compileSource("namespace collections; " + body), body);
     }
+
+    @Test void multipleCollectionsGenerateIndependentBehaviorAndContainerContracts() throws Exception {
+        var output = compile("""
+                value Name(String value) list behavior {
+                    java imports { java.util.Locale; }
+                    public String role() { return "history".toUpperCase(Locale.ROOT); }
+                }, set SelectedNames behavior {
+                    public String role() { return "selection"; }
+                }, list ArchivedNames;
+                value Selection(Names history, SelectedNames selected);
+                """);
+        Class<?> element = output.loadClass("collections.domain.Name");
+        Object a = element.getMethod("of", String.class).invoke(null, "A");
+        Object b = element.getMethod("of", String.class).invoke(null, "B");
+        Object list = of(output.loadClass("collections.domain.Names"), List.of(b, a, b));
+        Object set = of(output.loadClass("collections.domain.SelectedNames"), List.of(b, a, b));
+        assertEquals(List.of(b, a, b), call(list, "asList"));
+        assertEquals(Set.of(a, b), call(set, "asSet"));
+        assertEquals("HISTORY", call(list, "role"));
+        assertEquals("selection", call(set, "role"));
+        assertThrows(NoSuchMethodException.class, () -> set.getClass().getMethod("duplicates"));
+        assertThrows(NoSuchMethodException.class, () -> output.loadClass("collections.domain.ArchivedNames").getMethod("role"));
+    }
+
+    @Test void allFiveOwnerKindsCanDeclareListsAndSets() throws Exception {
+        var output = compile("""
+                id TaskId list, set SelectedIds;
+                value Label(String) list, set SelectedLabels;
+                value Status = OPEN | CLOSED list, set SelectedStatuses;
+                entity Task[TaskId](Label) list, set SelectedTasks;
+                aggregate Work[TaskId](Task task, SelectedTasks tasks) list, set SelectedWorks;
+                """);
+        for (String name : List.of("TaskIds", "SelectedIds", "Labels", "SelectedLabels", "Statuss",
+                "SelectedStatuses", "Tasks", "SelectedTasks", "Works", "SelectedWorks"))
+            assertNotNull(output.loadClass("collections.domain." + name));
+        assertNotNull(output.loadClass("collections.domain.SelectedTasks")
+                .getMethod("by", output.loadClass("collections.domain.TaskId")));
+        assertNotNull(output.loadClass("collections.domain.SelectedWorks")
+                .getMethod("by", output.loadClass("collections.domain.TaskId")));
+    }
+
+    @Test void multipleCollectionNamesRemainVisibleAcrossFilesAndNamespaces(@TempDir Path root) throws Exception {
+        Files.createDirectories(root.resolve("model")); Files.createDirectories(root.resolve("view"));
+        Files.writeString(root.resolve("model/name.vernac"), "namespace model; value Name(String) list, set SelectedNames;");
+        Files.writeString(root.resolve("model/local.vernac"), "namespace model; value Local(Names, SelectedNames);");
+        Files.writeString(root.resolve("view/view.vernac"), "namespace view; import model.Names; import model.SelectedNames; value View(Names, SelectedNames);");
+        var result = new VernacCompiler().compileProject(root);
+        var output = InMemoryJavaCompiler.compile(result.generatedFiles());
+        assertTrue(output.success(), output.diagnostics().toString());
+        assertNotNull(output.loadClass("view.domain.View").getMethod("selectedNames"));
+    }
+
+    @Test void duplicateDefaultsExplicitNamesAndInvalidSecondBehaviorsAreRejected() {
+        for (String body : List.of(
+                "value Name(String) list, set;",
+                "value Name(String) list, set Names;",
+                "value Name(String) list History, list History;",
+                "value Name(String) list History, set String;",
+                "value Name(String) list History, set Selected; value Selected(String);",
+                "value Name(String) list History, set Selected behavior { public int size() { return 0; } };",
+                "id TaskId; entity Task[TaskId]() list Tasks, set SelectedTasks; value Invalid(SelectedTasks);",
+                "id TaskId; aggregate Task[TaskId]() list Tasks, set SelectedTasks; entity Owner[TaskId](SelectedTasks);"))
+            assertThrows(SemanticValidationException.class,
+                    () -> new VernacCompiler().compileSource("namespace collections; " + body), body);
+    }
+
+    @Test void generatedListsParticipateInTypeSafePaginationButSetsDoNot() throws Exception {
+        var result = new VernacCompiler().compileSource("namespace collections; value Name(String) list Names, set SelectedNames; value Label(String) list Labels;");
+        var sources = new LinkedHashMap<String, String>();
+        result.generatedFiles().forEach(file -> sources.put(file.packageName() + "." + file.typeSpec().name(), file.toString()));
+        sources.put("collections.PageProbe", """
+                package collections;
+                import collections.domain.*;
+                import org.vernac.runtime.pagination.*;
+                public class PageProbe {
+                    public static String run() {
+                        OffsetQuery<Name, Names> query = request -> OffsetPage.of(Names.of(Name.of("A")), request, false);
+                        var projected = query.page(OffsetRequest.ofPage(PageNumber.of(1), PageSize.of(20)))
+                            .mapItems(Labels::of, name -> Label.of(name.string()));
+                        return projected.items().get(0).string();
+                    }
+                }
+                """);
+        var output = InMemoryJavaCompiler.compile(sources);
+        assertTrue(output.success(), output.diagnostics().toString());
+        assertEquals("A", output.loadClass("collections.PageProbe").getMethod("run").invoke(null));
+        assertTrue(org.vernac.runtime.DomainList.class.isAssignableFrom(output.loadClass("collections.domain.Names")));
+        assertFalse(org.vernac.runtime.DomainList.class.isAssignableFrom(output.loadClass("collections.domain.SelectedNames")));
+    }
+
 }

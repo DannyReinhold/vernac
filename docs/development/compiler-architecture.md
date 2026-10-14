@@ -58,4 +58,4 @@ Tests must cover parsing/resolution diagnostics, generated Java compilation, mea
 runtime behavior and editor symbol updates. Documentation examples are tested in
 DocumentationExamplesTest; transport/persistence behavior needs its dedicated tests.
 Avoid claiming full IDE verification from a source-only check. The [feature checklist](feature-review-checklist.md)
-and [release plan](release-0.3.0.md) define review and acceptance.
+and [release plan](release-0.4.0.md) define review and acceptance.

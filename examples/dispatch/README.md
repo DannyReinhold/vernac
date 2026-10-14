@@ -9,7 +9,7 @@ carrier integration. The business model lives in `.vernac` files. Java connects 
 to the browser and to the local carrier simulator.
 
 This is an independent example, **not a child module** of the Vernac reactor.
-It uses **Vernac 0.3.0-SNAPSHOT**, Java 21 output and the current JDK 25 build setup.
+It uses **Vernac 0.4.0-SNAPSHOT**, Java 21 output and the current JDK 25 build setup.
 
 ## Start
 
@@ -30,7 +30,7 @@ Three tours are seeded once; subsequent starts preserve your work. All carrier c
 stay on loopback. There are no credentials for a real external service, map tiles,
 tracking scripts or CDN dependencies.
 
-In IntelliJ's Maven command window, enter the goals without the `mvn` prefix and
+In IntelliJ's Maven command window, enter the same command and
 select this example's POM. A PowerShell launcher is also provided:
 
 ```powershell
@@ -201,3 +201,48 @@ The controllers open no transactions: the usecases keep that responsibility.
 The other board, integration-status and command endpoints remain handwritten to
 show Java interoperability. See the [inbound tutorial](../../docs/tutorials/inbound-http.md)
 for the contract, safe error defaults and external error policies.
+
+## Paged board API
+
+The showcase also has a fully generated GET endpoint combining two counted lists
+with independent page numbers and a cursor-based recent list. Its model is
+`routing/tour-board.vernac`; transport schemas and ACL are in `web/paging-api.vernac`.
+All repository loads still reconstruct complete aggregates before the usecase
+projects TourSummary values. No new database objects or migration are needed.
+
+With Dispatch running, try PowerShell:
+
+```powershell
+$board = Invoke-RestMethod 'http://localhost:8087/api/tour-board?plannedPage=1&dispatchedPage=1&pageSize=2'
+$board.plannedTours
+$board.dispatchedTours
+$board.recentTours
+if ($board.recentTours.nextCursor) {
+    $cursor = [Uri]::EscapeDataString($board.recentTours.nextCursor)
+    Invoke-RestMethod "http://localhost:8087/api/tour-board?plannedPage=1&dispatchedPage=1&pageSize=2&cursor=$cursor"
+}
+```
+
+Change plannedPage independently of dispatchedPage. Each counted component exposes
+items, offset, pageSize, pageNumber, hasNext, totalElements and totalPages. The cursor
+component has items, pageSize and an optional nextCursor. Restarting with the default
+process-local cursor key invalidates old continuations; configure
+`vernac.pagination.cursor-key` through secret management for durable/shared cursors.
+An invalid cursor returns 400/INVALID_CURSOR. The existing UI continues to use its
+original routes; this endpoint demonstrates the generated pagination API.
+
+### Declarative error replies
+
+The TourApi create endpoint specializes domain validation as HTTP 422 / INVALID_TOUR.
+Its adapter provides shared malformed-request, not-found and optimistic-conflict rules.
+Try an empty title (no tour is created):
+
+```powershell
+$requestFile = Join-Path $env:TEMP 'vernac-empty-title.json'
+[System.IO.File]::WriteAllText($requestFile, '{"title":"","capacity":10}', [System.Text.UTF8Encoding]::new($false))
+curl.exe -i -X POST http://localhost:8087/api/tours -H "Content-Type: application/json" --data-binary "@$requestFile"
+```
+
+The command prints the non-success response; inspect its JSON body for `code` and
+`message`. Omitting `capacity` instead produces the shared 400 / INVALID_REQUEST reply.
+These policies do not alter usecase transactions or publish exception messages.

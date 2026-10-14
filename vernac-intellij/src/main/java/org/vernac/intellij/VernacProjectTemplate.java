@@ -28,6 +28,13 @@ public final class VernacProjectTemplate {
             "src/test/java/org/example/tasks/TaskTest.java"
     );
 
+    public enum ProjectKind {
+        APPLICATION("Application"), TYPE_MODULE("Module / Type Library");
+        private final String label;
+        ProjectKind(String label) { this.label = label; }
+        @Override public String toString() { return label; }
+    }
+
     private VernacProjectTemplate() {
     }
 
@@ -38,7 +45,16 @@ public final class VernacProjectTemplate {
             String artifactId,
             String basePackage
     ) throws IOException {
+        copyTo(projectDirectory, projectName, groupId, artifactId, basePackage, ProjectKind.APPLICATION);
+    }
+
+    public static void copyTo(Path projectDirectory, String projectName, String groupId,
+                              String artifactId, String basePackage, ProjectKind kind) throws IOException {
+        Objects.requireNonNull(kind, "Project kind");
         validateParameters(projectName, groupId, artifactId, basePackage);
+        if (kind == ProjectKind.TYPE_MODULE && !basePackage.contains(".")) {
+            throw new IOException("A type module requires a qualified namespace with at least two segments.");
+        }
 
         Path root = projectDirectory.toAbsolutePath().normalize();
         Map<Path, byte[]> preparedFiles = new LinkedHashMap<>();
@@ -61,6 +77,8 @@ public final class VernacProjectTemplate {
                         "Project file already exists: " + destination
                 );
             }
+
+            if (kind == ProjectKind.TYPE_MODULE && relativePath.endsWith("TaskTest.java")) continue;
 
             byte[] content;
 
@@ -102,12 +120,61 @@ public final class VernacProjectTemplate {
                 ).getBytes(StandardCharsets.UTF_8);
             }
 
+            if (kind == ProjectKind.TYPE_MODULE) {
+                if (relativePath.endsWith("tasks.vernac")) {
+                    content = ("namespace " + basePackage + ";\n\nid TaskId;\n"
+                            + "value Title(String) validates {\n"
+                            + "    require(!self.string().isBlank(), \"Title must not be blank\");\n"
+                            + "} list Titles;\n").getBytes(StandardCharsets.UTF_8);
+                } else if (relativePath.equals("pom.xml")) {
+                    String pom = new String(content, StandardCharsets.UTF_8);
+                    pom = pom.replace("        <plugins>", "        <plugins>\n"
+                            + "            <plugin>\n"
+                            + "                <groupId>org.apache.maven.plugins</groupId>\n"
+                            + "                <artifactId>maven-source-plugin</artifactId>\n"
+                            + "                <version>3.3.1</version>\n"
+                            + "                <configuration><excludes><exclude>**/.vernac-*</exclude></excludes></configuration>\n"
+                            + "                <executions><execution><phase>package</phase><goals><goal>jar-no-fork</goal></goals></execution></executions>\n"
+                            + "            </plugin>");
+                    content = pom.getBytes(StandardCharsets.UTF_8);
+                } else if (relativePath.equals("README.md")) {
+                    content = ("# " + escapeMarkdown(projectName) + "\n\n"
+                            + "Reusable Vernac type module `" + basePackage + "`.\n\n"
+                            + "Run `mvn clean install` to compile and publish into your local Maven repository.\n"
+                            + "For SNAPSHOT tools, install the matching Vernac compiler/runtime first.\n"
+                            + "Export local types explicitly in `vernac-module.vmodule`.\n"
+                            + "The JAR contains compiled classes and `META-INF/vernac/module.json`;\n"
+                            + "the sources JAR includes original Vernac sources for navigation.\n"
+                            + "Consumers add the Maven dependency and import exported qualified type names.\n"
+                            + "Type-only modules need no activation or database.\n"
+                            + "For functional reuse, consumers activate this logical module in their .vapplication file.\n"
+                            + "Keep implementation helpers internal; export every local type in a public signature.\n"
+                            + "Persistent modules own reviewed migrations; consumers migrate their own flattened external values.\n"
+                            + "See https://vernac.org/tutorials/type-modules.html for the lifecycle.\n")
+                            .getBytes(StandardCharsets.UTF_8);
+                }
+            }
+
             if (preparedFiles.putIfAbsent(destination, content) != null) {
                 throw new IOException(
                         "Duplicate template destination: " + destination
                 );
             }
         }
+
+        String definitionName = kind == ProjectKind.APPLICATION
+                ? "vernac-application.vapplication" : "vernac-module.vmodule";
+        Path definition = root.resolve(definitionName);
+        if (Files.exists(definition, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("Project file already exists: " + definition);
+        }
+        String definitionText = kind == ProjectKind.APPLICATION
+                ? "application " + basePackage + " {\n}\n"
+                : "module " + basePackage + " {\n"
+                + "    export " + basePackage + ".TaskId;\n"
+                + "    export " + basePackage + ".Title;\n"
+                + "    export " + basePackage + ".Titles;\n}\n";
+        preparedFiles.put(definition, definitionText.getBytes(StandardCharsets.UTF_8));
 
         // Check parent paths before starting to write.
         for (Path destination : preparedFiles.keySet()) {

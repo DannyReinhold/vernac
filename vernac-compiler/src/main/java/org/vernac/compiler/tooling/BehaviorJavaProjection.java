@@ -109,16 +109,16 @@ public final class BehaviorJavaProjection {
                 if (definition instanceof ValueObjectNode value) addValidation(result, project, scope, unit, value.name(), value.javaImports(), validations, text);
                 else MutableDomain.of(definition).ifPresent(model -> addValidation(result, project, scope, unit, model.name(), model.imports(), validations, text));
             }
-            var collection = CollectionDeclaration.of(definition);
-            if (collection.isPresent()) {
-                var c = collection.get();
-                VernacParser.CollectionDefinitionContext context = null;
-                if (syntax.valueDefinition() != null) context = syntax.valueDefinition().collectionDefinition();
-                else if (syntax.idDeclaration() != null) context = syntax.idDeclaration().collectionDefinition();
-                else if (syntax.entityDefinition() != null) context = syntax.entityDefinition().collectionDefinition();
-                else if (syntax.aggregateDefinition() != null) context = syntax.aggregateDefinition().collectionDefinition();
-                if (context != null) add(result, project, scope, unit, c.name(), c.definition().customMethods(),
-                        c.definition().javaImports(), context.behaviorBlock(), text);
+            var collections = CollectionDeclaration.of(definition);
+            List<VernacParser.CollectionDefinitionContext> contexts = List.of();
+            if (syntax.valueDefinition() != null) contexts = syntax.valueDefinition().collectionDefinition();
+            else if (syntax.idDeclaration() != null) contexts = syntax.idDeclaration().collectionDefinition();
+            else if (syntax.entityDefinition() != null) contexts = syntax.entityDefinition().collectionDefinition();
+            else if (syntax.aggregateDefinition() != null) contexts = syntax.aggregateDefinition().collectionDefinition();
+            if (contexts.size() == collections.size()) for (int c = 0; c < collections.size(); c++) {
+                var collection = collections.get(c);
+                add(result, project, scope, unit, collection.name(), collection.definition().customMethods(),
+                        collection.definition().javaImports(), contexts.get(c).behaviorBlock(), text);
             }
         }
         return List.copyOf(result);

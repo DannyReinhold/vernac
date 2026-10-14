@@ -148,4 +148,19 @@ class VernacCompileMojoTest {
         assertThat(Files.readString(output.resolve("example/domain/TaskId.java"))).isEqualTo(previous);
         assertThat(Files.readString(output.resolve(".vernac-generated-sources"))).isEqualTo(manifest);
     }
+    @Test
+    void applicationDefinitionMustBeValidAndExecutableBeforeWritingSources(@TempDir Path root) throws Exception {
+        Path sources=root.resolve("src/main/vernac/example");Files.createDirectories(sources);
+        Files.writeString(sources.resolve("model.vernac"),"namespace example; value Name(String);");
+        Path file=root.resolve("vernac-application.vapplication");
+        Files.writeString(file,"application example.shop {bind example.Unknown to example.Other;}");
+        VernacCompileMojo mojo=new VernacCompileMojo();
+        mojo.setSourceDirectory(root.resolve("src/main/vernac").toFile());
+        mojo.setOutputDirectory(root.resolve("target/generated-sources/vernac").toFile());
+        MavenProject project=new MavenProject();project.setFile(root.resolve("pom.xml").toFile());mojo.setProject(project);
+        assertThatThrownBy(mojo::execute).isInstanceOf(MojoFailureException.class).hasMessageContaining("Binding requires");
+        assertThat(Files.exists(root.resolve("target/generated-sources/vernac/example/domain/Name.java"))).isFalse();
+        Files.writeString(file,"application example.shop {}");mojo.execute();
+        assertThat(Files.exists(root.resolve("target/generated-sources/vernac/example/domain/Name.java"))).isTrue();
+    }
 }

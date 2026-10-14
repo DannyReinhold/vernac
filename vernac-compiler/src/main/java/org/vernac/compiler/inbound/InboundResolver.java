@@ -24,7 +24,44 @@ public final class InboundResolver {
             List<CompilerDiagnostic> errors, Set<String> routes) {
         this.project=project; this.types=types; this.errors=errors; this.routes=routes;
     }
+    private void validateImplementation(String name, SourceLocation location) {
+        if (!name.contains(".") || Arrays.stream(name.split("\\.")).anyMatch(p -> !VernacNames.isIdentifier(p)))
+            error(location, "errors implemented by requires a fully qualified Java class name.");
+    }
+    private void validateRules(List<InboundHttpAdapterNode.ErrorRule> rules, FileTypeScope scope) {
+        Set<String> seen = new HashSet<>();
+        for (var rule : rules) {
+            if (rule.status() < 400 || rule.status() > 599) error(rule.location(), "Error response status must be 400–599.");
+            if (rule.code().map(String::isBlank).orElse(false) || rule.message().map(String::isBlank).orElse(false))
+                error(rule.location(), "Public error code and message must not be blank.");
+            String key = rule.selector()+":"+rule.responsibility()+":"+rule.category();
+            if (rule.selector().equals("integration")) {
+                try { org.vernac.runtime.ports.IntegrationCategory.valueOf(rule.category()); }
+                catch (IllegalArgumentException e) { error(rule.location(), "Unknown integration category: "+rule.category()); }
+            }
+            if (rule.selector().equals("rejection")) {
+                if (rule.rejectionType().isEmpty()) { error(rule.location(), "Rejection requires EnumType.CONSTANT."); continue; }
+                var lookup = scope.resolve(rule.rejectionType().get().name(), rule.location()); errors.addAll(lookup.diagnostics());
+                if (!(lookup.type().orElse(null) instanceof ResolvedType.Declared d) || d.symbol().kind()!=TypeSymbol.Kind.ENUM) {
+                    error(rule.location(), "Rejection code must belong to a declared Vernac enum."); continue;
+                }
+                types.put(rule.rejectionType().get(), d);
+                var symbol = d.symbol();
+                boolean exists = project.sources().stream().filter(s -> s.unit().namespace().equals(symbol.identity().namespace()))
+                    .flatMap(s -> s.unit().definitions().stream()).filter(n -> n instanceof ValueObjectNode v && v.name().equals(symbol.identity().name()))
+                    .map(n -> (ValueObjectNode)n).flatMap(v -> v.enumConstants().stream()).anyMatch(c -> c.name().equals(rule.constant()));
+                if (!exists) error(rule.location(), "Unknown rejection constant: "+rule.constant());
+                key += ":"+symbol.identity().qualifiedName()+"."+rule.constant();
+            }
+            if (!seen.add(key)) error(rule.location(), "Duplicate inbound error selector: "+key);
+        }
+    }
     public ResolvedInbound resolve(InboundHttpAdapterNode adapter, String namespace, FileTypeScope scope) {
+        validateRules(adapter.errorRules(), scope);
+        for (var endpoint : adapter.endpoints()) {
+            validateRules(endpoint.errorRules(), scope);
+            endpoint.errorImplementation().ifPresent(n -> validateImplementation(n, endpoint.location()));
+        }
         var schemas = new SchemaContracts().resolve(adapter.name(), adapter.schemas(), errors);
         String dtoPackage = namespace + ".adapter.inbound.http.dto";
         var resolver = new MappingResolver(project,types,errors).context(adapter.name(),namespace,scope,schemas,dtoPackage);
@@ -36,6 +73,7 @@ public final class InboundResolver {
                     || !(lookup.type().orElse(null) instanceof ResolvedType.Declared d) || d.symbol().kind()!=TypeSymbol.Kind.USE_CASE) {
                 error(field.location(),"Inbound uses requires a non-optional usecase and a valid dependency name."); continue;
             }
+            types.put(field.type(),lookup.type().orElseThrow());
             var symbol=((ResolvedType.Declared)lookup.type().orElseThrow()).symbol();
             var usecase=project.sources().stream().filter(s->s.unit().namespace().equals(symbol.identity().namespace()))
                     .flatMap(s->s.unit().definitions().stream()).filter(definition->definition instanceof UseCaseNode u && u.name().equals(symbol.identity().name()))

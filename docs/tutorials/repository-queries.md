@@ -3,7 +3,7 @@
 Repository searches return your domain aggregates, including all contained entities
 and collections. They do not return arbitrary SQL projections.
 
-Use a Vernac 0.3.0 application with JDBC support. This model is a separate query
+Use a Vernac 0.4.0 application with JDBC support. This model is a separate query
 exercise; the persistence demo provides an already wired runnable alternative. Place it in
 `src/main/vernac/example/search/tours.vernac`:
 

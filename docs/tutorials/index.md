@@ -4,12 +4,12 @@ Start with a passing domain test. Then follow a delivery operation through behav
 transactions, persistence, events and an external carrier. Each chapter answers a
 practical question; focused examples isolate details when the full system would distract.
 
-These tutorials describe **Vernac 0.3.0**. Use JDK 25 for the documented builds;
-generated application code targets Java 21. Released consumers use 0.3.0 artifacts
-from Maven Central after publication. Repository examples use 0.3.0-SNAPSHOT by
+These tutorials describe **Vernac 0.4.0**. Use JDK 25 for the documented builds;
+generated application code targets Java 21. Released consumers use 0.4.0 artifacts
+from Maven Central after publication. Repository examples use 0.4.0-SNAPSHOT by
 default: install matching local artifacts first, or select the release with
-`-Dvernac.version=0.3.0` after publication.
-Commands with `mvn` are terminal commands; omit `mvn` in IntelliJ's Maven command window.
+`-Dvernac.version=0.4.0` after publication.
+Commands below include `mvn`; use the full command in the IntelliJ Maven run configuration used for these examples.
 In PowerShell, quote a complete dotted `-Dproperty=value` argument when necessary.
 
 ## How to use the examples
@@ -33,6 +33,10 @@ For a source checkout, use the [example build guide](https://github.com/DannyRei
 6. [Lists, sets and repeated values](collections.md): make multiplicity and identity intentional.
 7. [Domain behavior](behavior.md): inline Java, private helpers and external implementations.
 
+8. [Keep the meaning beside the model](ubiquitous-language.md): a shared glossary, type hover and vocabulary for AI-assisted work.
+
+9. [See the architecture](domain-diagrams.md): a namespace diagram, vocabulary and export for documentation.
+
 ## 2. Turn behavior into an application operation
 
 1. [Usecases](usecases.md): one operation, declared results and one transaction boundary.
@@ -42,6 +46,7 @@ For a source checkout, use the [example build guide](https://github.com/DannyRei
 
 1. [Persist complete aggregates](database-persistence.md): shared entities, queries and concurrent changes.
 2. [Repository queries](repository-queries.md): equality, absence, text patterns and boolean expressions.
+   The [pagination tutorial](pagination.md) demonstrates generated queries, counts, independent usecase Result components and a paginated GET.
 3. [Evolve with Flyway](flyway-workflow.md): review and apply a migration while retaining data.
 4. [Schema tooling](postgresql-migrations.md): snapshots, backfills and disposable-database verification.
 
@@ -64,3 +69,10 @@ For a source checkout, use the [example build guide](https://github.com/DannyRei
 
 [Run Vernac Dispatch](dispatch.md): an interactive application connecting the domain,
 transactions, PostgreSQL, durable events and a carrier ACL.
+
+[Reuse and evolve a type module](type-modules.md): publish domain values, import
+them, create the initial application migration and upgrade a flattened external VO.
+The chapter explains explicit activation, provider selection, dependency navigation and independent migration histories.
+[Run the persistent module lifecycle](../../examples/persistent-modules/README.md):
+call two persistent modules from an application, then upgrade their shared value
+with reviewed backfills while retaining existing data. Its separate API module and durable event receivers demonstrate the same activation graph.

@@ -1,0 +1,66 @@
+namespace pageweb;
+value Label(String) list Labels;
+value PageNumber(int) validates { require(self.intValue() > 0, "Positive page number required"); };
+value PageSize(int) validates { require(self.intValue() > 0, "Positive page size required"); };
+value CursorToken(String);
+
+usecase Board(PageNumber firstPage, PageNumber secondPage, PageSize, CursorToken? cursorToken)
+    returns (Label heading, counted offset Labels first, offset Labels second, cursor Labels feed)
+    behavior {
+        java imports {
+            java.util.List;
+            java.util.Optional;
+            org.vernac.runtime.pagination.CountedOffsetPage;
+            org.vernac.runtime.pagination.OffsetPage;
+            org.vernac.runtime.pagination.OffsetRequest;
+            org.vernac.runtime.pagination.CursorPage;
+            org.vernac.runtime.pagination.CursorRequest;
+            org.vernac.runtime.pagination.PageCursor;
+        }
+        execute {
+            var values = List.of(Label.of("A"), Label.of("B"), Label.of("C"), Label.of("D"), Label.of("E"), Label.of("F"));
+            var firstRequest = OffsetRequest.ofPage(firstPage.intValue(), pageSize.intValue());
+            int firstStart = (int) Math.min(firstRequest.offset(), values.size());
+            int firstEnd = firstStart + Math.min(firstRequest.pageSize(), values.size() - firstStart);
+            var first = CountedOffsetPage.of(Labels.of(values.subList(firstStart, firstEnd)), firstRequest, values.size());
+            var secondRequest = OffsetRequest.ofPage(secondPage.intValue(), pageSize.intValue());
+            int secondStart = (int) Math.min(secondRequest.offset(), values.size());
+            int secondEnd = secondStart + Math.min(secondRequest.pageSize(), values.size() - secondStart);
+            var second = OffsetPage.of(Labels.of(values.subList(secondStart, secondEnd)), secondRequest, secondEnd < values.size());
+            if (cursorToken.isPresent() && !cursorToken.get().string().equals("sample-next")) {
+                throw new org.vernac.runtime.pagination.InvalidCursorException();
+            }
+            var cursorRequest = cursorToken.map(token -> CursorRequest.after(PageCursor.of(token.string()), pageSize.intValue()))
+                .orElseGet(() -> CursorRequest.first(pageSize.intValue()));
+            var feed = cursorToken.isPresent()
+                ? CursorPage.of(Labels.empty(), cursorRequest, Optional.<PageCursor>empty())
+                : CursorPage.of(Labels.of(values.subList(0, Math.min(cursorRequest.pageSize(), values.size()))), cursorRequest,
+                    cursorRequest.pageSize() < values.size() ? Optional.of(PageCursor.of("sample-next")) : Optional.empty());
+            return Result.of(Label.of("Board"), first, second, feed);
+        }
+    }
+
+usecase Single() returns counted offset Labels behavior {
+    java imports { org.vernac.runtime.pagination.CountedOffsetPage; org.vernac.runtime.pagination.OffsetRequest; }
+    execute { return CountedOffsetPage.of(Labels.of(Label.of("single")), OffsetRequest.ofPage(1, 2), 1); }
+}
+
+adapter Api inbound http uses Board board, Single single {
+    base "/pages";
+    board {
+        GET "/";
+        query int firstPage;
+        query int secondPage;
+        query int pageSize;
+        query String? cursor;
+        execute board { firstPage <- query.firstPage; secondPage <- query.secondPage; pageSize <- query.pageSize; cursorToken <- query.cursor; }
+        respond 200 BoardDto using board;
+    }
+    single { GET "/single"; execute single {} respond 200 SingleDto using single; }
+    schema LabelDto(String text);
+    schema BoardDto(String heading, counted offset list<LabelDto> first, offset list<String> second, cursor list<LabelDto> feed);
+    schema SingleDto(counted offset list<String> page);
+    mapping label: LabelDto <- Label { text <- source; }
+    mapping board: BoardDto <- Board.Result { heading <- source.heading; first <- source.first using label; second <- source.second; feed <- source.feed using label; }
+    mapping single: SingleDto <- counted offset Labels { page <- source; }
+}

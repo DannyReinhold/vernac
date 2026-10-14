@@ -195,4 +195,16 @@ class VernacProjectSymbolsTest {
         assertEquals(List.of(), definition(current, "Draft(java.lang.Strin"));
         assertEquals(List.of(), labels(current, "Draft(java.lang.Str"));
     }
+
+    @Test void multipleCollectionsCompleteAndNavigateAcrossNamespaces() {
+        var owner = file("model", "names", "value Name(String) list, set Selection, list Archive;");
+        var current = file("view", "use", "import model.*; value View(Names history, Selection selected, Archive archive);");
+        var labels = labels(current, "value View(");
+        assertTrue(labels.containsAll(List.of("Names", "Selection", "Archive")), labels.toString());
+        for (String marker : List.of("View(Nam", "history, Selectio", "selected, Archiv"))
+            assertEquals(owner.toUri().toString(), definition(current, marker).getFirst().getUri());
+        var selected = definition(current, "history, Selectio").getFirst();
+        assertEquals(files.get(owner).indexOf("Selection"), selected.getRange().getStart().getCharacter() + "namespace model;\n".length());
+    }
+
 }
