@@ -130,3 +130,7 @@ Tests MUST cover actual Spring MVC/Thymeleaf rendering, input preservation,
 sensitive/undeclared data exclusion, malformed/duplicate values, optional absence,
 local redirects, precedence, loader failures, technical errors and CSRF integration,
 alongside compiler diagnostics and existing JSON inbound regressions.
+
+External implementation targets also follow the 0.5.0
+[shared Java implementation resolution rules](implementation-contracts.md).
+Their mapping/error-handler calling convention is unchanged.

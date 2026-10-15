@@ -31,7 +31,6 @@ class DomainServiceGeneratorTest {
                 "service S behavior { public void f(Title a) {} public void f(Title? a) {} }",
                 "service S behavior { public void f(Title self) {} }",
                 "service S behavior { public void getClass() {} }",
-                "service S behavior { public void f(Title? a) {} public void f(String? a) {} }",
                 "service S uses Title behavior { public void f() {} }",
                 "service S behavior { private void f() {} }",
                 "service S behavior { public void f(Title title) validates { require(title.string().isBlank()); } {} }",

@@ -41,7 +41,7 @@ final class RestOperationGenerator {
                 plan.response().mapping().source().name(), json, plan.response().dto().javaType());
         if (operation.errorImplementation().isPresent()) {
             String arguments = method.parameters().stream().map(FieldNode::name).collect(Collectors.joining(", "));
-            code.add("(__invocation, __response) -> $L.$N(self, $L__response)", operation.errorImplementation().get(),
+            code.add("(__invocation, __response) -> $L.$N(self, $L__response)", org.vernac.compiler.util.JavaImplementations.resolve(operation.errorImplementation().get(),adapter.javaImports(),unit.namespace()+".adapter.outbound"),
                     method.name(), arguments.isEmpty() ? "" : arguments + ", ");
         } else if (plan.errors() != null) code.add(new RestErrorGenerator().handler(plan.errors()));
         else code.add("$T::defaultFailure", failures);
@@ -49,8 +49,8 @@ final class RestOperationGenerator {
         return code.build();
     }
     private String expression(ResolvedRestOperation.Input input) {
-        String result = input.parameter().name();
         boolean optional = input.parameter().type().isOptional();
+        String result = optional ? "java.util.Optional.ofNullable(" + input.parameter().name() + ")" : input.parameter().name();
         int index = 0;
         for (var field : input.fields()) {
             if (optional) {

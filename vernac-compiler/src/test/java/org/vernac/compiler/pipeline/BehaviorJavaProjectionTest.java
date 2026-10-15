@@ -106,7 +106,7 @@ class BehaviorJavaProjectionTest {
         String all = blocks.stream().map(b -> java(text, b)).reduce("", String::concat);
         assertTrue(all.contains("model.domain.access.PlanningAccess self"));
         assertTrue(all.contains("PlanningAccess.Input0 self"));
-        assertTrue(all.contains("java.util.Optional<model.domain.Title> title"));
+        assertTrue(all.contains("model.domain.@org.jspecify.annotations.Nullable Title title"));
         assertTrue(all.contains("return title;"));
     }
 
@@ -119,7 +119,7 @@ class BehaviorJavaProjectionTest {
         var blocks=project(source);
         assertEquals(2,blocks.size());
         String implementation=java(source,blocks.getFirst());
-        assertTrue(implementation.contains("java.util.Optional<model.domain.TourId> id"));
+        assertTrue(implementation.contains("model.domain.@org.jspecify.annotations.Nullable TourId id"));
         assertTrue(implementation.contains("return helper(id);"));
         assertTrue(implementation.contains("model.usecase.access.EchoAccess self"));
         assertTrue(java(source,blocks.getLast()).contains("model.usecase.access.EchoRead self"));

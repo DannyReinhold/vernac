@@ -17,6 +17,7 @@ Release acceptance also includes installation of the packaged IntelliJ plugin.
 - [Compiler architecture](compiler-architecture.md): shared resolution, names and generation.
 - [Feature review checklist](feature-review-checklist.md): purpose, quality, diagnostics and tooling.
 - [Generated output ownership](generated-output.md): reconciliation and failure boundaries.
+- [Shared Java implementation contract](../contracts/implementation-contracts.md): nullable parameters, implementation targets and erased overload checks.
 - [Validation delegates](validation-delegates.md): access views and Java projection.
 - [Entity changes and candidate-state design](entity-behavior-and-change-contexts.md): current direct mutation and
   explicitly deferred alternatives.
@@ -38,7 +39,7 @@ Release acceptance also includes installation of the packaged IntelliJ plugin.
 
 - [Documentation ownership and validation](documentation.md)
 - [Deep IntelliJ integration roadmap](intellij-deep-integration.md): cross-language refactoring and debugger
-  investigation (planned).
+  integration (implemented) and refactoring follow-up.
 - [Versioned module completion](module-completion-roadmap.md): implemented scope, regression entrypoints and operational boundaries.
 - [Capabilities and usecase authorization](capabilities-and-usecase-authorization.md): future SaaS policy and reusable capability design on the implemented module system.
 - [Consolidation status](consolidation-status.md)

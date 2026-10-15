@@ -27,7 +27,7 @@ public final class BehaviorGenerator {
         MethodSpec.Builder wrapper = signature(method, project).addModifiers(Modifier.PUBLIC);
         for (FieldNode parameter : method.parameters()) {
             if (!parameter.type().isOptional() && !ResolvedJavaTypes.javaType(project.typeOf(parameter.type())).isPrimitive())
-                wrapper.addStatement("$T.requireNonNull($L, $S)", Objects.class, parameter.name(),
+                wrapper.addStatement("$T.requireNonNull($L, $S)", org.vernac.runtime.DomainChecks.class, parameter.name(),
                         owner.simpleName() + "." + method.name() + ": parameter '" + parameter.name() + "' must not be null");
         }
         // The local bridge pins the argument and result types even for external implementations.
@@ -59,7 +59,7 @@ public final class BehaviorGenerator {
             addParameters(implementation, method, project);
             if (method.implementation().isPresent()) {
                 // Use a literal qualified target to keep Java imports out of delegation resolution.
-                String invocation = method.implementation().get() + "." + method.name() + "(" + arguments(method, "self") + ")";
+                String invocation = org.vernac.compiler.util.JavaImplementations.resolve(method.implementation().get(), imports, owner.packageName()) + "." + method.name() + "(" + arguments(method, "self") + ")";
                 implementation.addStatement(method.returnType().name().equals("void") ? "$L" : "return $L", invocation);
             } else implementation.addCode("$L\n", method.bodyCode());
             type.addMethod(implementation.build());
@@ -131,7 +131,7 @@ public final class BehaviorGenerator {
     private void addParameters(MethodSpec.Builder builder, MethodNode method, ResolvedProject project) {
         for (var parameter : method.parameters()) {
             TypeName type = ResolvedJavaTypes.javaType(project.typeOf(parameter.type()));
-            if (parameter.type().isOptional()) type = type.annotated(AnnotationSpec.builder(Nullable.class).build());
+            type = org.vernac.compiler.util.JavaParameters.type(type,parameter.type().isOptional());
             builder.addParameter(type, parameter.name());
         }
     }

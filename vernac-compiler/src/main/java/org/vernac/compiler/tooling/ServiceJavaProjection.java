@@ -32,7 +32,7 @@ final class ServiceJavaProjection {
                 if (node.rawJavaBlock() != null) {
                     List<String> parameters = new ArrayList<>();
                     if (method.accessModifier().equals("public")) parameters.add(access + " self");
-                    for (var p : method.parameters()) parameters.add(type(p.type(), scope) + " " + p.name());
+                    for (var p : method.parameters()) parameters.add(parameter(p.type(), scope) + " " + p.name());
                     helper.add(bodies, node.rawJavaBlock(), text, "static " + type(method.returnType(), scope) + " " + method.name()
                             + "(" + String.join(", ", parameters) + ") {\n", "}\n");
                 }
@@ -46,6 +46,10 @@ final class ServiceJavaProjection {
             helper.close(blocks, service.name(), bodies, classHeader);
             return blocks;
         } catch (IllegalArgumentException | NoSuchElementException incomplete) { return List.of(); }
+    }
+    private String parameter(TypeNode type, FileTypeScope scope) {
+        String name=JavaTypeNames.canonicalName(scope.resolve(type.name(),type.location()).type().orElseThrow());
+        return org.vernac.compiler.util.JavaParameters.sourceType(name,type.isOptional());
     }
     private String type(TypeNode type, FileTypeScope scope) {
         String name = type.name().equals("void") ? "void" : JavaTypeNames.canonicalName(scope.resolve(type.name(), type.location()).type().orElseThrow());

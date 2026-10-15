@@ -103,8 +103,8 @@ public final class RestResolver {
                 if (!method.returnType().isOptional()) error(method.location(), "on 404 absent requires an optional port result.");
             }
             operation.errorImplementation().ifPresent(name -> {
-                if (!name.contains(".") || Arrays.stream(name.split("\\.")).anyMatch(n -> !VernacNames.isIdentifier(n)))
-                    error(method.location(), "errors implemented by requires a fully qualified Java class name.");
+                if (!org.vernac.compiler.util.JavaImplementations.validName(name))
+                    error(method.location(), "Invalid Java error implementation class name.");
             });
             result.put(method, new ResolvedRestOperation(operation, bindings, body, response, resolveErrors(operation)));
         }

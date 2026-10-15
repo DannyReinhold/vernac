@@ -274,3 +274,7 @@ scalar/VO input conversion and error selectors, while returning templates or red
 instead of JSON DTOs. It adds URL-encoded scalar form bindings, defaults, sensitive
 input exclusion and explicit page redisplay. See the [MVC contract](inbound-mvc.md).
 The JSON `inbound http` form continues to reject MVC-only clauses.
+
+External implementation targets also follow the 0.5.0
+[shared Java implementation resolution rules](implementation-contracts.md).
+Their mapping/error-handler calling convention is unchanged.

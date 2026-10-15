@@ -50,7 +50,7 @@ final class UseCaseContracts {
             if(previous!=null && !previous.equals(i.target())) error(errors,i.location(),"Java import conflicts with visible type: "+simple);
         }
         u.implementation().ifPresent(target -> {
-            if(Arrays.stream(target.split("\\.")).anyMatch(x -> !VernacNames.isIdentifier(x))) error(errors,u.location(),"Invalid implementation class name.");
+            org.vernac.compiler.util.JavaImplementations.validate(target,u.javaImports(),u.location(),errors);
         });
         Set<String> signatures=new HashSet<>();
         for(var m:u.methods()) {
@@ -61,10 +61,8 @@ final class UseCaseContracts {
             for(var f:m.parameters()) { resolve(f.type(),scope,types,errors); field(f,errors,false); }
             if(!m.returnType().name().equals("Result") && !m.returnType().name().equals("void")) resolve(m.returnType(),scope,types,errors);
             else if(m.returnType().name().equals("Result") && u.resultFields().isEmpty()) error(errors,m.location(),"Result requires a declared composite result.");
-            String signature=m.name()+m.parameters().stream().map(f -> {
-                var t=types.get(f.type());return (t==null?f.type().name():javaName(t))+(f.type().isOptional()?"?":"");
-            }).toList();
-            if(!signatures.add(signature)) error(errors,m.location(),"Duplicate private helper signature: "+m.name());
+            String signature=org.vernac.compiler.util.JavaMethodSignatures.signature(m.name(),m.parameters(),types);
+            if(!signatures.add(signature)) error(errors,m.location(),"Duplicate private helper signature after Java lowering: "+signature+". Nullability and return types cannot distinguish overloads.");
         }
     }
     static String javaName(ResolvedType t) {

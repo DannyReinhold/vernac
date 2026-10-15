@@ -64,7 +64,8 @@ includes an of() convenience factory when every result field is optional.
 
 All generated types are @NullMarked. Public execute parameters use @Nullable T
 for optional inputs. Required inputs are checked with DomainChecks before validation.
-The implementation and private helpers receive optional parameters as Optional<T>.
+The implementation, external delegates and private helpers also receive optional
+parameters as @Nullable T, without automatic Optional wrapping.
 A null required result or null Optional result throws BehaviorContractException.
 Optional.empty() is a valid optional result. Result factories and canonical
 constructors enforce their own component checks.
@@ -103,7 +104,7 @@ behavior {
 ```
 
 The external class is not required to be a Spring bean. It supplies a public static
-execute method. Arguments are self Access followed by inputs in declaration order. Optional inputs are Optional<T>. Its result matches the declared Java
+execute method. Arguments are self Access followed by inputs in declaration order. Optional inputs are @Nullable T. Its result matches the declared Java
 result exactly. The generated bridge remains present for external implementations.
 A qualified implementation name is used directly. An unqualified name resolves to
 an explicit Java import, otherwise the usecase's Java package. Java compilation

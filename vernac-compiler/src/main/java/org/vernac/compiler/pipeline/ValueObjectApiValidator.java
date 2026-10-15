@@ -99,8 +99,7 @@ final class ValueObjectApiValidator {
     }
 
     private String parameters(List<FieldNode> parameters, Map<TypeNode, ResolvedType> types) {
-        return parameters.stream().map(field -> JavaTypeNames.canonicalName(types.get(field.type())))
-                .collect(Collectors.joining(","));
+        return org.vernac.compiler.util.JavaMethodSignatures.parameters(parameters,types);
     }
 
     private void generated(String signature, ValueObjectNode value, Map<String, Member> signatures,

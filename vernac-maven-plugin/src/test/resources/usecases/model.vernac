@@ -5,7 +5,7 @@ usecase Echo(TaskId, Title? title) returns (TaskId, Title? title)
 validates { require(self.title().isEmpty() || !self.title().orElseThrow().string().isBlank(), "Blank title"); }
 behavior {
     execute { return result(taskId,title); }
-    private Result result(TaskId id, Title? title) { return Result.of(id,title.orElse(null)); }
+    private Result result(TaskId id, Title? title) { return Result.of(id,title); }
 }
 usecase External(TaskId, Title? title) returns Title?
 behavior { execute implemented by operations.ExternalImplementation; }

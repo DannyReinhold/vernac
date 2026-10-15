@@ -47,12 +47,12 @@ public final class InboundHttpGenerator {
                 if (!endpoint.errorRules().isEmpty() || endpoint.errorImplementation().isPresent()) {
                     policy.beginControlFlow("if (endpoint.equals($S))",endpoint.name());
                     addRules(policy,endpoint.errorRules(),project);
-                    endpoint.errorImplementation().ifPresent(n -> policy.addStatement("return $L.handle(endpoint, error)",n));
+                    endpoint.errorImplementation().ifPresent(n -> policy.addStatement("return $L.handle(endpoint, error)",org.vernac.compiler.util.JavaImplementations.resolve(n,List.of(),pkg)));
                     policy.endControlFlow();
                 }
             }
             addRules(policy,adapter.errorRules(),project);
-            if (adapter.errorImplementation().isPresent()) policy.addStatement("return $L.handle(endpoint, error)",adapter.errorImplementation().get());
+            if (adapter.errorImplementation().isPresent()) policy.addStatement("return $L.handle(endpoint, error)",org.vernac.compiler.util.JavaImplementations.resolve(adapter.errorImplementation().get(),List.of(),pkg));
             else policy.addStatement("return $T.defaultReply(error)",ERRORS);
             advice.addMethod(policy.build());
             handler.addStatement("return $T.respond(error, $L::policy)",ERRORS,adapter.name()+"Errors");

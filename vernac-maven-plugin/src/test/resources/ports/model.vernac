@@ -21,7 +21,7 @@ adapter LocalArchive implements Archive {
     behavior {
         java uses { java.util.concurrent.atomic.AtomicInteger counter; }
         public Text save(Text) { self.counter().incrementAndGet(); return Text.of(text.string() + self.decoration() + suffix()); }
-        public Text? load(Text?) { return text; }
+        public Text? load(Text?) { return Optional.ofNullable(text); }
         public Text context(Text) implemented by portsdemo.ExternalImplementation;
         public Text fail() implemented by portsdemo.ExternalImplementation;
         public Text broken() { return null; }

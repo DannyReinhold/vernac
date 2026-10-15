@@ -100,6 +100,12 @@
 ]]></description>
 
     <change-notes><![CDATA[
+        <h3>0.5.0 development — Consistent Java implementation contracts</h3>
+        <p>Optional arguments are nullable throughout inline/external implementations
+        and helpers; Optional getters and results retain their contract. Short implemented-by
+        names resolve through local Java imports or the generated caller package, including
+        native class navigation. Shared Java signature checks report overload collisions early.
+        Missing required public domain arguments consistently raise domain validation errors.</p>
         <p>The Spring Boot starter now runs directly from its application class: no profile
         selection is needed for local development. The wizard also delegates IDE builds
         and runs to Maven, so Vernac sources are generated before Java compilation. Explicit deployment profiles replace

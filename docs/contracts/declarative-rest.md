@@ -248,3 +248,7 @@ semantics. RestErrorExecutionTest compiles the complete
 [error tutorial](../tutorials/declarative-errors.md) and executes generated code
 against HTTP, including malformed bodies, priority, optional results and void
 operations. No Docker or remote service is needed for this test set.
+
+External implementation targets also follow the 0.5.0
+[shared Java implementation resolution rules](implementation-contracts.md).
+Their mapping/error-handler calling convention is unchanged.

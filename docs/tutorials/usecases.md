@@ -22,7 +22,7 @@ behavior {
         return describe(taskId, title);
     }
     private Result describe(TaskId id, Title? title) {
-        return Result.of(id, title.orElse(null));
+        return Result.of(id, title);
     }
 }
 ```
@@ -30,11 +30,11 @@ behavior {
 Compile using your normal Maven build. Inject tasks.usecase.DescribeTask into the
 application's caller. Invoke execute(id, null) for no title. The result's title()
 returns Optional.empty(); toString describes both components. The public execute
-argument is nullable, while `title` inside behavior/private helpers is Optional. A blank supplied title
+argument is nullable, and `title` inside behavior/private helpers is nullable too. A blank supplied title
 fails before execute's implementation body runs.
 
 Try replacing the two result fields with `returns Title?`, changing the body to
-`return title;` and removing the private helper. The public return type becomes
+`return Optional.ofNullable(title);` and removing the private helper. The public return type becomes
 Optional<Title>; returning null is a contract failure.
 
 To access persistence add `uses TaskRepository tasks` and invoke self.tasks().byId(...)
@@ -52,13 +52,13 @@ execute implemented by custom.DescribeTaskImplementation;
 For the original result contract that class supplies:
 
 ```java
-public static DescribeTask.Result execute(tasks.usecase.access.DescribeTaskAccess self, TaskId taskId, Optional<Title> title) {
-    return DescribeTask.Result.of(taskId, title.orElse(null));
+public static DescribeTask.Result execute(tasks.usecase.access.DescribeTaskAccess self, TaskId taskId, @Nullable Title title) {
+    return DescribeTask.Result.of(taskId, title);
 }
 ```
 
 Place the class in package custom and import tasks.domain.TaskId, tasks.domain.Title,
-tasks.usecase.DescribeTask and java.util.Optional. It does not need @Component.
+tasks.usecase.DescribeTask and org.jspecify.annotations.Nullable. It does not need @Component.
 The first parameter is the generated Access self; declared uses dependencies are
 available through its getters. Use your actual namespace for DescribeTaskAccess.
 The generated validation and transaction wrapper remain in force.

@@ -103,8 +103,10 @@ overwritten or removed by the compiler.
 
 ## External implementation
 
-`implemented by` names a fully qualified Java type. No inferred implementation
-class names are used. It is supported for public methods only.
+`implemented by` names a qualified Java type, a simple type from the local Java
+imports, or a simple type in the generated caller package. The exact rule is
+defined by the [shared implementation contract](implementation-contracts.md).
+No implementation files are generated or classpath search performed. It is supported for public methods only.
 
 ```java
 package org.example.people;
@@ -199,8 +201,9 @@ behavior bodies: Java highlighting, completion and navigation use IntelliJ's Jav
 support, while the LSP retains Vernac analysis. Generated domain types must be
 available in the imported Maven project. See the
 [scope and limitations](../development/intellij-java-behavior.md).
-Java class lookup for `implemented by` declarations and live NullAway analysis
-are not implemented by this integration. Java compiler
+Java class lookup for `implemented by` declarations is provided by native type
+references, including short import/package targets. Live NullAway analysis is
+not provided by this integration. Java compiler
 errors currently refer to the generated companion file; each implementation
 method documents its originating Vernac source location. Automatic remapping of
 javac diagnostics to the DSL is a follow-up, not a guarantee of this version.

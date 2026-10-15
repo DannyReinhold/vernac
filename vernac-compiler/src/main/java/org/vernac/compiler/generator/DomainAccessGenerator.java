@@ -105,7 +105,7 @@ public final class DomainAccessGenerator {
     private MethodSpec wrapper(MethodNode method, ClassName owner, ResolvedProject project, boolean aggregate) {
         var wrapper = behavior.signature(method, project).addModifiers(Modifier.PUBLIC);
         for (var p : method.parameters()) if (!p.type().isOptional() && !type(p, project).isPrimitive())
-            wrapper.addStatement("$T.requireNonNull($N, $S)", Objects.class, p.name(), p.name() + " must not be null");
+            wrapper.addStatement("$T.requireNonNull($N, $S)", org.vernac.runtime.DomainChecks.class, p.name(), owner.simpleName() + "." + method.name() + "." + p.name());
         boolean modify = method.mode() == MethodNode.Mode.MODIFY;
         boolean nothing = method.returnType().name().equals("void");
         if (modify) wrapper.addCode((nothing ? "" : "return ") + "$T.$L(this, this::validate, "

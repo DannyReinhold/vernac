@@ -93,11 +93,11 @@ final class BeanBehaviorGenerator {
             var implementation = MethodSpec.methodBuilder(method.name()).addModifiers(Modifier.STATIC).returns(result);
             if (exposed) implementation.addParameter(access, "self");
             else implementation.addModifiers(Modifier.PRIVATE);
-            for (var parameter : method.parameters()) implementation.addParameter(view(parameter.type(), project), parameter.name());
+            for (var parameter : method.parameters()) implementation.addParameter(parameter(parameter.type(), project), parameter.name());
             if (method.implementation().isPresent()) {
                 String arguments = "self" + (method.parameters().isEmpty() ? "" : ", " + names(method));
                 implementation.addStatement((result.equals(TypeName.VOID) ? "" : "return ") + "$L.$N($L)",
-                        method.implementation().get(), method.name(), arguments);
+                        org.vernac.compiler.util.JavaImplementations.resolve(method.implementation().get(), service.javaImports(), owner.packageName()), method.name(), arguments);
             } else if (adapter != null && project.restOperations().containsKey(method)) {
                 implementation.addCode(new RestOperationGenerator().body(adapter, unit, project.restOperations().get(method)));
             } else implementation.addCode("$L\n", method.bodyCode());
@@ -129,7 +129,7 @@ final class BeanBehaviorGenerator {
                 CodeBlock.of("new __AccessView($T.create($S, $S, $S))",org.vernac.runtime.ports.AdapterInvocation.class,
                     org.vernac.compiler.symbols.JavaTypeNames.canonicalName(project.typeOf(adapter.portType())),
                     owner.canonicalName(),method.name()));
-            for (var parameter : method.parameters()) arguments.add(argument(parameter));
+            for (var parameter : method.parameters()) arguments.add(CodeBlock.of("$N", parameter.name()));
             var invocation = CodeBlock.of("$T.$N($L)", companion, method.name(), CodeBlock.join(arguments, ", "));
             if (result.equals(TypeName.VOID)) wrapper.addStatement("$L", invocation);
             else if (result.isPrimitive()) wrapper.addStatement("return $L", invocation);
@@ -163,7 +163,7 @@ final class BeanBehaviorGenerator {
         var result = MethodSpec.methodBuilder(method.name()).returns(view(method.returnType(), project));
         for (var parameter : method.parameters()) {
             TypeName type = raw(parameter.type(), project);
-            if (parameter.type().isOptional()) type = type.annotated(AnnotationSpec.builder(Nullable.class).build());
+            type = org.vernac.compiler.util.JavaParameters.type(type,parameter.type().isOptional());
             result.addParameter(type, parameter.name());
         }
         return result;
@@ -171,6 +171,10 @@ final class BeanBehaviorGenerator {
     private static String names(MethodNode method) { return String.join(", ", method.parameters().stream().map(FieldNode::name).toList()); }
     private static CodeBlock argument(FieldNode parameter) {
         return parameter.type().isOptional() ? CodeBlock.of("$T.ofNullable($N)", Optional.class, parameter.name()) : CodeBlock.of("$N", parameter.name());
+    }
+    private static TypeName parameter(TypeNode type, ResolvedProject project) {
+        TypeName raw = raw(type, project);
+        return org.vernac.compiler.util.JavaParameters.type(raw,type.isOptional());
     }
     private static TypeName view(TypeNode type, ResolvedProject project) {
         var raw = raw(type, project);

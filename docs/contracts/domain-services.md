@@ -70,14 +70,14 @@ public Title choose(Title title) implemented by com.example.TitleSelection;
 ```
 
 It provides `public static Title choose(ServiceAccess self, Title title)`.
-The implementation class name must be fully qualified, as for domain behavior.
+Implementation names follow the shared Java import/package resolution contract.
 It is not required to be a Spring bean. Delegation still passes through the
 normal generated behavior companion. Constructors/injection in the external
 class are not part of this protocol. Private helpers cannot use implemented by.
 
 All generated types are NullMarked. Public optional input parameters are
-`@Nullable T`; implementation and private-helper optional parameters are
-`Optional<T>`. Optional results are `Optional<T>` throughout. Required reference
+`@Nullable T`; implementation and private-helper optional parameters are also
+`@Nullable T`, with no implicit Optional wrapping. Optional results are `Optional<T>` throughout. Required reference
 inputs use DomainChecks; null required/Optional public results use
 BehaviorContractException. Empty Optional is valid. Primitives are not null-checked;
 optional primitive types require a boxed type or domain wrapper.
@@ -114,7 +114,7 @@ can lose this capability without rewriting the whole access model.
 The compiler validates names, resolved types, dependency kinds, overload collisions,
 imports and explicit validation access. Java compilation checks method bodies and
 external signatures. Editor projection supplies Access/input-view contexts and
-Optional implementation parameters. Navigation from Java service types and public
+nullable implementation parameters. Navigation from Java service types and public
 methods targets the corresponding Vernac declaration.
 
 Tests cover parsing, semantic errors, generated Java compilation, real Spring

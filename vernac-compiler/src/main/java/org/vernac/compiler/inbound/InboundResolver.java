@@ -25,8 +25,8 @@ public final class InboundResolver {
         this.project=project; this.types=types; this.errors=errors; this.routes=routes;
     }
     private void validateImplementation(String name, SourceLocation location) {
-        if (!name.contains(".") || Arrays.stream(name.split("\\.")).anyMatch(p -> !VernacNames.isIdentifier(p)))
-            error(location, "errors implemented by requires a fully qualified Java class name.");
+        if (!org.vernac.compiler.util.JavaImplementations.validName(name))
+            error(location, "Invalid Java error implementation class name.");
     }
     private void validateRules(List<InboundHttpAdapterNode.ErrorRule> rules, FileTypeScope scope) {
         Set<String> seen = new HashSet<>();
@@ -96,8 +96,7 @@ public final class InboundResolver {
         var mappings=resolver.resolve(adapter.name(),adapter.mappings(),namespace,scope,schemas,dtoPackage);
         Map<String,ResolvedMapping> mappingNames=new LinkedHashMap<>(); mappings.forEach(m->mappingNames.put(m.source().name(),m));
         route(adapter.location(),adapter.base(),false);
-        adapter.errorImplementation().ifPresent(n->{if(!n.contains(".") || Arrays.stream(n.split("\\.")).anyMatch(p->!VernacNames.isIdentifier(p)))
-            error(adapter.location(),"errors implemented by requires a fully qualified Java class name.");});
+        adapter.errorImplementation().ifPresent(n -> validateImplementation(n,adapter.location()));
         Set<String> names=new HashSet<>(); var endpoints=new ArrayList<ResolvedInbound.Endpoint>();
         for(var endpoint:adapter.endpoints()) {
             if(!VernacNames.isIdentifier(endpoint.name()) || endpoint.name().startsWith("__")

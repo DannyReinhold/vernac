@@ -66,3 +66,7 @@ See [documentation maintenance](../development/documentation.md) and the
 
 SaaS policies and deeper cross-language IDE integration remain separately planned. The
 [module completion record](../development/module-completion-roadmap.md) defines the delivered 0.4.0 scope.
+
+The 0.5.0 [shared Java implementation contract](../contracts/implementation-contracts.md)
+defines parameter nullability, external target resolution and overload identity
+across behavior, usecases, services, listeners and adapters.

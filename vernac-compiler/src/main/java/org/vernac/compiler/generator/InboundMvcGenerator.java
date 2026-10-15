@@ -63,7 +63,7 @@ public final class InboundMvcGenerator {
             type.addMethod(entry(adapter, endpoint.source()));
             type.addMethod(loader(endpoint, mappings));
         }
-        type.addMethod(failure(adapter, project));
+        type.addMethod(failure(adapter, project, pkg));
         BehaviorGenerator.addDebugFingerprint(type, file(pkg, type), unit, project);
         var advice =
                 TypeSpec.classBuilder(adapter.name() + "Errors")
@@ -275,7 +275,7 @@ public final class InboundMvcGenerator {
         return method.build();
     }
 
-    private MethodSpec failure(InboundHttpAdapterNode adapter, ResolvedProject project) {
+    private MethodSpec failure(InboundHttpAdapterNode adapter, ResolvedProject project, String pkg) {
         var method =
                 MethodSpec.methodBuilder("__failure")
                         .addModifiers(Modifier.PUBLIC)
@@ -299,7 +299,7 @@ public final class InboundMvcGenerator {
                                                 RESPONSES,
                                                 adapter.errorView().orElseThrow(),
                                                 Objects.class,
-                                                name));
+                                                org.vernac.compiler.util.JavaImplementations.resolve(name,List.of(),pkg)));
                 method.endControlFlow();
             }
         rules(method, adapter, adapter.errorRules(), project);
@@ -310,7 +310,7 @@ public final class InboundMvcGenerator {
                     RESPONSES,
                     adapter.errorView().orElseThrow(),
                     Objects.class,
-                    adapter.errorImplementation().get());
+                    org.vernac.compiler.util.JavaImplementations.resolve(adapter.errorImplementation().get(),List.of(),pkg));
         else
             method.addStatement(
                     "return $T.error($S, $T.defaultReply(error), inputs, error)",

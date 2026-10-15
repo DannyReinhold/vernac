@@ -189,23 +189,29 @@ External implementations provide a **public static method** with the declared
 operation name, self as first parameter and remaining parameters in declaration
 order. VO self is the VO; entity/aggregate self is the appropriate Read/Access
 interface. Services/adapters/usecases/listeners use their own generated Access.
-Private helpers cannot use implemented by. The external class is not instantiated
+A qualified implemented-by name is used directly. A simple name resolves through
+the implementation-local java imports, otherwise in its generated caller package
+(domain, usecase, adapter.outbound, adapter.inbound.event or the appropriate mapping
+package). HTTP/MVC error handlers use adapter.inbound.http. No classpath guessing
+is performed. Private helpers cannot use implemented by. The external class is not instantiated
 or injected by this mechanism; javac checks its signature.
 
-Nullness differs between API and implementation; do not generalize one context:
+Optional parameters use the same representation at public and implementation boundaries:
 
 | Position | Optional input representation |
 | --- | --- |
 | Public factories and public operation arguments | `@Nullable T` |
 | VO/enum/collection/entity/aggregate behavior arguments, including helpers | Nullable T |
-| Usecase/service/adapter implementation arguments | Optional<T> |
+| Usecase/service/adapter/listener implementation arguments and helpers | `@Nullable T` |
 | Validation self getters and domain optional getters | Optional<T> |
 | Optional method results | Non-null Optional<T> |
 
 Return Optional.empty(), never null, for optional results. Required null or null
-Optional results violate BehaviorContractException. For optional calls from an
-Optional implementation parameter into a nullable public API, explicitly use
-`argument.orElse(null)`. Do not supply Optional to a factory expecting nullable T.
+Optional results violate BehaviorContractException. Optional inputs are nullable values, not Optional containers. Use a null check or
+explicitly call Optional.ofNullable when local functional processing is useful.
+Actual Optional getters/results can be unwrapped with orElse(null) for nullable
+parameters. Do not call Optional methods on a nullable input or return a raw nullable
+input from an optional-result method; wrap the result explicitly.
 
 Validation clause: `validates { require(condition, "message"); ... }` before
 behavior. Conditions use **self getters**, not bare field/parameter names. Operators

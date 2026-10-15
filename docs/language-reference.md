@@ -86,7 +86,8 @@ Use an aggregate ID instead. VOs cannot contain mutable entities, even through a
 immutable collection. Direct entity containment cycles are forbidden; ID references
 are not containment. A primitive/built-in entity state field requires a domain wrapper.
 
-`T?` is optional. Domain storage and public factory inputs use `@Nullable T`;
+`T?` is optional. Domain storage, factory inputs and all optional operation/implementation/helper
+parameters use `@Nullable T`;
 getters return `Optional<T>`. `int?` is rejected; use `Integer?` or an optional domain
 wrapper. Generated top-level types are `@NullMarked`. An Optional container itself
 must never be null. DTO/result records have their separately specified Optional
@@ -184,7 +185,8 @@ value ProductName(String) behavior {
 Inline Java is generated into a separate companion, not inserted with privileged
 access to private domain state. Public VO/enum/collection methods receive `self`;
 private helpers receive only explicitly declared arguments. Public behavior may
-instead declare `implemented by fully.qualified.Class;`. The external static method
+instead declare `implemented by fully.qualified.Class;` or a simple class name
+resolved through local Java imports, otherwise the generated caller package. The external static method
 receives the same self and arguments as its inline equivalent.
 
 Java imports belong in the behavior block. They do not change the resolution of
@@ -853,3 +855,13 @@ arbitrary request map is exposed automatically. The initial scope is scalar
 URL-encoded GET/POST forms, not multipart uploads, repeated collection fields,
 dynamic redirects or template fragments. See the [contract](contracts/inbound-mvc.md)
 and [complete tutorial](tutorials/inbound-mvc.md).
+
+### Shared Java implementation rules (0.5.0 development)
+
+All optional custom-operation parameters, including usecase execute, external
+delegates and private helpers, are nullable T. Optional getters and results remain
+non-null Optional<T>. Required public domain/operation inputs fail with
+DomainValidationException; null implementation results remain technical contract
+failures. Overload checks use erased Java parameter types, so nullability and
+return types cannot distinguish overloads. Read/modify and transaction semantics
+are unchanged. See the [shared contract](contracts/implementation-contracts.md).

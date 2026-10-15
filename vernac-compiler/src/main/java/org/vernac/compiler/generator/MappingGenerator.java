@@ -35,7 +35,7 @@ public final class MappingGenerator {
                     .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
                 var bridge=MethodSpec.methodBuilder(mapping.source().name()).addModifiers(Modifier.STATIC)
                     .returns(mapping.target().javaType()).addParameter(mapping.input().javaType(),"source");
-                if(mapping.source().implementation().isPresent()) bridge.addStatement("return $L.$N(source)",mapping.source().implementation().get(),mapping.source().name());
+                if(mapping.source().implementation().isPresent()) bridge.addStatement("return $L.$N(source)",org.vernac.compiler.util.JavaImplementations.resolve(mapping.source().implementation().get(),mapping.source().javaImports(),owner.packageName()),mapping.source().name());
                 else {
                     new BehaviorGenerator().addBodyImports(body,companion,mapping.source().javaImports(),unit,project,mapping.source().javaBody().orElseThrow());
                     bridge.addCode("$L\n",mapping.source().javaBody().orElseThrow());

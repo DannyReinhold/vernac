@@ -147,9 +147,9 @@ public final class VernacTypeReferences {
                                             operation.errorImplementation;
                                     default -> null;
                                 };
-                        if (name != null) javaName = name.getText();
+                        if (name != null) javaName = implementationName(name.getText(), node, tree);
                     }
-                    if (name == null) return;
+                    if (name == null || javaName == null) return;
                     var anchor = name.qualifiedNameSegment().getLast();
                     int start = anchor.getStart().getStartIndex();
                     int end = anchor.getStop().getStopIndex() + 1;
@@ -164,6 +164,63 @@ public final class VernacTypeReferences {
                 .distinct()
                 .sorted(Comparator.comparingInt(JavaReference::start))
                 .toList();
+    }
+
+    private String implementationName(
+            String name, ParseTree node, VernacParser.CompilationUnitContext tree) {
+        if (name.contains(".")) return name;
+        String namespace = tree.namespaceDeclaration().qualifiedName().getText();
+        String suffix = ".domain";
+        VernacParser.JavaImportsContext imports = null;
+        boolean mapping = false;
+        for (ParseTree current = node; current != null; current = current.getParent()) {
+            if (current instanceof VernacParser.MappingDefinitionContext m) {
+                mapping = true;
+                imports = m.javaImports();
+            }
+            if (!mapping && current instanceof VernacParser.BehaviorBlockContext b)
+                imports = b.javaImports();
+            if (current instanceof VernacParser.UsecaseDefinitionContext u) {
+                suffix = ".usecase";
+                imports = u.javaImports();
+                break;
+            }
+            if (current instanceof VernacParser.ListenerDefinitionContext l) {
+                suffix = ".adapter.inbound.event";
+                imports = l.javaImports();
+                break;
+            }
+            if (current instanceof VernacParser.DomainServiceDefinitionContext d) {
+                imports = d.javaImports();
+                break;
+            }
+            if (current instanceof VernacParser.OutboundAdapterDefinitionContext a) {
+                suffix = ".adapter.outbound" + (mapping ? ".mapping" : "");
+                if (!mapping) imports = a.javaImports();
+                break;
+            }
+            if (current instanceof VernacParser.InboundHttpAdapterDefinitionContext a) {
+                suffix = ".adapter.inbound.http" + (mapping ? ".mapping" : "");
+                break;
+            }
+        }
+        List<org.vernac.compiler.ast.JavaImportNode> names =
+                imports == null
+                        ? List.of()
+                        : imports.qualifiedName().stream()
+                                .map(
+                                        n ->
+                                                new org.vernac.compiler.ast.JavaImportNode(
+                                                        org.vernac.compiler.ast.SourceLocation
+                                                                .UNKNOWN,
+                                                        n.getText()))
+                                .toList();
+        try {
+            return org.vernac.compiler.util.JavaImplementations.resolve(
+                    name, names, namespace + suffix);
+        } catch (IllegalArgumentException ambiguous) {
+            return null;
+        }
     }
 
     private static void walk(ParseTree tree, java.util.function.Consumer<ParseTree> visit) {

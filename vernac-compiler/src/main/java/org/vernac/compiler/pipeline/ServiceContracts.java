@@ -52,7 +52,7 @@ final class ServiceContracts {
         for (var operation : service.methods()) {
             var method = operation.method();
             names(method.parameters(), errors);
-            if (method.implementation().filter(forbiddenUsecases::contains).isPresent())
+            if (method.implementation().filter(n -> org.vernac.compiler.util.JavaImplementations.validate(n,service.javaImports(),method.location(),errors)).map(n -> org.vernac.compiler.util.JavaImplementations.resolve(n,service.javaImports(),namespace+".domain")).filter(forbiddenUsecases::contains).isPresent())
                 error(errors, method.location(), "Domain service cannot delegate to a known usecase.");
             if (!VernacNames.isIdentifier(method.name()) || RESERVED.contains(method.name()) || method.name().startsWith("__"))
                 error(errors, method.location(), "Service operation conflicts with a reserved/generated method: " + method.name());
@@ -62,13 +62,12 @@ final class ServiceContracts {
                 error(errors, method.location(), "validates belongs to public service operations; private helpers stay inline.");
             resolve(method.returnType(), scope, types, errors);
             for (var field : method.parameters()) resolve(field.type(), scope, types, errors);
-            String signature = method.name() + method.parameters().stream().map(f -> f.type().isOptional() ? "java.util.Optional" :
-                    types.containsKey(f.type()) ? UseCaseContracts.javaName(types.get(f.type())) : f.type().name()).toList();
-            if (!signatures.add(signature)) error(errors, method.location(), "Duplicate service implementation signature: " + method.name());
+            String receiver = method.accessModifier().equals("public") ? namespace+".domain.access."+service.name()+"Access" : "";
+            String signature = org.vernac.compiler.util.JavaMethodSignatures.implementation(method.name(),receiver,method.parameters(),types);
+            if (!signatures.add(signature)) error(errors, method.location(), "Duplicate service implementation signature after Java lowering: " + signature + ". Nullability and return types cannot distinguish overloads.");
             if (method.accessModifier().equals("public")) {
-                String publicSignature = method.name() + method.parameters().stream().map(f -> types.containsKey(f.type())
-                        ? UseCaseContracts.javaName(types.get(f.type())) : f.type().name()).toList();
-                if (!publicSignatures.add(publicSignature)) error(errors, method.location(), "Duplicate public service signature: " + method.name());
+                String publicSignature = org.vernac.compiler.util.JavaMethodSignatures.signature(method.name(),method.parameters(),types);
+                if (!publicSignatures.add(publicSignature)) error(errors, method.location(), "Duplicate public service signature after Java lowering: " + publicSignature + ". Nullability and return types cannot distinguish overloads.");
             }
             // Apply the established explicit self.parameter() validation contract.
             var validation = new UseCaseNode(method.location(), service.name(), method.parameters(), operation.validations(),

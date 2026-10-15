@@ -43,7 +43,7 @@ usecase ReadBoard(PageNumber openPage, PageNumber closedPage, PageSize, CursorTo
             var closed = self.issueRepository().withStatus(IssueStatus.CLOSED)
                 .page(OffsetRequest.ofPage(closedPage.intValue(), pageSize.intValue()))
                 .mapItems(IssueSummaries::of, issue -> summarize(issue));
-            var recentRequest = cursorToken
+            var recentRequest = Optional.ofNullable(cursorToken)
                 .map(token -> CursorRequest.after(PageCursor.of(token.string()), pageSize.intValue()))
                 .orElseGet(() -> CursorRequest.first(pageSize.intValue()));
             var activity = self.issueRepository().recent().page(recentRequest)

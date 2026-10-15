@@ -210,8 +210,7 @@ public final class BehaviorJavaProjection {
         if (!type.isOptional()) return name;
         if (lookup.type().get() instanceof ResolvedType.Builtin builtin && builtin.javaType().isPrimitive()) return null;
         if (result) return "java.util.Optional<" + name + ">";
-        int lastDot = name.lastIndexOf('.');
-        return name.substring(0, lastDot + 1) + "@org.jspecify.annotations.Nullable " + name.substring(lastDot + 1);
+        return org.vernac.compiler.util.JavaParameters.sourceType(name,true);
     }
 
     private int offset(String text, int codePoints) {
