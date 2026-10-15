@@ -188,12 +188,48 @@ Suggestions track unsaved edits. Ambiguous names are not resolved arbitrarily.
 
 ### Hover information and navigation
 
-Hover over a reference such as `TaskId` to inspect any information supplied by the server. Then place the cursor on the
-reference and use **Go to Declaration** from the context menu.
+Hover over a reference such as `TaskId` to inspect its LSP information and vocabulary
+entry. With the **0.5.0 development plugin**, hold **Ctrl** and move the mouse over
+that type reference: native PSI references supply the type-name range and resolved
+declaration for IntelliJ's navigable-link highlighting. Click to navigate, or use
+**Ctrl+B** / **Go to Declaration**. The exact color and shortcut follow your IDE theme
+and keymap; the visual mouse-hover check requires the installed plugin.
 
-Type navigation works across files and namespaces, including explicit imports.
-Inline `behavior` bodies also support Java completion and navigation; see the
-[behavior tutorial](behavior.md).
+This covers declared Vernac types in signatures, fields, explicit imports, repository
+aggregate references and dependencies, including cross-file/namespace references and
+exported module types. For a qualified reference, the type-name segment is the link;
+namespace prefixes and wildcard imports are not fabricated type targets. Unknown or
+ambiguous names do not get an arbitrarily chosen target. Declarations, comments,
+strings, enum constants and embedded Java are not treated as these DSL type references.
+Approved Java reference types such as `String`, `UUID` and `Instant` link to their
+actual Java classes, including occurrences in behavior return types and parameters.
+For example, all three `String` tokens in
+`value Label(String) behavior { public String decorate(String suffix) { ... } };`
+have Java class targets. Primitive names such as `int` have no class declaration.
+An explicit `implemented by example.debug.handwritten.LabelFormatting` links on
+`LabelFormatting` to that Java class as well. IntelliJ resolves these targets in the
+Vernac file's module/JDK/dependency scope. Import the Maven project and configure
+its JDK; a missing implementation or unavailable library does not get a guessed
+replacement. These links do not permit additional Java types in Vernac signatures.
+
+Navigation uses the current project model and unsaved source snapshots. Module
+visibility comes from the build-written editor index: attach sources for original
+producer navigation, or inspect the read-only exported contract fallback. Rebuild
+producer/consumer artifacts and refresh the Maven project after dependency changes.
+The new references do not introduce a separate completion engine or promise complete
+cross-language Rename/Find Usages support. Native rename/rebinding through these
+navigation references is deliberately rejected until a complete refactoring contract
+is implemented. Mapping-specific DTO/result/path navigation remains LSP-owned where
+it is not a global declared Vernac type.
+
+Inline `behavior` bodies retain native injected-Java completion and navigation; see
+the [behavior tutorial](behavior.md). Holding Ctrl there must continue to use Java
+references, rather than the surrounding DSL host's type references.
+
+For acceptance, try `TaskId` and a VO from another namespace, a fully qualified type,
+a Collection, a module-exported type and a reference beside a `term` definition.
+Confirm that only the type name is highlighted, Ctrl+click/Ctrl+B agree, and comments
+or unresolved/ambiguous names get no false link. Compare an embedded Java type too.
 
 After generating the Java sources, open a Java test and use **Go to Declaration**
 on a model type reference such as `TaskId` or `Title`. For compiler-owned IDs,
@@ -331,3 +367,16 @@ inside supported Vernac behavior bodies and inspect the live JVM state. Follow t
 [debugging tutorial](debugging.md) for a database-free example, expression evaluation,
 conditional breakpoints and logpoints. The published 0.4.0 plugin does not include
 this integration; follow the tutorial's source-build instructions.
+
+### Vocabulary terms and embedded Java
+
+A term whose decoded name exactly matches a type or named collection in the same
+namespace also links to that definition. For example, Ctrl+click on `Label` in
+`term Label { description "A parcel label."; }` opens `value Label(String);`.
+The quoted spelling `term "Label"` has the same association. Standalone concepts
+such as `term "Outstanding balance"` do not acquire a guessed type target.
+
+Terms may appear before or between model declarations without disabling the Java
+editor inside behaviors or validations. In a behavior, navigation to Java methods
+such as `strip()` and local helpers such as `marker()` uses the injected Java
+context; these expressions are not Vernac type references.

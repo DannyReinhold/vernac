@@ -43,7 +43,7 @@ REQUIRED_TESTS += ("BehaviorSourceMapTest", "BehaviorDebugExecutionTest", "Verna
                    "ValidationSourceMapTest", "ValidationDebugExecutionTest",
                    "ListenerSourceMapTest", "ListenerDebugExecutionTest",
                    "VernacDebuggerHostLexerTest", "VernacExpressionFactoryTest",
-                   "AdapterSourceMapTest", "AdapterDebugExecutionTest", "VernacViewInspectorTest")
+                   "AdapterSourceMapTest", "AdapterDebugExecutionTest", "VernacViewInspectorTest", "VernacTypeReferencesTest", "VernacTypeReferenceTest")
 
 
 def require(condition, message):

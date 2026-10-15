@@ -532,3 +532,14 @@ The worker can then reach that breakpoint when it processes the persisted delive
 Synchronous listeners instead run immediately during publication. The
 [debugger tutorial](../tutorials/debugging.md) distinguishes a small thread mapping
 probe from the full persistence-demo delivery exercise.
+
+### Why does Ctrl+click navigate, but the type did not look like a link beforehand?
+
+Navigation commands and modifier-hover highlighting use different IDE entry points.
+Earlier Vernac builds supplied LSP navigation without native PSI references for DSL
+type ranges. The 0.5.0 development plugin now supplies those precise ranges and
+compiler-resolved targets, so IntelliJ can provide its normal Ctrl-hover link feedback.
+This is separate from ordinary documentation hover. It follows your keymap/theme,
+and applies to resolved declared Vernac type usages, including imports and exported
+module types. Unknown/ambiguous names are not turned into guessed links. Injected
+Java keeps Java navigation. See [the IDE tutorial](../tutorials/intellij-plugin.md).

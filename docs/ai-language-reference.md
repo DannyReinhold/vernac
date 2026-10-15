@@ -1516,3 +1516,19 @@ children are explicitly nullable stored-value projections, with accessor-based W
 expressions. Normal stepping skips only verified pure facade reads, not modification
 wrappers, validators or callbacks. Contributor mode restores raw Java views and disables
 this filter. Native tree/Watch/stepping acceptance is separate from the JVM inspector test.
+
+The 0.5.0 development plugin also supplies native PSI references for declared Vernac
+types in DSL signatures/fields/imports/dependencies and repository aggregate targets.
+These use compiler namespace/import/export visibility and exact UTF-16 type-name
+ranges for native Ctrl-hover navigation feedback. Injected Java, strings and enum
+constants are not reinterpreted as DSL type references. Existing LSP documentation,
+completion and mapping-specific navigation remain in place. These navigation
+references do not implement complete cross-language rename or reference search.
+
+Java reference types from the approved built-in table also have native navigation
+references in DSL type positions, including behavior signatures. These resolve to
+the actual Java class through IntelliJ's module/JDK scope. Explicit `implemented by`
+class names resolve in the same scope. Primitive types have no class target;
+unknown classes do not get guessed links. Java bodies retain injected-Java
+resolution. This editor support does not expand the permitted DSL type set or
+provide cross-language renaming.

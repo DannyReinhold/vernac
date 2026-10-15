@@ -29,12 +29,13 @@ public final class BehaviorJavaProjection {
         var parser = new VernacParser(new CommonTokenStream(lexer));
         parser.removeErrorListeners();
         var tree = parser.compilationUnit();
-        if (parser.getNumberOfSyntaxErrors() != 0 || tree.topLevelDeclaration().size() != unit.definitions().size())
+        var declarations = tree.topLevelDeclaration().stream().filter(d -> d.termDefinition() == null).toList();
+        if (parser.getNumberOfSyntaxErrors() != 0 || declarations.size() != unit.definitions().size())
             return List.of();
         List<Block> result = new ArrayList<>();
         for (int i = 0; i < unit.definitions().size(); i++) {
             var definition = unit.definitions().get(i);
-            var syntax = tree.topLevelDeclaration(i);
+            var syntax = declarations.get(i);
             if (definition instanceof OutboundAdapterNode adapter) {
                 if (adapter.rest().isEmpty()) result.addAll(new ServiceJavaProjection().build(project,scope,unit,adapter.behavior(),
                     syntax.outboundAdapterDefinition().serviceMethod(),text,".adapter.outbound"));

@@ -10,6 +10,9 @@ import org.jetbrains.annotations.NotNull;
 
 public final class VernacInjectionHost extends ASTWrapperPsiElement implements PsiLanguageInjectionHost {
     public VernacInjectionHost(@NotNull ASTNode node) { super(node); }
+    @Override public PsiReference @NotNull [] getReferences() {
+        return com.intellij.psi.impl.source.resolve.reference.ReferenceProvidersRegistry.getReferencesFromProviders(this);
+    }
     @Override public boolean isValidHost() { return true; }
     @Override public @NotNull PsiLanguageInjectionHost updateText(@NotNull String text) {
         var replacement = PsiFileFactory.getInstance(getProject()).createFileFromText(

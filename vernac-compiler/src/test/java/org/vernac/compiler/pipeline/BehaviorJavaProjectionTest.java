@@ -27,6 +27,54 @@ class BehaviorJavaProjectionTest {
         return result.toString();
     }
 
+    @Test void termsDoNotDisableOrShiftJavaContexts() {
+        String source = """
+                namespace model;
+                term Label { description "A parcel's human-readable label."; }
+                value Label(String) behavior {
+                    public String decorate(String suffix) {
+                        String normalized = self.string().strip();
+                        return normalized.toUpperCase(java.util.Locale.ROOT) + suffix;
+                    }
+                    public String withMarker() { return self.string() + marker(); }
+                    private String marker() { return "!"; }
+                    public String externallyDecorated()
+                        implemented by example.debug.handwritten.LabelFormatting;
+                };
+                term "Second concept" { description "Another term between types."; }
+                value Second(String) validates {
+                    require(!self.string().isBlank(), "blank");
+                };
+                """;
+        var blocks = project(source);
+        assertEquals(2, blocks.size());
+        String behavior = java(source, blocks.getFirst());
+        assertTrue(behavior.contains("self.string().strip()"));
+        assertTrue(behavior.contains("normalized.toUpperCase(java.util.Locale.ROOT)"));
+        assertTrue(behavior.contains("marker()"));
+        assertTrue(behavior.contains("private static java.lang.String marker()"));
+        assertTrue(java(source, blocks.getLast()).contains("SecondRead self"));
+        Map<String, String> sources = new LinkedHashMap<>();
+        new VernacCompiler().compileSource(source).generatedFiles().forEach(f ->
+                sources.put(f.packageName() + "." + f.typeSpec().name(), f.toString()));
+        sources.put("example.debug.handwritten.LabelFormatting", """
+                package example.debug.handwritten;
+                public final class LabelFormatting {
+                    public static String externallyDecorated(model.domain.Label self) {
+                        return self.string();
+                    }
+                }
+                """);
+        sources.put("model.domain.__VernacEditorBehavior_Label", behavior);
+        sources.put("model.domain.__VernacEditorValidation_Second", java(source, blocks.getLast()));
+        var compiled = org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(sources);
+        assertTrue(compiled.success(), compiled.diagnostics().toString());
+        for (var block : blocks) for (var fragment : block.fragments()) {
+            assertTrue(fragment.start() >= 0 && fragment.end() <= source.length());
+            assertFalse(source.substring(fragment.start(), fragment.end()).contains("term "));
+        }
+    }
+
     @Test void eventAndListenerProjectionMatchesGeneratedAccess() {
         String source="""
             namespace model; value Title(String);

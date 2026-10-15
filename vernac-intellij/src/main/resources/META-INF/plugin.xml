@@ -100,6 +100,14 @@
 ]]></description>
 
     <change-notes><![CDATA[
+        <h3>0.5.0 development — Native type navigation</h3>
+        <p>Declared Vernac type usages now expose precise PSI references for IntelliJ's
+        Ctrl-hover link feedback and navigation, including matching vocabulary term names.
+        Approved Java types in DSL signatures and explicit implemented-by classes link
+        to their actual Java declarations. Java navigation and helper resolution stay
+        available in files containing terms. Namespace/import/module visibility follows
+        the compiler; embedded Java retains native Java references. Cross-language rename
+        remains separate work.</p>
         <h3>0.5.0 development — Debug your application in Vernac</h3>
         <p>Set breakpoints directly in your Vernac source, step through embedded Java,
         inspect arguments and local variables, and use Evaluate Expression, completion,
@@ -260,6 +268,7 @@
         <debugger.javaBreakpointHandlerFactory implementation="org.vernac.intellij.debug.VernacBreakpointHandlerFactory"/>
         <debugger.javaDebugAware implementation="org.vernac.intellij.debug.VernacDebugAware"/>
         <xdebugger.breakpointType implementation="org.vernac.intellij.debug.VernacLineBreakpointType"/>
+        <psi.referenceContributor language="Vernac" implementation="org.vernac.intellij.VernacTypeReferenceContributor"/>
         <gotoDeclarationHandler implementation="org.vernac.intellij.VernacJavaDeclarationHandler" order="first"/>
         <lang.parserDefinition language="VernacApplication" implementationClass="org.vernac.intellij.VernacApplicationParserDefinition"/>
         <fileType name="Vernac Application Definition" implementationClass="org.vernac.intellij.VernacApplicationFileType" fieldName="INSTANCE" language="VernacApplication" extensions="vapplication"/>

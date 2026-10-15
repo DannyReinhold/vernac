@@ -1,8 +1,20 @@
 # AI content disclosure review for vernac.org
 
-Status: **queued; first follow-up after completion of the debugger workstream**.
-No legal assessment or conclusion has been made in this planning record. Do not
-run this investigation concurrently with the current debugger implementation.
+Status: **brief assessment completed on 2026-10-15; user chose no additional
+AI-content labels for the current described publication workflow**.
+
+The official [Article 50 text](https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-50)
+and [Commission transparency FAQ](https://digital-strategy.ec.europa.eu/en/faqs/transparency-obligations-under-article-50-ai-act)
+were checked, together with the Bundesnetzagentur's transparency overview. The
+assessment distinguished provider marking duties from publisher/deployer disclosure,
+public-interest text with the human-review/editorial-responsibility exception,
+deepfake media and source code. It found no blanket per-file disclosure requirement
+for the described human-reviewed technical documentation, code and schematic diagrams.
+This was not a complete audit of every published asset or a binding legal opinion.
+
+Reassess if publication becomes unreviewed/automated, realistic synthetic media is
+added, or Vernac distributes an AI system. No website banner or voluntary notice is
+introduced by the user's decision. The scope below records the original review brief.
 
 ## Question to resolve
 

@@ -180,3 +180,68 @@ Contributor mode restores raw views and disables the filter. Validate native tre
 Watch expression composition and stepping separately from the JDI inspector test.
 After this acceptance, the queued AI-content disclosure review is next. Wider
 renderers/filters and dependency-source work do not silently extend this workstream.
+
+### Native type-reference / Ctrl-hover increment
+
+The user has accepted the debugger workstream, including facade rendering and the
+narrow stepping filter, and pushed it to feature/0.5.0. This increment adds native
+PSI references to the existing lightweight injection host; its line lexer, TextMate/
+LSP coloring and Java injection stay unchanged. VernacTypeReferences in the compiler
+extracts exact type-name anchors from grammar contexts and resolves them through
+FileTypeScope/ProjectSymbolIndex. VernacTypeNavigation shares declaration targeting
+with Java navigation, now excluding term declarations when aligning model definitions.
+
+The plugin caches per-host references against PSI and VFS modification trackers,
+uses unsaved editor snapshots, build-written module metadata and existing module
+source/contract views. References are soft navigation references, not new error
+reporters. Ambiguous/unknown/non-exported types do not get guessed targets. The
+provider does not reinterpret inline Java, enum constants or strings; adapter-local
+DTO/result/path navigation stays with the LSP. Native rename/rebinding is rejected
+rather than offering an incomplete cross-language refactoring.
+
+Acceptance: resolved local/imported/qualified/module types show a link over the type
+name when Ctrl is held, Ctrl+click and Ctrl+B agree, comments/unknown/ambiguous names
+have no false target, and Java injection/documentation hover remain intact. Unit
+ranges/target tests and SDK compilation do not establish the installed mouse-hover UI.
+
+Local validation of this increment: 427 compiler tests, ten focused plugin tests and
+ten release-tool tests passed. The changed plugin classes compile against IntelliJ
+262.10968.63 APIs without deprecation warnings; 569 local documentation links passed.
+No full Maven reactor or installed-IDE modifier-hover test was run here. Module
+contract fallback PSI is read-only and stable per reference; stale materialized
+views are not paired with ranges from a different contract snapshot.
+
+### Term/reference regression follow-up
+
+Installed-IDE feedback confirmed native type links, but a file containing a term
+lost its embedded Java context. BehaviorJavaProjection compared all grammar
+top-level declarations with the AST's executable definitions; the AST keeps terms
+in a separate list. Filtering terms before both the size check and positional
+alignment restores behavior and validation injections without changing Java
+resolution or the plugin host. Regression coverage includes terms before and
+between definitions, local Java helper declarations/calls, Java library calls and
+an external implementation signature.
+
+Native term-name links use the decoded AST term name and an exact same-namespace
+symbol identity, including quoted identifiers and named collections. Spaces,
+dotted vocabulary labels and unmatched concepts never become guessed imports.
+
+### Java targets in DSL syntax
+
+Behavior signatures are DSL syntax, not copied Java fragments. Native references
+now supplement declared Vernac references with approved non-primitive built-ins
+and explicit `implemented by` class identities. The compiler helper extracts only
+grammar type positions and implementation labels (behavior/service/execute/mapping/
+inbound error policy/REST error handler); it never scans raw Java text for names.
+The plugin delegates class lookup to JavaPsiFacade in the host's resolve scope.
+Reference extraction is cached with the existing PSI/VFS dependencies; class lookup
+runs against the current index and returns no target in dumb mode. Unknown types,
+primitive names and enum constants do not become fabricated Java classes. Existing
+Java-body injection and cross-language rename limitations remain unchanged.
+
+Validation: compiler extraction tests cover the three String occurrences around an
+inline signature, the external signature/class reference, UTF-16 positions, optional
+BigDecimal, primitives, unknown names and raw-Java exclusion. Plugin tests cover
+native Java-reference ranges, canonical names and refusal of incomplete rename.
+The contributor compiles against IntelliJ 262.10968.63; actual mouse-hover behavior
+still requires installation and manual acceptance.

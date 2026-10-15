@@ -26,6 +26,14 @@ public final class VernacTypeNavigation {
         return find(project, texts, javaName, Optional.of(member));
     }
 
+    /** Native editor references resolve symbols through the same declaration locator as Java navigation. */
+    public Optional<Target> findSymbol(VernacProject project, Map<Path, String> texts, TypeSymbol symbol) {
+        var source = project.sources().stream().filter(s -> s.path().equals(symbol.sourceFile())).findFirst();
+        String text = texts.get(symbol.sourceFile());
+        return source.isEmpty() || text == null ? Optional.empty()
+                : locate(project, source.get(), text, symbol, Optional.empty());
+    }
+
     private Optional<Target> find(VernacProject project, Map<Path, String> texts, String javaName, Optional<Member> member) {
         for (var source : project.sources()) {
             var dto = dtoTarget(source,texts.get(source.path()),javaName,member);
@@ -98,11 +106,12 @@ public final class VernacTypeNavigation {
         var parser = new VernacParser(new CommonTokenStream(lexer));
         parser.removeErrorListeners();
         var tree = parser.compilationUnit();
-        if (parser.getNumberOfSyntaxErrors() != 0 || tree.topLevelDeclaration().size() != source.unit().definitions().size())
+        var declarations = tree.topLevelDeclaration().stream().filter(t -> t.termDefinition() == null).toList();
+        if (parser.getNumberOfSyntaxErrors() != 0 || declarations.size() != source.unit().definitions().size())
             return Optional.empty();
         for (int i = 0; i < source.unit().definitions().size(); i++) {
             var definition = source.unit().definitions().get(i);
-            var syntax = tree.topLevelDeclaration(i);
+            var syntax = declarations.get(i);
             ParserRuleContext name = null;
             List<VernacParser.CollectionDefinitionContext> collections = List.of();
             if (syntax.idDeclaration() != null) {
@@ -126,6 +135,13 @@ public final class VernacTypeNavigation {
             if (syntax.portDefinition() != null) name=syntax.portDefinition().name;
             if (syntax.outboundAdapterDefinition() != null) name=syntax.outboundAdapterDefinition().name;
             if (syntax.inboundHttpAdapterDefinition() != null) name=syntax.inboundHttpAdapterDefinition().name;
+            if (syntax.repositoryDefinition() != null && symbol.kind() == TypeSymbol.Kind.REPOSITORY && member.isEmpty()) {
+                var repository = syntax.repositoryDefinition();
+                var anchor = repository.name == null ? repository.aggregateName : repository.name;
+                String repositoryName = repository.name == null ? anchor.getText() + "Repository" : anchor.getText();
+                if (repositoryName.equals(symbol.identity().name()))
+                    return target(source.path(), text, repositoryName, anchor.getStart(), anchor.getStop());
+            }
             if (name == null) continue;
             if (symbol.kind() != TypeSymbol.Kind.COLLECTION && name.getText().equals(symbol.identity().name())) {
                 if (member.isEmpty()) return target(source.path(), text, symbol.identity().name(), name.getStart(), name.getStop());
