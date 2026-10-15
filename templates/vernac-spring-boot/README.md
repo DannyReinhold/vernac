@@ -18,6 +18,9 @@ Docker with Compose v2 must be running for local PostgreSQL.
 With Docker running, open `TasksApplication` in IntelliJ and click **Run**.
 No active-profile setting is needed: `local` is the default when none is selected.
 Keep the generated project root as the working directory so Compose can find `compose.yaml`.
+The wizard delegates IDE builds/runs to Maven, so Vernac generation runs before Java
+compilation, including after changes to `.vernac` sources. Wait for Maven import
+to finish before the first Run.
 
 Alternatively, in the project's IntelliJ Maven tool window, run:
 
@@ -43,8 +46,8 @@ serving requests. The database uses port **55439** on loopback and a named volum
 The application starts with an empty board: enter your first task in the form.
 There is no login; the board is intentionally shared by all visitors.
 
-An explicitly active profile replaces the `local` default. No IDE-specific files
-are required.
+An explicitly active profile replaces the `local` default. The Maven POM remains
+the build definition; no IDE-specific files need to be committed.
 If a second project uses the same database port, set `LOCAL_DB_PORT` to another
 free port before starting; `PORT` changes the web port.
 
@@ -174,3 +177,15 @@ Next: add a field or behavior in Vernac, extend `TaskWeb` bindings/mappings as n
 regenerate Java, and extend the HTML view. The generated controller and advice live
 under `target/generated-sources/vernac`; do not copy them into your source tree.
 Generated Java belongs under `target`; edit the model and your Java adapter instead.
+
+## If Run starts the application but the home page returns 404
+
+For an existing project or one opened from a checkout, enable **Delegate IDE
+build/run actions to Maven** under **Settings → Build, Execution, Deployment →
+Build Tools → Maven → Runner**. The wizard enables this for newly created Vernac
+projects, but importing an existing POM does not change your IDE settings.
+
+Run `clean compile` in the project's Maven window once, then start the application
+again. The generated `TaskWeb` controller should exist under
+`target/generated-sources/vernac`. A native IDE build alone does not execute the
+Vernac Maven goal. Keep the Run configuration's Build step enabled.

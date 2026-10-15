@@ -293,3 +293,16 @@ Follow-up scope: multipart/repeated form bindings, field-level validation messag
 HTML fragments and dynamic redirects require separate contracts. Authentication
 and authorization remain application concerns; this starter demonstrates CSRF,
 not a complete user-management system.
+
+### New-project Maven build delegation (0.5.0)
+
+The wizard sets the project-scoped MavenRunnerSettings delegateBuildToMaven flag
+as well as the project JDK. This lets ordinary Build/Run/Debug execute Vernac's
+generate-sources lifecycle before compiling Java. The flag is set during project
+creation only; startup/import does not reset a user's later choice. Existing
+projects and checkouts must select delegation themselves. Keep before-run Build
+enabled; no checked-in .idea files or ad hoc generation subprocess is introduced.
+
+The setter was verified against JetBrains' exact idea/262.10968.63 source tag.
+Installed-IDE acceptance still needs a fresh project Run without manual Maven
+compile, followed by a Vernac edit and a second Run.

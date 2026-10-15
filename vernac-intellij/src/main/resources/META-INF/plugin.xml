@@ -101,7 +101,8 @@
 
     <change-notes><![CDATA[
         <p>The Spring Boot starter now runs directly from its application class: no profile
-        selection is needed for local development. Explicit deployment profiles replace
+        selection is needed for local development. The wizard also delegates IDE builds
+        and runs to Maven, so Vernac sources are generated before Java compilation. Explicit deployment profiles replace
         the local default; the supplied Dockerfile selects production.</p>
         <h3>0.5.0 development — Declare server-rendered pages</h3>
         <p>Inbound MVC adapters connect HTML views and URL-encoded forms to typed usecases.

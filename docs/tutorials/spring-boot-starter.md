@@ -36,6 +36,11 @@ In PowerShell from the generated project root, the equivalent is:
 .\mvnw.cmd spring-boot:run
 ```
 
+The wizard delegates IDE builds/runs to Maven, which generates Vernac Java sources
+before compiling them. Wait for the initial Maven import to finish and leave the
+Run configuration’s Build step enabled. Subsequent `.vernac` edits participate
+in that same lifecycle.
+
 `local` is the default when no active profile is configured. Docker with Compose
 must be running.
 
@@ -143,3 +148,15 @@ business decisions in the model, request adaptation in Java and generated output
 under `target`.
 
 [All tutorials](index.md) · [IntelliJ setup](intellij-plugin.md)
+
+## Troubleshoot an empty web boundary
+
+If the application starts but `/` returns 404, check that
+`target/generated-sources/vernac` contains `TaskWeb.java`. The Java application
+class can compile on its own even when no Vernac controller was generated.
+
+In an older project or a checkout, enable **Delegate IDE build/run actions to
+Maven** in **Settings → Build, Execution, Deployment → Build Tools → Maven →
+Runner**. Then run `clean compile` once in that application's Maven window and
+restart. The wizard configures delegation for new projects; opening existing
+projects does not overwrite your chosen build settings.

@@ -288,9 +288,11 @@ public final class VernacNewProjectWizard
                                 .setProjectSdk(selectedJdk)
                 );
 
-                MavenRunner.getInstance(project)
-                        .getSettings()
-                        .setJreName(MavenRunnerSettings.USE_PROJECT_JDK);
+                var mavenSettings = MavenRunner.getInstance(project).getSettings();
+                mavenSettings.setJreName(MavenRunnerSettings.USE_PROJECT_JDK);
+                // Vernac generation is a Maven lifecycle step, not a native IDE compiler step.
+                // Set this only when creating a project; later user choices remain untouched.
+                mavenSettings.setDelegateBuildToMaven(true);
 
                 VernacProjectOpenActivity.openAfterProjectCreation(
                         project,

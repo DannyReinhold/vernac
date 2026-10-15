@@ -573,3 +573,16 @@ This is separate from ordinary documentation hover. It follows your keymap/theme
 and applies to resolved declared Vernac type usages, including imports and exported
 module types. Unknown/ambiguous names are not turned into guessed links. Injected
 Java keeps Java navigation. See [the IDE tutorial](../tutorials/intellij-plugin.md).
+
+### Why does the new web application start but return 404 at `/`?
+
+The application class can compile even if its generated MVC controller is missing.
+A native IntelliJ build does not run Maven's Vernac generation goal. Check whether
+`TaskWeb.java` exists below `target/generated-sources/vernac`.
+
+The 0.5.0 wizard enables **Delegate IDE build/run actions to Maven** for new
+projects. In an older project or checkout, enable that option under **Settings →
+Build, Execution, Deployment → Build Tools → Maven → Runner**, run `clean compile`
+in the application's Maven window and restart it. Keep its Run configuration's
+Build step enabled. This ensures later Vernac changes are generated before Run,
+rather than requiring repeated manual compilation.

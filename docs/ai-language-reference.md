@@ -1540,7 +1540,10 @@ declarative inbound MVC adapter generating the controller and scoped error advic
 With no active profile, the starter defaults to `local` for immediate IDE Run.
 Explicitly select `production` (already selected by its Dockerfile) for deployment;
 it uses DB_* environment variables, disables Compose and requires secure cookies.
-Only the local profile supplies development credentials. This public starter includes CSRF but
+Only the local profile supplies development credentials. The wizard delegates
+IDE builds/runs to Maven so code generation precedes compilation. For existing
+projects/checkouts, enable Maven Runner’s delegation setting explicitly; a native
+IDE build alone does not invoke the Vernac Maven goal. This public starter includes CSRF but
 no authentication or tenant isolation. See the spring-boot-starter tutorial.
 
 ## 0.5.0 development: server-rendered MVC adapters

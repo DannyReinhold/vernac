@@ -97,7 +97,11 @@ Follow [From New Project to a working application](spring-boot-starter.md) to ru
 Choose **Minimal Domain Project** for the database-free exercise described below,
 or **Module / Type Library** to publish reusable types.
 
-Choose **Create**. The wizard writes the project, sets its project JDK, and configures Maven executions to use that JDK.
+Choose **Create**. The wizard writes the project, sets its project JDK, configures
+Maven executions to use that JDK and enables **Delegate IDE build/run actions to
+Maven**. Vernac generation then participates in normal Build, Run and Debug. Wait
+for the initial Maven import to finish; keep the run configuration’s Build step
+enabled. This is a new-project default, not a setting forced whenever a project opens.
 After the project opens, it starts the Maven import and opens `src/main/vernac/com/example/taskmanager/tasks.vernac`.
 
 The generated POM contains your coordinates and display name:
