@@ -39,17 +39,29 @@ public final class VernacParserDefinition implements ParserDefinition {
         };
     }
 
+    /** Keep the single injection host, but preserve line offsets for debugger context lookup. */
     private static final class HostLexer extends LexerBase {
         private CharSequence buffer = "";
-        private int start, end;
+        private int start, end, tokenEnd;
         @Override public void start(@NotNull CharSequence text, int startOffset, int endOffset, int initialState) {
-            buffer = text; start = startOffset; end = endOffset;
+            buffer = text; start = startOffset; end = endOffset; findTokenEnd();
+        }
+        private void findTokenEnd() {
+            tokenEnd = start;
+            while (tokenEnd < end) {
+                char c = buffer.charAt(tokenEnd++);
+                if (c == '\n') break;
+                if (c == '\r') {
+                    if (tokenEnd < end && buffer.charAt(tokenEnd) == '\n') tokenEnd++;
+                    break;
+                }
+            }
         }
         @Override public int getState() { return 0; }
         @Override public IElementType getTokenType() { return start < end ? TEXT : null; }
         @Override public int getTokenStart() { return start; }
-        @Override public int getTokenEnd() { return end; }
-        @Override public void advance() { start = end; }
+        @Override public int getTokenEnd() { return tokenEnd; }
+        @Override public void advance() { start = tokenEnd; findTokenEnd(); }
         @Override public @NotNull CharSequence getBufferSequence() { return buffer; }
         @Override public int getBufferEnd() { return end; }
     }

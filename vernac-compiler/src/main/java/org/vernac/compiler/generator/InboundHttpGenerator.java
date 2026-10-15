@@ -58,6 +58,7 @@ public final class InboundHttpGenerator {
             handler.addStatement("return $T.respond(error, $L::policy)",ERRORS,adapter.name()+"Errors");
         } else handler.addStatement("return $T.respond(error)",ERRORS);
         advice.addMethod(handler.build());
+        BehaviorGenerator.addDebugFingerprint(builder,file(pkg,builder),unit,project);
         var files=new ArrayList<JavaFile>();files.add(file(pkg,builder));files.add(file(pkg,advice));
         if(!plan.schemas().isEmpty())files.add(new DtoGenerator().generate(adapter.name(),pkg+".dto",plan.schemas()));
         if(!plan.mappings().isEmpty())files.addAll(new MappingGenerator().generate(adapter.name(),pkg+".mapping",unit,project,plan.mappings()));

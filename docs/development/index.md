@@ -24,6 +24,11 @@ Release acceptance also includes installation of the packaged IntelliJ plugin.
 - [Schema tooling](postgresql-schema-tooling.md) and [scalar mapping decisions](scalar-persistence-audit.md).
 - [Event delivery](event-delivery.md) and [ports implementation](ports-adapters-and-acl.md).
 
+## Current priorities
+
+- [Platform roadmap](platform-roadmap.md): IDE depth, language consistency, standard
+  adapters, Kafka replication, HTML fragment composition and the separate SaaS project.
+
 ## Modeling follow-up
 
 - [DDD modeling roadmap](ddd-modeling-roadmap.md): aggregate protection, concurrency-safe uniqueness, reusable rules, factories and domain variants.
@@ -44,3 +49,15 @@ Release acceptance also includes installation of the packaged IntelliJ plugin.
 Implementation notes explain mechanisms and trade-offs. They do not override the
 [specification](../specification/index.md). Historical patch progress belongs in Git
 history; keep unresolved design decisions with an explicit status and rationale.
+
+## Experimental debugger
+
+The [first debugger slice](vernac-debugger-prototype.md) documents build-time source
+mappings, Java-backed Vernac breakpoints and the installed-IDE acceptance walkthrough.
+
+## Queued immediately after debugger completion
+
+[AI content disclosure review for vernac.org](ai-content-disclosure-review.md):
+check applicable German/EU duties for the actual publication workflow and propose
+any necessary notices or markings. Planning only; assessment follows the debugger
+workstream rather than running concurrently.

@@ -64,7 +64,25 @@ public final class BehaviorGenerator {
             } else implementation.addCode("$L\n", method.bodyCode());
             type.addMethod(implementation.build());
         }
-        return Optional.of(JavaFile.builder(owner.packageName(), type.build()).indent("    ").skipJavaLangImports(true).build());
+        var file=JavaFile.builder(owner.packageName(),type.build()).indent("    ").skipJavaLangImports(true).build();
+        addDebugFingerprint(type, file, unit, project);
+        file=JavaFile.builder(owner.packageName(),type.build()).indent("    ").skipJavaLangImports(true).build();
+        return Optional.of(file);
+    }
+
+    /** Fingerprint an implementation companion without changing its public contract. */
+    public static void addDebugFingerprint(TypeSpec.Builder type, JavaFile file,
+                                           CompilationUnitNode unit, ResolvedProject project) {
+        var sourcePath=project.project().sources().stream().filter(s->s.unit()==unit)
+                .map(VernacSourceFile::path).findFirst();
+        if(sourcePath.isPresent() && java.nio.file.Files.isRegularFile(sourcePath.get())) try {
+            String fingerprint=org.vernac.compiler.debug.BehaviorSourceMap.hash(
+                    java.nio.file.Files.readString(sourcePath.get())+"\n"+file);
+            type.addField(FieldSpec.builder(String.class,org.vernac.compiler.debug.BehaviorSourceMap.HASH_FIELD,
+                    Modifier.PRIVATE,Modifier.STATIC,Modifier.FINAL).initializer("$S",fingerprint).build());
+        } catch(java.io.IOException e) {
+            throw new IllegalStateException("Cannot fingerprint behavior source",e);
+        }
     }
 
     public void addBodyImports(TypeSpec.Builder type, ClassName owner, List<JavaImportNode> imports,

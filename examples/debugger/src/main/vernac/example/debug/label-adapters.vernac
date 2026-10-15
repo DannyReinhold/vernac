@@ -1,0 +1,38 @@
+namespace example.debug;
+
+port LabelArchive {
+    Label load(Label label);
+}
+
+adapter LocalLabelArchive implements LabelArchive {
+    behavior {
+        java imports {
+            example.debug.adapter.outbound.dto.LocalLabelArchiveDtos.Payload;
+            example.debug.adapter.outbound.mapping.LocalLabelArchiveMappings;
+        }
+        public Label load(Label label) {
+            String text = normalize(label.string());
+            var payload = Payload.of(text);
+            return LocalLabelArchiveMappings.toLabel(payload);
+        }
+        private String normalize(String text) {
+            String normalized = text.strip();
+            return normalized;
+        }
+    }
+
+    schema Payload(String text);
+    mapping toLabel: Label <- Payload {
+        java {
+            String text = source.text();
+            return Label.of(text);
+        }
+    }
+    mapping toPayload: Payload <- Label {
+        text <- source.string;
+    }
+}
+
+event LabelChecked(Label) validates {
+    require(!self.label().string().isBlank(), "A checked label is required");
+};

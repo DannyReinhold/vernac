@@ -22,6 +22,13 @@ Read them in this order. The schema examples intentionally isolate SQL layout;
 they are not duplicate runnable applications. The persistence demo combines the
 concepts, with assertions and log output rather than a UI. Dispatch adds the interactive application experience.
 
+## Experimental debugger walkthrough
+
+[Debugging Vernac behaviors](debugger/README.md) is a database-free Java main/test
+project for mapped behavior breakpoints, local variables and Java transitions in 0.5.0.
+It is a prototype acceptance example, not a claim that all language constructs or
+Debugger features are supported.
+
 ## Build the examples
 
 First install dependencies for the standalone examples:

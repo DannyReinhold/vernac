@@ -769,3 +769,44 @@ not generated Java or guessed behavior. Referenced outside types are boundary no
 IntelliJ's Show Domain Diagram action includes unsaved source snapshots and opens Markdown;
 enable its Mermaid preview extension if needed. No rendered image or live model explorer
 is implied. See [the diagram tutorial](tutorials/domain-diagrams.md).
+
+### Vernac source debugging (0.5.0 tooling)
+
+The development plugin/compiler can map inline domain behavior breakpoints to original
+Vernac lines using build-owned metadata. Build with debug line/local-variable information
+and use matching source/generated/runtime artifacts. This is not new DSL syntax and
+does not imply full debugger coverage or hot swap. See the [prototype scope](development/vernac-debugger-prototype.md)
+and the executable example it links.
+
+For mapped behavior frames, debugger expressions use Java syntax and the generated
+method scope (`self`, arguments and locals). Breakpoint logging and suspension are
+standard IntelliJ options; see the [debugger walkthrough](../examples/debugger/README.md)
+for Evaluate Expression, conditions and non-suspending logpoints.
+
+A guided [debugging tutorial](tutorials/debugging.md) covers the 0.5.0 development
+preview and states its exact coverage. Inline usecase execute blocks, domain service
+operations and their private helpers also have mappings. User-authored require rules
+on VOs, entities, aggregates, usecases and services map their opening require line to
+one generated condition entry point with a Read/input self. Synchronous/deferred
+listener execute blocks and private helpers are also mapped; the actual worker stack
+is preserved. Inline outbound adapter methods/helpers, Java mapping bodies in both
+directions, explicit declarative field assignments, inbound execute argument assignments
+and event require rules are also source mapped. Mapping frames expose `source`;
+inbound controllers retain their actual Java variables. Pure transport configuration
+has no artificial breakpoint. Adapter-method preconditions remain unsupported by the
+language contract. Debugging tooling does not
+change transaction, validation or asynchronous execution semantics.
+
+Expression editing is separate from runtime evaluation. The 0.5.0 development
+plugin routes expression requests to the verified Java scope of their Vernac line
+to address red variables and missing Ctrl+Space completion. Core expression editing
+and adapter/mapping debugging have been confirmed in the installed IDE. Runtime
+mapping tests alone do not establish every IntelliJ editor interaction.
+
+Read/Access and validation-input facades have a stored-property inspection renderer.
+It preserves the actual Java facade type and contract, reads recognized field paths
+without invoking debuggee methods, and adds no field-write capability. Optional
+children are explicitly nullable stored-value projections, with accessor-based Watch
+expressions. Normal stepping skips only verified pure facade reads, not modification
+wrappers, validators or callbacks. Contributor mode restores raw Java views and disables
+this filter. Native tree/Watch/stepping acceptance is separate from the JVM inspector test.

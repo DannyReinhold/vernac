@@ -455,3 +455,80 @@ The diagram deliberately omits technical generated classes. Arrows describe decl
 not a reconstructed runtime call sequence. Run the action again after edits; automatic
 live diagrams and clickable graph navigation are outside this first increment.
 [Follow the diagram tutorial](../tutorials/domain-diagrams.md).
+
+
+## Debugging: development preview
+
+### Can I stop inside an inline Java behavior in a .vernac file?
+
+Yes, with matching **0.5.0-SNAPSHOT** compiler and plugin builds. Build the application
+first, set a breakpoint on an executable statement or conversion in a supported
+Vernac block and start its normal Java debug configuration. The editor can stop in the
+Vernac source while the JVM supplies real arguments, locals and `self`. Breakpoints,
+stepping, expression evaluation and conditions have been exercised in IntelliJ.
+
+This is not part of the published 0.4.0 plugin. Native source mapping currently covers
+VO/entity/aggregate/collection behaviors, inline usecase execute blocks and their
+private helpers, plus domain service and outbound adapter operations and helpers.
+Java mapping bodies and explicit declarative field assignments in both adapter
+directions, inbound execute argument assignments and event require rules are mapped
+too. Listener execute bodies
+and private helpers are also mapped, preserving their actual execution stack.
+User-authored require rules on VOs, entities,
+aggregates, usecases and services have a separate rule-entry mapping: put the
+breakpoint on the opening require line, including for multiline conditions. Handwritten implementations use normal
+Java debugging. [Try the complete walkthrough](../tutorials/debugging.md).
+
+### Why is debugger self a Read or Access view rather than my entity?
+
+That is its real runtime type. Vernac deliberately passes a restricted facade to
+behavior or validation code. The debugger keeps that distinction visible instead
+of pretending that self is the owner object. The development renderer places
+recognized stored readable properties directly under the facade, without calling
+computed methods. Access means mutation through its methods; it does not make the
+projected field nodes writable. Optional children are labeled stored values and
+may be null, while the actual accessor still returns Optional.
+
+The narrow stepping filter can skip pure facade field reads. It does not skip
+modification scopes, guards or require rules. For the technical object layout,
+enable **Show Generated Java in Debugger** before a fresh session. This disables
+both the presentation and the filter. [See the exercises](../tutorials/debugging.md).
+
+### Why does a source edit require a rebuild before debugging again?
+
+The loaded JVM class belongs to a particular generated implementation. Vernac checks
+source and generated-file hashes plus a fingerprint in the loaded companion class
+before mapping its lines back to the model. Otherwise an old program could appear
+to execute newly edited source. Rebuild and restart debugging after source changes;
+do not change the generated map by hand. This check also includes unsaved edits.
+
+### What does the yellow Log setting beside a breakpoint mean?
+
+It is IntelliJ's standard breakpoint logging UI. Log message records a breakpoint
+hit; Expression to log evaluates and prints a Java expression. With Suspend disabled,
+the breakpoint becomes a logpoint and execution continues. Right-click the breakpoint
+to inspect these settings. This is separate from application log levels and Vernac
+compiler warnings. [See examples and expected results](../tutorials/debugging.md).
+
+
+### Why can Evaluate Expression return a value while the variable remains red?
+
+The debugger runtime evaluator and its expression editor are separate mechanisms.
+Earlier development builds evaluated locals correctly while editor highlighting and
+Ctrl+Space lacked their Java scope. The current development integration maps both
+Java and source-file expression requests through the requested line's Java context;
+this has now been confirmed for core paths in IntelliJ. Install matching compiler
+and plugin artifacts, rebuild the example and restart the session. If a new frame
+still shows red names, report editor resolution separately from successful runtime
+evaluation, including its source line and expression.
+
+
+### Can I step from an emitting usecase straight into a deferred listener?
+
+A deferred listener executes later through the delivery worker, in its own transaction.
+It has a different runtime stack; the debugger must not pretend the original emitter
+is still its caller. Set a breakpoint in the deferred listener and resume the emitter.
+The worker can then reach that breakpoint when it processes the persisted delivery.
+Synchronous listeners instead run immediately during publication. The
+[debugger tutorial](../tutorials/debugging.md) distinguishes a small thread mapping
+probe from the full persistence-demo delivery exercise.

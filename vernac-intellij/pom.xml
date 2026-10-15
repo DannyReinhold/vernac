@@ -32,6 +32,18 @@
     <dependencies>
         <dependency>
             <groupId>com.jetbrains.intellij.java</groupId>
+            <artifactId>java-debugger</artifactId>
+            <version>${intellij.platform.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.jetbrains.intellij.java</groupId>
+            <artifactId>java-debugger-impl</artifactId>
+            <version>${intellij.platform.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.jetbrains.intellij.java</groupId>
             <artifactId>java-psi</artifactId>
             <version>${intellij.platform.version}</version>
             <scope>provided</scope>

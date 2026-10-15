@@ -1,0 +1,6 @@
+namespace example.debug;
+
+id BatchId;
+aggregate Batch[BatchId](Units) validates {
+    require(self.units().intValue() <= 10, "A batch supports at most ten units");
+};

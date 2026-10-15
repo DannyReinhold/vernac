@@ -37,6 +37,13 @@ For a source checkout, use the [example build guide](https://github.com/DannyRei
 
 9. [See the architecture](domain-diagrams.md): a namespace diagram, vocabulary and export for documentation.
 
+## Development preview: debug the business rule
+
+[Debug your business behavior where you wrote it](debugging.md) walks through
+breakpoints, stepping, variables, Java expressions, conditions and logpoints in a
+small database-free application. This chapter requires the **0.5.0-SNAPSHOT**
+compiler and plugin; it is not a feature of the published 0.4.0 release.
+
 ## 2. Turn behavior into an application operation
 
 1. [Usecases](usecases.md): one operation, declared results and one transaction boundary.

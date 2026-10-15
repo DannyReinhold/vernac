@@ -20,6 +20,37 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class VernacCompileMojoTest {
 
     @Test
+    void debuggerExampleKeepsAdapterAndListenerMappingsThroughMavenComposition(@TempDir Path temporary) throws Exception {
+        Path input=Path.of("../examples/debugger/src/main/vernac");
+        Path source=temporary.resolve("src/main/vernac");
+        try(var paths=Files.walk(input)) {
+            for(var file:paths.filter(Files::isRegularFile).toList()) {
+                Path target=source.resolve(input.relativize(file));Files.createDirectories(target.getParent());Files.copy(file,target);
+            }
+        }
+        var mojo=new VernacCompileMojo();mojo.setSourceDirectory(source.toFile());
+        Path output=temporary.resolve("target/generated-sources/vernac");
+        mojo.setOutputDirectory(output.toFile());mojo.setProject(new MavenProject());mojo.execute();
+        var entries=org.vernac.compiler.debug.BehaviorSourceMap.read(output).entries();
+        assertThat(entries).anyMatch(e->e.javaClass().contains(".adapter.inbound.event.__VernacBehavior_"));
+        assertThat(entries).anyMatch(e->e.javaClass().endsWith(".adapter.outbound.mapping.LocalLabelArchiveMappings"));
+        assertThat(entries).anyMatch(e->e.javaClass().endsWith(".adapter.inbound.http.LabelApi"));
+        assertThat(entries).anyMatch(e->e.javaClass().endsWith(".__VernacValidation_LabelChecked"));
+        for(var entry:entries)assertThat(org.vernac.compiler.debug.BehaviorSourceMap.hash(
+                Files.readString(output.resolve(entry.javaFile())))).isEqualTo(entry.javaHash());
+    }
+
+    @Test
+    void applicationCompositionPreservesUsableBehaviorDebugMappings(@TempDir Path temporary) throws Exception {
+        Path source=temporary.resolve("src/main/vernac/example/demo/model.vernac");Files.createDirectories(source.getParent());
+        Files.writeString(source,"namespace example.demo; value Name(String) behavior {public String display(){return self.string();}};");
+        var mojo=new VernacCompileMojo();mojo.setSourceDirectory(temporary.resolve("src/main/vernac").toFile());
+        Path output=temporary.resolve("target/generated-sources/vernac");mojo.setOutputDirectory(output.toFile());mojo.setProject(new MavenProject());mojo.execute();
+        var map=org.vernac.compiler.debug.BehaviorSourceMap.read(output);assertThat(map.entries()).isNotEmpty();
+        for(var entry:map.entries())assertThat(org.vernac.compiler.debug.BehaviorSourceMap.hash(Files.readString(output.resolve(entry.javaFile())))).isEqualTo(entry.javaHash());
+    }
+
+    @Test
     @DisplayName("Kompiliert gefundene .vernac-Dateien und legt Java-Klassen im Zielordner ab")
     void shouldCompileVernacFiles(@TempDir Path tempDir) throws Exception {
         Path srcDir = tempDir.resolve("src/main/vernac");

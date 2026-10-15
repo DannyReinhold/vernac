@@ -85,7 +85,9 @@ public final class UseCaseGenerator {
                     .addStatement("throw new $T($S)",DomainValidationException.class,rule.message().isBlank()?u.name()+": precondition failed":rule.message()).endControlFlow();
             validation.addMethod(validate.build());
             new BehaviorGenerator().addBodyImports(validation,owner,u.javaImports(),unit,project,u.validations().toString());
-            files.add(file(read.packageName(),readSpec)); files.add(file(owner.packageName(),validation));
+            files.add(file(read.packageName(),readSpec));
+            if(!listener) BehaviorGenerator.addDebugFingerprint(validation,file(owner.packageName(),validation),unit,project);
+            files.add(file(owner.packageName(),validation));
         }
         var invocation=CodeBlock.of("$T.execute($L)",companion,CodeBlock.join(call,", "));
         if(returns.equals(TypeName.VOID)) execute.addStatement("$L",invocation);
@@ -126,7 +128,11 @@ public final class UseCaseGenerator {
         files.add(file(owner.packageName(),bean));
         var companionFile=JavaFile.builder(owner.packageName(),implementation.build()).indent("    ").skipJavaLangImports(true);
         if(!u.resultFields().isEmpty()) companionFile.addStaticImport(owner,"Result");
-        files.add(companionFile.build());return files;
+        BehaviorGenerator.addDebugFingerprint(implementation, companionFile.build(), unit, project);
+        // Rebuild after adding the private fingerprint, preserving Result static imports.
+        var finalCompanion=JavaFile.builder(owner.packageName(),implementation.build()).indent("    ").skipJavaLangImports(true);
+        if(!u.resultFields().isEmpty()) finalCompanion.addStaticImport(owner,"Result");
+        files.add(finalCompanion.build());return files;
     }
     private TypeSpec result(UseCaseNode u,ResolvedProject project,ClassName owner) {
         var canonical=MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC);

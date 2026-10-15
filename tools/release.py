@@ -38,6 +38,14 @@ REQUIRED_TESTS += (
 )
 
 
+# 0.5.0 debugger foundation must execute, including the real JVM/JDI test.
+REQUIRED_TESTS += ("BehaviorSourceMapTest", "BehaviorDebugExecutionTest", "VernacRuntimeFingerprintTest",
+                   "ValidationSourceMapTest", "ValidationDebugExecutionTest",
+                   "ListenerSourceMapTest", "ListenerDebugExecutionTest",
+                   "VernacDebuggerHostLexerTest", "VernacExpressionFactoryTest",
+                   "AdapterSourceMapTest", "AdapterDebugExecutionTest", "VernacViewInspectorTest")
+
+
 def require(condition, message):
     if not condition:
         raise ValueError(message)

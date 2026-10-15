@@ -1,0 +1,29 @@
+namespace example.debug;
+
+event LabelPrepared(Label);
+
+synchronous listener ObserveLabel on LabelPrepared behavior {
+    execute {
+        String text = event.label().string();
+        String upper = uppercase(text);
+        System.out.println(upper);
+    }
+
+    private String uppercase(String text) {
+        String upper = text.toUpperCase(java.util.Locale.ROOT);
+        return upper;
+    }
+}
+
+deferred listener DeliverLabel on LabelPrepared behavior {
+    execute {
+        String text = event.label().string();
+        String upper = uppercase(text);
+        System.out.println(upper);
+    }
+
+    private String uppercase(String text) {
+        String upper = text.toUpperCase(java.util.Locale.ROOT);
+        return upper;
+    }
+}

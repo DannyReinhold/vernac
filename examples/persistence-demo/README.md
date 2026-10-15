@@ -271,3 +271,21 @@ is not a complete logistics planner.
 and external usecase implementations; `describe-tour.vernac` demonstrates a result.
 The handwritten DeliveryDemoUseCases is runner orchestration showing Java interop,
 not a requirement to implement all usecases by hand.
+
+
+## Debug listener delivery in Vernac (0.5.0 development)
+
+With matching development compiler/runtime/plugin artifacts, build the demo and
+launch `org.example.delivery.demo.PersistenceDemoApplication` using the IDE's Debug
+action and its normal PostgreSQL configuration. In
+`src/main/vernac/org/example/delivery/events.vernac`, break on the execute lines of
+ObserveDemoNotice and DeliverDemoNotice. The first runs during publication; the
+second later runs on the actual JDBC worker processing stack. RetryDemoNotice
+illustrates a deliberate first-attempt failure.
+
+The original emitter stack is not attached to deferred execution. A long breakpoint
+pause can let a persisted claim lease expire, especially if another worker process
+is running. Inspect retries as real processing attempts. See the
+[debugging tutorial](../../docs/tutorials/debugging.md) for mapping scope and the
+separate database-free thread probe. The published 0.4.0 plugin does not include
+these development debugger capabilities.

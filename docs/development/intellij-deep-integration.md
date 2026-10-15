@@ -1,6 +1,9 @@
 # Deep IntelliJ integration
 
-Status: **planned; not implemented by the compiler-consolidation patch**.
+Status: **roadmap with an experimental first debugger slice in 0.5.0**.
+See the [prototype record](vernac-debugger-prototype.md) and
+[manual acceptance example](../../examples/debugger/README.md). Refactoring and
+the broader debugger experience below remain planned.
 Target: a first-class, coherent developer experience across Vernac and Java.
 This is a tooling roadmap, not a change to language contracts.
 
@@ -59,13 +62,23 @@ Do not promise hot swap of structural model changes without evidence.
 
 ## Delivery and acceptance
 
-1. Audit current behavior using a small multi-file Vernac/Java application.
-2. Define source-to-generated-symbol identity and mapping lifetime, including stale
-   generated output and unsaved changes; reuse existing navigation metadata where sound.
-3. Deliver one end-to-end rename flow with conflict preview, diagnostics and undo.
-4. Extend to other refactorings and complete the debugger prototype.
-5. Add automated plugin tests plus a documented installed-IDE acceptance walkthrough
-   against supported IntelliJ versions; measure responsiveness on larger projects.
+1. Establish a small multi-file Vernac/Java application and build-owned source mappings.
+   The initial domain-behavior prototype and real JVM test now provide that foundation.
+2. The initial installed-IDE walkthrough has confirmed breakpoints, stepping,
+   variables, expression evaluation and conditional breakpoints. Keep separate
+   acceptance for contributor mode, logpoints, Watches and each newly mapped construct;
+   do not infer UI correctness from SDK compilation.
+3. Core mappings now include domain behavior, usecases, services, require rules and
+   listener bodies, adapters, mappings, inbound argument conversions and event validations.
+   Core expression resolution/completion is confirmed in the installed IDE. Complete
+   adapter/mapping UI acceptance, then inspect technical stepping stops and improve
+   Read/Write/Access presentation where useful. Verify ordinary local-value editing
+   and audit the tutorial.
+   Preserve real deferred execution boundaries. Advanced renderers, dependency-source
+   attachment and remote/hot-swap support remain later work, separate from this closure.
+4. Build semantic declaration/reference identities for one complete cross-language rename
+   flow with conflict preview and undo; extend other refactorings incrementally.
+5. Add true editor/debugger integration tests and measure responsiveness on larger projects.
 
 Acceptance requires both successful refactoring and useful failure behavior. A green
 compiler/LSP build alone does not establish IDE refactoring or debugger correctness.
@@ -96,3 +109,74 @@ The bounded namespace export/action is implemented: shared resolved graph, Merma
 sources, JSON and a Markdown catalog with vocabulary. A later model explorer can build on
 that graph for live refresh, filtering, custom zoom/layout, clickable source navigation and
 module/application-level views. These interactions are not promised by the initial export.
+
+
+### Observed debugger editor gap
+
+Evaluate Expression can successfully evaluate a mapped frame's local while showing
+its name as unresolved and offering no Ctrl+Space completion. Treat Java expression
+presentation/context selection as a separate acceptance target from runtime
+execution. Cover locals, arguments, self, imports, conditions and log-expression
+editors at a suspended frame, not only before launching a session. Preserve native
+Vernac navigation and avoid routing breakpoint source positions back into themselves.
+
+## Debugger value editing and completion audit
+
+The installed-IDE validation walkthrough is confirmed: require breakpoints, Read/input
+self inspection and runtime expression evaluation work. The user also requested
+ad-hoc value editing to exercise a failure without changing source.
+
+Inspection of the generated Units class and IntelliJ SDK 262.10968.63 shows that
+intValue is a private final field and FieldDescriptorImpl marks final fields as
+non-lvalues. Standard JavaValue only supplies a modifier for writable descriptors.
+This is distinct from a getter result, which is not an assignable storage location.
+Do not add domain setters or weaken immutable VO/Read contracts to implement a
+normal debugger menu action.
+
+Before choosing an additional value-editing feature:
+
+- Verify ordinary local-variable editing and writable non-final Java fields in an
+  installed session, separately from getter results and final domain fields.
+- Prefer changing a primitive input before the validated factory/construction call
+  for failure testing. The existing validation probe also supplies invalid inputs.
+- Evaluate an explicit advanced/contributor-only raw-state editing mode only as a
+  separate proposal. It must explain bypassed validation and immutable-state
+  assumptions; ordinary display/rendering must not imply such writes are supported.
+
+At debugger completion, perform a final tutorial audit against the installed-IDE
+acceptance results: supported declarations, runtime evaluation versus red highlighting/
+missing completion, writable versus read-only values, stepping limits, asynchronous
+listener boundaries, contributor mode and every runnable example/command. Do not
+claim untested behavior as established support.
+
+## First task after the debugger workstream
+
+Next, perform the [German/EU AI content disclosure review](ai-content-disclosure-review.md)
+for vernac.org and its published texts, images and code. This is explicitly queued
+for after debugger completion; no legal investigation is part of the current work.
+
+The expression-editor increment uses the requested source line and matching factories
+for Java and Vernac file-type requests. Host PSI keeps line offsets while preserving
+the single injection host. SDK compilation and regression tests cover routing and
+lexer offsets; visible resolution/completion still need installed-IDE acceptance.
+
+### Adapter/mapping debugger increment
+
+Source maps now include outbound adapter Java methods/helpers, Java and explicit
+declarative mappings in both directions, inbound execute argument conversions and
+event requires. Nine real-JVM tests check locations and locals. The core expression
+editor fix is confirmed by the user; the new frames still need installed-IDE acceptance.
+Next, evaluate technical intermediate stops and Read/Write/Access views. Do not
+misrepresent read-only views or final VO fields as writable domain operations.
+
+### Facade presentation increment
+
+Adapter/mapping UI acceptance is now confirmed. The next plugin increment preserves
+real Read/Write/Access types while projecting only recognized stored readable values;
+it never evaluates computed getters to draw the tree or adds writable field nodes.
+Its narrow extra stepping filter skips verified pure facade reads only. Constructor,
+mutation-boundary, validation and callback-bearing runtime stepping remain normal.
+Contributor mode restores raw views and disables the filter. Validate native tree,
+Watch expression composition and stepping separately from the JDI inspector test.
+After this acceptance, the queued AI-content disclosure review is next. Wider
+renderers/filters and dependency-source work do not silently extend this workstream.

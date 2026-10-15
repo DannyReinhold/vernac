@@ -322,3 +322,12 @@ Application definitions now receive shared syntax and identity diagnostics. Comp
 after `bind` proposes available ports; after `to` it proposes adapters for that port.
 Go To Declaration follows those type references. Adapter bindings now generate Spring registration and profile-driven selection.
 Explicit activation of full functional modules still fails the build explicitly. Type-module dependencies do not need `activate`.
+
+
+## Development preview: debug inline behavior
+
+With the matching **0.5.0-SNAPSHOT** compiler and plugin, you can set breakpoints
+inside supported Vernac behavior bodies and inspect the live JVM state. Follow the
+[debugging tutorial](debugging.md) for a database-free example, expression evaluation,
+conditional breakpoints and logpoints. The published 0.4.0 plugin does not include
+this integration; follow the tutorial's source-build instructions.

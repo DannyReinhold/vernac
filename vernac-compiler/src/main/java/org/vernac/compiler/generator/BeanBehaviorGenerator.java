@@ -150,10 +150,13 @@ final class BeanBehaviorGenerator {
         }
         if (hasValidation) {
             new BehaviorGenerator().addBodyImports(validation, owner, service.javaImports(), unit, project, service.methods().toString());
+            if(adapter == null) BehaviorGenerator.addDebugFingerprint(validation,file(owner.packageName(),validation),unit,project);
             files.add(file(owner.packageName(), validation));
         }
         bean.addType(delegate.build());
-        files.add(file(owner.packageName(), bean)); files.add(file(owner.packageName(), impl)); files.add(file(access.packageName(), api));
+        files.add(file(owner.packageName(), bean));
+        BehaviorGenerator.addDebugFingerprint(impl, file(owner.packageName(), impl), unit, project);
+        files.add(file(owner.packageName(), impl)); files.add(file(access.packageName(), api));
         return files;
     }
     static MethodSpec.Builder signature(MethodNode method, ResolvedProject project) {

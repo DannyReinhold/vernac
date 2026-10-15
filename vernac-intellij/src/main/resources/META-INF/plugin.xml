@@ -39,6 +39,8 @@
     <ul>
         <li>Automatic recognition of <code>.vernac</code> files</li>
         <li>Semantic highlighting</li>
+        <li>Debug embedded Java in Vernac source: breakpoints, stepping, variables,
+        expression evaluation and completion, conditions and logpoints (0.5.0 development).</li>
         <li>Syntax and semantic diagnostics</li>
         <li>Code completion and snippets</li>
         <li>Hover documentation</li>
@@ -98,7 +100,29 @@
 ]]></description>
 
     <change-notes><![CDATA[
-        <h3>0.5.0 development</h3>
+        <h3>0.5.0 development — Debug your application in Vernac</h3>
+        <p>Set breakpoints directly in your Vernac source, step through embedded Java,
+        inspect arguments and local variables, and use Evaluate Expression, completion,
+        conditional breakpoints and logpoints with the mapped Java scope.</p>
+        <ul>
+            <li>Domain behaviors, usecases, domain services and listener execute bodies,
+            including their private helpers.</li>
+            <li>Inline outbound adapter behavior, inbound/outbound Java mappings,
+            declarative field conversions and inbound execute argument assignments.</li>
+            <li>Require-rule breakpoints on value objects, entities, aggregates,
+            usecases, domain services and event payloads.</li>
+            <li>Read/Access and validation-input facades show stored readable properties
+            while preserving their real types. Optional backing values are labeled explicitly;
+            projected children add no write access. Display never invokes behavior methods.</li>
+            <li>Conservative stepping skips verified pure facade reads; modification guards,
+            validators and real call stacks remain intact. Contributor mode restores raw views.</li>
+            <li>Source/build/runtime checks prevent stale generated classes from being
+            presented as current Vernac source. Contributors can switch to generated Java views.</li>
+        </ul>
+        <p>The core debugger workflow and adapter/mapping paths have been exercised in IntelliJ.
+        Facade presentation/filtering has real-JVM inspection tests and a guided UI acceptance check.
+        See the <a href="https://vernac.org/tutorials/debugging.html">Debugging tutorial</a>.
+        Use matching 0.5.0 development compiler and plugin builds.</p>
         <p>Domain diagram export uses the supported blocking read-action API for its short document snapshot on the UI thread.</p>
         <h3>Vernac 0.4.0</h3>
         <p>Versioned modules, pagination, inbound error policies, ubiquitous language and domain diagrams.</p>
@@ -228,6 +252,14 @@
     <depends>com.intellij.java</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <debugger.codeFragmentFactory implementation="org.vernac.intellij.debug.VernacCodeFragmentFactory"/>
+        <debugger.codeFragmentFactory implementation="org.vernac.intellij.debug.VernacSourceCodeFragmentFactory"/>
+        <debugger.nodeRenderer implementation="org.vernac.intellij.debug.VernacViewRenderer"/>
+        <debugger.extraSteppingFilter implementation="org.vernac.intellij.debug.VernacViewSteppingFilter"/>
+        <debugger.positionManagerFactory implementation="org.vernac.intellij.debug.VernacPositionManagerFactory"/>
+        <debugger.javaBreakpointHandlerFactory implementation="org.vernac.intellij.debug.VernacBreakpointHandlerFactory"/>
+        <debugger.javaDebugAware implementation="org.vernac.intellij.debug.VernacDebugAware"/>
+        <xdebugger.breakpointType implementation="org.vernac.intellij.debug.VernacLineBreakpointType"/>
         <gotoDeclarationHandler implementation="org.vernac.intellij.VernacJavaDeclarationHandler" order="first"/>
         <lang.parserDefinition language="VernacApplication" implementationClass="org.vernac.intellij.VernacApplicationParserDefinition"/>
         <fileType name="Vernac Application Definition" implementationClass="org.vernac.intellij.VernacApplicationFileType" fieldName="INSTANCE" language="VernacApplication" extensions="vapplication"/>
@@ -258,6 +290,8 @@
     </extensions>
     <actions>
         <group id="org.vernac.Tools" text="Vernac" popup="true">
+            <action id="org.vernac.GeneratedDebug" class="org.vernac.intellij.debug.VernacGeneratedDebugAction"
+                    description="Show generated Java and raw access objects; disable Vernac facade stepping filters"/>
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <action id="org.vernac.ShowDiagram" class="org.vernac.intellij.VernacShowDiagramAction">
                 <add-to-group group-id="EditorPopupMenu" anchor="last"/>

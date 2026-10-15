@@ -157,3 +157,17 @@ travel with exported module types and produce readable/machine-readable glossari
 
 [See the architecture as a diagram](docs/tutorials/domain-diagrams.md): export a namespace
 from Maven or open its diagram directly from IntelliJ.
+
+
+## Debug the business rule, in its source
+
+In the **0.5.0 development preview**, put a breakpoint inside an inline Vernac
+behavior and inspect the live JVM state without first finding its generated Java
+implementation. Step through the rule, inspect `self` and locals, evaluate Java
+expressions and use conditional breakpoints.
+
+The [debugging walkthrough](docs/tutorials/debugging.md) takes you through a
+small runnable example, including private helpers, handwritten Java transitions
+and logpoints. It explains the current coverage and limits. This requires matching
+0.5.0-SNAPSHOT build artifacts and the development plugin; it is not included in
+published 0.4.0 installations.

@@ -9,13 +9,17 @@ import java.nio.file.Path;
 import java.util.List;
 
 /** Generated sources from multiple namespaces, with non-fatal analysis diagnostics. */
-public record VernacProjectCompilationResult(List<JavaFile> generatedFiles, List<CompilerDiagnostic> diagnostics) {
+public record VernacProjectCompilationResult(List<JavaFile> generatedFiles, List<CompilerDiagnostic> diagnostics, org.vernac.compiler.debug.BehaviorSourceMap debugMap) {
     public VernacProjectCompilationResult {
         generatedFiles = List.copyOf(generatedFiles);
         diagnostics = List.copyOf(diagnostics);
     }
 
+    public VernacProjectCompilationResult(List<JavaFile> files,List<CompilerDiagnostic> diagnostics) {
+        this(files,diagnostics,org.vernac.compiler.debug.BehaviorSourceMap.empty());
+    }
+
     public void writeTo(Path outputDirectory) throws IOException {
-        GeneratedSourceWriter.write(generatedFiles, outputDirectory);
+        GeneratedSourceWriter.write(generatedFiles, outputDirectory,debugMap);
     }
 }

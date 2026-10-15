@@ -116,7 +116,7 @@ public class VernacCompileMojo extends AbstractMojo {
                 composition=org.vernac.compiler.application.ApplicationBindings.generate(
                         applicationDefinition==null?new org.vernac.compiler.application.ApplicationDefinition("internal",List.of(),List.of()):applicationDefinition,
                         resolved,dependencies,result.generatedFiles(),Files.isRegularFile(manifest));
-                result=new VernacProjectCompilationResult(composition.files(),result.diagnostics());
+                result=new VernacProjectCompilationResult(composition.files(),result.diagnostics(),result.debugMap());
             }
             Path compositionResources=base.resolve("target/generated-resources/vernac-application");
             Path autoImports=compositionResources.resolve(org.vernac.compiler.application.ApplicationBindings.IMPORTS);

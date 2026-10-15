@@ -4,6 +4,15 @@ Status: **planned, not implemented**. Planning baseline: 2026-10-12, after Verna
 0.2.0; development line 0.5.0-SNAPSHOT. This is an actionable design backlog, not
 an accepted language contract or a promise that this work ships in 0.4.0.
 
+## Scope and sequencing update (2026-10-14)
+
+SaaS capabilities will be developed in a separate project with independent releases;
+its licensing model is undecided. Core Vernac currently prioritizes IDE integration,
+language consistency and reusable adapter/platform foundations. This proposal remains
+design input for general policy extension points, not a commitment to implement
+subscriptions or provider integrations inside the compiler. See the
+[platform roadmap](platform-roadmap.md).
+
 ## Goal
 
 Applications should reuse well-defined domain capabilities without operating a
