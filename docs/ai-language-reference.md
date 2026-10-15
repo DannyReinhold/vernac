@@ -7,6 +7,9 @@ project compilation, not proposed features. Provide this entire file to an AI to
 with the application requirements and existing model files. Match artifact versions;
 do not assume a development feature is available in an older published compiler.
 
+For build commands, migration candidate generation and verification, also provide
+the companion [AI tools reference](ai-tools-reference.md).
+
 ## 1. Instruction to the code-generating assistant
 
 Generate Vernac, not an approximation of Java, Kotlin, a generic DDD DSL or an older

@@ -100,6 +100,11 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>Generated Java in embedded code</h3>
+<p>Recognizes the conventional generated Java source root after Maven generation,
+so embedded Java can resolve generated domain classes, factories and inferred local types
+without a manual Maven reload. Sources still need an initial generation build.</p>
+
         <h3>0.5.0 development — Consistent Java implementation contracts</h3>
         <p>Optional arguments are nullable throughout inline/external implementations
         and helpers; Optional getters and results retain their contract. Short implemented-by
@@ -311,6 +316,7 @@
                 extensions="vernac"/>
         <postStartupActivity
                 implementation="org.vernac.intellij.VernacProjectOpenActivity"/>
+        <postStartupActivity implementation="org.vernac.intellij.VernacGeneratedSourcesActivity"/>
         <createFromTemplateHandler implementation="org.vernac.intellij.VernacFileTemplateHandler" order="first"/>
         <internalFileTemplate name="Vernac File"/>
         <internalFileTemplate name="Vernac Getting Started"/>

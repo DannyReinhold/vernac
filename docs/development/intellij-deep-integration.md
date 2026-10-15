@@ -317,9 +317,11 @@ references resolve short names through lexical Java imports or the generated
 caller package, using the same target resolver as code generation. Shared erased
 parameter signatures prevent nullable/required-only overloads from reaching javac.
 
-Read/modify versus public for stateless service operations remains explicitly
-undecided. Refactoring implementation and migration-intent tracking remain deferred
-until this language review is complete; this increment does not implement rename.
+Read/modify versus public for stateless service operations is deliberately deferred
+to the end of the roadmap. Existing classifications remain valid; this open design
+question does not block refactoring analysis or other planned work. Refactoring
+implementation and migration-intent tracking remain separate follow-ups; this
+increment does not implement rename.
 
 Regression coverage includes nullable inline/helper/external calls, required-input
 domain exceptions, architecture exclusions, short-target imports/package fallback,

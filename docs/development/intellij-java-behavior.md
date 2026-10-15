@@ -95,3 +95,20 @@ The final integration check requires a running IntelliJ instance:
    remain available outside injected Java fragments.
 
 Reference: [IntelliJ language injection](https://plugins.jetbrains.com/docs/intellij/language-injection.html).
+
+## Generated source roots
+
+`VernacGeneratedSourcesActivity` repairs the conventional generated Java source
+root after startup, VFS changes and Maven/project-root updates. It adds only an
+existing `target/generated-sources/vernac` belonging to a content root with a POM
+and `src/main/vernac`, checks module ownership, and preserves existing source-root
+classifications. Registration is coalesced and performed on the EDT in a write
+action. It neither invokes the compiler nor changes source files, dependencies,
+inspection severity or project-wide Java resolve rules. Ordinary Java indexing
+and the owning module's scope then provide class and factory resolution.
+
+Regression tests cover first generation, idempotence, aggregator isolation,
+clean/recreation event selection and plugin registration. Installed-IDE acceptance
+must additionally verify native completion, navigation and `var` inference in a
+new wizard project after its first generation build; these are not proven by the
+filesystem tests alone.

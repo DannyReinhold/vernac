@@ -407,3 +407,30 @@ types, named mappings and module-owned usecase references keep native navigation
 Mapping assignment breakpoints map to the generated MVC conversion helpers.
 Thymeleaf expression editing stays with IntelliJ's framework support.
 See [the MVC walkthrough](inbound-mvc.md) and its explicit initial scope.
+
+## Generated Java visibility after the first build
+
+Embedded Java resolves generated classes through IntelliJ's Java source roots.
+The plugin recognizes `target/generated-sources/vernac` in a Maven project with
+`src/main/vernac`, marks it as generated production Java source, and repeats this
+check after file-system and project-root changes. This covers the first Maven
+build, project reopening and recreation after `clean`. Existing source-root
+classifications are preserved. No unrelated module dependencies are added.
+
+An initial Maven generation build is still necessary for newly declared classes:
+
+```text
+mvn compile
+```
+
+After the IDE refreshes and indexes the generated root, factories such as
+`SubTaskCount.of(0)` and `FeatureTask.create(...)` should resolve in embedded Java.
+An unresolved call can also prevent correct inference of a `var` local; a resulting
+“always null” inspection must not be repaired by replacing that local with `null`.
+Compare the generated companion and check the generated source root instead.
+The plugin does not suppress Java nullability inspections.
+
+This automatic repair covers the conventional Maven output directory. If the
+project customizes `vernac.outputDirectory` or its build directory, configure or
+import that directory as a generated Java source root through Maven/IntelliJ.
+Completion before any Java generation remains a separate tooling improvement.

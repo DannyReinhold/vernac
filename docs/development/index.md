@@ -62,3 +62,5 @@ mappings, Java-backed Vernac breakpoints and the installed-IDE acceptance walkth
 check applicable German/EU duties for the actual publication workflow and propose
 any necessary notices or markings. Planning only; assessment follows the debugger
 workstream rather than running concurrently.
+
+- [AI tools reference](../ai-tools-reference.md): concise build, schema and migration workflow for coding agents.
