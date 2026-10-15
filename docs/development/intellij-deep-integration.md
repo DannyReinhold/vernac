@@ -245,3 +245,51 @@ BigDecimal, primitives, unknown names and raw-Java exclusion. Plugin tests cover
 native Java-reference ranges, canonical names and refusal of incomplete rename.
 The contributor compiles against IntelliJ 262.10968.63; actual mouse-hover behavior
 still requires installation and manual acceptance.
+
+### Runnable project starter (0.5.0)
+
+Native type/term/Java-signature navigation has been accepted in the installed IDE.
+The next increment adds an optional Spring Boot Web Application project kind,
+selected by default in the wizard. Minimal model projects and type libraries keep
+their separate templates. The subsequent inbound MVC increment replaces the original
+handwritten controller with `adapter TaskWeb inbound mvc`; generated controllers
+and scoped error advice use adapter.inbound.http. Thymeleaf templates and security
+configuration remain application-owned.
+
+Template preparation computes the initial schema and history fingerprints for the
+chosen namespace before writing any files. All destination collisions are checked
+first. Creation never starts a database. Running the generated application with
+no active profile selects `local` and starts Compose. An explicit deployment profile
+replaces that default and requires external database configuration; the Dockerfile
+selects `production`. Package import after
+creation now derives the project root from src/main/vernac rather than fixed depth.
+
+Regression coverage: custom/Unicode namespace generation, matching schema history,
+no immediate migration diff, existing-file protection, configuration separation,
+and real generated Java/domain/Thymeleaf/security execution. Plugin ZIP verification
+checks web-template resources; release gates require both new test classes. The
+web slice uses a test repository; real PostgreSQL execution is a separate opt-in
+TaskPersistenceIT. Desktop/mobile rendering was inspected with fixture data;
+installed-wizard and local Compose acceptance remain separate checks.
+
+Local verification of this increment: eleven project-template tests passed,
+including the existing minimal/module cases. The repository execution test compiled
+the generated model and handwritten application, then ran all four domain/web
+fixture tests without skips. The generated and handwritten main sources also
+passed Error Prone 2.50.0 / NullAway 0.14.2 with the template's JSpecify flags on
+JDK 25, targeting Java 21. Ten release-tool tests and 582 documentation links passed.
+The preparation helpers compile locally; the full IntelliJ SDK/reactor build and
+real Compose/PostgreSQL startup were not run in this environment.
+
+### Declarative MVC boundary (0.5.0)
+
+The shared inbound model now supports logical views, URL-encoded scalar forms,
+local redirects, safe input redisplay and scoped error policies. The compiler
+rejects unsafe view/redirect targets, missing model contracts and unsatisfied
+redisplay-loader inputs. Mapping source maps target the actual generated helper
+methods; form paths and redisplay targets participate in LSP completion/navigation.
+
+Follow-up scope: multipart/repeated form bindings, field-level validation messages,
+HTML fragments and dynamic redirects require separate contracts. Authentication
+and authorization remain application concerns; this starter demonstrates CSRF,
+not a complete user-management system.

@@ -140,6 +140,17 @@
                     <include>src/test/java/**</include>
                 </includes>
             </resource>
+            <resource>
+                <directory>${project.basedir}/../templates/vernac-spring-boot</directory>
+                <targetPath>projectTemplates/vernac-spring-boot</targetPath>
+                <filtering>false</filtering>
+                <includes>
+                    <include>**/*</include>
+                    <include>.gitignore</include>
+                    <include>.dockerignore</include>
+                </includes>
+                <excludes><exclude>target/**</exclude><exclude>.idea/**</exclude></excludes>
+            </resource>
         </resources>
         <plugins>
             <plugin>

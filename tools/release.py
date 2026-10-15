@@ -43,7 +43,7 @@ REQUIRED_TESTS += ("BehaviorSourceMapTest", "BehaviorDebugExecutionTest", "Verna
                    "ValidationSourceMapTest", "ValidationDebugExecutionTest",
                    "ListenerSourceMapTest", "ListenerDebugExecutionTest",
                    "VernacDebuggerHostLexerTest", "VernacExpressionFactoryTest",
-                   "AdapterSourceMapTest", "AdapterDebugExecutionTest", "VernacViewInspectorTest", "VernacTypeReferencesTest", "VernacTypeReferenceTest")
+                   "AdapterSourceMapTest", "AdapterDebugExecutionTest", "VernacViewInspectorTest", "VernacTypeReferencesTest", "VernacTypeReferenceTest", "VernacSpringBootTemplateTest", "SpringBootStarterExecutionTest", "InboundMvcContractTest", "InboundMvcExecutionTest", "InboundMvcSymbolsTest")
 
 
 def require(condition, message):

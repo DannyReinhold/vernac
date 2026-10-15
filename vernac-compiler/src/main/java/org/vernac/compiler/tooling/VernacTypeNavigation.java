@@ -149,9 +149,9 @@ public final class VernacTypeNavigation {
                 if (definition instanceof IdDeclarationNode && key.name().equals("value") && key.parameterTypes().isEmpty())
                     return target(source.path(), text, "value", name.getStart(), name.getStop());
                 List<Target> candidates = new ArrayList<>();
-                if (definition instanceof InboundHttpAdapterNode) {
+                if (definition instanceof InboundHttpAdapterNode inbound) {
                     for (var endpoint : syntax.inboundHttpAdapterDefinition().inboundEndpoint())
-                        if (endpoint.name.getText().equals(key.name()) && key.parameterTypes().size()==endpoint.inboundBinding().size()+(endpoint.bodyType==null?0:1))
+                        if (endpoint.name.getText().equals(key.name()) && (inbound.mvc() ? key.parameterTypes().equals(List.of("jakarta.servlet.http.HttpServletRequest")) : key.parameterTypes().size()==endpoint.inboundBinding().size()+(endpoint.bodyType==null?0:1)))
                             return target(source.path(),text,key.name(),endpoint.name.getStart(),endpoint.name.getStop());
                 }
                 if (definition instanceof UseCaseNode u && key.name().equals("execute") && key.parameterTypes().size()==u.parameters().size())

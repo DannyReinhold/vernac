@@ -1,0 +1,81 @@
+{
+  "formatVersion" : 1,
+  "migration" : "V20261015090000000__initial_tasks.sql",
+  "previousFingerprint" : "80a947793d1802db05dd3d1246d9b9534a6c51dd00f17d796277da3e0441da66",
+  "modelFingerprint" : "45667777b4527821c878f2c2eeb7956f84db8680b5c28c48d38e0a612e9095f1",
+  "model" : {
+    "formatVersion" : 1,
+    "mappingVersion" : 1,
+    "tables" : [ {
+      "namespace" : "org.example.tasks",
+      "name" : "Task",
+      "origin" : "org.example.tasks.Task",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.example.tasks.Task"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.example.tasks.Task"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.example.tasks.Task"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.example.tasks.Task"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.example.tasks.Task"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.example.tasks.Task.id"
+      }, {
+        "name" : "taskStatus",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.example.tasks.TaskStatus"
+      }, {
+        "name" : "taskTitle",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.example.tasks.Task.taskTitle"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:enum:taskStatus",
+        "clause" : "CHECK (\"taskStatus\" IN ('DONE', 'OPEN'))"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      } ]
+    } ],
+    "enumCodes" : {
+      "org.example.tasks.TaskStatus" : {
+        "DONE" : "DONE",
+        "OPEN" : "OPEN"
+      }
+    }
+  }
+}

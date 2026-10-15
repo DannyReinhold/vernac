@@ -86,7 +86,7 @@ public class VernacCompiler {
                 if (definition instanceof ListenerNode l) files.addAll(listenerGenerator.generate(l,source.unit(),project));
                 if (definition instanceof UseCaseNode u) files.addAll(useCaseGenerator.generate(u,source.unit(),project));
                 if (definition instanceof PortNode p) files.addAll(portGenerator.generate(p,source.unit(),project));
-                if (definition instanceof InboundHttpAdapterNode a) files.addAll(new InboundHttpGenerator().generate(a,source.unit(),project,project.inboundAdapters().get(a)));
+                if (definition instanceof InboundHttpAdapterNode a) files.addAll(a.mvc() ? new InboundMvcGenerator().generate(a,source.unit(),project,project.inboundAdapters().get(a)) : new InboundHttpGenerator().generate(a,source.unit(),project,project.inboundAdapters().get(a)));
                 if (definition instanceof OutboundAdapterNode a) files.addAll(new OutboundAdapterGenerator().generate(a,source.unit(),project));
                 if (definition instanceof DomainServiceNode s) files.addAll(domainServiceGenerator.generate(s,source.unit(),project));
                 MutableDomain.of(definition).ifPresent(model -> files.addAll(generateMutable(model, source.unit(), project)));

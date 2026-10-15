@@ -48,11 +48,13 @@ public final class VernacProjectOpenActivity implements ProjectActivity {
                 return;
             }
 
-            // Model location: <project>/src/main/vernac/tasks.vernac
-            Path projectDirectory = modelPath.getParent()
-                    .getParent()
-                    .getParent()
-                    .getParent();
+            // Namespaces can have any number of segments; never infer the root by a fixed depth.
+            var sourceRoot = VernacNamespaces.sourceRoot(modelPath.getParent());
+            if (sourceRoot.isEmpty()) {
+                LOG.warn("Initial model is outside src/main/vernac: " + modelPath);
+                return;
+            }
+            Path projectDirectory = sourceRoot.get().getParent().getParent().getParent();
 
             VirtualFile pomFile = LocalFileSystem.getInstance()
                     .refreshAndFindFileByNioFile(

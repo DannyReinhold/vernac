@@ -31,6 +31,36 @@ explicit declarations; declaring an aggregate alone does not request persistence
 The core, JDBC, JSON and HTTP runtimes are separate modules. Add infrastructure as
 you need it. [Start with the database-free example](../tutorials/your-first-domain-model.md).
 
+### Can I create a complete application instead of starting with a domain test?
+
+Yes, with the 0.5.0 development plugin. **New Project → Vernac → Spring Boot Web
+Application** creates a small task workspace with Thymeleaf, transactional Vernac
+usecases, PostgreSQL, Flyway migrations and a local Compose file. With Docker
+running, open `TasksApplication` and click **Run**, or run `spring-boot:run` in the
+new project's Maven window. Then open http://localhost:8080.
+
+With no active profile, `local` is selected and starts the database. For deployment,
+explicitly select `production`: this replaces the local default, expects external
+DB_* configuration and never launches Docker. The supplied Dockerfile selects it
+already. This is an intentionally public starter,
+not a ready-made user/tenant system. CSRF protection is included; add authentication
+before using private data. For a database-free introduction choose **Minimal Domain
+Project** instead. The [starter walkthrough](../tutorials/spring-boot-starter.md)
+explains the files, tests, migration lifecycle and deployment boundaries.
+
+### Do I have to write a Java controller to use Thymeleaf with Vernac?
+
+Not with the 0.5.0 MVC adapter. Declare `adapter ... inbound mvc`, explicit wire/form
+bindings and a usecase call, then select `render "template" model result` or a local
+redirect. Vernac generates the Spring controller and scoped error handling. You
+still own the HTML/CSS and Spring Security configuration.
+
+An invalid form can `redisplay` a named GET endpoint: its model is reloaded and
+permitted original input values are restored, without retrying the failed POST.
+Sensitive fields and headers are excluded; exceptions do not become public text
+implicitly. See [server-rendered pages](../tutorials/inbound-mvc.md). JSON APIs keep
+using `inbound http`; the two forms share conversion and error selector rules.
+
 ### The editor recognizes my model, but Maven cannot resolve Vernac. Why?
 
 The IntelliJ plugin bundles its language server; it does not install the Maven

@@ -30,7 +30,7 @@ public class VernacTextDocumentService implements TextDocumentService {
             "counted", "cursor", "offset", "counting", "where", "and", "or", "not", "order", "asc", "desc", "is", "absent", "present", "like", "contains", "starts", "ends", "with",
             "namespace", "package", "import", "as", "id",
             "aggregate", "value", "entity", "event", "recorded", "synchronous", "deferred", "service", "external", "schema",
-            "inbound", "http", "respond", "configuration", "from", "using", "naming", "named", "patch", "repository", "for", "table", "find", "custom", "validates", "require",
+            "inbound", "http", "mvc", "render", "model", "redirect", "redisplay", "form", "sensitive", "error", "view", "message", "respond", "configuration", "from", "using", "naming", "named", "patch", "repository", "for", "table", "find", "custom", "validates", "require",
             "read", "modify", "behavior", "java", "imports", "implemented", "by", "mut", "invariant", "mapping", "list", "set",
             "port", "adapter", "rest", "on", "throw", "throws",
             "usecase", "use", "uses", "returns", "execute", "listener"
@@ -306,6 +306,7 @@ public class VernacTextDocumentService implements TextDocumentService {
 
     private void addTopLevelCompletions(List<CompletionItem> items) {
         addKeywordCompletion(items, "term", "term ${1:Name} {\n    description \"${2:Meaning in this domain.}\";\n}");
+        addKeywordCompletion(items, "adapter inbound mvc", "adapter ${1:Web} inbound mvc uses ${2:ReadPage} {\n    base \"/\";\n    error view \"problem\";\n    board {\n        GET \"/\";\n        execute ${3:readPage} { $0 }\n        render \"board\" model page;\n    }\n}");
         addKeywordCompletion(items, "namespace", "namespace ${1:com.example};");
         addKeywordCompletion(items, "import", "import ${1:package.Type};");
         addKeywordCompletion(items, "aggregate", "aggregate ${1:Name}[${2:IdType} id](\n    $0\n);");

@@ -106,6 +106,7 @@ See the **AI‑specific language reference**:
 | Your goal                                                | Start here                           |
 |----------------------------------------------------------|--------------------------------------|
 | Get a model compiling in minutes                         | [Your first model](tutorials/your-first-domain-model.md) |
+| Start with a working UI and database (0.5.0 preview) | [Spring Boot starter](tutorials/spring-boot-starter.md) |
 | Use the editor and project wizard                        | [IntelliJ setup](tutorials/intellij-plugin.md)         |
 | See persistence, events and external calls work together | [Database walkthrough](tutorials/database-persistence.md)    |
 | Find exact syntax                                        | [Language reference](language-reference.md)                |
@@ -184,3 +185,10 @@ small runnable example, including private helpers, handwritten Java transitions
 and logpoints. It explains the current coverage and limits. This requires matching
 0.5.0-SNAPSHOT build artifacts and the development plugin; it is not included in
 published 0.4.0 installations.
+
+### Server-rendered applications in 0.5.0 development
+
+The [Spring Boot starter](tutorials/spring-boot-starter.md) now declares its HTML
+pages and forms in Vernac. Learn how [inbound MVC adapters](tutorials/inbound-mvc.md)
+connect typed usecases to Thymeleaf views, preserve permitted form inputs after
+validation errors and generate the controller and scoped error handling.

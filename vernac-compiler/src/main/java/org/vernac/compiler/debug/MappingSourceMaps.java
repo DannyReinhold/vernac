@@ -116,22 +116,18 @@ final class MappingSourceMaps {
                     for (var member : c.getMembers())
                         if (member instanceof MethodTree m) methods.put(m.getName().toString(), m);
             for (var endpoint : plan.endpoints()) {
-                var method = methods.get(endpoint.source().name());
-                if (method == null
-                        || method.getBody() == null
-                        || method.getBody().getStatements().size() != 1
-                        || !(method.getBody().getStatements().getFirst() instanceof TryTree block))
-                    continue;
-                var variables =
-                        block.getBlock().getStatements().stream()
-                                .filter(
-                                        s ->
-                                                s instanceof VariableTree v
-                                                        && v.getName()
-                                                                .toString()
-                                                                .startsWith("__arg"))
-                                .map(s -> (VariableTree) s)
-                                .toList();
+                String methodName = endpoint.source().view().isPresent()
+                        ? "__" + endpoint.source().name() : endpoint.source().name();
+                var method = methods.get(methodName);
+                if (method == null || method.getBody() == null) continue;
+                var statements = method.getBody().getStatements();
+                if (!endpoint.source().view().isPresent()) {
+                    if (statements.size() != 1 || !(statements.getFirst() instanceof TryTree block)) continue;
+                    statements = block.getBlock().getStatements();
+                }
+                var variables = statements.stream()
+                        .filter(s -> s instanceof VariableTree v && v.getName().toString().startsWith("__arg"))
+                        .map(s -> (VariableTree) s).toList();
                 var arguments =
                         endpoint.arguments().stream().filter(a -> a.source() != null).toList();
                 if (variables.size() != arguments.size()) continue;
@@ -158,7 +154,7 @@ final class MappingSourceMaps {
                     entries.add(
                             new BehaviorSourceMap.Entry(
                                     identity,
-                                    endpoint.source().name(),
+                                    methodName,
                                     identity.replace('.', '/') + ".java",
                                     (int) tree.getLineMap().getLineNumber(offset),
                                     source,

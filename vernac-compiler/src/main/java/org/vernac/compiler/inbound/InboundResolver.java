@@ -57,6 +57,8 @@ public final class InboundResolver {
         }
     }
     public ResolvedInbound resolve(InboundHttpAdapterNode adapter, String namespace, FileTypeScope scope) {
+        var mvc = new MvcContracts(errors);
+        mvc.validate(adapter);
         validateRules(adapter.errorRules(), scope);
         for (var endpoint : adapter.endpoints()) {
             validateRules(endpoint.errorRules(), scope);
@@ -108,9 +110,13 @@ public final class InboundResolver {
             if(endpoint.status()==204 || endpoint.status()==205) {
                 if(endpoint.responseType().isPresent())error(endpoint.location(),"204/205 responses cannot contain a body.");
             }
-            Map<String,List<Field>> groups=new LinkedHashMap<>();for(String group:List.of("path","query","header"))groups.put(group,new ArrayList<>());
+            Map<String,List<Field>> groups=new LinkedHashMap<>();for(String group:List.of("path","query","header","form"))groups.put(group,new ArrayList<>());
             Set<String> bindings=new HashSet<>();Set<String> pathNames=new HashSet<>();
             for(var b:endpoint.bindings()) {
+                if (!adapter.mvc() && (b.kind().equals("form") || b.defaultValue().isPresent() || b.sensitive())) {
+                    error(b.location(), "Form bindings, defaults and sensitive inputs require inbound mvc.");
+                    continue;
+                }
                 var lookup=BuiltinTypes.find(b.type().name());
                 if(lookup.isEmpty() || b.type().name().equals("EventId") || !b.type().typeArguments().isEmpty()) {
                     error(b.location(),"HTTP bindings require an approved wire scalar, not a domain type or collection.");continue;
@@ -171,12 +177,14 @@ public final class InboundResolver {
                 if(result==null || responseType==null || responseType.kind()!=Kind.DTO || response==null
                         || !response.input().identity().equals(result.identity()) || !response.target().identity().equals(responseType.identity()))
                     error(endpoint.location(),"Response requires a local DTO and a mapping from the exact declared usecase result.");
-            } else if(result!=null)error(endpoint.location(),"A value-returning usecase requires an explicit response mapping.");
-            if(optional && endpoint.absentStatus().isEmpty())error(endpoint.location(),"Optional usecase results require on absent respond <status>.");
-            if(endpoint.absentStatus().isPresent() && (!optional || !Set.of(204,404,410).contains(endpoint.absentStatus().get())))
-                error(endpoint.location(),"Absent response requires an optional usecase result and status 204, 404 or 410.");
+            } else if(result!=null && !adapter.mvc())error(endpoint.location(),"A value-returning usecase requires an explicit response mapping.");
+            if (adapter.mvc()) mvc.result(endpoint, result, optional);
+            if(optional && endpoint.absentStatus().isEmpty() && !adapter.mvc())error(endpoint.location(),"Optional usecase results require on absent respond <status>.");
+            if(endpoint.absentStatus().isPresent() && (!optional || !(adapter.mvc() ? Set.of(404,410) : Set.of(204,404,410)).contains(endpoint.absentStatus().get())))
+                error(endpoint.location(),adapter.mvc() ? "Absent MVC views require an optional usecase result and status 404 or 410." : "Absent response requires an optional usecase result and status 204, 404 or 410.");
             endpoints.add(new ResolvedInbound.Endpoint(endpoint,dependency,arguments,result,response));
         }
+        if (adapter.mvc()) mvc.reloads(adapter, endpoints);
         if(adapter.endpoints().isEmpty())error(adapter.location(),"An HTTP inbound adapter requires an endpoint.");
         return new ResolvedInbound(schemas,mappings,List.copyOf(dependencies.values()),List.copyOf(endpoints));
     }

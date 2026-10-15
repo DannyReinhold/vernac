@@ -100,6 +100,22 @@
 ]]></description>
 
     <change-notes><![CDATA[
+        <p>The Spring Boot starter now runs directly from its application class: no profile
+        selection is needed for local development. Explicit deployment profiles replace
+        the local default; the supplied Dockerfile selects production.</p>
+        <h3>0.5.0 development — Declare server-rendered pages</h3>
+        <p>Inbound MVC adapters connect HTML views and URL-encoded forms to typed usecases.
+        Declare rendering, local redirects, safe error pages and form redisplay in Vernac;
+        generated controllers preserve permitted inputs, exclude sensitive fields and never
+        retry a failed POST. Completion, diagnostics, page-loader navigation and hover are
+        integrated. The Spring Boot starter now uses this MVC boundary instead of handwritten
+        controller/error glue; Thymeleaf templates and security remain application-owned.</p>
+        <h3>0.5.0 development — Start with a real application</h3>
+        <p>New Project can create a complete, compact Spring Boot application: a responsive
+        Thymeleaf task workspace, PostgreSQL, generated transactional usecases and JDBC repositories,
+        local Docker Compose, matching Flyway migration/history, CSRF-protected forms,
+        domain/web tests and environment-based deployment configuration. The web application
+        is the wizard default; minimal domain projects and reusable type modules remain available.</p>
         <h3>0.5.0 development — Native type navigation</h3>
         <p>Declared Vernac type usages now expose precise PSI references for IntelliJ's
         Ctrl-hover link feedback and navigation, including matching vocabulary term names.

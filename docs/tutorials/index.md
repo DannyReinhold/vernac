@@ -44,6 +44,14 @@ breakpoints, stepping, variables, Java expressions, conditions and logpoints in 
 small database-free application. This chapter requires the **0.5.0-SNAPSHOT**
 compiler and plugin; it is not a feature of the published 0.4.0 release.
 
+## Development preview: start with a real web application
+
+[From New Project to a working application](spring-boot-starter.md) creates a small
+Thymeleaf/PostgreSQL task workspace from the 0.5.0 wizard. It demonstrates a complete
+browser-to-usecase-to-database path, local Compose, migrations and deployment configuration.
+The [MVC adapter tutorial](inbound-mvc.md) shows how to declare HTML pages, forms,
+redirects and safe error redisplay directly in Vernac.
+
 ## 2. Turn behavior into an application operation
 
 1. [Usecases](usecases.md): one operation, declared results and one transaction boundary.

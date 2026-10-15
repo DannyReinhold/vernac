@@ -1532,3 +1532,89 @@ class names resolve in the same scope. Primitive types have no class target;
 unknown classes do not get guessed links. Java bodies retain injected-Java
 resolution. This editor support does not expand the permitted DSL type set or
 provide cross-language renaming.
+
+The 0.5.0 IntelliJ wizard can scaffold a Spring Boot Web Application with Thymeleaf,
+PostgreSQL, local-profile Compose startup and matching initial SQL/schema history.
+It uses ordinary Vernac aggregates, paginated repositories and usecases, with a
+declarative inbound MVC adapter generating the controller and scoped error advice.
+With no active profile, the starter defaults to `local` for immediate IDE Run.
+Explicitly select `production` (already selected by its Dockerfile) for deployment;
+it uses DB_* environment variables, disables Compose and requires secure cookies.
+Only the local profile supplies development credentials. This public starter includes CSRF but
+no authentication or tenant isolation. See the spring-boot-starter tutorial.
+
+## 0.5.0 development: server-rendered MVC adapters
+
+This is implemented development syntax, unavailable in 0.4.0. Keep HTML rendering
+in `inbound mvc` and JSON response DTOs in `inbound http`; do not mix their response
+clauses. Both invoke explicitly injected usecases using the same exact mapping rules.
+
+A complete database-free **title preview**, not a persistence application:
+
+```vernac
+namespace example.preview;
+value Title(String) validates {
+    require(!self.string().isBlank(), "A title is required.");
+};
+usecase PreviewTitle(Title) returns Title behavior {
+    execute { return title; }
+}
+adapter PreviewWeb inbound mvc uses PreviewTitle {
+    base "/preview";
+    error view "problem";
+    home {
+        GET "/";
+        query String text default "Welcome";
+        execute previewTitle { title <- query.text; }
+        render "preview" model title;
+    }
+    preview {
+        POST "/";
+        form String text;
+        execute previewTitle { title <- form.text; }
+        render "preview" model title;
+        errors {
+            when validation then redisplay home status 422
+                "INVALID_TITLE" "Enter a meaningful title.";
+        }
+    }
+}
+```
+
+The application must provide the view engine, `preview`/`problem` templates and its
+security configuration. Named model attributes hold the entire returned value,
+Result or completed page. Void results omit `model`; optional results require
+`on absent render "missing" status 404;` (404/410 only). No JSON response mapping
+is required for a view.
+
+For successful mutations prefer `redirect "/local/path" message "Saved.";`: POST
+uses 303, GET uses 302. Redirects are static and application-local, with no automatic
+model propagation. GET page loaders must be designed for reading. No controller
+transaction, retry or rollback of already committed operations is invented.
+
+Bindings are `path`, `query`, `header` or URL-encoded POST `form` scalars. Optional
+wire types must be boxed. `default "literal"` works on non-optional query/form
+bindings and only when absent, not when explicitly empty. Invalid default literals
+are compiler errors. Repeated scalar values are invalid requests. Use
+`sensitive form String? password;` to exclude a value from view input preservation.
+Headers are always excluded, and undeclared request fields are never copied.
+
+Error selectors/types/precedence match the JSON adapter. Add
+`then render "problem" status 409 "CODE" "Public message";`, or an endpoint-local
+`then redisplay home status 422 ...;`. A redisplay target must be a GET endpoint with
+a direct non-optional render response and satisfiable declared inputs/defaults.
+It reloads the page model, restores permitted original inputs and never repeats
+the failed POST. Loader failure produces safe 500 without recursion. Existing
+`errors implemented by` uses its static HTTP Reply contract and the fallback view.
+
+All views can inspect `inputs['form.text']`; error views/redisplays additionally
+receive `error.code()` and `error.message()`. Escape these through `th:text`/`th:value`.
+Do not invent field-level error metadata or display exception messages implicitly.
+Defaults are 400 for malformed/missing transport values, 422 for domain validation,
+404 for missing aggregates, 409 for optimistic conflict and 500 for unknown failures.
+Technical integration statuses such as remote TIMEOUT → 503 are explicit rules.
+
+Multipart/file uploads, repeated collection fields, dynamic redirects and template
+fragments are not supported in this version. There are no automatic handwritten
+controllers: generate them from MVC declarations. See the authoritative
+[MVC contract](contracts/inbound-mvc.md) and [tutorial](tutorials/inbound-mvc.md).

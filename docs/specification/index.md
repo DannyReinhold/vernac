@@ -37,6 +37,7 @@ resolution and feature contracts also constrain accepted programs.
 - [Repository queries](../contracts/repository-queries.md)
 - [Pagination runtime foundation](../contracts/pagination.md): offset/cursor queries and completed HTTP results.
 - [HTTP inbound adapters](../contracts/inbound-http.md)
+- [Server-rendered MVC adapters](../contracts/inbound-mvc.md) (0.5.0 development)
 - [Ports and adapters](../contracts/ports-adapters-and-acl.md)
 - [Adapter configuration](../contracts/adapter-configuration.md)
 - [Adapter DTOs and JSON](../contracts/adapter-dtos.md)

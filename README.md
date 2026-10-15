@@ -90,6 +90,8 @@ APIs back to their Vernac declarations. Maven performs source generation.
 - [Build your first domain model](docs/tutorials/your-first-domain-model.md)
 - [See the architecture take shape](docs/tutorials/from-model-to-application.md)
 - [Set up IntelliJ](docs/tutorials/intellij-plugin.md)
+- [Create a real Spring Boot web application](docs/tutorials/spring-boot-starter.md) (0.5.0 development wizard)
+- [Declare HTML pages and forms in Vernac](docs/tutorials/inbound-mvc.md) (0.5.0 development MVC adapters)
 - [Choose an executable example](examples/README.md)
 
 ## Run the architecture

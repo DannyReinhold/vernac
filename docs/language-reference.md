@@ -826,3 +826,30 @@ class names resolve in the same scope. Primitive types have no class target;
 unknown classes do not get guessed links. Java bodies retain injected-Java
 resolution. This editor support does not expand the permitted DSL type set or
 provide cross-language renaming.
+
+The 0.5.0 New Project wizard offers a runnable Spring Boot Web Application, alongside
+the minimal model and type-module templates. The web starter combines aggregates,
+paginated queries and usecases with a declarative inbound MVC adapter and Thymeleaf templates. See the [starter walkthrough](tutorials/spring-boot-starter.md).
+
+## Server-rendered inbound MVC (0.5.0 development)
+
+Use `adapter Name inbound mvc uses ...` with `base`, a required `error view`, and
+GET/POST endpoints. Wire bindings and `execute { parameter <- group.field; }` follow
+the JSON boundary's exact conversions. Add `form` scalar bindings, absent-only
+`default` values on non-optional query/form bindings, and `sensitive` before fields
+that must not enter a rendered input model. Headers are never exposed in that model.
+
+A value response uses `render "board" model page;`; a void response omits the model.
+A static application-local `redirect "/";` uses 303 after POST and 302 after GET.
+Optional results require an explicit absent view/status 404 or 410. Ordered shared
+error selectors can `render` an error view or `redisplay` a named GET page loader,
+with explicit public code/message and 4xx/5xx status. Redisplay is endpoint-local,
+does not retry the POST and ends at a safe 500 fallback if its loader fails.
+
+Generated MVC controllers remain in `.adapter.inbound.http` and own no transaction.
+Templates receive typed usecase results, safe `error.code()/message()` and only
+allowed raw `inputs` entries such as `inputs['form.title']`. No exception text or
+arbitrary request map is exposed automatically. The initial scope is scalar
+URL-encoded GET/POST forms, not multipart uploads, repeated collection fields,
+dynamic redirects or template fragments. See the [contract](contracts/inbound-mvc.md)
+and [complete tutorial](tutorials/inbound-mvc.md).

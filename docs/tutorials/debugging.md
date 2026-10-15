@@ -601,6 +601,12 @@ conversion to the usecase's Label argument. The actual controller frame contains
 and argument locals keep their actual Java names. The debugger does not manufacture
 a domain `self` for a controller or rename its variables.
 
+The 0.5.0 MVC adapter uses the same argument mapping mechanism. A breakpoint on
+`noteText <- form.text;` in an `execute` block stops in its generated conversion
+helper with the actual wire locals. A real-JVM regression test covers this path;
+HTML/template expressions remain the template engine’s tooling. See the
+[MVC walkthrough](inbound-mvc.md).
+
 Set another breakpoint on `text <- source.string;` in `output`. The response mapping
 sees the complete usecase result as `source`; its string is `"PARCEL!"`. The probe
 also directly calls `manual`, so you can stop at `return Reply.of(text);` and compare

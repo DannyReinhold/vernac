@@ -80,6 +80,7 @@ Open **New Project** and choose **Vernac**. Enter, for example:
 
 | Field        | Example                                |
 |--------------|----------------------------------------|
+| Project kind | `Spring Boot Web Application` (0.5.0 development) |
 | Name         | `TaskManager`                          |
 | Location     | A directory for your new project       |
 | GroupId      | `com.example`                          |
@@ -89,6 +90,12 @@ Open **New Project** and choose **Vernac**. Enter, for example:
 
 The artifact ID is suggested from the project name: `TaskManager` becomes `task-manager`. You can edit it independently.
 GroupId and namespace are separate settings; set both explicitly as needed.
+
+In the 0.5.0 development wizard, **Spring Boot Web Application** is the default:
+a complete Thymeleaf/PostgreSQL application with local Compose and Flyway history.
+Follow [From New Project to a working application](spring-boot-starter.md) to run it.
+Choose **Minimal Domain Project** for the database-free exercise described below,
+or **Module / Type Library** to publish reusable types.
 
 Choose **Create**. The wizard writes the project, sets its project JDK, and configures Maven executions to use that JDK.
 After the project opens, it starts the Maven import and opens `src/main/vernac/com/example/taskmanager/tasks.vernac`.
@@ -345,19 +352,23 @@ already created a project here, adapt that tutorial's package-specific examples 
 
 ## Choose an application or a reusable type library
 
-In New Project → Vernac, select **Application** for a local domain model and test,
-or **Module / Type Library** for reusable IDs, values, enums and value collections.
+In the 0.5.0 New Project → Vernac wizard, select **Spring Boot Web Application**
+for a runnable UI/PostgreSQL application. With Docker running, open its
+`TasksApplication` and click Run; `local` is the default profile. Explicitly select
+`production` for deployment (the Dockerfile does this already). Choose **Minimal Domain Project** for a local
+model and test, or **Module / Type Library** for reusable IDs, values, enums and
+value collections. The published 0.4.0 wizard calls the minimal option **Application**.
 The type library generates explicit exports and source-JAR packaging; it does not
 generate aggregates or an application definition. Application projects receive an
-empty `vernac-application.vapplication` beside their POM. Its runtime activation
-configuration is still planned. **New → Vernac Application Definition** adds this
+empty `vernac-application.vapplication` beside their POM. Use it to activate
+functional modules and select adapter bindings. **New → Vernac Application Definition** adds this
 file to an existing Maven project without overwriting an existing definition.
 Continue with the [module lifecycle tutorial](type-modules.md).
 
 Application definitions now receive shared syntax and identity diagnostics. Completion
 after `bind` proposes available ports; after `to` it proposes adapters for that port.
 Go To Declaration follows those type references. Adapter bindings now generate Spring registration and profile-driven selection.
-Explicit activation of full functional modules still fails the build explicitly. Type-module dependencies do not need `activate`.
+Functional modules require explicit activation; type-only dependencies do not need `activate`.
 
 
 ## Development preview: debug inline behavior
@@ -380,3 +391,15 @@ Terms may appear before or between model declarations without disabling the Java
 editor inside behaviors or validations. In a behavior, navigation to Java methods
 such as `strip()` and local helpers such as `marker()` uses the injected Java
 context; these expressions are not Vernac type references.
+
+### Server-rendered MVC adapters (0.5.0 development)
+
+The web starter now declares its routes in `adapter TaskWeb inbound mvc`; its
+controller and scoped advice are generated. The LSP recognizes MVC keywords,
+checks the same route/usecase/conversion rules as the compiler, completes form
+binding paths and navigates `redisplay` references to their GET page loaders.
+Hover on a loader reference explains that the POST is not retried. Approved Java
+types, named mappings and module-owned usecase references keep native navigation.
+Mapping assignment breakpoints map to the generated MVC conversion helpers.
+Thymeleaf expression editing stays with IntelliJ's framework support.
+See [the MVC walkthrough](inbound-mvc.md) and its explicit initial scope.

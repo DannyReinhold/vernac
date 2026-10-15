@@ -1,0 +1,16 @@
+# Development only. The default profile has no database credentials or Compose startup.
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:${LOCAL_DB_PORT:55439}/tasks
+    username: tasks
+    password: local-development-only
+  docker:
+    compose:
+      enabled: true
+      file: ${COMPOSE_FILE:compose.yaml}
+      lifecycle-management: start-only
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false

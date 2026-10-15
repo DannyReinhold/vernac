@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Small wins · Your workspace</title>
+    <link rel="stylesheet" th:href="@{/app.css}" href="/app.css">
+    <link rel="icon" th:href="@{/favicon.svg}" href="/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<a class="skip" href="#main">Skip to tasks</a>
+<header class="topbar"><a class="brand" th:href="@{/}"><span class="brand-mark" aria-hidden="true">s.</span> small wins<span class="brand-dot">/</span><span class="brand-caption">your workspace</span></a><span class="made-with">Built with <strong>Vernac</strong></span></header>
+<main id="main" class="workspace">
+    <section class="intro" aria-labelledby="title">
+        <div><p class="eyebrow"><span class="spark" aria-hidden="true">✦</span> A LITTLE FOCUS GOES A LONG WAY</p><h1 id="title">Big ideas.<br><em>Small next steps.</em></h1><p class="lede">A quieter place to move things forward.<br>Write down the next thing. Make it happen. Take the win.</p></div>
+        <aside class="workspace-note"><span class="note-number" th:text="${tasks.totalElements()}">0</span><span>steps in your workspace</span><p>No rush. Just progress.</p></aside>
+    </section>
+    <p class="notice" role="status" th:if="${notice}" th:text="${notice}">A small win.</p>
+    <section class="board" aria-labelledby="board-heading">
+        <div class="board-header"><div><p class="eyebrow">YOUR NEXT CHAPTER</p><h2 id="board-heading">The task board<span class="count" th:text="${tasks.totalElements()}">0</span></h2></div><span class="order-label">Newest first · 12 per page</span></div>
+        <form class="new-task" th:action="@{/tasks}" method="post">
+            <label for="task-title">What's your next small step?</label>
+            <div class="input-row"><input id="task-title" name="title" type="text" required maxlength="120" th:value="${inputs['form.title'] ?: ''}" placeholder="e.g. Sketch the first version" aria-describedby="title-hint" th:attr="aria-invalid=${error != null}"><button class="primary" type="submit">Add task <span aria-hidden="true">↗</span></button></div>
+            <p id="title-hint" class="hint" th:unless="${error}">Keep it concrete. Something you can actually finish.</p>
+            <p id="title-error" class="form-error" role="alert" th:if="${error}" th:text="${error.message()}">Give your task a title.</p>
+        </form>
+        <div class="empty" th:if="${tasks.items().isEmpty()}"><span class="empty-icon" aria-hidden="true">✧</span><h3>A fresh page. A good place to start.</h3><p>Add your first task above.<br>Great things tend to start small.</p></div>
+        <ul class="task-list" th:unless="${tasks.items().isEmpty()}">
+            <li class="task" th:each="task : ${tasks.items()}" th:classappend="${task.taskStatus().name() == 'DONE'} ? 'is-done'">
+                <span class="task-indicator" aria-hidden="true" th:text="${task.taskStatus().name() == 'DONE'} ? '✓' : '○'">○</span>
+                <div class="task-copy"><span class="task-title" th:text="${task.taskTitle().string()}">Sketch the first version</span><span class="status" th:text="${task.taskStatus().name() == 'DONE'} ? 'Completed' : 'Ready when you are'">Ready when you are</span></div>
+                <form th:if="${task.taskStatus().name() == 'OPEN'}" th:action="@{/tasks/{id}/complete(id=${task.taskId().asString()})}" method="post"><button class="task-action" type="submit" th:attr="aria-label=${'Complete: ' + task.taskTitle().string()}">Complete <span aria-hidden="true">✓</span></button></form>
+                <form th:if="${task.taskStatus().name() == 'DONE'}" th:action="@{/tasks/{id}/reopen(id=${task.taskId().asString()})}" method="post"><button class="task-action" type="submit" th:attr="aria-label=${'Reopen: ' + task.taskTitle().string()}">Reopen <span aria-hidden="true">↶</span></button></form>
+            </li>
+        </ul>
+        <nav class="pagination" aria-label="Task pages" th:if="${tasks.totalPages() > 1}"><a th:if="${tasks.pageNumber().orElseThrow() > 1}" th:href="@{/(page=${tasks.pageNumber().orElseThrow() - 1})}" rel="prev">← Previous</a><span th:text="${'Page ' + tasks.pageNumber().orElseThrow() + ' of ' + tasks.totalPages()}">Page 1 of 2</span><a th:if="${tasks.hasNext()}" th:href="@{/(page=${tasks.pageNumber().orElseThrow() + 1})}" rel="next">Next →</a></nav>
+        <div class="board-footer"><span class="live-dot" aria-hidden="true"></span> Stored in PostgreSQL. Still here tomorrow.</div>
+    </section>
+    <footer class="page-footer"><span>One small win at a time.</span><span>Vernac domain · Spring Boot · Thymeleaf</span></footer>
+</main>
+</body></html>

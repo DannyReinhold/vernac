@@ -225,19 +225,27 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                     var type = toTypeNode(b.valueType);
                     String name = b.name == null ? org.vernac.language.VernacNames.defaultMemberName(type.name()) : b.name.getText();
                     return new InboundHttpAdapterNode.Binding(toLocation(b), b.kind.getText(), type, name,
-                            b.externalName == null ? name : unquote(b.externalName.getText()));
+                            b.externalName == null ? name : unquote(b.externalName.getText()),
+                            Optional.ofNullable(b.defaultValue).map(t -> errorString(t.getText(),toLocation(b))), b.sensitive != null);
                 }).toList(), Optional.ofNullable(e.bodyType).map(this::toTypeNode), e.dependency.getText(),
                 e.mappingAssignment().stream().map(a -> new MappingAssignmentNode(toLocation(a), a.target.getText(),
                         List.of(a.path.getText().split("\\.")), Optional.ofNullable(a.mapper).map(ParserRuleContext::getText))).toList(),
-                httpStatus(e.status.getText()), Optional.ofNullable(e.responseType).map(this::toTypeNode),
+                e.status != null ? httpStatus(e.status.getText()) : e.renderStatus != null ? httpStatus(e.renderStatus.getText()) : 200, Optional.ofNullable(e.responseType).map(this::toTypeNode),
                 Optional.ofNullable(e.responseMapping).map(ParserRuleContext::getText),
                 Optional.ofNullable(e.absentStatus).map(t -> httpStatus(t.getText())),
-                inboundImplementation(e.inboundErrorPolicy()), inboundRules(e.inboundErrorPolicy()))).toList();
+                inboundImplementation(e.inboundErrorPolicy()), inboundRules(e.inboundErrorPolicy()),
+                e.view == null && e.redirect == null && e.absentView == null ? Optional.empty() : Optional.of(new InboundHttpAdapterNode.View(
+                        e.view == null ? "" : errorString(e.view.getText(),toLocation(e)),
+                        Optional.ofNullable(e.modelName).map(ParserRuleContext::getText),
+                        Optional.ofNullable(e.redirect).map(t -> errorString(t.getText(),toLocation(e))),
+                        Optional.ofNullable(e.notice).map(t -> errorString(t.getText(),toLocation(e))),
+                        Optional.ofNullable(e.absentView).map(t -> errorString(t.getText(),toLocation(e))))))).toList();
         return new InboundHttpAdapterNode(toLocation(ctx), ctx.name.getText(), unquote(ctx.base.getText()),
                 ctx.dependencies.stream().map(this::adapterParameter).toList(), endpoints,
                 ctx.schemaDefinition().stream().map(this::visitSchemaDefinition).toList(),
                 ctx.mappingDefinition().stream().map(this::visitMappingDefinition).toList(),
-                inboundImplementation(ctx.inboundErrorPolicy()), inboundRules(ctx.inboundErrorPolicy()));
+                inboundImplementation(ctx.inboundErrorPolicy()), inboundRules(ctx.inboundErrorPolicy()),
+                ctx.transport.getText().equals("mvc"), Optional.ofNullable(ctx.errorView).map(t -> errorString(t.getText(),toLocation(ctx))));
     }
 
     private Optional<String> inboundImplementation(VernacParser.InboundErrorPolicyContext policy) {
@@ -256,7 +264,10 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 selector.responsibility == null ? "" : selector.responsibility.getText(),
                 selector.category == null ? "" : selector.category.getText(), httpStatus(rule.status.getText()),
                 Optional.ofNullable(rule.code).map(t -> errorString(t.getText(), toLocation(rule))),
-                Optional.ofNullable(rule.message).map(t -> errorString(t.getText(), toLocation(rule))));
+                Optional.ofNullable(rule.message).map(t -> errorString(t.getText(), toLocation(rule))),
+                rule.view == null && rule.reload == null ? Optional.empty() : Optional.of(new InboundHttpAdapterNode.ErrorView(
+                        Optional.ofNullable(rule.view).map(t -> errorString(t.getText(),toLocation(rule))),
+                        Optional.ofNullable(rule.reload).map(ParserRuleContext::getText))));
         }).toList();
     }
     private int httpStatus(String value) {

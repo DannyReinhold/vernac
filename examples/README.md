@@ -10,6 +10,7 @@ arguments if they contain dots.
 
 | Example | Learn | What runs | Database needed? |
 | --- | --- | --- | --- |
+| [Spring Boot wizard template](../docs/tutorials/spring-boot-starter.md) | Task workspace, HTML forms, usecases, JDBC, migrations | Generate through New Project → Vernac | Yes (local profile) |
 | [Basic project template](../templates/vernac-basic/README.md) | ID, validated value, enum, aggregate behavior | Generated Java and TaskTest | No |
 | [Namespaces and values](namespace-values/README.md) | Multiple files, imports, optional values, inline/external behavior, entity modification | Java tests; part of the reactor | No |
 | [Schema basics](persistence-schema/README.md) | Flattening and a simple entity containment chain | SQL schema and migration candidate generation | No, until you apply/verify SQL |

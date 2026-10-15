@@ -46,7 +46,7 @@ class DocumentationExamplesTest {
         for (String name : List.of("domain-diagrams", "ubiquitous-language", "repository-queries", "usecases", "enum-value-objects",
                 "outbound-ports", "declarative-rest", "declarative-errors", "default-names",
                 "adapter-dtos", "domain-events", "http-adapter-runtime", "collections",
-                "your-first-domain-model", "adapter-mappings", "inbound-http", "pagination")) {
+                "your-first-domain-model", "adapter-mappings", "inbound-http", "inbound-mvc", "pagination")) {
             String document = Files.readString(Path.of("../docs/tutorials/" + name + ".md"))
                     .replace("\r\n", "\n");
             var block = Pattern.compile("```vernac\\n(.*?)```", Pattern.DOTALL).matcher(document);
