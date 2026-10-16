@@ -27,9 +27,10 @@ that Vernac target declaration is a separate feature.
 
 - Use an imported Maven project with a configured JDK and Java dependencies.
 - Keep models under `src/main/vernac`, matching their namespace directories.
-- Run Maven generation/compilation once so that the generated domain types are
-  indexed. `self`, domain getters and other model APIs resolve against those
-  generated types. After changing the domain API, regenerate it.
+- Ordinary local VOs have [live Java APIs](live-value-object-java-apis.md) before
+  generation, including validation Read views. Other domain APIs and application
+  access interfaces still require generated Java to be indexed. Regenerate those
+  APIs after changing their declarations; runtime execution always needs a build.
 - Changes inside inline bodies and private helper declarations use the live
   document. Saving or rebuilding is not required for those edits.
 - Declare additional Java imports explicitly in `java imports`. Automatic import
@@ -112,3 +113,10 @@ clean/recreation event selection and plugin registration. Installed-IDE acceptan
 must additionally verify native completion, navigation and `var` inference in a
 new wizard project after its first generation build; these are not proven by the
 filesystem tests alone.
+
+## Declaration-level recovery
+
+The editor loader and Java tooling share [declaration recovery](editor-declaration-recovery.md).
+A broken declaration no longer disables complete Java contexts or navigable types
+elsewhere in the same file. Only declarations parsed without local recovery errors
+are admitted. Build entrypoints continue using the strict source parser.

@@ -8,6 +8,9 @@ to yours below. These answers describe Vernac **0.4.0**; source checkouts use ma
 New to the language? Follow [your first domain model](../tutorials/your-first-domain-model.md)
 first. For exact requirements, use the [specification](../specification/index.md).
 
+For a guide by task across tutorials, contracts and implementation notes, open the
+[documentation map](../documentation-map.md).
+
 ## Getting started and using Java
 
 ### I already have a Java/Spring application. What would Vernac replace?

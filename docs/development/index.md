@@ -1,5 +1,8 @@
 # Contributing to Vernac
 
+Start with the repository [contribution guide](../../CONTRIBUTING.md) for issue reports,
+local verification and pull requests.
+
 User documentation starts at the [documentation home](../index.md). This section
 is for language/tooling contributors. Build with JDK 25 and Maven 3.9+; generated
 application code retains its Java 21 target.
@@ -11,6 +14,14 @@ mvn clean verify
 Standalone examples have their own POMs and checks. PostgreSQL tests need explicit
 disposable-database configuration and must not be counted as passed when skipped.
 Release acceptance also includes installation of the packaged IntelliJ plugin.
+
+## Learn from the IntelliJ integration
+
+[Lessons learned](lessons-learned/index.md) collects reusable engineering guidance
+on DSL/Java injection, resolution versus completion, native references, debugging,
+editor recovery and test boundaries. It includes a design checklist for a future
+SQLJ plugin. These are contributor notes, not additional language guarantees.
+For a guide across all documentation, use the [documentation map](../documentation-map.md).
 
 ## Implementation and decisions
 
@@ -51,16 +62,17 @@ Implementation notes explain mechanisms and trade-offs. They do not override the
 [specification](../specification/index.md). Historical patch progress belongs in Git
 history; keep unresolved design decisions with an explicit status and rationale.
 
-## Experimental debugger
+## Native debugger implementation
 
-The [first debugger slice](vernac-debugger-prototype.md) documents build-time source
+The [debugger implementation record](vernac-debugger-prototype.md) documents build-time source
 mappings, Java-backed Vernac breakpoints and the installed-IDE acceptance walkthrough.
 
-## Queued immediately after debugger completion
+## Related assessments and editor mechanisms
 
-[AI content disclosure review for vernac.org](ai-content-disclosure-review.md):
-check applicable German/EU duties for the actual publication workflow and propose
-any necessary notices or markings. Planning only; assessment follows the debugger
-workstream rather than running concurrently.
+- [AI content disclosure review for vernac.org](ai-content-disclosure-review.md): assessment notes for the site's publication workflow; recheck if that workflow changes.
 
 - [AI tools reference](../ai-tools-reference.md): concise build, schema and migration workflow for coding agents.
+
+- [Editor declaration recovery](editor-declaration-recovery.md): declaration-level recovery, strict build separation and source ranges.
+
+- [Live value-object Java APIs](live-value-object-java-apis.md): in-memory Java views before generation, ownership and scope boundaries.

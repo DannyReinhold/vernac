@@ -66,6 +66,9 @@ public class VernacCompiler {
     }
     public VernacProjectCompilationResult generate(ResolvedProject project,SchemaModel previous,
             Map<String,Map<String,String>> enumCodes,SchemaBuilder.Options options) {
+        var errors = project.diagnostics().stream()
+                .filter(d -> d.severity() == CompilerDiagnostic.Severity.ERROR).toList();
+        if (!errors.isEmpty()) throw new SemanticValidationException(errors);
         if (!project.deferredTypes().isEmpty()) {
             throw new SemanticValidationException(project.deferredTypes().stream().map(symbol ->
                     CompilerDiagnostic.error(symbol.location(), "Project generation for " + symbol.kind()

@@ -17,6 +17,15 @@ and Spring infrastructure without hidden framework magic.
 
 ---
 
+## Where would you like to start?
+
+Open the [documentation map](documentation-map.md) for a guide by goal: first model,
+working application, persistence, integration, modules, IDE tooling or contributing.
+The [tutorial path](tutorials/index.md) builds the concepts step by step; the
+[language reference](language-reference.md) helps while writing code.
+
+---
+
 ## Why Vernac?
 
 - Architecture stays consistent as your system grows

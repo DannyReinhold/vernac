@@ -24,18 +24,18 @@ public final class BehaviorJavaProjection {
         project.sources().forEach(s -> namespaces.add(s.unit().namespace()));
         var scope = new FileTypeScope(unit, project.symbols(), namespaces);
         if (scope.hasErrors()) return List.of();
-        var lexer = new VernacLexer(CharStreams.fromString(text));
-        lexer.removeErrorListeners();
-        var parser = new VernacParser(new CommonTokenStream(lexer));
-        parser.removeErrorListeners();
-        var tree = parser.compilationUnit();
-        var declarations = tree.topLevelDeclaration().stream().filter(d -> d.termDefinition() == null).toList();
-        if (parser.getNumberOfSyntaxErrors() != 0 || declarations.size() != unit.definitions().size())
-            return List.of();
+        var parsed = new EditorSourceParser().analyze(unit.location().sourceName(), text, new ArrayList<>());
+        if (parsed.isEmpty()) return List.of();
+        var declarations = parsed.get().declarations().stream()
+                .filter(d -> d.termDefinition() == null).toList();
         List<Block> result = new ArrayList<>();
         for (int i = 0; i < unit.definitions().size(); i++) {
             var definition = unit.definitions().get(i);
-            var syntax = declarations.get(i);
+            var syntax = declarations.stream().filter(d ->
+                    d.getStart().getLine() == definition.location().line()
+                    && d.getStart().getCharPositionInLine() + 1 == definition.location().column())
+                    .findFirst().orElse(null);
+            if (syntax == null) continue;
             if (definition instanceof OutboundAdapterNode adapter) {
                 if (adapter.rest().isEmpty()) result.addAll(new ServiceJavaProjection().build(project,scope,unit,adapter.behavior(),
                     syntax.outboundAdapterDefinition().serviceMethod(),text,".adapter.outbound"));

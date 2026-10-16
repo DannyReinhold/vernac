@@ -67,6 +67,8 @@ public final class VernacJavaInjector implements MultiHostInjector {
             var project = new VernacProjectLoader().loadForAnalysis(root.get(), snapshots, new ArrayList<>());
             ProgressManager.checkCanceled();
             var source = project.sources().stream().filter(s -> s.path().equals(path)).findFirst();
+            // Make new packages available before the injected Java starts resolving its imports.
+            if (source.isPresent()) host.getProject().getService(VernacLiveValues.class).snapshot(root.get());
             return source.map(s -> new BehaviorJavaProjection().build(project, s, text)).orElseGet(List::of);
         } catch (IOException unavailableSource) {
             return List.of();

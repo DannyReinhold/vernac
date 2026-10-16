@@ -10,6 +10,7 @@
 | faq                       | Questions and recovery paths                      | Direct, practical                             |
 | language-reference.md     | Complete syntax/capability overview               | Precise and searchable                        |
 | specification + contracts | One normative specification                       | Formal requirements and explicit limits       |
+| development/lessons-learned | Reusable engineering lessons and failure diagnosis | Technical, evidence and limitations explicit |
 | development               | Mechanisms, rationale and active proposals        | Technical; plans labelled as plans            |
 | maintainers               | Releasing and operations                          | Procedural and auditable                      |
 
@@ -38,6 +39,19 @@ published before publication, or introduce a future development target premature
 Historical release records retain their original versions and are labelled historical.
 The example application version (such as 0.1.0-SNAPSHOT) is independent of its
 vernac.version dependency. Automatic website version injection is not introduced here.
+
+## Finding documentation
+
+The [documentation map](../documentation-map.md) groups entry points by reader goal.
+The website header links to it from every page using the default layout. Keep it
+curated: link to canonical tutorials/specification indexes rather than duplicating
+all contracts or building a second feature-status registry.
+
+The [lessons-learned collection](lessons-learned/index.md) belongs under development.
+Record reusable mechanisms, failure symptoms and verification boundaries, not raw
+chat logs or a chronological list of patches. Separate prospective transfers (such
+as SQLJ) from accepted Vernac behavior. Update implementation/acceptance status
+when the corresponding checks are reported.
 
 ## Checks
 

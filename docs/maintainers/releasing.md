@@ -235,3 +235,17 @@ python -m unittest discover -s tools/tests -v -b
 API references: [JetBrains upload](https://plugins.jetbrains.com/docs/marketplace/plugin-upload.html),
 [GitHub artifacts](https://github.com/actions/download-artifact),
 [Central publishing](https://central.sonatype.org/publish/publish-portal-maven/).
+
+## Community reporting channels
+
+The root [contribution guide](../../CONTRIBUTING.md),
+[Code of Conduct](../../CODE_OF_CONDUCT.md), [security policy](../../SECURITY.md)
+and GitHub issue/PR templates provide contributor entry points. Keep their contact
+information and linked build guidance current.
+
+Repository administrators should enable **Private vulnerability reporting** in
+GitHub's security settings. Adding `SECURITY.md` does not enable that setting.
+Until it is enabled, the policy's email fallback remains the private contact.
+Review [Community Standards](https://github.com/DannyReinhold/vernac/community)
+after changes reach the default branch; this checklist is not a code-quality or
+security certification.

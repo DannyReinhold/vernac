@@ -275,4 +275,22 @@ class BehaviorJavaProjectionTest {
         assertFalse(second.contains("helper()"));
     }
 
+
+    @Test void mutableBehaviorAndValidationContextsUseTheirExactAccessRole() {
+        String source = """
+            namespace model;
+            id ItemId; value Label(String);
+            entity Item[ItemId](mut Label) validates {require(!self.label().string().isBlank());} behavior {
+                read Label display(){return self.label();}
+                modify void rename(Label label){self.label(label);}
+            };
+            """;
+        var blocks = project(source);
+        var behavior = java(source, blocks.stream().filter(b -> b.owner().equals("Item")).findFirst().orElseThrow());
+        assertTrue(behavior.contains("display(model.domain.access.ItemRead self)"));
+        assertTrue(behavior.contains("rename(model.domain.access.ItemAccess self, model.domain.Label label)"));
+        var validation = java(source, blocks.stream().filter(b -> b.owner().equals("ItemValidation")).findFirst().orElseThrow());
+        assertTrue(validation.contains("validate(model.domain.access.ItemRead self)"));
+        assertFalse(validation.contains("ItemAccess self"));
+    }
 }

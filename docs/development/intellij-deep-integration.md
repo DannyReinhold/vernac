@@ -1,9 +1,13 @@
 # Deep IntelliJ integration
 
-Status: **roadmap with an experimental first debugger slice in 0.5.0**.
-See the [prototype record](vernac-debugger-prototype.md) and
-[manual acceptance example](../../examples/debugger/README.md). Refactoring and
-the broader debugger experience below remain planned.
+Status: **0.5.0 development: native debugging and reviewed reference/hover paths
+accepted; cross-language refactoring remains planned.** See the
+[implementation record](vernac-debugger-prototype.md) and
+[manual acceptance example](../../examples/debugger/README.md).
+Live ordinary-VO Java completion is accepted too. The expansion adds IDs, enums,
+entities, aggregates, access views and explicit lists/sets; those new kinds await
+installed-IDE acceptance. See [live Java APIs](live-value-object-java-apis.md).
+Services, events and application-level contracts remain follow-up work.
 Target: a first-class, coherent developer experience across Vernac and Java.
 This is a tooling roadmap, not a change to language contracts.
 

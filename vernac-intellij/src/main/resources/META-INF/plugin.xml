@@ -100,6 +100,56 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>Live entities, aggregates and behavior access views</h3>
+<p>Entity/aggregate factories, field getters and public behaviors are now visible before
+Java generation, together with Read/Write/Access views for the appropriate self context.
+Entity and aggregate collections expose their existing typed id helpers. The actual
+model class gains no public setters. Invalid owners withhold their complete API family,
+and stale owned access views are suppressed. Installed-IDE acceptance is pending.</p>
+
+<h3>Live IDs, enums and value-side collections before generation</h3>
+<p>New local IDs, enum values and explicit list/set types now use the same generator-backed
+Java views as ordinary value objects: factories, enum constants, typed collection methods
+and public behaviors. Multiple collections retain independent APIs. Invalid declarations
+are withheld; current unsaved types are visible without running Maven. Enum constants
+navigate to their model declaration. The mutable-domain expansion above also covers entity/aggregate collections.
+Ordinary-VO completion is confirmed in the IDE; the new type kinds await acceptance.</p>
+
+<h3>Live VO completion across temporary editor copies</h3>
+<p>New ordinary VO names now insert without technical package prefixes (confirmed in the IDE).
+Copied Vernac hosts retain their original model scope, and existing domain packages
+are wrapped before the first editor snapshot. This targets missing factory-member
+completion such as EditorTest.o; this path is now confirmed in the installed IDE.</p>
+
+<h3>Scoped Java package lookup for live VO imports and factories</h3>
+<p>Java package lookup now retains current VO APIs, including during native completion's
+alternative-resolve mode. Stable source provenance preserves class identity across
+snapshot recreation during insertion. Visible Vernac types already have projected imports; no technical
+package name or new Java import is required in the source. Diagnostics include imports,
+package lookups, factory signatures, the caret reference and copied-host provenance.</p>
+
+<h3>Inspect embedded Java resolution</h3>
+<p>Tools → Vernac → Diagnose Embedded Java Context opens an in-memory report of live domain
+publication, injection, scopes and Java lookup at the caret. It does not modify or upload
+project files. This diagnoses the reported live-completion failure; it is not a completion fix.</p>
+
+<h3>Keep live VO APIs visible through injected Java scope unions</h3>
+<p>Recognizes the live host context inside IntelliJ's combined host/injected-file search
+scope, restoring the bridge used by Java resolution and class-name lookup. Ambiguous
+combined host contexts are rejected. Diagnostic reports now show union branches and
+inspect short-name extensions in the correct project area. Installed-IDE retest pending.</p>
+
+<h3>Live Java APIs for new value objects</h3>
+<p>Embedded Java can resolve ordinary value-object factories, getters, public behaviors and
+validation Read views from the current model before generation. Java views stay in memory;
+owned older VO sources are replaced in Vernac Java scopes only. This first slice does not
+provide live APIs for IDs, enums, collections, aggregates or usecase access interfaces.</p>
+
+<h3>Keep valid declarations while editing incomplete files</h3>
+<p>Editor analysis now retains complete declarations when another declaration in the same file
+is malformed. Valid Java contexts and declaration navigation remain available; syntax errors
+are still reported and builds remain strict. This is groundwork for completion before generation.</p>
+
 <h3>Generated Java in embedded code</h3>
 <p>Recognizes the conventional generated Java source root after Maven generation,
 so embedded Java can resolve generated domain classes, factories and inferred local types
@@ -303,6 +353,8 @@ without a manual Maven reload. Sources still need an initial generation build.</
         <lang.parserDefinition language="VernacModule" implementationClass="org.vernac.intellij.VernacModuleParserDefinition"/>
         <lang.parserDefinition language="Vernac" implementationClass="org.vernac.intellij.VernacParserDefinition"/>
         <multiHostInjector implementation="org.vernac.intellij.VernacJavaInjector"/>
+        <java.elementFinder implementation="org.vernac.intellij.VernacLiveValueFinder" order="first"/>
+        <java.shortNamesCache implementation="org.vernac.intellij.VernacLiveShortNamesCache"/>
         <lang.elementManipulator forClass="org.vernac.intellij.VernacInjectionHost"
                                  implementationClass="org.vernac.intellij.VernacHostManipulator"/>
         <newProjectWizard.generator
@@ -328,6 +380,7 @@ without a manual Maven reload. Sources still need an initial generation build.</
     </extensions>
     <actions>
         <group id="org.vernac.Tools" text="Vernac" popup="true">
+            <action id="org.vernac.DiagnoseJava" class="org.vernac.intellij.VernacDiagnoseJavaAction"/>
             <action id="org.vernac.GeneratedDebug" class="org.vernac.intellij.debug.VernacGeneratedDebugAction"
                     description="Show generated Java and raw access objects; disable Vernac facade stepping filters"/>
             <add-to-group group-id="ToolsMenu" anchor="last"/>

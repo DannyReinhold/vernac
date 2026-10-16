@@ -12,6 +12,9 @@ default: install matching local artifacts first, or select the release with
 Commands below include `mvn`; use the full command in the IntelliJ Maven run configuration used for these examples.
 In PowerShell, quote a complete dotted `-Dproperty=value` argument when necessary.
 
+Looking for one topic rather than a full learning path? Use the
+[documentation map](../documentation-map.md).
+
 ## How to use the examples
 
 The Task chapters are small, database-free exercises. The delivery chapters use

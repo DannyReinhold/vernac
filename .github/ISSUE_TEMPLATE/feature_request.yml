@@ -1,0 +1,22 @@
+name: Feature request
+description: Propose an improvement to modeling, generated code or the developer experience.
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: Problem and use case
+      description: What task is difficult today? Explain the user need before proposing syntax.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior and example
+      description: Show the desired workflow or a small model; distinguish current syntax from proposed syntax.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and trade-offs
+      description: Describe workarounds, compatibility considerations and relevant DDD or Java expectations.

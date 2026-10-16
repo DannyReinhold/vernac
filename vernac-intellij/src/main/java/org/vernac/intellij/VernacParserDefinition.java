@@ -34,9 +34,7 @@ public final class VernacParserDefinition implements ParserDefinition {
     @Override public @NotNull TokenSet getStringLiteralElements() { return TokenSet.EMPTY; }
     @Override public @NotNull PsiElement createElement(ASTNode node) { return new VernacInjectionHost(node); }
     @Override public @NotNull PsiFile createFile(@NotNull FileViewProvider provider) {
-        return new PsiFileBase(provider, VernacLanguage.INSTANCE) {
-            @Override public @NotNull FileType getFileType() { return VernacFileType.INSTANCE; }
-        };
+        return new VernacPsiFile(provider);
     }
 
     /** Keep the single injection host, but preserve line offsets for debugger context lookup. */

@@ -173,3 +173,10 @@ small runnable example, including private helpers, handwritten Java transitions
 and logpoints. It explains the current coverage and limits. This requires matching
 0.5.0-SNAPSHOT build artifacts and the development plugin; it is not included in
 published 0.4.0 installations.
+
+## Contributing and reporting problems
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contributor and maintainer documentation,
+build checks and reporting guidance. Participation follows the
+[Code of Conduct](CODE_OF_CONDUCT.md). Report vulnerabilities privately according
+to the [security policy](SECURITY.md).

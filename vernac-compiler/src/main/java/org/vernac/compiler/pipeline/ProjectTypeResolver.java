@@ -14,6 +14,15 @@ import java.util.stream.Collectors;
 /** Resolves imports and VO field references without recursively following declarations. */
 public final class ProjectTypeResolver {
     public ResolvedProject resolve(VernacProject project) {
+        return resolve(project, true);
+    }
+
+    /** Read-only partial type information for editor APIs; never a generation entrypoint. */
+    public ResolvedProject resolveForAnalysis(VernacProject project) {
+        return resolve(project, false);
+    }
+
+    private ResolvedProject resolve(VernacProject project, boolean strict) {
         Set<String> namespaces = project.sources().stream().map(source -> source.unit().namespace())
                 .collect(Collectors.toCollection(TreeSet::new));
         Map<Path, FileTypeScope> scopes = new LinkedHashMap<>();
@@ -164,7 +173,7 @@ public final class ProjectTypeResolver {
             if (definition instanceof InboundHttpAdapterNode adapter && !invalidSources.contains(source.path().toString()))
                 inboundAdapters.put(adapter,new org.vernac.compiler.inbound.InboundResolver(project,fieldTypes,diagnostics,inboundRoutes)
                         .resolve(adapter,source.unit().namespace(),scopes.get(source.path())));
-        failOnErrors(diagnostics);
+        if (strict) failOnErrors(diagnostics);
         List<TypeSymbol> deferred = namespaces.stream().flatMap(namespace -> project.symbols().inNamespace(namespace).stream())
                 .filter(symbol -> switch (symbol.kind()) {
                     case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, REPOSITORY, USE_CASE, DOMAIN_SERVICE, EVENT, LISTENER, PORT, OUTBOUND_ADAPTER, INBOUND_HTTP_ADAPTER -> false;

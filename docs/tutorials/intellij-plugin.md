@@ -434,3 +434,134 @@ This automatic repair covers the conventional Maven output directory. If the
 project customizes `vernac.outputDirectory` or its build directory, configure or
 import that directory as a generated Java source root through Maven/IntelliJ.
 Completion before any Java generation remains a separate tooling improvement.
+
+## Editing an incomplete model
+
+A syntax error in one declaration no longer discards all complete declarations
+in the same file. For example, `value Count(int);` remains known when a later
+usecase is missing a closing brace. Java injection and type navigation continue
+for independently complete declarations. Diagnostics still identify the error,
+and Maven compilation still rejects the damaged source.
+
+Recovery is conservative: an incomplete declaration is not published with guessed
+parameter types or names. When an unclosed block makes later boundaries ambiguous,
+the editor may withhold that region until the block is repaired. Invalid namespace
+or import syntax prevents publishing a guessed file context. No last-successful
+snapshot is silently substituted after an edit or rename.
+
+This preserves existing editor assistance; it does not yet supply Java classes
+for newly declared types before their first generation build. That is the next
+stage of the editor integration.
+
+## Try a value object before generation (0.5.0 development)
+
+Add an ordinary VO to a namespace already used by your project. For example:
+
+```vernac
+namespace example.live;
+value DraftCount(int) validates {
+    require(self.intValue() >= 0, "Count must not be negative");
+};
+```
+
+Use your actual namespace and matching directory. In an existing VO's `behavior`
+block in that namespace, add:
+
+```java
+public int liveValueDemo() {
+    var count = DraftCount.of(7);
+    return count.intValue();
+}
+```
+
+Before running Maven, try completion on `DraftCount`, `of` and `intValue`, inspect
+`count`'s type, and navigate to the VO/getter. The current unsaved document is used.
+The `validates` block also gets its Read-view getters without generation.
+
+After a successful build, change the field to `int amount` without rebuilding.
+The current API offers `amount()`; the older generated `intValue()` must not remain
+as an alternative in this Vernac Java context. Rebuild and confirm that completion
+still offers one API. An unrelated malformed declaration must not erase this
+otherwise complete VO.
+
+The live editor APIs cover local IDs, VOs, enums, entities, aggregates and their
+explicit collections. Validation Read views and entity/aggregate Read/Write/Access
+interfaces are included. Services, events, repositories, ports, usecases and their
+application access interfaces still need generation. Handwritten `.java` files retain their
+normal Java resolution. No source file is generated on a keystroke, and a running
+application does not acquire these new methods until built/restarted or updated
+through a separate supported debugger mechanism.
+
+### Completing a newly declared VO inside Java
+
+The live Java path covers local domain classes and their explicit lists/sets.
+The installed-IDE retest confirms new class-name suggestions and short-name insertion.
+Factory completion for ordinary VOs is also confirmed after preserving the copied editor context:
+select `EditorTest`, then try `EditorTest.o` and Ctrl+Space for `of`.
+The projected Java already imports visible VOs; you should not need a technical package
+name or a new `java imports` entry for a local VO. The extension to IDs, enums and
+collections still needs its own installed-IDE acceptance.
+Vernac field-type completion is a separate feature.
+
+For troubleshooting, place the caret inside the Java body and run **Tools → Vernac →
+Diagnose Embedded Java Context**. It opens a read-only report without saving source
+or running Maven. See the [diagnostic guide](../development/live-value-object-java-apis.md#installed-ide-completion-failure-and-diagnostics).
+
+### Try IDs, enums and collections before generation
+
+Add these declarations to your existing namespace:
+
+```vernac
+id DraftId list DraftIds;
+value DraftState = OPEN | DONE set DraftStates;
+value DraftLabel(String) list DraftLabels, set SelectedDraftLabels;
+```
+
+Inside an existing Java behavior, try completing `DraftId.cre`, `DraftState.O`,
+`DraftLabels.em` and `SelectedDraftLabels.em`. They correspond to `create()`,
+`OPEN` and each collection's `empty()` factory. After declaring
+`var labels = DraftLabels.empty();`, instance members such as `plus`, `get` and
+`duplicates` follow the actual generated list API. The set has `asSet()` and
+has no indexed `get` or `duplicates` operation. Each explicitly declared collection
+has its own type and optional public behaviors.
+
+You still need a build to run these new types. Editing and completion create no
+Java output files and perform no Hot Swap. Services, events and application-level
+contracts continue using their generated APIs for now. A malformed declaration is withheld;
+independent valid declarations remain available.
+
+### Try entities, aggregates and the right `self` view
+
+With `DraftLabel` from the preceding section, add:
+
+```vernac
+id DraftLineId;
+id DraftBoardId;
+entity DraftLine[DraftLineId](mut DraftLabel) behavior {
+    read DraftLabel display() { return self.draftLabel(); }
+    modify void rename(DraftLabel label) { self.draftLabel(label); }
+} list DraftLines, set SelectedDraftLines;
+
+aggregate DraftBoard[DraftBoardId](mut DraftLines) behavior {
+    read DraftLines lines() { return self.draftLines(); }
+    modify void add(DraftLine line) {
+        self.draftLines(self.draftLines().plus(line));
+    }
+} list DraftBoards;
+```
+
+Before generating Java, try `DraftLine.cre` inside an existing usecase and
+`self.dr` inside either entity behavior. In `display`, `self` provides the getter;
+in `rename`, it also provides the setter overload. Read contexts do not offer
+`rename` or `emit`. A validation block receives the same Read contract. You do not
+need to import the technical view types: the Java projection supplies the correct
+`self` type.
+
+For a variable declared as `DraftLines`, completion includes `by(DraftLineId)`.
+The selected result is an `Optional<DraftLine>`; it refers to an entity, not a copy
+or a readonly facade. This preserves the existing domain semantics. Aggregate read
+views also provide their timestamps. No public setter is added to the actual entity
+or aggregate class.
+
+The new kinds still require installed-IDE acceptance independently of the confirmed
+ordinary-VO path. Build the project to execute the new classes and behavior.

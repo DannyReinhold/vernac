@@ -1630,3 +1630,26 @@ Multipart/file uploads, repeated collection fields, dynamic redirects and templa
 fragments are not supported in this version. There are no automatic handwritten
 controllers: generate them from MVC declarations. See the authoritative
 [MVC contract](contracts/inbound-mvc.md) and [tutorial](tutorials/inbound-mvc.md).
+
+## Development tooling: live domain APIs
+
+In 0.5.0 development, embedded Java can use factories, getters, public behaviors
+and validation Read views of complete local ordinary VOs before Java generation.
+The expansion also supplies local IDs, enums, entities, aggregates and all their
+explicit lists/sets, including collection behaviors and typed id helpers. Mutable
+domain Read/Write/Access interfaces resolve the existing injected `self` types:
+Read for read behaviors and validators, Access for modifying behaviors.
+These read-only in-memory views use the compiler's generators. This is not
+compilation or Hot Swap. Services, events, repository/port/usecase contracts and
+ordinary handwritten Java files still use their normal build/generated APIs;
+runtime execution requires a build.
+An invalid or incomplete declaration API is withheld rather than guessed. See the
+[live API notes](development/live-value-object-java-apis.md) for exact boundaries.
+
+Editor note: ordinary-VO class-name suggestions, short-name insertion and factory-member
+completion are confirmed in embedded Java. IDs, enums, mutable domain classes,
+access views and collections await their own installed-popup acceptance. Visible
+supported Vernac types already receive projected Java imports. Generate Java for reliable code insight until accepted.
+DSL field-type completion is separate. The
+[diagnostic guide](development/live-value-object-java-apis.md#installed-ide-completion-failure-and-diagnostics)
+explains the explicit, read-only context report.

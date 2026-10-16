@@ -14,8 +14,9 @@ import java.util.*;
 /** Maps reviewed generated Java type identities to live Vernac declaration ranges. */
 public final class VernacTypeNavigation {
     public record Target(Path source, String name, int start, int end) { }
-    public record Member(String name, List<String> parameterTypes) {
+    public record Member(String name, List<String> parameterTypes, boolean enumConstant) {
         public Member { parameterTypes = List.copyOf(parameterTypes); }
+        public Member(String name, List<String> parameterTypes) { this(name, parameterTypes, false); }
     }
 
     public Optional<Target> find(VernacProject project, Map<Path, String> texts, String javaName) {
@@ -59,11 +60,9 @@ public final class VernacTypeNavigation {
 
     private Optional<Target> dtoTarget(VernacSourceFile source, String text, String javaName, Optional<Member> member) {
         if(text==null || !(javaName.startsWith(source.unit().namespace()+".adapter.outbound.dto.") || javaName.startsWith(source.unit().namespace()+".adapter.outbound.mapping.") || javaName.startsWith(source.unit().namespace()+".adapter.inbound.http.dto.") || javaName.startsWith(source.unit().namespace()+".adapter.inbound.http.mapping."))) return Optional.empty();
-        var lexer=new VernacLexer(CharStreams.fromString(text));lexer.removeErrorListeners();
-        var parser=new VernacParser(new CommonTokenStream(lexer));parser.removeErrorListeners();
-        var tree=parser.compilationUnit();
-        if(parser.getNumberOfSyntaxErrors()!=0) return Optional.empty();
-        for(var top:tree.topLevelDeclaration()) {
+        var parsed = new EditorSourceParser().analyze(source.unit().location().sourceName(), text, new ArrayList<>());
+        if (parsed.isEmpty()) return Optional.empty();
+        for(var top:parsed.get().declarations()) {
             var adapter=top.outboundAdapterDefinition();var inbound=top.inboundHttpAdapterDefinition(); if(adapter==null && inbound==null)continue;
             var adapterName=adapter==null?inbound.name:adapter.name;
             String suffix=adapter==null?".adapter.inbound.http":".adapter.outbound";
@@ -101,17 +100,17 @@ public final class VernacTypeNavigation {
 
     private Optional<Target> locate(VernacProject project, VernacSourceFile source, String text,
                                     TypeSymbol symbol, Optional<Member> member) {
-        var lexer = new VernacLexer(CharStreams.fromString(text));
-        lexer.removeErrorListeners();
-        var parser = new VernacParser(new CommonTokenStream(lexer));
-        parser.removeErrorListeners();
-        var tree = parser.compilationUnit();
-        var declarations = tree.topLevelDeclaration().stream().filter(t -> t.termDefinition() == null).toList();
-        if (parser.getNumberOfSyntaxErrors() != 0 || declarations.size() != source.unit().definitions().size())
-            return Optional.empty();
+        var parsed = new EditorSourceParser().analyze(source.unit().location().sourceName(), text, new ArrayList<>());
+        if (parsed.isEmpty()) return Optional.empty();
+        var declarations = parsed.get().declarations().stream().filter(t -> t.termDefinition() == null).toList();
         for (int i = 0; i < source.unit().definitions().size(); i++) {
             var definition = source.unit().definitions().get(i);
-            var syntax = declarations.get(i);
+            var syntax = declarations.stream().filter(d ->
+                    d.getStart().getLine() == definition.location().line()
+                    && d.getStart().getCharPositionInLine() + 1 == definition.location().column())
+                    .findFirst().orElse(source.external() && declarations.size() == source.unit().definitions().size()
+                            ? declarations.get(i) : null);
+            if (syntax == null) continue;
             ParserRuleContext name = null;
             List<VernacParser.CollectionDefinitionContext> collections = List.of();
             if (syntax.idDeclaration() != null) {
@@ -146,6 +145,16 @@ public final class VernacTypeNavigation {
             if (symbol.kind() != TypeSymbol.Kind.COLLECTION && name.getText().equals(symbol.identity().name())) {
                 if (member.isEmpty()) return target(source.path(), text, symbol.identity().name(), name.getStart(), name.getStop());
                 var key = member.get();
+                if (key.enumConstant()) {
+                    if (!(definition instanceof ValueObjectNode value) || !value.isEnum()) return Optional.empty();
+                    var constants = syntax.valueDefinition().enumConstantList();
+                    if (constants == null) return Optional.empty();
+                    for (var constant : constants.enumConstant()) {
+                        if (constant.name.getText().equals(key.name()))
+                            return target(source.path(), text, key.name(), constant.name.getStart(), constant.name.getStop());
+                    }
+                    return Optional.empty();
+                }
                 if (definition instanceof IdDeclarationNode && key.name().equals("value") && key.parameterTypes().isEmpty())
                     return target(source.path(), text, "value", name.getStart(), name.getStop());
                 List<Target> candidates = new ArrayList<>();

@@ -39,11 +39,17 @@ public final class VernacJavaDeclarationHandler implements GotoDeclarationHandle
             type = clazz;
             member = Optional.empty();
         } else if (resolved instanceof PsiMethod method && !method.isConstructor()
-                && method.hasModifierProperty(PsiModifier.PUBLIC) && !method.hasModifierProperty(PsiModifier.STATIC)) {
+                && method.hasModifierProperty(PsiModifier.PUBLIC)
+                && (!method.hasModifierProperty(PsiModifier.STATIC)
+                    || method.getContainingFile().getUserData(VernacLiveValues.ENTRY) != null)) {
             type = method.getContainingClass();
-            member = Optional.of(new VernacTypeNavigation.Member(method.getName(),
+            member = method.hasModifierProperty(PsiModifier.STATIC) ? Optional.empty() : Optional.of(new VernacTypeNavigation.Member(method.getName(),
                     Arrays.stream(method.getParameterList().getParameters())
                             .map(p -> p.getType().getCanonicalText(false)).toList()));
+        } else if (resolved instanceof PsiEnumConstant constant
+                && constant.getContainingFile().getUserData(VernacLiveValues.ENTRY) != null) {
+            type = constant.getContainingClass();
+            member = Optional.of(new VernacTypeNavigation.Member(constant.getName(), List.of(), true));
         } else return null;
         if (type == null || type.getContainingClass() != null) return null;
         // Cache on the resolved declaration, not the owner: overloads/getters have different targets.
@@ -61,6 +67,13 @@ public final class VernacJavaDeclarationHandler implements GotoDeclarationHandle
     private Optional<VernacTypeNavigation.Target> find(PsiClass type, Optional<VernacTypeNavigation.Member> member) {
         String javaName = type.getQualifiedName();
         var containingFile = type.getContainingFile();
+        var live = containingFile == null ? null : containingFile.getUserData(VernacLiveValues.ENTRY);
+        if (live != null && live.snapshot().model != null) {
+            var navigation = new VernacTypeNavigation();
+            return member.isPresent()
+                    ? navigation.findMember(live.snapshot().model, live.snapshot().texts, javaName, member.get())
+                    : navigation.find(live.snapshot().model, live.snapshot().texts, javaName);
+        }
         var javaFile = containingFile == null ? null : containingFile.getVirtualFile();
         if (javaName == null || javaFile == null || !javaFile.isInLocalFileSystem()) return Optional.empty();
         try {

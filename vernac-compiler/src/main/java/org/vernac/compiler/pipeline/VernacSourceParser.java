@@ -40,7 +40,7 @@ public final class VernacSourceParser {
         return new AstBuilderVisitor(sourceName).visitCompilationUnit(tree);
     }
 
-    private void validateNames(String sourceName, ParseTree tree) {
+    void validateNames(String sourceName, ParseTree tree) {
         if (tree instanceof VernacParser.RawJavaBlockContext) return;
         if (tree instanceof VernacParser.TypeNameContext
                 || tree instanceof VernacParser.VariableNameContext

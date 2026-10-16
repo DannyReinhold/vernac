@@ -41,7 +41,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         return new CompilationUnitNode(toLocation(ctx.namespaceDeclaration()), namespace, imports, definitions,terms);
     }
 
-    private TopLevelDefinition toTopLevelDefinition(VernacParser.TopLevelDeclarationContext ctx) {
+    public TopLevelDefinition toTopLevelDefinition(VernacParser.TopLevelDeclarationContext ctx) {
         if (ctx.idDeclaration() != null) return visitIdDeclaration(ctx.idDeclaration());
         if (ctx.valueDefinition() != null) return visitValueDefinition(ctx.valueDefinition());
         if (ctx.aggregateDefinition() != null) return visitAggregateDefinition(ctx.aggregateDefinition());

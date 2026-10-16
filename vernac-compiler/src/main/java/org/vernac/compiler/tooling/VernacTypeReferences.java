@@ -20,12 +20,9 @@ public final class VernacTypeReferences {
         var source = project.sources().stream().filter(s -> s.path().equals(path)).findFirst();
         String text = texts.get(path);
         if (source.isEmpty() || text == null) return List.of();
-        var lexer = new VernacLexer(CharStreams.fromString(text));
-        lexer.removeErrorListeners();
-        var parser = new VernacParser(new CommonTokenStream(lexer));
-        parser.removeErrorListeners();
-        var tree = parser.compilationUnit();
-        if (parser.getNumberOfSyntaxErrors() != 0) return List.of();
+        var parsed = new EditorSourceParser().analyze(source.get().unit().location().sourceName(), text, new ArrayList<>());
+        if (parsed.isEmpty()) return List.of();
+        var analysis = parsed.get();
         var namespaces = new HashSet<String>();
         project.sources().forEach(s -> namespaces.add(s.unit().namespace()));
         var scope = new FileTypeScope(source.get().unit(), project.symbols(), namespaces);
@@ -33,7 +30,7 @@ public final class VernacTypeReferences {
         List<Reference> result = new ArrayList<>();
         Map<String, Optional<VernacTypeNavigation.Target>> targets = new HashMap<>();
         var terms =
-                tree.topLevelDeclaration().stream()
+                analysis.declarations().stream()
                         .map(VernacParser.TopLevelDeclarationContext::termDefinition)
                         .filter(Objects::nonNull)
                         .toList();
@@ -41,8 +38,8 @@ public final class VernacTypeReferences {
         if (terms.size() == source.get().unit().terms().size())
             for (int i = 0; i < terms.size(); i++)
                 termNames.put(terms.get(i), source.get().unit().terms().get(i).name());
-        walk(
-                tree,
+        walkAccepted(
+                analysis,
                 node -> {
                     ParserRuleContext name = null, anchor = null;
                     String qualifiedTerm = null;
@@ -113,15 +110,12 @@ public final class VernacTypeReferences {
     public record JavaReference(int start, int end, String javaName) {}
 
     public List<JavaReference> javaReferences(String text) {
-        var lexer = new VernacLexer(CharStreams.fromString(text));
-        lexer.removeErrorListeners();
-        var parser = new VernacParser(new CommonTokenStream(lexer));
-        parser.removeErrorListeners();
-        var tree = parser.compilationUnit();
-        if (parser.getNumberOfSyntaxErrors() != 0) return List.of();
+        var parsed = new EditorSourceParser().analyze("<editor>", text, new ArrayList<>());
+        if (parsed.isEmpty()) return List.of();
+        var analysis = parsed.get();
         List<JavaReference> result = new ArrayList<>();
-        walk(
-                tree,
+        walkAccepted(
+                analysis,
                 node -> {
                     VernacParser.QualifiedNameContext name = null;
                     String javaName = null;
@@ -147,7 +141,7 @@ public final class VernacTypeReferences {
                                             operation.errorImplementation;
                                     default -> null;
                                 };
-                        if (name != null) javaName = implementationName(name.getText(), node, tree);
+                        if (name != null) javaName = implementationName(name.getText(), node, analysis.tree());
                     }
                     if (name == null || javaName == null) return;
                     var anchor = name.qualifiedNameSegment().getLast();
@@ -221,6 +215,12 @@ public final class VernacTypeReferences {
         } catch (IllegalArgumentException ambiguous) {
             return null;
         }
+    }
+
+    private static void walkAccepted(EditorSourceParser.Analysis analysis, java.util.function.Consumer<ParseTree> visit) {
+        walk(analysis.tree().namespaceDeclaration(), visit);
+        for (var imported : analysis.tree().importDeclaration()) walk(imported, visit);
+        for (var declaration : analysis.declarations()) walk(declaration, visit);
     }
 
     private static void walk(ParseTree tree, java.util.function.Consumer<ParseTree> visit) {
