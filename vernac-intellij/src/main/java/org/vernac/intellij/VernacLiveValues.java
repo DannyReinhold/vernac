@@ -173,7 +173,20 @@ public final class VernacLiveValues {
 
     private static String accessOwner(String name) {
         if (name == null) return null;
-        String segment = name.contains(".domain.access.") ? ".domain.access." : ".usecase.access.";
+        for (String helper : List.of("dto", "mapping")) {
+            String marker = ".adapter.outbound." + helper + ".";
+            int start = name.lastIndexOf(marker);
+            String suffix = helper.equals("dto") ? "Dtos" : "Mappings";
+            if (start >= 0 && name.endsWith(suffix)) {
+                String simple = name.substring(start + marker.length(), name.length() - suffix.length());
+                if (!simple.isEmpty() && !simple.contains("."))
+                    return name.substring(0, start) + ".adapter.outbound." + simple;
+            }
+        }
+        String segment = List.of(".domain.access.", ".usecase.access.",
+                ".adapter.inbound.event.access.", ".adapter.outbound.access.")
+                .stream().filter(name::contains).findFirst().orElse("");
+        if (segment.isEmpty()) return null;
         if (!name.contains(segment)) return null;
         String role = List.of("Read", "Write", "Access").stream().filter(name::endsWith).findFirst().orElse(null);
         if (role == null) return null;

@@ -258,3 +258,12 @@ that class rather than inventing a second top-level declaration. Eager package
 wrappers must also cover existing usecase packages, because the Java facade may
 cache them before the first editor snapshot. Keep stale-output ownership checks
 restricted to the known generated packages and the compiler's output inventory.
+
+### Separate repository contracts from storage planning
+
+A repository's byId/save/delete and declarative search signatures are domain API,
+not SQL layout. Extract one shared signature renderer for the production JDBC
+generator and editor. Do not invoke global schema generation to resolve a new
+repository in an unsaved document: unrelated persistence errors must not remove
+otherwise valid editor contracts. Keep adapter DTOs nested in their actual holder
+and restrict package bridges to the reviewed generated package families.

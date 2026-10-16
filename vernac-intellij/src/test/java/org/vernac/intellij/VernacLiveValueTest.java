@@ -23,6 +23,20 @@ class VernacLiveValueTest {
     }
 
     @Test
+    void listenerAndAdapterAccessFamiliesAreScopedToTheirOwners() {
+        var api = model(Set.of("model.adapter.inbound.event.Alert", "model.adapter.outbound.Local"));
+        assertTrue(VernacLiveValues.accessForType(api, "model.adapter.inbound.event.access.AlertAccess"));
+        assertTrue(VernacLiveValues.accessForType(api, "model.adapter.outbound.access.LocalAccess"));
+        assertTrue(VernacLiveValues.accessForType(api, "model.adapter.outbound.dto.LocalDtos"));
+        assertTrue(VernacLiveValues.accessForType(api, "model.adapter.outbound.mapping.LocalMappings"));
+        assertFalse(VernacLiveValues.accessForType(api, "model.adapter.custom.dto.LocalDtos"));
+        assertFalse(VernacLiveValues.accessForType(api, "model.adapter.custom.access.LocalAccess"));
+        assertTrue(VernacLiveValueFinder.domainDeclaration("model.adapter.inbound.event.Alert"));
+        assertTrue(VernacLiveValueFinder.domainDeclaration("model.adapter.outbound.Local"));
+        assertFalse(VernacLiveValueFinder.domainDeclaration("model.adapter.outbound.__VernacBehavior_Local"));
+    }
+
+    @Test
     void applicationAccessViewsTrackTheirOwnersWithoutReplacingOtherPackages() {
         var api = model(Set.of("model.usecase.Choose"));
         assertTrue(VernacLiveValues.accessForType(api, "model.usecase.access.ChooseAccess"));
@@ -154,6 +168,6 @@ class VernacLiveValueTest {
             assertFalse(VernacLiveValues.shouldReplace(unprojected, Set.of(path), name, path));
         }
         assertFalse(VernacLiveValues.accessForType(api, "model.domain.access.TaskWriter"));
-        assertFalse(VernacLiveValues.accessForType(api, "model.adapter.outbound.access.TaskAccess"));
+        assertFalse(VernacLiveValues.accessForType(api, "model.adapter.custom.access.TaskAccess"));
     }
 }

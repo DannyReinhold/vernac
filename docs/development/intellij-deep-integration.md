@@ -7,7 +7,7 @@ accepted; cross-language refactoring remains planned.** See the
 Live ordinary-VO Java completion is accepted too. The expansion adds IDs, enums,
 entities, aggregates, access views and explicit lists/sets; those new kinds await
 installed-IDE acceptance. See [live Java APIs](live-value-object-java-apis.md).
-Live services, events, port contracts and usecase APIs now follow the same generator-backed path; installed-IDE acceptance is pending. Repositories, listeners and adapters remain follow-up work.
+Live services, events, port contracts and usecase APIs now follow the same generator-backed path; installed-IDE acceptance is pending. Local repository contracts, listeners and outbound adapters are also projected, including DTO/mapping holders. Inbound HTTP/MVC APIs remain follow-up work.
 Target: a first-class, coherent developer experience across Vernac and Java.
 This is a tooling roadmap, not a change to language contracts.
 

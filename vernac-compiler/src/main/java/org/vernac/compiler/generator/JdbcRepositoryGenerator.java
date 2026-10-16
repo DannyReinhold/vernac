@@ -26,10 +26,8 @@ public final class JdbcRepositoryGenerator {
         ClassName aggregate=ClassName.get(plan.aggregateNamespace()+".domain",plan.aggregate().name());
         ClassName id=(ClassName)ResolvedJavaTypes.javaType(project.typeOf(plan.aggregate().idDefinition().type()));
         ClassName api=ClassName.get(plan.repositoryNamespace()+".domain",plan.repository().name());
-        var contract=TypeSpec.interfaceBuilder(api).addModifiers(Modifier.PUBLIC).addAnnotation(NullMarked.class);
-        contract.addMethod(MethodSpec.methodBuilder("byId").addModifiers(Modifier.PUBLIC,Modifier.ABSTRACT).returns(aggregate).addParameter(id,"id").build());
-        contract.addMethod(MethodSpec.methodBuilder("save").addModifiers(Modifier.PUBLIC,Modifier.ABSTRACT).returns(aggregate).addParameter(aggregate,"aggregate").build());
-        contract.addMethod(MethodSpec.methodBuilder("delete").addModifiers(Modifier.PUBLIC,Modifier.ABSTRACT).addParameter(aggregate,"aggregate").build());
+        JavaFile contract = new RepositoryContractGenerator().generate(plan.repository(),
+                plan.repositoryNamespace(), plan.aggregate(), plan.aggregateNamespace(), project);
         var adapter=TypeSpec.classBuilder("Jdbc"+api.simpleName()).addModifiers(Modifier.PUBLIC).addSuperinterface(api).addAnnotation(NullMarked.class)
                 .addAnnotation(ClassName.get("org.springframework.stereotype","Repository"))
                 .addAnnotation(AnnotationSpec.builder(ClassName.get("org.springframework.transaction.annotation","Transactional"))
@@ -68,7 +66,7 @@ public final class JdbcRepositoryGenerator {
                 .addStatement("return aggregate").build());
         adapter.addMethod(MethodSpec.methodBuilder("delete").addAnnotation(Override.class).addModifiers(Modifier.PUBLIC).addParameter(aggregate,"aggregate")
                 .addStatement("store.delete(aggregate)").build());
-        queryMethods(plan, contract, adapter);
+        queryMethods(plan, adapter);
         List<CodeBlock> entities=new ArrayList<>(),tables=new ArrayList<>();
         for(var relation:plan.relations()) {
             var table=relation.table();
@@ -90,7 +88,7 @@ public final class JdbcRepositoryGenerator {
                 .returns(ParameterizedTypeName.get(ClassName.get(List.class),M.nestedClass("Domain"))).addStatement("return $L",list(entities)).build());
         adapter.addMethod(MethodSpec.methodBuilder("tables").addModifiers(Modifier.PRIVATE,Modifier.STATIC)
                 .returns(ParameterizedTypeName.get(ClassName.get(List.class),M.nestedClass("Table"))).addStatement("return $L",list(tables)).build());
-        return List.of(JavaFile.builder(api.packageName(),contract.build()).indent("    ").skipJavaLangImports(true).build(),
+        return List.of(contract,
                 JavaFile.builder(plan.repositoryNamespace()+".adapter.outbound.jdbc",adapter.build()).indent("    ").skipJavaLangImports(true).build());
     }
     /** Event values reuse the exact same binding emitter as aggregate fields. */
@@ -141,20 +139,17 @@ public final class JdbcRepositoryGenerator {
                 .addStatement("return store.load(id)").build());
         return JavaFile.builder(plan.namespace()+".adapter.outbound.jdbc.event",adapter.build()).indent("    ").skipJavaLangImports(true).build();
     }
-    private void queryMethods(StoragePlan plan, TypeSpec.Builder contract, TypeSpec.Builder adapter) {
+    private void queryMethods(StoragePlan plan, TypeSpec.Builder adapter) {
         ClassName queryType=ClassName.get("org.vernac.runtime.jdbc","ScalarQuery");
         for(var method:plan.repository().methods()) {
             var query=Objects.requireNonNull(project.queries().get(method),"Unresolved repository query");
             TypeName result=ResolvedJavaTypes.javaType(query.result());
-            TypeName returns=query.singleton()?ParameterizedTypeName.get(ClassName.get(Optional.class),result):result;
-            if(method.paginated()) returns=ParameterizedTypeName.get(
-                    ClassName.get("org.vernac.runtime.pagination", method.cursor()?"CursorQuery":method.counting()?"CountedOffsetQuery":"OffsetQuery"),
-                    ClassName.get(plan.aggregateNamespace()+".domain", plan.aggregate().name()), result);
-            var api=MethodSpec.methodBuilder(method.name()).addModifiers(Modifier.PUBLIC,Modifier.ABSTRACT).returns(returns);
-            var impl=MethodSpec.methodBuilder(method.name()).addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(returns);
+            var signature = RepositoryContractGenerator.querySignature(method,
+                    ClassName.get(plan.aggregateNamespace()+".domain", plan.aggregate().name()), project);
+            var impl=MethodSpec.methodBuilder(signature.name()).addModifiers(Modifier.PUBLIC)
+                    .addAnnotation(Override.class).returns(signature.returnType()).addParameters(signature.parameters());
             for(var p:method.parameters()) {
                 TypeName type=ResolvedJavaTypes.javaType(project.typeOf(p.type()));
-                api.addParameter(type,p.name()); impl.addParameter(type,p.name());
                 if(!type.isPrimitive()) impl.addStatement("$T.requireNonNull($L, $S)",Objects.class,p.name(),"Query parameter "+p.name()+" must not be null");
             }
             impl.addStatement("$T __vernacQuery = new $T()",queryType,queryType);
@@ -204,7 +199,7 @@ public final class JdbcRepositoryGenerator {
                 if(query.singleton()) impl.addStatement("return __vernacResults.stream().findFirst()");
                 else impl.addStatement("return $T.of(__vernacResults)",result);
             }
-            contract.addMethod(api.build()); adapter.addMethod(impl.build());
+            adapter.addMethod(impl.build());
         }
     }
     private List<String> queryColumns(StoragePlan plan, org.vernac.compiler.query.ResolvedQuery.Field field) {

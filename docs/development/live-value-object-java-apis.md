@@ -15,8 +15,9 @@ includes unsaved documents and uses declaration-level recovery.
 The next slice also projects local services, events, outbound port contracts and
 usecases, including their public access/read interfaces and nested usecase Result
 records. These use the production generators too; private behavior and validation
-companions are excluded. Repository, listener and adapter APIs still rely on existing
-generated Java. Maven dependencies remain usable. External module contracts supply type
+companions are excluded. Local repository contracts, event listeners and outbound adapters now join this
+projection, including listener/adapter Access views and outbound DTO/mapping holders.
+Inbound HTTP/MVC adapter APIs still rely on existing generated Java. Maven dependencies remain usable. External module contracts supply type
 information, but their implementations are not reprojected or modified.
 
 ## One semantic source
@@ -288,3 +289,19 @@ Check navigation as well as selection. Public API projection does not compile Ja
 bodies or supply missing Spring/runtime dependencies. Compiler and native PSI tests
 cover generated signatures and nested record lookup; installed-IDE popup acceptance
 for these kinds remains a separate check.
+
+## Repository and integration APIs
+
+Repository contracts are rendered by `RepositoryContractGenerator`, shared with
+`JdbcRepositoryGenerator`. Building an editor snapshot does not run SchemaBuilder,
+DDL generation, migration processing or database operations. The contract includes
+byId/save/delete and resolved declarative query methods, including Optional results
+and counted-offset/cursor query handles. SQL planning and runtime behavior remain
+part of the normal build.
+
+Listener and outbound-adapter APIs use the existing production generators. Only
+public top-level output is published, so private behavior/validation/mapping
+companions remain implementation details. Nested DTO records resolve through their
+real generated holder. Compiler tests compare the projected sources with a normal
+build; native PSI tests check lookup of contracts, Access dependencies and DTOs.
+Installed-IDE popup, insertion and navigation acceptance remains a manual check.

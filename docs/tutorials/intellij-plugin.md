@@ -568,8 +568,9 @@ ordinary-VO path. Build the project to execute the new classes and behavior.
 
 Local services, events, outbound port contracts and usecases also expose current
 Java APIs to embedded Java before generation. This includes dependency getters on
-`self`, event factories and nested usecase `Result` records. Repositories, listeners
-and adapters still require their existing generated APIs. This editor projection
+`self`, event factories and nested usecase `Result` records. Local repository contracts, event listeners and outbound adapters also expose live
+APIs, including query handles, Access dependencies and outbound DTO/mapping holders.
+Inbound HTTP/MVC adapters still require their existing generated APIs. This editor projection
 never writes generated output and does not replace the normal build.
 
 ### Try application APIs before generating Java
@@ -598,3 +599,27 @@ Before running Maven, try completion after `self.`, `self.captionPolicy().`,
 from the current model, including unsaved edits. A build is still required to run
 the application. An incomplete Java body does not itself invalidate the declared
 API; an unresolved Vernac signature is withheld until it can be resolved reliably.
+
+### Try repository and listener dependencies
+
+Add these declarations to the same `example.live` model:
+
+```vernac
+id NoteId;
+aggregate Note[NoteId](Caption) list Notes;
+repository NoteRepository for Note {
+    find Notes withCaption(Caption caption)
+        where caption = :caption order by createdAt;
+}
+synchronous listener RememberSelection on CaptionSelected uses NoteRepository behavior {
+    execute {
+        self.noteRepository().save(Note.create(event.caption()));
+    }
+}
+```
+
+Before generation, try completion after `self.noteRepository().` in the listener:
+`byId`, `save`, `delete` and `withCaption` belong to its current repository contract.
+The editor does not need a database to display these APIs. Running this example
+still requires the normal persistence, event and transaction setup described in
+the corresponding tutorials.

@@ -105,7 +105,9 @@ public final class VernacNativePackageProbe {
           + "aggregate Folder[TaskId](mut Entries) behavior {modify void replace(Entries entries){self.entries(entries);}} list Folders; "
           + "event Changed(Label); port Notices {void send(Label);} "
           + "service Policy uses Notices behavior {public Label choose(Label label){return label;}} "
-          + "usecase Choose(Label) returns (Label) uses Policy behavior {execute {return Result.of(label);}}");
+          + "usecase Choose(Label) returns (Label) uses Policy behavior {execute {return Result.of(label);}} "
+          + "repository FolderRepository for Folder {} synchronous listener Alert on Changed uses FolderRepository behavior {execute {}} "
+          + "adapter LocalNotices implements Notices {schema Payload(String text); behavior {public void send(Label label){}}}");
       var service = new VernacLiveValues(project);
       project.registerService(VernacLiveValues.class, service);
       // A physical package may enter the facade cache before any live snapshot.
@@ -233,6 +235,12 @@ public final class VernacNativePackageProbe {
         check(snapshot.find("sample.usecase.Choose").findMethodsByName("execute", false).length == 1, "live usecase execute");
         check(snapshot.find("sample.usecase.access.ChooseAccess").findMethodsByName("policy", false).length == 1, "live usecase self dependency");
         check(snapshot.find("sample.usecase.Choose.Result").isRecord(), "live nested result record");
+        check(snapshot.find("sample.domain.FolderRepository") != null,
+            "repository API: " + new org.vernac.compiler.pipeline.ProjectTypeResolver().resolveForAnalysis(snapshot.model).diagnostics());
+        check(snapshot.find("sample.domain.FolderRepository").findMethodsByName("save", false).length == 1, "live repository save");
+        check(snapshot.find("sample.adapter.inbound.event.access.AlertAccess").findMethodsByName("folderRepository", false).length == 1, "live listener self dependency");
+        check(snapshot.find("sample.adapter.outbound.access.LocalNoticesAccess").findMethodsByName("invocation", false).length == 1, "live adapter invocation");
+        check(snapshot.find("sample.adapter.outbound.dto.LocalNoticesDtos.Payload").isRecord(), "live nested DTO record");
       }
 
       check(

@@ -44,14 +44,21 @@ public final class EditorValueObjects {
                 if (!(definition instanceof IdDeclarationNode)
                         && !(definition instanceof ValueObjectNode) && mutable.isEmpty()
                         && !(definition instanceof EventNode) && !(definition instanceof DomainServiceNode)
-                        && !(definition instanceof UseCaseNode) && !(definition instanceof PortNode)) continue;
+                        && !(definition instanceof UseCaseNode) && !(definition instanceof PortNode)
+                        && !(definition instanceof RepositoryNode) && !(definition instanceof ListenerNode)
+                        && !(definition instanceof OutboundAdapterNode)) continue;
                 String name = definition instanceof IdDeclarationNode id ? id.name()
                         : definition instanceof ValueObjectNode value ? value.name()
                         : definition instanceof EventNode event ? event.name()
                         : definition instanceof DomainServiceNode service ? service.name()
                         : definition instanceof UseCaseNode usecase ? usecase.name()
-                        : definition instanceof PortNode port ? port.name() : mutable.orElseThrow().name();
-                String javaName = namespace + (definition instanceof UseCaseNode ? ".usecase." : ".domain.") + name;
+                        : definition instanceof PortNode port ? port.name()
+                        : definition instanceof RepositoryNode repo ? repo.name()
+                        : definition instanceof ListenerNode listener ? listener.name()
+                        : definition instanceof OutboundAdapterNode adapter ? adapter.name() : mutable.orElseThrow().name();
+                String javaName = namespace + (definition instanceof UseCaseNode ? ".usecase."
+                        : definition instanceof ListenerNode ? ".adapter.inbound.event."
+                        : definition instanceof OutboundAdapterNode ? ".adapter.outbound." : ".domain.") + name;
                 var collections = CollectionDeclaration.of(definition);
                 names.add(javaName);
                 collections.forEach(c -> names.add(namespace + ".domain." + c.name()));
@@ -63,7 +70,24 @@ public final class EditorValueObjects {
                 SourceLocation primaryEnd = collections.stream().map(c -> c.definition().location())
                         .min(LOCATION_ORDER).orElse(end);
                 if (invalid(resolved, source.path(), definition.location(), primaryEnd)) continue;
-                if (definition instanceof EventNode event) {
+                if (definition instanceof RepositoryNode repository) {
+                    var lookup = resolved.scopes().get(source.path()).resolve(repository.aggregateName(), repository.location());
+                    if (!(lookup.type().orElse(null) instanceof ResolvedType.Declared target)) continue;
+                    AggregateNode aggregate = null;
+                    for (var file : project.sources()) {
+                        if (!file.unit().namespace().equals(target.symbol().identity().namespace())) continue;
+                        for (var candidate : file.unit().definitions())
+                            if (candidate instanceof AggregateNode a && a.name().equals(target.symbol().identity().name())) aggregate = a;
+                    }
+                    if (aggregate == null || !resolved.types().containsKey(aggregate.idDefinition().type())
+                            || repository.methods().stream().anyMatch(m -> !resolved.queries().containsKey(m))) continue;
+                    add(project, source, new RepositoryContractGenerator().generate(repository, namespace,
+                            aggregate, target.symbol().identity().namespace(), resolved), values);
+                } else if (definition instanceof ListenerNode listener) {
+                    addPublic(project, source, new ListenerGenerator().generate(listener, source.unit(), resolved), values);
+                } else if (definition instanceof OutboundAdapterNode adapter) {
+                    addPublic(project, source, new OutboundAdapterGenerator().generate(adapter, source.unit(), resolved), values);
+                } else if (definition instanceof EventNode event) {
                     addPublic(project, source, new EventGenerator().generate(event, source.unit(), resolved), values);
                 } else if (definition instanceof DomainServiceNode service) {
                     addPublic(project, source, new DomainServiceGenerator().generate(service, source.unit(), resolved), values);

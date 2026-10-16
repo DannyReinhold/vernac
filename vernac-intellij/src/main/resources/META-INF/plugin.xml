@@ -100,6 +100,10 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>Live repositories, listeners and outbound adapters</h3>
+<p>Embedded Java now resolves local repository contracts and query handles,
+listener/adapter Access dependencies and outbound DTO/mapping holders before generation.
+Repository APIs share the JDBC generator's signatures without running schema planning.</p>
 <h3>Live services, events, ports and usecase APIs</h3>
 <p>Embedded Java can resolve current local service operations, event factories,
 port contracts and usecase APIs before generation, including self dependency views

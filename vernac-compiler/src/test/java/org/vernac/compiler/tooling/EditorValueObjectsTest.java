@@ -26,6 +26,65 @@ class EditorValueObjectsTest {
     }
 
     @Test
+    void repositoriesListenersAndAdaptersExposeActualContractsWithoutSchemaPlanning() throws Exception {
+        var project = model("""
+                id TaskId;
+                value Caption(String);
+                aggregate Task[TaskId](Caption) list Tasks;
+                repository TasksRepository for Task {
+                    find Tasks withCaption(Caption caption) where caption = :caption order by createdAt;
+                    find Task? matching(Caption caption) where caption = :caption;
+                    find offset Tasks paged() order by createdAt, id counting;
+                    find cursor Tasks following() order by createdAt, id;
+                }
+                event Changed(Caption);
+                port Notices {void send(Caption);}
+                adapter LocalNotices implements Notices {
+                    schema Payload(String caption);
+                    mapping payload: Payload <- Caption { caption <- source.string; }
+                    behavior {public void send(Caption caption) {}}
+                }
+                synchronous listener Alert on Changed uses TasksRepository behavior {execute {}}
+                """);
+        var api = new EditorValueObjects().build(project);
+        assertTrue(api.values().containsKey("model.domain.TasksRepository"), api.values().keySet().toString());
+        String repository = api.values().get("model.domain.TasksRepository").javaSource();
+        assertTrue(repository.contains("Task byId(TaskId id)"));
+        assertTrue(repository.contains("Task save(Task aggregate)"));
+        assertTrue(repository.contains("Tasks withCaption(Caption caption)"));
+        assertTrue(repository.contains("Optional<Task> matching(Caption caption)"));
+        assertTrue(repository.contains("CountedOffsetQuery<Task, Tasks> paged()"));
+        assertTrue(repository.contains("CursorQuery<Task, Tasks> following()"));
+        assertTrue(api.values().get("model.adapter.inbound.event.access.AlertAccess").javaSource()
+                .contains("TasksRepository tasksRepository()"));
+        assertTrue(api.values().get("model.adapter.outbound.LocalNotices").javaSource().contains("implements Notices"));
+        assertTrue(api.values().containsKey("model.adapter.outbound.dto.LocalNoticesDtos"));
+        assertTrue(api.values().containsKey("model.adapter.outbound.mapping.LocalNoticesMappings"));
+        var generated = new VernacCompiler().generate(new ProjectTypeResolver().resolve(project),
+                org.vernac.compiler.persistence.SchemaModel.empty(), Map.of());
+        for (var file : generated.generatedFiles()) {
+            String name = file.packageName() + "." + file.typeSpec().name();
+            if (api.values().containsKey(name)) assertEquals(file.toString(), api.values().get(name).javaSource());
+        }
+        assertFalse(Files.exists(root.resolve("target")));
+        assertTrue(api.values().keySet().stream().noneMatch(n -> n.contains("__Vernac")));
+    }
+
+    @Test
+    void invalidRepositoryAndAdapterDoNotRemoveIndependentApis() throws Exception {
+        var api = view("""
+                value Caption(String);
+                repository Broken for Missing {}
+                port Notices {void send(Caption);}
+                adapter Bad implements Missing {behavior {public void send(Caption caption){}}}
+                event Changed(Caption);
+                """);
+        assertTrue(api.values().containsKey("model.domain.Changed"));
+        assertFalse(api.values().containsKey("model.domain.Broken"));
+        assertFalse(api.values().containsKey("model.adapter.outbound.Bad"));
+    }
+
+    @Test
     void servicesEventsPortsAndUsecasesExposeProductionApisWithoutCompanions() throws Exception {
         var project = model("""
                 value Title(String);
