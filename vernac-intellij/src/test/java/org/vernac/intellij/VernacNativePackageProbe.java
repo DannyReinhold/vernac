@@ -107,7 +107,11 @@ public final class VernacNativePackageProbe {
           + "service Policy uses Notices behavior {public Label choose(Label label){return label;}} "
           + "usecase Choose(Label) returns (Label) uses Policy behavior {execute {return Result.of(label);}} "
           + "repository FolderRepository for Folder {} synchronous listener Alert on Changed uses FolderRepository behavior {execute {}} "
-          + "adapter LocalNotices implements Notices {schema Payload(String text); behavior {public void send(Label label){}}}");
+          + "adapter LocalNotices implements Notices {schema Payload(String text); behavior {public void send(Label label){}}} "
+          + "usecase ReadCaption() returns Label behavior {execute {return Label.of(\"caption\");}} "
+          + "adapter Api inbound http uses ReadCaption read {base \"/api\"; get {GET \"/\"; execute read {} respond 200 Reply using output;} "
+          + "schema Reply(String text); mapping output: Reply <- Label {text <- source;}} "
+          + "adapter Web inbound mvc uses ReadCaption read {base \"/web\"; error view \"problem\"; board {GET \"/\"; execute read {} render \"board\" model caption;}}");
       var service = new VernacLiveValues(project);
       project.registerService(VernacLiveValues.class, service);
       // A physical package may enter the facade cache before any live snapshot.
@@ -116,6 +120,11 @@ public final class VernacNativePackageProbe {
       java.nio.file.Files.writeString(
           javaRoot.resolve("early/domain/Existing.java"),
           "package early.domain; public class Existing {}");
+      for (String suffix : java.util.List.of("adapter/inbound/http", "adapter/inbound/http/dto", "adapter/inbound/http/mapping")) {
+        var folder = java.nio.file.Files.createDirectories(javaRoot.resolve("early/" + suffix));
+        java.nio.file.Files.writeString(folder.resolve("Existing.java"),
+            "package early." + suffix.replace('/', '.') + "; public class Existing {}");
+      }
       env.addSourcesToClasspath(app.getLocalFileSystem().findFileByPath(javaRoot.toString()));
       check(service.knownSnapshots().isEmpty(), "cold package lookup has no editor model");
       var early = new VernacLiveValueFinder(project).findPackage("early.domain");
@@ -125,6 +134,9 @@ public final class VernacNativePackageProbe {
       check(
           new VernacLiveValueFinder(project).findPackage("missing.domain") == null,
           "missing packages are not invented");
+      for (String suffix : java.util.List.of("adapter.inbound.http", "adapter.inbound.http.dto", "adapter.inbound.http.mapping"))
+        check(new VernacLiveValueFinder(project).findPackage("early." + suffix) instanceof VernacLivePackage,
+            "physical inbound package wrapped before snapshot loading: " + suffix);
       check(service.knownSnapshots().isEmpty(), "package lookup does not load models");
       var snapshot = service.snapshot(root);
       assertCopiedHostScope(app, env, source);
@@ -241,6 +253,7 @@ public final class VernacNativePackageProbe {
         check(snapshot.find("sample.adapter.inbound.event.access.AlertAccess").findMethodsByName("folderRepository", false).length == 1, "live listener self dependency");
         check(snapshot.find("sample.adapter.outbound.access.LocalNoticesAccess").findMethodsByName("invocation", false).length == 1, "live adapter invocation");
         check(snapshot.find("sample.adapter.outbound.dto.LocalNoticesDtos.Payload").isRecord(), "live nested DTO record");
+        assertInboundReferences(factory, snapshot);
       }
 
       check(
@@ -329,6 +342,26 @@ public final class VernacNativePackageProbe {
     check(
         scope.snapshot == VernacLiveScope.find(host.getFileResolveScope()).snapshot,
         "copy uses the current model rather than a separate stale snapshot");
+  }
+
+  private static void assertInboundReferences(PsiFileFactory factory, VernacLiveValues.Snapshot snapshot) {
+    check(snapshot.find("sample.adapter.inbound.http.Api").findMethodsByName("get", false).length == 1,
+        "live HTTP endpoint");
+    check(snapshot.find("sample.adapter.inbound.http.Web").findMethodsByName("board", false).length == 1,
+        "live MVC endpoint");
+    check(snapshot.find("sample.adapter.inbound.http.ApiErrors").findMethodsByName("handle", false).length == 1,
+        "live scoped error handler");
+    check(snapshot.find("sample.adapter.inbound.http.dto.ApiDtos.Reply").isRecord(), "live inbound DTO record");
+    var file = factory.createFileFromText("Inbound.java", JavaLanguage.INSTANCE,
+        "package sample.usecase; import sample.domain.*; import sample.adapter.inbound.http.dto.ApiDtos.Reply;"
+        + " import sample.adapter.inbound.http.mapping.ApiMappings; class Inbound {void run(){"
+        + "Reply.of(\"caption\"); ApiMappings.output(Label.of(\"caption\"));}} ");
+    var references = PsiTreeUtil.findChildrenOfType(file, PsiReferenceExpression.class);
+    for (var method : java.util.Map.of("Reply.of", "of", "ApiMappings.output", "output").entrySet()) {
+      var reference = references.stream().filter(r -> r.getText().equals(method.getKey())).findFirst().orElseThrow();
+      check(reference.resolve() instanceof PsiMethod resolved && resolved.getName().equals(method.getValue()),
+          "live inbound call " + method.getKey());
+    }
   }
 
   private static void assertValueSideReferences(PsiFileFactory factory, VernacLiveValues.Snapshot snapshot) {

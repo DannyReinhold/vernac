@@ -100,6 +100,10 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>Live inbound HTTP and MVC APIs before generation</h3>
+<p>Embedded Java now resolves current HTTP/MVC controller, scoped error-handler,
+DTO and mapping APIs directly from the resolved model. Nested DTO factories and
+mapping calls use the same public signatures as the normal build.</p>
 <h3>Live repositories, listeners and outbound adapters</h3>
 <p>Embedded Java now resolves local repository contracts and query handles,
 listener/adapter Access dependencies and outbound DTO/mapping holders before generation.

@@ -23,6 +23,21 @@ class VernacLiveValueTest {
     }
 
     @Test
+    void inboundHelpersTrackCurrentInvalidAndRemovedOwnersOnlyForOwnedOutput() {
+        var api = model(Set.of("model.adapter.inbound.http.Api"));
+        Path output = generated.resolveSibling("ApiDtos.java");
+        for (String name : List.of("model.adapter.inbound.http.dto.ApiDtos",
+                "model.adapter.inbound.http.mapping.ApiMappings", "model.adapter.inbound.http.ApiErrors")) {
+            assertTrue(VernacLiveValues.shouldReplace(api, Set.of(output), name, output));
+            assertTrue(VernacLiveValues.shouldReplace(model(Set.of()), Set.of(output), name, output));
+            assertFalse(VernacLiveValues.shouldReplace(api, Set.of(), name, output));
+        }
+        assertTrue(VernacLiveValueFinder.domainDeclaration("model.adapter.inbound.http.Api"));
+        assertFalse(VernacLiveValueFinder.domainDeclaration("model.adapter.inbound.http.mapping.ApiMappings"));
+        assertFalse(VernacLiveValues.accessForType(api, "model.adapter.custom.dto.ApiDtos"));
+    }
+
+    @Test
     void listenerAndAdapterAccessFamiliesAreScopedToTheirOwners() {
         var api = model(Set.of("model.adapter.inbound.event.Alert", "model.adapter.outbound.Local"));
         assertTrue(VernacLiveValues.accessForType(api, "model.adapter.inbound.event.access.AlertAccess"));

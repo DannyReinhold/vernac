@@ -17,7 +17,8 @@ usecases, including their public access/read interfaces and nested usecase Resul
 records. These use the production generators too; private behavior and validation
 companions are excluded. Local repository contracts, event listeners and outbound adapters now join this
 projection, including listener/adapter Access views and outbound DTO/mapping holders.
-Inbound HTTP/MVC adapter APIs still rely on existing generated Java. Maven dependencies remain usable. External module contracts supply type
+Inbound HTTP/MVC adapters are included too, with their scoped error handlers,
+DTOs and mapping holders. Maven dependencies remain usable. External module contracts supply type
 information, but their implementations are not reprojected or modified.
 
 ## One semantic source
@@ -305,3 +306,25 @@ companions remain implementation details. Nested DTO records resolve through the
 real generated holder. Compiler tests compare the projected sources with a normal
 build; native PSI tests check lookup of contracts, Access dependencies and DTOs.
 Installed-IDE popup, insertion and navigation acceptance remains a manual check.
+
+## Inbound HTTP and MVC APIs
+
+The editor publishes public output from the same `InboundHttpGenerator` or
+`InboundMvcGenerator` used by the build, selected by the adapter's resolved mode.
+Both retain the existing `.adapter.inbound.http` package family; no additional
+Access interface or synthetic transport contract is invented. DTO records stay
+nested in their generated holder, while Java mapping implementation companions
+remain private and are not published as live APIs.
+
+Only adapters with a resolved inbound plan and no declaration-local semantic errors
+are admitted. Controller methods, mapping methods and error handlers use their
+actual generated signatures. Endpoint execution, templates and error-policy runtime
+behavior still require an ordinary build and application startup. No server,
+database or Maven process is started by editor projection.
+
+Existing physical controller, DTO and mapping packages are wrapped even before a
+snapshot is loaded, without loading models during global package discovery.
+Stale owned helpers track their adapter; handwritten files and ordinary Java scopes
+remain outside replacement. Compiler tests compare HTTP/MVC output to normal
+compilation, and native PSI tests resolve nested DTO factories and mapping calls.
+These tests do not substitute for installed-IDE popup and navigation acceptance.

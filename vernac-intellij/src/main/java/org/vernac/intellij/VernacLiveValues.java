@@ -23,7 +23,7 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** Project-scoped, read-only live domain API models. No compiler output or background build is produced. */
+/** Project-scoped, read-only live Java API models. No compiler output or background build is produced. */
 @Service(Service.Level.PROJECT)
 public final class VernacLiveValues {
     static final Key<Entry> ENTRY = Key.create("vernac.live.value");
@@ -173,14 +173,16 @@ public final class VernacLiveValues {
 
     private static String accessOwner(String name) {
         if (name == null) return null;
-        for (String helper : List.of("dto", "mapping")) {
-            String marker = ".adapter.outbound." + helper + ".";
-            int start = name.lastIndexOf(marker);
-            String suffix = helper.equals("dto") ? "Dtos" : "Mappings";
-            if (start >= 0 && name.endsWith(suffix)) {
-                String simple = name.substring(start + marker.length(), name.length() - suffix.length());
-                if (!simple.isEmpty() && !simple.contains("."))
-                    return name.substring(0, start) + ".adapter.outbound." + simple;
+        for (String family : List.of(".adapter.outbound.", ".adapter.inbound.http.")) {
+            for (String helper : List.of("dto", "mapping")) {
+                String marker = family + helper + ".";
+                int start = name.lastIndexOf(marker);
+                String suffix = helper.equals("dto") ? "Dtos" : "Mappings";
+                if (start >= 0 && name.endsWith(suffix)) {
+                    String simple = name.substring(start + marker.length(), name.length() - suffix.length());
+                    if (!simple.isEmpty() && !simple.contains("."))
+                        return name.substring(0, start) + family + simple;
+                }
             }
         }
         String segment = List.of(".domain.access.", ".usecase.access.",

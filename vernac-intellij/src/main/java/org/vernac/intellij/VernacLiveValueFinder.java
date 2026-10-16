@@ -12,7 +12,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.*;
 import java.util.function.Predicate;
 
-/** Resolve live domain APIs only in Vernac Java scopes; never replace handwritten classes. */
+/** Resolve live local APIs only in Vernac Java scopes; never replace handwritten classes. */
 public final class VernacLiveValueFinder extends PsiElementFinder {
     private final Project project;
 
@@ -112,7 +112,7 @@ public final class VernacLiveValueFinder extends PsiElementFinder {
     // Technical behavior/access classes remain available unless explicitly projected.
     static boolean domainDeclaration(String name) {
         if (name == null) return false;
-        String segment = java.util.List.of(".adapter.inbound.event.", ".adapter.outbound.", ".usecase.", ".domain.")
+        String segment = java.util.List.of(".adapter.inbound.http.", ".adapter.inbound.event.", ".adapter.outbound.", ".usecase.", ".domain.")
                 .stream().filter(name::contains).findFirst().orElse(".domain.");
         int domain = name.lastIndexOf(segment);
         if (domain < 0) return false;
@@ -125,7 +125,9 @@ public final class VernacLiveValueFinder extends PsiElementFinder {
                 || name.endsWith(".usecase") || name.endsWith(".usecase.access")
                 || name.endsWith(".adapter.inbound.event") || name.endsWith(".adapter.inbound.event.access")
                 || name.endsWith(".adapter.outbound") || name.endsWith(".adapter.outbound.access")
-                || name.endsWith(".adapter.outbound.dto") || name.endsWith(".adapter.outbound.mapping");
+                || name.endsWith(".adapter.outbound.dto") || name.endsWith(".adapter.outbound.mapping")
+                || name.endsWith(".adapter.inbound.http") || name.endsWith(".adapter.inbound.http.dto")
+                || name.endsWith(".adapter.inbound.http.mapping");
     }
 
     private static String packageName(String name) {

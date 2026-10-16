@@ -26,6 +26,90 @@ class EditorValueObjectsTest {
     }
 
     @Test
+    void inboundDtoEditsReplaceTheLiveRecordShapeWithoutGeneration() throws Exception {
+        String text = """
+                value Caption(String);
+                usecase Read() returns Caption behavior {execute {return Caption.of("page");}}
+                adapter Api inbound http uses Read read {
+                    base "/api";get {GET "/";execute read {} respond 200 Reply using output;}
+                    schema Reply(String text);mapping output: Reply <- Caption {text <- source;}
+                }
+                """;
+        String holder = "model.adapter.inbound.http.dto.ApiDtos";
+        var before = view(text).values().get(holder).javaSource();
+        var after = view(text.replace("String text", "String caption").replace("{text <-", "{caption <-"))
+                .values().get(holder).javaSource();
+        assertTrue(before.contains("record Reply(String text)"));
+        assertTrue(after.contains("record Reply(String caption)"));
+        assertFalse(after.contains("record Reply(String text)"));
+        assertFalse(Files.exists(root.resolve("target")));
+    }
+
+    @Test
+    void inboundHttpAndMvcUseProductionControllersDtosAndMappingsWithoutOutput() throws Exception {
+        var project = model("""
+                id ItemId; value Caption(String);
+                usecase Read() returns Caption behavior {execute {return Caption.of("page");}}
+                usecase Write(Caption) returns ItemId behavior {execute {return ItemId.create();}}
+                adapter Api inbound http uses Read read, Write write {
+                    base "/api/items";
+                    get {GET "/"; execute read {} respond 200 Reply using output;}
+                    create {POST "/";body Request;execute write {caption <- body.caption;} respond 201 Created using created;}
+                    schema Request(String caption); schema Reply(String caption); schema Created(UUID id);
+                    mapping output: Reply <- Caption {java {return Reply.of(source.string());}}
+                    mapping created: Created <- ItemId {id <- source;}
+                    errors {when validation then respond 422 "INVALID_CAPTION" "Check the caption.";}
+                }
+                adapter Web inbound mvc uses Read read, Write write {
+                    base "/items"; error view "problem";
+                    board {GET "/";execute read {} render "board" model caption;}
+                    create {POST "/";form String caption;execute write {caption <- form.caption;}
+                        redirect "/items";errors {when validation then redisplay board status 422;}}
+                    schema Summary(String caption);
+                    mapping summary: Summary <- Caption {caption <- source;}
+                }
+                """);
+        var api = new EditorValueObjects().build(project);
+        for (String adapter : List.of("Api", "Web")) {
+            String owner = "model.adapter.inbound.http." + adapter;
+            assertTrue(api.values().containsKey(owner), api.values().keySet().toString());
+            assertTrue(api.values().containsKey(owner + "Errors"));
+            assertTrue(api.values().containsKey("model.adapter.inbound.http.dto." + adapter + "Dtos"));
+            assertTrue(api.values().containsKey("model.adapter.inbound.http.mapping." + adapter + "Mappings"));
+        }
+        assertTrue(api.values().get("model.adapter.inbound.http.Api").javaSource().contains("ResponseEntity<?> get()"));
+        assertTrue(api.values().get("model.adapter.inbound.http.Web").javaSource().contains("ModelAndView board("));
+        var generated = new VernacCompiler().generate(new ProjectTypeResolver().resolve(project),
+                org.vernac.compiler.persistence.SchemaModel.empty(), Map.of());
+        for (var file : generated.generatedFiles()) {
+            String name = file.packageName() + "." + file.typeSpec().name();
+            if (api.values().containsKey(name)) assertEquals(file.toString(), api.values().get(name).javaSource());
+        }
+        assertTrue(api.values().keySet().stream().noneMatch(n -> n.contains("__Vernac")));
+        assertFalse(Files.exists(root.resolve("target")));
+    }
+
+    @Test
+    void invalidInboundContractIsWithheldWithoutHidingIndependentAdapters() throws Exception {
+        var project = model("""
+                value Caption(String);
+                usecase Read() returns Caption behavior {execute {return Caption.of("page");}}
+                adapter Bad inbound http uses Read read {
+                    base "/bad";get {GET "/";execute missing {} respond 204;}
+                }
+                adapter Good inbound mvc uses Read read {
+                    base "/good";error view "problem";get {GET "/";execute read {} render "page" model caption;}
+                }
+                """);
+        var api = new EditorValueObjects().build(project);
+        assertTrue(api.valueNames().contains("model.adapter.inbound.http.Bad"));
+        assertFalse(api.values().containsKey("model.adapter.inbound.http.Bad"));
+        assertFalse(api.values().containsKey("model.adapter.inbound.http.BadErrors"));
+        assertTrue(api.values().containsKey("model.adapter.inbound.http.Good"), new ProjectTypeResolver().resolveForAnalysis(project).diagnostics().toString());
+        assertTrue(api.values().containsKey("model.usecase.Read"));
+    }
+
+    @Test
     void repositoriesListenersAndAdaptersExposeActualContractsWithoutSchemaPlanning() throws Exception {
         var project = model("""
                 id TaskId;

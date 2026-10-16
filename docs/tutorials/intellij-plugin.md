@@ -570,7 +570,8 @@ Local services, events, outbound port contracts and usecases also expose current
 Java APIs to embedded Java before generation. This includes dependency getters on
 `self`, event factories and nested usecase `Result` records. Local repository contracts, event listeners and outbound adapters also expose live
 APIs, including query handles, Access dependencies and outbound DTO/mapping holders.
-Inbound HTTP/MVC adapters still require their existing generated APIs. This editor projection
+Inbound HTTP/MVC controllers, scoped error handlers, DTOs and mapping holders are
+also projected from the resolved transport contract. This editor projection
 never writes generated output and does not replace the normal build.
 
 ### Try application APIs before generating Java
@@ -623,3 +624,32 @@ Before generation, try completion after `self.noteRepository().` in the listener
 The editor does not need a database to display these APIs. Running this example
 still requires the normal persistence, event and transaction setup described in
 the corresponding tutorials.
+
+### Try an inbound Java mapping before generation
+
+Using the earlier `Caption` value, add:
+
+```vernac
+usecase ReadCaption() returns Caption behavior {
+    execute { return Caption.of("Live editor APIs"); }
+}
+adapter CaptionApi inbound http uses ReadCaption read {
+    base "/api/caption";
+    get {
+        GET "/";
+        execute read {}
+        respond 200 Reply using output;
+    }
+    schema Reply(String caption);
+    mapping output: Reply <- Caption {
+        java { return Reply.of(source.string()); }
+    }
+}
+```
+
+Inside the Java mapping, try completion after `Reply.` and navigation to its schema.
+The record is nested in the generated `CaptionApiDtos` holder, but its mapping-local
+name remains `Reply`. Changing the schema updates the live record API; no generated
+file needs to exist first. MVC adapters use the same live DTO/mapping mechanism.
+The endpoint and its runtime error handling still require building and starting the
+application normally.

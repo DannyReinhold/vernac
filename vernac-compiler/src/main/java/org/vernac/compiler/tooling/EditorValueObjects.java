@@ -12,7 +12,7 @@ import org.vernac.compiler.symbols.*;
 import java.nio.file.Path;
 import java.util.*;
 
-/** Current domain Java APIs and access views from production generators, without build output. */
+/** Current local Java APIs and access views from production generators, without build output. */
 public final class EditorValueObjects {
     public record Value(String javaName, Path source, String javaSource) {}
 
@@ -46,7 +46,8 @@ public final class EditorValueObjects {
                         && !(definition instanceof EventNode) && !(definition instanceof DomainServiceNode)
                         && !(definition instanceof UseCaseNode) && !(definition instanceof PortNode)
                         && !(definition instanceof RepositoryNode) && !(definition instanceof ListenerNode)
-                        && !(definition instanceof OutboundAdapterNode)) continue;
+                        && !(definition instanceof OutboundAdapterNode)
+                        && !(definition instanceof InboundHttpAdapterNode)) continue;
                 String name = definition instanceof IdDeclarationNode id ? id.name()
                         : definition instanceof ValueObjectNode value ? value.name()
                         : definition instanceof EventNode event ? event.name()
@@ -55,10 +56,12 @@ public final class EditorValueObjects {
                         : definition instanceof PortNode port ? port.name()
                         : definition instanceof RepositoryNode repo ? repo.name()
                         : definition instanceof ListenerNode listener ? listener.name()
-                        : definition instanceof OutboundAdapterNode adapter ? adapter.name() : mutable.orElseThrow().name();
+                        : definition instanceof OutboundAdapterNode adapter ? adapter.name()
+                        : definition instanceof InboundHttpAdapterNode adapter ? adapter.name() : mutable.orElseThrow().name();
                 String javaName = namespace + (definition instanceof UseCaseNode ? ".usecase."
                         : definition instanceof ListenerNode ? ".adapter.inbound.event."
-                        : definition instanceof OutboundAdapterNode ? ".adapter.outbound." : ".domain.") + name;
+                        : definition instanceof OutboundAdapterNode ? ".adapter.outbound."
+                        : definition instanceof InboundHttpAdapterNode ? ".adapter.inbound.http." : ".domain.") + name;
                 var collections = CollectionDeclaration.of(definition);
                 names.add(javaName);
                 collections.forEach(c -> names.add(namespace + ".domain." + c.name()));
@@ -70,7 +73,13 @@ public final class EditorValueObjects {
                 SourceLocation primaryEnd = collections.stream().map(c -> c.definition().location())
                         .min(LOCATION_ORDER).orElse(end);
                 if (invalid(resolved, source.path(), definition.location(), primaryEnd)) continue;
-                if (definition instanceof RepositoryNode repository) {
+                if (definition instanceof InboundHttpAdapterNode adapter) {
+                    var plan = resolved.inboundAdapters().get(adapter);
+                    if (plan == null) continue;
+                    addPublic(project, source, adapter.mvc()
+                            ? new InboundMvcGenerator().generate(adapter, source.unit(), resolved, plan)
+                            : new InboundHttpGenerator().generate(adapter, source.unit(), resolved, plan), values);
+                } else if (definition instanceof RepositoryNode repository) {
                     var lookup = resolved.scopes().get(source.path()).resolve(repository.aggregateName(), repository.location());
                     if (!(lookup.type().orElse(null) instanceof ResolvedType.Declared target)) continue;
                     AggregateNode aggregate = null;

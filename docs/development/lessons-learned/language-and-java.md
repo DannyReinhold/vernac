@@ -267,3 +267,12 @@ generator and editor. Do not invoke global schema generation to resolve a new
 repository in an unsaved document: unrelated persistence errors must not remove
 otherwise valid editor contracts. Keep adapter DTOs nested in their actual holder
 and restrict package bridges to the reviewed generated package families.
+
+### Reuse resolved transport contracts in editor projections
+
+HTTP and MVC can share one resolved inbound plan while using different generators.
+Use that plan and those generators rather than reconstructing endpoint signatures
+from syntax. Include the public controller, scoped error advice and DTO/mapping
+holders, but keep Java-body companions private. Preserve existing package mappings
+and nested record identity. Test invalid-adapter isolation, early package caching,
+normal Java imports and ownership-limited stale helper replacement separately.
