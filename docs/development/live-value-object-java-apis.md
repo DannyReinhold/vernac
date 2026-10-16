@@ -12,9 +12,11 @@ includes factories, getters, public behavior signatures, current vocabulary
 documentation, validation Read interfaces and mutable-domain Read/Write/Access views. The editor snapshot
 includes unsaved documents and uses declaration-level recovery.
 
-This slice does not project services, events, repositories, ports, usecases or their
-application access interfaces. Their existing Java
-APIs and Maven dependencies remain usable. External module contracts supply type
+The next slice also projects local services, events, outbound port contracts and
+usecases, including their public access/read interfaces and nested usecase Result
+records. These use the production generators too; private behavior and validation
+companions are excluded. Repository, listener and adapter APIs still rely on existing
+generated Java. Maven dependencies remain usable. External module contracts supply type
 information, but their implementations are not reprojected or modified.
 
 ## One semantic source
@@ -265,7 +267,7 @@ does not hide its valid element, access views or sibling collections.
 
 An invalid owner withholds its complete family. Owned stale Read/Write/Access
 classes cannot survive as an alternate contract after signature changes or removal.
-Current services and other unprojected access families remain usable from generated
+Other unprojected access families remain usable from generated
 Java; external module classes are never reprojected.
 
 The native fixture supplies the SDK base external-annotation manager with no roots,
@@ -276,3 +278,13 @@ aggregate timestamps and id collection helpers. Compiler checks compare all API 
 with strict generation, verify the injection roles (including validation), and compile
 and execute live classes with their actual generated implementation companions.
 Installed completion acceptance is still required for each new type kind.
+
+## Application API acceptance
+
+Before generating Java, add a service used by a usecase and an event with a VO
+payload. In embedded Java, check service operation completion, `self` dependency
+getters, `Changed.create(...)`, and `Result.of(...)` for an implicit usecase result.
+Check navigation as well as selection. Public API projection does not compile Java
+bodies or supply missing Spring/runtime dependencies. Compiler and native PSI tests
+cover generated signatures and nested record lookup; installed-IDE popup acceptance
+for these kinds remains a separate check.

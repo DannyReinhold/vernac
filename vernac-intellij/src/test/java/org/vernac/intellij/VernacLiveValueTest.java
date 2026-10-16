@@ -23,6 +23,14 @@ class VernacLiveValueTest {
     }
 
     @Test
+    void applicationAccessViewsTrackTheirOwnersWithoutReplacingOtherPackages() {
+        var api = model(Set.of("model.usecase.Choose"));
+        assertTrue(VernacLiveValues.accessForType(api, "model.usecase.access.ChooseAccess"));
+        assertTrue(VernacLiveValues.accessForType(api, "model.usecase.access.RemovedRead"));
+        assertFalse(VernacLiveValues.accessForType(api, "model.custom.access.ChooseAccess"));
+    }
+
+    @Test
     void ownedOldApiCanBeReplacedButHandwrittenAndDependencySourcesCannot() {
         var api = model(Set.of("model.domain.Count"));
         assertTrue(

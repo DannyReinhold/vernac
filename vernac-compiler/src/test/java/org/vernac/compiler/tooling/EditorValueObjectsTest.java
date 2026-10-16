@@ -26,6 +26,50 @@ class EditorValueObjectsTest {
     }
 
     @Test
+    void servicesEventsPortsAndUsecasesExposeProductionApisWithoutCompanions() throws Exception {
+        var project = model("""
+                value Title(String);
+                event Changed(Title) validates { require(!self.title().string().isBlank()); };
+                port Notifications { void send(Title); }
+                service Policy uses Notifications behavior {
+                    public Title choose(Title title) { self.notifications().send(title); return title; }
+                }
+                usecase Rename(Title? title) returns (Title? title) uses Policy
+                validates { require(self.title().isPresent()); }
+                behavior { execute { return Result.of(title); } }
+                """);
+        var api = new EditorValueObjects().build(project);
+        assertTrue(api.values().containsKey("model.domain.Changed"), api.values().keySet().toString());
+        assertTrue(api.values().get("model.domain.Changed").javaSource().contains("reconstitute("));
+        assertTrue(api.values().get("model.domain.Notifications").javaSource().contains("void send(Title title)"));
+        assertTrue(api.values().get("model.domain.access.PolicyAccess").javaSource().contains("Notifications notifications()"));
+        assertTrue(api.values().get("model.usecase.Rename").javaSource().contains("record Result("));
+        assertTrue(api.values().get("model.usecase.access.RenameRead").javaSource().contains("Optional<Title> title()"));
+        assertTrue(api.values().get("model.usecase.access.RenameAccess").javaSource().contains("Policy policy()"));
+        var expected = new VernacCompiler().generate(new ProjectTypeResolver().resolve(project), org.vernac.compiler.persistence.SchemaModel.empty(), Map.of());
+        for (var file : expected.generatedFiles()) {
+            String name = file.packageName() + "." + file.typeSpec().name();
+            if (api.values().containsKey(name)) assertEquals(file.toString(), api.values().get(name).javaSource());
+        }
+        assertTrue(api.values().keySet().stream().noneMatch(n -> n.contains("__Vernac")));
+        assertFalse(Files.exists(root.resolve("target")));
+    }
+
+    @Test
+    void invalidApplicationSignaturesDoNotHideValidServices() throws Exception {
+        var api = view("""
+                value Title(String);
+                service Valid behavior { public Title choose(Title title) { return title; } }
+                usecase Broken(Missing) behavior { execute {} }
+                event Bad(Missing);
+                """);
+        assertTrue(api.values().containsKey("model.domain.Valid"));
+        assertFalse(api.values().containsKey("model.usecase.Broken"));
+        assertFalse(api.values().containsKey("model.domain.Bad"));
+        assertTrue(api.valueNames().contains("model.usecase.Broken"));
+    }
+
+    @Test
     void unsavedValueHasFactoriesGettersAndPublicBehaviorWithoutWritingOutput() throws Exception {
         var api =
                 view(

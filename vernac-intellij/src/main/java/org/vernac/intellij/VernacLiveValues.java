@@ -121,7 +121,12 @@ public final class VernacLiveValues {
 
         PsiClass find(String name) {
             var value = api.values().get(name);
-            if (value == null) return null;
+            if (value == null) {
+                int dot = name.lastIndexOf('.');
+                if (dot < 0) return null;
+                var owner = find(name.substring(0, dot));
+                return owner == null ? null : owner.findInnerClassByName(name.substring(dot + 1), false);
+            }
             return classes.computeIfAbsent(
                     name,
                     ignored -> {
@@ -167,12 +172,14 @@ public final class VernacLiveValues {
     }
 
     private static String accessOwner(String name) {
-        if (name == null || !name.contains(".domain.access.")) return null;
+        if (name == null) return null;
+        String segment = name.contains(".domain.access.") ? ".domain.access." : ".usecase.access.";
+        if (!name.contains(segment)) return null;
         String role = List.of("Read", "Write", "Access").stream().filter(name::endsWith).findFirst().orElse(null);
         if (role == null) return null;
-        int access = name.lastIndexOf(".domain.access.");
-        String simple = name.substring(access + ".domain.access.".length(), name.length() - role.length());
+        int access = name.lastIndexOf(segment);
+        String simple = name.substring(access + segment.length(), name.length() - role.length());
         if (simple.isEmpty() || simple.contains(".")) return null;
-        return name.substring(0, access) + ".domain." + simple;
+        return name.substring(0, access) + segment.replace(".access.", ".") + simple;
     }
 }

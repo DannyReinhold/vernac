@@ -112,14 +112,16 @@ public final class VernacLiveValueFinder extends PsiElementFinder {
     // Technical behavior/access classes remain available unless explicitly projected.
     static boolean domainDeclaration(String name) {
         if (name == null) return false;
-        int domain = name.lastIndexOf(".domain.");
+        String segment = name.contains(".usecase.") ? ".usecase." : ".domain.";
+        int domain = name.lastIndexOf(segment);
         if (domain < 0) return false;
-        String simple = name.substring(domain + ".domain.".length());
+        String simple = name.substring(domain + segment.length());
         return !simple.isEmpty() && !simple.contains(".") && !simple.startsWith("__Vernac");
     }
 
     private static boolean domainPackage(String name) {
-        return name.endsWith(".domain") || name.endsWith(".domain.access");
+        return name.endsWith(".domain") || name.endsWith(".domain.access")
+                || name.endsWith(".usecase") || name.endsWith(".usecase.access");
     }
 
     private static String packageName(String name) {

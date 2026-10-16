@@ -42,10 +42,16 @@ public final class EditorValueObjects {
             for (var definition : definitions) {
                 var mutable = MutableDomain.of(definition);
                 if (!(definition instanceof IdDeclarationNode)
-                        && !(definition instanceof ValueObjectNode) && mutable.isEmpty()) continue;
+                        && !(definition instanceof ValueObjectNode) && mutable.isEmpty()
+                        && !(definition instanceof EventNode) && !(definition instanceof DomainServiceNode)
+                        && !(definition instanceof UseCaseNode) && !(definition instanceof PortNode)) continue;
                 String name = definition instanceof IdDeclarationNode id ? id.name()
-                        : definition instanceof ValueObjectNode value ? value.name() : mutable.orElseThrow().name();
-                String javaName = namespace + ".domain." + name;
+                        : definition instanceof ValueObjectNode value ? value.name()
+                        : definition instanceof EventNode event ? event.name()
+                        : definition instanceof DomainServiceNode service ? service.name()
+                        : definition instanceof UseCaseNode usecase ? usecase.name()
+                        : definition instanceof PortNode port ? port.name() : mutable.orElseThrow().name();
+                String javaName = namespace + (definition instanceof UseCaseNode ? ".usecase." : ".domain.") + name;
                 var collections = CollectionDeclaration.of(definition);
                 names.add(javaName);
                 collections.forEach(c -> names.add(namespace + ".domain." + c.name()));
@@ -57,7 +63,15 @@ public final class EditorValueObjects {
                 SourceLocation primaryEnd = collections.stream().map(c -> c.definition().location())
                         .min(LOCATION_ORDER).orElse(end);
                 if (invalid(resolved, source.path(), definition.location(), primaryEnd)) continue;
-                if (definition instanceof IdDeclarationNode id) {
+                if (definition instanceof EventNode event) {
+                    addPublic(project, source, new EventGenerator().generate(event, source.unit(), resolved), values);
+                } else if (definition instanceof DomainServiceNode service) {
+                    addPublic(project, source, new DomainServiceGenerator().generate(service, source.unit(), resolved), values);
+                } else if (definition instanceof UseCaseNode usecase) {
+                    addPublic(project, source, new UseCaseGenerator().generate(usecase, source.unit(), resolved), values);
+                } else if (definition instanceof PortNode port) {
+                    addPublic(project, source, new PortGenerator().generate(port, source.unit(), resolved), values);
+                } else if (definition instanceof IdDeclarationNode id) {
                     add(project, source, new IdGenerator().generate(id, namespace), values);
                 } else if (mutable.isPresent()) {
                     var model = mutable.get();
@@ -93,6 +107,13 @@ public final class EditorValueObjects {
             }
         }
         return new Model(values, names, live);
+    }
+
+    /** Publish actual public APIs, never private behavior/validation implementation companions. */
+    private static void addPublic(VernacProject project, VernacSourceFile source,
+            List<JavaFile> generated, Map<String, Value> values) {
+        generated.stream().filter(f -> f.typeSpec().modifiers().contains(javax.lang.model.element.Modifier.PUBLIC))
+                .forEach(f -> add(project, source, f, values));
     }
 
     private static final Comparator<SourceLocation> LOCATION_ORDER =

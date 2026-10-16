@@ -248,3 +248,13 @@ never hide an arbitrary handwritten interface merely because its name ends in Ac
 Read views preserve the existing language semantics. An entity returned by a getter
 is still that entity; do not claim recursively readonly object graphs or stronger
 purity enforcement as a side effect of completion support.
+
+### Application APIs and nested Java types
+
+Extend live projection with actual public generator output, including service/usecase
+access views. Do not publish package-private implementation companions. A usecase
+Result record belongs to its enclosing Java class: resolve nested names through
+that class rather than inventing a second top-level declaration. Eager package
+wrappers must also cover existing usecase packages, because the Java facade may
+cache them before the first editor snapshot. Keep stale-output ownership checks
+restricted to the known generated packages and the compiler's output inventory.

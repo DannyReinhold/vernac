@@ -100,6 +100,10 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>Live services, events, ports and usecase APIs</h3>
+<p>Embedded Java can resolve current local service operations, event factories,
+port contracts and usecase APIs before generation, including self dependency views
+and nested Result records. Uses the same generators as the compiler.</p>
 <h3>Live entities, aggregates and behavior access views</h3>
 <p>Entity/aggregate factories, field getters and public behaviors are now visible before
 Java generation, together with Read/Write/Access views for the appropriate self context.

@@ -102,7 +102,10 @@ public final class VernacNativePackageProbe {
       java.nio.file.Files.createDirectories(source.getParent());
       java.nio.file.Files.writeString(source, "namespace sample; value EditorTest(int); id TaskId list TaskIds; value State = NEW | DONE set States; value Label(String) list Labels, set UniqueLabels; "
           + "entity Entry[TaskId](mut Label) behavior {read Label caption(){return self.label();} modify void rename(Label label){self.label(label);}} list Entries, set SelectedEntries; "
-          + "aggregate Folder[TaskId](mut Entries) behavior {modify void replace(Entries entries){self.entries(entries);}} list Folders;");
+          + "aggregate Folder[TaskId](mut Entries) behavior {modify void replace(Entries entries){self.entries(entries);}} list Folders; "
+          + "event Changed(Label); port Notices {void send(Label);} "
+          + "service Policy uses Notices behavior {public Label choose(Label label){return label;}} "
+          + "usecase Choose(Label) returns (Label) uses Policy behavior {execute {return Result.of(label);}}");
       var service = new VernacLiveValues(project);
       project.registerService(VernacLiveValues.class, service);
       // A physical package may enter the facade cache before any live snapshot.
@@ -224,6 +227,12 @@ public final class VernacNativePackageProbe {
       if (fixed) {
         assertValueSideReferences(factory, snapshot);
         assertMutableReferences(factory, snapshot);
+        check(snapshot.find("sample.domain.Changed").findMethodsByName("create", false).length > 0, "live event factory");
+        check(snapshot.find("sample.domain.Notices").findMethodsByName("send", false).length == 1, "live port operation");
+        check(snapshot.find("sample.domain.access.PolicyAccess").findMethodsByName("notices", false).length == 1, "live service self dependency");
+        check(snapshot.find("sample.usecase.Choose").findMethodsByName("execute", false).length == 1, "live usecase execute");
+        check(snapshot.find("sample.usecase.access.ChooseAccess").findMethodsByName("policy", false).length == 1, "live usecase self dependency");
+        check(snapshot.find("sample.usecase.Choose.Result").isRecord(), "live nested result record");
       }
 
       check(

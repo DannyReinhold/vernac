@@ -565,3 +565,36 @@ or aggregate class.
 
 The new kinds still require installed-IDE acceptance independently of the confirmed
 ordinary-VO path. Build the project to execute the new classes and behavior.
+
+Local services, events, outbound port contracts and usecases also expose current
+Java APIs to embedded Java before generation. This includes dependency getters on
+`self`, event factories and nested usecase `Result` records. Repositories, listeners
+and adapters still require their existing generated APIs. This editor projection
+never writes generated output and does not replace the normal build.
+
+### Try application APIs before generating Java
+
+In a correctly located file in namespace `example.live`, add:
+
+```vernac
+namespace example.live;
+
+value Caption(String);
+event CaptionSelected(Caption);
+service CaptionPolicy behavior {
+    public Caption choose(Caption caption) { return caption; }
+}
+usecase SelectCaption(Caption) returns (Caption) uses CaptionPolicy behavior {
+    execute {
+        var chosen = self.captionPolicy().choose(caption);
+        self.emit(CaptionSelected.create(chosen));
+        return Result.of(chosen);
+    }
+}
+```
+
+Before running Maven, try completion after `self.`, `self.captionPolicy().`,
+`CaptionSelected.` and `Result.` inside `execute`. The available signatures come
+from the current model, including unsaved edits. A build is still required to run
+the application. An incomplete Java body does not itself invalidate the declared
+API; an unresolved Vernac signature is withheld until it can be resolved reliably.

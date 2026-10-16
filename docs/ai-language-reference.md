@@ -1653,3 +1653,9 @@ supported Vernac types already receive projected Java imports. Generate Java for
 DSL field-type completion is separate. The
 [diagnostic guide](development/live-value-object-java-apis.md#installed-ide-completion-failure-and-diagnostics)
 explains the explicit, read-only context report.
+
+Local services, events, outbound port contracts and usecases also expose current
+Java APIs to embedded Java before generation. This includes dependency getters on
+`self`, event factories and nested usecase `Result` records. Repositories, listeners
+and adapters still require their existing generated APIs. This editor projection
+never writes generated output and does not replace the normal build.
