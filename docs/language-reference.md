@@ -4,7 +4,7 @@ title: Vernac language reference
 # Vernac language reference
 
 This reference describes the **Vernac 0.5.0 language and generated API**. Use matching
-compiler and runtime versions. Source checkouts default to 0.5.0-SNAPSHOT;
+compiler and runtime versions. Source checkouts default to 0.6.0-SNAPSHOT;
 released consumers select matching 0.5.0 artifacts after publication. Obsolete experimental syntax is not supported.
 The [specification index](specification/index.md) identifies the normative document
 for each rule. A discrepancy between implementation and contract is a defect to

@@ -9,7 +9,7 @@ and locals, step through the operation and evaluate ordinary Java expressions wh
 working in the `.vernac` source.
 
 **Version:** use matching **0.5.0** compiler and plugin artifacts, or matching
-**0.5.0-SNAPSHOT** artifacts from a source checkout. Earlier plugin versions do not
+**0.6.0-SNAPSHOT** artifacts from a source checkout. Earlier plugin versions do not
 provide this debugger integration. Build the application before starting a debug session.
 
 ## A small example, with a real JVM behind it

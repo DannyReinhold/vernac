@@ -50,7 +50,7 @@ A 0.5.0 release plugin selects matching 0.5.0 Maven artifacts.
 They are downloaded from Central; building the Vernac repository is unnecessary.
 Before that release is published, use the source-build route below instead.
 
-A development plugin built from this checkout uses **0.5.0-SNAPSHOT**. Install its
+A development plugin built from this checkout uses **0.6.0-SNAPSHOT**. Install its
 matching artifacts from the repository root first:
 
 ```shell
@@ -380,7 +380,7 @@ Functional modules require explicit activation; type-only dependencies do not ne
 
 ## Debug inline behavior
 
-With the matching **0.5.0-SNAPSHOT** compiler and plugin, you can set breakpoints
+With the matching **0.6.0-SNAPSHOT** compiler and plugin, you can set breakpoints
 inside supported Vernac behavior bodies and inspect the live JVM state. Follow the
 [debugging tutorial](debugging.md) for a database-free example, expression evaluation,
 conditional breakpoints and logpoints. Use matching 0.5.0 release artifacts or the matching source-build instructions.

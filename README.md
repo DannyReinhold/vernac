@@ -87,7 +87,7 @@ framework convention.
 This documentation describes the **Vernac 0.5.0 language and API**. Use matching
 compiler, runtime and IntelliJ plugin versions; earlier releases do not support all
 constructs documented here. For a source checkout, the commands below build and install
-the version configured in its root POM (currently `0.5.0-SNAPSHOT`).
+the version configured in its root POM (currently `0.6.0-SNAPSHOT`).
 
 Use JDK 25 and Maven 3.9.x (release automation pins 3.9.16). Generated application code targets Java 21.
 From this repository, install the compiler and runtime, then try the minimal template:
@@ -185,7 +185,7 @@ expressions and use conditional breakpoints.
 The [debugging walkthrough](docs/tutorials/debugging.md) takes you through a
 small runnable example, including private helpers, handwritten Java transitions
 and logpoints. It explains the current coverage and limits. Use matching 0.5.0 release artifacts, or matching
-0.5.0-SNAPSHOT artifacts when building this source checkout.
+0.6.0-SNAPSHOT artifacts when building this source checkout.
 
 ## Contributing and reporting problems
 

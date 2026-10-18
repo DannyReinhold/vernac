@@ -1,9 +1,10 @@
 # Vernac consolidation status
 
-Status: **0.4.0 release baseline; next development version 0.5.0-SNAPSHOT**.
-The [0.4.0 checklist](release-0.4.0.md) and [release notes](../maintainers/releases/0.4.0.md)
-retain their release context. Source versions now advance separately from the published
-0.4.0 language/API baseline; no additional language features are implied by this bump.
+Status: **0.5.0 implemented baseline; development version 0.6.0-SNAPSHOT**.
+The [0.5.0 checklist](release-0.5.0.md) and [release notes](../maintainers/releases/0.5.0.md)
+retain their release context. This version bump prepares subsequent development;
+it does not introduce or promise additional 0.6.0 language features. Publication
+status is established by the release workflow and distribution channels, not this page.
 
 ## Reviewed and implemented
 

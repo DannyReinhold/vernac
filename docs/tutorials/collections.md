@@ -1,6 +1,6 @@
 # Lists, Sets, and Repeated Values
 
-Use a Vernac 0.4.0 project and matching plugin; source checkouts use 0.5.0-SNAPSHOT.
+Use a Vernac 0.5.0 project and matching plugin; source checkouts use 0.6.0-SNAPSHOT.
 The multiple-collection exercise requires matching compiler/runtime/tooling. This database-free exercise
 compares membership, order and equality; no repository is involved.
 Create `src/main/vernac/example/names/model.vernac`:

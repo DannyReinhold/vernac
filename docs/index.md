@@ -145,7 +145,7 @@ See the **AI‑specific language reference**:
 ## Version and prerequisites
 
 These pages describe the **Vernac 0.5.0 language and API**.
-Source checkouts default to **0.5.0-SNAPSHOT**. Released consumers select matching
+Source checkouts default to **0.6.0-SNAPSHOT**. Released consumers select matching
 **0.5.0** artifacts after publication; older versions do not support all features below.
 Use JDK 25 to build the repository; generated applications target Java 21.  
 Persistence examples use PostgreSQL 17.
@@ -210,7 +210,7 @@ expressions and use conditional breakpoints.
 The [debugging walkthrough](tutorials/debugging.md) takes you through a
 small runnable example, including private helpers, handwritten Java transitions
 and logpoints. It explains the current coverage and limits. Use matching 0.5.0 release artifacts, or matching
-0.5.0-SNAPSHOT artifacts when building this source checkout.
+0.6.0-SNAPSHOT artifacts when building this source checkout.
 
 ### Server-rendered applications
 

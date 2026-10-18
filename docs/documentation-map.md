@@ -9,7 +9,7 @@ semantics; development notes explain how the implementation works.
 
 **Version guide:** these pages describe the **0.5.0 release line**, including native
 debugging, MVC/starter support and live Java editor APIs. Match compiler/runtime and
-plugin versions. Source builds use **0.5.0-SNAPSHOT**; release builds select **0.5.0**.
+plugin versions. Source builds use **0.6.0-SNAPSHOT**; release builds select **0.5.0**.
 If that version is not published yet, use the matching source-build instructions.
 Historical release records are not the current feature reference.
 

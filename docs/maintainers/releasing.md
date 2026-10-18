@@ -1,17 +1,17 @@
 # Publishing a Vernac release
 
-These instructions prepare **0.5.0** from **feature/0.5.0**. Source checkouts keep
-**0.5.0-SNAPSHOT**; the workflow selects the release version without changing every POM.
-The [release checklist](../development/release-0.5.0.md) records remaining verification,
-and the [release notes](releases/0.5.0.md) define the scope. Preparation does not mean
-that publication or Marketplace approval has already happened.
+The source checkout now uses **0.6.0-SNAPSHOT**. The procedure below retains
+**0.5.0** and **feature/0.5.0** as a worked release example; use the agreed version
+and source branch for the next release. Never rerun publication for existing
+coordinates. The [0.5.0 checklist](../development/release-0.5.0.md) and
+[release notes](releases/0.5.0.md) retain their own verification/publication context.
 
 ## Scope and one version input
 
 `revision` in the root POM drives Maven modules, the IntelliJ ZIP and the dependency
 version inserted by the project wizard. A release invocation uses `-Drevision=0.5.0`;
 the development default is not changed by that invocation. The workflow supplies
-that argument; the source checkout defaults to 0.5.0-SNAPSHOT.
+that argument; the source checkout defaults to 0.6.0-SNAPSHOT.
 You do not need to edit every module POM or pre-install a 0.5.0 release locally.
 
 Standalone application examples generally use their own `vernac.version` property. Select

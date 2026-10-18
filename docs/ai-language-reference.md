@@ -1,6 +1,6 @@
 # Vernac: self-contained reference for AI code generation
 
-Language baseline: **Vernac 0.5.0**. Source checkouts default to 0.5.0-SNAPSHOT.
+Language baseline: **Vernac 0.5.0**. Source checkouts default to 0.6.0-SNAPSHOT.
 Multiple attached collections require the 0.5.0 compiler/runtime/tooling described
 here; HTTP inbound adapters require at least 0.3.0. This document describes implemented
 project compilation, not proposed features. Provide this entire file to an AI together

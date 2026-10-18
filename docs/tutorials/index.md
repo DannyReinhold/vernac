@@ -9,7 +9,7 @@ practical question; focused examples isolate details when the full system would 
 
 These tutorials describe **Vernac 0.5.0**. Use JDK 25 for the documented builds;
 generated application code targets Java 21. Released consumers use 0.5.0 artifacts
-from Maven Central after publication. Repository examples use 0.5.0-SNAPSHOT by
+from Maven Central after publication. Repository examples use 0.6.0-SNAPSHOT by
 default: install matching local artifacts first, or select the release with
 `-Dvernac.version=0.5.0` after publication.
 Commands below include `mvn`; use the full command in the IntelliJ Maven run configuration used for these examples.

@@ -31,7 +31,7 @@ The example library has three identities serving different purposes:
 
 | Identity | Example | Purpose |
 | --- | --- | --- |
-| Maven artifact | `org.vernac:vernac-example-shared-values:0.5.0-SNAPSHOT` | Select and distribute a compiled version |
+| Maven artifact | `org.vernac:vernac-example-shared-values:0.6.0-SNAPSHOT` | Select and distribute a compiled version |
 | Logical module | `example.shared.values` | Identify the module and its contracts in diagnostics |
 | Vernac type | `example.shared.Money` | Name the type in an import and in the model |
 

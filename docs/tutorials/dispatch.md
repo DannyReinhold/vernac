@@ -5,7 +5,7 @@ or a carrier is unavailable. Dispatch makes those boundaries visible.
 
 Open the [Dispatch application guide](https://github.com/DannyReinhold/vernac/tree/main/examples/dispatch).
 It contains exact startup commands, source links and a five-minute walkthrough.
-Use JDK 25, Maven and Docker. Source-checkout commands install 0.5.0-SNAPSHOT;
+Use JDK 25, Maven and Docker. Source-checkout commands install 0.6.0-SNAPSHOT;
 released consumers can select 0.4.0 after publication.
 
 ## Follow one decision through the system
