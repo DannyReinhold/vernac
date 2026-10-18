@@ -44,7 +44,7 @@ replaced from source; edit the `.vernac` declaration rather than those outputs.
 A module publishing Order automatically includes its associated documentation in its
 public metadata. Consumers build against the dependency normally and see that content
 in Vernac type hover, even if no original source attachment is installed. The
-[type-module example](../../examples/type-modules/README.md) includes a documented Money
+[type-module example](https://github.com/DannyReinhold/vernac/blob/main/examples/type-modules/README.md) includes a documented Money
 value for trying this across separate artifacts. Rebuild both sides with the updated
 SNAPSHOT tools; module-contracts-9 metadata is required.
 

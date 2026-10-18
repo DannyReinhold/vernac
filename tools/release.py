@@ -46,6 +46,12 @@ REQUIRED_TESTS += ("BehaviorSourceMapTest", "BehaviorDebugExecutionTest", "Verna
                    "AdapterSourceMapTest", "AdapterDebugExecutionTest", "VernacViewInspectorTest", "VernacTypeReferencesTest", "VernacTypeReferenceTest", "VernacSpringBootTemplateTest", "SpringBootStarterExecutionTest", "InboundMvcContractTest", "InboundMvcExecutionTest", "InboundMvcSymbolsTest", "ImplementationContractsExecutionTest")
 
 
+# Live editor APIs are a 0.5.0 release feature, including native Java PSI lookup.
+REQUIRED_TESTS += ("EditorValueObjectsTest", "BehaviorJavaProjectionTest",
+                   "VernacLivePackageTest", "VernacLiveUnionScopeTest",
+                   "VernacLiveShortNamesCacheTest", "VernacLiveValueTest")
+
+
 def require(condition, message):
     if not condition:
         raise ValueError(message)

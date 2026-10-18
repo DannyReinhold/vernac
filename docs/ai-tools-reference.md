@@ -1,8 +1,16 @@
 # Vernac build and migration tools for AI agents
 
-Baseline: implemented tooling in the 0.5.0 development line. Use this guide with
+Baseline: implemented tooling in the 0.5.0 release line. Use this guide with
 the [AI language reference](ai-language-reference.md), the existing POM and the
 application's requirements. It is a workflow reference, not additional syntax.
+
+<details class="on-this-page" markdown="1">
+<summary>On this page</summary>
+
+* Contents
+{:toc}
+
+</details>
 
 ## Locate the project and respect its configuration
 

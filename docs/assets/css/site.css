@@ -173,3 +173,91 @@ footer {
     gap: 16px;
   }
 }
+
+/* One curated navigation, available on every documentation page without JavaScript. */
+.documentation-shell {
+  display: grid;
+  grid-template-columns: 238px minmax(0, 1fr);
+  max-width: 1320px;
+  margin: 0 auto;
+  align-items: start;
+}
+.doc-sidebar {
+  position: sticky;
+  top: 0;
+  max-height: 100vh;
+  overflow-y: auto;
+  padding: 30px 22px;
+}
+.doc-version {
+  margin: 0 0 18px;
+  color: #526375;
+  font-size: 13px;
+  font-weight: 650;
+}
+.doc-navigation {
+  display: block;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.doc-navigation section + section { margin-top: 22px; }
+.doc-navigation h2 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #526375;
+}
+.doc-navigation ul { list-style: none; padding: 0; margin: 0; }
+.doc-navigation a {
+  display: block;
+  padding: 7px 9px;
+  border-radius: 5px;
+  text-decoration: none;
+}
+.doc-navigation a:hover { background: #e8f0f3; text-decoration: underline; }
+.doc-navigation a[aria-current="page"] {
+  background: #dfeff0;
+  color: #064c59;
+  font-weight: 700;
+  border-left: 3px solid #086578;
+}
+.documentation-shell main { min-width: 0; width: 100%; margin: 0; }
+.breadcrumbs { font-size: 13px; gap: 10px; margin: 0 0 24px; }
+.page-tools {
+  border-top: 1px solid #dbe3ea;
+  margin-top: 48px;
+  padding-top: 20px;
+  font-size: 14px;
+}
+.mobile-menu { display: none; }
+@media (max-width: 900px) {
+  .documentation-shell { display: block; }
+  .doc-sidebar { display: none; }
+  .mobile-menu {
+    display: block;
+    margin: 0 0 26px;
+    padding: 12px 16px;
+    background: #f0f5f6;
+    border-radius: 8px;
+  }
+  .mobile-menu summary { cursor: pointer; color: #086578; font-weight: 650; }
+  .mobile-menu[open] summary { margin-bottom: 22px; }
+  .mobile-menu .doc-navigation { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+  .mobile-menu .doc-navigation section + section { margin-top: 0; }
+}
+@media (max-width: 480px) {
+  .mobile-menu .doc-navigation { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+@media print {
+  header, footer, .doc-sidebar, .mobile-menu, .page-tools, .skip { display: none; }
+  .documentation-shell { display: block; }
+  main { padding: 0; max-width: none; }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+}
+
+.on-this-page { margin: 26px 0; padding: 14px 18px; border: 1px solid #dbe3ea; border-radius: 8px; }
+.on-this-page summary { cursor: pointer; color: #086578; font-weight: 650; }
+.on-this-page[open] summary { margin-bottom: 12px; }
+.on-this-page ul { margin-bottom: 0; }

@@ -7,19 +7,20 @@ You do not need to read everything in order. Choose the outcome you want below.
 Tutorials teach by doing; references help while writing; contracts settle exact
 semantics; development notes explain how the implementation works.
 
-**Version guide:** the released baseline is **0.4.0**. Source-checkout documentation
-also includes explicitly labelled **0.5.0-SNAPSHOT** previews, including native
-debugging, MVC/starter improvements and live editor work. A preview requires matching
-development compiler/runtime artifacts and plugin; installing a released plugin does
-not enable it. Historical release records are not the current feature reference.
+**Version guide:** these pages describe the **0.5.0 release line**, including native
+debugging, MVC/starter support and live Java editor APIs. Match compiler/runtime and
+plugin versions. Source builds use **0.5.0-SNAPSHOT**; release builds select **0.5.0**.
+If that version is not published yet, use the matching source-build instructions.
+Historical release records are not the current feature reference.
 
 ## Choose an entry point
 
 | I want to… | Start here | Continue with |
 | --- | --- | --- |
+| Learn DDD from the beginning | [What is DDD?](tutorials/what-is-ddd.md) | [DDD for small projects](tutorials/ddd-for-small-projects.md) |
 | Understand what Vernac does | [Architecture, expressed](index.md) | [Follow one operation](tutorials/from-model-to-application.md) |
 | Try the language without a database | [Your first domain model](tutorials/your-first-domain-model.md) | [Behavior](tutorials/behavior.md) |
-| Start a small working web application | [Spring Boot starter](tutorials/spring-boot-starter.md), 0.5.0 preview | [Server-rendered MVC](tutorials/inbound-mvc.md) |
+| Start a small working web application | [Spring Boot starter](tutorials/spring-boot-starter.md) | [Server-rendered MVC](tutorials/inbound-mvc.md) |
 | Explore a larger application | [Dispatch showcase](tutorials/dispatch.md) | [Tutorial learning path](tutorials/index.md) |
 | Write correct syntax | [Language reference](language-reference.md) | [Specification and contracts](specification/index.md) |
 | Give a coding agent a compact context | [AI language reference](ai-language-reference.md) | [AI build and migration tools](ai-tools-reference.md) |
@@ -66,7 +67,7 @@ and the application database, including how to repeat a disposable experiment.
 - [Ports walkthrough](tutorials/ports-walkthrough.md): run an actual integration against a local fixture.
 - [Java-backed ports](tutorials/outbound-ports.md) and [declarative REST](tutorials/declarative-rest.md): choose the appropriate implementation style.
 - [DTOs/PATCH](tutorials/adapter-dtos.md), [mappings](tutorials/adapter-mappings.md) and [errors](tutorials/declarative-errors.md): define the anti-corruption boundary.
-- [Inbound HTTP](tutorials/inbound-http.md) and [MVC](tutorials/inbound-mvc.md): expose usecases as JSON or server-rendered pages; MVC is a 0.5.0 preview.
+- [Inbound HTTP](tutorials/inbound-http.md) and [MVC](tutorials/inbound-mvc.md): expose usecases as JSON or server-rendered pages.
 - [Versioned modules](tutorials/type-modules.md): exports, dependencies, activation, provider selection and schema evolution.
 
 Follow these to the [integration contracts](specification/index.md#persistence-and-integration-contracts)
@@ -76,7 +77,7 @@ module tutorial demonstrates independent migration histories and coordinated cal
 ## Work naturally in IntelliJ
 
 [Install and navigate](tutorials/intellij-plugin.md), then
-[debug behavior in its source](tutorials/debugging.md), a 0.5.0 preview.
+[debug behavior in its source](tutorials/debugging.md).
 The debugging chapter covers stepping, locals, expressions, conditions, logpoints,
 validation and adapter/mapping contexts, as well as the generated-Java contributor view.
 

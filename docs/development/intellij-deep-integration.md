@@ -3,7 +3,7 @@
 Status: **0.5.0 development: native debugging and reviewed reference/hover paths
 accepted; cross-language refactoring remains planned.** See the
 [implementation record](vernac-debugger-prototype.md) and
-[manual acceptance example](../../examples/debugger/README.md).
+[manual acceptance example](https://github.com/DannyReinhold/vernac/blob/main/examples/debugger/README.md).
 Live ordinary-VO Java completion is accepted too. The expansion adds IDs, enums,
 entities, aggregates, access views and explicit lists/sets; those new kinds await
 installed-IDE acceptance. See [live Java APIs](live-value-object-java-apis.md).

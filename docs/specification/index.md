@@ -1,6 +1,9 @@
+---
+title: Vernac specification and contracts
+---
 # Vernac specification and contracts
 
-This is the normative documentation for the **0.4.0 language revision**. It is
+This is the normative documentation for the **0.5.0 language revision**. It is
 organized into language rules and feature contracts; both parts define the language.
 MUST/MUST NOT express requirements, SHOULD a recommendation, and MAY a permission.
 Examples illustrate rules; explicitly incomplete fragments require their surrounding
@@ -60,7 +63,7 @@ revise the contract. Do not silently treat an old document, a parser production 
 a generated excerpt as a new supported feature.
 
 See [documentation maintenance](../development/documentation.md) and the
-[release plan](../development/release-0.4.0.md) for remaining verification work.
+[release plan](../development/release-0.5.0.md) for remaining verification work.
 
 ## Subsequent design work
 

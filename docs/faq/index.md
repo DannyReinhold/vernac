@@ -1,8 +1,11 @@
+---
+title: Practical questions about building with Vernac
+---
 # Practical questions about building with Vernac
 
 You have a model compiling. Now you want to understand its generated API, connect it
 to an application, or explain an unexpected result. Start with the situation closest
-to yours below. These answers describe Vernac **0.4.0**; source checkouts use matching
+to yours below. These answers describe Vernac **0.5.0**; source checkouts use matching
 **0.5.0-SNAPSHOT** artifacts for local development.
 
 New to the language? Follow [your first domain model](../tutorials/your-first-domain-model.md)
@@ -10,6 +13,38 @@ first. For exact requirements, use the [specification](../specification/index.md
 
 For a guide by task across tutorials, contracts and implementation notes, open the
 [documentation map](../documentation-map.md).
+
+<details class="on-this-page" markdown="1">
+<summary>On this page</summary>
+
+* Contents
+{:toc}
+
+</details>
+
+## Understanding the approach
+
+### Is Domain-Driven Design only worthwhile for large enterprise systems?
+
+No. Its starting point is understanding the work and expressing its rules in a
+shared language. A small task board can benefit from a nonblank Title and an
+explicit CompleteTask operation. Large organizations also need strategic modeling,
+but a small application does not have to imitate their organization or infrastructure.
+
+Vernac makes the repeated Java structure inexpensive: generated values, identities,
+usecase wrappers and repository implementations let you use clear boundaries without
+handwriting all the scaffolding. You still decide which boundaries help and test the
+rules. Start with [What is DDD?](../tutorials/what-is-ddd.md), then
+[DDD for a small project](../tutorials/ddd-for-small-projects.md).
+
+### Must I use microservices, events and a port for everything?
+
+No. DDD does not require microservices, and Vernac does not require a declaration
+of every supported kind. Start with one aggregate and a useful operation. Add a
+repository when you need storage, an adapter when you need a boundary and an event
+when you need an explicitly timed reaction. A plain Java method or direct usecase
+call can be the right choice. The [small-project guide](../tutorials/ddd-for-small-projects.md)
+shows what to leave out as well as what to include.
 
 ## Getting started and using Java
 
@@ -36,7 +71,7 @@ you need it. [Start with the database-free example](../tutorials/your-first-doma
 
 ### Can I create a complete application instead of starting with a domain test?
 
-Yes, with the 0.5.0 development plugin. **New Project → Vernac → Spring Boot Web
+Yes, with the 0.5.0 plugin. **New Project → Vernac → Spring Boot Web
 Application** creates a small task workspace with Thymeleaf, transactional Vernac
 usecases, PostgreSQL, Flyway migrations and a local Compose file. With Docker
 running, open `TasksApplication` and click **Run**, or run `spring-boot:run` in the
@@ -70,7 +105,7 @@ The IntelliJ plugin bundles its language server; it does not install the Maven
 compiler/runtime artifacts. Check the application's `vernac.version`, the Maven
 runner's JDK/settings and the selected Maven repository.
 
-A released 0.4.0 consumer downloads matching artifacts from Maven Central **after
+A released 0.5.0 consumer downloads matching artifacts from Maven Central **after
 publication**. A source checkout using 0.5.0-SNAPSHOT requires a local installation:
 run `mvn clean install` from the Vernac repository root with JDK 25. `verify` tests
 and packages artifacts but does not install them. Restarting IntelliJ also discards
@@ -291,7 +326,7 @@ skipped counts before claiming database coverage.
 
 The release workflow requires its named database and plugin suites to execute and
 rejects skipped reactor reports. [Run the database tests](../tutorials/database-persistence.md#7-run-the-database-tests)
-and [review the release gates](../development/release-0.4.0.md).
+and [review the release gates](../development/release-0.5.0.md).
 
 
 ### How can I show a numbered page without loading every matching aggregate?
@@ -391,7 +426,7 @@ its POM. Add its Maven dependency and import the exported namespace/type normall
 The consumer references the existing Java classes; it does not regenerate them.
 External VO fields can be flattened into your own aggregate tables, so a library
 update may require an application migration. Functional modules also support explicit
-activation and coordinated, independent migration histories. See the [two-artifact example](../../examples/type-modules/README.md).
+activation and coordinated, independent migration histories. See the [two-artifact example](https://github.com/DannyReinhold/vernac/blob/main/examples/type-modules/README.md).
 
 ## Versioned modules in 0.4.0
 
@@ -402,7 +437,7 @@ in Account, its flattened columns belong to Account's application history. Updat
 the module cannot migrate that other owner's columns. Generate and review a migration
 for every owner embedding the changed value, then rebuild all dependent contracts.
 An added required field needs an explicit backfill decision for existing rows.
-[Try the complete three-owner upgrade](../../examples/persistent-modules/README.md#upgrade-the-exported-value-with-existing-data).
+[Try the complete three-owner upgrade](https://github.com/DannyReinhold/vernac/blob/main/examples/persistent-modules/README.md#upgrade-the-exported-value-with-existing-data).
 
 ### Does adding a module dependency automatically create its database tables?
 
@@ -423,7 +458,7 @@ application history have migrated and passed schema validation.
 
 A failed receiver's SQL rolls back before a retry is scheduled. Other recipients
 can succeed independently. External API effects still require idempotency.
-[Run the restart/retry example](../../examples/persistent-modules/README.md).
+[Run the restart/retry example](https://github.com/DannyReinhold/vernac/blob/main/examples/persistent-modules/README.md).
 
 
 ### Will adding an API module dependency immediately expose its HTTP endpoints?
@@ -437,7 +472,7 @@ other functional modules transitively, and their database migrations run first. 
 application supplies the HTTP runtime and Spring MVC. The producer owns request/response
 DTOs, mappings and the public error policy; none needs copying into the application.
 Authentication and authorization still belong to your application's security policy.
-[Try the module-owned API](../../examples/persistent-modules/README.md#call-the-module-owned-http-api).
+[Try the module-owned API](https://github.com/DannyReinhold/vernac/blob/main/examples/persistent-modules/README.md#call-the-module-owned-http-api).
 
 
 ### I upgraded a module dependency. Why does the editor still show its old types?
@@ -490,17 +525,17 @@ live diagrams and clickable graph navigation are outside this first increment.
 [Follow the diagram tutorial](../tutorials/domain-diagrams.md).
 
 
-## Debugging: development preview
+## Debugging in Vernac
 
 ### Can I stop inside an inline Java behavior in a .vernac file?
 
-Yes, with matching **0.5.0-SNAPSHOT** compiler and plugin builds. Build the application
+Yes, with matching **0.5.0** compiler and plugin artifacts, or matching SNAPSHOT builds. Build the application
 first, set a breakpoint on an executable statement or conversion in a supported
 Vernac block and start its normal Java debug configuration. The editor can stop in the
 Vernac source while the JVM supplies real arguments, locals and `self`. Breakpoints,
 stepping, expression evaluation and conditions have been exercised in IntelliJ.
 
-This is not part of the published 0.4.0 plugin. Native source mapping currently covers
+Native source mapping covers
 VO/entity/aggregate/collection behaviors, inline usecase execute blocks and their
 private helpers, plus domain service and outbound adapter operations and helpers.
 Java mapping bodies and explicit declarative field assignments in both adapter
@@ -570,7 +605,7 @@ probe from the full persistence-demo delivery exercise.
 
 Navigation commands and modifier-hover highlighting use different IDE entry points.
 Earlier Vernac builds supplied LSP navigation without native PSI references for DSL
-type ranges. The 0.5.0 development plugin now supplies those precise ranges and
+type ranges. The 0.5.0 plugin now supplies those precise ranges and
 compiler-resolved targets, so IntelliJ can provide its normal Ctrl-hover link feedback.
 This is separate from ordinary documentation hover. It follows your keymap/theme,
 and applies to resolved declared Vernac type usages, including imports and exported

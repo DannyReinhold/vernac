@@ -1,3 +1,6 @@
+---
+title: Getting Started with the Vernac IntelliJ Plugin
+---
 # Getting Started with the Vernac IntelliJ Plugin
 
 Create a working Vernac project, explore your domain model with language-aware editor support, and use the generated
@@ -31,7 +34,7 @@ generates and compiles Java sources. Editor diagnostics do not replace a success
 
 ## 1. Prepare your environment
 
-This guide describes the **0.4.0 plugin**. Match its compiler/runtime version, and
+This guide describes the **0.5.0 plugin**. Match its compiler/runtime version, and
 check the packaged descriptor for IDE compatibility.
 
 - Use a compatible IntelliJ IDEA installation. The current plugin descriptor targets build `262.10968.63` through the
@@ -43,7 +46,7 @@ check the packaged descriptor for IDE compatibility.
 
 ### Released plugin versus a source build
 
-For the published 0.4.0 plugin, the wizard selects matching 0.4.0 Maven artifacts.
+A 0.5.0 release plugin selects matching 0.5.0 Maven artifacts.
 They are downloaded from Central; building the Vernac repository is unnecessary.
 Before that release is published, use the source-build route below instead.
 
@@ -80,7 +83,7 @@ Open **New Project** and choose **Vernac**. Enter, for example:
 
 | Field        | Example                                |
 |--------------|----------------------------------------|
-| Project kind | `Spring Boot Web Application` (0.5.0 development) |
+| Project kind | `Spring Boot Web Application` (0.5.0) |
 | Name         | `TaskManager`                          |
 | Location     | A directory for your new project       |
 | GroupId      | `com.example`                          |
@@ -91,7 +94,7 @@ Open **New Project** and choose **Vernac**. Enter, for example:
 The artifact ID is suggested from the project name: `TaskManager` becomes `task-manager`. You can edit it independently.
 GroupId and namespace are separate settings; set both explicitly as needed.
 
-In the 0.5.0 development wizard, **Spring Boot Web Application** is the default:
+In the 0.5.0 wizard, **Spring Boot Web Application** is the default:
 a complete Thymeleaf/PostgreSQL application with local Compose and Flyway history.
 Follow [From New Project to a working application](spring-boot-starter.md) to run it.
 Choose **Minimal Domain Project** for the database-free exercise described below,
@@ -200,7 +203,7 @@ Suggestions track unsaved edits. Ambiguous names are not resolved arbitrarily.
 ### Hover information and navigation
 
 Hover over a reference such as `TaskId` to inspect its LSP information and vocabulary
-entry. With the **0.5.0 development plugin**, hold **Ctrl** and move the mouse over
+entry. With the **0.5.0 plugin**, hold **Ctrl** and move the mouse over
 that type reference: native PSI references supply the type-name range and resolved
 declaration for IntelliJ's navigable-link highlighting. Click to navigate, or use
 **Ctrl+B** / **Go to Declaration**. The exact color and shortcut follow your IDE theme
@@ -361,7 +364,7 @@ for a runnable UI/PostgreSQL application. With Docker running, open its
 `TasksApplication` and click Run; `local` is the default profile. Explicitly select
 `production` for deployment (the Dockerfile does this already). Choose **Minimal Domain Project** for a local
 model and test, or **Module / Type Library** for reusable IDs, values, enums and
-value collections. The published 0.4.0 wizard calls the minimal option **Application**.
+value collections. Older wizards may call the minimal option **Application**.
 The type library generates explicit exports and source-JAR packaging; it does not
 generate aggregates or an application definition. Application projects receive an
 empty `vernac-application.vapplication` beside their POM. Use it to activate
@@ -375,13 +378,12 @@ Go To Declaration follows those type references. Adapter bindings now generate S
 Functional modules require explicit activation; type-only dependencies do not need `activate`.
 
 
-## Development preview: debug inline behavior
+## Debug inline behavior
 
 With the matching **0.5.0-SNAPSHOT** compiler and plugin, you can set breakpoints
 inside supported Vernac behavior bodies and inspect the live JVM state. Follow the
 [debugging tutorial](debugging.md) for a database-free example, expression evaluation,
-conditional breakpoints and logpoints. The published 0.4.0 plugin does not include
-this integration; follow the tutorial's source-build instructions.
+conditional breakpoints and logpoints. Use matching 0.5.0 release artifacts or the matching source-build instructions.
 
 ### Vocabulary terms and embedded Java
 
@@ -396,7 +398,7 @@ editor inside behaviors or validations. In a behavior, navigation to Java method
 such as `strip()` and local helpers such as `marker()` uses the injected Java
 context; these expressions are not Vernac type references.
 
-### Server-rendered MVC adapters (0.5.0 development)
+### Server-rendered MVC adapters (0.5.0)
 
 The web starter now declares its routes in `adapter TaskWeb inbound mvc`; its
 controller and scoped advice are generated. The LSP recognizes MVC keywords,
@@ -417,23 +419,21 @@ check after file-system and project-root changes. This covers the first Maven
 build, project reopening and recreation after `clean`. Existing source-root
 classifications are preserved. No unrelated module dependencies are added.
 
-An initial Maven generation build is still necessary for newly declared classes:
+A Maven build remains necessary to compile, run or debug changed application code:
 
 ```text
 mvn compile
 ```
 
-After the IDE refreshes and indexes the generated root, factories such as
-`SubTaskCount.of(0)` and `FeatureTask.create(...)` should resolve in embedded Java.
-An unresolved call can also prevent correct inference of a `var` local; a resulting
-“always null” inspection must not be repaired by replacing that local with `null`.
-Compare the generated companion and check the generated source root instead.
+Before that build, the live model API supplies current local signatures to embedded
+Java. After the build, normal generated source roots also support ordinary Java
+callers. If type inference looks wrong, inspect the current declaration, diagnostics
+and generated root; do not apply a replace-with-null quickfix to a valid factory call.
 The plugin does not suppress Java nullability inspections.
 
-This automatic repair covers the conventional Maven output directory. If the
-project customizes `vernac.outputDirectory` or its build directory, configure or
-import that directory as a generated Java source root through Maven/IntelliJ.
-Completion before any Java generation remains a separate tooling improvement.
+Automatic root repair covers the conventional Maven output directory. If the
+project customizes `vernac.outputDirectory` or its build directory, import that
+location as a generated Java source root through Maven/IntelliJ.
 
 ## Editing an incomplete model
 
@@ -449,11 +449,10 @@ the editor may withhold that region until the block is repaired. Invalid namespa
 or import syntax prevents publishing a guessed file context. No last-successful
 snapshot is silently substituted after an edit or rename.
 
-This preserves existing editor assistance; it does not yet supply Java classes
-for newly declared types before their first generation build. That is the next
-stage of the editor integration.
+This recovery also supplies independently valid declarations to the live Java API.
+It does not make a damaged file compile or run.
 
-## Try a value object before generation (0.5.0 development)
+## Try a value object before generation (0.5.0)
 
 Add an ordinary VO to a namespace already used by your project. For example:
 
@@ -487,7 +486,7 @@ otherwise complete VO.
 The live editor APIs cover local IDs, VOs, enums, entities, aggregates and their
 explicit collections. Validation Read views and entity/aggregate Read/Write/Access
 interfaces are included. Services, events, repositories, ports, usecases and their
-application access interfaces still need generation. Handwritten `.java` files retain their
+application access interfaces are included in the live API too. Handwritten `.java` files retain their
 normal Java resolution. No source file is generated on a keystroke, and a running
 application does not acquire these new methods until built/restarted or updated
 through a separate supported debugger mechanism.
@@ -495,13 +494,11 @@ through a separate supported debugger mechanism.
 ### Completing a newly declared VO inside Java
 
 The live Java path covers local domain classes and their explicit lists/sets.
-The installed-IDE retest confirms new class-name suggestions and short-name insertion.
-Factory completion for ordinary VOs is also confirmed after preserving the copied editor context:
-select `EditorTest`, then try `EditorTest.o` and Ctrl+Space for `of`.
-The projected Java already imports visible VOs; you should not need a technical package
-name or a new `java imports` entry for a local VO. The extension to IDs, enums and
-collections still needs its own installed-IDE acceptance.
-Vernac field-type completion is a separate feature.
+Select a visible local type by prefix, then complete its factory: for example,
+`DraftCount.o` followed by Ctrl+Space offers `of`. Model visibility determines the
+projected imports, so a visible local type does not require a technical package
+prefix or another `java imports` entry. Vernac field-type completion is a separate
+feature. The examples below exercise the different API families.
 
 For troubleshooting, place the caret inside the Java body and run **Tools → Vernac →
 Diagnose Embedded Java Context**. It opens a read-only report without saving source
@@ -526,8 +523,7 @@ has no indexed `get` or `duplicates` operation. Each explicitly declared collect
 has its own type and optional public behaviors.
 
 You still need a build to run these new types. Editing and completion create no
-Java output files and perform no Hot Swap. Services, events and application-level
-contracts continue using their generated APIs for now. A malformed declaration is withheld;
+Java output files and perform no Hot Swap. A malformed declaration is withheld;
 independent valid declarations remain available.
 
 ### Try entities, aggregates and the right `self` view

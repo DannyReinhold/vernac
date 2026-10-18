@@ -1,7 +1,7 @@
 # Vernac: self-contained reference for AI code generation
 
-Language baseline: **Vernac 0.4.0**. Source checkouts default to 0.5.0-SNAPSHOT.
-Multiple attached collections require the 0.4.0 compiler/runtime/tooling described
+Language baseline: **Vernac 0.5.0**. Source checkouts default to 0.5.0-SNAPSHOT.
+Multiple attached collections require the 0.5.0 compiler/runtime/tooling described
 here; HTTP inbound adapters require at least 0.3.0. This document describes implemented
 project compilation, not proposed features. Provide this entire file to an AI together
 with the application requirements and existing model files. Match artifact versions;
@@ -1235,7 +1235,7 @@ flattening/diffs. Module dependencies do not activate beans or migrations.
 Build producer and consumer with the current Vernac Maven plugin. In IntelliJ,
 New → Vernac Module Definition creates the project file. Build after dependency
 changes to refresh the shared resolved editor index. For a runnable two-artifact
-example see [type modules](../examples/type-modules/README.md).
+example see [type modules](https://github.com/DannyReinhold/vernac/blob/main/examples/type-modules/README.md).
 
 ### Application composition status
 
@@ -1341,7 +1341,7 @@ compile or packaging. Do not bypass activation with dependency component scannin
 
 ### Executable persistent-module lifecycle example
 
-See [examples/persistent-modules](../examples/persistent-modules/README.md): two Maven
+See [examples/persistent-modules](https://github.com/DannyReinhold/vernac/blob/main/examples/persistent-modules/README.md): two Maven
 producer artifacts export values and usecases while retaining private repositories;
 the application activates the dependant module explicitly. Required modules migrate
 before dependants, then the application's own history runs. If an exported VO shape
@@ -1429,7 +1429,7 @@ Required usecase modules activate transitively. A dependency or type import alon
 no routes, even under component scanning. DTOs, mappings and errors remain producer-owned;
 consumer compilation does not regenerate them. The application supplies
 `vernac-runtime-http` and `spring-boot-starter-web`. Route paths are unchanged; ambiguous
-routes fail at MVC startup. See the [persistent module walkthrough](../examples/persistent-modules/README.md)
+routes fail at MVC startup. See the [persistent module walkthrough](https://github.com/DannyReinhold/vernac/blob/main/examples/persistent-modules/README.md)
 for the API module and a real cross-module HTTP call.
 
 
@@ -1487,7 +1487,7 @@ is implied. See [the diagram tutorial](tutorials/domain-diagrams.md).
 
 ### Vernac source debugging (0.5.0 tooling)
 
-The development plugin/compiler can map inline domain behavior breakpoints to original
+The 0.5.0 plugin/compiler can map inline domain behavior breakpoints to original
 Vernac lines using build-owned metadata. Build with debug line/local-variable information
 and use matching source/generated/runtime artifacts. This is not new DSL syntax and
 does not imply full debugger coverage or hot swap. See the [prototype scope](development/vernac-debugger-prototype.md)
@@ -1495,11 +1495,11 @@ and the executable example it links.
 
 For mapped behavior frames, debugger expressions use Java syntax and the generated
 method scope (`self`, arguments and locals). Breakpoint logging and suspension are
-standard IntelliJ options; see the [debugger walkthrough](../examples/debugger/README.md)
+standard IntelliJ options; see the [debugger walkthrough](https://github.com/DannyReinhold/vernac/blob/main/examples/debugger/README.md)
 for Evaluate Expression, conditions and non-suspending logpoints.
 
-A guided [debugging tutorial](tutorials/debugging.md) covers the 0.5.0 development
-preview and states its exact coverage. Inline usecase execute blocks, domain service
+A guided [debugging tutorial](tutorials/debugging.md) covers the 0.5.0
+integration and states its exact coverage. Inline usecase execute blocks, domain service
 operations and their private helpers also have mappings. User-authored require rules
 on VOs, entities, aggregates, usecases and services map their opening require line to
 one generated condition entry point with a Read/input self. Synchronous/deferred
@@ -1512,7 +1512,7 @@ has no artificial breakpoint. Adapter-method preconditions remain unsupported by
 language contract. Debugging tooling does not
 change transaction, validation or asynchronous execution semantics.
 
-Expression editing is separate from runtime evaluation. The 0.5.0 development
+Expression editing is separate from runtime evaluation. The 0.5.0
 plugin routes expression requests to the verified Java scope of their Vernac line
 to address red variables and missing Ctrl+Space completion. Core expression editing
 and adapter/mapping debugging have been confirmed in the installed IDE. Runtime
@@ -1526,7 +1526,7 @@ expressions. Normal stepping skips only verified pure facade reads, not modifica
 wrappers, validators or callbacks. Contributor mode restores raw Java views and disables
 this filter. Native tree/Watch/stepping acceptance is separate from the JVM inspector test.
 
-The 0.5.0 development plugin also supplies native PSI references for declared Vernac
+The 0.5.0 plugin also supplies native PSI references for declared Vernac
 types in DSL signatures/fields/imports/dependencies and repository aggregate targets.
 These use compiler namespace/import/export visibility and exact UTF-16 type-name
 ranges for native Ctrl-hover navigation feedback. Injected Java, strings and enum
@@ -1555,9 +1555,9 @@ projects/checkouts, enable Maven Runner’s delegation setting explicitly; a nat
 IDE build alone does not invoke the Vernac Maven goal. This public starter includes CSRF but
 no authentication or tenant isolation. See the spring-boot-starter tutorial.
 
-## 0.5.0 development: server-rendered MVC adapters
+## 0.5.0: server-rendered MVC adapters
 
-This is implemented development syntax, unavailable in 0.4.0. Keep HTML rendering
+This is implemented 0.5.0 syntax; older compilers do not support it. Keep HTML rendering
 in `inbound mvc` and JSON response DTOs in `inbound http`; do not mix their response
 clauses. Both invoke explicitly injected usecases using the same exact mapping rules.
 
@@ -1631,33 +1631,25 @@ fragments are not supported in this version. There are no automatic handwritten
 controllers: generate them from MVC declarations. See the authoritative
 [MVC contract](contracts/inbound-mvc.md) and [tutorial](tutorials/inbound-mvc.md).
 
-## Development tooling: live domain APIs
+## Editor tooling: live local Java APIs
 
-In 0.5.0 development, embedded Java can use factories, getters, public behaviors
-and validation Read views of complete local ordinary VOs before Java generation.
-The expansion also supplies local IDs, enums, entities, aggregates and all their
-explicit lists/sets, including collection behaviors and typed id helpers. Mutable
-domain Read/Write/Access interfaces resolve the existing injected `self` types:
-Read for read behaviors and validators, Access for modifying behaviors.
-These read-only in-memory views use the compiler's generators. This is not
-compilation or Hot Swap. Services, events, repository/port/usecase contracts and
-ordinary handwritten Java files still use their normal build/generated APIs;
-runtime execution requires a build.
-An invalid or incomplete declaration API is withheld rather than guessed. See the
-[live API notes](development/live-value-object-java-apis.md) for exact boundaries.
+Embedded Java in a valid local Vernac context sees current APIs before generation:
+IDs, VOs, enums, explicit collections, entities, aggregates, services, events,
+usecases, repositories, ports and adapters. This includes validation Read and
+mutable-domain Read/Write/Access views, dependency getters on `self`, nested
+usecase Result records, query handles and adapter DTO/mapping holders. Read behaviors
+and validators receive Read views; modifying behaviors receive Access views.
 
-Editor note: ordinary-VO class-name suggestions, short-name insertion and factory-member
-completion are confirmed in embedded Java. IDs, enums, mutable domain classes,
-access views and collections await their own installed-popup acceptance. Visible
-supported Vernac types already receive projected Java imports. Generate Java for reliable code insight until accepted.
-DSL field-type completion is separate. The
-[diagnostic guide](development/live-value-object-java-apis.md#installed-ide-completion-failure-and-diagnostics)
-explains the explicit, read-only context report.
+These read-only in-memory APIs use the production generators, include unsaved
+model edits and obey namespace/import/export visibility. Visible model types receive
+projected Java imports. Invalid or incomplete declaration APIs are withheld rather
+than guessed. Handwritten Java files keep normal Java resolution, and external
+module implementations are not reprojected. Building is still required to run or
+debug new code; editor projection neither writes generated files nor performs HotSwap.
 
-Local services, events, outbound port contracts and usecases also expose current
-Java APIs to embedded Java before generation. This includes dependency getters on
-`self`, event factories and nested usecase `Result` records. Local repository contracts, event listeners and outbound adapters also expose live
-APIs, including query handles, Access dependencies and outbound DTO/mapping holders.
-Inbound HTTP/MVC controllers, scoped error handlers, DTOs and mapping holders are
-also projected from the resolved transport contract. This editor projection
-never writes generated output and does not replace the normal build.
+See the [IntelliJ guide](tutorials/intellij-plugin.md) for examples and the
+[live API notes](development/live-value-object-java-apis.md) for verification limits.
+If completion fails, **Tools → Vernac → Diagnose Embedded Java Context** produces a
+read-only local report without running Maven. DSL field completion, Java compilation
+and runtime debugging are separate mechanisms; do not treat success in one as proof
+that another has completed.

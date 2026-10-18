@@ -1,14 +1,17 @@
+---
+title: From New Project to a working application
+---
 # From New Project to a working application
 
 An empty project leaves a surprisingly large question unanswered: how does a domain
-model become something a person can actually use? The **0.5.0 development wizard**
+model become something a person can actually use? The **0.5.0 project wizard**
 can now answer that with a small, complete application.
 
 Choose **Spring Boot Web Application** under **New Project → Vernac**. The generated
 *Small wins* workspace has a responsive Thymeleaf interface, a PostgreSQL database,
 Flyway migrations, real usecases and a small test suite. It contains one aggregate,
 not an entire example platform. Rename it, change its model and make it your own.
-The released 0.4.0 wizard does not contain this template.
+Earlier wizards do not contain this template.
 
 ![The generated Small wins task workspace](../assets/small-wins-starter.png)
 
@@ -17,7 +20,7 @@ image illustrates the UI, not a completed PostgreSQL deployment test.*
 
 ## Start with a small win
 
-Install the development plugin and matching `0.5.0-SNAPSHOT` Maven artifacts as
+Install the 0.5.0 plugin and matching Maven artifacts (or the matching SNAPSHOT source build) as
 explained in the [IntelliJ guide](intellij-plugin.md). Select a JDK 25, enter your
 Maven coordinates and namespace, and keep **Spring Boot Web Application** selected.
 Docker with Compose v2 must be running. Nothing is started during project creation.

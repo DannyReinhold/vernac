@@ -17,6 +17,14 @@ and bundle verification are supported; coordinated runtime migration execution i
 migration before applying it. Candidates and successful automated checks do not
 guarantee correctness for existing data, deployment order, locking or recovery.
 
+<details class="on-this-page" markdown="1">
+<summary>On this page</summary>
+
+* Contents
+{:toc}
+
+</details>
+
 ## 1. Understand the three names
 
 The example library has three identities serving different purposes:
@@ -650,7 +658,7 @@ and remove disposable databases. The additional upgrade scenario covers existing
 external-VO field backfill, followed by rejection of old artifacts.
 
 For a complete runnable reactor and step-by-step version upgrade, follow
-[the persistent module example](../../examples/persistent-modules/README.md). It keeps
+[the persistent module example](https://github.com/DannyReinhold/vernac/blob/main/examples/persistent-modules/README.md). It keeps
 Billing, Receipts and application migrations separate and shows why an exported value
 change can require all three owners to migrate.
 
@@ -687,7 +695,7 @@ The application activates `example.api`; its functional dependencies activate Re
 and Billing. Their histories run before requests can reach the usecase. Without that
 activation, the API's presence on the Maven classpath does not expose its routes.
 
-Follow [the executable HTTP walkthrough](../../examples/persistent-modules/README.md#call-the-module-owned-http-api)
+Follow [the executable HTTP walkthrough](https://github.com/DannyReinhold/vernac/blob/main/examples/persistent-modules/README.md#call-the-module-owned-http-api)
 to start the servlet profile and try a request. Its transport and validation failures
 use the API producer's declarative error policy. The application adds the HTTP runtime
 and Spring MVC explicitly. Activation does not configure authentication or authorization.

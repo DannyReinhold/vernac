@@ -1,6 +1,6 @@
 # Contributing to Vernac
 
-Start with the repository [contribution guide](../../CONTRIBUTING.md) for issue reports,
+Start with the repository [contribution guide](https://github.com/DannyReinhold/vernac/blob/main/CONTRIBUTING.md) for issue reports,
 local verification and pull requests.
 
 User documentation starts at the [documentation home](../index.md). This section
@@ -56,6 +56,7 @@ For a guide across all documentation, use the [documentation map](../documentati
 - [Consolidation status](consolidation-status.md)
 - [Pagination implementation sequence](pagination.md): runtime foundation and remaining repository/Result/HTTP work.
 - [0.4.0 release plan](release-0.4.0.md)
+- [0.5.0 release preparation](release-0.5.0.md)
 - [Release operations](../maintainers/releasing.md)
 
 Implementation notes explain mechanisms and trade-offs. They do not override the

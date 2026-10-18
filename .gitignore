@@ -46,3 +46,6 @@ build/
 
 # Python release tooling
 __pycache__/
+
+# Local IDE metadata from standalone example experiments
+/examples/**/.idea/

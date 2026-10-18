@@ -1,3 +1,6 @@
+---
+title: Debug your business behavior where you wrote it
+---
 # Debug your business behavior where you wrote it
 
 Your breakpoint belongs in the business rule, not in a generated wrapper. Vernac's
@@ -5,9 +8,9 @@ IntelliJ integration lets you stop inside an inline `behavior`, inspect its argu
 and locals, step through the operation and evaluate ordinary Java expressions while
 working in the `.vernac` source.
 
-**Availability:** this chapter describes the **0.5.0-SNAPSHOT** development compiler
-and plugin from the source checkout. The published **0.4.0** plugin does not provide
-this debugger integration. Use matching development artifacts throughout this chapter.
+**Version:** use matching **0.5.0** compiler and plugin artifacts, or matching
+**0.5.0-SNAPSHOT** artifacts from a source checkout. Earlier plugin versions do not
+provide this debugger integration. Build the application before starting a debug session.
 
 ## A small example, with a real JVM behind it
 
@@ -153,7 +156,7 @@ breakpoint again.
 ### Check expression editing separately
 
 The expression editor and the runtime evaluator are separate IntelliJ mechanisms.
-The 0.5.0 development plugin now maps the requested Vernac source line to its
+The 0.5.0 plugin maps the requested Vernac source line to its
 verified generated Java scope for both Java and source-file expression requests.
 This addresses the reported red variables and missing completion; installed-IDE
 acceptance is still required and must not be inferred from successful evaluation.
@@ -467,7 +470,7 @@ Do not copy its direct handler invocation as an application event-publication pa
 ### Try the complete durable delivery path
 
 To debug actual publication and the database-backed worker, use
-[the persistence demo](../../examples/persistence-demo/README.md) with its PostgreSQL
+[the persistence demo](https://github.com/DannyReinhold/vernac/blob/main/examples/persistence-demo/README.md) with its PostgreSQL
 container and normal startup configuration. Build with matching development artifacts,
 then start its `org.example.delivery.demo.PersistenceDemoApplication` in Debug from
 the IDE, rather than launching it as an unattached Maven process.

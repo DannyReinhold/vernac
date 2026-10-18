@@ -135,7 +135,7 @@ share a frozen snapshot beyond the existing usecase transaction's isolation.
 Concurrent inserts/deletes can shift later offsets or move sort keys.
 
 For a runnable application with real repositories, start
-[Vernac Dispatch](../../examples/dispatch/README.md#paged-board-api). It provides the
+[Vernac Dispatch](https://github.com/DannyReinhold/vernac/blob/main/examples/dispatch/README.md#paged-board-api). It provides the
 same structure at `/api/tour-board`; no issue-tracker bootstrap data is assumed here.
 
 Configure a positive maximum in application.yaml when needed:

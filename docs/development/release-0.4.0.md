@@ -18,7 +18,7 @@ python -m unittest discover -s tools/tests -v -b
 ```
 
 Configure the disposable PostgreSQL test service and the three VERNAC_PG_TEST_*
-variables as described in [examples](../../examples/README.md). Skipped database tests
+variables as described in [examples](https://github.com/DannyReinhold/vernac/blob/main/examples/README.md). Skipped database tests
 are not release acceptance. The release workflow provides its own disposable server.
 
 - [ ] Root build and required PostgreSQL suites run without skips/failures.

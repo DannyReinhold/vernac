@@ -1,3 +1,6 @@
+---
+title: Serve a real page from your domain model
+---
 # Serve a real page from your domain model
 
 A JSON endpoint is a useful boundary, but it is not the only way to deliver an
@@ -5,9 +8,9 @@ application. For a small product or an internal tool, a server-rendered page can
 be a simpler, durable starting point: one application, ordinary HTML forms and no
 JavaScript build pipeline.
 
-The **0.5.0 development** MVC adapter connects those pages directly to Vernac
+The **0.5.0** MVC adapter connects those pages directly to Vernac
 usecases. It generates the Spring controller and its scoped error handling; you
-write the templates and the domain decisions. The published 0.4.0 release does not
+write the templates and the domain decisions. Use matching 0.5.0 compiler/runtime artifacts; older releases do not
 support this syntax. The [Spring Boot wizard starter](spring-boot-starter.md) is the
 ready-to-run version of this approach.
 

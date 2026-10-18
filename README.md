@@ -13,6 +13,20 @@ handwritten class. Read the generated code, test it with ordinary Java tools, an
 use it alongside an existing application. No ORM, reflective domain model or separate
 runtime language is required.
 
+## Clean architecture is useful before a project becomes large
+
+Vernac makes Domain-Driven Design approachable for a solo developer, an internal
+tool or a small SaaS as well as a larger application. Typed values, explicit
+business operations and clear boundaries do not have to come with pages of
+handwritten boilerplate. Start with one model and one useful operation; add
+persistence, events and integrations when they solve a real problem.
+
+New to DDD? [Learn the ideas with a task board](docs/tutorials/what-is-ddd.md), then
+see [how little a small project needs](docs/tutorials/ddd-for-small-projects.md).
+Prefer to start with a running product? The
+[Spring Boot starter](docs/tutorials/spring-boot-starter.md) includes a browser UI,
+PostgreSQL and migrations.
+
 ## One model, several architectural decisions
 
 Imagine a delivery system. Completing a tour is a business operation, not just an
@@ -70,7 +84,7 @@ framework convention.
 
 ## Start with a passing test
 
-This documentation describes the **Vernac 0.4.0 language and API**. Use matching
+This documentation describes the **Vernac 0.5.0 language and API**. Use matching
 compiler, runtime and IntelliJ plugin versions; earlier releases do not support all
 constructs documented here. For a source checkout, the commands below build and install
 the version configured in its root POM (currently `0.5.0-SNAPSHOT`).
@@ -90,8 +104,8 @@ APIs back to their Vernac declarations. Maven performs source generation.
 - [Build your first domain model](docs/tutorials/your-first-domain-model.md)
 - [See the architecture take shape](docs/tutorials/from-model-to-application.md)
 - [Set up IntelliJ](docs/tutorials/intellij-plugin.md)
-- [Create a real Spring Boot web application](docs/tutorials/spring-boot-starter.md) (0.5.0 development wizard)
-- [Declare HTML pages and forms in Vernac](docs/tutorials/inbound-mvc.md) (0.5.0 development MVC adapters)
+- [Create a real Spring Boot web application](docs/tutorials/spring-boot-starter.md) (UI, database and migrations)
+- [Declare HTML pages and forms in Vernac](docs/tutorials/inbound-mvc.md) (declarative MVC adapters)
 - [Choose an executable example](examples/README.md)
 
 ## Run the architecture
@@ -122,8 +136,8 @@ part of the documented contracts, not details to discover in production.
 
 The repository contains the compiler, Maven plugin, runtime modules for core/JDBC/JSON/HTTP,
 and IntelliJ/LSP tooling. See [contributor documentation](docs/development/index.md)
-and the [0.4.0 release plan](docs/development/release-0.4.0.md).
-The 0.3.0 compiler also generates HTTP inbound adapters around usecases;
+and the [0.5.0 release plan](docs/development/release-0.5.0.md).
+The compiler also generates HTTP inbound adapters around usecases;
 see [the tutorial](docs/tutorials/inbound-http.md). MCP and messaging adapters remain
 planned. Ordinary Java/Spring entry points continue to work alongside generated ones.
 
@@ -163,16 +177,15 @@ from Maven or open its diagram directly from IntelliJ.
 
 ## Debug the business rule, in its source
 
-In the **0.5.0 development preview**, put a breakpoint inside an inline Vernac
+With the **0.5.0 compiler and plugin**, put a breakpoint inside an inline Vernac
 behavior and inspect the live JVM state without first finding its generated Java
 implementation. Step through the rule, inspect `self` and locals, evaluate Java
 expressions and use conditional breakpoints.
 
 The [debugging walkthrough](docs/tutorials/debugging.md) takes you through a
 small runnable example, including private helpers, handwritten Java transitions
-and logpoints. It explains the current coverage and limits. This requires matching
-0.5.0-SNAPSHOT build artifacts and the development plugin; it is not included in
-published 0.4.0 installations.
+and logpoints. It explains the current coverage and limits. Use matching 0.5.0 release artifacts, or matching
+0.5.0-SNAPSHOT artifacts when building this source checkout.
 
 ## Contributing and reporting problems
 

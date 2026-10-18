@@ -1,8 +1,11 @@
+---
+title: Vernac language reference
+---
 # Vernac language reference
 
-This reference describes the **Vernac 0.4.0 language and generated API**. Use matching
+This reference describes the **Vernac 0.5.0 language and generated API**. Use matching
 compiler and runtime versions. Source checkouts default to 0.5.0-SNAPSHOT;
-released consumers select matching 0.4.0 artifacts after publication. Obsolete experimental syntax is not supported.
+released consumers select matching 0.5.0 artifacts after publication. Obsolete experimental syntax is not supported.
 The [specification index](specification/index.md) identifies the normative document
 for each rule. A discrepancy between implementation and contract is a defect to
 investigate, not permission to silently redefine the contract.
@@ -10,6 +13,14 @@ investigate, not permission to silently redefine the contract.
 Examples without a namespace or referenced type declarations are fragments to insert
 into an existing model. [From model to application](tutorials/from-model-to-application.md)
 contains a complete model. For an introduction, follow the [tutorials](tutorials/index.md).
+
+<details class="on-this-page" markdown="1">
+<summary>On this page</summary>
+
+* Contents
+{:toc}
+
+</details>
 
 ## Files, namespaces and imports
 
@@ -522,7 +533,7 @@ flattening/diffs. Module dependencies do not activate beans or migrations.
 Build producer and consumer with the current Vernac Maven plugin. In IntelliJ,
 New → Vernac Module Definition creates the project file. Build after dependency
 changes to refresh the shared resolved editor index. For a runnable two-artifact
-example see [type modules](../examples/type-modules/README.md).
+example see [type modules](https://github.com/DannyReinhold/vernac/blob/main/examples/type-modules/README.md).
 
 ### Application composition status
 
@@ -628,7 +639,7 @@ compile or packaging. Do not bypass activation with dependency component scannin
 
 ### Executable persistent-module lifecycle example
 
-See [examples/persistent-modules](../examples/persistent-modules/README.md): two Maven
+See [examples/persistent-modules](https://github.com/DannyReinhold/vernac/blob/main/examples/persistent-modules/README.md): two Maven
 producer artifacts export values and usecases while retaining private repositories;
 the application activates the dependant module explicitly. Required modules migrate
 before dependants, then the application's own history runs. If an exported VO shape
@@ -716,7 +727,7 @@ Required usecase modules activate transitively. A dependency or type import alon
 no routes, even under component scanning. DTOs, mappings and errors remain producer-owned;
 consumer compilation does not regenerate them. The application supplies
 `vernac-runtime-http` and `spring-boot-starter-web`. Route paths are unchanged; ambiguous
-routes fail at MVC startup. See the [persistent module walkthrough](../examples/persistent-modules/README.md)
+routes fail at MVC startup. See the [persistent module walkthrough](https://github.com/DannyReinhold/vernac/blob/main/examples/persistent-modules/README.md)
 for the API module and a real cross-module HTTP call.
 
 
@@ -774,7 +785,7 @@ is implied. See [the diagram tutorial](tutorials/domain-diagrams.md).
 
 ### Vernac source debugging (0.5.0 tooling)
 
-The development plugin/compiler can map inline domain behavior breakpoints to original
+The 0.5.0 plugin/compiler can map inline domain behavior breakpoints to original
 Vernac lines using build-owned metadata. Build with debug line/local-variable information
 and use matching source/generated/runtime artifacts. This is not new DSL syntax and
 does not imply full debugger coverage or hot swap. See the [prototype scope](development/vernac-debugger-prototype.md)
@@ -782,11 +793,11 @@ and the executable example it links.
 
 For mapped behavior frames, debugger expressions use Java syntax and the generated
 method scope (`self`, arguments and locals). Breakpoint logging and suspension are
-standard IntelliJ options; see the [debugger walkthrough](../examples/debugger/README.md)
+standard IntelliJ options; see the [debugger walkthrough](https://github.com/DannyReinhold/vernac/blob/main/examples/debugger/README.md)
 for Evaluate Expression, conditions and non-suspending logpoints.
 
-A guided [debugging tutorial](tutorials/debugging.md) covers the 0.5.0 development
-preview and states its exact coverage. Inline usecase execute blocks, domain service
+A guided [debugging tutorial](tutorials/debugging.md) covers the 0.5.0
+integration and states its exact coverage. Inline usecase execute blocks, domain service
 operations and their private helpers also have mappings. User-authored require rules
 on VOs, entities, aggregates, usecases and services map their opening require line to
 one generated condition entry point with a Read/input self. Synchronous/deferred
@@ -799,7 +810,7 @@ has no artificial breakpoint. Adapter-method preconditions remain unsupported by
 language contract. Debugging tooling does not
 change transaction, validation or asynchronous execution semantics.
 
-Expression editing is separate from runtime evaluation. The 0.5.0 development
+Expression editing is separate from runtime evaluation. The 0.5.0
 plugin routes expression requests to the verified Java scope of their Vernac line
 to address red variables and missing Ctrl+Space completion. Core expression editing
 and adapter/mapping debugging have been confirmed in the installed IDE. Runtime
@@ -813,7 +824,7 @@ expressions. Normal stepping skips only verified pure facade reads, not modifica
 wrappers, validators or callbacks. Contributor mode restores raw Java views and disables
 this filter. Native tree/Watch/stepping acceptance is separate from the JVM inspector test.
 
-The 0.5.0 development plugin also supplies native PSI references for declared Vernac
+The 0.5.0 plugin also supplies native PSI references for declared Vernac
 types in DSL signatures/fields/imports/dependencies and repository aggregate targets.
 These use compiler namespace/import/export visibility and exact UTF-16 type-name
 ranges for native Ctrl-hover navigation feedback. Injected Java, strings and enum
@@ -833,7 +844,7 @@ The 0.5.0 New Project wizard offers a runnable Spring Boot Web Application, alon
 the minimal model and type-module templates. The web starter combines aggregates,
 paginated queries and usecases with a declarative inbound MVC adapter and Thymeleaf templates. See the [starter walkthrough](tutorials/spring-boot-starter.md).
 
-## Server-rendered inbound MVC (0.5.0 development)
+## Server-rendered inbound MVC (0.5.0)
 
 Use `adapter Name inbound mvc uses ...` with `base`, a required `error view`, and
 GET/POST endpoints. Wire bindings and `execute { parameter <- group.field; }` follow
@@ -856,7 +867,7 @@ URL-encoded GET/POST forms, not multipart uploads, repeated collection fields,
 dynamic redirects or template fragments. See the [contract](contracts/inbound-mvc.md)
 and [complete tutorial](tutorials/inbound-mvc.md).
 
-### Shared Java implementation rules (0.5.0 development)
+### Shared Java implementation rules (0.5.0)
 
 All optional custom-operation parameters, including usecase execute, external
 delegates and private helpers, are nullable T. Optional getters and results remain

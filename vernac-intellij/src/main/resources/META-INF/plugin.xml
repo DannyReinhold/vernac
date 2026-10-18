@@ -100,129 +100,33 @@
 ]]></description>
 
     <change-notes><![CDATA[
-<h3>Live inbound HTTP and MVC APIs before generation</h3>
-<p>Embedded Java now resolves current HTTP/MVC controller, scoped error-handler,
-DTO and mapping APIs directly from the resolved model. Nested DTO factories and
-mapping calls use the same public signatures as the normal build.</p>
-<h3>Live repositories, listeners and outbound adapters</h3>
-<p>Embedded Java now resolves local repository contracts and query handles,
-listener/adapter Access dependencies and outbound DTO/mapping holders before generation.
-Repository APIs share the JDBC generator's signatures without running schema planning.</p>
-<h3>Live services, events, ports and usecase APIs</h3>
-<p>Embedded Java can resolve current local service operations, event factories,
-port contracts and usecase APIs before generation, including self dependency views
-and nested Result records. Uses the same generators as the compiler.</p>
-<h3>Live entities, aggregates and behavior access views</h3>
-<p>Entity/aggregate factories, field getters and public behaviors are now visible before
-Java generation, together with Read/Write/Access views for the appropriate self context.
-Entity and aggregate collections expose their existing typed id helpers. The actual
-model class gains no public setters. Invalid owners withhold their complete API family,
-and stale owned access views are suppressed. Installed-IDE acceptance is pending.</p>
-
-<h3>Live IDs, enums and value-side collections before generation</h3>
-<p>New local IDs, enum values and explicit list/set types now use the same generator-backed
-Java views as ordinary value objects: factories, enum constants, typed collection methods
-and public behaviors. Multiple collections retain independent APIs. Invalid declarations
-are withheld; current unsaved types are visible without running Maven. Enum constants
-navigate to their model declaration. The mutable-domain expansion above also covers entity/aggregate collections.
-Ordinary-VO completion is confirmed in the IDE; the new type kinds await acceptance.</p>
-
-<h3>Live VO completion across temporary editor copies</h3>
-<p>New ordinary VO names now insert without technical package prefixes (confirmed in the IDE).
-Copied Vernac hosts retain their original model scope, and existing domain packages
-are wrapped before the first editor snapshot. This targets missing factory-member
-completion such as EditorTest.o; this path is now confirmed in the installed IDE.</p>
-
-<h3>Scoped Java package lookup for live VO imports and factories</h3>
-<p>Java package lookup now retains current VO APIs, including during native completion's
-alternative-resolve mode. Stable source provenance preserves class identity across
-snapshot recreation during insertion. Visible Vernac types already have projected imports; no technical
-package name or new Java import is required in the source. Diagnostics include imports,
-package lookups, factory signatures, the caret reference and copied-host provenance.</p>
-
-<h3>Inspect embedded Java resolution</h3>
-<p>Tools → Vernac → Diagnose Embedded Java Context opens an in-memory report of live domain
-publication, injection, scopes and Java lookup at the caret. It does not modify or upload
-project files. This diagnoses the reported live-completion failure; it is not a completion fix.</p>
-
-<h3>Keep live VO APIs visible through injected Java scope unions</h3>
-<p>Recognizes the live host context inside IntelliJ's combined host/injected-file search
-scope, restoring the bridge used by Java resolution and class-name lookup. Ambiguous
-combined host contexts are rejected. Diagnostic reports now show union branches and
-inspect short-name extensions in the correct project area. Installed-IDE retest pending.</p>
-
-<h3>Live Java APIs for new value objects</h3>
-<p>Embedded Java can resolve ordinary value-object factories, getters, public behaviors and
-validation Read views from the current model before generation. Java views stay in memory;
-owned older VO sources are replaced in Vernac Java scopes only. This first slice does not
-provide live APIs for IDs, enums, collections, aggregates or usecase access interfaces.</p>
-
-<h3>Keep valid declarations while editing incomplete files</h3>
-<p>Editor analysis now retains complete declarations when another declaration in the same file
-is malformed. Valid Java contexts and declaration navigation remain available; syntax errors
-are still reported and builds remain strict. This is groundwork for completion before generation.</p>
-
-<h3>Generated Java in embedded code</h3>
-<p>Recognizes the conventional generated Java source root after Maven generation,
-so embedded Java can resolve generated domain classes, factories and inferred local types
-without a manual Maven reload. Sources still need an initial generation build.</p>
-
-        <h3>0.5.0 development — Consistent Java implementation contracts</h3>
-        <p>Optional arguments are nullable throughout inline/external implementations
-        and helpers; Optional getters and results retain their contract. Short implemented-by
-        names resolve through local Java imports or the generated caller package, including
-        native class navigation. Shared Java signature checks report overload collisions early.
-        Missing required public domain arguments consistently raise domain validation errors.</p>
-        <p>The Spring Boot starter now runs directly from its application class: no profile
-        selection is needed for local development. The wizard also delegates IDE builds
-        and runs to Maven, so Vernac sources are generated before Java compilation. Explicit deployment profiles replace
-        the local default; the supplied Dockerfile selects production.</p>
-        <h3>0.5.0 development — Declare server-rendered pages</h3>
-        <p>Inbound MVC adapters connect HTML views and URL-encoded forms to typed usecases.
-        Declare rendering, local redirects, safe error pages and form redisplay in Vernac;
-        generated controllers preserve permitted inputs, exclude sensitive fields and never
-        retry a failed POST. Completion, diagnostics, page-loader navigation and hover are
-        integrated. The Spring Boot starter now uses this MVC boundary instead of handwritten
-        controller/error glue; Thymeleaf templates and security remain application-owned.</p>
-        <h3>0.5.0 development — Start with a real application</h3>
-        <p>New Project can create a complete, compact Spring Boot application: a responsive
-        Thymeleaf task workspace, PostgreSQL, generated transactional usecases and JDBC repositories,
-        local Docker Compose, matching Flyway migration/history, CSRF-protected forms,
-        domain/web tests and environment-based deployment configuration. The web application
-        is the wizard default; minimal domain projects and reusable type modules remain available.</p>
-        <h3>0.5.0 development — Native type navigation</h3>
-        <p>Declared Vernac type usages now expose precise PSI references for IntelliJ's
-        Ctrl-hover link feedback and navigation, including matching vocabulary term names.
-        Approved Java types in DSL signatures and explicit implemented-by classes link
-        to their actual Java declarations. Java navigation and helper resolution stay
-        available in files containing terms. Namespace/import/module visibility follows
-        the compiler; embedded Java retains native Java references. Cross-language rename
-        remains separate work.</p>
-        <h3>0.5.0 development — Debug your application in Vernac</h3>
-        <p>Set breakpoints directly in your Vernac source, step through embedded Java,
-        inspect arguments and local variables, and use Evaluate Expression, completion,
-        conditional breakpoints and logpoints with the mapped Java scope.</p>
-        <ul>
-            <li>Domain behaviors, usecases, domain services and listener execute bodies,
-            including their private helpers.</li>
-            <li>Inline outbound adapter behavior, inbound/outbound Java mappings,
-            declarative field conversions and inbound execute argument assignments.</li>
-            <li>Require-rule breakpoints on value objects, entities, aggregates,
-            usecases, domain services and event payloads.</li>
-            <li>Read/Access and validation-input facades show stored readable properties
-            while preserving their real types. Optional backing values are labeled explicitly;
-            projected children add no write access. Display never invokes behavior methods.</li>
-            <li>Conservative stepping skips verified pure facade reads; modification guards,
-            validators and real call stacks remain intact. Contributor mode restores raw views.</li>
-            <li>Source/build/runtime checks prevent stale generated classes from being
-            presented as current Vernac source. Contributors can switch to generated Java views.</li>
-        </ul>
-        <p>The core debugger workflow and adapter/mapping paths have been exercised in IntelliJ.
-        Facade presentation/filtering has real-JVM inspection tests and a guided UI acceptance check.
-        See the <a href="https://vernac.org/tutorials/debugging.html">Debugging tutorial</a>.
-        Use matching 0.5.0 development compiler and plugin builds.</p>
-        <p>Domain diagram export uses the supported blocking read-action API for its short document snapshot on the UI thread.</p>
-        <h3>Vernac 0.4.0</h3>
+<h3>Vernac 0.5.0 — Work in the model</h3>
+<p>Debug business behavior where you wrote it, use current model APIs before Java
+is generated, and start with a small working Spring Boot application.</p>
+<h3>Debug directly in Vernac</h3>
+<p>Set source breakpoints, step through supported behavior, inspect self and locals,
+evaluate Java expressions, and use conditional breakpoints and logpoints. Coverage
+includes domain behavior, usecases, services, listeners, adapter/mapping contexts
+and require rules. Read/Access views retain their real identity; contributors can
+inspect generated Java. Rebuild before debugging changed code; this is not HotSwap.</p>
+<h3>Navigate and complete naturally</h3>
+<p>Native Ctrl-hover references connect model types, Java signatures and implementation
+classes. Embedded Java sees current local IDs, values, collections, entities, aggregates,
+services, events, usecases, repositories, ports and adapters before generation,
+including access views, Result records and DTO/mapping holders. Signatures come from
+the production generators. Unsaved model edits do not launch Maven or write sources.</p>
+<h3>Start with a working application</h3>
+<p>New Project → Vernac offers a Spring Boot Web Application with a Thymeleaf task UI,
+PostgreSQL, Flyway, Compose and tests. With Docker running, open TasksApplication and
+Run; local is the default profile and IDE builds delegate to Maven. A minimal,
+database-free domain project remains available. Declarative inbound MVC connects
+pages, forms, redirects and error redisplay to typed usecases.</p>
+<h3>Learn the architecture at your own pace</h3>
+<p>New DDD and small-project guides complement the debugger and MVC tutorials.
+Documentation navigation separates getting started, learning, reference and contribution.
+See <a href="https://vernac.org/tutorials/what-is-ddd.html">What is DDD?</a> and
+<a href="https://vernac.org/tutorials/debugging.html">Debugging in Vernac</a>.</p>
+<h3>Vernac 0.4.0</h3>
         <p>Versioned modules, pagination, inbound error policies, ubiquitous language and domain diagrams.</p>
         <h3>See the architecture</h3>
         <p>Tools → Vernac → Show Domain Diagram exports the current namespace and opens a

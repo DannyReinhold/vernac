@@ -46,7 +46,7 @@ class DocumentationExamplesTest {
         for (String name : List.of("domain-diagrams", "ubiquitous-language", "repository-queries", "usecases", "enum-value-objects",
                 "outbound-ports", "declarative-rest", "declarative-errors", "default-names",
                 "adapter-dtos", "domain-events", "http-adapter-runtime", "collections",
-                "your-first-domain-model", "adapter-mappings", "inbound-http", "inbound-mvc", "pagination")) {
+                "your-first-domain-model", "what-is-ddd", "ddd-for-small-projects", "adapter-mappings", "inbound-http", "inbound-mvc", "pagination")) {
             String document = Files.readString(Path.of("../docs/tutorials/" + name + ".md"))
                     .replace("\r\n", "\n");
             var block = Pattern.compile("```vernac\\n(.*?)```", Pattern.DOTALL).matcher(document);
@@ -135,6 +135,30 @@ class DocumentationExamplesTest {
         }
         assertEquals(0, ToolProvider.getSystemJavaCompiler().run(null, null, null,
                 arguments.toArray(String[]::new)), "AI reference Java must compile");
+    }
+
+    @Test void dddBeginnerModelsGenerateCompilableJava() throws Exception {
+        for (String name : List.of("what-is-ddd", "ddd-for-small-projects")) {
+            String document = Files.readString(Path.of("../docs/tutorials/" + name + ".md"))
+                    .replace("\r\n", "\n");
+            var block = Pattern.compile("```vernac\\n(.*?)```", Pattern.DOTALL).matcher(document);
+            assertTrue(block.find(), name + " needs its complete example");
+            Path root = temporary.resolve(name + "-java");
+            Path model = root.resolve("vernac/example/tasks/model.vernac");
+            Files.createDirectories(model.getParent());
+            Files.writeString(model, block.group(1));
+            Path sources = root.resolve("java");
+            new VernacCompiler().compileProject(root.resolve("vernac")).writeTo(sources);
+            Path classes = Files.createDirectories(root.resolve("classes"));
+            var arguments = new ArrayList<>(List.of("--release", "21", "-proc:none", "-classpath",
+                    System.getProperty("java.class.path"), "-d", classes.toString()));
+            try (var files = Files.walk(sources)) {
+                files.filter(path -> path.toString().endsWith(".java"))
+                        .map(Path::toString).forEach(arguments::add);
+            }
+            assertEquals(0, ToolProvider.getSystemJavaCompiler().run(null, null, null,
+                    arguments.toArray(String[]::new)), name + " must generate compilable Java");
+        }
     }
 
     @Test void entryPointsTellTheSameExecutableStory() throws Exception {

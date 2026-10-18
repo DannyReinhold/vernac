@@ -49,7 +49,7 @@ the example and inspects self, arguments and locals at the mapped bytecode line.
 Plugin checks reject absent/mismatched runtime fingerprints. SDK compilation alone
 does not establish a functioning installed IntelliJ session.
 
-Follow the [example walkthrough](../../examples/debugger/README.md). Record gutter
+Follow the [example walkthrough](https://github.com/DannyReinhold/vernac/blob/main/examples/debugger/README.md). Record gutter
 binding, source selection, private-helper and Java transitions, entity access views,
 stale-source behavior and contributor-mode results. After that acceptance, improve
 expression-editor resolution/completion and source presentation. Core mappings now
