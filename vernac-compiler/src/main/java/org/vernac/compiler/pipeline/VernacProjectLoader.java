@@ -21,14 +21,19 @@ public final class VernacProjectLoader {
     /** Open editor snapshots override disk contents; unsaved new files are included. */
     public VernacProject load(Path sourceRoot, Map<Path, String> snapshots) throws IOException {
         List<CompilerDiagnostic> diagnostics = new ArrayList<>();
-        VernacProject project = loadForAnalysis(sourceRoot, snapshots, diagnostics);
+        VernacProject project = loadSources(sourceRoot, snapshots, diagnostics, false);
         if (!diagnostics.isEmpty()) throw new SemanticValidationException(diagnostics);
         return project;
     }
 
-    /** Collects source errors while retaining independently parseable files for editor analysis. */
+    /** Collects source errors while retaining complete declarations for editor analysis. */
     public VernacProject loadForAnalysis(Path sourceRoot, Map<Path, String> snapshots,
                                         List<CompilerDiagnostic> diagnostics) throws IOException {
+        return loadSources(sourceRoot, snapshots, diagnostics, true);
+    }
+
+    private VernacProject loadSources(Path sourceRoot, Map<Path, String> snapshots,
+            List<CompilerDiagnostic> diagnostics, boolean editorRecovery) throws IOException {
         Path root = sourceRoot.toAbsolutePath().normalize();
         Map<Path, String> overlays = new TreeMap<>();
         for (var entry : snapshots.entrySet()) {
@@ -51,11 +56,18 @@ public final class VernacProjectLoader {
         }
         List<VernacSourceFile> sources = new ArrayList<>();
         var parser = new VernacSourceParser();
+        var editorParser = new EditorSourceParser();
         for (Path path : paths) {
             try {
-                var unit = parser.parse(path.toString(), overlays.containsKey(path) ? overlays.get(path) : Files.readString(path));
-                sources.add(new VernacSourceFile(path, unit));
-                validateNamespace(root, path, unit, diagnostics);
+                String text = overlays.containsKey(path) ? overlays.get(path) : Files.readString(path);
+                var parsed = editorRecovery
+                        ? editorParser.analyze(path.toString(), text, diagnostics).map(EditorSourceParser.Analysis::unit)
+                        : Optional.of(parser.parse(path.toString(), text));
+                if (parsed.isPresent()) {
+                    var unit = parsed.get();
+                    sources.add(new VernacSourceFile(path, unit));
+                    validateNamespace(root, path, unit, diagnostics);
+                }
             } catch (SemanticValidationException e) {
                 diagnostics.addAll(e.diagnostics());
             }

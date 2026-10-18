@@ -17,7 +17,7 @@ contract or imply that every DDD pattern needs a dedicated language keyword.
 | Later | Optional architecture extensions | Separate read models and event sourcing are possible future choices, not prerequisites for tactical DDD or promises of the current persistence/event implementation. |
 
 The ordering is a recommendation, not a commitment to implement all items before
-0.4.0. Run the [feature checklist](feature-review-checklist.md) for each proposal.
+a particular release. Run the [feature checklist](feature-review-checklist.md) for each proposal.
 
 ## Already supported foundations
 
@@ -55,3 +55,11 @@ a new bounded-context mechanism or a global naming-enforcement engine.
 
 These sources describe design patterns and trade-offs, not requirements for particular
 Vernac keywords. Keep Vernac product choices explicit.
+
+## Strategic and distributed-system follow-up
+
+Track Kafka replication, cross-context HTML fragment composition and later strategic
+DDD evaluation in the [platform roadmap](platform-roadmap.md). These do not imply
+that a namespace or Maven module is a bounded context. SaaS-specific capabilities
+will be delivered as a separate extension project; core priority is currently IDE
+depth, language consistency and general adapter foundations.

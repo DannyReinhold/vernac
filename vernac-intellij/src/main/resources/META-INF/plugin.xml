@@ -39,6 +39,8 @@
     <ul>
         <li>Automatic recognition of <code>.vernac</code> files</li>
         <li>Semantic highlighting</li>
+        <li>Debug embedded Java in Vernac source: breakpoints, stepping, variables,
+        expression evaluation and completion, conditions and logpoints (0.5.0 development).</li>
         <li>Syntax and semantic diagnostics</li>
         <li>Code completion and snippets</li>
         <li>Hover documentation</li>
@@ -98,7 +100,33 @@
 ]]></description>
 
     <change-notes><![CDATA[
-        <h3>Vernac 0.4.0</h3>
+<h3>Vernac 0.5.0 — Work in the model</h3>
+<p>Debug business behavior where you wrote it, use current model APIs before Java
+is generated, and start with a small working Spring Boot application.</p>
+<h3>Debug directly in Vernac</h3>
+<p>Set source breakpoints, step through supported behavior, inspect self and locals,
+evaluate Java expressions, and use conditional breakpoints and logpoints. Coverage
+includes domain behavior, usecases, services, listeners, adapter/mapping contexts
+and require rules. Read/Access views retain their real identity; contributors can
+inspect generated Java. Rebuild before debugging changed code; this is not HotSwap.</p>
+<h3>Navigate and complete naturally</h3>
+<p>Native Ctrl-hover references connect model types, Java signatures and implementation
+classes. Embedded Java sees current local IDs, values, collections, entities, aggregates,
+services, events, usecases, repositories, ports and adapters before generation,
+including access views, Result records and DTO/mapping holders. Signatures come from
+the production generators. Unsaved model edits do not launch Maven or write sources.</p>
+<h3>Start with a working application</h3>
+<p>New Project → Vernac offers a Spring Boot Web Application with a Thymeleaf task UI,
+PostgreSQL, Flyway, Compose and tests. With Docker running, open TasksApplication and
+Run; local is the default profile and IDE builds delegate to Maven. A minimal,
+database-free domain project remains available. Declarative inbound MVC connects
+pages, forms, redirects and error redisplay to typed usecases.</p>
+<h3>Learn the architecture at your own pace</h3>
+<p>New DDD and small-project guides complement the debugger and MVC tutorials.
+Documentation navigation separates getting started, learning, reference and contribution.
+See <a href="https://vernac.org/tutorials/what-is-ddd.html">What is DDD?</a> and
+<a href="https://vernac.org/tutorials/debugging.html">Debugging in Vernac</a>.</p>
+<h3>Vernac 0.4.0</h3>
         <p>Versioned modules, pagination, inbound error policies, ubiquitous language and domain diagrams.</p>
         <h3>See the architecture</h3>
         <p>Tools → Vernac → Show Domain Diagram exports the current namespace and opens a
@@ -226,12 +254,23 @@
     <depends>com.intellij.java</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <debugger.codeFragmentFactory implementation="org.vernac.intellij.debug.VernacCodeFragmentFactory"/>
+        <debugger.codeFragmentFactory implementation="org.vernac.intellij.debug.VernacSourceCodeFragmentFactory"/>
+        <debugger.nodeRenderer implementation="org.vernac.intellij.debug.VernacViewRenderer"/>
+        <debugger.extraSteppingFilter implementation="org.vernac.intellij.debug.VernacViewSteppingFilter"/>
+        <debugger.positionManagerFactory implementation="org.vernac.intellij.debug.VernacPositionManagerFactory"/>
+        <debugger.javaBreakpointHandlerFactory implementation="org.vernac.intellij.debug.VernacBreakpointHandlerFactory"/>
+        <debugger.javaDebugAware implementation="org.vernac.intellij.debug.VernacDebugAware"/>
+        <xdebugger.breakpointType implementation="org.vernac.intellij.debug.VernacLineBreakpointType"/>
+        <psi.referenceContributor language="Vernac" implementation="org.vernac.intellij.VernacTypeReferenceContributor"/>
         <gotoDeclarationHandler implementation="org.vernac.intellij.VernacJavaDeclarationHandler" order="first"/>
         <lang.parserDefinition language="VernacApplication" implementationClass="org.vernac.intellij.VernacApplicationParserDefinition"/>
         <fileType name="Vernac Application Definition" implementationClass="org.vernac.intellij.VernacApplicationFileType" fieldName="INSTANCE" language="VernacApplication" extensions="vapplication"/>
         <lang.parserDefinition language="VernacModule" implementationClass="org.vernac.intellij.VernacModuleParserDefinition"/>
         <lang.parserDefinition language="Vernac" implementationClass="org.vernac.intellij.VernacParserDefinition"/>
         <multiHostInjector implementation="org.vernac.intellij.VernacJavaInjector"/>
+        <java.elementFinder implementation="org.vernac.intellij.VernacLiveValueFinder" order="first"/>
+        <java.shortNamesCache implementation="org.vernac.intellij.VernacLiveShortNamesCache"/>
         <lang.elementManipulator forClass="org.vernac.intellij.VernacInjectionHost"
                                  implementationClass="org.vernac.intellij.VernacHostManipulator"/>
         <newProjectWizard.generator
@@ -245,6 +284,7 @@
                 extensions="vernac"/>
         <postStartupActivity
                 implementation="org.vernac.intellij.VernacProjectOpenActivity"/>
+        <postStartupActivity implementation="org.vernac.intellij.VernacGeneratedSourcesActivity"/>
         <createFromTemplateHandler implementation="org.vernac.intellij.VernacFileTemplateHandler" order="first"/>
         <internalFileTemplate name="Vernac File"/>
         <internalFileTemplate name="Vernac Getting Started"/>
@@ -256,6 +296,9 @@
     </extensions>
     <actions>
         <group id="org.vernac.Tools" text="Vernac" popup="true">
+            <action id="org.vernac.DiagnoseJava" class="org.vernac.intellij.VernacDiagnoseJavaAction"/>
+            <action id="org.vernac.GeneratedDebug" class="org.vernac.intellij.debug.VernacGeneratedDebugAction"
+                    description="Show generated Java and raw access objects; disable Vernac facade stepping filters"/>
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <action id="org.vernac.ShowDiagram" class="org.vernac.intellij.VernacShowDiagramAction">
                 <add-to-group group-id="EditorPopupMenu" anchor="last"/>

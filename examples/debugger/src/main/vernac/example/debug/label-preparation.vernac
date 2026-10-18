@@ -1,0 +1,21 @@
+namespace example.debug;
+
+service LabelPreparation behavior {
+    public Label prepare(Label label, Label suffix)
+    validates {
+        require(
+            !self.label().string().isBlank(),
+            "A label is required"
+        );
+    } {
+        String normalized = label.string().strip();
+        String suffixText = suffix.string();
+        String result = uppercase(normalized);
+        return Label.of(result + suffixText);
+    }
+
+    private String uppercase(String normalized) {
+        String result = normalized.toUpperCase(java.util.Locale.ROOT);
+        return result;
+    }
+}

@@ -1,0 +1,21 @@
+namespace example.debug;
+
+usecase FormatLabel(Label label, Label suffix) returns Label
+validates {
+    require(
+        !self.label().string().isBlank(),
+        "A label is required"
+    );
+} behavior {
+    execute {
+        String normalized = label.string().strip();
+        String suffixText = suffix.string();
+        String result = uppercase(normalized);
+        return Label.of(result + suffixText);
+    }
+
+    private String uppercase(String normalized) {
+        String result = normalized.toUpperCase(java.util.Locale.ROOT);
+        return result;
+    }
+}

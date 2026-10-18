@@ -30,9 +30,17 @@ final class VernacTypeNavigationTarget extends FakePsiElement {
     @Override public int getTextOffset() { return range.getStartOffset(); }
     @Override public String getText() { return range.substring(file.getText()); }
     @Override public boolean isValid() { return file.isValid() && range.getEndOffset() <= file.getTextLength(); }
-    @Override public boolean canNavigate() { return isValid() && file.getVirtualFile() != null; }
+    @Override public boolean canNavigate() { return isValid() && file.getViewProvider().getVirtualFile() != null; }
+    @Override public boolean isEquivalentTo(PsiElement other) {
+        return other instanceof VernacTypeNavigationTarget target && name.equals(target.name)
+                && range.equals(target.range)
+                && file.getViewProvider().getVirtualFile().equals(target.file.getViewProvider().getVirtualFile());
+    }
+    @Override public PsiElement setName(String name) {
+        throw new com.intellij.util.IncorrectOperationException("Cross-language Vernac rename is not supported yet.");
+    }
     @Override public boolean canNavigateToSource() { return canNavigate(); }
     @Override public void navigate(boolean requestFocus) {
-        if (canNavigate()) new OpenFileDescriptor(file.getProject(), file.getVirtualFile(), getTextOffset()).navigate(requestFocus);
+        if (canNavigate()) new OpenFileDescriptor(file.getProject(), file.getViewProvider().getVirtualFile(), getTextOffset()).navigate(requestFocus);
     }
 }

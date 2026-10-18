@@ -47,17 +47,18 @@ public final class InboundHttpGenerator {
                 if (!endpoint.errorRules().isEmpty() || endpoint.errorImplementation().isPresent()) {
                     policy.beginControlFlow("if (endpoint.equals($S))",endpoint.name());
                     addRules(policy,endpoint.errorRules(),project);
-                    endpoint.errorImplementation().ifPresent(n -> policy.addStatement("return $L.handle(endpoint, error)",n));
+                    endpoint.errorImplementation().ifPresent(n -> policy.addStatement("return $L.handle(endpoint, error)",org.vernac.compiler.util.JavaImplementations.resolve(n,List.of(),pkg)));
                     policy.endControlFlow();
                 }
             }
             addRules(policy,adapter.errorRules(),project);
-            if (adapter.errorImplementation().isPresent()) policy.addStatement("return $L.handle(endpoint, error)",adapter.errorImplementation().get());
+            if (adapter.errorImplementation().isPresent()) policy.addStatement("return $L.handle(endpoint, error)",org.vernac.compiler.util.JavaImplementations.resolve(adapter.errorImplementation().get(),List.of(),pkg));
             else policy.addStatement("return $T.defaultReply(error)",ERRORS);
             advice.addMethod(policy.build());
             handler.addStatement("return $T.respond(error, $L::policy)",ERRORS,adapter.name()+"Errors");
         } else handler.addStatement("return $T.respond(error)",ERRORS);
         advice.addMethod(handler.build());
+        BehaviorGenerator.addDebugFingerprint(builder,file(pkg,builder),unit,project);
         var files=new ArrayList<JavaFile>();files.add(file(pkg,builder));files.add(file(pkg,advice));
         if(!plan.schemas().isEmpty())files.add(new DtoGenerator().generate(adapter.name(),pkg+".dto",plan.schemas()));
         if(!plan.mappings().isEmpty())files.addAll(new MappingGenerator().generate(adapter.name(),pkg+".mapping",unit,project,plan.mappings()));
@@ -65,15 +66,7 @@ public final class InboundHttpGenerator {
     }
     private void addRules(MethodSpec.Builder method,List<InboundHttpAdapterNode.ErrorRule> rules,ResolvedProject project) {
         for (var rule : rules) {
-            CodeBlock condition;
-            if (rule.selector().equals("rejection")) {
-                var type=(org.vernac.compiler.symbols.ResolvedType.Declared)project.typeOf(rule.rejectionType().orElseThrow());
-                var id=type.symbol().identity();
-                condition=CodeBlock.of("$T.rejection(error, $T.$L)",ERRORS,ClassName.get(id.namespace()+".domain",id.name()),rule.constant());
-            } else if (rule.selector().equals("integration")) {
-                condition=CodeBlock.of("$T.integration(error, $S, $T.$L)",ERRORS,rule.responsibility(),
-                    ClassName.get("org.vernac.runtime.ports","IntegrationCategory"),rule.category());
-            } else condition=CodeBlock.of("$T.matches(error, $S)",ERRORS,rule.selector());
+            CodeBlock condition = InboundErrorConditions.condition(rule,project);
             method.beginControlFlow("if ($L)",condition);
             if (rule.code().isPresent()) method.addStatement("return new $T($L, $S, $S)",ERRORS.nestedClass("Reply"),rule.status(),rule.code().get(),rule.message().orElseThrow());
             else method.addStatement("return $T.withStatus(error, $L)",ERRORS,rule.status());
@@ -137,7 +130,7 @@ public final class InboundHttpGenerator {
         method.nextControlFlow("catch ($T error)",Exception.class).addStatement("throw $T.invocation($S, error)",ERRORS,source.name()).endControlFlow();
         return method.build();
     }
-    private CodeBlock input(Path path,Map<String,String> variables) {
+    static CodeBlock input(Path path,Map<String,String> variables) {
         var fields=path.fields();String group=fields.getFirst().name();CodeBlock value;boolean optional=false;int start;
         if(group.equals("body")) {value=CodeBlock.of("__body");start=1;}
         else {value=CodeBlock.of("$L",variables.get(group+"."+fields.get(1).name()));optional=fields.get(1).optional();start=2;}

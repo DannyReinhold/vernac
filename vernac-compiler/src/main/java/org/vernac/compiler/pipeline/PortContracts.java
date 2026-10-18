@@ -78,8 +78,7 @@ final class PortContracts {
             var method=operation.method(); boolean publicMethod=method.accessModifier().equals("public");
             validateMethod(method,scope,types,errors,project,publicMethod);
             method.implementation().ifPresent(name->{
-                if(!name.contains(".") || Arrays.stream(name.split("\\.")).anyMatch(n->!VernacNames.isIdentifier(n)))
-                    error(errors,method.location(),"implemented by requires a fully qualified Java class name.");
+                org.vernac.compiler.util.JavaImplementations.validate(name,adapter.javaImports(),method.location(),errors);
             });
             if(!operation.validations().isEmpty()) error(errors,method.location(),"Adapter preconditions are not part of this slice; validate domain values or use behavior code.");
             if(!publicMethod && method.implementation().isPresent()) error(errors,method.location(),"Private adapter helpers must be inline.");
@@ -87,9 +86,9 @@ final class PortContracts {
                 error(errors,method.location(),"Adapter operation conflicts with dependency accessor: "+method.name());
             String key=signature(method,types);
             if(publicMethod && methods.putIfAbsent(key,method)!=null) error(errors,method.location(),"Duplicate adapter operation: "+method.name());
-            String loweredKey=method.name()+"("+(publicMethod ? "self," : "")+method.parameters().stream()
-                    .map(f->f.type().isOptional()?"java.util.Optional":canonical(f.type(),types)).toList()+")";
-            if(!lowered.add(loweredKey)) error(errors,method.location(),"Duplicate adapter behavior signature: "+method.name());
+            String receiver=publicMethod ? namespace+".adapter.outbound.access."+adapter.name()+"Access" : "";
+            String loweredKey=org.vernac.compiler.util.JavaMethodSignatures.implementation(method.name(),receiver,method.parameters(),types);
+            if(!lowered.add(loweredKey)) error(errors,method.location(),"Duplicate adapter behavior signature after Java lowering: "+loweredKey+". Nullability and return types cannot distinguish overloads.");
         }
         if(target!=null) {
             final TypeSymbol portSymbol=target;
@@ -151,7 +150,7 @@ final class PortContracts {
             error(errors,f.location(),"Invalid or reserved port/adapter member name: "+f.name());
     }
     private String signature(MethodNode m,Map<TypeNode,ResolvedType> types) {
-        return m.name()+m.parameters().stream().map(f->canonical(f.type(),types)).toList();
+        return org.vernac.compiler.util.JavaMethodSignatures.signature(m.name(),m.parameters(),types);
     }
     private String canonical(TypeNode ref,Map<TypeNode,ResolvedType> types) {
         var type=types.get(ref);return type==null ? ref.name() : JavaTypeNames.canonicalName(type);

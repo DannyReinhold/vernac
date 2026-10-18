@@ -1,11 +1,14 @@
+---
+title: Your first domain model
+---
 # Your first domain model
 
 Start with `templates/vernac-basic`, or create a project using the Vernac IntelliJ
 project wizard. The wizard sets Maven coordinates, the namespace and source paths
 for you. Use JDK 25 for the build; the application targets Java 21.
 
-The published 0.4.0 wizard selects matching release artifacts. A repository copy
-of the template uses 0.4.0-SNAPSHOT: install matching artifacts locally first.
+A released 0.5.0 wizard selects matching release artifacts. A repository copy
+of the template uses 0.5.0-SNAPSHOT: install matching artifacts locally first.
 Released compiler and runtime artifacts are downloaded from Maven Central.
 
 ## Build and explore

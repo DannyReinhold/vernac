@@ -1,0 +1,26 @@
+namespace example.debug;
+
+adapter LabelApi inbound http uses FormatLabel formatLabel {
+    base "/debug/labels";
+    format {
+        POST "/";
+        body Request;
+        execute formatLabel {
+            label <- body.text;
+            suffix <- body.suffix;
+        }
+        respond 200 Reply using output;
+    }
+    schema Request(String text, String suffix);
+    schema Reply(String text);
+    mapping output: Reply <- Label {
+        text <- source.string;
+    }
+    mapping manual: Reply <- Label {
+        java imports { example.debug.adapter.inbound.http.dto.LabelApiDtos.Reply; }
+        java {
+            String text = source.string();
+            return Reply.of(text);
+        }
+    }
+}

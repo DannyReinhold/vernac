@@ -11,6 +11,14 @@ import java.util.Optional;
 public final class GeneratedSourceOwnership {
     private GeneratedSourceOwnership() { }
 
+    /** Validated, absolute paths from the existing inventory; no output is written. */
+    public static java.util.Set<Path> sources(Path output) throws IOException {
+        Path root = output.toAbsolutePath().normalize();
+        var result = new java.util.LinkedHashSet<Path>();
+        for (Path relative : GeneratedSourceWriter.readManifest(root)) result.add(root.resolve(relative));
+        return java.util.Set.copyOf(result);
+    }
+
     public static Optional<Path> outputRootOf(Path javaSource) throws IOException {
         Path source = javaSource.toAbsolutePath().normalize();
         if (!source.getFileName().toString().endsWith(".java") || !Files.isRegularFile(source)) return Optional.empty();

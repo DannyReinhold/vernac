@@ -1,7 +1,7 @@
 # Learn Vernac by running examples
 
 Use JDK 25. Generated application code targets Java 21. The snapshot examples use
-`0.4.0-SNAPSHOT`; install the matching Vernac artifacts before running a standalone
+`0.5.0-SNAPSHOT`; install the matching Vernac artifacts before running a standalone
 example. Commands below run from the repository root. In IntelliJ's Maven command
 window, use the commands shown below. In PowerShell quote complete `-D...`
 arguments if they contain dots.
@@ -10,6 +10,7 @@ arguments if they contain dots.
 
 | Example | Learn | What runs | Database needed? |
 | --- | --- | --- | --- |
+| [Spring Boot wizard template](../docs/tutorials/spring-boot-starter.md) | Task workspace, HTML forms, usecases, JDBC, migrations | Generate through New Project → Vernac | Yes (local profile) |
 | [Basic project template](../templates/vernac-basic/README.md) | ID, validated value, enum, aggregate behavior | Generated Java and TaskTest | No |
 | [Namespaces and values](namespace-values/README.md) | Multiple files, imports, optional values, inline/external behavior, entity modification | Java tests; part of the reactor | No |
 | [Schema basics](persistence-schema/README.md) | Flattening and a simple entity containment chain | SQL schema and migration candidate generation | No, until you apply/verify SQL |
@@ -21,6 +22,13 @@ arguments if they contain dots.
 Read them in this order. The schema examples intentionally isolate SQL layout;
 they are not duplicate runnable applications. The persistence demo combines the
 concepts, with assertions and log output rather than a UI. Dispatch adds the interactive application experience.
+
+## Experimental debugger walkthrough
+
+[Debugging Vernac behaviors](debugger/README.md) is a database-free Java main/test
+project for mapped behavior breakpoints, local variables and Java transitions in 0.5.0.
+It is a prototype acceptance example, not a claim that all language constructs or
+Debugger features are supported.
 
 ## Build the examples
 

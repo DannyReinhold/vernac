@@ -1,12 +1,50 @@
+---
+title: Practical questions about building with Vernac
+---
 # Practical questions about building with Vernac
 
 You have a model compiling. Now you want to understand its generated API, connect it
 to an application, or explain an unexpected result. Start with the situation closest
-to yours below. These answers describe Vernac **0.4.0**; source checkouts use matching
-**0.4.0-SNAPSHOT** artifacts for local development.
+to yours below. These answers describe Vernac **0.5.0**; source checkouts use matching
+**0.5.0-SNAPSHOT** artifacts for local development.
 
 New to the language? Follow [your first domain model](../tutorials/your-first-domain-model.md)
 first. For exact requirements, use the [specification](../specification/index.md).
+
+For a guide by task across tutorials, contracts and implementation notes, open the
+[documentation map](../documentation-map.md).
+
+<details class="on-this-page" markdown="1">
+<summary>On this page</summary>
+
+* Contents
+{:toc}
+
+</details>
+
+## Understanding the approach
+
+### Is Domain-Driven Design only worthwhile for large enterprise systems?
+
+No. Its starting point is understanding the work and expressing its rules in a
+shared language. A small task board can benefit from a nonblank Title and an
+explicit CompleteTask operation. Large organizations also need strategic modeling,
+but a small application does not have to imitate their organization or infrastructure.
+
+Vernac makes the repeated Java structure inexpensive: generated values, identities,
+usecase wrappers and repository implementations let you use clear boundaries without
+handwriting all the scaffolding. You still decide which boundaries help and test the
+rules. Start with [What is DDD?](../tutorials/what-is-ddd.md), then
+[DDD for a small project](../tutorials/ddd-for-small-projects.md).
+
+### Must I use microservices, events and a port for everything?
+
+No. DDD does not require microservices, and Vernac does not require a declaration
+of every supported kind. Start with one aggregate and a useful operation. Add a
+repository when you need storage, an adapter when you need a boundary and an event
+when you need an explicitly timed reaction. A plain Java method or direct usecase
+call can be the right choice. The [small-project guide](../tutorials/ddd-for-small-projects.md)
+shows what to leave out as well as what to include.
 
 ## Getting started and using Java
 
@@ -31,14 +69,44 @@ explicit declarations; declaring an aggregate alone does not request persistence
 The core, JDBC, JSON and HTTP runtimes are separate modules. Add infrastructure as
 you need it. [Start with the database-free example](../tutorials/your-first-domain-model.md).
 
+### Can I create a complete application instead of starting with a domain test?
+
+Yes, with the 0.5.0 plugin. **New Project → Vernac → Spring Boot Web
+Application** creates a small task workspace with Thymeleaf, transactional Vernac
+usecases, PostgreSQL, Flyway migrations and a local Compose file. With Docker
+running, open `TasksApplication` and click **Run**, or run `spring-boot:run` in the
+new project's Maven window. Then open http://localhost:8080.
+
+With no active profile, `local` is selected and starts the database. For deployment,
+explicitly select `production`: this replaces the local default, expects external
+DB_* configuration and never launches Docker. The supplied Dockerfile selects it
+already. This is an intentionally public starter,
+not a ready-made user/tenant system. CSRF protection is included; add authentication
+before using private data. For a database-free introduction choose **Minimal Domain
+Project** instead. The [starter walkthrough](../tutorials/spring-boot-starter.md)
+explains the files, tests, migration lifecycle and deployment boundaries.
+
+### Do I have to write a Java controller to use Thymeleaf with Vernac?
+
+Not with the 0.5.0 MVC adapter. Declare `adapter ... inbound mvc`, explicit wire/form
+bindings and a usecase call, then select `render "template" model result` or a local
+redirect. Vernac generates the Spring controller and scoped error handling. You
+still own the HTML/CSS and Spring Security configuration.
+
+An invalid form can `redisplay` a named GET endpoint: its model is reloaded and
+permitted original input values are restored, without retrying the failed POST.
+Sensitive fields and headers are excluded; exceptions do not become public text
+implicitly. See [server-rendered pages](../tutorials/inbound-mvc.md). JSON APIs keep
+using `inbound http`; the two forms share conversion and error selector rules.
+
 ### The editor recognizes my model, but Maven cannot resolve Vernac. Why?
 
 The IntelliJ plugin bundles its language server; it does not install the Maven
 compiler/runtime artifacts. Check the application's `vernac.version`, the Maven
 runner's JDK/settings and the selected Maven repository.
 
-A released 0.4.0 consumer downloads matching artifacts from Maven Central **after
-publication**. A source checkout using 0.4.0-SNAPSHOT requires a local installation:
+A released 0.5.0 consumer downloads matching artifacts from Maven Central **after
+publication**. A source checkout using 0.5.0-SNAPSHOT requires a local installation:
 run `mvn clean install` from the Vernac repository root with JDK 25. `verify` tests
 and packages artifacts but does not install them. Restarting IntelliJ also discards
 terminal-only environment settings. [Check the plugin setup](../tutorials/intellij-plugin.md).
@@ -258,7 +326,7 @@ skipped counts before claiming database coverage.
 
 The release workflow requires its named database and plugin suites to execute and
 rejects skipped reactor reports. [Run the database tests](../tutorials/database-persistence.md#7-run-the-database-tests)
-and [review the release gates](../development/release-0.4.0.md).
+and [review the release gates](../development/release-0.5.0.md).
 
 
 ### How can I show a numbered page without loading every matching aggregate?
@@ -358,7 +426,7 @@ its POM. Add its Maven dependency and import the exported namespace/type normall
 The consumer references the existing Java classes; it does not regenerate them.
 External VO fields can be flattened into your own aggregate tables, so a library
 update may require an application migration. Functional modules also support explicit
-activation and coordinated, independent migration histories. See the [two-artifact example](../../examples/type-modules/README.md).
+activation and coordinated, independent migration histories. See the [two-artifact example](https://github.com/DannyReinhold/vernac/blob/main/examples/type-modules/README.md).
 
 ## Versioned modules in 0.4.0
 
@@ -369,7 +437,7 @@ in Account, its flattened columns belong to Account's application history. Updat
 the module cannot migrate that other owner's columns. Generate and review a migration
 for every owner embedding the changed value, then rebuild all dependent contracts.
 An added required field needs an explicit backfill decision for existing rows.
-[Try the complete three-owner upgrade](../../examples/persistent-modules/README.md#upgrade-the-exported-value-with-existing-data).
+[Try the complete three-owner upgrade](https://github.com/DannyReinhold/vernac/blob/main/examples/persistent-modules/README.md#upgrade-the-exported-value-with-existing-data).
 
 ### Does adding a module dependency automatically create its database tables?
 
@@ -390,7 +458,7 @@ application history have migrated and passed schema validation.
 
 A failed receiver's SQL rolls back before a retry is scheduled. Other recipients
 can succeed independently. External API effects still require idempotency.
-[Run the restart/retry example](../../examples/persistent-modules/README.md).
+[Run the restart/retry example](https://github.com/DannyReinhold/vernac/blob/main/examples/persistent-modules/README.md).
 
 
 ### Will adding an API module dependency immediately expose its HTTP endpoints?
@@ -404,7 +472,7 @@ other functional modules transitively, and their database migrations run first. 
 application supplies the HTTP runtime and Spring MVC. The producer owns request/response
 DTOs, mappings and the public error policy; none needs copying into the application.
 Authentication and authorization still belong to your application's security policy.
-[Try the module-owned API](../../examples/persistent-modules/README.md#call-the-module-owned-http-api).
+[Try the module-owned API](https://github.com/DannyReinhold/vernac/blob/main/examples/persistent-modules/README.md#call-the-module-owned-http-api).
 
 
 ### I upgraded a module dependency. Why does the editor still show its old types?
@@ -455,3 +523,104 @@ The diagram deliberately omits technical generated classes. Arrows describe decl
 not a reconstructed runtime call sequence. Run the action again after edits; automatic
 live diagrams and clickable graph navigation are outside this first increment.
 [Follow the diagram tutorial](../tutorials/domain-diagrams.md).
+
+
+## Debugging in Vernac
+
+### Can I stop inside an inline Java behavior in a .vernac file?
+
+Yes, with matching **0.5.0** compiler and plugin artifacts, or matching SNAPSHOT builds. Build the application
+first, set a breakpoint on an executable statement or conversion in a supported
+Vernac block and start its normal Java debug configuration. The editor can stop in the
+Vernac source while the JVM supplies real arguments, locals and `self`. Breakpoints,
+stepping, expression evaluation and conditions have been exercised in IntelliJ.
+
+Native source mapping covers
+VO/entity/aggregate/collection behaviors, inline usecase execute blocks and their
+private helpers, plus domain service and outbound adapter operations and helpers.
+Java mapping bodies and explicit declarative field assignments in both adapter
+directions, inbound execute argument assignments and event require rules are mapped
+too. Listener execute bodies
+and private helpers are also mapped, preserving their actual execution stack.
+User-authored require rules on VOs, entities,
+aggregates, usecases and services have a separate rule-entry mapping: put the
+breakpoint on the opening require line, including for multiline conditions. Handwritten implementations use normal
+Java debugging. [Try the complete walkthrough](../tutorials/debugging.md).
+
+### Why is debugger self a Read or Access view rather than my entity?
+
+That is its real runtime type. Vernac deliberately passes a restricted facade to
+behavior or validation code. The debugger keeps that distinction visible instead
+of pretending that self is the owner object. The development renderer places
+recognized stored readable properties directly under the facade, without calling
+computed methods. Access means mutation through its methods; it does not make the
+projected field nodes writable. Optional children are labeled stored values and
+may be null, while the actual accessor still returns Optional.
+
+The narrow stepping filter can skip pure facade field reads. It does not skip
+modification scopes, guards or require rules. For the technical object layout,
+enable **Show Generated Java in Debugger** before a fresh session. This disables
+both the presentation and the filter. [See the exercises](../tutorials/debugging.md).
+
+### Why does a source edit require a rebuild before debugging again?
+
+The loaded JVM class belongs to a particular generated implementation. Vernac checks
+source and generated-file hashes plus a fingerprint in the loaded companion class
+before mapping its lines back to the model. Otherwise an old program could appear
+to execute newly edited source. Rebuild and restart debugging after source changes;
+do not change the generated map by hand. This check also includes unsaved edits.
+
+### What does the yellow Log setting beside a breakpoint mean?
+
+It is IntelliJ's standard breakpoint logging UI. Log message records a breakpoint
+hit; Expression to log evaluates and prints a Java expression. With Suspend disabled,
+the breakpoint becomes a logpoint and execution continues. Right-click the breakpoint
+to inspect these settings. This is separate from application log levels and Vernac
+compiler warnings. [See examples and expected results](../tutorials/debugging.md).
+
+
+### Why can Evaluate Expression return a value while the variable remains red?
+
+The debugger runtime evaluator and its expression editor are separate mechanisms.
+Earlier development builds evaluated locals correctly while editor highlighting and
+Ctrl+Space lacked their Java scope. The current development integration maps both
+Java and source-file expression requests through the requested line's Java context;
+this has now been confirmed for core paths in IntelliJ. Install matching compiler
+and plugin artifacts, rebuild the example and restart the session. If a new frame
+still shows red names, report editor resolution separately from successful runtime
+evaluation, including its source line and expression.
+
+
+### Can I step from an emitting usecase straight into a deferred listener?
+
+A deferred listener executes later through the delivery worker, in its own transaction.
+It has a different runtime stack; the debugger must not pretend the original emitter
+is still its caller. Set a breakpoint in the deferred listener and resume the emitter.
+The worker can then reach that breakpoint when it processes the persisted delivery.
+Synchronous listeners instead run immediately during publication. The
+[debugger tutorial](../tutorials/debugging.md) distinguishes a small thread mapping
+probe from the full persistence-demo delivery exercise.
+
+### Why does Ctrl+click navigate, but the type did not look like a link beforehand?
+
+Navigation commands and modifier-hover highlighting use different IDE entry points.
+Earlier Vernac builds supplied LSP navigation without native PSI references for DSL
+type ranges. The 0.5.0 plugin now supplies those precise ranges and
+compiler-resolved targets, so IntelliJ can provide its normal Ctrl-hover link feedback.
+This is separate from ordinary documentation hover. It follows your keymap/theme,
+and applies to resolved declared Vernac type usages, including imports and exported
+module types. Unknown/ambiguous names are not turned into guessed links. Injected
+Java keeps Java navigation. See [the IDE tutorial](../tutorials/intellij-plugin.md).
+
+### Why does the new web application start but return 404 at `/`?
+
+The application class can compile even if its generated MVC controller is missing.
+A native IntelliJ build does not run Maven's Vernac generation goal. Check whether
+`TaskWeb.java` exists below `target/generated-sources/vernac`.
+
+The 0.5.0 wizard enables **Delegate IDE build/run actions to Maven** for new
+projects. In an older project or checkout, enable that option under **Settings →
+Build, Execution, Deployment → Build Tools → Maven → Runner**, run `clean compile`
+in the application's Maven window and restart it. Keep its Run configuration's
+Build step enabled. This ensures later Vernac changes are generated before Run,
+rather than requiring repeated manual compilation.

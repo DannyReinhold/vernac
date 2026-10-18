@@ -1,0 +1,42 @@
+- title: Start here
+  links:
+    - title: Why Vernac?
+      url: /index.html
+    - title: What is DDD?
+      url: /tutorials/what-is-ddd.html
+    - title: DDD for a small project
+      url: /tutorials/ddd-for-small-projects.html
+    - title: A working web application
+      url: /tutorials/spring-boot-starter.html
+- title: Learn and build
+  links:
+    - title: Tutorial learning path
+      url: /tutorials/index.html
+    - title: Your first domain model
+      url: /tutorials/your-first-domain-model.html
+    - title: Persistence and migrations
+      url: /tutorials/database-persistence.html
+    - title: Debug in Vernac
+      url: /tutorials/debugging.html
+    - title: Dispatch showcase
+      url: /tutorials/dispatch.html
+- title: Find an answer
+  links:
+    - title: Documentation map
+      url: /documentation-map.html
+    - title: Practical FAQ
+      url: /faq/index.html
+    - title: Language reference
+      url: /language-reference.html
+    - title: Specification and contracts
+      url: /specification/index.html
+    - title: AI language and tools
+      url: /ai-language-reference.html
+- title: Work on Vernac
+  links:
+    - title: Contributor guide
+      url: /development/index.html
+    - title: IntelliJ lessons learned
+      url: /development/lessons-learned/index.html
+    - title: Release notes
+      url: /maintainers/releases/0.5.0.html

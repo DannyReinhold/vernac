@@ -1,6 +1,6 @@
 # Build a board with independent pages
 
-Status: **0.4.0-SNAPSHOT offset and cursor repository queries implemented**. This chapter shows
+Status: **0.4.0 offset and cursor repository queries implemented**. This chapter shows
 numbered pages, opt-in totals, eager projections and lazy traversal. Paginated Result and GET/DTO declarations are implemented.
 
 ## A board is more than one page
@@ -43,7 +43,7 @@ usecase ReadBoard(PageNumber openPage, PageNumber closedPage, PageSize, CursorTo
             var closed = self.issueRepository().withStatus(IssueStatus.CLOSED)
                 .page(OffsetRequest.ofPage(closedPage.intValue(), pageSize.intValue()))
                 .mapItems(IssueSummaries::of, issue -> summarize(issue));
-            var recentRequest = cursorToken
+            var recentRequest = Optional.ofNullable(cursorToken)
                 .map(token -> CursorRequest.after(PageCursor.of(token.string()), pageSize.intValue()))
                 .orElseGet(() -> CursorRequest.first(pageSize.intValue()));
             var activity = self.issueRepository().recent().page(recentRequest)
@@ -135,7 +135,7 @@ share a frozen snapshot beyond the existing usecase transaction's isolation.
 Concurrent inserts/deletes can shift later offsets or move sort keys.
 
 For a runnable application with real repositories, start
-[Vernac Dispatch](../../examples/dispatch/README.md#paged-board-api). It provides the
+[Vernac Dispatch](https://github.com/DannyReinhold/vernac/blob/main/examples/dispatch/README.md#paged-board-api). It provides the
 same structure at `/api/tour-board`; no issue-tracker bootstrap data is assumed here.
 
 Configure a positive maximum in application.yaml when needed:

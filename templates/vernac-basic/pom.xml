@@ -20,7 +20,7 @@
 
     <properties>
         <java.version>21</java.version>
-        <vernac.version>0.4.0-SNAPSHOT</vernac.version>
+        <vernac.version>0.5.0-SNAPSHOT</vernac.version>
     </properties>
 
     <dependencies>

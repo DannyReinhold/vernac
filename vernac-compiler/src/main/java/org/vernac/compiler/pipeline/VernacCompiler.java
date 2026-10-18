@@ -66,6 +66,9 @@ public class VernacCompiler {
     }
     public VernacProjectCompilationResult generate(ResolvedProject project,SchemaModel previous,
             Map<String,Map<String,String>> enumCodes,SchemaBuilder.Options options) {
+        var errors = project.diagnostics().stream()
+                .filter(d -> d.severity() == CompilerDiagnostic.Severity.ERROR).toList();
+        if (!errors.isEmpty()) throw new SemanticValidationException(errors);
         if (!project.deferredTypes().isEmpty()) {
             throw new SemanticValidationException(project.deferredTypes().stream().map(symbol ->
                     CompilerDiagnostic.error(symbol.location(), "Project generation for " + symbol.kind()
@@ -86,7 +89,7 @@ public class VernacCompiler {
                 if (definition instanceof ListenerNode l) files.addAll(listenerGenerator.generate(l,source.unit(),project));
                 if (definition instanceof UseCaseNode u) files.addAll(useCaseGenerator.generate(u,source.unit(),project));
                 if (definition instanceof PortNode p) files.addAll(portGenerator.generate(p,source.unit(),project));
-                if (definition instanceof InboundHttpAdapterNode a) files.addAll(new InboundHttpGenerator().generate(a,source.unit(),project,project.inboundAdapters().get(a)));
+                if (definition instanceof InboundHttpAdapterNode a) files.addAll(a.mvc() ? new InboundMvcGenerator().generate(a,source.unit(),project,project.inboundAdapters().get(a)) : new InboundHttpGenerator().generate(a,source.unit(),project,project.inboundAdapters().get(a)));
                 if (definition instanceof OutboundAdapterNode a) files.addAll(new OutboundAdapterGenerator().generate(a,source.unit(),project));
                 if (definition instanceof DomainServiceNode s) files.addAll(domainServiceGenerator.generate(s,source.unit(),project));
                 MutableDomain.of(definition).ifPresent(model -> files.addAll(generateMutable(model, source.unit(), project)));
@@ -102,7 +105,8 @@ public class VernacCompiler {
         for (StoragePlan plan : persistence.plans()) files.addAll(new JdbcRepositoryGenerator(project,schema).generate(plan));
         for (var plan : persistence.eventPlans()) files.add(new JdbcRepositoryGenerator(project,schema).generate(plan));
         GeneratedTypeNames.check(files);
-        return new VernacProjectCompilationResult(org.vernac.compiler.vocabulary.Vocabulary.documentJava(project.project(),files), project.diagnostics());
+        var documented=org.vernac.compiler.vocabulary.Vocabulary.documentJava(project.project(),files);
+        return new VernacProjectCompilationResult(documented, project.diagnostics(),org.vernac.compiler.debug.BehaviorSourceMap.build(project,documented));
     }
 
     private List<JavaFile> valueValidation(ValueObjectNode value, CompilationUnitNode unit, ResolvedProject project) {

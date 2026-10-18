@@ -106,7 +106,7 @@ receive their dependencies explicitly; they do not receive an implicit self.
 Adapter validates blocks are not supported in this slice.
 
 An optional port input uses a nullable parameter at the public Java boundary and
-an Optional inside behavior, matching the existing service convention. Optional
+a nullable parameter inside behavior and external implementations as well. Optional
 results use Optional on both sides. Required null inputs and null reference
 results fail at the generated wrapper.
 

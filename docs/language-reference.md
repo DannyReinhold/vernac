@@ -1,8 +1,11 @@
+---
+title: Vernac language reference
+---
 # Vernac language reference
 
-This reference describes the **Vernac 0.4.0 language and generated API**. Use matching
-compiler and runtime versions. Source checkouts default to 0.4.0-SNAPSHOT;
-released consumers select matching 0.4.0 artifacts after publication. Obsolete experimental syntax is not supported.
+This reference describes the **Vernac 0.5.0 language and generated API**. Use matching
+compiler and runtime versions. Source checkouts default to 0.5.0-SNAPSHOT;
+released consumers select matching 0.5.0 artifacts after publication. Obsolete experimental syntax is not supported.
 The [specification index](specification/index.md) identifies the normative document
 for each rule. A discrepancy between implementation and contract is a defect to
 investigate, not permission to silently redefine the contract.
@@ -10,6 +13,14 @@ investigate, not permission to silently redefine the contract.
 Examples without a namespace or referenced type declarations are fragments to insert
 into an existing model. [From model to application](tutorials/from-model-to-application.md)
 contains a complete model. For an introduction, follow the [tutorials](tutorials/index.md).
+
+<details class="on-this-page" markdown="1">
+<summary>On this page</summary>
+
+* Contents
+{:toc}
+
+</details>
 
 ## Files, namespaces and imports
 
@@ -86,7 +97,8 @@ Use an aggregate ID instead. VOs cannot contain mutable entities, even through a
 immutable collection. Direct entity containment cycles are forbidden; ID references
 are not containment. A primitive/built-in entity state field requires a domain wrapper.
 
-`T?` is optional. Domain storage and public factory inputs use `@Nullable T`;
+`T?` is optional. Domain storage, factory inputs and all optional operation/implementation/helper
+parameters use `@Nullable T`;
 getters return `Optional<T>`. `int?` is rejected; use `Integer?` or an optional domain
 wrapper. Generated top-level types are `@NullMarked`. An Optional container itself
 must never be null. DTO/result records have their separately specified Optional
@@ -151,7 +163,7 @@ id TourId set TourIds;
 Each comma-separated list/set clause declares its own collection type and may
 have its own behavior block. Names are independently optional; `value Wert(String)
 list, set Werte;` generates Werts and Werte. Conflicting defaults or explicit names
-are errors. Multiple clauses require the 0.4.0-SNAPSHOT compiler.
+are errors. Multiple clauses require the 0.4.0 compiler.
 
 Collections are explicit final domain classes. Lists preserve order/multiplicity;
 sets retain the first equal instance. Input structure is copied, output views are
@@ -184,7 +196,8 @@ value ProductName(String) behavior {
 Inline Java is generated into a separate companion, not inserted with privileged
 access to private domain state. Public VO/enum/collection methods receive `self`;
 private helpers receive only explicitly declared arguments. Public behavior may
-instead declare `implemented by fully.qualified.Class;`. The external static method
+instead declare `implemented by fully.qualified.Class;` or a simple class name
+resolved through local Java imports, otherwise the generated caller package. The external static method
 receives the same self and arguments as its inline equivalent.
 
 Java imports belong in the behavior block. They do not change the resolution of
@@ -520,7 +533,7 @@ flattening/diffs. Module dependencies do not activate beans or migrations.
 Build producer and consumer with the current Vernac Maven plugin. In IntelliJ,
 New → Vernac Module Definition creates the project file. Build after dependency
 changes to refresh the shared resolved editor index. For a runnable two-artifact
-example see [type modules](../examples/type-modules/README.md).
+example see [type modules](https://github.com/DannyReinhold/vernac/blob/main/examples/type-modules/README.md).
 
 ### Application composition status
 
@@ -626,7 +639,7 @@ compile or packaging. Do not bypass activation with dependency component scannin
 
 ### Executable persistent-module lifecycle example
 
-See [examples/persistent-modules](../examples/persistent-modules/README.md): two Maven
+See [examples/persistent-modules](https://github.com/DannyReinhold/vernac/blob/main/examples/persistent-modules/README.md): two Maven
 producer artifacts export values and usecases while retaining private repositories;
 the application activates the dependant module explicitly. Required modules migrate
 before dependants, then the application's own history runs. If an exported VO shape
@@ -714,7 +727,7 @@ Required usecase modules activate transitively. A dependency or type import alon
 no routes, even under component scanning. DTOs, mappings and errors remain producer-owned;
 consumer compilation does not regenerate them. The application supplies
 `vernac-runtime-http` and `spring-boot-starter-web`. Route paths are unchanged; ambiguous
-routes fail at MVC startup. See the [persistent module walkthrough](../examples/persistent-modules/README.md)
+routes fail at MVC startup. See the [persistent module walkthrough](https://github.com/DannyReinhold/vernac/blob/main/examples/persistent-modules/README.md)
 for the API module and a real cross-module HTTP call.
 
 
@@ -769,3 +782,97 @@ not generated Java or guessed behavior. Referenced outside types are boundary no
 IntelliJ's Show Domain Diagram action includes unsaved source snapshots and opens Markdown;
 enable its Mermaid preview extension if needed. No rendered image or live model explorer
 is implied. See [the diagram tutorial](tutorials/domain-diagrams.md).
+
+### Vernac source debugging (0.5.0 tooling)
+
+The 0.5.0 plugin/compiler can map inline domain behavior breakpoints to original
+Vernac lines using build-owned metadata. Build with debug line/local-variable information
+and use matching source/generated/runtime artifacts. This is not new DSL syntax and
+does not imply full debugger coverage or hot swap. See the [prototype scope](development/vernac-debugger-prototype.md)
+and the executable example it links.
+
+For mapped behavior frames, debugger expressions use Java syntax and the generated
+method scope (`self`, arguments and locals). Breakpoint logging and suspension are
+standard IntelliJ options; see the [debugger walkthrough](https://github.com/DannyReinhold/vernac/blob/main/examples/debugger/README.md)
+for Evaluate Expression, conditions and non-suspending logpoints.
+
+A guided [debugging tutorial](tutorials/debugging.md) covers the 0.5.0
+integration and states its exact coverage. Inline usecase execute blocks, domain service
+operations and their private helpers also have mappings. User-authored require rules
+on VOs, entities, aggregates, usecases and services map their opening require line to
+one generated condition entry point with a Read/input self. Synchronous/deferred
+listener execute blocks and private helpers are also mapped; the actual worker stack
+is preserved. Inline outbound adapter methods/helpers, Java mapping bodies in both
+directions, explicit declarative field assignments, inbound execute argument assignments
+and event require rules are also source mapped. Mapping frames expose `source`;
+inbound controllers retain their actual Java variables. Pure transport configuration
+has no artificial breakpoint. Adapter-method preconditions remain unsupported by the
+language contract. Debugging tooling does not
+change transaction, validation or asynchronous execution semantics.
+
+Expression editing is separate from runtime evaluation. The 0.5.0
+plugin routes expression requests to the verified Java scope of their Vernac line
+to address red variables and missing Ctrl+Space completion. Core expression editing
+and adapter/mapping debugging have been confirmed in the installed IDE. Runtime
+mapping tests alone do not establish every IntelliJ editor interaction.
+
+Read/Access and validation-input facades have a stored-property inspection renderer.
+It preserves the actual Java facade type and contract, reads recognized field paths
+without invoking debuggee methods, and adds no field-write capability. Optional
+children are explicitly nullable stored-value projections, with accessor-based Watch
+expressions. Normal stepping skips only verified pure facade reads, not modification
+wrappers, validators or callbacks. Contributor mode restores raw Java views and disables
+this filter. Native tree/Watch/stepping acceptance is separate from the JVM inspector test.
+
+The 0.5.0 plugin also supplies native PSI references for declared Vernac
+types in DSL signatures/fields/imports/dependencies and repository aggregate targets.
+These use compiler namespace/import/export visibility and exact UTF-16 type-name
+ranges for native Ctrl-hover navigation feedback. Injected Java, strings and enum
+constants are not reinterpreted as DSL type references. Existing LSP documentation,
+completion and mapping-specific navigation remain in place. These navigation
+references do not implement complete cross-language rename or reference search.
+
+Java reference types from the approved built-in table also have native navigation
+references in DSL type positions, including behavior signatures. These resolve to
+the actual Java class through IntelliJ's module/JDK scope. Explicit `implemented by`
+class names resolve in the same scope. Primitive types have no class target;
+unknown classes do not get guessed links. Java bodies retain injected-Java
+resolution. This editor support does not expand the permitted DSL type set or
+provide cross-language renaming.
+
+The 0.5.0 New Project wizard offers a runnable Spring Boot Web Application, alongside
+the minimal model and type-module templates. The web starter combines aggregates,
+paginated queries and usecases with a declarative inbound MVC adapter and Thymeleaf templates. See the [starter walkthrough](tutorials/spring-boot-starter.md).
+
+## Server-rendered inbound MVC (0.5.0)
+
+Use `adapter Name inbound mvc uses ...` with `base`, a required `error view`, and
+GET/POST endpoints. Wire bindings and `execute { parameter <- group.field; }` follow
+the JSON boundary's exact conversions. Add `form` scalar bindings, absent-only
+`default` values on non-optional query/form bindings, and `sensitive` before fields
+that must not enter a rendered input model. Headers are never exposed in that model.
+
+A value response uses `render "board" model page;`; a void response omits the model.
+A static application-local `redirect "/";` uses 303 after POST and 302 after GET.
+Optional results require an explicit absent view/status 404 or 410. Ordered shared
+error selectors can `render` an error view or `redisplay` a named GET page loader,
+with explicit public code/message and 4xx/5xx status. Redisplay is endpoint-local,
+does not retry the POST and ends at a safe 500 fallback if its loader fails.
+
+Generated MVC controllers remain in `.adapter.inbound.http` and own no transaction.
+Templates receive typed usecase results, safe `error.code()/message()` and only
+allowed raw `inputs` entries such as `inputs['form.title']`. No exception text or
+arbitrary request map is exposed automatically. The initial scope is scalar
+URL-encoded GET/POST forms, not multipart uploads, repeated collection fields,
+dynamic redirects or template fragments. See the [contract](contracts/inbound-mvc.md)
+and [complete tutorial](tutorials/inbound-mvc.md).
+
+### Shared Java implementation rules (0.5.0)
+
+All optional custom-operation parameters, including usecase execute, external
+delegates and private helpers, are nullable T. Optional getters and results remain
+non-null Optional<T>. Required public domain/operation inputs fail with
+DomainValidationException; null implementation results remain technical contract
+failures. Overload checks use erased Java parameter types, so nullability and
+return types cannot distinguish overloads. Read/modify and transaction semantics
+are unchanged. See the [shared contract](contracts/implementation-contracts.md).

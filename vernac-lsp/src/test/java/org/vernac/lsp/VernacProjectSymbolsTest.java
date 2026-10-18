@@ -33,6 +33,18 @@ class VernacProjectSymbolsTest {
         return new VernacProjectSymbols(root, files).definition(path, at(path, beforeLastCharacter));
     }
 
+    @Test void completionKeepsEarlierDeclarationsWhenTheCurrentDeclarationIsIncomplete() {
+        var current = file("model", "editing", "value Count(int); value View(Cou");
+        assertTrue(labels(current, "View(Cou").contains("Count"));
+    }
+
+    @Test void navigationKeepsEarlierDeclarationsWhenALaterDeclarationIsBroken() {
+        var current = file("model", "editing", "value Count(int); value View(Count); value Broken(;");
+        var locations = definition(current, "View(Coun");
+        assertEquals(1, locations.size());
+        assertEquals(current.toUri().toString(), locations.getFirst().getUri());
+    }
+
     @Test void behaviorSignaturesNavigateButJavaImportsAreNotVernacImports() {
         var target = file("model", "name", "value Name(String);");
         var current = file("view", "label", "import model.Name; value Label(String) behavior { "

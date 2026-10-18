@@ -16,7 +16,8 @@ final class GeneratedSourceWriter {
     private static final String HEADER = "vernac-generated-sources-v1";
     private GeneratedSourceWriter() { }
 
-    static void write(List<JavaFile> files, Path directory) throws IOException {
+    static void write(List<JavaFile> files,Path directory) throws IOException {write(files,directory,null);}
+    static void write(List<JavaFile> files, Path directory,org.vernac.compiler.debug.BehaviorSourceMap debugMap) throws IOException {
         Path output = directory.toAbsolutePath().normalize();
         for (Path part = output; part != null; part = part.getParent()) {
             if (Files.isSymbolicLink(part)) throw new IOException("Symbolic link in generated output path: " + part);
@@ -28,6 +29,7 @@ final class GeneratedSourceWriter {
             try (var lock = channel.tryLock()) {
                 if (lock == null) throw new IOException("Vernac output is already in use: " + output);
                 synchronize(files, output);
+                if(debugMap!=null)debugMap.write(output);
             } catch (OverlappingFileLockException e) {
                 throw new IOException("Vernac output is already in use: " + output, e);
             }

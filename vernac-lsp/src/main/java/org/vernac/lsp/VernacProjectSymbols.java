@@ -389,6 +389,17 @@ final class VernacProjectSymbols {
     String hover(Path path,Position at) {
         var direct=termAt(path,at);
         if(direct!=null)return org.vernac.compiler.vocabulary.Vocabulary.markdown(direct.entry());
+        var current=files.get(path);
+        if (current!=null) {
+            int point=current.text().codePointCount(0,offset(current.text(),at));
+            List<VernacParser.InboundErrorRuleContext> rules=new ArrayList<>();
+            walk(current.tree(),node -> {if(node instanceof VernacParser.InboundErrorRuleContext rule && contains(rule.reload,point)) rules.add(rule);});
+            if (!rules.isEmpty()) {
+                var rule=rules.getFirst();var adapter=inboundAncestor(rule);
+                if (adapter!=null) for (var endpoint:adapter.inboundEndpoint()) if(endpoint.name.getText().equals(rule.reload.getText()))
+                    return "**MVC page loader** `"+endpoint.name.getText()+"`\n\nReloads the GET endpoint and restores permitted form inputs. The failed POST is not repeated.";
+            }
+        }
         TypeSymbol symbol=declarations.stream().filter(d->d.sourceFile().equals(path)&&declarationRanges.containsKey(d)
             &&compare(at,declarationRanges.get(d).getStart())>=0&&compare(at,declarationRanges.get(d).getEnd())<0).findFirst().orElse(null);
         if(symbol==null) {
@@ -525,6 +536,7 @@ final class VernacProjectSymbols {
     private Map<String,Location> inboundChoices(Path path,Parsed file,ParseTree tree,int point,String prefix) {
         List<ParserRuleContext> hits=new ArrayList<>();
         walk(tree,node->{
+            if(node instanceof VernacParser.InboundErrorRuleContext rule && contains(rule.reload,point)) hits.add(rule.reload);
             if(node instanceof VernacParser.InboundEndpointContext e && contains(e.dependency,point))hits.add(e.dependency);
             if(node instanceof VernacParser.MappingAssignmentContext a && inboundAncestor(a)!=null) {
                 if(contains(a.target,point))hits.add(a.target);
@@ -535,6 +547,13 @@ final class VernacProjectSymbols {
         });
         if(hits.isEmpty())return null;
         var hit=hits.getFirst();var adapter=inboundAncestor(hit);Map<String,Location> result=new TreeMap<>();
+        if (hit.getParent() instanceof VernacParser.InboundErrorRuleContext rule && hit == rule.reload) {
+            for (var endpoint : adapter.inboundEndpoint())
+                if (endpoint.verb != null && endpoint.verb.getText().equals("GET") && endpoint.view != null && endpoint.absentView == null)
+                    result.put(endpoint.name.getText(),queryLocation(path,file,endpoint.name));
+            return result;
+        }
+
         if(hit.getParent() instanceof VernacParser.InboundEndpointContext e && hit==e.dependency) {
             for(var d:adapter.dependencies)result.put(parameterName(d),queryLocation(path,file,d));return result;
         }
@@ -560,7 +579,7 @@ final class VernacProjectSymbols {
         }
         if(endpoint==null)return result;
         if(steps.isEmpty()) {
-            for(String group:List.of("path","query","header"))if(endpoint.inboundBinding().stream().anyMatch(b->b.kind.getText().equals(group)))result.put(group,queryLocation(path,file,endpoint));
+            for(String group:List.of("path","query","header","form"))if(endpoint.inboundBinding().stream().anyMatch(b->b.kind.getText().equals(group)))result.put(group,queryLocation(path,file,endpoint.name));
             if(endpoint.bodyType!=null)result.put("body",queryLocation(path,file,endpoint.bodyType));return result;
         }
         if(steps.getFirst().equals("body") && endpoint.bodyType!=null)return inboundFields(path,file,adapter,endpoint.bodyType,steps.subList(1,steps.size()),qualifier);

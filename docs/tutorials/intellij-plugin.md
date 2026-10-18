@@ -1,3 +1,6 @@
+---
+title: Getting Started with the Vernac IntelliJ Plugin
+---
 # Getting Started with the Vernac IntelliJ Plugin
 
 Create a working Vernac project, explore your domain model with language-aware editor support, and use the generated
@@ -31,7 +34,7 @@ generates and compiles Java sources. Editor diagnostics do not replace a success
 
 ## 1. Prepare your environment
 
-This guide describes the **0.4.0 plugin**. Match its compiler/runtime version, and
+This guide describes the **0.5.0 plugin**. Match its compiler/runtime version, and
 check the packaged descriptor for IDE compatibility.
 
 - Use a compatible IntelliJ IDEA installation. The current plugin descriptor targets build `262.10968.63` through the
@@ -43,11 +46,11 @@ check the packaged descriptor for IDE compatibility.
 
 ### Released plugin versus a source build
 
-For the published 0.4.0 plugin, the wizard selects matching 0.4.0 Maven artifacts.
+A 0.5.0 release plugin selects matching 0.5.0 Maven artifacts.
 They are downloaded from Central; building the Vernac repository is unnecessary.
 Before that release is published, use the source-build route below instead.
 
-A development plugin built from this checkout uses **0.4.0-SNAPSHOT**. Install its
+A development plugin built from this checkout uses **0.5.0-SNAPSHOT**. Install its
 matching artifacts from the repository root first:
 
 ```shell
@@ -80,6 +83,7 @@ Open **New Project** and choose **Vernac**. Enter, for example:
 
 | Field        | Example                                |
 |--------------|----------------------------------------|
+| Project kind | `Spring Boot Web Application` (0.5.0) |
 | Name         | `TaskManager`                          |
 | Location     | A directory for your new project       |
 | GroupId      | `com.example`                          |
@@ -90,7 +94,17 @@ Open **New Project** and choose **Vernac**. Enter, for example:
 The artifact ID is suggested from the project name: `TaskManager` becomes `task-manager`. You can edit it independently.
 GroupId and namespace are separate settings; set both explicitly as needed.
 
-Choose **Create**. The wizard writes the project, sets its project JDK, and configures Maven executions to use that JDK.
+In the 0.5.0 wizard, **Spring Boot Web Application** is the default:
+a complete Thymeleaf/PostgreSQL application with local Compose and Flyway history.
+Follow [From New Project to a working application](spring-boot-starter.md) to run it.
+Choose **Minimal Domain Project** for the database-free exercise described below,
+or **Module / Type Library** to publish reusable types.
+
+Choose **Create**. The wizard writes the project, sets its project JDK, configures
+Maven executions to use that JDK and enables **Delegate IDE build/run actions to
+Maven**. Vernac generation then participates in normal Build, Run and Debug. Wait
+for the initial Maven import to finish; keep the run configuration’s Build step
+enabled. This is a new-project default, not a setting forced whenever a project opens.
 After the project opens, it starts the Maven import and opens `src/main/vernac/com/example/taskmanager/tasks.vernac`.
 
 The generated POM contains your coordinates and display name:
@@ -188,12 +202,48 @@ Suggestions track unsaved edits. Ambiguous names are not resolved arbitrarily.
 
 ### Hover information and navigation
 
-Hover over a reference such as `TaskId` to inspect any information supplied by the server. Then place the cursor on the
-reference and use **Go to Declaration** from the context menu.
+Hover over a reference such as `TaskId` to inspect its LSP information and vocabulary
+entry. With the **0.5.0 plugin**, hold **Ctrl** and move the mouse over
+that type reference: native PSI references supply the type-name range and resolved
+declaration for IntelliJ's navigable-link highlighting. Click to navigate, or use
+**Ctrl+B** / **Go to Declaration**. The exact color and shortcut follow your IDE theme
+and keymap; the visual mouse-hover check requires the installed plugin.
 
-Type navigation works across files and namespaces, including explicit imports.
-Inline `behavior` bodies also support Java completion and navigation; see the
-[behavior tutorial](behavior.md).
+This covers declared Vernac types in signatures, fields, explicit imports, repository
+aggregate references and dependencies, including cross-file/namespace references and
+exported module types. For a qualified reference, the type-name segment is the link;
+namespace prefixes and wildcard imports are not fabricated type targets. Unknown or
+ambiguous names do not get an arbitrarily chosen target. Declarations, comments,
+strings, enum constants and embedded Java are not treated as these DSL type references.
+Approved Java reference types such as `String`, `UUID` and `Instant` link to their
+actual Java classes, including occurrences in behavior return types and parameters.
+For example, all three `String` tokens in
+`value Label(String) behavior { public String decorate(String suffix) { ... } };`
+have Java class targets. Primitive names such as `int` have no class declaration.
+An explicit `implemented by example.debug.handwritten.LabelFormatting` links on
+`LabelFormatting` to that Java class as well. IntelliJ resolves these targets in the
+Vernac file's module/JDK/dependency scope. Import the Maven project and configure
+its JDK; a missing implementation or unavailable library does not get a guessed
+replacement. These links do not permit additional Java types in Vernac signatures.
+
+Navigation uses the current project model and unsaved source snapshots. Module
+visibility comes from the build-written editor index: attach sources for original
+producer navigation, or inspect the read-only exported contract fallback. Rebuild
+producer/consumer artifacts and refresh the Maven project after dependency changes.
+The new references do not introduce a separate completion engine or promise complete
+cross-language Rename/Find Usages support. Native rename/rebinding through these
+navigation references is deliberately rejected until a complete refactoring contract
+is implemented. Mapping-specific DTO/result/path navigation remains LSP-owned where
+it is not a global declared Vernac type.
+
+Inline `behavior` bodies retain native injected-Java completion and navigation; see
+the [behavior tutorial](behavior.md). Holding Ctrl there must continue to use Java
+references, rather than the surrounding DSL host's type references.
+
+For acceptance, try `TaskId` and a VO from another namespace, a fully qualified type,
+a Collection, a module-exported type and a reference beside a `term` definition.
+Confirm that only the type name is highlighted, Ctrl+click/Ctrl+B agree, and comments
+or unresolved/ambiguous names get no false link. Compare an embedded Java type too.
 
 After generating the Java sources, open a Java test and use **Go to Declaration**
 on a model type reference such as `TaskId` or `Title`. For compiler-owned IDs,
@@ -309,16 +359,293 @@ already created a project here, adapt that tutorial's package-specific examples 
 
 ## Choose an application or a reusable type library
 
-In New Project → Vernac, select **Application** for a local domain model and test,
-or **Module / Type Library** for reusable IDs, values, enums and value collections.
+In the 0.5.0 New Project → Vernac wizard, select **Spring Boot Web Application**
+for a runnable UI/PostgreSQL application. With Docker running, open its
+`TasksApplication` and click Run; `local` is the default profile. Explicitly select
+`production` for deployment (the Dockerfile does this already). Choose **Minimal Domain Project** for a local
+model and test, or **Module / Type Library** for reusable IDs, values, enums and
+value collections. Older wizards may call the minimal option **Application**.
 The type library generates explicit exports and source-JAR packaging; it does not
 generate aggregates or an application definition. Application projects receive an
-empty `vernac-application.vapplication` beside their POM. Its runtime activation
-configuration is still planned. **New → Vernac Application Definition** adds this
+empty `vernac-application.vapplication` beside their POM. Use it to activate
+functional modules and select adapter bindings. **New → Vernac Application Definition** adds this
 file to an existing Maven project without overwriting an existing definition.
 Continue with the [module lifecycle tutorial](type-modules.md).
 
 Application definitions now receive shared syntax and identity diagnostics. Completion
 after `bind` proposes available ports; after `to` it proposes adapters for that port.
 Go To Declaration follows those type references. Adapter bindings now generate Spring registration and profile-driven selection.
-Explicit activation of full functional modules still fails the build explicitly. Type-module dependencies do not need `activate`.
+Functional modules require explicit activation; type-only dependencies do not need `activate`.
+
+
+## Debug inline behavior
+
+With the matching **0.5.0-SNAPSHOT** compiler and plugin, you can set breakpoints
+inside supported Vernac behavior bodies and inspect the live JVM state. Follow the
+[debugging tutorial](debugging.md) for a database-free example, expression evaluation,
+conditional breakpoints and logpoints. Use matching 0.5.0 release artifacts or the matching source-build instructions.
+
+### Vocabulary terms and embedded Java
+
+A term whose decoded name exactly matches a type or named collection in the same
+namespace also links to that definition. For example, Ctrl+click on `Label` in
+`term Label { description "A parcel label."; }` opens `value Label(String);`.
+The quoted spelling `term "Label"` has the same association. Standalone concepts
+such as `term "Outstanding balance"` do not acquire a guessed type target.
+
+Terms may appear before or between model declarations without disabling the Java
+editor inside behaviors or validations. In a behavior, navigation to Java methods
+such as `strip()` and local helpers such as `marker()` uses the injected Java
+context; these expressions are not Vernac type references.
+
+### Server-rendered MVC adapters (0.5.0)
+
+The web starter now declares its routes in `adapter TaskWeb inbound mvc`; its
+controller and scoped advice are generated. The LSP recognizes MVC keywords,
+checks the same route/usecase/conversion rules as the compiler, completes form
+binding paths and navigates `redisplay` references to their GET page loaders.
+Hover on a loader reference explains that the POST is not retried. Approved Java
+types, named mappings and module-owned usecase references keep native navigation.
+Mapping assignment breakpoints map to the generated MVC conversion helpers.
+Thymeleaf expression editing stays with IntelliJ's framework support.
+See [the MVC walkthrough](inbound-mvc.md) and its explicit initial scope.
+
+## Generated Java visibility after the first build
+
+Embedded Java resolves generated classes through IntelliJ's Java source roots.
+The plugin recognizes `target/generated-sources/vernac` in a Maven project with
+`src/main/vernac`, marks it as generated production Java source, and repeats this
+check after file-system and project-root changes. This covers the first Maven
+build, project reopening and recreation after `clean`. Existing source-root
+classifications are preserved. No unrelated module dependencies are added.
+
+A Maven build remains necessary to compile, run or debug changed application code:
+
+```text
+mvn compile
+```
+
+Before that build, the live model API supplies current local signatures to embedded
+Java. After the build, normal generated source roots also support ordinary Java
+callers. If type inference looks wrong, inspect the current declaration, diagnostics
+and generated root; do not apply a replace-with-null quickfix to a valid factory call.
+The plugin does not suppress Java nullability inspections.
+
+Automatic root repair covers the conventional Maven output directory. If the
+project customizes `vernac.outputDirectory` or its build directory, import that
+location as a generated Java source root through Maven/IntelliJ.
+
+## Editing an incomplete model
+
+A syntax error in one declaration no longer discards all complete declarations
+in the same file. For example, `value Count(int);` remains known when a later
+usecase is missing a closing brace. Java injection and type navigation continue
+for independently complete declarations. Diagnostics still identify the error,
+and Maven compilation still rejects the damaged source.
+
+Recovery is conservative: an incomplete declaration is not published with guessed
+parameter types or names. When an unclosed block makes later boundaries ambiguous,
+the editor may withhold that region until the block is repaired. Invalid namespace
+or import syntax prevents publishing a guessed file context. No last-successful
+snapshot is silently substituted after an edit or rename.
+
+This recovery also supplies independently valid declarations to the live Java API.
+It does not make a damaged file compile or run.
+
+## Try a value object before generation (0.5.0)
+
+Add an ordinary VO to a namespace already used by your project. For example:
+
+```vernac
+namespace example.live;
+value DraftCount(int) validates {
+    require(self.intValue() >= 0, "Count must not be negative");
+};
+```
+
+Use your actual namespace and matching directory. In an existing VO's `behavior`
+block in that namespace, add:
+
+```java
+public int liveValueDemo() {
+    var count = DraftCount.of(7);
+    return count.intValue();
+}
+```
+
+Before running Maven, try completion on `DraftCount`, `of` and `intValue`, inspect
+`count`'s type, and navigate to the VO/getter. The current unsaved document is used.
+The `validates` block also gets its Read-view getters without generation.
+
+After a successful build, change the field to `int amount` without rebuilding.
+The current API offers `amount()`; the older generated `intValue()` must not remain
+as an alternative in this Vernac Java context. Rebuild and confirm that completion
+still offers one API. An unrelated malformed declaration must not erase this
+otherwise complete VO.
+
+The live editor APIs cover local IDs, VOs, enums, entities, aggregates and their
+explicit collections. Validation Read views and entity/aggregate Read/Write/Access
+interfaces are included. Services, events, repositories, ports, usecases and their
+application access interfaces are included in the live API too. Handwritten `.java` files retain their
+normal Java resolution. No source file is generated on a keystroke, and a running
+application does not acquire these new methods until built/restarted or updated
+through a separate supported debugger mechanism.
+
+### Completing a newly declared VO inside Java
+
+The live Java path covers local domain classes and their explicit lists/sets.
+Select a visible local type by prefix, then complete its factory: for example,
+`DraftCount.o` followed by Ctrl+Space offers `of`. Model visibility determines the
+projected imports, so a visible local type does not require a technical package
+prefix or another `java imports` entry. Vernac field-type completion is a separate
+feature. The examples below exercise the different API families.
+
+For troubleshooting, place the caret inside the Java body and run **Tools → Vernac →
+Diagnose Embedded Java Context**. It opens a read-only report without saving source
+or running Maven. See the [diagnostic guide](../development/live-value-object-java-apis.md#installed-ide-completion-failure-and-diagnostics).
+
+### Try IDs, enums and collections before generation
+
+Add these declarations to your existing namespace:
+
+```vernac
+id DraftId list DraftIds;
+value DraftState = OPEN | DONE set DraftStates;
+value DraftLabel(String) list DraftLabels, set SelectedDraftLabels;
+```
+
+Inside an existing Java behavior, try completing `DraftId.cre`, `DraftState.O`,
+`DraftLabels.em` and `SelectedDraftLabels.em`. They correspond to `create()`,
+`OPEN` and each collection's `empty()` factory. After declaring
+`var labels = DraftLabels.empty();`, instance members such as `plus`, `get` and
+`duplicates` follow the actual generated list API. The set has `asSet()` and
+has no indexed `get` or `duplicates` operation. Each explicitly declared collection
+has its own type and optional public behaviors.
+
+You still need a build to run these new types. Editing and completion create no
+Java output files and perform no Hot Swap. A malformed declaration is withheld;
+independent valid declarations remain available.
+
+### Try entities, aggregates and the right `self` view
+
+With `DraftLabel` from the preceding section, add:
+
+```vernac
+id DraftLineId;
+id DraftBoardId;
+entity DraftLine[DraftLineId](mut DraftLabel) behavior {
+    read DraftLabel display() { return self.draftLabel(); }
+    modify void rename(DraftLabel label) { self.draftLabel(label); }
+} list DraftLines, set SelectedDraftLines;
+
+aggregate DraftBoard[DraftBoardId](mut DraftLines) behavior {
+    read DraftLines lines() { return self.draftLines(); }
+    modify void add(DraftLine line) {
+        self.draftLines(self.draftLines().plus(line));
+    }
+} list DraftBoards;
+```
+
+Before generating Java, try `DraftLine.cre` inside an existing usecase and
+`self.dr` inside either entity behavior. In `display`, `self` provides the getter;
+in `rename`, it also provides the setter overload. Read contexts do not offer
+`rename` or `emit`. A validation block receives the same Read contract. You do not
+need to import the technical view types: the Java projection supplies the correct
+`self` type.
+
+For a variable declared as `DraftLines`, completion includes `by(DraftLineId)`.
+The selected result is an `Optional<DraftLine>`; it refers to an entity, not a copy
+or a readonly facade. This preserves the existing domain semantics. Aggregate read
+views also provide their timestamps. No public setter is added to the actual entity
+or aggregate class.
+
+The new kinds still require installed-IDE acceptance independently of the confirmed
+ordinary-VO path. Build the project to execute the new classes and behavior.
+
+Local services, events, outbound port contracts and usecases also expose current
+Java APIs to embedded Java before generation. This includes dependency getters on
+`self`, event factories and nested usecase `Result` records. Local repository contracts, event listeners and outbound adapters also expose live
+APIs, including query handles, Access dependencies and outbound DTO/mapping holders.
+Inbound HTTP/MVC controllers, scoped error handlers, DTOs and mapping holders are
+also projected from the resolved transport contract. This editor projection
+never writes generated output and does not replace the normal build.
+
+### Try application APIs before generating Java
+
+In a correctly located file in namespace `example.live`, add:
+
+```vernac
+namespace example.live;
+
+value Caption(String);
+event CaptionSelected(Caption);
+service CaptionPolicy behavior {
+    public Caption choose(Caption caption) { return caption; }
+}
+usecase SelectCaption(Caption) returns (Caption) uses CaptionPolicy behavior {
+    execute {
+        var chosen = self.captionPolicy().choose(caption);
+        self.emit(CaptionSelected.create(chosen));
+        return Result.of(chosen);
+    }
+}
+```
+
+Before running Maven, try completion after `self.`, `self.captionPolicy().`,
+`CaptionSelected.` and `Result.` inside `execute`. The available signatures come
+from the current model, including unsaved edits. A build is still required to run
+the application. An incomplete Java body does not itself invalidate the declared
+API; an unresolved Vernac signature is withheld until it can be resolved reliably.
+
+### Try repository and listener dependencies
+
+Add these declarations to the same `example.live` model:
+
+```vernac
+id NoteId;
+aggregate Note[NoteId](Caption) list Notes;
+repository NoteRepository for Note {
+    find Notes withCaption(Caption caption)
+        where caption = :caption order by createdAt;
+}
+synchronous listener RememberSelection on CaptionSelected uses NoteRepository behavior {
+    execute {
+        self.noteRepository().save(Note.create(event.caption()));
+    }
+}
+```
+
+Before generation, try completion after `self.noteRepository().` in the listener:
+`byId`, `save`, `delete` and `withCaption` belong to its current repository contract.
+The editor does not need a database to display these APIs. Running this example
+still requires the normal persistence, event and transaction setup described in
+the corresponding tutorials.
+
+### Try an inbound Java mapping before generation
+
+Using the earlier `Caption` value, add:
+
+```vernac
+usecase ReadCaption() returns Caption behavior {
+    execute { return Caption.of("Live editor APIs"); }
+}
+adapter CaptionApi inbound http uses ReadCaption read {
+    base "/api/caption";
+    get {
+        GET "/";
+        execute read {}
+        respond 200 Reply using output;
+    }
+    schema Reply(String caption);
+    mapping output: Reply <- Caption {
+        java { return Reply.of(source.string()); }
+    }
+}
+```
+
+Inside the Java mapping, try completion after `Reply.` and navigation to its schema.
+The record is nested in the generated `CaptionApiDtos` holder, but its mapping-local
+name remains `Reply`. Changing the schema updates the live record API; no generated
+file needs to exist first. MVC adapters use the same live DTO/mapping mechanism.
+The endpoint and its runtime error handling still require building and starting the
+application normally.

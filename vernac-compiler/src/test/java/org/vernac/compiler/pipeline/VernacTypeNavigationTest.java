@@ -245,4 +245,19 @@ class VernacTypeNavigationTest {
         assertTrue(member("model.domain.Archive", "role", List.of(), Map.of()).isEmpty());
     }
 
+
+
+    @Test void enumConstantsNavigateToTheirExactVocabularyToken() throws Exception {
+        var path = source("model", "states", "value State = NEW | name | String | label behavior {public String label(){return self.name();}};");
+        var project = new VernacProjectLoader().loadForAnalysis(root, Map.of(), new ArrayList<>());
+        var texts = Map.of(path, Files.readString(path));
+        for (String constant : List.of("NEW", "name", "String", "label")) {
+            var target = new VernacTypeNavigation().findMember(project, texts, "model.domain.State",
+                    new VernacTypeNavigation.Member(constant, List.of(), true)).orElseThrow();
+            assertEquals(constant, selected(target, Map.of()));
+            assertTrue(target.start() < texts.get(path).indexOf("behavior"));
+        }
+        var method = member("model.domain.State", "label", List.of(), Map.of()).orElseThrow();
+        assertTrue(method.start() > texts.get(path).indexOf("behavior"));
+    }
 }

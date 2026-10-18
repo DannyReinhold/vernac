@@ -27,9 +27,10 @@ that Vernac target declaration is a separate feature.
 
 - Use an imported Maven project with a configured JDK and Java dependencies.
 - Keep models under `src/main/vernac`, matching their namespace directories.
-- Run Maven generation/compilation once so that the generated domain types are
-  indexed. `self`, domain getters and other model APIs resolve against those
-  generated types. After changing the domain API, regenerate it.
+- Ordinary local VOs have [live Java APIs](live-value-object-java-apis.md) before
+  generation, including validation Read views. Other domain APIs and application
+  access interfaces still require generated Java to be indexed. Regenerate those
+  APIs after changing their declarations; runtime execution always needs a build.
 - Changes inside inline bodies and private helper declarations use the live
   document. Saving or rebuilding is not required for those edits.
 - Declare additional Java imports explicitly in `java imports`. Automatic import
@@ -95,3 +96,27 @@ The final integration check requires a running IntelliJ instance:
    remain available outside injected Java fragments.
 
 Reference: [IntelliJ language injection](https://plugins.jetbrains.com/docs/intellij/language-injection.html).
+
+## Generated source roots
+
+`VernacGeneratedSourcesActivity` repairs the conventional generated Java source
+root after startup, VFS changes and Maven/project-root updates. It adds only an
+existing `target/generated-sources/vernac` belonging to a content root with a POM
+and `src/main/vernac`, checks module ownership, and preserves existing source-root
+classifications. Registration is coalesced and performed on the EDT in a write
+action. It neither invokes the compiler nor changes source files, dependencies,
+inspection severity or project-wide Java resolve rules. Ordinary Java indexing
+and the owning module's scope then provide class and factory resolution.
+
+Regression tests cover first generation, idempotence, aggregator isolation,
+clean/recreation event selection and plugin registration. Installed-IDE acceptance
+must additionally verify native completion, navigation and `var` inference in a
+new wizard project after its first generation build; these are not proven by the
+filesystem tests alone.
+
+## Declaration-level recovery
+
+The editor loader and Java tooling share [declaration recovery](editor-declaration-recovery.md).
+A broken declaration no longer disables complete Java contexts or navigable types
+elsewhere in the same file. Only declarations parsed without local recovery errors
+are admitted. Build entrypoints continue using the strict source parser.

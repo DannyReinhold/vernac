@@ -27,6 +27,54 @@ class BehaviorJavaProjectionTest {
         return result.toString();
     }
 
+    @Test void termsDoNotDisableOrShiftJavaContexts() {
+        String source = """
+                namespace model;
+                term Label { description "A parcel's human-readable label."; }
+                value Label(String) behavior {
+                    public String decorate(String suffix) {
+                        String normalized = self.string().strip();
+                        return normalized.toUpperCase(java.util.Locale.ROOT) + suffix;
+                    }
+                    public String withMarker() { return self.string() + marker(); }
+                    private String marker() { return "!"; }
+                    public String externallyDecorated()
+                        implemented by example.debug.handwritten.LabelFormatting;
+                };
+                term "Second concept" { description "Another term between types."; }
+                value Second(String) validates {
+                    require(!self.string().isBlank(), "blank");
+                };
+                """;
+        var blocks = project(source);
+        assertEquals(2, blocks.size());
+        String behavior = java(source, blocks.getFirst());
+        assertTrue(behavior.contains("self.string().strip()"));
+        assertTrue(behavior.contains("normalized.toUpperCase(java.util.Locale.ROOT)"));
+        assertTrue(behavior.contains("marker()"));
+        assertTrue(behavior.contains("private static java.lang.String marker()"));
+        assertTrue(java(source, blocks.getLast()).contains("SecondRead self"));
+        Map<String, String> sources = new LinkedHashMap<>();
+        new VernacCompiler().compileSource(source).generatedFiles().forEach(f ->
+                sources.put(f.packageName() + "." + f.typeSpec().name(), f.toString()));
+        sources.put("example.debug.handwritten.LabelFormatting", """
+                package example.debug.handwritten;
+                public final class LabelFormatting {
+                    public static String externallyDecorated(model.domain.Label self) {
+                        return self.string();
+                    }
+                }
+                """);
+        sources.put("model.domain.__VernacEditorBehavior_Label", behavior);
+        sources.put("model.domain.__VernacEditorValidation_Second", java(source, blocks.getLast()));
+        var compiled = org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(sources);
+        assertTrue(compiled.success(), compiled.diagnostics().toString());
+        for (var block : blocks) for (var fragment : block.fragments()) {
+            assertTrue(fragment.start() >= 0 && fragment.end() <= source.length());
+            assertFalse(source.substring(fragment.start(), fragment.end()).contains("term "));
+        }
+    }
+
     @Test void eventAndListenerProjectionMatchesGeneratedAccess() {
         String source="""
             namespace model; value Title(String);
@@ -58,7 +106,7 @@ class BehaviorJavaProjectionTest {
         String all = blocks.stream().map(b -> java(text, b)).reduce("", String::concat);
         assertTrue(all.contains("model.domain.access.PlanningAccess self"));
         assertTrue(all.contains("PlanningAccess.Input0 self"));
-        assertTrue(all.contains("java.util.Optional<model.domain.Title> title"));
+        assertTrue(all.contains("model.domain.@org.jspecify.annotations.Nullable Title title"));
         assertTrue(all.contains("return title;"));
     }
 
@@ -71,7 +119,7 @@ class BehaviorJavaProjectionTest {
         var blocks=project(source);
         assertEquals(2,blocks.size());
         String implementation=java(source,blocks.getFirst());
-        assertTrue(implementation.contains("java.util.Optional<model.domain.TourId> id"));
+        assertTrue(implementation.contains("model.domain.@org.jspecify.annotations.Nullable TourId id"));
         assertTrue(implementation.contains("return helper(id);"));
         assertTrue(implementation.contains("model.usecase.access.EchoAccess self"));
         assertTrue(java(source,blocks.getLast()).contains("model.usecase.access.EchoRead self"));
@@ -227,4 +275,22 @@ class BehaviorJavaProjectionTest {
         assertFalse(second.contains("helper()"));
     }
 
+
+    @Test void mutableBehaviorAndValidationContextsUseTheirExactAccessRole() {
+        String source = """
+            namespace model;
+            id ItemId; value Label(String);
+            entity Item[ItemId](mut Label) validates {require(!self.label().string().isBlank());} behavior {
+                read Label display(){return self.label();}
+                modify void rename(Label label){self.label(label);}
+            };
+            """;
+        var blocks = project(source);
+        var behavior = java(source, blocks.stream().filter(b -> b.owner().equals("Item")).findFirst().orElseThrow());
+        assertTrue(behavior.contains("display(model.domain.access.ItemRead self)"));
+        assertTrue(behavior.contains("rename(model.domain.access.ItemAccess self, model.domain.Label label)"));
+        var validation = java(source, blocks.stream().filter(b -> b.owner().equals("ItemValidation")).findFirst().orElseThrow());
+        assertTrue(validation.contains("validate(model.domain.access.ItemRead self)"));
+        assertFalse(validation.contains("ItemAccess self"));
+    }
 }

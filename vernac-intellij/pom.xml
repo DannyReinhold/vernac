@@ -32,6 +32,18 @@
     <dependencies>
         <dependency>
             <groupId>com.jetbrains.intellij.java</groupId>
+            <artifactId>java-debugger</artifactId>
+            <version>${intellij.platform.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.jetbrains.intellij.java</groupId>
+            <artifactId>java-debugger-impl</artifactId>
+            <version>${intellij.platform.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.jetbrains.intellij.java</groupId>
             <artifactId>java-psi</artifactId>
             <version>${intellij.platform.version}</version>
             <scope>provided</scope>
@@ -85,6 +97,14 @@
             <version>${intellij.platform.version}</version>
             <scope>provided</scope>
         </dependency>
+        <!-- Required by Kotlin-based IntelliJ APIs during compilation and native PSI tests.
+             IntelliJ provides Kotlin at runtime; do not bundle it with the plugin. -->
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib</artifactId>
+            <version>2.2.20</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -127,6 +147,17 @@
                     <include>src/main/vernac/**</include>
                     <include>src/test/java/**</include>
                 </includes>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/../templates/vernac-spring-boot</directory>
+                <targetPath>projectTemplates/vernac-spring-boot</targetPath>
+                <filtering>false</filtering>
+                <includes>
+                    <include>**/*</include>
+                    <include>.gitignore</include>
+                    <include>.dockerignore</include>
+                </includes>
+                <excludes><exclude>target/**</exclude><exclude>.idea/**</exclude></excludes>
             </resource>
         </resources>
         <plugins>

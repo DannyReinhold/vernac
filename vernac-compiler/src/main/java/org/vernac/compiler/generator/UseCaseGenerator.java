@@ -60,10 +60,10 @@ public final class UseCaseGenerator {
         List<String> names=new ArrayList<>(); names.add("self");
         for(var f:u.parameters()) {
             TypeName type=raw(f.type(),project,owner);
-            execute.addParameter(f.type().isOptional()?type.annotated(AnnotationSpec.builder(Nullable.class).build()):type,f.name());
+            execute.addParameter(org.vernac.compiler.util.JavaParameters.type(type,f.type().isOptional()),f.name());
             if(!f.type().isOptional()) execute.addStatement("$T.requireNonNull($N, $S)",DomainChecks.class,f.name(),u.name()+"."+f.name());
-            bridge.addParameter(view(f.type(),project,owner),f.name()); names.add(f.name());
-            call.add(f.type().isOptional()?CodeBlock.of("$T.ofNullable($N)",Optional.class,f.name()):CodeBlock.of("$N",f.name()));
+            bridge.addParameter(parameter(f.type(),project,owner),f.name()); names.add(f.name());
+            call.add(CodeBlock.of("$N",f.name()));
         }
         List<JavaFile> files=new ArrayList<>();
         if(!u.validations().isEmpty()) {
@@ -85,7 +85,9 @@ public final class UseCaseGenerator {
                     .addStatement("throw new $T($S)",DomainValidationException.class,rule.message().isBlank()?u.name()+": precondition failed":rule.message()).endControlFlow();
             validation.addMethod(validate.build());
             new BehaviorGenerator().addBodyImports(validation,owner,u.javaImports(),unit,project,u.validations().toString());
-            files.add(file(read.packageName(),readSpec)); files.add(file(owner.packageName(),validation));
+            files.add(file(read.packageName(),readSpec));
+            if(!listener) BehaviorGenerator.addDebugFingerprint(validation,file(owner.packageName(),validation),unit,project);
+            files.add(file(owner.packageName(),validation));
         }
         var invocation=CodeBlock.of("$T.execute($L)",companion,CodeBlock.join(call,", "));
         if(returns.equals(TypeName.VOID)) execute.addStatement("$L",invocation);
@@ -113,20 +115,23 @@ public final class UseCaseGenerator {
         var bodies=new StringBuilder(u.bodyCode());u.methods().forEach(m -> bodies.append("\n").append(m.bodyCode()));
         new BehaviorGenerator().addBodyImports(implementation,owner,u.javaImports(),unit,project,bodies.toString());
         if(u.implementation().isPresent()) {
-            String target=u.implementation().get();
-            if(!target.contains(".")) target=u.javaImports().stream().map(JavaImportNode::target).filter(t -> t.endsWith("."+u.implementation().get())).findFirst().orElse(owner.packageName()+"."+target);
+            String target=org.vernac.compiler.util.JavaImplementations.resolve(u.implementation().get(),u.javaImports(),owner.packageName());
             bridge.addStatement(returns.equals(TypeName.VOID)?"$L.execute($L)":"return $L.execute($L)",target,String.join(", ",names));
         } else bridge.addCode("$L\n",u.bodyCode());
         implementation.addMethod(bridge.build());
         for(var m:u.methods()) {
             var helper=MethodSpec.methodBuilder(m.name()).addModifiers(Modifier.PRIVATE,Modifier.STATIC).returns(view(m.returnType(),project,owner));
-            for(var f:m.parameters()) helper.addParameter(view(f.type(),project,owner),f.name());
+            for(var f:m.parameters()) helper.addParameter(parameter(f.type(),project,owner),f.name());
             helper.addCode("$L\n",m.bodyCode());implementation.addMethod(helper.build());
         }
         files.add(file(owner.packageName(),bean));
         var companionFile=JavaFile.builder(owner.packageName(),implementation.build()).indent("    ").skipJavaLangImports(true);
         if(!u.resultFields().isEmpty()) companionFile.addStaticImport(owner,"Result");
-        files.add(companionFile.build());return files;
+        BehaviorGenerator.addDebugFingerprint(implementation, companionFile.build(), unit, project);
+        // Rebuild after adding the private fingerprint, preserving Result static imports.
+        var finalCompanion=JavaFile.builder(owner.packageName(),implementation.build()).indent("    ").skipJavaLangImports(true);
+        if(!u.resultFields().isEmpty()) finalCompanion.addStaticImport(owner,"Result");
+        files.add(finalCompanion.build());return files;
     }
     private TypeSpec result(UseCaseNode u,ResolvedProject project,ClassName owner) {
         var canonical=MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC);
@@ -153,6 +158,10 @@ public final class UseCaseGenerator {
     private TypeName returnType(UseCaseNode u,ResolvedProject p,ClassName owner) {
         if(!u.resultFields().isEmpty()) return owner.nestedClass("Result");
         return u.resultType().map(t -> view(t,p,owner)).orElse(TypeName.VOID);
+    }
+    private TypeName parameter(TypeNode t,ResolvedProject p,ClassName owner) {
+        var type=raw(t,p,owner);
+        return org.vernac.compiler.util.JavaParameters.type(type,t.isOptional());
     }
     private TypeName view(TypeNode t,ResolvedProject p,ClassName owner) {
         var type=raw(t,p,owner);return t.isOptional()?ParameterizedTypeName.get(ClassName.get(Optional.class),type.box()):type;

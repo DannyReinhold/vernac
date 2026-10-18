@@ -29,7 +29,8 @@ public final class VernacProjectTemplate {
     );
 
     public enum ProjectKind {
-        APPLICATION("Application"), TYPE_MODULE("Module / Type Library");
+        APPLICATION("Minimal Domain Project"), TYPE_MODULE("Module / Type Library"),
+        SPRING_BOOT_APPLICATION("Spring Boot Web Application");
         private final String label;
         ProjectKind(String label) { this.label = label; }
         @Override public String toString() { return label; }
@@ -54,6 +55,11 @@ public final class VernacProjectTemplate {
         validateParameters(projectName, groupId, artifactId, basePackage);
         if (kind == ProjectKind.TYPE_MODULE && !basePackage.contains(".")) {
             throw new IOException("A type module requires a qualified namespace with at least two segments.");
+        }
+
+        if (kind == ProjectKind.SPRING_BOOT_APPLICATION) {
+            VernacSpringBootTemplate.copyTo(projectDirectory, projectName, groupId, artifactId, basePackage, readVernacVersion());
+            return;
         }
 
         Path root = projectDirectory.toAbsolutePath().normalize();
@@ -176,6 +182,10 @@ public final class VernacProjectTemplate {
                 + "    export " + basePackage + ".Titles;\n}\n";
         preparedFiles.put(definition, definitionText.getBytes(StandardCharsets.UTF_8));
 
+        writePrepared(root, preparedFiles);
+    }
+
+    static void writePrepared(Path root, Map<Path, byte[]> preparedFiles) throws IOException {
         // Check parent paths before starting to write.
         for (Path destination : preparedFiles.keySet()) {
             for (Path parent = destination.getParent();
@@ -272,7 +282,7 @@ public final class VernacProjectTemplate {
                 + text.substring(end + endMarker.length());
     }
 
-    private static String escapeMarkdown(String value) {
+    static String escapeMarkdown(String value) {
         String singleLine = value.replace('\r', ' ').replace('\n', ' ');
         StringBuilder escaped = new StringBuilder();
 

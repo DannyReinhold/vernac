@@ -36,6 +36,8 @@ public final class ValidationGenerator {
                     .endControlFlow();
         }
         type.addMethod(validate.build());
-        return Optional.of(JavaFile.builder(owner.packageName(), type.build()).indent("    ").skipJavaLangImports(true).build());
+        var file=JavaFile.builder(owner.packageName(),type.build()).indent("    ").skipJavaLangImports(true).build();
+        BehaviorGenerator.addDebugFingerprint(type,file,unit,project);
+        return Optional.of(JavaFile.builder(owner.packageName(),type.build()).indent("    ").skipJavaLangImports(true).build());
     }
 }

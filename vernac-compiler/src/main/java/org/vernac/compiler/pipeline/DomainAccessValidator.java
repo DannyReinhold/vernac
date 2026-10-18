@@ -44,7 +44,7 @@ final class DomainAccessValidator {
         return errors;
     }
     private String parameters(List<FieldNode> fields, Map<TypeNode, ResolvedType> types) {
-        return String.join(",", fields.stream().map(f -> JavaTypeNames.canonicalName(types.get(f.type()))).toList());
+        return org.vernac.compiler.util.JavaMethodSignatures.parameters(fields,types);
     }
     private void add(String signature, SourceLocation location, Set<String> signatures, List<CompilerDiagnostic> errors) {
         if (!signatures.add(signature)) errors.add(CompilerDiagnostic.error(location, "Signature '" + signature + "' conflicts with a generated or declared member. Choose another explicit name or parameter signature."));

@@ -13,8 +13,8 @@ class UseCaseGeneratorTest {
             usecase Rename(TourId, Title? title) returns (TourId, Title? title)
             validates { require(self.title().isPresent(), "Title needed"); }
             behavior {
-                execute { return resultFor(tourId, title.orElseThrow()); }
-                private Result resultFor(TourId id, Title title) { return Result.of(id,title); }
+                execute { return resultFor(tourId, title); }
+                private Result resultFor(TourId id, Title? title) { return Result.of(id,title); }
             }
             """);
         String code=result.generatedFiles().stream().map(Object::toString).reduce("",String::concat);

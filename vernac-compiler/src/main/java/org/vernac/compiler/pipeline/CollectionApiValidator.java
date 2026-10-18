@@ -36,8 +36,7 @@ final class CollectionApiValidator {
                 diagnostics.add(CompilerDiagnostic.error(parameter.location(), "Invalid Java parameter name '" + parameter.name() + "'."));
             diagnostics.addAll(MemberNames.duplicates(method.parameters(), "parameter", collection.name()));
             if (!method.parameters().stream().allMatch(p -> types.containsKey(p.type()))) continue;
-            String signature = method.name() + "(" + method.parameters().stream()
-                    .map(p -> JavaTypeNames.canonicalName(types.get(p.type()))).collect(Collectors.joining(",")) + ")";
+            String signature = org.vernac.compiler.util.JavaMethodSignatures.signature(method.name(),method.parameters(),types);
             if (!signatures.add(signature)) diagnostics.add(CompilerDiagnostic.error(method.location(),
                     "Collection method '" + signature + "' conflicts with a generated, inherited, or previously declared method."));
             if (method.parameters().isEmpty() && Set.of("clone", "finalize").contains(method.name()) && types.containsKey(method.returnType())) {

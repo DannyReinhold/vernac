@@ -1,0 +1,173 @@
+// Copyright 2026 Danny Reinhold
+// SPDX-License-Identifier: Apache-2.0
+package org.vernac.compiler.tooling;
+
+import com.palantir.javapoet.JavaFile;
+import org.vernac.compiler.analyzer.CompilerDiagnostic;
+import org.vernac.compiler.ast.*;
+import org.vernac.compiler.generator.*;
+import org.vernac.compiler.pipeline.*;
+import org.vernac.compiler.symbols.*;
+
+import java.nio.file.Path;
+import java.util.*;
+
+/** Current local Java APIs and access views from production generators, without build output. */
+public final class EditorValueObjects {
+    public record Value(String javaName, Path source, String javaSource) {}
+
+    /** valueNames includes supported public declarations, even when their current API is invalid. */
+    public record Model(Map<String, Value> values, Set<String> valueNames, Set<String> liveNames) {
+        public Model {
+            values = Map.copyOf(values);
+            valueNames = Set.copyOf(valueNames);
+            liveNames = Set.copyOf(liveNames);
+        }
+    }
+
+    public Model build(VernacProject project) {
+        var resolved = new ProjectTypeResolver().resolveForAnalysis(project);
+        Map<String, Value> values = new LinkedHashMap<>();
+        Set<String> names = new HashSet<>(), live = new HashSet<>();
+        for (var source : project.sources()) {
+            if (source.external()) continue;
+            String namespace = source.unit().namespace();
+            if (!org.vernac.language.VernacNames.isNamespace(namespace)
+                    || !source.path().getParent().equals(
+                            project.sourceRoot().resolve(namespace.replace('.', '/')))) continue;
+            project.symbols().inNamespace(namespace).stream()
+                    .filter(s -> s.sourceFile().equals(source.path()))
+                    .forEach(s -> live.add(JavaTypeNames.canonicalName(new ResolvedType.Declared(s))));
+            var definitions = source.unit().definitions();
+            for (var definition : definitions) {
+                var mutable = MutableDomain.of(definition);
+                if (!(definition instanceof IdDeclarationNode)
+                        && !(definition instanceof ValueObjectNode) && mutable.isEmpty()
+                        && !(definition instanceof EventNode) && !(definition instanceof DomainServiceNode)
+                        && !(definition instanceof UseCaseNode) && !(definition instanceof PortNode)
+                        && !(definition instanceof RepositoryNode) && !(definition instanceof ListenerNode)
+                        && !(definition instanceof OutboundAdapterNode)
+                        && !(definition instanceof InboundHttpAdapterNode)) continue;
+                String name = definition instanceof IdDeclarationNode id ? id.name()
+                        : definition instanceof ValueObjectNode value ? value.name()
+                        : definition instanceof EventNode event ? event.name()
+                        : definition instanceof DomainServiceNode service ? service.name()
+                        : definition instanceof UseCaseNode usecase ? usecase.name()
+                        : definition instanceof PortNode port ? port.name()
+                        : definition instanceof RepositoryNode repo ? repo.name()
+                        : definition instanceof ListenerNode listener ? listener.name()
+                        : definition instanceof OutboundAdapterNode adapter ? adapter.name()
+                        : definition instanceof InboundHttpAdapterNode adapter ? adapter.name() : mutable.orElseThrow().name();
+                String javaName = namespace + (definition instanceof UseCaseNode ? ".usecase."
+                        : definition instanceof ListenerNode ? ".adapter.inbound.event."
+                        : definition instanceof OutboundAdapterNode ? ".adapter.outbound."
+                        : definition instanceof InboundHttpAdapterNode ? ".adapter.inbound.http." : ".domain.") + name;
+                var collections = CollectionDeclaration.of(definition);
+                names.add(javaName);
+                collections.forEach(c -> names.add(namespace + ".domain." + c.name()));
+                if (resolved.scopes().get(source.path()).hasErrors()
+                        || project.symbols().find(namespace + "." + name).isEmpty()) continue;
+                SourceLocation end = definitions.stream().map(TopLevelDefinition::location)
+                        .filter(l -> after(l, definition.location())).min(LOCATION_ORDER)
+                        .orElse(new SourceLocation(Integer.MAX_VALUE, 0));
+                SourceLocation primaryEnd = collections.stream().map(c -> c.definition().location())
+                        .min(LOCATION_ORDER).orElse(end);
+                if (invalid(resolved, source.path(), definition.location(), primaryEnd)) continue;
+                if (definition instanceof InboundHttpAdapterNode adapter) {
+                    var plan = resolved.inboundAdapters().get(adapter);
+                    if (plan == null) continue;
+                    addPublic(project, source, adapter.mvc()
+                            ? new InboundMvcGenerator().generate(adapter, source.unit(), resolved, plan)
+                            : new InboundHttpGenerator().generate(adapter, source.unit(), resolved, plan), values);
+                } else if (definition instanceof RepositoryNode repository) {
+                    var lookup = resolved.scopes().get(source.path()).resolve(repository.aggregateName(), repository.location());
+                    if (!(lookup.type().orElse(null) instanceof ResolvedType.Declared target)) continue;
+                    AggregateNode aggregate = null;
+                    for (var file : project.sources()) {
+                        if (!file.unit().namespace().equals(target.symbol().identity().namespace())) continue;
+                        for (var candidate : file.unit().definitions())
+                            if (candidate instanceof AggregateNode a && a.name().equals(target.symbol().identity().name())) aggregate = a;
+                    }
+                    if (aggregate == null || !resolved.types().containsKey(aggregate.idDefinition().type())
+                            || repository.methods().stream().anyMatch(m -> !resolved.queries().containsKey(m))) continue;
+                    add(project, source, new RepositoryContractGenerator().generate(repository, namespace,
+                            aggregate, target.symbol().identity().namespace(), resolved), values);
+                } else if (definition instanceof ListenerNode listener) {
+                    addPublic(project, source, new ListenerGenerator().generate(listener, source.unit(), resolved), values);
+                } else if (definition instanceof OutboundAdapterNode adapter) {
+                    addPublic(project, source, new OutboundAdapterGenerator().generate(adapter, source.unit(), resolved), values);
+                } else if (definition instanceof EventNode event) {
+                    addPublic(project, source, new EventGenerator().generate(event, source.unit(), resolved), values);
+                } else if (definition instanceof DomainServiceNode service) {
+                    addPublic(project, source, new DomainServiceGenerator().generate(service, source.unit(), resolved), values);
+                } else if (definition instanceof UseCaseNode usecase) {
+                    addPublic(project, source, new UseCaseGenerator().generate(usecase, source.unit(), resolved), values);
+                } else if (definition instanceof PortNode port) {
+                    addPublic(project, source, new PortGenerator().generate(port, source.unit(), resolved), values);
+                } else if (definition instanceof IdDeclarationNode id) {
+                    add(project, source, new IdGenerator().generate(id, namespace), values);
+                } else if (mutable.isPresent()) {
+                    var model = mutable.get();
+                    if (!resolved.types().containsKey(model.id().type())
+                            || model.fields().stream().anyMatch(f -> !resolved.types().containsKey(f.type())))
+                        continue;
+                    JavaFile generated = definition instanceof EntityNode entity
+                            ? new EntityGenerator(resolved).generate(entity, namespace)
+                            : new AggregateGenerator(resolved).generate((AggregateNode) definition, namespace);
+                    add(project, source, generated, values);
+                    for (var access : new DomainAccessGenerator().interfaces(model,
+                            com.palantir.javapoet.ClassName.get(namespace + ".domain", name), resolved))
+                        add(project, source, access, values);
+                } else {
+                    var value = (ValueObjectNode) definition;
+                    if (value.fields().stream().anyMatch(f -> !resolved.types().containsKey(f.type())))
+                        continue;
+                    add(project, source, new ValueObjectGenerator().generate(value, namespace, resolved), values);
+                    if (!value.validations().isEmpty()) {
+                        add(project, source, new ValueReadGenerator().generate(value,
+                                com.palantir.javapoet.ClassName.get(namespace + ".domain", name), resolved), values);
+                    }
+                }
+                for (int i = 0; i < collections.size(); i++) {
+                    var collection = collections.get(i);
+                    SourceLocation collectionEnd = i + 1 < collections.size()
+                            ? collections.get(i + 1).definition().location() : end;
+                    if (project.symbols().find(namespace + "." + collection.name()).isEmpty()
+                            || invalid(resolved, source.path(), collection.definition().location(), collectionEnd))
+                        continue;
+                    add(project, source, new DomainCollectionGenerator().generate(collection, namespace, resolved), values);
+                }
+            }
+        }
+        return new Model(values, names, live);
+    }
+
+    /** Publish actual public APIs, never private behavior/validation implementation companions. */
+    private static void addPublic(VernacProject project, VernacSourceFile source,
+            List<JavaFile> generated, Map<String, Value> values) {
+        generated.stream().filter(f -> f.typeSpec().modifiers().contains(javax.lang.model.element.Modifier.PUBLIC))
+                .forEach(f -> add(project, source, f, values));
+    }
+
+    private static final Comparator<SourceLocation> LOCATION_ORDER =
+            Comparator.comparingInt(SourceLocation::line).thenComparingInt(SourceLocation::column);
+
+    private static boolean invalid(ResolvedProject project, Path source, SourceLocation start, SourceLocation end) {
+        return project.diagnostics().stream()
+                .filter(d -> d.severity() == CompilerDiagnostic.Severity.ERROR)
+                .anyMatch(d -> d.location().sourceName().equals(source.toString())
+                        && !after(start, d.location()) && after(end, d.location()));
+    }
+
+    private static void add(VernacProject project, VernacSourceFile source, JavaFile generated,
+            Map<String, Value> values) {
+        String name = generated.packageName() + "." + generated.typeSpec().name();
+        String java = org.vernac.compiler.vocabulary.Vocabulary.documentJava(project, List.of(generated))
+                .getFirst().toString();
+        values.put(name, new Value(name, source.path(), java));
+    }
+
+    private static boolean after(SourceLocation first, SourceLocation second) {
+        return LOCATION_ORDER.compare(first, second) > 0;
+    }
+}

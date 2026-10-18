@@ -144,9 +144,10 @@ outboundAdapterDefinition
     ;
 
 inboundHttpAdapterDefinition
-    : 'adapter' name=typeName 'inbound' 'http'
+    : 'adapter' name=typeName 'inbound' transport=('http' | 'mvc')
       ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
       '{' 'base' base=STRING_LITERAL ';'
+      ('error' 'view' errorView=STRING_LITERAL ';')?
       (inboundEndpoint | schemaDefinition | mappingDefinition)*
       inboundErrorPolicy? '}' ';'?
     ;
@@ -154,15 +155,20 @@ inboundEndpoint
     : name=methodName '{' verb=('GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE') route=STRING_LITERAL ';'
       inboundBinding* ('body' bodyType=type ';')?
       'execute' dependency=variableName '{' mappingAssignment* '}'
-      'respond' status=INT_LITERAL (responseType=type 'using' responseMapping=methodName)? ';'
-      ('on' 'absent' 'respond' absentStatus=INT_LITERAL ';')? inboundErrorPolicy? '}'
+      ('respond' status=INT_LITERAL (responseType=type 'using' responseMapping=methodName)? ';'
+       | 'render' view=STRING_LITERAL ('model' modelName=variableName)? ('status' renderStatus=INT_LITERAL)? ';'
+       | 'redirect' redirect=STRING_LITERAL ('message' notice=STRING_LITERAL)? ';')
+      ('on' 'absent' ('respond' absentStatus=INT_LITERAL
+       | 'render' absentView=STRING_LITERAL 'status' absentStatus=INT_LITERAL) ';')? inboundErrorPolicy? '}'
     ;
 inboundErrorPolicy
     : 'errors' ('implemented' 'by' implementation=qualifiedName ';'
       | '{' inboundErrorRule+ ('otherwise' 'default' ';')? '}')
     ;
 inboundErrorRule
-    : 'when' inboundErrorSelector 'then' 'respond' status=INT_LITERAL
+    : 'when' inboundErrorSelector 'then'
+      ('respond' status=INT_LITERAL | 'render' view=STRING_LITERAL 'status' status=INT_LITERAL
+       | 'redisplay' reload=methodName 'status' status=INT_LITERAL)
       (code=STRING_LITERAL message=STRING_LITERAL)? ';'
     ;
 inboundErrorSelector
@@ -175,8 +181,8 @@ inboundErrorSelector
     | 'domain' 'rejection'
     ;
 inboundBinding
-    : kind=('path' | 'query' | 'header') valueType=type name=variableName?
-      ('named' externalName=STRING_LITERAL)? ';'
+    : sensitive='sensitive'? kind=('path' | 'query' | 'header' | 'form') valueType=type name=variableName?
+      ('named' externalName=STRING_LITERAL)? ('default' defaultValue=STRING_LITERAL)? ';'
     ;
 
 configurationBlock
@@ -341,7 +347,8 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
+    | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | IDENTIFIER
     | BOOLEAN_LITERAL
     | 'null'
@@ -444,7 +451,8 @@ typeName
     ;
 
 methodName
-    : 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
+    | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'read' | 'modify' | 'load' | 'save'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
@@ -454,7 +462,8 @@ methodName
     ;
 
 variableName
-    : 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
+    : 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'read' | 'modify'
+    | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
     | IDENTIFIER

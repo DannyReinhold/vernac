@@ -22,7 +22,7 @@ service Planning uses Policy behavior {
     public Title? optional(Title? title) validates { require(self.title().isEmpty() || !self.title().orElseThrow().string().isBlank(), "Blank"); } {
         return identity(title);
     }
-    private Title? identity(Title? title) { return title; }
+    private Title? identity(Title? title) { return Optional.ofNullable(title); }
     public Title? external(Title? title) implemented by operations.ExternalImplementation;
     public Title badResult() { return null; }
 }

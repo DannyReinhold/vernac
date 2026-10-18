@@ -84,7 +84,7 @@ public class BehaviorContractTest {
                 "value Name(String) behavior { public @Nullable String bad() { return null; } };",
                 "value Name(String) behavior { java imports { java.util.*; } };",
                 "value Name(String) behavior { private String bad() implemented by x.Impl; };",
-                "value Name(String) behavior { public String bad() implemented by Impl; };"})
+                "value Name(String) behavior { public String bad() implemented by x..Impl; };"})
             assertThrows(SemanticValidationException.class, () -> generate(model));
     }
 

@@ -1,0 +1,18 @@
+namespace example.debug;
+
+id ParcelId;
+value Units(int) validates {
+    require(self.intValue() > 0, "Units must be positive");
+};
+entity Parcel[ParcelId](Label, mut Units) validates {
+    require(self.units().intValue() <= 10, "A parcel supports at most ten units");
+} behavior {
+    read String display() {
+        String decorated = self.label().decorate("!");
+        return decorated;
+    }
+
+    modify void changeUnits(Units units) {
+        self.units(units);
+    }
+};

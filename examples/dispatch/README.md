@@ -9,7 +9,7 @@ carrier integration. The business model lives in `.vernac` files. Java connects 
 to the browser and to the local carrier simulator.
 
 This is an independent example, **not a child module** of the Vernac reactor.
-It uses **Vernac 0.4.0-SNAPSHOT**, Java 21 output and the current JDK 25 build setup.
+It uses **Vernac 0.5.0-SNAPSHOT**, Java 21 output and the current JDK 25 build setup.
 
 ## Start
 

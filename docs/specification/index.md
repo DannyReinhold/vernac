@@ -1,6 +1,9 @@
+---
+title: Vernac specification and contracts
+---
 # Vernac specification and contracts
 
-This is the normative documentation for the **0.4.0 language revision**. It is
+This is the normative documentation for the **0.5.0 language revision**. It is
 organized into language rules and feature contracts; both parts define the language.
 MUST/MUST NOT express requirements, SHOULD a recommendation, and MAY a permission.
 Examples illustrate rules; explicitly incomplete fragments require their surrounding
@@ -37,6 +40,7 @@ resolution and feature contracts also constrain accepted programs.
 - [Repository queries](../contracts/repository-queries.md)
 - [Pagination runtime foundation](../contracts/pagination.md): offset/cursor queries and completed HTTP results.
 - [HTTP inbound adapters](../contracts/inbound-http.md)
+- [Server-rendered MVC adapters](../contracts/inbound-mvc.md) (0.5.0 development)
 - [Ports and adapters](../contracts/ports-adapters-and-acl.md)
 - [Adapter configuration](../contracts/adapter-configuration.md)
 - [Adapter DTOs and JSON](../contracts/adapter-dtos.md)
@@ -59,9 +63,13 @@ revise the contract. Do not silently treat an old document, a parser production 
 a generated excerpt as a new supported feature.
 
 See [documentation maintenance](../development/documentation.md) and the
-[release plan](../development/release-0.4.0.md) for remaining verification work.
+[release plan](../development/release-0.5.0.md) for remaining verification work.
 
 ## Subsequent design work
 
 SaaS policies and deeper cross-language IDE integration remain separately planned. The
 [module completion record](../development/module-completion-roadmap.md) defines the delivered 0.4.0 scope.
+
+The 0.5.0 [shared Java implementation contract](../contracts/implementation-contracts.md)
+defines parameter nullability, external target resolution and overload identity
+across behavior, usecases, services, listeners and adapters.

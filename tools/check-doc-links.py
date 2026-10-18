@@ -40,10 +40,14 @@ for source in FILES:
     links += re.findall(r'^\[[^\]]+\]:\s*(\S+)', text, re.M)
     for link in links:
         url = urlsplit(html.unescape(link.strip('<>')))
-        if url.scheme or url.netloc:
+        repository_prefixes = ('/DannyReinhold/vernac/blob/main/', '/DannyReinhold/vernac/tree/main/')
+        repository_path = next((url.path[len(prefix):] for prefix in repository_prefixes
+                                if url.netloc == 'github.com' and url.path.startswith(prefix)), None)
+        if (url.scheme or url.netloc) and repository_path is None:
             continue
         checked += 1
-        target = (source.parent / unquote(url.path)).resolve() if url.path else source
+        target = ((ROOT / unquote(repository_path)).resolve() if repository_path is not None
+                  else (source.parent / unquote(url.path)).resolve() if url.path else source)
         if not target.exists():
             failures.append(f'{source.relative_to(ROOT)}: missing target {link}')
         elif url.fragment and target.suffix == '.md' and unquote(url.fragment) not in anchors(target):

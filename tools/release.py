@@ -38,6 +38,20 @@ REQUIRED_TESTS += (
 )
 
 
+# 0.5.0 debugger foundation must execute, including the real JVM/JDI test.
+REQUIRED_TESTS += ("BehaviorSourceMapTest", "BehaviorDebugExecutionTest", "VernacRuntimeFingerprintTest",
+                   "ValidationSourceMapTest", "ValidationDebugExecutionTest",
+                   "ListenerSourceMapTest", "ListenerDebugExecutionTest",
+                   "VernacDebuggerHostLexerTest", "VernacExpressionFactoryTest",
+                   "AdapterSourceMapTest", "AdapterDebugExecutionTest", "VernacViewInspectorTest", "VernacTypeReferencesTest", "VernacTypeReferenceTest", "VernacSpringBootTemplateTest", "SpringBootStarterExecutionTest", "InboundMvcContractTest", "InboundMvcExecutionTest", "InboundMvcSymbolsTest", "ImplementationContractsExecutionTest")
+
+
+# Live editor APIs are a 0.5.0 release feature, including native Java PSI lookup.
+REQUIRED_TESTS += ("EditorValueObjectsTest", "BehaviorJavaProjectionTest",
+                   "VernacLivePackageTest", "VernacLiveUnionScopeTest",
+                   "VernacLiveShortNamesCacheTest", "VernacLiveValueTest")
+
+
 def require(condition, message):
     if not condition:
         raise ValueError(message)

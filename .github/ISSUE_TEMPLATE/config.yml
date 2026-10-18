@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation and tutorials
+    url: https://vernac.org/
+    about: Explore the language, runnable examples and development guides.
+  - name: Security reporting instructions
+    url: https://github.com/DannyReinhold/vernac/blob/main/SECURITY.md
+    about: Report vulnerabilities privately; do not post sensitive details in an issue.

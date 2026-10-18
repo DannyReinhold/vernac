@@ -51,8 +51,8 @@ public final class VernacNewProjectWizard
 
     @Override
     public String getDescription() {
-        return "Create a Maven project with a Vernac domain model "
-                + "and an executable example test.";
+        return "Create a Spring Boot web application with PostgreSQL and Thymeleaf, "
+                + "a minimal domain project, or a reusable Vernac module.";
     }
 
     @Override
@@ -100,6 +100,8 @@ public final class VernacNewProjectWizard
                 return Unit.INSTANCE;
             });
 
+            kindField.setSelectedItem(VernacProjectTemplate.ProjectKind.SPRING_BOOT_APPLICATION);
+            kindField.setToolTipText("Web application: real UI, PostgreSQL, Flyway, local Compose; minimal and module projects need no Docker.");
             configureJdkSelection();
         }
 
@@ -286,9 +288,11 @@ public final class VernacNewProjectWizard
                                 .setProjectSdk(selectedJdk)
                 );
 
-                MavenRunner.getInstance(project)
-                        .getSettings()
-                        .setJreName(MavenRunnerSettings.USE_PROJECT_JDK);
+                var mavenSettings = MavenRunner.getInstance(project).getSettings();
+                mavenSettings.setJreName(MavenRunnerSettings.USE_PROJECT_JDK);
+                // Vernac generation is a Maven lifecycle step, not a native IDE compiler step.
+                // Set this only when creating a project; later user choices remain untouched.
+                mavenSettings.setDelegateBuildToMaven(true);
 
                 VernacProjectOpenActivity.openAfterProjectCreation(
                         project,

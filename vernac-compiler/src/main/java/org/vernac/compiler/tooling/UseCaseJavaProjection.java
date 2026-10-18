@@ -31,12 +31,12 @@ final class UseCaseJavaProjection {
                     String result=u.resultFields().isEmpty()?u.resultType().map(t -> type(t,scope,owner,project)).orElse("void"):owner+".Result";
                     var params=new ArrayList<String>();
                     params.add(pkg+".access."+u.name()+"Access self");
-                    u.parameters().forEach(p -> params.add(type(p.type(),scope,owner,project)+" "+p.name()));
+                    u.parameters().forEach(p -> params.add(parameter(p.type(),scope,owner,project)+" "+p.name()));
                     add(fragments,member.rawJavaBlock(),text,"static "+result+" execute("+String.join(", ",params)+") {\n","}\n");
                 } else if(member.behaviorMethod()!=null && member.behaviorMethod().rawJavaBlock()!=null) {
                     var m=member.behaviorMethod();
                     var node=u.methods().stream().filter(n -> n.location().line()==m.getStart().getLine() && n.name().equals(m.name.getText())).findFirst().orElseThrow();
-                    var params=node.parameters().stream().map(p -> type(p.type(),scope,owner,project)+" "+p.name()).toList();
+                    var params=node.parameters().stream().map(p -> parameter(p.type(),scope,owner,project)+" "+p.name()).toList();
                     add(fragments,m.rawJavaBlock(),text,"private static "+type(node.returnType(),scope,owner,project)+" "+node.name()+"("+String.join(", ",params)+") {\n","}\n");
                 }
             }
@@ -49,6 +49,12 @@ final class UseCaseJavaProjection {
             }
             return blocks;
         } catch(IllegalArgumentException | NoSuchElementException incomplete) { return List.of(); }
+    }
+    String parameter(TypeNode t,FileTypeScope scope,String owner,VernacProject project) {
+        String type=type(t,scope,owner,project);
+        if(!t.isOptional()) return type;
+        String raw=type.substring("java.util.Optional<".length(),type.length()-1);
+        return org.vernac.compiler.util.JavaParameters.sourceType(raw,true);
     }
     String type(TypeNode t,FileTypeScope scope,String owner,VernacProject project) {
         String name;

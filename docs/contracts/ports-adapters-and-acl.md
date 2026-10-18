@@ -35,8 +35,9 @@ and accessible through self. Generated wrappers delegate to separate behavior
 implementations. Handwritten Java port implementations remain an interoperability
 option, but do not redefine the meaning of implemented by.
 
-Usecases form the initial inbound application boundary. Dedicated HTTP/MCP inbound
-adapter generation remains future work.
+Usecases form the inbound application boundary. JSON HTTP adapters are implemented;
+server-rendered MVC adapters are implemented in 0.5.0 development. See the inbound
+HTTP and MVC contracts. MCP adapters remain future work.
 
 ## DTOs
 

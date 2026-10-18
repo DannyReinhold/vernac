@@ -1,11 +1,14 @@
 # Vernac: self-contained reference for AI code generation
 
-Language baseline: **Vernac 0.4.0**. Source checkouts default to 0.4.0-SNAPSHOT.
-Multiple attached collections require the 0.4.0 compiler/runtime/tooling described
+Language baseline: **Vernac 0.5.0**. Source checkouts default to 0.5.0-SNAPSHOT.
+Multiple attached collections require the 0.5.0 compiler/runtime/tooling described
 here; HTTP inbound adapters require at least 0.3.0. This document describes implemented
 project compilation, not proposed features. Provide this entire file to an AI together
 with the application requirements and existing model files. Match artifact versions;
 do not assume a development feature is available in an older published compiler.
+
+For build commands, migration candidate generation and verification, also provide
+the companion [AI tools reference](ai-tools-reference.md).
 
 ## 1. Instruction to the code-generating assistant
 
@@ -189,23 +192,29 @@ External implementations provide a **public static method** with the declared
 operation name, self as first parameter and remaining parameters in declaration
 order. VO self is the VO; entity/aggregate self is the appropriate Read/Access
 interface. Services/adapters/usecases/listeners use their own generated Access.
-Private helpers cannot use implemented by. The external class is not instantiated
+A qualified implemented-by name is used directly. A simple name resolves through
+the implementation-local java imports, otherwise in its generated caller package
+(domain, usecase, adapter.outbound, adapter.inbound.event or the appropriate mapping
+package). HTTP/MVC error handlers use adapter.inbound.http. No classpath guessing
+is performed. Private helpers cannot use implemented by. The external class is not instantiated
 or injected by this mechanism; javac checks its signature.
 
-Nullness differs between API and implementation; do not generalize one context:
+Optional parameters use the same representation at public and implementation boundaries:
 
 | Position | Optional input representation |
 | --- | --- |
 | Public factories and public operation arguments | `@Nullable T` |
 | VO/enum/collection/entity/aggregate behavior arguments, including helpers | Nullable T |
-| Usecase/service/adapter implementation arguments | Optional<T> |
+| Usecase/service/adapter/listener implementation arguments and helpers | `@Nullable T` |
 | Validation self getters and domain optional getters | Optional<T> |
 | Optional method results | Non-null Optional<T> |
 
 Return Optional.empty(), never null, for optional results. Required null or null
-Optional results violate BehaviorContractException. For optional calls from an
-Optional implementation parameter into a nullable public API, explicitly use
-`argument.orElse(null)`. Do not supply Optional to a factory expecting nullable T.
+Optional results violate BehaviorContractException. Optional inputs are nullable values, not Optional containers. Use a null check or
+explicitly call Optional.ofNullable when local functional processing is useful.
+Actual Optional getters/results can be unwrapped with orElse(null) for nullable
+parameters. Do not call Optional methods on a nullable input or return a raw nullable
+input from an optional-result method; wrap the result explicitly.
 
 Validation clause: `validates { require(condition, "message"); ... }` before
 behavior. Conditions use **self getters**, not bare field/parameter names. Operators
@@ -1085,7 +1094,7 @@ response is not permission to repeat a command. Authentication, authorization,
 idempotency keys, OpenAPI, streaming and asynchronous transports are not generated
 by this syntax. Configure those concerns explicitly outside this initial slice.
 
-## 23. Offset and cursor pagination (0.4.0-SNAPSHOT)
+## 23. Offset and cursor pagination (0.4.0)
 
 Accepted repository syntax (Issues MUST be a declared list of Issue):
 
@@ -1226,7 +1235,7 @@ flattening/diffs. Module dependencies do not activate beans or migrations.
 Build producer and consumer with the current Vernac Maven plugin. In IntelliJ,
 New → Vernac Module Definition creates the project file. Build after dependency
 changes to refresh the shared resolved editor index. For a runnable two-artifact
-example see [type modules](../examples/type-modules/README.md).
+example see [type modules](https://github.com/DannyReinhold/vernac/blob/main/examples/type-modules/README.md).
 
 ### Application composition status
 
@@ -1332,7 +1341,7 @@ compile or packaging. Do not bypass activation with dependency component scannin
 
 ### Executable persistent-module lifecycle example
 
-See [examples/persistent-modules](../examples/persistent-modules/README.md): two Maven
+See [examples/persistent-modules](https://github.com/DannyReinhold/vernac/blob/main/examples/persistent-modules/README.md): two Maven
 producer artifacts export values and usecases while retaining private repositories;
 the application activates the dependant module explicitly. Required modules migrate
 before dependants, then the application's own history runs. If an exported VO shape
@@ -1420,7 +1429,7 @@ Required usecase modules activate transitively. A dependency or type import alon
 no routes, even under component scanning. DTOs, mappings and errors remain producer-owned;
 consumer compilation does not regenerate them. The application supplies
 `vernac-runtime-http` and `spring-boot-starter-web`. Route paths are unchanged; ambiguous
-routes fail at MVC startup. See the [persistent module walkthrough](../examples/persistent-modules/README.md)
+routes fail at MVC startup. See the [persistent module walkthrough](https://github.com/DannyReinhold/vernac/blob/main/examples/persistent-modules/README.md)
 for the API module and a real cross-module HTTP call.
 
 
@@ -1475,3 +1484,172 @@ not generated Java or guessed behavior. Referenced outside types are boundary no
 IntelliJ's Show Domain Diagram action includes unsaved source snapshots and opens Markdown;
 enable its Mermaid preview extension if needed. No rendered image or live model explorer
 is implied. See [the diagram tutorial](tutorials/domain-diagrams.md).
+
+### Vernac source debugging (0.5.0 tooling)
+
+The 0.5.0 plugin/compiler can map inline domain behavior breakpoints to original
+Vernac lines using build-owned metadata. Build with debug line/local-variable information
+and use matching source/generated/runtime artifacts. This is not new DSL syntax and
+does not imply full debugger coverage or hot swap. See the [prototype scope](development/vernac-debugger-prototype.md)
+and the executable example it links.
+
+For mapped behavior frames, debugger expressions use Java syntax and the generated
+method scope (`self`, arguments and locals). Breakpoint logging and suspension are
+standard IntelliJ options; see the [debugger walkthrough](https://github.com/DannyReinhold/vernac/blob/main/examples/debugger/README.md)
+for Evaluate Expression, conditions and non-suspending logpoints.
+
+A guided [debugging tutorial](tutorials/debugging.md) covers the 0.5.0
+integration and states its exact coverage. Inline usecase execute blocks, domain service
+operations and their private helpers also have mappings. User-authored require rules
+on VOs, entities, aggregates, usecases and services map their opening require line to
+one generated condition entry point with a Read/input self. Synchronous/deferred
+listener execute blocks and private helpers are also mapped; the actual worker stack
+is preserved. Inline outbound adapter methods/helpers, Java mapping bodies in both
+directions, explicit declarative field assignments, inbound execute argument assignments
+and event require rules are also source mapped. Mapping frames expose `source`;
+inbound controllers retain their actual Java variables. Pure transport configuration
+has no artificial breakpoint. Adapter-method preconditions remain unsupported by the
+language contract. Debugging tooling does not
+change transaction, validation or asynchronous execution semantics.
+
+Expression editing is separate from runtime evaluation. The 0.5.0
+plugin routes expression requests to the verified Java scope of their Vernac line
+to address red variables and missing Ctrl+Space completion. Core expression editing
+and adapter/mapping debugging have been confirmed in the installed IDE. Runtime
+mapping tests alone do not establish every IntelliJ editor interaction.
+
+Read/Access and validation-input facades have a stored-property inspection renderer.
+It preserves the actual Java facade type and contract, reads recognized field paths
+without invoking debuggee methods, and adds no field-write capability. Optional
+children are explicitly nullable stored-value projections, with accessor-based Watch
+expressions. Normal stepping skips only verified pure facade reads, not modification
+wrappers, validators or callbacks. Contributor mode restores raw Java views and disables
+this filter. Native tree/Watch/stepping acceptance is separate from the JVM inspector test.
+
+The 0.5.0 plugin also supplies native PSI references for declared Vernac
+types in DSL signatures/fields/imports/dependencies and repository aggregate targets.
+These use compiler namespace/import/export visibility and exact UTF-16 type-name
+ranges for native Ctrl-hover navigation feedback. Injected Java, strings and enum
+constants are not reinterpreted as DSL type references. Existing LSP documentation,
+completion and mapping-specific navigation remain in place. These navigation
+references do not implement complete cross-language rename or reference search.
+
+Java reference types from the approved built-in table also have native navigation
+references in DSL type positions, including behavior signatures. These resolve to
+the actual Java class through IntelliJ's module/JDK scope. Explicit `implemented by`
+class names resolve in the same scope. Primitive types have no class target;
+unknown classes do not get guessed links. Java bodies retain injected-Java
+resolution. This editor support does not expand the permitted DSL type set or
+provide cross-language renaming.
+
+The 0.5.0 IntelliJ wizard can scaffold a Spring Boot Web Application with Thymeleaf,
+PostgreSQL, local-profile Compose startup and matching initial SQL/schema history.
+It uses ordinary Vernac aggregates, paginated repositories and usecases, with a
+declarative inbound MVC adapter generating the controller and scoped error advice.
+With no active profile, the starter defaults to `local` for immediate IDE Run.
+Explicitly select `production` (already selected by its Dockerfile) for deployment;
+it uses DB_* environment variables, disables Compose and requires secure cookies.
+Only the local profile supplies development credentials. The wizard delegates
+IDE builds/runs to Maven so code generation precedes compilation. For existing
+projects/checkouts, enable Maven Runner’s delegation setting explicitly; a native
+IDE build alone does not invoke the Vernac Maven goal. This public starter includes CSRF but
+no authentication or tenant isolation. See the spring-boot-starter tutorial.
+
+## 0.5.0: server-rendered MVC adapters
+
+This is implemented 0.5.0 syntax; older compilers do not support it. Keep HTML rendering
+in `inbound mvc` and JSON response DTOs in `inbound http`; do not mix their response
+clauses. Both invoke explicitly injected usecases using the same exact mapping rules.
+
+A complete database-free **title preview**, not a persistence application:
+
+```vernac
+namespace example.preview;
+value Title(String) validates {
+    require(!self.string().isBlank(), "A title is required.");
+};
+usecase PreviewTitle(Title) returns Title behavior {
+    execute { return title; }
+}
+adapter PreviewWeb inbound mvc uses PreviewTitle {
+    base "/preview";
+    error view "problem";
+    home {
+        GET "/";
+        query String text default "Welcome";
+        execute previewTitle { title <- query.text; }
+        render "preview" model title;
+    }
+    preview {
+        POST "/";
+        form String text;
+        execute previewTitle { title <- form.text; }
+        render "preview" model title;
+        errors {
+            when validation then redisplay home status 422
+                "INVALID_TITLE" "Enter a meaningful title.";
+        }
+    }
+}
+```
+
+The application must provide the view engine, `preview`/`problem` templates and its
+security configuration. Named model attributes hold the entire returned value,
+Result or completed page. Void results omit `model`; optional results require
+`on absent render "missing" status 404;` (404/410 only). No JSON response mapping
+is required for a view.
+
+For successful mutations prefer `redirect "/local/path" message "Saved.";`: POST
+uses 303, GET uses 302. Redirects are static and application-local, with no automatic
+model propagation. GET page loaders must be designed for reading. No controller
+transaction, retry or rollback of already committed operations is invented.
+
+Bindings are `path`, `query`, `header` or URL-encoded POST `form` scalars. Optional
+wire types must be boxed. `default "literal"` works on non-optional query/form
+bindings and only when absent, not when explicitly empty. Invalid default literals
+are compiler errors. Repeated scalar values are invalid requests. Use
+`sensitive form String? password;` to exclude a value from view input preservation.
+Headers are always excluded, and undeclared request fields are never copied.
+
+Error selectors/types/precedence match the JSON adapter. Add
+`then render "problem" status 409 "CODE" "Public message";`, or an endpoint-local
+`then redisplay home status 422 ...;`. A redisplay target must be a GET endpoint with
+a direct non-optional render response and satisfiable declared inputs/defaults.
+It reloads the page model, restores permitted original inputs and never repeats
+the failed POST. Loader failure produces safe 500 without recursion. Existing
+`errors implemented by` uses its static HTTP Reply contract and the fallback view.
+
+All views can inspect `inputs['form.text']`; error views/redisplays additionally
+receive `error.code()` and `error.message()`. Escape these through `th:text`/`th:value`.
+Do not invent field-level error metadata or display exception messages implicitly.
+Defaults are 400 for malformed/missing transport values, 422 for domain validation,
+404 for missing aggregates, 409 for optimistic conflict and 500 for unknown failures.
+Technical integration statuses such as remote TIMEOUT → 503 are explicit rules.
+
+Multipart/file uploads, repeated collection fields, dynamic redirects and template
+fragments are not supported in this version. There are no automatic handwritten
+controllers: generate them from MVC declarations. See the authoritative
+[MVC contract](contracts/inbound-mvc.md) and [tutorial](tutorials/inbound-mvc.md).
+
+## Editor tooling: live local Java APIs
+
+Embedded Java in a valid local Vernac context sees current APIs before generation:
+IDs, VOs, enums, explicit collections, entities, aggregates, services, events,
+usecases, repositories, ports and adapters. This includes validation Read and
+mutable-domain Read/Write/Access views, dependency getters on `self`, nested
+usecase Result records, query handles and adapter DTO/mapping holders. Read behaviors
+and validators receive Read views; modifying behaviors receive Access views.
+
+These read-only in-memory APIs use the production generators, include unsaved
+model edits and obey namespace/import/export visibility. Visible model types receive
+projected Java imports. Invalid or incomplete declaration APIs are withheld rather
+than guessed. Handwritten Java files keep normal Java resolution, and external
+module implementations are not reprojected. Building is still required to run or
+debug new code; editor projection neither writes generated files nor performs HotSwap.
+
+See the [IntelliJ guide](tutorials/intellij-plugin.md) for examples and the
+[live API notes](development/live-value-object-java-apis.md) for verification limits.
+If completion fails, **Tools → Vernac → Diagnose Embedded Java Context** produces a
+read-only local report without running Maven. DSL field completion, Java compilation
+and runtime debugging are separate mechanisms; do not treat success in one as proof
+that another has completed.

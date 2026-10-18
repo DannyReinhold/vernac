@@ -27,7 +27,7 @@ public final class BehaviorGenerator {
         MethodSpec.Builder wrapper = signature(method, project).addModifiers(Modifier.PUBLIC);
         for (FieldNode parameter : method.parameters()) {
             if (!parameter.type().isOptional() && !ResolvedJavaTypes.javaType(project.typeOf(parameter.type())).isPrimitive())
-                wrapper.addStatement("$T.requireNonNull($L, $S)", Objects.class, parameter.name(),
+                wrapper.addStatement("$T.requireNonNull($L, $S)", org.vernac.runtime.DomainChecks.class, parameter.name(),
                         owner.simpleName() + "." + method.name() + ": parameter '" + parameter.name() + "' must not be null");
         }
         // The local bridge pins the argument and result types even for external implementations.
@@ -59,12 +59,30 @@ public final class BehaviorGenerator {
             addParameters(implementation, method, project);
             if (method.implementation().isPresent()) {
                 // Use a literal qualified target to keep Java imports out of delegation resolution.
-                String invocation = method.implementation().get() + "." + method.name() + "(" + arguments(method, "self") + ")";
+                String invocation = org.vernac.compiler.util.JavaImplementations.resolve(method.implementation().get(), imports, owner.packageName()) + "." + method.name() + "(" + arguments(method, "self") + ")";
                 implementation.addStatement(method.returnType().name().equals("void") ? "$L" : "return $L", invocation);
             } else implementation.addCode("$L\n", method.bodyCode());
             type.addMethod(implementation.build());
         }
-        return Optional.of(JavaFile.builder(owner.packageName(), type.build()).indent("    ").skipJavaLangImports(true).build());
+        var file=JavaFile.builder(owner.packageName(),type.build()).indent("    ").skipJavaLangImports(true).build();
+        addDebugFingerprint(type, file, unit, project);
+        file=JavaFile.builder(owner.packageName(),type.build()).indent("    ").skipJavaLangImports(true).build();
+        return Optional.of(file);
+    }
+
+    /** Fingerprint an implementation companion without changing its public contract. */
+    public static void addDebugFingerprint(TypeSpec.Builder type, JavaFile file,
+                                           CompilationUnitNode unit, ResolvedProject project) {
+        var sourcePath=project.project().sources().stream().filter(s->s.unit()==unit)
+                .map(VernacSourceFile::path).findFirst();
+        if(sourcePath.isPresent() && java.nio.file.Files.isRegularFile(sourcePath.get())) try {
+            String fingerprint=org.vernac.compiler.debug.BehaviorSourceMap.hash(
+                    java.nio.file.Files.readString(sourcePath.get())+"\n"+file);
+            type.addField(FieldSpec.builder(String.class,org.vernac.compiler.debug.BehaviorSourceMap.HASH_FIELD,
+                    Modifier.PRIVATE,Modifier.STATIC,Modifier.FINAL).initializer("$S",fingerprint).build());
+        } catch(java.io.IOException e) {
+            throw new IllegalStateException("Cannot fingerprint behavior source",e);
+        }
     }
 
     public void addBodyImports(TypeSpec.Builder type, ClassName owner, List<JavaImportNode> imports,
@@ -113,7 +131,7 @@ public final class BehaviorGenerator {
     private void addParameters(MethodSpec.Builder builder, MethodNode method, ResolvedProject project) {
         for (var parameter : method.parameters()) {
             TypeName type = ResolvedJavaTypes.javaType(project.typeOf(parameter.type()));
-            if (parameter.type().isOptional()) type = type.annotated(AnnotationSpec.builder(Nullable.class).build());
+            type = org.vernac.compiler.util.JavaParameters.type(type,parameter.type().isOptional());
             builder.addParameter(type, parameter.name());
         }
     }

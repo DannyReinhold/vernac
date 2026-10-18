@@ -266,3 +266,15 @@ security filters remain outside these scoped controller policies.
 
 Compiler diagnostics, ordered generated policies, safe runtime classification,
 Java 21 compilation, MockMvc execution and enum/category editor references are tested.
+
+## Server-rendered MVC boundaries (0.5.0 development)
+
+`adapter ... inbound mvc` shares this contract's routes, explicit usecase dependencies,
+scalar/VO input conversion and error selectors, while returning templates or redirects
+instead of JSON DTOs. It adds URL-encoded scalar form bindings, defaults, sensitive
+input exclusion and explicit page redisplay. See the [MVC contract](inbound-mvc.md).
+The JSON `inbound http` form continues to reject MVC-only clauses.
+
+External implementation targets also follow the 0.5.0
+[shared Java implementation resolution rules](implementation-contracts.md).
+Their mapping/error-handler calling convention is unchanged.

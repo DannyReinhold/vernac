@@ -15,6 +15,6 @@ behavior {
     }
 
     private Result describe(TourId id, Title? title) {
-        return Result.of(id, title.orElse(null));
+        return Result.of(id, title);
     }
 }

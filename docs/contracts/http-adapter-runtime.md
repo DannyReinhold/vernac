@@ -178,3 +178,7 @@ Implemented next layer: a shared resolved REST model, typed request/response
 bindings, external Java errors and LSP references; see the REST contract.
 Ordered declarative error rules use this runtime's truth model; their compiled
 tutorial includes status-only fallback and unavailable-body tests.
+
+External implementation targets also follow the 0.5.0
+[shared Java implementation resolution rules](implementation-contracts.md).
+Their mapping/error-handler calling convention is unchanged.

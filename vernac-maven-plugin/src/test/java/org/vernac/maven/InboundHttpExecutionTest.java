@@ -28,7 +28,7 @@ public class InboundHttpExecutionTest {
         id TaskId;
         value Title(String) validates {require(!self.string().isBlank(), "Private validation details");};
         usecase Create(Title, Title? note) returns (TaskId, Title, Title? note) behavior {
-            execute {return Result.of(TaskId.create(), title, note.orElse(null));}
+            execute {return Result.of(TaskId.create(), title, note);}
         }
         usecase Complete(TaskId) behavior {execute {}}
         usecase Find(Title) returns Title? behavior {

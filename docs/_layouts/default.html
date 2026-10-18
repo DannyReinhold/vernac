@@ -6,14 +6,41 @@
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'">
   <title>{{ page.title | default: site.title | escape }} · Vernac</title>
+  <meta name="description" content="{{ page.description | default: site.description | escape }}">
   <link rel="stylesheet" href="{{ '/assets/css/site.css' | relative_url }}">
 </head>
 <body>
   <a class="skip" href="#content">Skip to content</a>
   <header><a class="brand" href="{{ '/' | relative_url }}">vernac<span> / architecture, expressed.</span></a>
-    <nav aria-label="Main"><a href="{{ '/tutorials/' | relative_url }}">Learn</a><a href="{{ '/language-reference.html' | relative_url }}">Reference</a><a href="{{ '/faq/' | relative_url }}">FAQ</a></nav>
+    <nav aria-label="Main"><a href="{{ '/tutorials/what-is-ddd.html' | relative_url }}">Start here</a><a href="{{ '/tutorials/' | relative_url }}">Learn</a><a href="{{ '/language-reference.html' | relative_url }}">Reference</a><a href="{{ '/documentation-map.html' | relative_url }}">Documentation map</a></nav>
   </header>
-  <main id="content">{{ content }}</main>
+  <div class="documentation-shell">
+    <aside class="doc-sidebar">
+      <p class="doc-version">Vernac {{ site.vernac_version | escape }}</p>
+      {% include documentation-navigation.html %}
+    </aside>
+    <main id="content" tabindex="-1">
+      <details class="mobile-menu">
+        <summary>Browse documentation</summary>
+        {% include documentation-navigation.html %}
+      </details>
+      {% unless page.url == '/' or page.url == '/index.html' %}
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <a href="{{ '/' | relative_url }}">Home</a><span aria-hidden="true">/</span>
+        {% if page.url contains '/tutorials/' %}<a href="{{ '/tutorials/' | relative_url }}">Tutorials</a>
+        {% elsif page.url contains '/development/' %}<a href="{{ '/development/' | relative_url }}">Contributing</a>
+        {% elsif page.url contains '/contracts/' or page.url contains '/specification/' %}<a href="{{ '/specification/' | relative_url }}">Specification</a>
+        {% elsif page.url contains '/faq/' %}<a href="{{ '/faq/' | relative_url }}">FAQ</a>
+        {% else %}<a href="{{ '/documentation-map.html' | relative_url }}">Documentation</a>{% endif %}
+      </nav>
+      {% endunless %}
+      {{ content }}
+      <nav class="page-tools" aria-label="Page tools">
+        <a href="#content">Back to top</a>
+        <a href="{{ '/documentation-map.html' | relative_url }}">Find another topic</a>
+      </nav>
+    </main>
+  </div>
   <footer><span>Vernac · Open-source architecture for Java</span><nav aria-label="Legal"><a href="{{ '/impressum.html' | relative_url }}">Impressum / Legal notice</a><a href="{{ '/privacy.html' | relative_url }}">Privacy / Datenschutz</a><a href="https://github.com/DannyReinhold/vernac">GitHub</a></nav></footer>
 </body>
 </html>

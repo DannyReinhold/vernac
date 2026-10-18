@@ -1,9 +1,9 @@
 # Vernac consolidation status
 
-Status: **0.4.0 release preparation; source defaults to 0.4.0-SNAPSHOT**.
-The previous published release is 0.3.0. This page records implementation scope,
-not publication or production-readiness guarantees. Follow the [0.4.0 acceptance plan](release-0.4.0.md)
-and retain actual CI/distribution evidence before declaring publication complete.
+Status: **0.4.0 release baseline; next development version 0.5.0-SNAPSHOT**.
+The [0.4.0 checklist](release-0.4.0.md) and [release notes](../maintainers/releases/0.4.0.md)
+retain their release context. Source versions now advance separately from the published
+0.4.0 language/API baseline; no additional language features are implied by this bump.
 
 ## Reviewed and implemented
 

@@ -1,0 +1,21 @@
+namespace example.debug;
+
+term Label {description "A parcel's human-readable label.";}
+value Label(String) behavior {
+    public String decorate(String suffix) {
+        String normalized = self.string().strip();
+        String result = normalized.toUpperCase(java.util.Locale.ROOT);
+        return result + suffix;
+    }
+
+    public String withMarker() {
+        return self.string() + marker();
+    }
+
+    private String marker() {
+        return "!";
+    }
+
+    public String externallyDecorated()
+        implemented by example.debug.handwritten.LabelFormatting;
+};

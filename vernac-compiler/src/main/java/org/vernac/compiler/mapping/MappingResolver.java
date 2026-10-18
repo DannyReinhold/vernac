@@ -99,7 +99,7 @@ public final class MappingResolver {
             var visible=scope.resolve(name,imp.location()).type().orElse(null);
             if(visible!=null && !JavaTypeNames.canonicalName(visible).equals(imp.target()))error(imp.location(),"Java mapping import conflicts with visible Vernac type: "+name);
         }
-        m.source().implementation().ifPresent(name->{if(!qualified(name))error(m.source().location(),"implemented by requires a fully qualified Java class name.");});
+        m.source().implementation().ifPresent(name->{org.vernac.compiler.util.JavaImplementations.validate(name,m.source().javaImports(),m.source().location(),errors);});
     }
     private boolean qualified(String name) {return name.contains(".") && Arrays.stream(name.split("\\.")).allMatch(VernacNames::isIdentifier);}
     private void cycle(String name,Set<String> active,Set<String> done) {

@@ -1,4 +1,7 @@
-<p><img src="assets/brand/vernac-logo-light.svg" alt="Vernac" width="420" style="max-width: 100%; height: auto;"></p>
+---
+title: Architecture, expressed.
+---
+<p><img src="assets/brand/vernac-logo-light.svg" alt="Vernac" width="420"></p>
 
 # Architecture, expressed.
 
@@ -9,11 +12,32 @@ Modern systems grow fast — and architecture often decays just as fast.
 Domain logic spreads across layers, persistence leaks into business code, REST DTOs
 creep into aggregates, and events become an afterthought.
 
-Vernac prevents this by making architecture explicit.
+Vernac addresses this by making architecture explicit.
 
 It describes IDs, values, aggregates, behavior, usecases, events, ports, adapters,
 repositories, persistence and integration in one language — then generates clean Java
 and Spring infrastructure without hidden framework magic.
+
+---
+
+## Small project. Clear domain. Less boilerplate.
+
+You do not need a large team or microservices to benefit from Domain-Driven Design.
+A task board, booking tool or small SaaS deserves meaningful names, valid values
+and business rules that are easy to find. Vernac generates the repeated Java
+structure so those choices remain affordable from the first useful operation.
+
+Start small. You do not have to introduce every layer, event or integration on day
+one. [Learn what DDD means](tutorials/what-is-ddd.md), explore
+[DDD for a small project](tutorials/ddd-for-small-projects.md), or create a
+[working Spring Boot application](tutorials/spring-boot-starter.md).
+
+## Where would you like to start?
+
+Open the [documentation map](documentation-map.md) for a guide by goal: first model,
+working application, persistence, integration, modules, IDE tooling or contributing.
+The [tutorial path](tutorials/index.md) builds the concepts step by step; the
+[language reference](language-reference.md) helps while writing code.
 
 ---
 
@@ -27,7 +51,8 @@ and Spring infrastructure without hidden framework magic.
 - Integration is typed and controlled
 - Java implementations remain ordinary and testable
 
-Vernac is designed for long‑lived systems where correctness, clarity and maintainability matter.
+Vernac is designed for applications where correctness, clarity and maintainability
+matter, whether they begin as a small tool or grow into a long-lived system.
 
 ---
 
@@ -36,7 +61,7 @@ Vernac is designed for long‑lived systems where correctness, clarity and maint
 <p>
 <img src="assets/vernac-architecture.svg"
      alt="Vernac architecture diagram"
-     style="max-width: 100%; height: auto;">
+    >
 </p>
 
 **Domain → Usecases → Repositories → Persistence**  
@@ -105,7 +130,10 @@ See the **AI‑specific language reference**:
 
 | Your goal                                                | Start here                           |
 |----------------------------------------------------------|--------------------------------------|
+| Understand DDD without prior experience | [What is DDD?](tutorials/what-is-ddd.md) |
+| Keep a small project simple | [DDD for small projects](tutorials/ddd-for-small-projects.md) |
 | Get a model compiling in minutes                         | [Your first model](tutorials/your-first-domain-model.md) |
+| Start with a working UI and database | [Spring Boot starter](tutorials/spring-boot-starter.md) |
 | Use the editor and project wizard                        | [IntelliJ setup](tutorials/intellij-plugin.md)         |
 | See persistence, events and external calls work together | [Database walkthrough](tutorials/database-persistence.md)    |
 | Find exact syntax                                        | [Language reference](language-reference.md)                |
@@ -116,9 +144,9 @@ See the **AI‑specific language reference**:
 
 ## Version and prerequisites
 
-These pages describe the **Vernac 0.4.0 language and API**.
-Source checkouts default to **0.4.0-SNAPSHOT**. Released consumers select matching
-**0.4.0** artifacts after publication; older versions do not support all features below.
+These pages describe the **Vernac 0.5.0 language and API**.
+Source checkouts default to **0.5.0-SNAPSHOT**. Released consumers select matching
+**0.5.0** artifacts after publication; older versions do not support all features below.
 Use JDK 25 to build the repository; generated applications target Java 21.  
 Persistence examples use PostgreSQL 17.
 
@@ -159,7 +187,7 @@ activate usecases, listeners or HTTP entrypoints; required modules activate tran
 
 The [module lifecycle tutorial](tutorials/type-modules.md) follows values from
 publication through consumption and schema evolution. The
-[persistent module application](../examples/persistent-modules/README.md) demonstrates
+[persistent module application](https://github.com/DannyReinhold/vernac/blob/main/examples/persistent-modules/README.md) demonstrates
 Billing, Receipts, durable events, an HTTP API and independent migration histories.
 Migration candidates remain subject to application-owner review and testing.
 
@@ -170,3 +198,23 @@ travel with exported module types and produce readable/machine-readable glossari
 
 [See the architecture as a diagram](tutorials/domain-diagrams.md): export a namespace
 from Maven or open its diagram directly from IntelliJ.
+
+
+## Debug the business rule, in its source
+
+With the **0.5.0 compiler and plugin**, put a breakpoint inside an inline Vernac
+behavior and inspect the live JVM state without first finding its generated Java
+implementation. Step through the rule, inspect `self` and locals, evaluate Java
+expressions and use conditional breakpoints.
+
+The [debugging walkthrough](tutorials/debugging.md) takes you through a
+small runnable example, including private helpers, handwritten Java transitions
+and logpoints. It explains the current coverage and limits. Use matching 0.5.0 release artifacts, or matching
+0.5.0-SNAPSHOT artifacts when building this source checkout.
+
+### Server-rendered applications
+
+The [Spring Boot starter](tutorials/spring-boot-starter.md) now declares its HTML
+pages and forms in Vernac. Learn how [inbound MVC adapters](tutorials/inbound-mvc.md)
+connect typed usecases to Thymeleaf views, preserve permitted form inputs after
+validation errors and generate the controller and scoped error handling.

@@ -208,3 +208,7 @@ match; counts/navigation/order/multiplicity are retained eagerly. Source paths c
 traverse page internals, and no page is implicitly flattened into a list or rebuilt
 as a domain result from a transport DTO. Explicit Java remains available for deliberate
 alternative semantics. See [the pagination contract](pagination.md).
+
+External implementation targets also follow the 0.5.0
+[shared Java implementation resolution rules](implementation-contracts.md).
+Their mapping/error-handler calling convention is unchanged.

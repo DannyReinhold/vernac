@@ -66,11 +66,10 @@ public final class BehaviorImports {
                 if (parameter.name().equals("self")) errors.add(CompilerDiagnostic.error(parameter.location(),
                         "Parameter name 'self' is reserved for the domain receiver in public behavior methods."));
             method.implementation().ifPresent(target -> {
-                if (!target.contains(".") || Arrays.stream(target.split("\\.")).anyMatch(s -> !org.vernac.language.VernacNames.isIdentifier(s)))
-                    errors.add(CompilerDiagnostic.error(method.location(), "implemented by requires a fully qualified Java type name."));
+                if (!org.vernac.compiler.util.JavaImplementations.validate(target,imports,method.location(),errors)) return;
                 if (!method.accessModifier().equals("public")) errors.add(CompilerDiagnostic.error(method.location(),
                         "implemented by is only supported for public behavior methods. Keep private helpers inline."));
-                if (forbidden.contains(target)) errors.add(CompilerDiagnostic.error(method.location(),
+                if (forbidden.contains(org.vernac.compiler.util.JavaImplementations.resolve(target, imports, namespace + ".domain"))) errors.add(CompilerDiagnostic.error(method.location(),
                         "Domain behavior cannot delegate to the known repository or adapter '" + target + "'."));
             });
         }
@@ -85,7 +84,7 @@ public final class BehaviorImports {
             if (method.parameters().stream().anyMatch(p -> !types.containsKey(p.type()))) continue;
             List<String> parameters = new ArrayList<>();
             if (method.accessModifier().equals("public")) parameters.add(namespace + (method.mode() == MethodNode.Mode.DEFAULT ? ".domain." : ".domain.access.") + owner + (method.mode() == MethodNode.Mode.DEFAULT ? "" : method.mode() == MethodNode.Mode.READ ? "Read" : "Access"));
-            method.parameters().forEach(p -> parameters.add(JavaTypeNames.canonicalName(types.get(p.type()))));
+            method.parameters().forEach(p -> parameters.add(org.vernac.compiler.util.JavaMethodSignatures.parameter(p.type(),types)));
             String signature = method.name() + "(" + String.join(",", parameters) + ")";
             if (!signatures.add(signature)) errors.add(CompilerDiagnostic.error(method.location(),
                     "Behavior implementation signature '" + signature + "' conflicts after adding the self receiver. Rename the private helper."));
