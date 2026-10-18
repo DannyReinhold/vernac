@@ -132,6 +132,9 @@ class VernacViewInspectorTest {
                                         stop.thread().frame(0).getArgumentValues().getFirst();
                         for (int i = 0; i < views.length(); i++) {
                             var view = (ObjectReference) views.getValue(i);
+                            var renderer = new VernacViewRenderer();
+                            assertTrue(renderer.isApplicableAsync(view.referenceType()).get(5, TimeUnit.SECONDS));
+                            assertFalse(renderer.isApplicableAsync(vm.mirrorOf(0).type()).get(5, TimeUnit.SECONDS));
                             var contract =
                                     VernacViewInspector.contract(view.referenceType())
                                             .orElseThrow();

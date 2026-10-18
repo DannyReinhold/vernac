@@ -21,7 +21,6 @@ import java.util.concurrent.CompletableFuture;
 public final class VernacViewRenderer extends ClassRenderer {
     public VernacViewRenderer() {
         setEnabled(true);
-        setIsApplicableChecker(t -> CompletableFuture.completedFuture(isApplicable(t)));
     }
 
     @Override

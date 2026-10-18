@@ -100,6 +100,9 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>Vernac 0.5.1 — Debugger compatibility</h3>
+<p>Remove an unnecessary internal IntelliJ API call from the Read/Access view
+renderer. Existing source debugging and view inspection remain unchanged.</p>
 <h3>Vernac 0.5.0 — Work in the model</h3>
 <p>Debug business behavior where you wrote it, use current model APIs before Java
 is generated, and start with a small working Spring Boot application.</p>
