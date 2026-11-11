@@ -243,6 +243,51 @@ tenant classification is a data-boundary collapse and requires explicit destruct
 sensitive-change approval in migration tooling; force alone does not invent a merge
 strategy. Keep the existing migration author review/responsibility comments.
 
+### Tenant classification changes in Maven/Flyway candidates
+
+The Maven schema and migration goals MUST compare persisted tenant classification,
+not only the current set of columns. Adding or removing the source-level tenant
+modifier is an explicit security-relevant schema transition, even if the table name
+and business fields remain unchanged. Preserve the classification in versioned
+snapshots; do not infer it only from the current compiler model or silently rewrite
+history. Apply the same rules to module-owned histories and application-owned tables.
+
+| Transition | Required candidate behavior |
+| --- | --- |
+| Unscoped to tenant | Require an explicit existing-data assignment/backfill strategy; carry it consistently through roots and every owned table, then establish keys, constraints and RLS. No implicit tenant selection. |
+| Tenant to unscoped | Stop normal candidate generation with a specific isolation-removal diagnostic. Explain that formerly separated tenants' data becomes accessible through the same unscoped repository. Require explicit sensitive-change acknowledgement and any necessary collision/data-resolution strategy before producing a candidate. |
+| Tenant unchanged | Preserve discriminator, tenant-qualified relationships and ENABLE/FORCE RLS/policies. A missing safeguard is drift, not an innocuous difference. |
+
+An existing generic force mechanism may serve as acknowledgement if the tooling
+clearly identifies the isolation-removal operation. It MUST NOT substitute for a
+required mapping/backfill or collision-resolution strategy. Removing isolation is
+sensitive even when no row or column is lost; a data-loss-only classifier is insufficient.
+
+The blocking diagnostic and, after acknowledgement, both Maven WARNING output and
+the generated SQL comments MUST explicitly name the aggregate/table graph and the
+removed tenant boundary. A generic destructive-operation or review disclaimer alone
+is insufficient. For example:
+
+~~~sql
+-- WARNING: TENANT ISOLATION REMOVAL for example.billing.Invoice and its owned tables.
+-- Formerly isolated tenants' data will become accessible through the unscoped repository.
+-- Review access control, data combination and application deployment compatibility.
+-- You alone are responsible for reviewing, testing and approving this migration.
+-- Force/acknowledgement does not guarantee correctness or safety.
+~~~
+
+Candidates remain reviewable files, never automatically applied by these goals.
+Retain the standard responsibility header alongside operation-specific warnings.
+Removing the modifier in source does not authorize tooling to silently remove
+protection. Already deployed application compatibility and migration ordering require
+review; the generator cannot guarantee a safe rolling deployment.
+
+Required regression proofs include both source modifier transitions, root/child/
+collection propagation, missing backfill, normal-mode isolation-removal refusal,
+acknowledged generation with specific CLI and SQL warnings, snapshot round trip and
+real PostgreSQL replay/schema-check for the reviewed transitions. Test that force
+alone cannot invent missing assignment or resolution instructions.
+
 ## 8. Events, callbacks and global runtime coordination
 
 Keep trusted routing separately from public business event payloads. A durable event
