@@ -36,7 +36,7 @@ class TenantSchemaTest {
         assertEquals(scoped, SchemaModel.parse(scoped.json()));
         assertEquals(scoped.fingerprint(), SchemaModel.parse(scoped.json()).fingerprint());
         assertThrows(IllegalArgumentException.class, () -> new SchemaModel(1, 1, List.of(root()), Map.of()));
-        assertThrows(IllegalArgumentException.class, () -> new SchemaModel(3, 1, List.of(), Map.of()));
+        assertThrows(IllegalArgumentException.class, () -> new SchemaModel(4, 1, List.of(), Map.of()));
     }
 
     @Test void newTenantGraphKeepsRootIdentityAndOrderedChildKeysAndAddsRls() {

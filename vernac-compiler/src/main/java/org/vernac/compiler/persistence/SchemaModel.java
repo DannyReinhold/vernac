@@ -20,7 +20,7 @@ public record SchemaModel(int formatVersion, int mappingVersion, List<Table> tab
             .setDefaultPrettyPrinter(new DefaultPrettyPrinter()
                     .withObjectIndenter(new DefaultIndenter("  ", "\n")));
     public SchemaModel {
-        if ((formatVersion != 1 && formatVersion != 2) || mappingVersion != 1) throw new IllegalArgumentException("Unsupported schema/mapping version");
+        if ((formatVersion != 1 && formatVersion != 2 && formatVersion != 3) || mappingVersion != 1) throw new IllegalArgumentException("Unsupported schema/mapping version");
         tables = tables.stream().sorted(Comparator.comparing(Table::identity)).toList();
         Map<String, Map<String, String>> copy = new TreeMap<>();
         enumCodes.forEach((k,v) -> copy.put(k, Collections.unmodifiableMap(new TreeMap<>(v))));
@@ -31,6 +31,8 @@ public record SchemaModel(int formatVersion, int mappingVersion, List<Table> tab
         for (Table table : tables) {
             if (formatVersion == 1 && table.tenantIsolation() != null)
                 throw new IllegalArgumentException("Tenant classification requires schema format 2");
+            if (formatVersion < 3 && table.eventIsolation() != null)
+                throw new IllegalArgumentException("Event origin classification requires schema format 3");
             if (!identities.add(table.identity())) throw new IllegalArgumentException("Duplicate table " + table.identity());
             String physical = SqlNames.physical(table.namespace());
             String old = schemas.putIfAbsent(physical, table.namespace());
@@ -57,6 +59,7 @@ public record SchemaModel(int formatVersion, int mappingVersion, List<Table> tab
                     throw new IllegalArgumentException("Foreign key crosses tenant graph boundary: " + source.identity());
             }
         }
+        EventSchema.validateGraph(tables);
     }
     public static SchemaModel empty() { return new SchemaModel(1, 1, List.of(), Map.of()); }
     public String json() {
@@ -72,9 +75,19 @@ public record SchemaModel(int formatVersion, int mappingVersion, List<Table> tab
             if (aggregate == null || aggregate.isBlank()) throw new IllegalArgumentException("Tenant aggregate identity is required");
         }
     }
+    public record EventIsolation(String event, boolean root) {
+        public EventIsolation {
+            if (event == null || event.isBlank()) throw new IllegalArgumentException("Event identity is required");
+        }
+    }
     public record Table(String namespace, String name, String origin, List<Column> columns,
                         List<String> primaryKey, List<Constraint> constraints,
-                        @JsonInclude(JsonInclude.Include.NON_NULL) TenantIsolation tenantIsolation) {
+                        @JsonInclude(JsonInclude.Include.NON_NULL) TenantIsolation tenantIsolation,
+                        @JsonInclude(JsonInclude.Include.NON_NULL) EventIsolation eventIsolation) {
+        public Table(String namespace, String name, String origin, List<Column> columns,
+                     List<String> primaryKey, List<Constraint> constraints, TenantIsolation tenantIsolation) {
+            this(namespace, name, origin, columns, primaryKey, constraints, tenantIsolation, null);
+        }
         public Table(String namespace, String name, String origin, List<Column> columns,
                      List<String> primaryKey, List<Constraint> constraints) {
             this(namespace, name, origin, columns, primaryKey, constraints, null);
@@ -86,7 +99,10 @@ public record SchemaModel(int formatVersion, int mappingVersion, List<Table> tab
             Set<String> names = new HashSet<>();
             for (Column column : columns) if (!names.add(SqlNames.physical(column.name())))
                 throw new IllegalArgumentException("SQL column collision: " + origin + "." + column.name());
+            if (tenantIsolation != null && eventIsolation != null)
+                throw new IllegalArgumentException("A table cannot be both an aggregate and event graph");
             if (tenantIsolation != null) TenantSchema.validate(columns, primaryKey, constraints, tenantIsolation);
+            if (eventIsolation != null) EventSchema.validateTable(namespace, name, origin, columns, primaryKey, constraints, eventIsolation);
             names.clear();
             for (Constraint c : constraints) if (!names.add(SqlNames.physical(c.name())))
                 throw new IllegalArgumentException("SQL constraint collision: " + c.name());

@@ -906,6 +906,13 @@ discriminators, ambiguous roots and cross-graph owned foreign keys. Format-1 uns
 snapshot serialization/fingerprints MUST remain unchanged. The module contract remains
 module-contracts-10; persistence bundle/snapshot envelopes remain version 1.
 
+The metadata reader also understands format-3 event origin classification, while
+preserving format-1/2 fingerprints. Reading this format does not enable its pending
+generated-storage capability: the coordinator MUST reject event-classified application
+or module schemas before any owner migration executes until storage/worker support
+is implemented. Normal generated event schemas are unchanged in this step. See the
+[event schema foundation](../development/event-origin-schema.md).
+
 After migration and structural validation of each owner, the coordinator MUST verify
 its tenant tables through the runtime DataSource, before callable module components
 initialize. Checks include the exact owned policy, ENABLE/FORCE RLS, non-owner and
