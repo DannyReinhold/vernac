@@ -297,6 +297,12 @@ raw tenant/actor IDs, SQL values, credentials or business content in default log
 Treat technical routing tables and protected local simulators as controlled operational
 interfaces, not log dumps. Include seeded-sensitive-value assertions for negative paths.
 
+## First feasibility record (partial)
+
+The [first executable spike](tenant-isolation-spike.md) covers real transaction/resource,
+RLS/role and guarded-invocation mechanisms with handwritten fixtures. It does not
+implement production tenancy or finish the proof inventory below. A19/A20 stay OPEN.
+
 ## 10. Required feasibility proof and implementation order
 
 Inspect the actual current code paths before implementation: JdbcAggregateStore uses
