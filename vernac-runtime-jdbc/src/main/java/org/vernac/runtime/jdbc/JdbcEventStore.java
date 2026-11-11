@@ -75,9 +75,10 @@ public final class JdbcEventStore<E extends DomainEvent> {
                 +String.join(", ",java.util.stream.IntStream.range(0,table.columns().size()).mapToObj(i->":p"+i).toList())+")"
                 +(ignoreExisting?" ON CONFLICT (\"@eventId\") DO NOTHING":""),params(table,row));
     }
-    private static void requireTransaction() {
+    private void requireTransaction() {
         if(!TransactionSynchronizationManager.isActualTransactionActive() || !TransactionSynchronizationManager.isSynchronizationActive())
             throw new IllegalStateException("Event persistence requires an active synchronized transaction");
+        JdbcEventOrigin.requireGlobal(jdbc);
     }
     private final class WriteGraph implements Writer {
         final Map<String,List<Map<String,@Nullable Object>>> rows=new LinkedHashMap<>();

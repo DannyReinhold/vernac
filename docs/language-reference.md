@@ -947,3 +947,8 @@ The next durable-tenant-event step has a [technical routing candidate](developme
 and test-only PostgreSQL proofs. These are not supported event APIs: do not generate
 tenant outbox code from the experimental helper classes or assume the emission guard
 has been removed.
+
+Internal `EventOrigin` storage bridges and JDBC global-context guards are now present
+in the 0.6.0 runtime. They do not enable durable tenant events or introduce Vernac
+syntax. Do not put a tenant parameter on event factories or bypass the emission guard;
+see the [current event boundary](contracts/events.md#internal-origin-and-legacy-storage-boundaries-060-development).

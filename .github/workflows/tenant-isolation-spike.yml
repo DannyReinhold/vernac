@@ -97,6 +97,21 @@ jobs:
           for name, case in event_cases.items():
               assert not any(case.find(tag) is not None for tag in ('skipped', 'failure', 'error')), f'Unverified event proof: {name}'
           print(f'{len(event_cases)} event-routing feasibility proofs executed; none skipped.')
+          origin_report = Path('vernac-runtime/target/surefire-reports/TEST-org.vernac.runtime.events.EventOriginTest.xml')
+          origin_result = ET.parse(origin_report).getroot()
+          origin_expected = {
+              'captureRequiresASynchronizedTransaction',
+              'capturesGlobalOrNominalTenantWithoutExposingIdentityInDiagnostics',
+              'closingSelectionDoesNotTurnAPinnedTransactionIntoGlobalExecution',
+              'savedOriginCannotAuthorizeAnotherSelectionOrAGlobalTransaction',
+              'legacyAdapterBridgesAcceptGlobalAndRejectTenantBeforeInvokingOldMethods',
+              'emittedGlobalPublicationCarriesTheCapturedOriginThroughTheBridge',
+          }
+          origin_cases = {case.attrib['name']: case for case in origin_result.findall('testcase')}
+          assert not (origin_expected - origin_cases.keys()), 'Missing production event-origin proofs'
+          assert all(int(origin_result.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
+          for name, case in origin_cases.items():
+              assert not any(case.find(tag) is not None for tag in ('skipped', 'failure', 'error')), f'Unverified origin proof: {name}'
           runtime_proofs = {
               'TenantContextTest': {
                   'selectionIsExplicitLifoAndRestorableWithoutStartingTransactions',

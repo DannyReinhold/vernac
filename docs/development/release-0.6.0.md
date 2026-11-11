@@ -269,3 +269,14 @@ publication, fixed recipients, retry/pool recreation, lease fencing/terminal rec
 and concurrent workers. This is handwritten experimental evidence, not generated
 production event support. The emission guard remains; schema/migrations/module/runtime
 integration and A19/A20/A21 remain OPEN.
+
+## Event origin runtime boundary
+
+Internal publication origin capture and additive GLOBAL-only storage bridges are
+implemented. Direct legacy JDBC event storage rejects tenant selections/stale pins;
+the worker rejects ambient selection and checks its real database connection before
+control-plane/payload work and before commit. Production regressions cover legacy
+adapter dispatch, generated storage bypasses, contaminated sessions and rollback
+when a global callback changes its origin. No schema history or migration changed.
+Durable tenant publication is still blocked. Generated mixed-origin schemas/storage,
+worker restoration, migration replay/module compatibility and A19/A20/A21 remain OPEN.

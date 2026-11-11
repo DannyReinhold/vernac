@@ -11,6 +11,16 @@ public interface EventStorage extends EventHandler {
     String eventType();
     void persist(DomainEvent event, List<String> listenerIds);
     DomainEvent load(EventId id);
+    /** Additive compatibility bridge: old adapters may only process verified GLOBAL origin. */
+    default void persist(DomainEvent event, List<String> listenerIds, EventOrigin origin) {
+        origin.requireGlobal();
+        persist(event, listenerIds);
+    }
+    /** Never discard an expected tenant origin when delegating to an older adapter. */
+    default DomainEvent load(EventId id, EventOrigin origin) {
+        origin.requireGlobal();
+        return load(id);
+    }
     @Override default void handle(DomainEvent event) {
         throw new IllegalStateException("Event storage is not a synchronous listener");
     }
