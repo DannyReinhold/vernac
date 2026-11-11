@@ -254,8 +254,6 @@ public final class SchemaBuilder {
     }
     private MutableTable entity(TypeSymbol symbol, SourceLocation loc) {
         String identity = symbol.identity().qualifiedName();
-        if(tenantRoot && project.project().sources().stream().anyMatch(s->s.external() && s.path().equals(symbol.sourceFile())))
-            fail(loc,"Tenant entity imports require module ownership metadata, which is not implemented yet: "+identity);
         if (expandingEntities.contains(identity)) fail(loc, "Cyclic entity containment: " + identity);
         MutableTable existing = entities.get(identity);
         if (existing != null) return existing;

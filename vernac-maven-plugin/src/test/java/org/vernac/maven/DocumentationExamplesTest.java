@@ -42,6 +42,28 @@ class DocumentationExamplesTest {
         assertTrue(descriptor.persistent());assertEquals(5,descriptor.exports().size());
     }
 
+    @Test void tenantModuleTutorialPreservesEntityOwnership() throws Exception {
+        String document = Files.readString(Path.of("../docs/tutorials/tenant-persistence.md"));
+        var blocks = Pattern.compile("```vernac\\n(.*?)```", Pattern.DOTALL).matcher(document);
+        assertTrue(blocks.find()); // Local introductory model.
+        assertTrue(blocks.find()); String producer = blocks.group(1);
+        assertTrue(blocks.find()); String consumer = blocks.group(1);
+        var manifest = Pattern.compile("```vernac-module\\n(.*?)```", Pattern.DOTALL).matcher(document);
+        assertTrue(manifest.find());
+        Path source = temporary.resolve("producer/example/contacts/model.vernac");
+        Files.createDirectories(source.getParent()); Files.writeString(source, producer);
+        var compiler = new VernacCompiler(); var resolved = compiler.analyzeProject(temporary.resolve("producer"));
+        var generated = compiler.generate(resolved, org.vernac.compiler.persistence.SchemaModel.empty(), java.util.Map.of());
+        var descriptor = org.vernac.compiler.modules.ModuleContracts.publish(
+                org.vernac.compiler.modules.ModuleDefinition.parse(temporary.resolve("module.vmodule"), manifest.group(1)),
+                resolved, generated.generatedFiles(), "example", "contacts", "1", List.of());
+        source = temporary.resolve("consumer/example/workspace/model.vernac");
+        Files.createDirectories(source.getParent()); Files.writeString(source, consumer);
+        var app = compiler.analyzeProject(temporary.resolve("consumer"), List.of(descriptor));
+        assertTrue(compiler.generate(app, org.vernac.compiler.persistence.SchemaModel.empty(), java.util.Map.of())
+                .generatedFiles().toString().contains("Contact.__vernacRestore"));
+    }
+
     @Test void completeTutorialModelsResolveAndGenerate() throws Exception {
         for (String name : List.of("domain-diagrams", "ubiquitous-language", "repository-queries", "usecases", "enum-value-objects",
                 "outbound-ports", "declarative-rest", "declarative-errors", "default-names",

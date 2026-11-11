@@ -112,5 +112,5 @@ Existing unscoped repositories do not start filtering merely because TenantConte
 local tenant-marked repositories now explicitly invoke the coordinator.
 
 Local generated persistence is described in the integration record. Next complete
-tenant module/event metadata, identity integration and reviewed conversions. Existing
+persistent tenant module activation/event routing, identity integration and reviewed conversions. Existing
 simple non-SaaS applications and the separate SaaS starter objective remain distinct.

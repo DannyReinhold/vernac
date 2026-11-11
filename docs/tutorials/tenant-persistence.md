@@ -8,7 +8,7 @@ return another customer's objects just because their IDs are known. Vernac's 0.6
 development compiler can establish this boundary for local aggregate persistence.
 
 This tutorial covers that persistence boundary, **not a finished SaaS starter**.
-Registration, membership verification, tenant modules and durable tenant events
+Registration, membership verification, persistent tenant module activation and durable tenant events
 are still being implemented. Use matching 0.6.0 development artifacts.
 
 ## Declare the data boundary
@@ -146,3 +146,50 @@ permit switching a bound transaction to another tenant.
 The [integration record](../development/tenant-persistence-integration.md) lists exact
 implemented paths and remaining work. This boundary is one foundation of SaaS,
 not a substitute for authorization or a claim that all 0.6.0 features are complete.
+
+## Reuse an entity from a type module
+
+A module can supply an entity vocabulary without managing its persistence. For example,
+the producer defines a Contact and explicitly exports its ID, value and collection:
+
+```vernac
+namespace example.contacts;
+id ContactId;
+value DisplayName(String);
+entity Contact[ContactId](DisplayName) list Contacts;
+```
+
+```vernac-module
+module example.contacts {
+    export example.contacts.ContactId;
+    export example.contacts.DisplayName;
+    export example.contacts.Contact;
+    export example.contacts.Contacts;
+}
+```
+
+Package and install/deploy this producer normally, then add its Maven dependency to the
+consumer. Both sides must use the current 0.6.0 development compiler and module-contracts-10
+metadata. A local aggregate can now contain those entities:
+
+```vernac
+namespace example.workspace;
+import example.contacts.Contacts;
+id WorkspaceId;
+tenant aggregate Workspace[WorkspaceId](Contacts);
+repository WorkspaceRepository for Workspace {}
+```
+
+No activation is needed: this producer supplies domain classes, not runtime services.
+The application's repository owns the Contact rows as part of Workspace's tenant graph.
+Generate/review the application's migration as above; the type-only module has no
+repository history of its own. Loading restores imported Contact instances with the
+stored tenant ownership. Reusing one of those instances in another tenant is rejected
+just like reusing a locally declared entity. Module dependency classes are never
+regenerated in the consumer.
+
+Exported tenant aggregate types also retain their classification when imported. However,
+a producer with its own tenant repository is still rejected: persistent tenant-module
+activation needs separate migration/runtime credentials first. Existing global persistent
+modules retain their earlier lifecycle. See [module lifecycle](type-modules.md) and the
+[precise tenant module contract](../contracts/modules.md#tenant-contracts-and-ownership-aware-type-imports-060-development).

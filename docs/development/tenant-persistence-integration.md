@@ -22,9 +22,9 @@ version to zero does not make the object NEW.
 Generated entities retain technical ownership outside Read/Write/Access views and
 toString/equality. New entities wait for root adoption; JDBC restoration preserves the
 tenant or unscoped boundary. Manual entity reconstruction stays unscoped for existing
-global use and cannot be imported into tenant storage. Legacy external entity classes
-remain usable by global mappings; tenant entity imports are rejected until module
-contracts can preserve their ownership.
+global use and cannot be imported into tenant storage. Current module-contracts-10
+entity imports preserve ownership through their technical restoration factories.
+Older dependency metadata must be rebuilt; it cannot silently acquire that capability.
 
 ## Complete local owned graph
 
@@ -87,9 +87,10 @@ data and deployment compatibility as always; a generated candidate is not a guar
 
 ## Explicit remaining boundaries
 
-- Tenant module publication is rejected by both normal compilation and the direct
-  publication API. Metadata compatibility, activation and independent module histories
-  still need tenant integration. Local tenant fields may reuse imported immutable VOs/IDs.
+- Tenant type exports and imported entity graphs use module-contracts-10 metadata.
+  Tenant repository publication remains rejected by compilation and direct publication:
+  activation must first support separate migration/runtime DataSources. Global module
+  persistence remains unchanged; no tenant context is established by imports.
 - Synchronous immediate events retain the current context/transaction. Recorded/deferred
   emission while a tenant is selected fails with TENANT_EVENT_DELIVERY_UNSUPPORTED
   before storage or dispatch, and the failed event context prevents commit. Durable
@@ -103,7 +104,7 @@ data and deployment compatibility as always; a generated candidate is not a guar
 ## Verification scope
 
 Compiler tests cover owned graph classification, technical APIs, source modifier
-removal diagnostics and rejection of tenant module publication. Real PostgreSQL tests
+removal diagnostics, module scope compatibility and rejection of persistent tenant modules. Real PostgreSQL tests
 compile generated Java and exercise complete graphs, nested value collections, shared
 children, multiple repositories in one transaction, global coexistence, predicates,
 singletons, counts, tenant-bound cursors, CRUD/cleanup, detached/reset states, rollback,

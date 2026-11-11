@@ -4,7 +4,8 @@ title: Technical tenant isolation contract — 0.6.0 proposal
 # Technical tenant isolation contract — 0.6.0 proposal
 
 Status: **target technical contract; local tenant persistence is partially implemented**.
-Implementation status and remaining limits: [local integration](tenant-persistence-integration.md).\nBaseline: 2026-11-11. This refines the agreed [tenant/product baseline](tenant-isolation-0.6.0.md)
+Implementation status and remaining limits: [local integration](tenant-persistence-integration.md).
+Baseline: 2026-11-11. This refines the agreed [tenant/product baseline](tenant-isolation-0.6.0.md)
 and D13 of the [SaaS plan](saas-0.6.0-plan.md). MUST describes the proposed implementation,
 the final required behavior, not a claim that every section is implemented. Acceptance A19/A20 remains OPEN. Merging this design
 allows the next executable feasibility PR; it does not release tenant support.
@@ -193,7 +194,10 @@ carry ownership merely because they appeared in a tenant graph.
 | Unscoped JDBC reconstruction | Explicitly unscoped origin | Not silently imported as a tenant-owned root/child |
 | Public manual tenant-root reconstitute | Detached/reconstructed, not equivalent to new | Not inserted into tenant storage by treating version zero as NEW |
 
-Manual entity reconstruction remains unscoped for legacy global use and cannot be\nadopted into a tenant graph. Trusted JDBC restoration preserves its stored boundary.\n\nKeep normal create and public reconstitute argument lists. A stored row's tenant is
+Manual entity reconstruction remains unscoped for legacy global use and cannot be
+adopted into a tenant graph. Trusted JDBC restoration preserves its stored boundary.
+
+Keep normal create and public reconstitute argument lists. A stored row's tenant is
 attached by trusted adapter metadata, not accepted as a caller-supplied business field.
 Distinguish NEW versus RECONSTITUTED explicitly rather than deducing it only from
 PersistenceState.version. Plain manually reconstituted tenant objects are not writable

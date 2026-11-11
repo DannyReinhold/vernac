@@ -1254,7 +1254,7 @@ in the port's public methods. Consumers import the port and its parameter/result
 values, then write `adapter Name implements ImportedPort { behavior { ... } }` using
 normal port/adapter syntax. The dependency supplies the original compiled interface.
 Adding a port operation requires implementation rebuilds. Contract metadata is now
-`module-contracts-9`; rebuild older development module artifacts. Outbound adapter publication and application bindings are supported as described below;
+`module-contracts-10`; rebuild older development module artifacts. Outbound adapter publication and application bindings are supported as described below;
 Persistent and nonpersistent functional activation are supported; module histories run
 in dependency order before the application history. Module event contracts, recorded payloads and synchronous/deferred
 receivers are supported. Inbound HTTP entrypoints are internal module components, enabled only through activation.
@@ -1333,7 +1333,7 @@ classes. External VOs in local aggregates still flatten into locally owned table
 
 Persistent publication requires a matching source migration history and automatically
 packages/verifies the isolated bundle. Field mutability, read/modify modes and repository
-query/pagination signatures are part of `module-contracts-9` compatibility metadata.
+query/pagination signatures are part of `module-contracts-10` compatibility metadata.
 Explicit persistent activation coordinates verified module histories in dependency order,
 then application migrations, before dependent beans become callable. It requires the
 application DataSource, transaction manager and Spring Boot Flyway initializer. No SQL is run by import,
@@ -1390,7 +1390,7 @@ synchronous listener ObserveInvoiceOpened on InvoiceOpened behavior {
 
 The receiving artifact declares `module example.observer {}` if it exports no callable
 API, and the application uses `activate example.observer;`. Metadata is
-`module-contracts-9`; rebuild producer and dependant artifacts together.
+`module-contracts-10`; rebuild producer and dependant artifacts together.
 
 ### Durable event ownership and startup
 
@@ -1414,7 +1414,7 @@ module and application migrations/validation have completed. It preserves the ex
 lease, at-least-once, per-recipient acknowledgment, retry and blocked-job semantics.
 Receivers must make external effects idempotent; SQL rollback does not undo them.
 
-Record flags and storage capability participate in module-contracts-9 metadata.
+Record flags and storage capability participate in module-contracts-10 metadata.
 Rebuild all producers/dependants. Structural event/VO changes can make pending payloads
 incompatible; migrate deliberately or introduce a new versioned event type. Review
 event evolution independently of an ordinary aggregate upgrade.
@@ -1471,7 +1471,7 @@ Vernac type hover includes associated text, including imported module types with
 sources JARs. JavaDoc is added to associated generated domain/usecase/outbound classes.
 Maven compilation writes target/vernac-glossary.md and target/vernac-glossary.json.
 Text changes do not alter structural API fingerprints or SQL schemas. Module metadata
-is module-contracts-9; rebuild development producers and consumers. No LLM integration
+is module-contracts-10; rebuild development producers and consumers. No LLM integration
 is implied. See [the term contract](contracts/ubiquitous-language.md) and
 [the tutorial](tutorials/ubiquitous-language.md).
 
@@ -1692,9 +1692,15 @@ enabled. The coordinator verifies configuration and the exact owned PostgreSQL p
 Authentication/membership verification must establish the context through trusted
 infrastructure; no default tenant is invented.
 
-Current limits: tenant aggregates cannot yet be published in reusable modules;
-tenant roots cannot contain imported module entities. Imported immutable IDs/VOs
-remain reusable. Recorded/deferred publication while tenant context is selected fails
+Type modules may publish tenant/global aggregate contracts and ownership-aware
+entities using module-contracts-10 metadata. Imports preserve aggregate scope, and
+local tenant roots may contain imported entities without regenerating dependency
+classes. Type imports do not activate modules or select a tenant. A change from
+TENANT to GLOBAL (or back) is an incompatible module contract change. Rebuild older
+producer/consumer artifacts; this compiler intentionally rejects older metadata.
+Tenant repositories inside reusable modules remain blocked until their activation
+supports separate migration/runtime DataSources. Imported immutable IDs/VOs remain
+reusable. Recorded/deferred publication while tenant context is selected fails
 clearly until tenant event routing exists; synchronous listeners remain supported.
 Manual tenant reconstitute creates detached state; use repository loading for updates.
 The separate SaaS Wizard/starter, identity/authorization and reviewed conversions are

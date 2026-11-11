@@ -49,6 +49,7 @@ public final class ModuleArtifacts {
     }
     public static VernacProject merge(VernacProject local,List<ModuleDescriptor> modules,List<CompilerDiagnostic> issues) {
         if(modules.isEmpty())return local;
+        ModuleContracts.checkDependencies(modules);
         List<VernacSourceFile> sources=new ArrayList<>(local.sources());
         for(var module:modules) {
             Map<String,List<Definition>> namespaces=new TreeMap<>();
@@ -63,7 +64,7 @@ public final class ModuleArtifacts {
                     else if(d.kind().equals("ENTITY")||d.kind().equals("AGGREGATE")) {
                         var id=new IdReferenceNode(at,new TypeNode(at,d.element()));
                         if(d.kind().equals("ENTITY"))definitions.add(new EntityNode(at,simple(d.identity()),id,fields(d.fields(),at),List.of(),methods(d.methods(),at),collections,List.of()));
-                        else definitions.add(new AggregateNode(at,simple(d.identity()),id,fields(d.fields(),at),List.of(),methods(d.methods(),at),collections,List.of()));
+                        else definitions.add(new AggregateNode(at,simple(d.identity()),id,fields(d.fields(),at),List.of(),methods(d.methods(),at),collections,List.of(), d.aggregateScope().equals("TENANT") ? AggregateNode.Classification.TENANT : AggregateNode.Classification.GLOBAL));
                     }
                     else if(d.kind().equals("REPOSITORY")) {
                         List<RepositoryMethodNode> queries=d.methods().stream().filter(m->!Set.of("byId","save","delete").contains(m.name())).map(m->new RepositoryMethodNode(at,type(m.returns(),at),m.name(),fields(m.parameters(),at),List.of(),List.of(),null,m.mode().equals("CURSOR_QUERY")?RepositoryMethodNode.Pagination.CURSOR:m.mode().contains("OFFSET_QUERY")?RepositoryMethodNode.Pagination.OFFSET:RepositoryMethodNode.Pagination.NONE,m.mode().equals("COUNTED_OFFSET_QUERY"))).toList();
@@ -149,6 +150,7 @@ public final class ModuleArtifacts {
         for(var term:module.vocabulary())if(term.namespace().equals(namespace))text.append(org.vernac.compiler.vocabulary.Vocabulary.source(term));
         for(var d:module.exports()) if(namespace(d.identity()).equals(namespace)&&!d.kind().equals("COLLECTION")) {
             if(d.kind().equals("ENTITY")||d.kind().equals("AGGREGATE")) {
+                if (d.kind().equals("AGGREGATE")) text.append(d.aggregateScope().toLowerCase(Locale.ROOT)).append(" ");
                 text.append(d.kind().toLowerCase(Locale.ROOT)).append(" ").append(simple(d.identity())).append("[").append(d.element()).append("](")
                     .append(d.fields().stream().map(f->(f.mutable()?"mut ":"")+typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(")");
                 if(!d.methods().isEmpty()) {

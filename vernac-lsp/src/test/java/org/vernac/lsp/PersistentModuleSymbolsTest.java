@@ -12,6 +12,37 @@ import org.vernac.compiler.persistence.SchemaModel;
 import static org.junit.jupiter.api.Assertions.*;
 class PersistentModuleSymbolsTest {
     @TempDir Path root;
+    @Test void tenantTypeModuleNavigationPreservesPublishedScopeWithoutActivation() throws Exception {
+        Path producer = root.resolve("producer/billing/model.vernac");
+        Files.createDirectories(producer.getParent());
+        Files.writeString(producer, "namespace billing; id InvoiceId; tenant aggregate Invoice[InvoiceId]();");
+        var compiler = new VernacCompiler();
+        var resolved = compiler.analyzeProject(root.resolve("producer"));
+        var generated = compiler.generate(resolved, SchemaModel.empty(), Map.of());
+        var descriptor = ModuleContracts.publish(ModuleDefinition.parse(root.resolve("manifest.vmodule"),
+                "module example.billing {export billing.InvoiceId;export billing.Invoice;}"),
+                resolved, generated.generatedFiles(), "example", "billing", "1", List.of());
+        assertFalse(descriptor.activatable());
+        Files.writeString(root.resolve("pom.xml"), "<project/>");
+        Files.createDirectories(root.resolve("target"));
+        ModuleDescriptor.write(root.resolve("target/vernac-module-index.json"), List.of(descriptor));
+        Path source = root.resolve("src/main/vernac/app/model.vernac");
+        Files.createDirectories(source.getParent());
+        String text = "namespace app; import billing.Invoice;";
+        Files.writeString(source, text);
+        var projects = new VernacProjectDiagnostics();
+        var params = new InitializeParams(); params.setRootUri(root.toUri().toString());
+        projects.initialize(params); projects.open(source.toUri().toString(), text, 1);
+        var position = new Position(0, text.lastIndexOf("Invoice") + 3);
+        var target = projects.definition(source.toUri().toString(), position).getFirst();
+        String view = Files.readString(Path.of(java.net.URI.create(target.getUri())));
+        assertTrue(view.contains("tenant aggregate Invoice"));
+        String app = "application app {activate example.";
+        String uri = root.resolve("vernac-application.vapplication").toUri().toString();
+        projects.open(uri, app, 1);
+        assertTrue(projects.complete(uri, new Position(0, app.length())).isEmpty());
+    }
+
     @Test void importedRepositoryNavigatesToPublicContractAndPersistentActivationIsSuggested() throws Exception {
         Path producer=root.resolve("producer/billing/model.vernac");Files.createDirectories(producer.getParent());
         Files.writeString(producer,"namespace billing; id InvoiceId; value Reference(String); aggregate Invoice[InvoiceId](Reference) list Invoices; repository InvoiceRepository for Invoice {find Invoices all();}");

@@ -115,6 +115,7 @@ jobs:
           print('All production runtime foundation proofs executed; none skipped.')
           schema_proofs = {
               'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.DocumentationExamplesTest.xml': {
+                  'tenantModuleTutorialPreservesEntityOwnership',
                   'diagramTutorialShowsTheActualGeneratedGraph',
                   'persistentModuleTutorialHasACompleteExportableProducerModel',
                   'completeTutorialModelsResolveAndGenerate',
@@ -124,15 +125,27 @@ jobs:
                   'dddBeginnerModelsGenerateCompilableJava',
                   'entryPointsTellTheSameExecutableStory',
               },
+              'vernac-lsp/target/surefire-reports/TEST-org.vernac.lsp.PersistentModuleSymbolsTest.xml': {
+                  'tenantTypeModuleNavigationPreservesPublishedScopeWithoutActivation',
+                  'importedRepositoryNavigatesToPublicContractAndPersistentActivationIsSuggested',
+              },
+              'vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.modules.TenantModuleTest.xml': {
+                  'classificationAndOwnershipSurviveJsonAndReadOnlyContractViews',
+                  'scopeChangesAreIncompatibleAndOrdinaryAndGlobalRemainEquivalent',
+                  'importedEntitiesParticipateInLocalTenantGraphsWithoutRegeneration',
+                  'unsupportedAndMissingMetadataFailBeforeConsumerGeneration',
+              },
               'vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.persistence.TenantMappingTest.xml': {
                   'completeOwnedGraphUsesTenantKeysAndLegacyGlobalGraphStaysUnscoped',
-                  'reusableTenantModulesAreRejectedUntilMetadataAndActivationSupportExist',
+                  'persistentTenantModulesAreRejectedUntilSeparateMigrationConnectionsExist',
                   'sourceClassificationRemovalReachesSpecificMigrationGuard',
               },
               'vernac-runtime/target/surefire-reports/TEST-org.vernac.runtime.events.EventContextTest.xml': {
                   'tenantContextAllowsSynchronousEventsButRejectsUnscopedStoredDelivery',
               },
               'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.TenantGeneratedPostgresTest.xml': {
+                  'importedModuleEntitiesCompileFromPackagedClasses',
+                  'importedModuleEntitiesRetainOwnershipAndSharedIdentityAcrossTenants',
                   'generatedTenantRepositoriesCompile',
                   'generatedGraphsQueriesPaginationAndOwnershipRemainTenantScoped',
                   'concurrentGeneratedRepositoriesRetainIndependentTenantTransactions',

@@ -415,7 +415,7 @@ A port interface owns no beans or tables and requires no activation. Its inclusi
 in a contract module does not mean functional-module activation is available. The separate `providers` artifact now exports two local fixture implementations
 selected by the application binding. This is adapter selection, not activation of
 a whole billing implementation with usecases, repositories and migrations. Rebuild existing
-module JARs after this compiler update (`module-contracts-9` metadata).
+module JARs after this compiler update (`module-contracts-10` metadata).
 
 ## Run profile-driven selection
 
@@ -679,7 +679,7 @@ transitively, while merely knowing another module's event does not activate the 
 Use this mode only for immediate transactional participation. Deferred module delivery and recorded storage are now supported. The producer owns
 the prepared payload; the application owns shared delivery jobs. The runnable example
 also shows two deferred recipients and a deliberate first-attempt rollback/retry. Metadata
-is module-contracts-9, so rebuild all producers and consumers after updating the tools.
+is module-contracts-10, so rebuild all producers and consumers after updating the tools.
 
 
 ## Add a module-owned HTTP API
@@ -699,3 +699,17 @@ Follow [the executable HTTP walkthrough](https://github.com/DannyReinhold/vernac
 to start the servlet profile and try a request. Its transport and validation failures
 use the API producer's declarative error policy. The application adds the HTTP runtime
 and Spring MVC explicitly. Activation does not configure authentication or authorization.
+
+## Tenant-aware type contracts in 0.6.0 development
+
+Current development tools publish module-contracts-10 metadata. Rebuild earlier module
+artifacts and consumers together. Imported tenant/global aggregates retain their scope;
+imported entities carry the ownership-aware restoration contract needed by a local tenant
+repository. Type imports do not activate modules or establish a tenant selection.
+See [reuse an entity from a type module](tenant-persistence.md#reuse-an-entity-from-a-type-module)
+for a producer and consumer example.
+
+This does not yet enable a module's own tenant repository. That combination remains
+blocked until the module migration coordinator supports separate runtime/migration
+credentials. The global persistent-module walkthrough above retains its existing
+behavior. Durable tenant event routing and full SaaS activation remain in progress.
