@@ -146,6 +146,12 @@ verifies it. Never trust a browser-supplied role, plan or account claim directly
 A global administration operation needs an explicitly configured application scope
 and policy, not a null/empty scope interpreted as unrestricted access.
 
+See [Who loads the invoice?](usecase-authorization-example.md) for a complete
+application query/service, proposed typed Spring binding and account-context flow.
+The application explicitly provides resource ownership logic; no repository or
+ownership field is inferred from the ID type. The example's binding SPI is proposed,
+not implemented, and its Java-versus-declarative assembly choice remains for review.
+
 For `on invoiceId`, the policy can load the invoice or scoped facts to check ownership
 and capability. A VIEW/EXPORT grant in account A cannot authorize an invoice in B.
 The policy receives the real nominal ID type; equal UUIDs in different ID types do

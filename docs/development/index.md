@@ -38,6 +38,9 @@ For a guide across all documentation, use the [documentation map](../documentati
 
 ## Current priorities
 
+- [Who loads the invoice?](usecase-authorization-example.md): concrete ownership query,
+  policy composition, proposed registration and verified actor/account context.
+
 - [Proposed usecase authorization contract](usecase-authorization-contract.md):
   permission syntax, trusted actor/scope, execution ordering and safe failures for review.
 
