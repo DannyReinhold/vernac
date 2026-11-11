@@ -22,6 +22,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.vernac.runtime.tenancy.TenantId;
+import org.vernac.runtime.tenancy.TenancyException;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Timeout(30)
@@ -75,7 +77,11 @@ class TenantIsolationPostgresTest {
         try(var ignored=boundary.select(tenant)) { return required.execute(status -> action.get()); }
     }
     private static void code(String code, Runnable action) {
-        assertEquals(code, assertThrows(TenantBoundary.Failure.class, action::run).getMessage());
+        var error = assertThrows(RuntimeException.class, action::run);
+        assertTrue(error instanceof TenantBoundary.Failure || error instanceof TenancyException);
+        String expected = code.equals("TRANSACTION_REQUIRED") && error instanceof TenancyException
+                ? "TENANT_TRANSACTION_REQUIRED" : code;
+        assertEquals(expected, error.getMessage());
     }
 
     @Test void missingAuthenticationMembershipAndTransactionFailClosed() {
@@ -189,7 +195,7 @@ class TenantIsolationPostgresTest {
         code("TENANT_OWNERSHIP_MISMATCH",()->inTenant(A,()->{store.save(InvoiceStore.Invoice.detached(UUID.randomUUID(),"detached"));return null;}));
         var newlyCreated=InvoiceStore.Invoice.create("rolled back");
         assertThrows(IllegalStateException.class,()->inTenant(A,()->{store.save(newlyCreated);throw new IllegalStateException("rollback");}));
-        assertEquals(A,newlyCreated.tenant.get());
+        assertEquals(TenantId.of(A),newlyCreated.ownership.tenant().orElseThrow());
         code("TENANT_OWNERSHIP_MISMATCH",()->inTenant(B,()->{store.save(newlyCreated);return null;}));
         var stale=inTenant(A,()->store.byId(INVOICE_A));
         inTenant(A,()->{var current=store.byId(INVOICE_A);current.title="new version";store.save(current);return null;});

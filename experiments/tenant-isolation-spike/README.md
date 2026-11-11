@@ -2,8 +2,9 @@
 
 This is a **standalone, test-only experiment**, not a new Vernac application,
 production tenancy runtime or SaaS starter. It deliberately does not use the proposed
-`tenant` grammar. The candidate repository/guard is handwritten; all code lives under
-`src/test`. The root reactor, existing examples and existing Wizard choices are untouched.
+`tenant` grammar. The JDBC repository/guard remains handwritten under
+`src/test`, but its selection/transaction pin and object ownership now use the real
+`vernac-runtime` foundation. The root reactor, existing examples and existing Wizard choices are untouched.
 
 It tests the [technical proposal](../../docs/development/tenant-technical-contract.md)
 against real PostgreSQL 17, Spring JDBC/transactions and Spring Security from the same
@@ -19,6 +20,8 @@ docker compose -f .\experiments\tenant-isolation-spike\compose.yaml up -d --wait
 $env:VERNAC_PG_TEST_URL = 'jdbc:postgresql://localhost:55439/postgres'
 $env:VERNAC_PG_TEST_USER = 'vernac'
 $env:VERNAC_PG_TEST_PASSWORD = 'local-spike-only'
+mvn -B -ntp -pl vernac-runtime -am clean install
+if ($LASTEXITCODE -ne 0) { throw "Runtime build failed." }
 mvn -B -ntp -f .\experiments\tenant-isolation-spike\pom.xml clean verify
 ```
 
@@ -53,7 +56,9 @@ docker compose -f .\experiments\tenant-isolation-spike\compose.yaml down
   save/delete rejection and ordinary optimistic-version conflict.
 - Concurrent tenants, stale session settings and mid-transaction setting tampering.
 
-`TenantBoundary` has no dependency on the production runtime. The fixture's `tenant_id`
+`TenantBoundary` uses production TenantContext/TenantId for selection and the Spring
+transaction pin; InvoiceStore uses production TenantOwnership. Its JDBC connection/
+RLS/repository code remains a candidate, not the production storage adapter. The fixture's `tenant_id`
 column is a test convenience; production mapping will use the agreed technical name.
 No public API or production-class placement is established by these test helpers.
 

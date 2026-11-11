@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'experiments/tenant-isolation-spike/**'
+      - 'vernac-runtime/**'
+      - 'pom.xml'
       - '.github/workflows/tenant-isolation-spike.yml'
   workflow_dispatch:
 
@@ -38,6 +40,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
+      - name: Build production runtime and run its unit tests
+        run: mvn -B -ntp -pl vernac-runtime -am clean install
       - name: Execute real PostgreSQL and Spring boundary tests
         run: mvn -B -ntp -f experiments/tenant-isolation-spike/pom.xml clean verify
       - name: Require every spike proof to execute
@@ -68,4 +72,37 @@ jobs:
               assert not any(case.find(tag) is not None for tag in ('skipped', 'failure', 'error')), f'Unverified proof: {name}'
           assert all(int(root.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
           print(f'{len(cases)} real PostgreSQL/Spring proofs executed; none skipped.')
+          runtime_proofs = {
+              'TenantContextTest': {
+                  'selectionIsExplicitLifoAndRestorableWithoutStartingTransactions',
+                  'scopeIsThreadOwnedAndDoesNotPropagateToOtherThreads',
+                  'pinRequiresSynchronizedTransactionAndLiveSelection',
+                  'repeatedBindingIsStableUntilCommitAndDoesNotConsumeUnrelatedResources',
+                  'selectionOpenedInsideTransactionRemainsPinnedAfterScopeClose',
+                  'rollbackCleansThePinButDoesNotCloseTheCallersScope',
+                  'scopeCloseDoesNotUnpinAnActiveTransactionOrAuthorizeAnotherTenant',
+                  'closingAScopeCannotRestoreADifferentTenantInsideAPinnedTransaction',
+              },
+              'TenantOwnershipTest': {
+                  'legacyPersistenceStateStaysUnscopedEvenInsideTenantSelection',
+                  'newRootCapturesSelectionButNewEntityWaitsForItsRoot',
+                  'firstAssignmentIsOneWayAndVersionResetDoesNotRemoveOwnership',
+                  'restoredAndDetachedStateCannotBeConvertedIntoNewOrForeignOwnership',
+                  'competingFirstOwnersCannotBothClaimTheSameObject',
+                  'diagnosticStringsAndTechnicalFailuresDoNotExposeTenantValues',
+              },
+              'TenantIdTest': {
+                  'typedIdentityHasExplicitStorageRepresentationAndSafeDefaultRendering',
+                  'malformedInputIsNotCopiedIntoAnExceptionOrCause',
+              },
+          }
+          for suite, expected in runtime_proofs.items():
+              path = Path('vernac-runtime/target/surefire-reports') / f'TEST-org.vernac.runtime.tenancy.{suite}.xml'
+              result = ET.parse(path).getroot()
+              tests = {case.attrib['name']: case for case in result.findall('testcase')}
+              assert not (expected - tests.keys()), f'Missing runtime proofs in {suite}'
+              assert all(int(result.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
+              for name, case in tests.items():
+                  assert not any(case.find(tag) is not None for tag in ('skipped', 'failure', 'error')), f'Unverified runtime proof: {name}'
+          print('All production runtime foundation proofs executed; none skipped.')
           PY
