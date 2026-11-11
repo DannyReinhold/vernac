@@ -187,3 +187,17 @@ Before removing the production guard, those missing paths need generated-code te
 actual application/module consumption, global regressions, fresh/upgrade migration
 proofs and the full retry/restart/concurrency cases against the production worker.
 A green spike does not close A19/A20 or complete the SaaS release.
+
+## Implemented first runtime boundary
+
+The subsequent runtime foundation introduces `EventOrigin` and additive origin-aware
+`EventStorage` overloads. Capture validates the synchronized transaction and live
+selection/pin; old adapters remain GLOBAL-only. Direct JDBC storage and every global
+worker phase validate the actual transactional connection and reject stale tenant
+settings. A post-callback check prevents an origin-changing global handler committing
+its local work. See the [implemented event contract](../contracts/events.md#internal-origin-and-legacy-storage-boundaries-060-development).
+
+This establishes no tenant-capable generated adapter, schema revision or migration.
+The next implementation must provide those capabilities and exact-origin routing
+before removing `TENANT_EVENT_DELIVERY_UNSUPPORTED`. The seven experimental proofs
+remain feasibility evidence, separate from the new production boundary regressions.

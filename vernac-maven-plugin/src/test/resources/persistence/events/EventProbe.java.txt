@@ -42,6 +42,7 @@ public final class EventProbe {
    assertEquals(event.status(),loaded.status());
    assertEquals(recording.occurredAt(),archived.load(recording.eventId()).occurredAt());
   });
+  verifyLegacyOriginGuards(data, store, event, tx, jdbc);
   var conflict=Changed.reconstitute(event.eventId(),event.occurredAt(),event.id(),Labels.of(List.of()),
    null,event.batches(),Status.CLOSED);
   assertThrows(IllegalStateException.class,()->tx.executeWithoutResult(s->{try(var scope=EventContext.open(()->handlers)) {
@@ -62,6 +63,49 @@ public final class EventProbe {
   assertEquals(0,count(jdbc,"application_work"));
   assertEquals(1,count(jdbc,"\"eventdemo\".\"@event:Changed\""));
   assertEquals(2,count(jdbc,"\"vernac\".\"@delivery\""));
+ }
+ static void verifyLegacyOriginGuards(DataSource data, JdbcChangedEvents store, Changed event,
+     TransactionTemplate tx, NamedParameterJdbcTemplate jdbc) {
+  var tenant=org.vernac.runtime.tenancy.TenantId.of(UUID.randomUUID());
+  try(var selected=org.vernac.runtime.tenancy.TenantContext.openVerified(tenant)) {
+   tx.executeWithoutResult(status->{
+    var write=assertThrows(org.vernac.runtime.tenancy.TenancyException.class,()->store.persist(event,List.of("must-not-add")));
+    assertEquals(org.vernac.runtime.tenancy.TenancyException.Code.TENANT_EVENT_DELIVERY_UNSUPPORTED,write.code());
+    assertThrows(org.vernac.runtime.tenancy.TenancyException.class,()->store.load(event.eventId()));
+   });
+   var worker=new org.vernac.runtime.jdbc.JdbcEventWorker(jdbc,new DataSourceTransactionManager(data),List::of,
+       org.vernac.runtime.jdbc.EventDeliveryOptions.defaults());
+   assertEquals(org.vernac.runtime.tenancy.TenancyException.Code.TENANT_CONTEXT_MISMATCH,
+       assertThrows(org.vernac.runtime.tenancy.TenancyException.class,worker::runOnce).code());
+  }
+  tx.executeWithoutResult(status->{
+   jdbc.getJdbcTemplate().queryForObject("SELECT set_config('vernac.tenant_id',?,true)",String.class,tenant.asString());
+   assertEquals(org.vernac.runtime.tenancy.TenancyException.Code.TENANT_CONTEXT_CONTAMINATED,
+       assertThrows(org.vernac.runtime.tenancy.TenancyException.class,()->store.load(event.eventId())).code());
+   assertThrows(org.vernac.runtime.tenancy.TenancyException.class,()->store.persist(event,List.of("must-not-add")));
+  });
+  tx.executeWithoutResult(status->assertEquals(event.eventId(),store.load(event.eventId()).eventId()));
+  assertEquals(2,count(jdbc,"\"vernac\".\"@delivery\""));
+  verifyWorkerRejectsContaminatedSession(data, tenant);
+  var wrongManager=new DataSourceTransactionManager(new org.springframework.jdbc.datasource.DelegatingDataSource(data));
+  new TransactionTemplate(wrongManager).executeWithoutResult(status->{
+   assertEquals(org.vernac.runtime.tenancy.TenancyException.Code.TENANT_TRANSACTION_REQUIRED,
+       assertThrows(org.vernac.runtime.tenancy.TenancyException.class,()->store.load(event.eventId())).code());
+  });
+ }
+ static void verifyWorkerRejectsContaminatedSession(DataSource data, org.vernac.runtime.tenancy.TenantId tenant) {
+  try(var connection=data.getConnection()) {
+   var single=new org.springframework.jdbc.datasource.SingleConnectionDataSource(connection,true);
+   var sql=new NamedParameterJdbcTemplate(single);
+   var worker=new org.vernac.runtime.jdbc.JdbcEventWorker(sql,new DataSourceTransactionManager(single),List::of,
+       org.vernac.runtime.jdbc.EventDeliveryOptions.defaults());
+   sql.getJdbcTemplate().queryForObject("SELECT set_config('vernac.tenant_id',?,false)",String.class,tenant.asString());
+   try {
+    assertEquals(org.vernac.runtime.tenancy.TenancyException.Code.TENANT_CONTEXT_CONTAMINATED,
+        assertThrows(org.vernac.runtime.tenancy.TenancyException.class,worker::runOnce).code());
+    assertEquals(2,sql.queryForObject("SELECT count(*) FROM \"vernac\".\"@delivery\" WHERE status='PENDING' AND attempts=0",Map.of(),Integer.class));
+   } finally {sql.getJdbcTemplate().queryForObject("SELECT set_config('vernac.tenant_id','',false)",String.class);}
+  } catch(java.sql.SQLException error) {throw new AssertionError(error);}
  }
  static int count(NamedParameterJdbcTemplate jdbc,String table) {
   return jdbc.queryForObject("SELECT count(*) FROM "+table,Map.of(),Integer.class);

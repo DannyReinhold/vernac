@@ -35,7 +35,11 @@ public final class JdbcEventWorker {
     public boolean runOnce() {
         if(TransactionSynchronizationManager.isActualTransactionActive())
             throw new IllegalStateException("Run the event worker outside an application transaction");
-        var claim=transaction.execute(status->claim());
+        if(org.vernac.runtime.tenancy.TenantContext.currentTenant().isPresent()
+                || org.vernac.runtime.tenancy.TenantContext.transactionTenant().isPresent())
+            throw new org.vernac.runtime.tenancy.TenancyException(
+                    org.vernac.runtime.tenancy.TenancyException.Code.TENANT_CONTEXT_MISMATCH);
+        var claim=inGlobalTransaction(this::claim);
         if(claim==null) return false;
         try {
             var all=List.copyOf(handlers.get());
@@ -44,12 +48,12 @@ public final class JdbcEventWorker {
             var stores=all.stream().filter(EventStorage.class::isInstance).map(EventStorage.class::cast)
                     .filter(h->h.eventType().equals(claim.eventType())).toList();
             if(listeners.size()!=1 || stores.size()!=1 || !listeners.getFirst().eventClass().equals(stores.getFirst().eventClass())) {
-                transaction.executeWithoutResult(s->block(claim,"Missing, ambiguous or incompatible listener/event storage"));
+                inGlobalTransaction(()->block(claim,"Missing, ambiguous or incompatible listener/event storage"));
                 return true;
             }
-            transaction.executeWithoutResult(status->{
+            inGlobalTransaction(()->{
                 try(var context=EventContext.open(()->all)) {
-                    var event=stores.getFirst().load(EventId.of(claim.eventId()));
+                    var event=stores.getFirst().load(EventId.of(claim.eventId()), EventOrigin.capture());
                     listeners.getFirst().handle(event);
                     int updated=jdbc.update("UPDATE "+TABLE+" SET status='SUCCEEDED', \"completedAt\"=clock_timestamp(), "
                             +"\"claimToken\"=NULL, \"leaseUntil\"=NULL, \"lastError\"=NULL "
@@ -60,9 +64,21 @@ public final class JdbcEventWorker {
             });
         } catch(RuntimeException failure) {
             // Processing has rolled back before recording failure in a separate transaction.
-            transaction.executeWithoutResult(status->fail(claim,failure));
+            inGlobalTransaction(()->fail(claim,failure));
         }
         return true;
+    }
+
+    private <T> @Nullable T inGlobalTransaction(Supplier<T> action) {
+        return transaction.execute(status->{
+            JdbcEventOrigin.requireGlobal(jdbc);
+            T result=action.get();
+            JdbcEventOrigin.requireGlobal(jdbc);
+            return result;
+        });
+    }
+    private void inGlobalTransaction(Runnable action) {
+        inGlobalTransaction(()->{ action.run(); return null; });
     }
 
     private @Nullable Claim claim() {

@@ -273,3 +273,26 @@ module routing remain OPEN; this is not completed tenant event support.
 The [durable tenant routing candidate](../development/tenant-event-routing-contract.md)
 and its PostgreSQL feasibility tests refine the next implementation. They do not
 remove this production guard or introduce supported event APIs.
+
+### Internal origin and legacy storage boundaries (0.6.0 development)
+
+Durable publication now captures an internal `EventOrigin` in its synchronized
+transaction. Tenant capture pins the verified selection; a remaining transaction pin
+without a live selection is an error, never GLOBAL. This technical value is not part
+of an event's payload, factory, DTO, actor identity or permissions. Its default string
+representation does not reveal a tenant identifier.
+
+Origin-aware `EventStorage.persist`/`load` overloads preserve the existing Java methods
+as GLOBAL-only compatibility bridges. An older adapter rejects a tenant origin before
+invoking its old method. The current emission guard still rejects durable tenant
+publication, including adapters that override these overloads. This is preparation
+for scoped storage, not a tenant-capable adapter declaration.
+
+Direct `JdbcEventStore` reads/writes also reject tenant selections and stale pins.
+They verify a Spring-managed transaction on their actual DataSource and reject a
+nonempty PostgreSQL `vernac.tenant_id` setting instead of clearing it or treating it
+as global. `JdbcEventWorker` rejects an ambient tenant/transaction before claiming;
+each global phase verifies its database context before SQL and again before commit.
+A callback that changes the origin cannot commit its local writes or acknowledgement.
+These checks do not replace the future mixed-origin schema, RLS or worker routing.
+No SQL schema or migration format changes in this step.
