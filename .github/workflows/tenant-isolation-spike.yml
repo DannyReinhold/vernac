@@ -80,6 +80,23 @@ jobs:
               assert not any(case.find(tag) is not None for tag in ('skipped', 'failure', 'error')), f'Unverified proof: {name}'
           assert all(int(root.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
           print(f'{len(cases)} real PostgreSQL/Spring proofs executed; none skipped.')
+          event_report = Path('experiments/tenant-isolation-spike/target/surefire-reports/TEST-org.vernac.experiments.tenancy.TenantEventRoutingPostgresTest.xml')
+          event_root = ET.parse(event_report).getroot()
+          event_required = {
+              'nullableForeignKeysNeedANonNullScopeKeyForGlobalChildren',
+              'payloadPolicyAndExactOriginLoadingRejectCrossTenantAndForgedRouting',
+              'graphAndDeliveriesRollbackAtomicallyAndFirstRecipientsStayFixed',
+              'retryAfterWorkerRestartRetainsOriginAndOtherRecipientsContinue',
+              'expiredClaimsFenceOldWritesAndFinalAttemptCrashesDoNotStick',
+              'parallelWorkersClaimOnceAndUseIndependentTenantTransactions',
+              'contaminatedPooledSessionsCannotLoadGlobalPayloadsAsAFallback',
+          }
+          event_cases = {case.attrib['name']: case for case in event_root.findall('testcase')}
+          assert not (event_required - event_cases.keys()), 'Missing event-routing proofs'
+          assert all(int(event_root.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
+          for name, case in event_cases.items():
+              assert not any(case.find(tag) is not None for tag in ('skipped', 'failure', 'error')), f'Unverified event proof: {name}'
+          print(f'{len(event_cases)} event-routing feasibility proofs executed; none skipped.')
           runtime_proofs = {
               'TenantContextTest': {
                   'selectionIsExplicitLifoAndRestorableWithoutStartingTransactions',
