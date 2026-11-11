@@ -61,5 +61,6 @@ Vernac keywords. Keep Vernac product choices explicit.
 Track Kafka replication, cross-context HTML fragment composition and later strategic
 DDD evaluation in the [platform roadmap](platform-roadmap.md). These do not imply
 that a namespace or Maven module is a bounded context. SaaS-specific capabilities
-will be delivered as a separate extension project; core priority is currently IDE
-depth, language consistency and general adapter foundations.
+are now part of the coordinated [0.6.0 SaaS objective](saas-0.6.0-plan.md).
+Core/extension packaging remains open; the full outcome is required regardless of
+repository boundaries.
