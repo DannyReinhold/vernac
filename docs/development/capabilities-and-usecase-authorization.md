@@ -11,6 +11,10 @@ licensing and individual module release versions are still open decisions.
 The next review artifact is the [proposed authorization contract](usecase-authorization-contract.md).
 It does not imply that any permission syntax or enforcement is implemented.
 
+[Tenant isolation](tenant-isolation-0.6.0.md) is now a required 0.6.0 foundation,
+independent of organization modeling and resource-policy checks. Repository byId,
+queries and writes must enforce it automatically for classified aggregates.
+
 ## Purpose
 
 A consuming application should obtain self-registration, personal/organization

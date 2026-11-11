@@ -13,6 +13,23 @@ The current [usecase contract](../contracts/usecases.md) remains authoritative f
 existing syntax. All new syntax below is deliberately fenced as text. No runtime,
 grammar, supported AI reference or public language baseline changes in this PR.
 
+## New prerequisite: tenant isolation
+
+The [tenant-isolation design slice](tenant-isolation-0.6.0.md) is now mandatory
+0.6.0 scope. It adds a trusted tenant data boundary independent of actor, organization,
+account subscription and resource-specific grants. Generated tenant repositories,
+including byId, must enforce it without repeated application predicates. A permission
+Allow never bypasses isolation. Resolve D13 before freezing context/storage integration.
+
+The older invoice/account policy example is withdrawn as the normal SaaS isolation
+approach. `on invoiceId` remains useful for additional resource rules, but must not
+be required merely to stop another tenant's byId access. Where this proposal speaks
+of an account execution scope, refine it against verified tenant context rather
+than equating AccountId with TenantId or automatically adding organization fields.
+Resource-policy data reads must use the tenant-aware repository boundary. Tenant
+invisibility produces the ordinary repository not-found result; additional policy
+opacity rules below do not redefine that result or turn all missing rows into 403.
+
 ## 1. Named permissions
 
 Proposed declaration, resolved through ordinary namespace/import rules:
@@ -146,8 +163,8 @@ verifies it. Never trust a browser-supplied role, plan or account claim directly
 A global administration operation needs an explicitly configured application scope
 and policy, not a null/empty scope interpreted as unrestricted access.
 
-See [Who loads the invoice?](usecase-authorization-example.md) for a complete
-application query/service, proposed typed Spring binding and account-context flow.
+See the [superseded invoice example](usecase-authorization-example.md) for why a
+manual account query is insufficient, and the tenant slice for the corrected flow.
 The application explicitly provides resource ownership logic; no repository or
 ownership field is inferred from the ID type. The example's binding SPI is proposed,
 not implemented, and its Java-versus-declarative assembly choice remains for review.
