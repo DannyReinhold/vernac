@@ -29,7 +29,7 @@ public class VernacTextDocumentService implements TextDocumentService {
             "client", "base", "body", "response", "errors", "path", "query", "header",
             "counted", "cursor", "offset", "counting", "where", "and", "or", "not", "order", "asc", "desc", "is", "absent", "present", "like", "contains", "starts", "ends", "with",
             "namespace", "package", "import", "as", "id",
-            "aggregate", "value", "entity", "event", "recorded", "synchronous", "deferred", "service", "external", "schema",
+            "global", "tenancy", "explicit", "aggregate", "value", "entity", "event", "recorded", "synchronous", "deferred", "service", "external", "schema",
             "inbound", "http", "mvc", "render", "model", "redirect", "redisplay", "form", "sensitive", "error", "view", "message", "respond", "configuration", "from", "using", "naming", "named", "patch", "repository", "for", "table", "find", "custom", "validates", "require",
             "read", "modify", "behavior", "java", "imports", "implemented", "by", "mut", "invariant", "mapping", "list", "set",
             "port", "adapter", "rest", "on", "throw", "throws",
@@ -310,6 +310,7 @@ public class VernacTextDocumentService implements TextDocumentService {
         addKeywordCompletion(items, "namespace", "namespace ${1:com.example};");
         addKeywordCompletion(items, "import", "import ${1:package.Type};");
         addKeywordCompletion(items, "aggregate", "aggregate ${1:Name}[${2:IdType} id](\n    $0\n);");
+        addKeywordCompletion(items, "global aggregate", "global aggregate ${1:Name}[${2:IdType}](\n    $0\n);");
         addKeywordCompletion(items, "value", "value ${1:Name}(${2:Type} value);");
         addKeywordCompletion(items, "value (enum)", "value ${1:Name} = ${2:CONST1} | ${3:CONST2};");
         addKeywordCompletion(items, "entity", "entity ${1:Name}[${2:IdType} id](\n    $0\n);");

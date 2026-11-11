@@ -3,13 +3,16 @@ grammar Vernac;
 applicationDefinition
     : 'application' name=qualifiedName '{' applicationEntry* '}' EOF
     ;
+tenancyDeclaration : 'tenancy' 'explicit' ';' ;
+
 applicationEntry
-    : 'activate' moduleName=qualifiedName ';'
+    : tenancyDeclaration
+    | 'activate' moduleName=qualifiedName ';'
     | 'bind' port=qualifiedName ('to' adapter=qualifiedName | 'from' 'configuration' property=STRING_LITERAL) ';'
     ;
 
 moduleDefinition
-    : 'module' name=qualifiedName '{' moduleExport* '}' EOF
+    : 'module' name=qualifiedName '{' (moduleExport | tenancyDeclaration)* '}' EOF
     ;
 moduleExport : 'export' exportedType=qualifiedName ';' ;
 
@@ -109,7 +112,7 @@ eventDefinition
 // 3. Aggregates & Entities
 // ==========================================
 aggregateDefinition
-    : 'aggregate' name=typeName '[' idReference ']' '(' parameterList? ')'
+    : global='global'? 'aggregate' name=typeName '[' idReference ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
       behaviorBlock?
       (collectionDefinition (',' collectionDefinition)*)?
@@ -347,7 +350,8 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
+    : 'global' | 'tenancy' | 'explicit'
+    | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | IDENTIFIER
     | BOOLEAN_LITERAL
@@ -451,7 +455,8 @@ typeName
     ;
 
 methodName
-    : 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
+    : 'global' | 'tenancy' | 'explicit'
+    | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'read' | 'modify' | 'load' | 'save'
@@ -462,7 +467,8 @@ methodName
     ;
 
 variableName
-    : 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'read' | 'modify'
+    : 'global' | 'tenancy' | 'explicit'
+    | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'read' | 'modify'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'

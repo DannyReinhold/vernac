@@ -237,7 +237,12 @@ final class VernacProjectDiagnostics {
         try {
             var project = new VernacProjectLoader().loadForAnalysis(root, snapshots, problems);
             project=org.vernac.compiler.modules.ModuleArtifacts.merge(project,org.vernac.compiler.modules.ModuleArtifacts.editorModules(root),problems);
-            var resolved=new ProjectTypeResolver().resolve(project);
+            Map<Path,String> configurationSnapshots=new LinkedHashMap<>();
+            open.forEach((path, document) -> {
+                if(root.equals(rootFor(path)) && (path.toString().endsWith(".vapplication") || path.toString().endsWith(".vmodule")))
+                    configurationSnapshots.put(path,document.text());
+            });
+            var resolved=new ProjectTypeResolver().resolve(project,configurationSnapshots);
             problems.addAll(resolved.diagnostics());
             Path application=org.vernac.compiler.modules.ModuleArtifacts.projectDirectory(root).resolve(org.vernac.compiler.application.ApplicationDefinition.FILE);
             var appSnapshot=open.get(application);
@@ -264,7 +269,7 @@ final class VernacProjectDiagnostics {
                     .add(problem("Could not analyze Vernac project: " + e.getMessage())));
             return;
         }
-        for (var diagnostic : problems) {
+        for (var diagnostic : problems.stream().distinct().toList()) {
             Path file = Path.of(diagnostic.location().sourceName()).toAbsolutePath().normalize();
             Diagnostic converted = problem(diagnostic.message());
             converted.setSeverity(diagnostic.severity() == CompilerDiagnostic.Severity.WARNING

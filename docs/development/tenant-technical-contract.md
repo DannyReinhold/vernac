@@ -13,8 +13,12 @@ allows the next executable feasibility PR; it does not release tenant support.
 
 The `tenant` aggregate modifier marks its complete owned persistence graph.
 Omitting `tenant` retains current behavior: no tenant is required, checked or silently
-applied by that repository, even during a tenant transaction. No mandatory global
-keyword is added. Permissions on either kind remain independent.
+applied by that repository, even during a tenant transaction, unless the project
+requires explicit classification. global aggregate explicitly declares the same
+unscoped semantics. tenancy explicit in .vapplication or .vmodule requires each
+own persisted aggregate to choose tenant/global; it does not change aggregate's
+meaning. See the [classification contract](../contracts/explicit-tenancy.md) for
+the implemented increment and remaining tenant support. Permissions remain independent.
 
 Introduce runtime `TenantId`, an immutable UUID-backed technical value, in the general
 tenancy runtime namespace. It is not UserId, AccountId, SubscriptionId or a business

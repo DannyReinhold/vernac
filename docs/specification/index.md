@@ -3,8 +3,7 @@ title: Vernac specification and contracts
 ---
 # Vernac specification and contracts
 
-This is the normative documentation for the **0.5.0 language revision**. It is
-organized into language rules and feature contracts; both parts define the language.
+This is the normative documentation for the **0.5.0 language baseline**, with\nexplicitly marked **0.6.0 development additions**. It is organized into language\nrules and feature contracts; both parts define the language.
 MUST/MUST NOT express requirements, SHOULD a recommendation, and MAY a permission.
 Examples illustrate rules; explicitly incomplete fragments require their surrounding
 model. Planned features are not guarantees.
@@ -73,3 +72,5 @@ SaaS policies and deeper cross-language IDE integration remain separately planne
 The 0.5.0 [shared Java implementation contract](../contracts/implementation-contracts.md)
 defines parameter nullability, external target resolution and overload identity
 across behavior, usecases, services, listeners and adapters.
+
+- [Explicit persistence classification](../contracts/explicit-tenancy.md): source-controlled tenancy rule and explicit global aggregates; tenant generation remains in progress.
