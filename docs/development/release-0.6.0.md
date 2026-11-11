@@ -189,3 +189,16 @@ The [production JDBC coordinator](tenant-jdbc-coordinator.md) supplies explicit
 connection binding and role/RLS flag checks. Generated repository invocation, exact
 policy/schema validation and migrations are still OPEN. This evidence does not
 verify A19/A20/A21 or complete automatic tenant isolation.
+
+
+## Required tenant migration transition evidence
+
+Before A19/A20 can become VERIFIED, the Maven/Flyway path must prove the
+[tenant classification transition contract](tenant-technical-contract.md#tenant-classification-changes-in-mavenflyway-candidates):
+adding tenant requires explicit historical-data assignment; removing tenant is
+blocked by default as an isolation collapse even without physical data loss.
+Acknowledged candidates must contain specific CLI warnings and SQL comments naming
+the affected graph and exposure risk, in addition to the standard responsibility
+header. Force cannot supply missing backfill or collision-resolution decisions.
+Both directions require snapshot/diff and real PostgreSQL replay/schema-check proofs.
+This remains OPEN; the current JDBC coordinator does not implement migration tooling.
