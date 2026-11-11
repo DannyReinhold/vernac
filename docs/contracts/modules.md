@@ -685,11 +685,36 @@ Vernac sources remain preferable when available. Inbound HTTP entrypoints partic
 ## Persistent startup coordination
 
 The JDBC starter supplies Flyway and PostgreSQL support. Persistent activation requires
-one shared application DataSource, a PlatformTransactionManager and Spring Boot's
-FlywayMigrationInitializer. Separate Flyway DataSources and competing custom
-FlywayMigrationStrategy beans are unsupported and MUST fail initialization.
+one application runtime DataSource, a PlatformTransactionManager and Spring Boot's
+FlywayMigrationInitializer. A separate Flyway DataSource is supported for the same
+PostgreSQL database instance. Competing custom FlywayMigrationStrategy beans remain
+unsupported and MUST fail initialization.
 
-Before executing SQL, the coordinator verifies all activated bundles, checksums,
+The runtime DataSource MUST remain the source for repositories and the application
+transaction manager. Every activated module history, application history and installed
+schema validation MUST use the DataSource supplied by the application Flyway
+configuration. No migration operation may fall back to runtime credentials merely
+because a module is being migrated. Normal Spring Boot spring.datasource.* and
+spring.flyway.* properties supply these connections; no new Vernac configuration
+syntax or per-module credentials are introduced.
+
+For distinct DataSources, a read-only preflight MUST compare PostgreSQL database name,
+database OID, server startup time and server address/port before migration execution.
+Mismatch or an unreadable identity MUST fail startup before history/schema writes.
+Connection objects MUST be closed after inspection. The new preflight errors MUST NOT
+retain driver causes or echo URLs, credentials or identity values. Normal Flyway
+migration diagnostics retain their existing behavior.
+
+Both connections MUST reach the same writer instance/address/port. Configure the same
+DB_URL for both, as in the tutorial; differing address families or writer endpoints
+are not normalized by preflight, even when they reach one server. Independent module databases,
+read replicas, XA and routing between database instances are outside this contract.
+Failover during preflight can cause a closed failure; retry startup after connection
+routing has stabilized. Existing configurations using one shared DataSource remain
+supported for unscoped persistence. Privilege provisioning, reviewed grants and
+migration approval remain the application operator's responsibility.
+
+Before executing migration SQL, the coordinator verifies all activated bundles, checksums,
 history chains and cross-owner table identities. Each module uses its own stable
 history schema. Required modules migrate and undergo structural schema validation
 before dependants; application migrations and validation follow. Dependent functional
@@ -870,9 +895,8 @@ imported entity tables and flattened external values. The consumer generates and
 that migration. Import/export closure and transitive dependency rules are unchanged.
 
 **Remaining boundary:** a reusable module declaring a tenant repository is rejected
-by normal project analysis and direct publication. The existing persistent-module
-coordinator requires one migration/runtime DataSource. Separate credentials and the
-corresponding startup, migration and RLS checks must be implemented and tested before
-this guard is removed. This restriction does not block tenant type-only exports or
+by normal project analysis and direct publication. Separate migration/runtime credentials are now supported and verified with real Boot
+configuration. Tenant-specific module startup, migration and RLS acceptance must still
+be implemented and tested before this guard is removed. This restriction does not block tenant type-only exports or
 existing global module persistence. Tenant event routing and full SaaS support remain
 OPEN. See [tenant persistence integration](../development/tenant-persistence-integration.md).

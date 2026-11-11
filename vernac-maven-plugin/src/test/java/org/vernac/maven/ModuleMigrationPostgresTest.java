@@ -104,15 +104,118 @@ class ModuleMigrationPostgresTest {
         return List.of(first,second);
     }
     private AnnotationConfigApplicationContext context(CountingSource source,URLClassLoader code) throws Exception {
+        return context(source, source, code);
+    }
+    private AnnotationConfigApplicationContext context(CountingSource source, CountingSource migrations, URLClassLoader code) throws Exception {
         var context=new AnnotationConfigApplicationContext();context.setClassLoader(code);context.register(Transactions.class);
         context.registerBean("dataSource",javax.sql.DataSource.class,()->source);context.registerBean("transactionManager",DataSourceTransactionManager.class,()->new DataSourceTransactionManager(source));
         context.registerBean("jdbc",NamedParameterJdbcTemplate.class,()->new NamedParameterJdbcTemplate(source));
-        List<ActivationPlan.Node> nodes=new ArrayList<>();Map<String,Class<?>> functions=new TreeMap<>();
-        for(var descriptor:descriptors)for(var component:descriptor.components()){var node=new ActivationPlan.Node(component.identity(),descriptor.module(),component.kind(),component.javaName(),component.dependencies(),descriptor.persistent());nodes.add(node);functions.put(node.identity(),code.loadClass(node.javaName()));}
-        context.addBeanFactoryPostProcessor(new AdapterBindings(context.getEnvironment(),List.of(),Map.of(),nodes,List.of("example.dependent"),List.of(),functions,"application-schema.json"));
-        context.registerBean("flywayInitializer",FlywayMigrationInitializer.class,()->new FlywayMigrationInitializer(Flyway.configure(code).dataSource(source).locations("classpath:db/migration").load(),context.getBean(AdapterBindings.STRATEGY,FlywayMigrationStrategy.class)));
+        context.addBeanFactoryPostProcessor(bindings(context.getEnvironment(), code));
+        context.registerBean("flywayInitializer",FlywayMigrationInitializer.class,()->new FlywayMigrationInitializer(Flyway.configure(code).dataSource(migrations).locations("classpath:db/migration").load(),context.getBean(AdapterBindings.STRATEGY,FlywayMigrationStrategy.class)));
         return context;
     }
+    private AdapterBindings bindings(org.springframework.core.env.Environment environment, ClassLoader code) throws Exception {
+        List<ActivationPlan.Node> nodes = new ArrayList<>(); Map<String,Class<?>> functions = new TreeMap<>();
+        for (var descriptor : descriptors) for (var component : descriptor.components()) {
+            var node = new ActivationPlan.Node(component.identity(), descriptor.module(), component.kind(),
+                    component.javaName(), component.dependencies(), descriptor.persistent());
+            nodes.add(node); functions.put(node.identity(), code.loadClass(node.javaName()));
+        }
+        return new AdapterBindings(environment, List.of(), Map.of(), nodes, List.of("example.dependent"),
+                List.of(), functions, "application-schema.json");
+    }
+
+    private record RuntimeLogin(String role, String password) { }
+
+    private RuntimeLogin provisionRuntime(CountingSource migrations) throws Exception {
+        var login = new RuntimeLogin("module_runtime_" + UUID.randomUUID().toString().replace("-", ""), UUID.randomUUID().toString());
+        try (var connection = migrations.getConnection(); var sql = connection.createStatement()) {
+            sql.execute("CREATE ROLE " + login.role() + " LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD '" + login.password() + "'");
+            // Explicit provisioning: only application-owned schemas/tables, never Flyway histories.
+            for (String schema : List.of("db.required", "db.dependent", "db.application")) {
+                sql.execute("CREATE SCHEMA " + SqlNames.quote(schema));
+                sql.execute("GRANT USAGE ON SCHEMA " + SqlNames.quote(schema) + " TO " + login.role());
+                sql.execute("ALTER DEFAULT PRIVILEGES IN SCHEMA " + SqlNames.quote(schema)
+                        + " GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES TO " + login.role());
+            }
+        }
+        return login;
+    }
+
+    private org.springframework.boot.test.context.runner.ApplicationContextRunner boot(
+            CountingSource migrations, RuntimeLogin runtime, URLClassLoader code) {
+        return new org.springframework.boot.test.context.runner.ApplicationContextRunner()
+                .withClassLoader(code).withUserConfiguration(Transactions.class)
+                .withConfiguration(org.springframework.boot.autoconfigure.AutoConfigurations.of(
+                        org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration.class,
+                        org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration.class,
+                        org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration.class,
+                        FlywayAutoConfiguration.class))
+                .withPropertyValues("spring.datasource.type=org.springframework.jdbc.datasource.DriverManagerDataSource",
+                        "spring.datasource.url=" + migrations.url, "spring.datasource.username=" + runtime.role(),
+                        "spring.datasource.password=" + runtime.password(),
+                        "spring.flyway.url=" + migrations.url,
+                        "spring.flyway.user=" + migrations.credentials.getProperty("user"),
+                        "spring.flyway.password=" + migrations.credentials.getProperty("password", ""))
+                .withInitializer(context -> {
+                    try { context.addBeanFactoryPostProcessor(bindings(context.getEnvironment(), code)); }
+                    catch (Exception failed) { throw new IllegalStateException("Test fixture binding failed", failed); }
+                });
+    }
+
+    @Test @EnabledIfEnvironmentVariable(named="VERNAC_PG_TEST_URL", matches=".+")
+    void bootUsesSeparateMigrationCredentialsAndRestrictedRuntimeRepositories() throws Exception {
+        fixtures();
+        database(migrations -> {
+            RuntimeLogin runtime = provisionRuntime(migrations);
+            try (var code = new URLClassLoader(new java.net.URL[]{resources.toUri().toURL()}, getClass().getClassLoader())) {
+                for (int restart = 0; restart < 2; restart++) boot(migrations, runtime, code).run(context -> {
+                    assertNull(context.getStartupFailure(), () -> String.valueOf(context.getStartupFailure()));
+                    var runtimeSource = context.getBean(javax.sql.DataSource.class);
+                    try (var connection = runtimeSource.getConnection(); var sql = connection.createStatement()) {
+                        try (var identity = sql.executeQuery("SELECT current_user")) {
+                            assertTrue(identity.next()); assertEquals(runtime.role(), identity.getString(1));
+                        }
+                        assertThrows(SQLException.class, () -> sql.execute("CREATE TABLE public.runtime_must_not_create(id int)"));
+                        assertThrows(SQLException.class, () -> sql.executeQuery("SELECT * FROM public.flyway_schema_history"));
+                    }
+                    var name = code.loadClass("db.required.domain.Name");
+                    var submit = context.getBean("db.dependent.Submit");
+                    submit.getClass().getMethod("execute", name).invoke(submit,
+                            name.getMethod("of", String.class).invoke(null, "separate credentials"));
+                    assertSame(runtimeSource, context.getBean(NamedParameterJdbcTemplate.class).getJdbcTemplate().getDataSource());
+                    assertNotSame(runtimeSource, context.getBean(Flyway.class).getConfiguration().getDataSource());
+                });
+                assertEquals(2, count(migrations, "SELECT count(*) FROM \"db.required\".\"Root\""));
+                assertEquals(2, count(migrations, "SELECT count(*) FROM \"db.dependent\".\"Receipt\""));
+                assertEquals(3, count(migrations, "SELECT count(*) FROM information_schema.tables WHERE table_name='flyway_schema_history'"));
+                assertEquals(0, count(migrations, "SELECT count(*) FROM pg_tables WHERE tableowner='" + runtime.role() + "'"));
+            } finally {
+                try (var connection = migrations.getConnection(); var sql = connection.createStatement()) {
+                    sql.execute("DROP OWNED BY " + runtime.role()); sql.execute("DROP ROLE " + runtime.role());
+                }
+            }
+        });
+    }
+
+    @Test @EnabledIfEnvironmentVariable(named="VERNAC_PG_TEST_URL", matches=".+")
+    void differentMigrationDatabaseFailsBeforeAnyHistoryOrSchemaIsWritten() throws Exception {
+        fixtures();
+        database(runtime -> database(migrations -> {
+            try (var code = new URLClassLoader(new java.net.URL[]{resources.toUri().toURL()}, getClass().getClassLoader());
+                 var context = context(runtime, migrations, code)) {
+                var error = assertThrows(RuntimeException.class, context::refresh);
+                Throwable cause = error;
+                while (cause.getCause() != null) cause = cause.getCause();
+                assertTrue(cause.getMessage().contains("same PostgreSQL database instance"));
+            }
+            for (var source : List.of(runtime, migrations)) {
+                assertEquals(0, count(source, "SELECT count(*) FROM information_schema.tables WHERE table_name='flyway_schema_history' OR table_schema IN ('db.required','db.dependent','db.application')"));
+                assertEquals(0, source.transactions.get());
+            }
+        }));
+    }
+
     private interface Exercise {void run(CountingSource source) throws Exception;}
     private void database(Exercise exercise) throws Exception {
         String url=System.getenv("VERNAC_PG_TEST_URL");Properties credentials=new Properties();

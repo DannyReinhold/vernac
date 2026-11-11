@@ -125,6 +125,9 @@ jobs:
                   'dddBeginnerModelsGenerateCompilableJava',
                   'entryPointsTellTheSameExecutableStory',
               },
+              'vernac-runtime-jdbc/target/surefire-reports/TEST-org.vernac.runtime.jdbc.modules.ModuleDatabaseConnectionsTest.xml': {
+                  'driverFailuresDoNotLeakConnectionDetailsOrCauses',
+              },
               'vernac-lsp/target/surefire-reports/TEST-org.vernac.lsp.PersistentModuleSymbolsTest.xml': {
                   'tenantTypeModuleNavigationPreservesPublishedScopeWithoutActivation',
                   'importedRepositoryNavigatesToPublicContractAndPersistentActivationIsSuggested',
@@ -137,7 +140,7 @@ jobs:
               },
               'vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.persistence.TenantMappingTest.xml': {
                   'completeOwnedGraphUsesTenantKeysAndLegacyGlobalGraphStaysUnscoped',
-                  'persistentTenantModulesAreRejectedUntilSeparateMigrationConnectionsExist',
+                  'persistentTenantModulesAreRejectedUntilTenantActivationIsVerified',
                   'sourceClassificationRemovalReachesSpecificMigrationGuard',
               },
               'vernac-runtime/target/surefire-reports/TEST-org.vernac.runtime.events.EventContextTest.xml': {
@@ -162,6 +165,8 @@ jobs:
                   'equalityAndInequalityMatchJavaForEveryScalarFamily',
               },
               'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.ModuleMigrationPostgresTest.xml': {
+                  'bootUsesSeparateMigrationCredentialsAndRestrictedRuntimeRepositories',
+                  'differentMigrationDatabaseFailsBeforeAnyHistoryOrSchemaIsWritten',
                   'fixtureModulesCompileAndShareTheRuntimeFingerprintContract',
                   'durableFixturesKeepPayloadAndSharedDeliveryOwnershipSeparate',
                   'deferredModuleReceiversResumeAfterRestartAndRetryWithoutDuplicatingCommittedWrites',
