@@ -11,6 +11,20 @@ The [SaaS plan](saas-0.6.0-plan.md) defines the outcome. No row below is complet
 because this planning document exists. Required extension artifacts are part of the
 acceptance boundary even if they have their own versions or repositories.
 
+## Mandatory tenant isolation scope
+
+[Declarative tenant isolation](tenant-isolation-0.6.0.md) is required for 0.6.0.
+D13 and A19/A20 are OPEN. The [technical tenant proposal](tenant-technical-contract.md)
+now specifies the candidate implementation and TENANT-01–08 feasibility requirements. No policy-only account filter or manually repeated query
+predicate satisfies these requirements. Apply isolation to J01–J08 and the release
+manifest, including extension modules and non-database output paths.
+
+## Authorization contract proposal
+
+[Usecase authorization](usecase-authorization-contract.md) proposes the D02/D03
+semantics and AUTH-01–08 test requirements. It is not implementation evidence.
+A03/A04/A15/A18 remain OPEN; the Spring transaction/security spike is still pending.
+
 ## Completion policy
 
 Use these states: `OPEN`, `IN PROGRESS`, `IMPLEMENTED / UNVERIFIED`, `VERIFIED`,
@@ -53,6 +67,8 @@ Evidence is currently **none** for all rows. All statuses are OPEN.
 | A16 | Release distribution integrity | Exact-commit dry run, required test execution, actual packaged ZIP verification, supported-IDE smoke, Maven/extension fresh consumption and Marketplace approval | OPEN / none |
 | A17 | Credential-free predefined test providers | Fresh application startup with fixed success and selectable failure sequences, local inbox, same processing paths, no unexpected provider traffic, explicit test/production bindings | OPEN / none |
 | A18 | Business observability and actionable failures | Stable safe reasons across API/UI/workers; rights/limits/payment/renewal failures and recovery; useful event correlation; seeded sensitive values absent from normal/error logs | OPEN / none |
+| A19 | Automatic shared-database tenant isolation | Declarative classification; byId/find/CRUD/graphs/pages/count/cursors; cross-tenant references and object-save rejection; missing context and pooling/concurrency tests under the actual database role | OPEN / none |
+| A20 | Tenant lifecycle and whole-SaaS propagation | Personal/shared membership, provisioning/global data, module metadata/DDL/backfill, event/payment/mail workers, files/caches and fresh/upgrade E2E isolation | OPEN / none |
 
 ## Required integrated journeys
 
@@ -92,7 +108,7 @@ Schedule a separate review PR after integration, before calling the release read
 The review may use the same contributor but must be a new, explicit assessment of
 the final implementation, not merely a repetition of prior progress summaries.
 
-- [ ] Reconcile every plan/release promise, D01–D12 decision and A01–A18 row against
+- [ ] Reconcile every plan/release promise, D01–D13 decision and A01–A20 row against
       actual source, tests, public APIs, generated output and consuming application.
 - [ ] Inspect stubs, TODO/FIXME/UnsupportedOperationException paths, empty adapters,
       commented/disabled/skipped tests and happy-path-only simulators. Classify relevant
@@ -137,7 +153,7 @@ tooling rather than relying on a maintainer remembering to inspect this Markdown
 
 ## Final go/no-go
 
-GO requires all agreed requirements VERIFIED, J01–J08 evidenced, D01–D12 resolved,
+GO requires all agreed requirements VERIFIED, J01–J08 evidenced, D01–D13 resolved,
 no release-blocking findings, implemented passing automated gate and recorded
 maintainer approval. Optional future work must be identified explicitly, not used
 as a label for unfinished agreed functionality. A scope reduction requires an

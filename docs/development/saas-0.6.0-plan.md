@@ -14,7 +14,7 @@ work. Existing language contracts remain authoritative until amended by reviewed
 ## Outcome and completeness
 
 A developer can create a Vernac application, configure and deploy it, and obtain
-working self-registration, account management, authorization, subscriptions,
+working self-registration, account management, automatic tenant isolation, authorization, subscriptions,
 payments, customer invoicing and transactional system email. The developer should
 implement their product, not reconstruct these common lifecycles from examples.
 Reusable UI and application flows are part of the outcome, alongside domain modules.
@@ -29,6 +29,16 @@ organization accounts, invite members, create documents and export them subject 
 rights and limits. It offers Free and paid plans, checkout, invoices and account
 management. Product documents and the SaaS provider's customer invoices are separate
 models. Domain names and exact feature choices can change during contract review.
+
+## Scope addition: automatic tenant isolation
+
+Tenant isolation is a mandatory 0.6.0 foundation for both personal and organizational
+SaaS use. A small aggregate classification must drive generated repository reads,
+writes, graph loading, queries/pagination and schema protection under a trusted tenant
+context. Application authors must not repeat account/organization predicates.
+[The tenancy design slice](tenant-isolation-0.6.0.md) records the required guarantees
+and open D13 decisions. It supersedes using resource-policy account comparisons as
+the standard isolation mechanism; organization/account identity is not tenant identity.
 
 ## Architecture and ownership
 
@@ -250,6 +260,21 @@ not indiscriminate ERROR stack traces. Choose HTTP statuses, error structures,
 localization/message customization and public disclosure rules in D03 rather than
 baking speculative mappings into this planning document.
 
+## Technical tenancy design slice
+
+The [technical tenant contract](tenant-technical-contract.md) proposes D13 storage,
+transaction binding, RLS/roles, object provenance, migration and worker mechanics.
+It is ready for contract review, not implemented. Its TENANT-01–08 proofs belong in
+the next isolated executable Spring/PostgreSQL PR; production acceptance stays OPEN.
+
+## Authorization design slice
+
+The [proposed usecase authorization contract](usecase-authorization-contract.md)
+refines D02/D03 and the authorization ordering part of D04. Its syntax and runtime
+rules are for review, not implemented features. It specifies actor/scope/resource
+identity, all/any, public/default semantics, a generated entry guard and safe failures.
+An executable Spring spike remains required; the acceptance ledger stays OPEN.
+
 ## Decisions before implementation
 
 All decisions below are **open**. Record an accepted resolution, rationale, PR and
@@ -270,6 +295,7 @@ approval. Unresolved release-affecting decisions block final acceptance.
 | D10 | Mail provider, delivery ledger/templates, secure links and retry behavior |
 | D11 | Reusable UI delivery/customization, module activation and single-command local start/deployment |
 | D12 | Release inventory and automated acceptance gate; scope agreements across extension repositories |
+| D13 | Agreed opt-in tenant modifier/provisioning baseline; review and prove the technical context/storage/provenance/RLS/module/worker contract (no platform admin) |
 
 These can be resolved incrementally. Identity credentials, tax algorithms and payment
 semantics must not be guessed to avoid asking a genuinely necessary question.
@@ -277,9 +303,11 @@ semantics must not be guessed to avoid asking a genuinely necessary question.
 ## PR sequence
 
 1. **Plan and acceptance ledger** (this PR): align roadmaps; no language/runtime change.
-2. **Authorization contract and Spring spike**: D02/D03, entrypoint-to-usecase example,
+2. **Authorization/tenant contract and Spring spike**: D02/D03/D13, entrypoint-to-usecase example,
    denial taxonomy, chosen enforcement boundary and nested-call proof.
-3. **Rights and tooling**: shared compiler/analyzer model, generation, runtime/starter,
+3. **Tenant foundation and rights/tooling**: resolve D13 with the authorization context;
+   implement automatic isolation across schema, repositories, modules and workers. Then
+   continue with the shared compiler/analyzer model, generation, runtime/starter,
    LSP/IDE metadata/navigation/completion, executable reference and tutorials together.
 4. **Dynamic restrictions**: limits/capacity/quota facts, atomic accounting and explicit
    APIs; concurrency/failure tests, then functional/external reservation lifecycle.

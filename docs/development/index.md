@@ -38,6 +38,18 @@ For a guide across all documentation, use the [documentation map](../documentati
 
 ## Current priorities
 
+- [Technical tenant contract](tenant-technical-contract.md): proposed transaction/SQL/RLS,
+  object ownership, module/migration and worker mechanics; executable proof still pending.
+
+- [Declarative tenant isolation](tenant-isolation-0.6.0.md): mandatory 0.6.0 scope;
+  automatic repository/storage boundaries for personal and shared SaaS tenants.
+
+- [Superseded invoice policy example](usecase-authorization-example.md): why an explicit
+  account-filtered query is not a substitute for complete tenant isolation.
+
+- [Proposed usecase authorization contract](usecase-authorization-contract.md):
+  permission syntax, trusted actor/scope, execution ordering and safe failures for review.
+
 - [0.6.0 SaaS delivery plan](saas-0.6.0-plan.md): full reusable SaaS foundation,
   security boundaries, open decisions and incremental implementation PRs.
 - [0.6.0 completeness and release acceptance](release-0.6.0.md): requirement ledger,
