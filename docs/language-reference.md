@@ -942,3 +942,8 @@ See the [classification contract](contracts/explicit-tenancy.md),
 [tenant persistence tutorial](tutorials/tenant-persistence.md) and
 [implementation boundaries](development/tenant-persistence-integration.md).
 These additions require 0.6.0 development artifacts, not the released 0.5.x baseline.
+
+The next durable-tenant-event step has a [technical routing candidate](development/tenant-event-routing-contract.md)
+and test-only PostgreSQL proofs. These are not supported event APIs: do not generate
+tenant outbox code from the experimental helper classes or assume the emission guard
+has been removed.

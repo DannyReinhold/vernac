@@ -66,7 +66,7 @@ No public API or production-class placement is established by these test helpers
 
 It does not implement or verify production code generation, exported module metadata,
 cursor encryption/binding, complete aggregate graphs/orphan cleanup, full entity
-provenance/factory integration, migrations/schema-check, event claim/payload routing,
+provenance/factory integration, migrations/schema-check, production event claim/payload routing,
 HTTP/MVC/CSRF behavior, quotas, email, billing or a SaaS Wizard. Those remain separate
 OPEN requirements, even if this experiment is green. There is no broad all/any policy
 engine, immutable actor-context model or production startup-audit implementation here.
@@ -77,5 +77,19 @@ missing/failed/skipped required test cases. See the
 
 The fixture now delegates physical connection binding to the production
 [JdbcTenantCoordinator](../../docs/development/tenant-jdbc-coordinator.md). The
-handwritten schema and repository SQL remain experimental. The suite executes
+handwritten schema and repository SQL remain experimental. The original suite executes
 14 real PostgreSQL proofs, including unsafe child-table and privilege checks.
+
+## Durable event routing experiment
+
+A second, test-only suite implements the [event routing candidate](../../docs/development/tenant-event-routing-contract.md).
+It uses a handwritten mixed-origin payload graph and control-plane delivery queue,
+not JdbcEventStore/JdbcEventWorker or generated event adapters. Production durable
+tenant emission remains rejected.
+
+Seven proofs cover the nullable composite-FK gap, origin-qualified children, mixed
+RLS/exact-origin loading, atomic publication/fixed recipients, per-recipient retry
+after pool recreation, stale-token rollback/final-attempt recovery, parallel workers
+and contaminated global sessions. The same Maven command runs both suites (21 tests in total); missing
+PostgreSQL configuration fails rather than skips. The CI gate names every required
+proof. The original limitations above still apply to production event integration.

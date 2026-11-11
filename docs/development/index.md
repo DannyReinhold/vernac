@@ -108,3 +108,7 @@ mappings, Java-backed Vernac breakpoints and the installed-IDE acceptance walkth
 - [Explicit persistence classification](../contracts/explicit-tenancy.md): source-controlled tenancy rule and explicit global aggregates; tenant generation remains in progress.
 
 - [Local tenant persistence integration](tenant-persistence-integration.md): implemented generated graph/query paths, configuration contract and remaining module/event/SaaS boundaries.
+
+- [Durable tenant event routing](tenant-event-routing-contract.md): technical candidate,
+  non-null relationship-scope design and real PostgreSQL routing/lease feasibility proofs;
+  production emission remains guarded.

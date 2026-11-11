@@ -269,3 +269,7 @@ The failed event context prevents commit as with other delivery failures. This
 fail-closed boundary avoids silently storing tenant payloads or deliveries in the
 current unscoped event tables. Durable tenant envelopes, worker restoration and
 module routing remain OPEN; this is not completed tenant event support.
+
+The [durable tenant routing candidate](../development/tenant-event-routing-contract.md)
+and its PostgreSQL feasibility tests refine the next implementation. They do not
+remove this production guard or introduce supported event APIs.

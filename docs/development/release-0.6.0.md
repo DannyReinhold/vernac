@@ -259,3 +259,13 @@ module/application REQUIRED writes in one tenant transaction. Proofs cover resta
 parallel requests, rollback across all owners, additive external-VO upgrades/backfills
 for both tenants, later migration failure and retry. This is partial A19/A20 evidence;
 A19/A20/A21 remain OPEN pending the rest of the SaaS execution/identity/event lifecycle.
+
+## Durable tenant event feasibility evidence
+
+The [routing candidate](tenant-event-routing-contract.md) specifies captured origin,
+mixed payload protection, scope-qualified child links and worker context restoration.
+Seven real PostgreSQL proofs exercise origin isolation, nullable-FK behavior, atomic
+publication, fixed recipients, retry/pool recreation, lease fencing/terminal recovery
+and concurrent workers. This is handwritten experimental evidence, not generated
+production event support. The emission guard remains; schema/migrations/module/runtime
+integration and A19/A20/A21 remain OPEN.
