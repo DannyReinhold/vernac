@@ -182,3 +182,10 @@ approval are separate from implementation completion.
 Fresh consumption of the published Maven/extension artifacts and installation of
 the approved Marketplace plugin are the final distribution checks. Failures remain
 open release incidents, not a completed release with an unrecorded caveat.
+
+## Partial JDBC tenant infrastructure evidence
+
+The [production JDBC coordinator](tenant-jdbc-coordinator.md) supplies explicit
+connection binding and role/RLS flag checks. Generated repository invocation, exact
+policy/schema validation and migrations are still OPEN. This evidence does not
+verify A19/A20/A21 or complete automatic tenant isolation.

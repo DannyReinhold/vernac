@@ -3,7 +3,7 @@ title: Tenant isolation — first executable feasibility record
 ---
 # Tenant isolation — first executable feasibility record
 
-Status: **first test-only spike; production implementation remains OPEN**.
+Status: **test-only schema/repository fixture using production context and JDBC coordinator; generated persistence remains OPEN**.
 Baseline: 2026-11-11, after the merge of the authorization/technical tenancy design.
 The standalone [experiment](../../experiments/tenant-isolation-spike/README.md) does not
 modify the root reactor, generated code, current examples or current Wizard templates.
@@ -14,7 +14,7 @@ Validate transaction-bound tenant context, real PostgreSQL protection and the pr
 in-method usecase guard before changing compiler/runtime/module persistence paths.
 The first fixture used handwritten candidate classes, not generated `.vernac` models.
 It now consumes the [production runtime foundation](tenant-runtime-foundation.md) for
-TenantContext/TenantId/TenantOwnership. Its JDBC repository and authorization policy
+TenantContext/TenantId/TenantOwnership and the [production JDBC coordinator](tenant-jdbc-coordinator.md). Its JDBC repository and authorization policy
 remain handwritten candidates.
 
 Local verification: PostgreSQL **17.11**, Zulu JDK **25.0.4.1** compiling with `--release 21`,
@@ -29,7 +29,7 @@ Local result: **12 tests, 0 failures, 0 errors, 0 skipped**. Documentation links
 the real report and deliberately modified copies: missing/skipped proofs were rejected.
 No root reactor/IntelliJ build is claimed for this isolated test-only change.
 
-Current runtime-integration result: **55 runtime unit tests and 12 PostgreSQL spike
+Current runtime-integration result: **55 runtime unit tests and 14 PostgreSQL spike
 tests passed, zero failures/errors/skips**. This narrows the remaining duplication;
 it does not implement the production SQL/schema/generation boundary.
 
@@ -41,6 +41,8 @@ it does not implement the production SQL/schema/generation boundary.
 | byIdFindOrCountAndRawSqlAreTenantScoped | Predicates plus raw-SQL RLS isolation; other-tenant/missing IDs give identical not-found |
 | unmarkedGlobalDataNeedsNoTenantAndDoesNotBindOne | Global reference table stays usable without tenant; raw tenant reads without context see no rows |
 | runtimeRoleAndForcedOwnerProtectionAreReal | Runtime non-owner role is usable; schema owner/superuser/BYPASSRLS rejected; FORCE RLS affects owner's ordinary SELECT |
+| coordinatorRejectsIncompleteConfigurationAndUnsafeChildTables | Empty table inventory, missing table and disabled child-table RLS/FORCE are rejected |
+| coordinatorRejectsSchemaCreationAndTruncatePrivileges | Runtime schema CREATE and child-table TRUNCATE privileges are rejected |
 | rowSecurityBlocksCrossTenantWritesAndForeignKeysBlockCrossTenantLinks | Raw cross-tenant writes blocked/hidden; tenant-qualified FK rejects wrong-tenant child; child SELECT isolated |
 | requiredAndRequiresNewBindDifferentConnectionsAndRestoreOuterContext | Two PostgreSQL backend connections, suspend/resume, inner rollback cleanup and no tenant switch |
 | caughtInnerRequiredFailureMakesOuterTransactionRollbackOnly | Caught failure from a real proxied inner call still prevents outer commit |
@@ -72,9 +74,9 @@ PostgreSQL variables fail setup rather than silently skipping the suite.
    context. This does not make global business operations publicly authorized.
 
 The spike does not falsify the selected architecture. It is not a production-ready
-implementation to copy blindly: candidate binding validation checks this fixture's root
-table, and the provenance helper covers roots only. Full storage plans and all owned
-entities/tables need their own integration and validation.
+schema/repository implementation to copy blindly: generated storage plans and complete
+entity graphs still need integration. The production coordinator now validates every
+explicitly configured tenant table; exact policy/schema validation is still OPEN.
 
 ## Not yet proved or implemented
 
@@ -101,7 +103,8 @@ A21 in the [release ledger](release-0.6.0.md), not implemented by this experimen
 ## Next implementation boundary
 
 The general tenant context/provenance foundation now has its own production code and
-tests. Next introduce shared storage-plan/schema/JDBC coordinator changes in small PRs;
+tests; the JDBC coordinator now also has production code. Next introduce shared
+storage-plan/schema validation changes in small PRs;
 then integrate production repositories,
 queries, modules/events and compiler/tooling. Retain unscoped regression tests throughout.
 Keep the [technical contract](tenant-technical-contract.md) synchronized with executable

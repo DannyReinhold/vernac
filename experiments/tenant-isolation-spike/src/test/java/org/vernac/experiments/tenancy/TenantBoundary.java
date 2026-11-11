@@ -2,31 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.vernac.experiments.tenancy;
 
-import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.BiPredicate;
 import javax.sql.DataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.vernac.runtime.tenancy.TenantContext;
 import org.vernac.runtime.tenancy.TenantId;
 
-/** Test-only candidate: trusted selection plus a resource bound to the physical JDBC transaction. */
+/** Test-only authentication adapter around the production context and JDBC coordinator. */
 final class TenantBoundary {
-    private final DataSource source;
-    private final JdbcTemplate jdbc;
-    private final Object resourceKey = new Object();
+    private final org.vernac.runtime.jdbc.tenancy.JdbcTenantCoordinator coordinator;
     private final BiPredicate<String, UUID> membership;
 
     TenantBoundary(DataSource source, BiPredicate<String, UUID> membership) {
-        this.source = source;
-        this.jdbc = new JdbcTemplate(source);
+        this.coordinator = new org.vernac.runtime.jdbc.tenancy.JdbcTenantCoordinator(
+                source, java.util.List.of("tenant_spike.invoice", "tenant_spike.line"));
         this.membership = membership;
     }
 
@@ -43,93 +35,12 @@ final class TenantBoundary {
         return TenantContext.openVerified(TenantId.of(requested));
     }
 
-    UUID requireBound() {
-        if (!TransactionSynchronizationManager.isActualTransactionActive()
-                || !TransactionSynchronizationManager.isSynchronizationActive()) {
-            throw new Failure("TRANSACTION_REQUIRED");
-        }
-        UUID current = TenantContext.bindToCurrentTransaction().value();
-        var existing = binding();
-        if (existing != null) {
-            if (!existing.tenant().equals(current)) throw new Failure("TENANT_CONTEXT_MISMATCH");
-            // Do not release this borrowed connection until the transaction ends.
-            Connection connection = DataSourceUtils.getConnection(source);
-            try {
-                requirePhysicalTransaction(connection);
-                if (!Objects.equals(current.toString(), databaseTenant(connection))) {
-                    throw new Failure("TENANT_CONTEXT_MISMATCH");
-                }
-            } catch (SQLException failure) {
-                throw new Failure("TENANT_CONTEXT_CONFIGURATION_ERROR");
-            } finally {
-                DataSourceUtils.releaseConnection(connection, source);
-            }
-            return current;
-        }
-        verifyRuntimeRole();
-        Connection connection = DataSourceUtils.getConnection(source);
-        try {
-            requirePhysicalTransaction(connection);
-            String baseline = databaseTenant(connection);
-            if (baseline != null && !baseline.isEmpty()) throw new Failure("TENANT_CONTEXT_CONTAMINATED");
-            try (var statement = connection.prepareStatement("SELECT set_config('vernac.tenant_id', ?, true)")) {
-                statement.setString(1, current.toString());
-                statement.execute();
-            }
-        } catch (SQLException failure) {
-            throw new Failure("TENANT_CONTEXT_CONFIGURATION_ERROR");
-        } finally {
-            DataSourceUtils.releaseConnection(connection, source);
-        }
-        var created = new Binding(current);
-        TransactionSynchronizationManager.bindResource(resourceKey, created);
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override public void suspend() {
-                if (binding() != created) throw new Failure("TENANT_CONTEXT_MISMATCH");
-                TransactionSynchronizationManager.unbindResource(resourceKey);
-            }
-            @Override public void resume() {
-                TransactionSynchronizationManager.bindResource(resourceKey, created);
-            }
-            @Override public void afterCompletion(int status) {
-                if (binding() == created) TransactionSynchronizationManager.unbindResource(resourceKey);
-            }
-        });
-        return current;
-    }
+    UUID requireBound() { return coordinator.requireBound().value(); }
 
-    void verifyRuntimeRole() {
-        boolean unsafe = Boolean.TRUE.equals(jdbc.queryForObject("""
-                SELECT r.rolsuper OR r.rolbypassrls
-                    OR pg_has_role(current_user, c.relowner, 'USAGE')
-                    OR NOT c.relrowsecurity OR NOT c.relforcerowsecurity
-                FROM pg_roles r CROSS JOIN pg_class c
-                WHERE r.rolname = current_user AND c.oid = 'tenant_spike.invoice'::regclass
-                """, Boolean.class));
-        if (unsafe) throw new Failure("TENANT_RUNTIME_ROLE_INVALID");
-    }
+    void verifyRuntimeRole() { coordinator.verifyRuntimeRole(); }
 
-    private Binding binding() {
-        return (Binding) TransactionSynchronizationManager.getResource(resourceKey);
-    }
-
-    private void requirePhysicalTransaction(Connection connection) throws SQLException {
-        if (connection.getAutoCommit() || !DataSourceUtils.isConnectionTransactional(connection, source)) {
-            throw new Failure("TRANSACTION_REQUIRED");
-        }
-    }
-
-    private static String databaseTenant(Connection connection) throws SQLException {
-        try (var statement = connection.createStatement();
-             var result = statement.executeQuery("SELECT current_setting('vernac.tenant_id', true)")) {
-            result.next();
-            return result.getString(1);
-        }
-    }
-
-    boolean isBound() { return binding() != null || TenantContext.transactionTenant().isPresent(); }
+    boolean isBound() { return TenantContext.transactionTenant().isPresent(); }
     boolean isSelected() { return TenantContext.currentTenant().isPresent(); }
-    private record Binding(UUID tenant) {}
 
     static final class Failure extends RuntimeException {
         Failure(String safeCode) { super(safeCode); }
