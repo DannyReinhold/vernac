@@ -8,6 +8,9 @@ The current product and implementation plan is
 that SaaS is an unrelated later project; core/extension packaging, repositories,
 licensing and individual module release versions are still open decisions.
 
+The next review artifact is the [proposed authorization contract](usecase-authorization-contract.md).
+It does not imply that any permission syntax or enforcement is implemented.
+
 ## Purpose
 
 A consuming application should obtain self-registration, personal/organization

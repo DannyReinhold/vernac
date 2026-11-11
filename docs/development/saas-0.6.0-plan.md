@@ -250,6 +250,14 @@ not indiscriminate ERROR stack traces. Choose HTTP statuses, error structures,
 localization/message customization and public disclosure rules in D03 rather than
 baking speculative mappings into this planning document.
 
+## Authorization design slice
+
+The [proposed usecase authorization contract](usecase-authorization-contract.md)
+refines D02/D03 and the authorization ordering part of D04. Its syntax and runtime
+rules are for review, not implemented features. It specifies actor/scope/resource
+identity, all/any, public/default semantics, a generated entry guard and safe failures.
+An executable Spring spike remains required; the acceptance ledger stays OPEN.
+
 ## Decisions before implementation
 
 All decisions below are **open**. Record an accepted resolution, rationale, PR and

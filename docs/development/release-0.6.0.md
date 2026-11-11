@@ -11,6 +11,12 @@ The [SaaS plan](saas-0.6.0-plan.md) defines the outcome. No row below is complet
 because this planning document exists. Required extension artifacts are part of the
 acceptance boundary even if they have their own versions or repositories.
 
+## Authorization contract proposal
+
+[Usecase authorization](usecase-authorization-contract.md) proposes the D02/D03
+semantics and AUTH-01–08 test requirements. It is not implementation evidence.
+A03/A04/A15/A18 remain OPEN; the Spring transaction/security spike is still pending.
+
 ## Completion policy
 
 Use these states: `OPEN`, `IN PROGRESS`, `IMPLEMENTED / UNVERIFIED`, `VERIFIED`,

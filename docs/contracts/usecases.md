@@ -171,3 +171,11 @@ Repeated collections need distinct names. A single page does not create a Result
 No variant inference, implicit aggregate projection or extra isolation is introduced.
 See [the pagination contract](pagination.md) for precise types, transport shapes,
 counts, cursor binding and transaction limits.
+
+
+## Planned authorization (not implemented)
+
+The 0.6.0 [authorization contract proposal](../development/usecase-authorization-contract.md)
+is under review. It proposes requirements at generated execute entry, trusted
+actor/scope integration and nested-call enforcement. It does not change the syntax
+or runtime guarantees documented above until implementation and verification land.

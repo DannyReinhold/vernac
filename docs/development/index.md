@@ -38,6 +38,9 @@ For a guide across all documentation, use the [documentation map](../documentati
 
 ## Current priorities
 
+- [Proposed usecase authorization contract](usecase-authorization-contract.md):
+  permission syntax, trusted actor/scope, execution ordering and safe failures for review.
+
 - [0.6.0 SaaS delivery plan](saas-0.6.0-plan.md): full reusable SaaS foundation,
   security boundaries, open decisions and incremental implementation PRs.
 - [0.6.0 completeness and release acceptance](release-0.6.0.md): requirement ledger,
