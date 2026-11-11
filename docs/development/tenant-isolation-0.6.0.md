@@ -33,6 +33,33 @@ A tenant filter does not prove membership or grant rights; an Allow does not rem
 the tenant filter. Account billing and provider-side customer identity do not decide
 which product rows are readable.
 
+## Agreed provisioning and membership baseline
+
+- A user is a global identity. A tenant is a stable personal/shared data boundary.
+  A membership links a user to a tenant with tenant-local roles; no organization
+  entity is required. One user can have different roles in several tenants.
+- The normal personal self-registration flow verifies the new user, then provisions
+  the first tenant, its initial tenant-administration membership and the Free offer.
+  Define atomic/idempotent provisioning and recovery so retries cannot create extra
+  tenants, memberships or subscriptions; exact implementation is still pending.
+- Accepting an invitation joins the existing tenant and does not force creation of
+  another personal tenant. Additional tenant creation and invitations use explicit
+  protected usecases, not unrestricted side effects of login/account selection.
+- Verified tenant selection precedes product operations. Leaving a tenant or disabling
+  a membership removes user access, not the tenant's shared data. Subscription changes
+  retain the tenant identity; data retention/deletion is a separate lifecycle.
+- Initial administrative membership manages that tenant under defined rights. It is
+  not a platform-wide override or an automatic grant of every business permission.
+- **No platform administrator/superuser capability ships in the initial SaaS scope.**
+  There is no human-facing cross-tenant browse/impersonation UI or hidden isolation
+  bypass. Necessary provisioning, migrations and durable workers use narrow technical
+  entrypoints with explicit routing; they are not an all-powerful account role.
+
+This baseline is accepted conceptually. Role names/rights, account/tenant storage
+relationships, verification/provisioning boundaries and retention details still need
+their respective implementation contracts and tests. No implementation completion is
+implied by this agreement.
+
 ## Tenant lifetime versus subscription lifetime
 
 Keep TenantId, account identity and SubscriptionId distinct. Recommended initial SaaS
@@ -60,7 +87,7 @@ cardinality. Exact initial support is a reviewed SaaS-module decision.
 
 ## Small declaration; automatic aggregate boundary
 
-Candidate syntax for review (not current language):
+Agreed declaration form for the next implementation (not current language):
 
 ```text
 id InvoiceId;
@@ -69,7 +96,7 @@ tenant aggregate Invoice[InvoiceId](InvoiceNumber);
 repository InvoiceRepository for Invoice;
 ```
 
-`tenant` is a proposed modifier, not a chosen final keyword. The author declares the
+`tenant` is the agreed modifier; it is not implemented yet. The author declares the
 isolation characteristic once, on the aggregate. The aggregate need not declare a
 business `accountId`/`organizationId` field or receive a tenant input in every factory.
 Repositories and contained entity/value/relationship tables inherit the root boundary.
@@ -180,8 +207,9 @@ and fresh module consumers; preserve the migration review/responsibility contrac
   database filtering alone cannot secure an unscoped download URL or cached result.
 - Keep tenant identifiers and sensitive business data out of ordinary logs. Use the
   approved safe correlation design rather than logging raw context or row data.
-- Global administration is a separately authorized capability with explicit routing,
-  not a hidden `ignoreTenant` flag exposed to normal repositories or policies.
+- No platform-admin feature is required in this release. Necessary technical runtime
+  coordination has narrow explicit authority, never a hidden `ignoreTenant` flag
+  exposed to normal repositories or policies.
 
 ## Corrected invoice example
 
@@ -213,9 +241,9 @@ Account/tenant policy composition remains explicit but cannot disable this bound
 
 ## Release acceptance and next contract work
 
-D13 must resolve classification syntax, tenant identity/provisioning, transaction
-binding, physical mapping, factory/provenance rules, RLS/raw-SQL scope and global
-administration. It is now a prerequisite to freezing the resource-policy integration
+D13 still needs the detailed tenant identity/provisioning, transaction binding,
+physical mapping, factory/provenance rules and RLS/raw-SQL/runtime-operation boundary.
+The `tenant` spelling, omitted-marker semantics and no-platform-admin scope are agreed. It is now a prerequisite to freezing the resource-policy integration
 and to implementing the SaaS persistence-dependent slices, not a post-release option.
 
 Mandatory tests include two personal tenants and one multi-member tenant; all generated
