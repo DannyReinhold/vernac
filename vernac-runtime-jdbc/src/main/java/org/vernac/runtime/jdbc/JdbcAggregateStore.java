@@ -90,24 +90,41 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
         // Bound IN lists in chunks; no per-root or per-entity query loop.
         for(int offset=0;offset<ids.size();offset+=1000) {
             var batch=ids.subList(offset,Math.min(offset+1000,ids.size()));
-            for(Table table:order) if(!table.name().equals(root.table())) {
-                String owner=table.columns().stream().anyMatch(c->c.name().equals("@aggregateId"))?"@aggregateId":"@ownerId";
-                var rows=jdbc.query("SELECT "+String.join(", ",table.columns().stream().map(c->q(c.name())).toList())
-                        +" FROM "+table.name()+" WHERE "+scopedWhere(q(owner)+" IN (:ids)"),bindParameters(Map.of("ids",batch)),(rs,n)->readRow(table,rs));
-                for(var row:rows) graphs.get((UUID)row.get(owner)).get(table.name()).add(row);
-            }
-            var versions=jdbc.query("SELECT "+q("id")+", "+q("@version")+" FROM "+root.table()+" WHERE "+scopedWhere(q("id")+" IN (:ids)"),
-                    bindParameters(Map.of("ids",batch)),(rs,n)->Map.entry(rs.getObject(1,UUID.class),rs.getLong(2)));
-            Map<UUID,Long> current=new HashMap<>(); versions.forEach(e->current.put(e.getKey(),e.getValue()));
-            for(UUID id:batch) {
-                long expected=((Number)graphs.get(id).get(root.table()).getFirst().get("@version")).longValue();
-                if(!Objects.equals(current.get(id),expected)) throw conflict(id);
-            }
+            readRelations(batch, graphs);
+            verifyRootVersions(batch, graphs);
         }
         List<A> result=new ArrayList<>();
         for(UUID id:ids) result.add(type.cast(new ReadGraph(graphs.get(id)).entity(root.table(),id)));
         return List.copyOf(result);
     }
+    private void readRelations(List<UUID> batch,
+            Map<UUID,Map<String,List<Map<String,@Nullable Object>>>> graphs) {
+        for (Table table : order) {
+            if (table.name().equals(root.table())) continue;
+            String owner = table.columns().stream().anyMatch(c -> c.name().equals("@aggregateId"))
+                    ? "@aggregateId" : "@ownerId";
+            String columns = String.join(", ", table.columns().stream().map(c -> q(c.name())).toList());
+            String sql = "SELECT " + columns + " FROM " + table.name()
+                    + " WHERE " + scopedWhere(q(owner) + " IN (:ids)");
+            var rows = jdbc.query(sql, bindParameters(Map.of("ids", batch)), (rs, n) -> readRow(table, rs));
+            for (var row : rows) graphs.get((UUID) row.get(owner)).get(table.name()).add(row);
+        }
+    }
+
+    private void verifyRootVersions(List<UUID> batch,
+            Map<UUID,Map<String,List<Map<String,@Nullable Object>>>> graphs) {
+        String sql = "SELECT " + q("id") + ", " + q("@version") + " FROM " + root.table()
+                + " WHERE " + scopedWhere(q("id") + " IN (:ids)");
+        var versions = jdbc.query(sql, bindParameters(Map.of("ids", batch)),
+                (rs, n) -> Map.entry(rs.getObject(1, UUID.class), rs.getLong(2)));
+        Map<UUID,Long> current = new HashMap<>();
+        versions.forEach(e -> current.put(e.getKey(), e.getValue()));
+        for (UUID id : batch) {
+            long expected = ((Number) graphs.get(id).get(root.table()).getFirst().get("@version")).longValue();
+            if (!Objects.equals(current.get(id), expected)) throw conflict(id);
+        }
+    }
+
     /** Materialized root window; the count and selected roots share one PostgreSQL statement snapshot. */
     public record OffsetWindow<A>(List<A> items, boolean hasNext, long totalElements) { }
 
@@ -217,6 +234,13 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
         else if(update(rootTable,row," AND "+q("@version")+"=:expectedVersion",version)!=1) throw conflict(id);
         // The root write holds the optimistic-lock row lock until transaction completion.
         var stored=version==0 ? new HashMap<String,List<Map<String,@Nullable Object>>>() : readRows(id);
+        deleteObsoleteRelations(graph, stored);
+        writeDesiredRelations(graph, stored);
+        aggregate.persistenceState().version(version+1);
+        return aggregate;
+    }
+    private void deleteObsoleteRelations(WriteGraph graph,
+            Map<String,List<Map<String,@Nullable Object>>> stored) {
         for(Table t:order.reversed()) {
             if(t.name().equals(root.table())) continue;
             var desired=index(t,graph.rows.getOrDefault(t.name(),List.of()));
@@ -225,6 +249,10 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
                 if(next==null || replacedValueRow(old,next)) deleteRow(t,old);
             }
         }
+    }
+
+    private void writeDesiredRelations(WriteGraph graph,
+            Map<String,List<Map<String,@Nullable Object>>> stored) {
         for(Table t:order) {
             if(t.name().equals(root.table())) continue;
             var existing=index(t,stored.getOrDefault(t.name(),List.of()));
@@ -234,9 +262,8 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
                 else if(!old.equals(next)) update(t,next,"",0);
             }
         }
-        aggregate.persistenceState().version(version+1);
-        return aggregate;
     }
+
     public void delete(A aggregate) {execute(()->{deleteImpl(aggregate);return true;});}
     private void deleteImpl(A aggregate) {
         requireTransaction(); checkOwnership(aggregate); UUID id=root.id().apply(aggregate);

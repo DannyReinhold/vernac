@@ -44,6 +44,10 @@ public final class JdbcTenantCoordinator {
         if (tables.isEmpty() || tables.stream().anyMatch(String::isBlank)) {
             throw new IllegalArgumentException("Tenant tables must be explicitly configured");
         }
+        verifyBaselineConnection();
+    }
+
+    private void verifyBaselineConnection() {
         // Standard JDBC pools must hand out autocommit connections before Spring begins a transaction.
         // Otherwise an automatically synchronized connection from an unrelated manager could look transactional.
         if(TransactionSynchronizationManager.isActualTransactionActive())
@@ -80,32 +84,41 @@ public final class JdbcTenantCoordinator {
             if (connection.getAutoCommit() || !DataSourceUtils.isConnectionTransactional(connection, source)) {
                 throw new TenancyException(TENANT_TRANSACTION_REQUIRED);
             }
-            Binding existing = binding();
-            String current = databaseTenant(connection);
-            if (existing != null) {
-                if (!existing.tenant.equals(tenant) || !existing.connection.equals(connection)
-                        || !tenant.asString().equals(current)) {
-                    throw new TenancyException(TENANT_CONTEXT_MISMATCH);
-                }
-                if(!existing.verified.containsAll(verificationKeys())) {
-                    verifyTables(connection); existing.verified.addAll(verificationKeys());
-                }
-                return tenant;
-            }
-            if (current != null && !current.isEmpty()) {
-                throw new TenancyException(TENANT_CONTEXT_CONTAMINATED);
-            }
-            verifyTables(connection);
-            try (var statement = connection.prepareStatement("SELECT set_config('vernac.tenant_id', ?, true)")) {
-                statement.setString(1, tenant.asString());
-                statement.execute();
-            }
-            register(new Binding(tenant, connection, new HashSet<>(verificationKeys())));
+            bindTenant(connection, tenant);
             return tenant;
         } catch (SQLException failed) {
             throw new TenancyException(TENANT_CONTEXT_CONFIGURATION_ERROR);
         } finally {
             DataSourceUtils.releaseConnection(connection, source);
+        }
+    }
+
+    private void bindTenant(Connection connection, TenantId tenant) throws SQLException {
+        Binding existing = binding();
+        String current = databaseTenant(connection);
+        if (existing != null) {
+            verifyBinding(existing, connection, tenant, current);
+            return;
+        }
+        if (current != null && !current.isEmpty())
+            throw new TenancyException(TENANT_CONTEXT_CONTAMINATED);
+        verifyTables(connection);
+        try (var statement = connection.prepareStatement("SELECT set_config('vernac.tenant_id', ?, true)")) {
+            statement.setString(1, tenant.asString());
+            statement.execute();
+        }
+        register(new Binding(tenant, connection, new HashSet<>(verificationKeys())));
+    }
+
+    private void verifyBinding(Binding existing, Connection connection, TenantId tenant,
+                               @Nullable String current) throws SQLException {
+        if (!existing.tenant.equals(tenant) || !existing.connection.equals(connection)
+                || !tenant.asString().equals(current))
+            throw new TenancyException(TENANT_CONTEXT_MISMATCH);
+        Set<String> required = verificationKeys();
+        if (!existing.verified.containsAll(required)) {
+            verifyTables(connection);
+            existing.verified.addAll(required);
         }
     }
 
@@ -120,23 +133,27 @@ public final class JdbcTenantCoordinator {
 
     private void verifyTables(Connection connection) throws SQLException {
         for (String table : tables) {
-            try (var statement = connection.prepareStatement("""
-                    SELECT r.rolsuper OR r.rolbypassrls
-                        OR pg_has_role(current_user, c.relowner, 'MEMBER')
-                        OR NOT c.relrowsecurity OR NOT c.relforcerowsecurity
-                        OR has_schema_privilege(current_user, c.relnamespace, 'CREATE')
-                        OR has_table_privilege(current_user, c.oid, 'TRUNCATE')
-                    FROM pg_roles r CROSS JOIN pg_class c
-                    WHERE r.rolname = current_user AND c.oid = ?::regclass
-                    """)) {
-                statement.setString(1, table);
-                try (var result = statement.executeQuery()) {
-                    if (!result.next() || result.getBoolean(1)) {
-                        throw new TenancyException(TENANT_RUNTIME_ROLE_INVALID);
-                    }
+            verifyTableRole(connection, table);
+            if (requireOwnedPolicy) verifyPolicy(connection, table);
+        }
+    }
+
+    private static void verifyTableRole(Connection connection, String table) throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                SELECT r.rolsuper OR r.rolbypassrls
+                    OR pg_has_role(current_user, c.relowner, 'MEMBER')
+                    OR NOT c.relrowsecurity OR NOT c.relforcerowsecurity
+                    OR has_schema_privilege(current_user, c.relnamespace, 'CREATE')
+                    OR has_table_privilege(current_user, c.oid, 'TRUNCATE')
+                FROM pg_roles r CROSS JOIN pg_class c
+                WHERE r.rolname = current_user AND c.oid = ?::regclass
+                """)) {
+            statement.setString(1, table);
+            try (var result = statement.executeQuery()) {
+                if (!result.next() || result.getBoolean(1)) {
+                    throw new TenancyException(TENANT_RUNTIME_ROLE_INVALID);
                 }
             }
-            if(requireOwnedPolicy) verifyPolicy(connection,table);
         }
     }
 

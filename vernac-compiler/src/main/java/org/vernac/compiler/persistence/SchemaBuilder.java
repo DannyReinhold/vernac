@@ -146,22 +146,30 @@ public final class SchemaBuilder {
             fail(loc, "Entity persistence is not implemented yet; cannot persist field '" + path + "' of type " + identity);
         }
         ValueObjectNode value = (ValueObjectNode) definitions.get(identity);
-        if (value.isEnum()) {
-            Map<String, String> mapping = new TreeMap<>();
-            var old = previous.enumCodes().getOrDefault(identity, Map.of());
-            value.enumConstants().forEach(c -> mapping.put(c.name(), old.getOrDefault(c.name(), c.name())));
-            if (enumOverrides.containsKey(identity)) {
-                var override = enumOverrides.get(identity);
-                if (!override.keySet().equals(mapping.keySet()) || override.values().stream().anyMatch(Objects::isNull))
-                    fail(loc, "Enum-code override must map every current constant exactly once: " + identity);
-                mapping.clear(); mapping.putAll(override);
-            }
-            if (new HashSet<>(mapping.values()).size() != mapping.size()) fail(loc, "Duplicate persistence codes for " + identity);
-            codes.put(identity, mapping);
-            scalar(t, path, "String", parent, optional, identity);
-            t.check("enum:" + path, name(path) + " IN (" + String.join(", ", mapping.values().stream().map(SqlNames::literal).toList()) + ")");
-            return leaf(type, optional, path, "String");
+        if (value.isEnum()) return enumValue(t, path, type, optional, parent, loc, value, identity);
+        return flattenedValue(t, path, type, optional, parent, value, identity);
+    }
+
+    private StoragePlan.Value enumValue(MutableTable t, String path, ResolvedType type, boolean optional,
+                                       String parent, SourceLocation loc, ValueObjectNode value, String identity) {
+        Map<String, String> mapping = new TreeMap<>();
+        var old = previous.enumCodes().getOrDefault(identity, Map.of());
+        value.enumConstants().forEach(c -> mapping.put(c.name(), old.getOrDefault(c.name(), c.name())));
+        if (enumOverrides.containsKey(identity)) {
+            var override = enumOverrides.get(identity);
+            if (!override.keySet().equals(mapping.keySet()) || override.values().stream().anyMatch(Objects::isNull))
+                fail(loc, "Enum-code override must map every current constant exactly once: " + identity);
+            mapping.clear(); mapping.putAll(override);
         }
+        if (new HashSet<>(mapping.values()).size() != mapping.size()) fail(loc, "Duplicate persistence codes for " + identity);
+        codes.put(identity, mapping);
+        scalar(t, path, "String", parent, optional, identity);
+        t.check("enum:" + path, name(path) + " IN (" + String.join(", ", mapping.values().stream().map(SqlNames::literal).toList()) + ")");
+        return leaf(type, optional, path, "String");
+    }
+
+    private StoragePlan.Value flattenedValue(MutableTable t, String path, ResolvedType type, boolean optional,
+                                            String parent, ValueObjectNode value, String identity) {
         Set<String> before = new HashSet<>(t.columns.keySet());
         String active = parent;
         String presence = null, markerName = null;
@@ -295,60 +303,102 @@ public final class SchemaBuilder {
         return String.join(", ", columns.stream().map(SqlNames::name).toList());
     }
 
-    private StoragePlan.Value collection(MutableTable owner, String path, TypeSymbol symbol, boolean optional, String parent, SourceLocation loc) {
-        var c = CollectionTypes.find(project.project(), symbol.identity()).orElseThrow();
-        var element = project.project().symbols().find(symbol.identity().namespace() + "." + c.elementName()).orElseThrow();
-        if (!c.valueElements() && element.kind() != TypeSymbol.Kind.ENTITY)
+    private StoragePlan.Value collection(MutableTable owner, String path, TypeSymbol symbol,
+                                         boolean optional, String parent, SourceLocation loc) {
+        var declaration = CollectionTypes.find(project.project(), symbol.identity()).orElseThrow();
+        var element = project.project().symbols()
+                .find(symbol.identity().namespace() + "." + declaration.elementName()).orElseThrow();
+        if (!declaration.valueElements() && element.kind() != TypeSymbol.Kind.ENTITY)
             fail(loc, "Aggregate collections cannot be contained: " + path);
-        if (optional || !parent.equals("TRUE")) {
-            String marker = "@present:" + path;
-            owner.column(marker, "BOOLEAN", !parent.equals("TRUE"), "collection-presence", symbol.identity().qualifiedName());
-            if (!parent.equals("TRUE")) owner.check("presence:" + path, "((" + parent + ") AND " + name(marker) + (optional ? " IS NOT NULL" : " IS TRUE")
-                    + ") OR ((NOT (" + parent + ")) AND " + name(marker) + " IS NULL)");
-        }
-        boolean list = c.definition().kind() == CollectionDefinitionNode.Kind.LIST;
-        if (element.kind() == TypeSymbol.Kind.ENTITY) {
-            MutableTable link = entityCollection(owner, path, element, list, loc);
-            var item = new StoragePlan.Value(new ResolvedType.Declared(element), false, null, null, List.of("@entityId"), List.of(),
-                    entities.get(element.identity().qualifiedName()).freeze().identity(), null, null, false);
-            return new StoragePlan.Value(new ResolvedType.Declared(symbol), optional, null,
-                    optional || !parent.equals("TRUE") ? "@present:" + path : null, List.of(), List.of(new StoragePlan.Property("value", item)),
-                    link.freeze().identity(), owner == root ? "@aggregateId" : "@ownerId", "id", list);
-        }
-        String tableName = owner.name + "." + path;
-        MutableTable child = new MutableTable(owner.namespace, tableName, symbol.identity().qualifiedName(),
-                list ? (owner.primaryKey.equals(List.of("@aggregateId", "id"))
-                        ? List.of("@aggregateId", "@ownerId", "@position") : List.of("@ownerId", "@position"))
-                        : List.of("@rowId"));
+
+        String marker = collectionPresence(owner, path, symbol, optional, parent);
+        boolean list = declaration.definition().kind() == CollectionDefinitionNode.Kind.LIST;
+        if (element.kind() == TypeSymbol.Kind.ENTITY)
+            return entityCollectionValue(owner, path, symbol, element, optional, marker, list, loc);
+        return valueCollectionValue(owner, path, symbol, element, optional, marker, list, loc);
+    }
+
+    private String collectionPresence(MutableTable owner, String path, TypeSymbol symbol,
+                                      boolean optional, String parent) {
+        if (!optional && parent.equals("TRUE")) return null;
+        String marker = "@present:" + path;
+        owner.column(marker, "BOOLEAN", !parent.equals("TRUE"), "collection-presence", symbol.identity().qualifiedName());
+        if (!parent.equals("TRUE")) owner.check("presence:" + path,
+                "((" + parent + ") AND " + name(marker) + (optional ? " IS NOT NULL" : " IS TRUE")
+                        + ") OR ((NOT (" + parent + ")) AND " + name(marker) + " IS NULL)");
+        return marker;
+    }
+
+    private StoragePlan.Value entityCollectionValue(MutableTable owner, String path, TypeSymbol symbol,
+            TypeSymbol element, boolean optional, String marker, boolean list, SourceLocation loc) {
+        MutableTable link = entityCollection(owner, path, element, list, loc);
+        var item = new StoragePlan.Value(new ResolvedType.Declared(element), false, null, null,
+                List.of("@entityId"), List.of(), entities.get(element.identity().qualifiedName()).freeze().identity(),
+                null, null, false);
+        return collectionValue(symbol, optional, marker, item, link,
+                owner == root ? "@aggregateId" : "@ownerId", "id", list);
+    }
+
+    private StoragePlan.Value valueCollectionValue(MutableTable owner, String path, TypeSymbol symbol,
+            TypeSymbol element, boolean optional, String marker, boolean list, SourceLocation loc) {
+        MutableTable child = valueCollectionTable(owner, path, symbol, list);
+        String ownerKey = valueCollectionOwnerKey(owner);
+        linkValueCollection(owner, child, ownerKey);
+        child.predicate = valueCollectionPredicate(owner, ownerKey);
+        var item = field(child, "value", new ResolvedType.Declared(element), false, "TRUE", loc);
+        publish(child);
+        return collectionValue(symbol, optional, marker, item, child, "@ownerId", ownerKey, list);
+    }
+
+    private MutableTable valueCollectionTable(MutableTable owner, String path, TypeSymbol symbol, boolean list) {
+        List<String> key = list ? (isEntityTable(owner)
+                ? List.of("@aggregateId", "@ownerId", "@position") : List.of("@ownerId", "@position"))
+                : List.of("@rowId");
+        MutableTable child = new MutableTable(owner.namespace, owner.name + "." + path,
+                symbol.identity().qualifiedName(), key);
         child.depth = owner.depth + 1;
         child.column("@rowId", "UUID", false, "collection-row", path);
         child.column("@ownerId", "UUID", false, "collection-owner", path);
         if (list) {
             child.column("@position", "INTEGER", false, "list-position", path);
             child.check("position", name("@position") + " >= 0");
-            child.constraints.add(new Constraint("@unique:row:" + tableName, "UNIQUE (" + name("@rowId") + ")"));
+            child.constraints.add(new Constraint("@unique:row:" + child.name, "UNIQUE (" + name("@rowId") + ")"));
         }
-        String ownerKey = owner == root ? root.primaryKey.getFirst() : "@rowId";
-        if (owner.primaryKey.equals(List.of("@aggregateId", "id"))) {
+        return child;
+    }
+
+    private void linkValueCollection(MutableTable owner, MutableTable child, String ownerKey) {
+        if (isEntityTable(owner) || tenantRoot)
             child.column("@aggregateId", "UUID", false, "aggregate-owner", root.origin);
-            child.foreignKey("@fk:owner",List.of("@aggregateId","@ownerId"),owner.namespace,owner.name,
-                    List.of("@aggregateId","id"),false);
+        if (isEntityTable(owner) || (tenantRoot && owner != root)) {
+            child.foreignKey("@fk:owner", List.of("@aggregateId", "@ownerId"), owner.namespace, owner.name,
+                    List.of("@aggregateId", ownerKey), false);
         } else {
-            if(tenantRoot) child.column("@aggregateId","UUID",false,"aggregate-owner",root.origin);
-            if(tenantRoot && owner!=root)
-                child.foreignKey("@fk:owner",List.of("@aggregateId","@ownerId"),owner.namespace,owner.name,
-                        List.of("@aggregateId",ownerKey),false);
-            else child.foreignKey("@fk:owner",List.of("@ownerId"),owner.namespace,owner.name,List.of(ownerKey),false);
-            if(tenantRoot && owner==root) child.check("aggregate-owner",name("@aggregateId")+" = "+name("@ownerId"));
+            child.foreignKey("@fk:owner", List.of("@ownerId"), owner.namespace, owner.name, List.of(ownerKey), false);
         }
-        boolean entityOwner = owner.primaryKey.equals(List.of("@aggregateId", "id"));
-        child.predicate = entityOwner ? name("@aggregateId") + " = :aggregateId"
-                : name("@ownerId") + " IN (SELECT " + name(ownerKey) + " FROM " + table(owner.namespace, owner.name) + " WHERE " + scoped(owner.predicate) + ")";
-        var item = field(child, "value", new ResolvedType.Declared(element), false, "TRUE", loc);
-        publish(child);
-        return new StoragePlan.Value(new ResolvedType.Declared(symbol), optional, null,
-                optional || !parent.equals("TRUE") ? "@present:" + path : null, List.of(), List.of(new StoragePlan.Property("value", item)),
-                child.freeze().identity(), "@ownerId", entityOwner ? "id" : ownerKey, list);
+        if (tenantRoot && owner == root)
+            child.check("aggregate-owner", name("@aggregateId") + " = " + name("@ownerId"));
+    }
+
+    private String valueCollectionPredicate(MutableTable owner, String ownerKey) {
+        if (isEntityTable(owner)) return name("@aggregateId") + " = :aggregateId";
+        return name("@ownerId") + " IN (SELECT " + name(ownerKey) + " FROM " + table(owner.namespace, owner.name)
+                + " WHERE " + scoped(owner.predicate) + ")";
+    }
+
+    private String valueCollectionOwnerKey(MutableTable owner) {
+        if (isEntityTable(owner)) return "id";
+        return owner == root ? root.primaryKey.getFirst() : "@rowId";
+    }
+
+    private static boolean isEntityTable(MutableTable table) {
+        return table.primaryKey.equals(List.of("@aggregateId", "id"));
+    }
+
+    private static StoragePlan.Value collectionValue(TypeSymbol symbol, boolean optional, String marker,
+            StoragePlan.Value item, MutableTable table, String ownerColumn, String ownerKey, boolean list) {
+        return new StoragePlan.Value(new ResolvedType.Declared(symbol), optional, null, marker, List.of(),
+                List.of(new StoragePlan.Property("value", item)), table.freeze().identity(), ownerColumn, ownerKey, list);
     }
     private String scoped(String predicate) {
         return tenantRoot ? name(TenantSchema.COLUMN)+" = :__vernacTenant AND ("+predicate+")" : predicate;

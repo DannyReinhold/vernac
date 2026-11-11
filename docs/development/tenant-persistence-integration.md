@@ -112,3 +112,23 @@ role/policy rejection and safe collision errors. Existing unscoped PostgreSQL/mo
 suites remain required regression evidence. See the PR/CI reports for executed counts.
 
 For use and operational prerequisites, see the [tenant persistence tutorial](../tutorials/tenant-persistence.md).
+
+## Internal responsibilities
+
+`SchemaBuilder.collection` resolves the collection and dispatches to entity-link or
+value-row planning. Presence markers, value-table keys, owner foreign keys and
+load predicates have separate private helpers. `field` similarly dispatches enum
+codes and flattened value objects instead of mixing both representations. These
+helpers preserve the existing schema, constraint ordering and storage-plan output.
+
+In `JdbcAggregateStore`, batched relation reads and root-version verification remain
+in that order, within the same chunk. Saving still locks/writes the root first,
+deletes obsolete relationships in reverse dependency order, then writes desired
+relationships in dependency order. The private methods make those phases explicit;
+they do not introduce additional queries or transaction boundaries.
+
+`JdbcTenantCoordinator` separates baseline connection checks, transaction binding,
+existing-binding verification and per-table role verification. SQL failures still
+pass through the same sanitization boundary and connections are released in the
+same `finally` blocks. This decomposition is internal and changes no language or
+public runtime contract.
