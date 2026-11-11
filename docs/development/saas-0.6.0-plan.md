@@ -260,6 +260,13 @@ not indiscriminate ERROR stack traces. Choose HTTP statuses, error structures,
 localization/message customization and public disclosure rules in D03 rather than
 baking speculative mappings into this planning document.
 
+## Technical tenancy design slice
+
+The [technical tenant contract](tenant-technical-contract.md) proposes D13 storage,
+transaction binding, RLS/roles, object provenance, migration and worker mechanics.
+It is ready for contract review, not implemented. Its TENANT-01–08 proofs belong in
+the next isolated executable Spring/PostgreSQL PR; production acceptance stays OPEN.
+
 ## Authorization design slice
 
 The [proposed usecase authorization contract](usecase-authorization-contract.md)
@@ -288,7 +295,7 @@ approval. Unresolved release-affecting decisions block final acceptance.
 | D10 | Mail provider, delivery ledger/templates, secure links and retry behavior |
 | D11 | Reusable UI delivery/customization, module activation and single-command local start/deployment |
 | D12 | Release inventory and automated acceptance gate; scope agreements across extension repositories |
-| D13 | Declarative tenant/global classification, identity/provisioning, all repository/storage paths, context and ownership provenance, migrations, RLS/raw-SQL boundary and system routing |
+| D13 | Agreed opt-in tenant modifier/provisioning baseline; review and prove the technical context/storage/provenance/RLS/module/worker contract (no platform admin) |
 
 These can be resolved incrementally. Identity credentials, tax algorithms and payment
 semantics must not be guessed to avoid asking a genuinely necessary question.

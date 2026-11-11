@@ -14,7 +14,8 @@ acceptance boundary even if they have their own versions or repositories.
 ## Mandatory tenant isolation scope
 
 [Declarative tenant isolation](tenant-isolation-0.6.0.md) is required for 0.6.0.
-D13 and A19/A20 are OPEN. No policy-only account filter or manually repeated query
+D13 and A19/A20 are OPEN. The [technical tenant proposal](tenant-technical-contract.md)
+now specifies the candidate implementation and TENANT-01–08 feasibility requirements. No policy-only account filter or manually repeated query
 predicate satisfies these requirements. Apply isolation to J01–J08 and the release
 manifest, including extension modules and non-database output paths.
 

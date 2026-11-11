@@ -3,11 +3,20 @@ title: Declarative tenant isolation — required 0.6.0 foundation
 ---
 # Declarative tenant isolation — required 0.6.0 foundation
 
-Status: **accepted 0.6.0 scope addition; detailed contract proposed, not implemented**.
+Status: **accepted 0.6.0 scope/baseline; technical contract proposed, not implemented**.
 This supersedes the assumption that invoice/account filtering in an authorization
 policy can provide normal SaaS isolation. Tenant isolation is required alongside the
 [authorization contract](usecase-authorization-contract.md), not a later optional feature.
 See the [delivery plan](saas-0.6.0-plan.md) and [release ledger](release-0.6.0.md).
+
+## Technical design now available
+
+The [technical tenant contract](tenant-technical-contract.md) proposes the concrete
+mechanics: UUID TenantId, transaction-bound context, @tenantId discriminator, unchanged
+root UUID primary keys plus tenant-safe owned keys, generated SQL predicates and
+PostgreSQL RLS, object provenance, module migrations and worker routing. Those choices
+supersede the corresponding open alternatives below for review; no implementation or
+TENANT test pass is implied. The next step is an executable Spring/PostgreSQL spike.
 
 ## Tenant, actor, account and organization
 
@@ -168,17 +177,18 @@ Application-authored SQL is outside a generated-query-only guarantee. Define sup
 raw-JDBC/administrative paths and their boundaries explicitly. Evaluate PostgreSQL
 row-level security as database defense in depth before claiming isolation for raw SQL.
 RLS has owner/superuser/BYPASSRLS exceptions and does not replace tenant-safe foreign
-keys. The final decision, runtime role and transaction-local context setup need tests;
+keys. The technical proposal requires RLS plus generated predicates and separate runtime/
+migration roles; transaction-local context setup still needs executable tests;
 this plan does not claim that enabling an RLS checkbox solves all paths.
 
 ## Storage, references and migrations
 
 Use a generated technical tenant discriminator in shared tables, outside business
-field naming and ordinary setters. The physical column/type spelling is still open.
+field naming and ordinary setters. The technical proposal chooses UUID "@tenantId".
 Every tenant root, contained entity and owned list/set table must be attributable to
-one tenant; foreign keys/uniqueness/indexes must prevent cross-tenant links. Decide
-composite keys versus globally unique identities and tenant-scoped uniqueness from
-actual generated DDL, including relationships, before writing the storage contract.
+one tenant; foreign keys/uniqueness/indexes must prevent cross-tenant links. The technical
+proposal retains global root UUID primary keys and adds tenant-qualified owned
+keys/foreign keys. Verify actual generated DDL, including relationships.
 
 Ordinary aggregate references remain IDs, but existence/reference operations cannot
 use an ID alone to cross a tenant. Deliberate references to global data need explicit
@@ -241,9 +251,10 @@ Account/tenant policy composition remains explicit but cannot disable this bound
 
 ## Release acceptance and next contract work
 
-D13 still needs the detailed tenant identity/provisioning, transaction binding,
-physical mapping, factory/provenance rules and RLS/raw-SQL/runtime-operation boundary.
-The `tenant` spelling, omitted-marker semantics and no-platform-admin scope are agreed. It is now a prerequisite to freezing the resource-policy integration
+The [technical contract](tenant-technical-contract.md) now proposes the D13 transaction,
+storage, provenance, RLS and worker mechanics. Review/feasibility proof and module
+integration remain open. The `tenant` spelling, omitted-marker semantics and
+no-platform-admin scope are agreed. It is now a prerequisite to freezing the resource-policy integration
 and to implementing the SaaS persistence-dependent slices, not a post-release option.
 
 Mandatory tests include two personal tenants and one multi-member tenant; all generated

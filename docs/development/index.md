@@ -38,6 +38,9 @@ For a guide across all documentation, use the [documentation map](../documentati
 
 ## Current priorities
 
+- [Technical tenant contract](tenant-technical-contract.md): proposed transaction/SQL/RLS,
+  object ownership, module/migration and worker mechanics; executable proof still pending.
+
 - [Declarative tenant isolation](tenant-isolation-0.6.0.md): mandatory 0.6.0 scope;
   automatic repository/storage boundaries for personal and shared SaaS tenants.
 

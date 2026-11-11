@@ -13,6 +13,16 @@ The current [usecase contract](../contracts/usecases.md) remains authoritative f
 existing syntax. All new syntax below is deliberately fenced as text. No runtime,
 grammar, supported AI reference or public language baseline changes in this PR.
 
+## Technical tenant integration
+
+The [technical tenant contract](tenant-technical-contract.md) defines the proposed
+transaction-bound context/storage boundary. TenantId is independent of application
+AccountId and resource policy inputs. Permission scope resolution cannot replace an
+already bound tenant. Global usecases/repositories remain valid without a tenant;
+tenant operations require verified selection and the coordinator before tenant SQL.
+Necessary worker REQUIRES_NEW phases initialize their own physical binding. Prove
+these rules together with the authorization entry guard in the next spike.
+
 ## New prerequisite: tenant isolation
 
 The [tenant-isolation design slice](tenant-isolation-0.6.0.md) is now mandatory
