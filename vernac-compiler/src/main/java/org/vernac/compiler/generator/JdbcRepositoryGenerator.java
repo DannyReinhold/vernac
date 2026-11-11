@@ -32,6 +32,7 @@ public final class JdbcRepositoryGenerator {
                 .addAnnotation(ClassName.get("org.springframework.stereotype","Repository"))
                 .addAnnotation(AnnotationSpec.builder(ClassName.get("org.springframework.transaction.annotation","Transactional"))
                         .addMember("propagation","$T.MANDATORY",ClassName.get("org.springframework.transaction.annotation","Propagation")).build());
+        if(plan.aggregate().tenant()) adapter.addAnnotation(ClassName.get("org.springframework.boot.sql.init.dependency","DependsOnDatabaseInitialization"));
         currentAdapter=adapter; bindingNumber=0;
         TypeName storeType=ParameterizedTypeName.get(STORE,aggregate);
         adapter.addField(storeType,"store",Modifier.PRIVATE,Modifier.FINAL);
@@ -71,11 +72,13 @@ public final class JdbcRepositoryGenerator {
         for(var relation:plan.relations()) {
             var table=relation.table();
             List<CodeBlock> columns=table.columns().stream().map(c->CodeBlock.of("new $T.Column($S, $S)",M,SqlNames.physical(c.name()),c.sqlType())).toList();
-            tables.add(CodeBlock.of("new $T.Table($S, $S, $L, $L, $L)",M,table.sqlName(),relation.predicate(),relation.depth(),list(columns),strings(table.primaryKey())));
+            tables.add(table.tenantIsolation()==null
+                    ?CodeBlock.of("new $T.Table($S, $S, $L, $L, $L)",M,table.sqlName(),relation.predicate(),relation.depth(),list(columns),strings(table.primaryKey()))
+                    :CodeBlock.of("new $T.Table($S, $S, $L, $L, $L, true)",M,table.sqlName(),relation.predicate(),relation.depth(),list(columns),strings(table.primaryKey())));
             if(table.primaryKey().equals(List.of("id"))) {
                 adapter.addMethod(MethodSpec.methodBuilder("rootMapping").addModifiers(Modifier.PRIVATE,Modifier.STATIC).returns(M.nestedClass("Domain"))
                         .addStatement("return $L",domain(relation,aggregate,id,true)).build());
-            } else if(table.primaryKey().equals(List.of("@aggregateId","id"))) {
+            } else if(table.primaryKey().stream().filter(k->!k.equals("@tenantId")).toList().equals(List.of("@aggregateId","id"))) {
                 var symbol=project.project().symbols().find(table.origin()).orElseThrow();
                 EntityNode node=null;
                 for(var source:project.project().sources()) for(var def:source.unit().definitions())
@@ -226,6 +229,13 @@ public final class JdbcRepositoryGenerator {
             args.add(CodeBlock.of("($T) values[$L]",java.time.Instant.class,n));
             args.add(CodeBlock.of("($T) values[$L]",java.time.Instant.class,n+1));
             args.add(CodeBlock.of("($T) values[$L]",Long.class,n+2));
+        }
+        boolean externalEntity=!root && project.project().symbols().find(relation.table().origin())
+                .map(symbol->project.project().sources().stream().anyMatch(source->source.external()&&source.path().equals(symbol.sourceFile()))).orElse(false);
+        if(!root && !externalEntity || relation.table().tenantIsolation()!=null) {
+            var restored=new ArrayList<>(args);restored.add(CodeBlock.of("ownership"));
+            return CodeBlock.of("new $T.Domain($S, value -> (($T) value).id().value(), $L, (id, values) -> $T.reconstitute($L), (id, values, ownership) -> $T.__vernacRestore($L))",
+                    M,relation.table().sqlName(),owner,list(fields),owner,CodeBlock.join(args,", "),owner,CodeBlock.join(restored,", "));
         }
         return CodeBlock.of("new $T.Domain($S, value -> (($T) value).id().value(), $L, (id, values) -> $T.reconstitute($L))",
                 M,relation.table().sqlName(),owner,list(fields),owner,CodeBlock.join(args,", "));

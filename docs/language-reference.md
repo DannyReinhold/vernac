@@ -877,17 +877,53 @@ failures. Overload checks use erased Java parameter types, so nullability and
 return types cannot distinguish overloads. Read/modify and transaction semantics
 are unchanged. See the [shared contract](contracts/implementation-contracts.md).
 
-## Explicit persistence classification (0.6.0 development only)
+## Tenant persistence and explicit classification (0.6.0 development only)
 
-Current source checkouts accept global aggregate as the explicit unscoped spelling
-of aggregate, with identical Java/schema behavior. Application definitions
-(.vapplication) and module definitions (.vmodule) may contain tenancy explicit;
-this requires explicit classification for their own aggregates targeted by local
-repositories. It checks private persisted types too; imports retain their published
-meaning. Without this declaration, ordinary aggregate retains existing behavior.
+Use tenant aggregate for local tenant-owned persistence; global aggregate explicitly
+retains existing unscoped behavior. A bare aggregate also remains unscoped unless
+the project requires an explicit choice. Add tenancy explicit; inside the project's
+.vapplication or .vmodule definition to require classification of own aggregates
+targeted by local repositories. There is no environment/profile override.
 
-Tenant-bound aggregate syntax/generation is still under implementation. Do not
-invent tenant aggregate code for this intermediate compiler or label private tenant
-data global to bypass the check. Existing Wizard templates do not enable this rule.
-See the [precise contract](contracts/explicit-tenancy.md). These additions require
-the 0.6.0 development compiler and are unavailable in the released 0.5.x baseline.
+```vernac
+namespace example.notes;
+id NoteId;
+id PlanId;
+value Text(String);
+tenant aggregate Note[NoteId](Text) list Notes;
+global aggregate Plan[PlanId](Text);
+repository NoteRepository for Note {
+    find Notes all() order by text;
+}
+repository PlanRepository for Plan {}
+```
+
+Normal create/reconstitute signatures and ID equality do not gain a tenant argument.
+Generated tenant repositories require verified TenantContext plus a Spring JDBC
+transaction. They constrain byId, CRUD, owned graph load/cleanup, searches, cardinality,
+offset counts and cursor windows. Tenant identity is technical metadata, not a field
+to add to the aggregate or populate from a request header. Cursor tokens cannot move
+between tenants. Ordinary/global repositories remain unscoped even in tenant context.
+
+Owned schema tables include @tenantId, qualified keys/FKs and RLS USING/WITH CHECK.
+Migrations for new tenant tables are generated normally; a change of classification
+on an existing table is currently blocked even with force. Review candidates as usual.
+
+Configure separate migration and non-owner runtime database roles; initialize tenant
+repository beans eagerly after migrations and keep the JDBC pool's default autocommit
+enabled. The coordinator verifies configuration and the exact owned PostgreSQL policy.
+Authentication/membership verification must establish the context through trusted
+infrastructure; no default tenant is invented.
+
+Current limits: tenant aggregates cannot yet be published in reusable modules;
+tenant roots cannot contain imported module entities. Imported immutable IDs/VOs
+remain reusable. Recorded/deferred publication while tenant context is selected fails
+clearly until tenant event routing exists; synchronous listeners remain supported.
+Manual tenant reconstitute creates detached state; use repository loading for updates.
+The separate SaaS Wizard/starter, identity/authorization and reviewed conversions are
+not delivered by these persistence APIs.
+
+See the [classification contract](contracts/explicit-tenancy.md),
+[tenant persistence tutorial](tutorials/tenant-persistence.md) and
+[implementation boundaries](development/tenant-persistence-integration.md).
+These additions require 0.6.0 development artifacts, not the released 0.5.x baseline.

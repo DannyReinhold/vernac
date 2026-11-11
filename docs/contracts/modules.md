@@ -832,3 +832,14 @@ MUST NOT follow PostgreSQL's implicit `$user` search path: creation of the techn
 `vernac` event schema must not relocate history for a login also named `vernac`.
 Explicit Flyway history/schema configuration is preserved. This changes no domain
 table ownership and does not enable automatic baselining of an existing schema.
+
+## Tenant persistence integration boundary (0.6.0 development)
+
+Tenant aggregate publication is currently rejected by both project validation and
+the programmatic publication API: module metadata/activation has not yet been
+extended to preserve that classification. Local tenant roots may embed imported
+immutable IDs/VOs, but imported entities require ownership-aware module contracts
+and are currently rejected. Existing global/unscoped module behavior is unchanged;
+activating a module or selecting a tenant does not reinterpret its tables.
+This limitation must be removed and verified before complete SaaS module support
+is claimed. See [tenant persistence integration](../development/tenant-persistence-integration.md).

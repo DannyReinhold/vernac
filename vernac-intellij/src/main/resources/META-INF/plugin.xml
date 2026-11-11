@@ -103,8 +103,8 @@
 <h3>0.6.0 development — Explicit persistence classification</h3>
 <p>Recognize global aggregate declarations and report the shared compiler's
 tenancy explicit rule, including unsaved application/module configuration.
-This is classification groundwork; tenant-bound generation and the SaaS starter
-are still in progress.</p>
+Local tenant aggregates now generate scoped JDBC graph/query persistence.
+Tenant modules, durable tenant event routing and the SaaS starter remain in progress.</p>
 <h3>Vernac 0.5.0 — Work in the model</h3>
 <p>Debug business behavior where you wrote it, use current model APIs before Java
 is generated, and start with a small working Spring Boot application.</p>

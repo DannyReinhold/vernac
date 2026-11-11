@@ -20,6 +20,8 @@ import org.vernac.runtime.pagination.PageCursor;
 import org.vernac.runtime.pagination.PaginationContractException;
 import static org.vernac.runtime.jdbc.JdbcMapping.*;
 import static org.vernac.runtime.jdbc.JdbcRows.*;
+import org.vernac.runtime.tenancy.*;
+import org.vernac.runtime.jdbc.tenancy.JdbcTenantCoordinator;
 
 /** Transaction-scoped complete aggregate persistence using explicit generated bindings. */
 @NullMarked
@@ -30,31 +32,48 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
     private final Map<String,Domain> domains=new LinkedHashMap<>();
     private final Map<String,Table> tables=new LinkedHashMap<>();
     private final List<Table> order;
+    private final boolean tenant;
+    private final @Nullable JdbcTenantCoordinator coordinator;
 
     public JdbcAggregateStore(NamedParameterJdbcTemplate jdbc,Class<A> type,Domain root,List<Domain> entities,List<Table> tables) {
         this.jdbc=Objects.requireNonNull(jdbc); this.type=type; this.root=root;
         domains.put(root.table(),root); entities.forEach(d->domains.put(d.table(),d));
         tables.forEach(t->this.tables.put(t.name(),t));
         order=tables.stream().sorted(Comparator.comparingInt(Table::depth).thenComparing(Table::name)).toList();
+        tenant=this.tables.get(root.table()).tenant();
+        if(tables.stream().anyMatch(t->t.tenant()!=tenant)) throw new IllegalArgumentException("Mixed tenant storage graph");
+        if(tenant) {
+            if(domains.values().stream().anyMatch(d->d.ownedRestore()==null)
+                    || tables.stream().anyMatch(t->t.columns().stream().noneMatch(c->c.name().equals("@tenantId")&&c.sqlType().equals("UUID"))))
+                throw new IllegalArgumentException("Incomplete tenant storage binding");
+            var source=jdbc.getJdbcTemplate().getDataSource();
+            if(source==null) throw new TenancyException(TenancyException.Code.TENANT_CONTEXT_CONFIGURATION_ERROR);
+            coordinator=new JdbcTenantCoordinator(source,order.stream().map(Table::name).toList(),true);
+            coordinator.verifyRuntimeRole();
+        } else coordinator=null;
     }
-    public A byId(UUID id) {
+    public A byId(UUID id) { return execute(()->byIdImpl(id)); }
+    private A byIdImpl(UUID id) {
         requireTransaction(); Objects.requireNonNull(id);
         var rows=readRows(id);
         var roots=rows.get(root.table());
         if(roots.isEmpty()) throw new AggregateNotFoundException(type,id);
         long version=((Number)roots.getFirst().get("@version")).longValue();
-        var current=jdbc.query("SELECT "+q("@version")+" FROM "+root.table()+" WHERE "+q("id")+"=:id",Map.of("id",id),(rs,n)->rs.getLong(1));
+        var current=jdbc.query("SELECT "+q("@version")+" FROM "+root.table()+" WHERE "+scopedWhere(q("id")+"=:id"),bindParameters(Map.of("id",id)),(rs,n)->rs.getLong(1));
         if(current.size()!=1 || current.getFirst()!=version) throw conflict(id);
         return type.cast(new ReadGraph(rows).entity(root.table(),id));
     }
     /** Loads roots selected in one statement, then batches each relation and checks root versions. */
     public List<A> find(String where, String ordering, SqlParameterSource parameters, boolean singleton, String queryName) {
+        return execute(()->findImpl(where,ordering,parameters,singleton,queryName));
+    }
+    private List<A> findImpl(String where, String ordering, SqlParameterSource parameters, boolean singleton, String queryName) {
         requireTransaction();
         Table rootTable=tables.get(root.table());
         String sql="SELECT "+String.join(", ",rootTable.columns().stream().map(c->q(c.name())).toList())
-                +" FROM "+root.table()+(where.isEmpty()?"":" WHERE "+where)
+                +" FROM "+root.table()+" WHERE "+scopedWhere(where)
                 +(ordering.isEmpty()?"":" ORDER BY "+ordering)+(singleton?" LIMIT 2":"");
-        var roots=jdbc.query(sql,parameters,(rs,n)->readRow(rootTable,rs));
+        var roots=jdbc.query(sql,bindParameters(parameters),(rs,n)->readRow(rootTable,rs));
         if(singleton && roots.size()>1) throw new NonUniqueQueryResultException(queryName);
         return restoreRoots(roots);
     }
@@ -74,11 +93,11 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
             for(Table table:order) if(!table.name().equals(root.table())) {
                 String owner=table.columns().stream().anyMatch(c->c.name().equals("@aggregateId"))?"@aggregateId":"@ownerId";
                 var rows=jdbc.query("SELECT "+String.join(", ",table.columns().stream().map(c->q(c.name())).toList())
-                        +" FROM "+table.name()+" WHERE "+q(owner)+" IN (:ids)",Map.of("ids",batch),(rs,n)->readRow(table,rs));
+                        +" FROM "+table.name()+" WHERE "+scopedWhere(q(owner)+" IN (:ids)"),bindParameters(Map.of("ids",batch)),(rs,n)->readRow(table,rs));
                 for(var row:rows) graphs.get((UUID)row.get(owner)).get(table.name()).add(row);
             }
-            var versions=jdbc.query("SELECT "+q("id")+", "+q("@version")+" FROM "+root.table()+" WHERE "+q("id")+" IN (:ids)",
-                    Map.of("ids",batch),(rs,n)->Map.entry(rs.getObject(1,UUID.class),rs.getLong(2)));
+            var versions=jdbc.query("SELECT "+q("id")+", "+q("@version")+" FROM "+root.table()+" WHERE "+scopedWhere(q("id")+" IN (:ids)"),
+                    bindParameters(Map.of("ids",batch)),(rs,n)->Map.entry(rs.getObject(1,UUID.class),rs.getLong(2)));
             Map<UUID,Long> current=new HashMap<>(); versions.forEach(e->current.put(e.getKey(),e.getValue()));
             for(UUID id:batch) {
                 long expected=((Number)graphs.get(id).get(root.table()).getFirst().get("@version")).longValue();
@@ -94,17 +113,19 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
 
     public OffsetWindow<A> offset(String where, String ordering, SqlParameterSource parameters,
             OffsetRequest request, boolean counting, int maximumPageSize) {
+        return execute(()->offsetImpl(where,ordering,parameters,request,counting,maximumPageSize));
+    }
+    private OffsetWindow<A> offsetImpl(String where,String ordering,SqlParameterSource parameters,
+            OffsetRequest request,boolean counting,int maximumPageSize) {
         requireTransaction();
         Objects.requireNonNull(request).size().checkMaximum(maximumPageSize);
         if(ordering.isBlank()) throw new IllegalArgumentException("Pagination requires explicit ordering");
         Table rootTable=tables.get(root.table());
-        var bound=new MapSqlParameterSource();
-        String[] names=Objects.requireNonNull(parameters.getParameterNames(), "Query parameter names required");
-        for(String name:names) bound.addValue(name,parameters.getValue(name),parameters.getSqlType(name),parameters.getTypeName(name));
+        var bound=bindParameters(parameters);
         bound.addValue("__vernacLimit", counting?(long)request.pageSize():(long)request.pageSize()+1)
                 .addValue("__vernacOffset",request.offset());
         String columns=String.join(", ",rootTable.columns().stream().map(c->q(c.name())).toList());
-        String filtered="SELECT "+columns+" FROM "+root.table()+(where.isEmpty()?"":" WHERE "+where);
+        String filtered="SELECT "+columns+" FROM "+root.table()+" WHERE "+scopedWhere(where);
         String sql;
         if(counting) {
             // A left join retains the count even for an empty/out-of-range page. Internal aliases cannot collide with domain columns.
@@ -132,6 +153,10 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
     public CursorWindow<A> cursor(String queryName, String modelFingerprint, String where,
             List<JdbcCursorSort> sorting, SqlParameterSource parameters, CursorRequest request,
             int maximumPageSize, JdbcCursorCodec codec) {
+        return execute(()->cursorImpl(queryName,modelFingerprint,where,sorting,parameters,request,maximumPageSize,codec));
+    }
+    private CursorWindow<A> cursorImpl(String queryName,String modelFingerprint,String where,
+            List<JdbcCursorSort> sorting,SqlParameterSource parameters,CursorRequest request,int maximumPageSize,JdbcCursorCodec codec) {
         requireTransaction(); Objects.requireNonNull(request).size().checkMaximum(maximumPageSize);
         if(sorting.isEmpty()) throw new PaginationContractException("Cursor pagination requires explicit sorting");
         Table rootTable=tables.get(root.table());
@@ -141,10 +166,8 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
             keys.add(column); descending.add(sort.descending()); strings.add(sort.scalar().equals("String"));
         }
         if(!keys.getLast().equals("id")) throw new PaginationContractException("Cursor ordering must end in root id");
-        byte[] context=JdbcCursorCodec.context(queryName,modelFingerprint,root.table(),where,sorting,parameters);
-        var bound=new MapSqlParameterSource();
-        for(String name:Objects.requireNonNull(parameters.getParameterNames()))
-            bound.addValue(name,parameters.getValue(name),parameters.getSqlType(name),parameters.getTypeName(name));
+        var bound=bindParameters(parameters);
+        byte[] context=JdbcCursorCodec.context(queryName,modelFingerprint,root.table(),where,sorting,bound);
         String boundary="";
         if(request.cursor().isPresent()) {
             var values=codec.open(request.cursor().get(),context,keys.size());
@@ -165,7 +188,7 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
         String columns=String.join(", ",rootTable.columns().stream().map(c->q(c.name())).toList());
         String ordering=String.join(", ",sorting.stream().map(JdbcCursorSort::sql).toList());
         bound.addValue("__vernacLimit",(long)request.pageSize()+1);
-        var rows=jdbc.query("SELECT "+columns+" FROM "+root.table()+(condition.isEmpty()?"":" WHERE "+condition)
+        var rows=jdbc.query("SELECT "+columns+" FROM "+root.table()+" WHERE "+scopedWhere(condition)
                 +" ORDER BY "+ordering+" LIMIT :__vernacLimit",bound,(rs,n)->readRow(rootTable,rs));
         var roots=rows.stream().limit(request.pageSize()).toList();
         var items=restoreRoots(roots);
@@ -177,10 +200,13 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
         }
         return new CursorWindow<>(items,next);
     }
-    public A save(A aggregate) {
+    public A save(A aggregate) {return execute(()->saveImpl(aggregate));}
+    private A saveImpl(A aggregate) {
         requireTransaction(); Objects.requireNonNull(aggregate);
         UUID id=root.id().apply(aggregate);
         long version=aggregate.persistenceState().version();
+        if(tenant && version==0 && aggregate.persistenceState().ownership().origin()!=TenantOwnership.Origin.NEW)
+            throw new TenancyException(TenancyException.Code.TENANT_OWNERSHIP_MISMATCH);
         if(version==Long.MAX_VALUE) throw new IllegalStateException("Persistence version exhausted");
         WriteGraph graph=new WriteGraph(id);
         graph.entity(root.table(),aggregate); // Detect conflicting instances before the first SQL write.
@@ -211,12 +237,13 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
         aggregate.persistenceState().version(version+1);
         return aggregate;
     }
-    public void delete(A aggregate) {
-        requireTransaction(); UUID id=root.id().apply(aggregate);
+    public void delete(A aggregate) {execute(()->{deleteImpl(aggregate);return true;});}
+    private void deleteImpl(A aggregate) {
+        requireTransaction(); checkOwnership(aggregate); UUID id=root.id().apply(aggregate);
         long version=aggregate.persistenceState().version();
         if(version==0) throw conflict(id);
         int locked=jdbc.update("UPDATE "+root.table()+" SET "+q("@version")+"="+q("@version")
-                +" WHERE "+q("id")+"=:id AND "+q("@version")+"=:version",Map.of("id",id,"version",version));
+                +" WHERE "+scopedWhere(q("id")+"=:id AND "+q("@version")+"=:version"),bindParameters(Map.of("id",id,"version",version)));
         if(locked!=1) throw conflict(id);
         var stored=readRows(id);
         for(Table table:order.reversed()) for(var row:stored.get(table.name())) deleteRow(table,row);
@@ -224,7 +251,7 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
     private Map<String,List<Map<String,@Nullable Object>>> readRows(UUID id) {
         Map<String,List<Map<String,@Nullable Object>>> rows=new LinkedHashMap<>();
         for(Table table:order) rows.put(table.name(),jdbc.query("SELECT "+String.join(", ",table.columns().stream().map(c->q(c.name())).toList())
-                +" FROM "+table.name()+" WHERE "+table.predicate(),Map.of("aggregateId",id),(rs,n)->readRow(table,rs)));
+                +" FROM "+table.name()+" WHERE "+scopedWhere(table.predicate()),bindParameters(Map.of("aggregateId",id)),(rs,n)->readRow(table,rs)));
         return rows;
     }
     private static boolean replacedValueRow(Map<String,@Nullable Object> old,Map<String,@Nullable Object> next) {
@@ -236,7 +263,7 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
     }
     private int update(Table t,Map<String,@Nullable Object> row,String suffix,long version) {
         List<String> assignments=new ArrayList<>();
-        for(int i=0;i<t.columns().size();i++) if(!t.key().contains(t.columns().get(i).name())) assignments.add(q(t.columns().get(i).name())+"=:p"+i);
+        for(int i=0;i<t.columns().size();i++) if(!t.key().contains(t.columns().get(i).name()) && !t.columns().get(i).name().equals("@tenantId")) assignments.add(q(t.columns().get(i).name())+"=:p"+i);
         if(assignments.isEmpty()) return 1;
         return jdbc.update("UPDATE "+t.name()+" SET "+String.join(", ",assignments)+" WHERE "+where(t)+suffix,
                 params(t,row).addValue("expectedVersion",version));
@@ -244,7 +271,7 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
     private void deleteRow(Table t,Map<String,@Nullable Object> row) { jdbc.update("DELETE FROM "+t.name()+" WHERE "+where(t),params(t,row)); }
     private static String where(Table t) {
         List<String> clauses=new ArrayList<>();
-        for(int i=0;i<t.columns().size();i++) if(t.key().contains(t.columns().get(i).name())) clauses.add(q(t.columns().get(i).name())+"=:p"+i);
+        for(int i=0;i<t.columns().size();i++) if(t.key().contains(t.columns().get(i).name()) || t.tenant() && t.columns().get(i).name().equals("@tenantId")) clauses.add(q(t.columns().get(i).name())+"=:p"+i);
         return String.join(" AND ",clauses);
     }
     private static Map<List<Object>,Map<String,@Nullable Object>> index(Table table,List<Map<String,@Nullable Object>> rows) {
@@ -253,7 +280,40 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
         return result;
     }
     private static List<Object> key(Table t,Map<String,@Nullable Object> row) { return t.key().stream().map(row::get).toList(); }
-    private static void requireTransaction() {
+    private <T> T execute(java.util.function.Supplier<T> action) {
+        try {return action.get();}
+        catch(org.springframework.dao.DataAccessException failure) {
+            if(!tenant) throw failure;
+            if(failure instanceof org.springframework.dao.DuplicateKeyException
+                    || failure instanceof OptimisticLockingFailureException)
+                throw new OptimisticLockingFailureException("Tenant aggregate persistence conflict");
+            // PostgreSQL DETAIL and driver causes may contain tenant IDs or business values.
+            throw new TenancyException(TenancyException.Code.TENANT_STORAGE_FAILURE);
+        }
+    }
+    private String scopedWhere(String where) {
+        // TRUE keeps the shared SQL assembly valid for an empty unscoped predicate.
+        return tenant ? q("@tenantId")+"=:__vernacTenant"+(where.isBlank()?"":" AND ("+where+")")
+                : where.isBlank()?"TRUE":where;
+    }
+    private MapSqlParameterSource bindParameters(Map<String,?> values) { return bindParameters(new MapSqlParameterSource(values)); }
+    private MapSqlParameterSource bindParameters(SqlParameterSource values) {
+        var result=new MapSqlParameterSource();
+        for(String name:Objects.requireNonNull(values.getParameterNames(),"Query parameter names required")) {
+            if(tenant && name.equals("__vernacTenant")) throw new TenancyException(TenancyException.Code.TENANT_CONTEXT_CONFIGURATION_ERROR);
+            result.addValue(name,values.getValue(name),values.getSqlType(name),values.getTypeName(name));
+        }
+        if(tenant) result.addValue("__vernacTenant",TenantContext.requireTenant().value());
+        return result;
+    }
+    private void checkOwnership(Object value) {
+        TenantOwnership ownership=value instanceof AggregateRoot<?> aggregate ? aggregate.persistenceState().ownership()
+                :value instanceof Entity<?> entity ? entity.__vernacTenantOwnership():null;
+        if(ownership==null) throw new TenancyException(TenancyException.Code.TENANT_OWNERSHIP_MISMATCH);
+        if(tenant) ownership.claimForTenant(TenantContext.requireTenant()); else ownership.claimUnscoped();
+    }
+    private void requireTransaction() {
+        if(coordinator!=null) {coordinator.requireBound();return;}
         if(!TransactionSynchronizationManager.isActualTransactionActive()) throw new IllegalTransactionStateException("Vernac repositories require an active usecase transaction");
     }
     private OptimisticLockingFailureException conflict(UUID id) { return new OptimisticLockingFailureException("Aggregate changed or was removed: "+type.getName()+" / "+id); }
@@ -268,12 +328,14 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
         public Map<String,@Nullable Object> row(String table) {
             Map<String,@Nullable Object> row=new LinkedHashMap<>();
             for(var column:tables.get(table).columns()) row.put(column.name(),null);
+            if(tenant) row.put("@tenantId",TenantContext.requireTenant().value());
             if(row.containsKey("@aggregateId")) row.put("@aggregateId",aggregateId);
             if(row.containsKey("@rowId")) row.put("@rowId",UUID.randomUUID());
             rows.computeIfAbsent(table,k->new ArrayList<>()).add(row);
             return row;
         }
         public UUID entity(String table,Object value) {
+            checkOwnership(value);
             Domain domain=domains.get(table); UUID id=domain.id().apply(value); Identity key=new Identity(table,id);
             if(active.contains(key)) throw new IllegalArgumentException("Cyclic entity graph: "+key);
             Object previous=instances.putIfAbsent(key,value);
@@ -309,7 +371,9 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
             var row=states.get(table).get(id);
             if(row==null) throw malformed("Missing entity state: "+key);
             var d=domains.get(table);
-            Object value=d.restore().apply(id,d.fields().stream().map(f->f.value().read(row,this)).toArray());
+            Object[] fields=d.fields().stream().map(f->f.value().read(row,this)).toArray();
+            Object value=d.ownedRestore()==null ? d.restore().apply(id,fields)
+                    : d.ownedRestore().restore(id,fields,tenant?TenantOwnership.restored(TenantId.of((UUID)row.get("@tenantId"))):TenantOwnership.unscoped());
             active.remove(key); instances.put(key,value); return value;
         }
     }

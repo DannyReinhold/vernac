@@ -1,0 +1,190 @@
+package tenantdemo;
+import tenantdemo.domain.*;
+import tenantdemo.adapter.outbound.jdbc.*;
+import org.vernac.runtime.*;
+import org.vernac.runtime.tenancy.*;
+import org.vernac.runtime.pagination.*;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.support.*;
+import org.springframework.dao.OptimisticLockingFailureException;
+import javax.sql.DataSource;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.Supplier;
+import static org.junit.jupiter.api.Assertions.*;
+
+public final class TenantProbe {
+    static final TenantId A=TenantId.of(UUID.fromString("00000000-0000-4000-8000-000000000001"));
+    static final TenantId B=TenantId.of(UUID.fromString("00000000-0000-4000-8000-000000000002"));
+    static final String KEY=Base64.getEncoder().encodeToString(new byte[32]);
+    static <T> T in(TenantId tenant,TransactionTemplate tx,Supplier<T> action) {
+        try(var selected=TenantContext.openVerified(tenant)){return tx.execute(status->action.get());}
+    }
+    static Invoice empty(String title){return Invoice.create(Title.of(title),Stops.empty(),Stops.empty(),null,TagGroups.empty());}
+    static TransactionTemplate tx(DataSource data){return new TransactionTemplate(new DataSourceTransactionManager(data));}
+    static JdbcInvoiceRepository invoices(DataSource data){return new JdbcInvoiceRepository(new NamedParameterJdbcTemplate(data),1000,KEY);}
+
+    public static void lifecycle(DataSource data) {
+        var jdbc=new NamedParameterJdbcTemplate(data);var tx=tx(data);var invoices=invoices(data);
+        var audits=new JdbcAuditRepository(jdbc);var catalogs=new JdbcCatalogRepository(jdbc);
+        tx.executeWithoutResult(s->catalogs.save(Catalog.create(Title.of("global"))));
+        assertTrue(TenantContext.currentTenant().isEmpty());
+        assertThrows(TenancyException.class,()->tx.execute(s->invoices.all()));
+        var first=in(A,tx,()->{
+            var parcel=Parcel.create(Title.of("parcel"));
+            var stop=Stop.create(Title.of("stop"),Parcels.of(parcel),Tags.of(Tag.of("tag")));
+            var other=Stop.create(Title.of("other"),Parcels.of(parcel),Tags.empty());
+            var groups=TagGroups.of(TagGroup.of(Tags.of(Tag.of("x"),Tag.of("y"))),TagGroup.of(Tags.of(Tag.of("z"))));
+            var root=Invoice.create(Title.of("A-1"),Stops.of(stop,stop,other),Stops.of(stop),stop,groups);
+            invoices.save(root);invoices.save(empty("shared"));
+            audits.save(Audit.create(Title.of("same transaction")));
+            assertEquals(1,audits.all().size()); // two coordinators, same physical transaction
+            assertEquals(1,catalogs.all().size()); // still unscoped inside a tenant transaction
+            return root;
+        });
+        var foreign=in(B,tx,()->{var result=invoices.save(empty("B-1"));invoices.save(empty("shared"));return result;});
+        var loaded=in(A,tx,()->{
+            assertEquals(2,invoices.all().size());
+            assertEquals(1,invoices.either(Title.of("A-1"),Title.of("B-1")).size());
+            assertTrue(invoices.unique(Title.of("B-1")).isEmpty());
+            assertTrue(invoices.unique(Title.of("shared")).isPresent());
+            assertThrows(AggregateNotFoundException.class,()->invoices.byId(foreign.id()));
+            var root=invoices.byId(first.id());
+            assertSame(root.stops().get(0),root.stops().get(1));
+            assertSame(root.stops().get(0),root.favorites().get(0));
+            assertSame(root.stops().get(0),root.preferred().orElseThrow());
+            assertSame(root.stops().get(0).parcels().stream().findFirst().orElseThrow(),root.stops().get(2).parcels().stream().findFirst().orElseThrow());
+            assertEquals(2,root.groups().get(0).tags().size());
+            assertEquals("z",root.groups().get(1).tags().get(0).string());
+            var fromQuery=invoices.all().get(0);
+            assertEquals(2,fromQuery.groups().get(0).tags().size()); // batched nested VO collections
+            assertSame(fromQuery.stops().get(0),fromQuery.preferred().orElseThrow());
+            root.stops().get(0).rename(Title.of("changed"));
+            invoices.save(root);
+            return root;
+        });
+        in(A,tx,()->{assertEquals("changed",invoices.byId(first.id()).stops().get(0).title().string());return true;});
+        var page=in(A,tx,()->invoices.counted().page(OffsetRequest.ofPage(1,1)));
+        assertEquals(2,page.totalElements());assertEquals(1,page.items().size());
+        var token=in(A,tx,()->invoices.following().page(CursorRequest.first(1)).nextCursor().orElseThrow());
+        in(A,tx,()->{assertEquals(1,invoices.following().page(CursorRequest.after(token,1)).items().size());return true;});
+        in(B,tx,()->{assertEquals(2,invoices.counted().page(OffsetRequest.ofPage(1,1)).totalElements());
+            assertThrows(InvalidCursorException.class,()->invoices.following().page(CursorRequest.after(token,1)));return true;});
+        assertThrows(TenancyException.class,()->in(B,tx,()->invoices.save(loaded)));
+        assertThrows(TenancyException.class,()->in(B,tx,()->{
+            var root=Invoice.create(Title.of("foreign child"),Stops.of(loaded.stops().get(0)),Stops.empty(),null,TagGroups.empty());
+            return invoices.save(root);
+        }));
+        assertThrows(TenancyException.class,()->in(B,tx,()->{
+            var stop=Stop.create(Title.of("new B stop"),Parcels.of(loaded.stops().get(0).parcels().stream().findFirst().orElseThrow()),Tags.empty());
+            return invoices.save(Invoice.create(Title.of("foreign subentity"),Stops.of(stop),Stops.empty(),null,TagGroups.empty()));
+        }));
+        var archives=new JdbcArchiveRepository(jdbc);
+        assertThrows(TenancyException.class,()->tx.execute(status->archives.save(Archive.create(loaded.stops().get(0)))));
+        var global=tx.execute(status->archives.save(Archive.create(Stop.create(Title.of("global stop"),Parcels.empty(),Tags.empty()))));
+        var globalChild=tx.execute(status->archives.byId(global.id()).stop());
+        assertThrows(TenancyException.class,()->in(A,tx,()->invoices.save(
+                Invoice.create(Title.of("global child"),Stops.of(globalChild),Stops.empty(),null,TagGroups.empty()))));
+        var unassigned=empty("created outside selection");
+        assertTrue(unassigned.persistenceState().ownership().tenant().isEmpty());
+        in(A,tx,()->{invoices.save(unassigned);invoices.delete(unassigned);return true;});
+        assertThrows(TenancyException.class,()->in(B,tx,()->invoices.save(unassigned)));
+        var reset=in(A,tx,()->invoices.byId(first.id()));
+        reset.persistenceState().version(0);
+        assertThrows(TenancyException.class,()->in(A,tx,()->invoices.save(reset)));
+        var stale=in(A,tx,()->invoices.byId(first.id()));
+        in(A,tx,()->{invoices.save(invoices.byId(first.id()));return true;});
+        assertThrows(OptimisticLockingFailureException.class,()->in(A,tx,()->invoices.save(stale)));
+        var rolledBack=in(A,tx,()->empty("rolled back"));
+        assertThrows(IllegalStateException.class,()->in(A,tx,()->{invoices.save(rolledBack);throw new IllegalStateException("rollback fixture");}));
+        assertThrows(TenancyException.class,()->in(B,tx,()->invoices.save(rolledBack)));
+        assertThrows(TenancyException.class,()->in(A,tx,()->invoices.save(Invoice.reconstitute(InvoiceId.create(),
+                Title.of("manual"),Stops.empty(),Stops.empty(),null,TagGroups.empty(),java.time.Instant.now(),java.time.Instant.now(),0))));
+        in(A,tx,()->{
+            var root=invoices.byId(first.id());
+            var keep=root.stops().get(2);
+            root.replace(Stops.of(keep),Stops.empty(),null);
+            invoices.save(root);
+            assertEquals(1,invoices.byId(root.id()).stops().get(0).parcels().size()); // shared subentity survives
+            root.replace(Stops.empty(),Stops.empty(),null);invoices.save(root);
+            invoices.delete(invoices.byId(root.id()));
+            assertThrows(AggregateNotFoundException.class,()->invoices.byId(root.id()));
+            return true;
+        });
+        in(B,tx,()->{assertEquals(2,invoices.all().size());return true;});
+        assertTrue(TenantContext.currentTenant().isEmpty());assertTrue(TenantContext.transactionTenant().isEmpty());
+    }
+
+    public static void parallel(DataSource data) throws Exception {
+        var invoices=invoices(data);var tx=tx(data);
+        var a=in(A,tx,()->invoices.save(empty("A")));
+        var b=in(B,tx,()->invoices.save(empty("B")));
+        var barrier=new CyclicBarrier(2);
+        try(var executor=Executors.newFixedThreadPool(2)) {
+            List<Future<?>> futures=new ArrayList<>();
+            for(var tenant:List.of(A,B)) futures.add(executor.submit(()->{
+                in(tenant,tx,()->{
+                    var roots=invoices.all();assertEquals(1,roots.size());
+                    assertEquals(tenant.equals(A)?"A":"B",roots.get(0).title().string());
+                    try{barrier.await(10,TimeUnit.SECONDS);}catch(Exception e){throw new RuntimeException(e);}
+                    var root=roots.get(0);
+                    root.replace(Stops.of(Stop.create(Title.of("parallel"),Parcels.empty(),Tags.empty())),Stops.empty(),null);
+                    invoices.save(root);return true;
+                });
+                assertTrue(TenantContext.currentTenant().isEmpty());assertTrue(TenantContext.transactionTenant().isEmpty());
+            }));
+            for(var future:futures) future.get(20,TimeUnit.SECONDS);
+        }
+        assertEquals(1,in(A,tx,()->invoices.byId(a.id())).stops().size());
+        assertEquals(1,in(B,tx,()->invoices.byId(b.id())).stops().size());
+        var racing=new CyclicBarrier(2);
+        try(var executor=Executors.newFixedThreadPool(2)) {
+            List<Future<Boolean>> attempts=new ArrayList<>();
+            for(int i=0;i<2;i++) attempts.add(executor.submit(()->{
+                boolean won;
+                try {
+                    in(A,tx,()->{
+                        var root=invoices.byId(a.id());
+                        try{racing.await(10,TimeUnit.SECONDS);}catch(Exception e){throw new RuntimeException(e);}
+                        root.replace(Stops.of(Stop.create(Title.of("race"),Parcels.empty(),Tags.empty())),Stops.empty(),null);
+                        invoices.save(root);return true;
+                    });
+                    won=true;
+                } catch(OptimisticLockingFailureException expected) {won=false;}
+                assertTrue(TenantContext.currentTenant().isEmpty());assertTrue(TenantContext.transactionTenant().isEmpty());
+                return won;
+            }));
+            assertNotEquals(attempts.get(0).get(20,TimeUnit.SECONDS),attempts.get(1).get(20,TimeUnit.SECONDS));
+        }
+        assertEquals(3,in(A,tx,()->invoices.byId(a.id())).persistenceState().version());
+        assertEquals(2,in(B,tx,()->invoices.byId(b.id())).persistenceState().version());
+    }
+
+    public static void seed(DataSource data) {
+        var repository=invoices(data);var tx=tx(data);
+        in(A,tx,()->repository.save(empty("A")));
+        in(B,tx,()->repository.save(empty("B")));
+    }
+    public static void policies(DataSource data,DataSource admin) {
+        var jdbc=new org.springframework.jdbc.core.JdbcTemplate(admin);
+        assertThrows(TenancyException.class,()->invoices(admin));
+        var unsafePool=new org.springframework.jdbc.datasource.DelegatingDataSource(data) {
+            @Override public java.sql.Connection getConnection() throws java.sql.SQLException {
+                var connection=super.getConnection();connection.setAutoCommit(false);return connection;
+            }
+        };
+        assertThrows(TenancyException.class,()->invoices(unsafePool));
+        var existing=invoices(data);var tx=tx(data);
+        var stored=in(B,tx,()->existing.save(empty("collision source")));
+        var collision=in(A,tx,()->empty("collision target"));
+        jdbc.update("UPDATE tenantdemo.\"Invoice\" SET id=? WHERE id=?",collision.id().value(),stored.id().value());
+        var conflict=assertThrows(OptimisticLockingFailureException.class,()->in(A,tx,()->existing.save(collision)));
+        assertNull(conflict.getCause());
+        assertFalse(conflict.toString().contains(A.asString()));
+        assertFalse(conflict.toString().contains(B.asString()));
+        jdbc.execute("ALTER POLICY \"@tenant\" ON \"tenantdemo\".\"Invoice\" USING (true) WITH CHECK (true)");
+        assertThrows(TenancyException.class,()->invoices(data));
+        assertThrows(TenancyException.class,()->in(A,tx,()->existing.all()));
+    }
+}

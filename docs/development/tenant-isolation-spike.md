@@ -3,7 +3,7 @@ title: Tenant isolation — first executable feasibility record
 ---
 # Tenant isolation — first executable feasibility record
 
-Status: **test-only schema/repository fixture using production context and JDBC coordinator; generated persistence remains OPEN**.
+Status: **test-only schema/repository fixture using production context and JDBC coordinator; local generated persistence now has separate integration proofs**.
 Baseline: 2026-11-11, after the merge of the authorization/technical tenancy design.
 The standalone [experiment](../../experiments/tenant-isolation-spike/README.md) does not
 modify the root reactor, generated code, current examples or current Wizard templates.
@@ -109,3 +109,5 @@ then integrate production repositories,
 queries, modules/events and compiler/tooling. Retain unscoped regression tests throughout.
 Keep the [technical contract](tenant-technical-contract.md) synchronized with executable
 findings, and attach production evidence before marking any whole-SaaS capability complete.
+
+The [local generated persistence record](tenant-persistence-integration.md) adds real generated-Java/PostgreSQL proofs; this handwritten fixture remains a complementary transaction/security experiment, not the whole acceptance result.

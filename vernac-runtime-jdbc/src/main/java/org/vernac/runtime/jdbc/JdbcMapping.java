@@ -14,12 +14,21 @@ import org.springframework.dao.DataRetrievalFailureException;
 public final class JdbcMapping {
     private JdbcMapping() { }
     public record Column(String name, String sqlType) { }
-    public record Table(String name, String predicate, int depth, List<Column> columns, List<String> key) {
+    public record Table(String name, String predicate, int depth, List<Column> columns, List<String> key, boolean tenant) {
+        public Table(String name, String predicate, int depth, List<Column> columns, List<String> key) {
+            this(name,predicate,depth,columns,key,false);
+        }
         public Table { columns=List.copyOf(columns); key=List.copyOf(key); }
     }
     public record Field(Function<Object,@Nullable Object> getter, Value value) { }
+    @FunctionalInterface public interface OwnedRestorer {
+        Object restore(UUID id, @Nullable Object[] values, org.vernac.runtime.tenancy.TenantOwnership ownership);
+    }
     public record Domain(String table, Function<Object,UUID> id, List<Field> fields,
-                         BiFunction<UUID,@Nullable Object[],Object> restore) {
+                         BiFunction<UUID,@Nullable Object[],Object> restore, @Nullable OwnedRestorer ownedRestore) {
+        public Domain(String table, Function<Object,UUID> id, List<Field> fields, BiFunction<UUID,@Nullable Object[],Object> restore) {
+            this(table,id,fields,restore,null);
+        }
         public Domain { fields=List.copyOf(fields); }
     }
     public interface Writer {

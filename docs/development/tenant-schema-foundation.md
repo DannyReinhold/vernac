@@ -3,11 +3,11 @@ title: Tenant schema foundation — classification, new-table DDL and migration 
 ---
 # Tenant schema foundation — classification, new-table DDL and migration guards
 
-Status: **internal schema APIs implemented; source-level tenant persistence remains OPEN**.
+Status: **schema foundation implemented and now selected by local tenant aggregates**.
+See [local integration](tenant-persistence-integration.md) for current scope and limits.
 
 This increment follows the [JDBC coordinator](tenant-jdbc-coordinator.md).
-It prepares the shared schema model before connecting the aggregate grammar,
-storage plans and generated repository SQL. No existing example becomes tenant-aware.
+The shared model is now selected by local tenant declarations and their owned\nstorage plans; generated repositories consume that classification. No existing example becomes tenant-aware.
 
 ## Versioned classification without rewriting existing history
 
@@ -32,9 +32,7 @@ deferred relationships rather than rewriting an existing SQL clause.
 
 Schema validation requires a matching root for each classified graph and rejects
 foreign keys crossing tenant/unscoped or distinct aggregate-graph boundaries.
-The caller still supplies the complete owned graph. The factory does not discover
-entities from source, infer ownership from names or convert StoragePlan automatically.
-These are compiler infrastructure APIs, not new user-facing syntax.
+The lower-level factory takes explicit graph data; SchemaBuilder now supplies it\nfrom local tenant declarations. It does not infer missing classification or rewrite\nimported module contracts.
 
 ## New table candidates
 
@@ -84,14 +82,13 @@ verify tenant row visibility and deferred qualified FKs, and prove policy/RLS dr
 is visible to the Maven catalog while foreign application tables remain ignored.
 Existing schema/migration Mojo tests still replay legacy candidates.
 
-Local verification executed 55 runtime, 488 compiler and 20 JDBC unit tests,
+Original foundation verification (historical) executed 55 runtime, 488 compiler and 20 JDBC unit tests,
 plus five selected Maven tests (including two new real PostgreSQL schema proofs)
 and the 14 PostgreSQL isolation proofs. All passed without skips. The workflow
 requires the new named schema proofs as well as the existing runtime/spike proofs.
 No full IntelliJ or complete SaaS release verification is claimed.
 
-The tenant source modifier, SchemaBuilder/StoragePlan propagation, generated CRUD/
-query/count/page integration, exact runtime policy validation, reviewed conversion
-support, module compatibility and event routing remain OPEN. A19/A20/A21 are not
-VERIFIED. Next connect this model to aggregate classification and the complete owned
-graph, keeping existing unscoped source and migration history behavior unchanged.
+The local tenant modifier, owned graph propagation and generated CRUD/query/count/
+page integration now exist. Reviewed conversions, tenant module compatibility and
+event routing remain OPEN. A19/A20/A21 are not
+VERIFIED. Next extend tenant classification through modules/events and reviewed\nconversion paths while retaining unscoped source and history behavior.

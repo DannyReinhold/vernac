@@ -112,7 +112,7 @@ eventDefinition
 // 3. Aggregates & Entities
 // ==========================================
 aggregateDefinition
-    : global='global'? 'aggregate' name=typeName '[' idReference ']' '(' parameterList? ')'
+    : classification=('global' | 'tenant')? 'aggregate' name=typeName '[' idReference ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
       behaviorBlock?
       (collectionDefinition (',' collectionDefinition)*)?
@@ -350,7 +350,7 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'global' | 'tenancy' | 'explicit'
+    : 'tenant' | 'global' | 'tenancy' | 'explicit'
     | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | IDENTIFIER
@@ -455,7 +455,7 @@ typeName
     ;
 
 methodName
-    : 'global' | 'tenancy' | 'explicit'
+    : 'tenant' | 'global' | 'tenancy' | 'explicit'
     | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
@@ -467,7 +467,7 @@ methodName
     ;
 
 variableName
-    : 'global' | 'tenancy' | 'explicit'
+    : 'tenant' | 'global' | 'tenancy' | 'explicit'
     | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'read' | 'modify'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'

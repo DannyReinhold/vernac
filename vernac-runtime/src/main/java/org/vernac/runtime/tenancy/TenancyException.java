@@ -18,7 +18,9 @@ public final class TenancyException extends VernacTechnicalException {
         TENANT_OWNERSHIP_MISMATCH,
         TENANT_CONTEXT_CONFIGURATION_ERROR,
         TENANT_CONTEXT_CONTAMINATED,
-        TENANT_RUNTIME_ROLE_INVALID
+        TENANT_RUNTIME_ROLE_INVALID,
+        TENANT_EVENT_DELIVERY_UNSUPPORTED,
+        TENANT_STORAGE_FAILURE
     }
 
     private final Code code;

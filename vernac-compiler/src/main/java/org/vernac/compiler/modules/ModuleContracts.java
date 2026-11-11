@@ -23,6 +23,9 @@ public final class ModuleContracts {
         Map<String,TopLevelDefinition> local=new HashMap<>();Map<String,CollectionDeclaration> collections=new HashMap<>();
         Map<String,VernacSourceFile> origins=new HashMap<>();
         for(var source:project.project().sources()) if(!source.external()) for(var top:source.unit().definitions()) {
+            if(top instanceof AggregateNode aggregate && aggregate.tenant())
+                errors.add(CompilerDiagnostic.error(aggregate.location(),
+                        "Tenant aggregates in reusable modules require tenant metadata/activation support, which is not implemented yet."));
             String name=top instanceof IdDeclarationNode id?id.name():top instanceof ValueObjectNode vo?vo.name():top instanceof PortNode port?port.name():top instanceof OutboundAdapterNode adapter?adapter.name():top instanceof DomainServiceNode service?service.name():top instanceof UseCaseNode usecase?usecase.name():top instanceof EntityNode entity?entity.name():top instanceof AggregateNode aggregate?aggregate.name():top instanceof RepositoryNode repository?repository.name():top instanceof EventNode event?event.name():top instanceof ListenerNode listener?listener.name():top instanceof InboundHttpAdapterNode inbound?inbound.name():null;
             if(name==null)errors.add(CompilerDiagnostic.error(top.location(),"Unsupported module definition."));
             if(name!=null) {String identity=source.unit().namespace()+"."+name;local.put(identity,top);origins.put(identity,source);}

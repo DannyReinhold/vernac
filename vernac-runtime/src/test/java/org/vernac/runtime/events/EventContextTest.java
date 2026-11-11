@@ -14,6 +14,30 @@ class EventContextTest {
     record Ping(EventId eventId, Instant occurredAt) implements DomainEvent {
         Ping() { this(EventId.create(), Instant.now()); }
     }
+    record RecordedPing(EventId eventId, Instant occurredAt) implements RecordedEvent {}
+    @Test void tenantContextAllowsSynchronousEventsButRejectsUnscopedStoredDelivery() {
+        var manager=new Manager();var tx=new TransactionTemplate(manager);
+        var tenant=org.vernac.runtime.tenancy.TenantId.of(UUID.randomUUID());
+        try(var selected=org.vernac.runtime.tenancy.TenantContext.openVerified(tenant)) {
+            var observed=new ArrayList<DomainEvent>();
+            tx.executeWithoutResult(status->{try(var events=EventContext.open(()->List.of(handler("sync",observed::add)))){EventContext.emit(new Ping());}});
+            assertEquals(1,observed.size());
+            var error=assertThrows(org.vernac.runtime.tenancy.TenancyException.class,()->tx.executeWithoutResult(status->{
+                try(var events=EventContext.open(List::of)){EventContext.emit(new RecordedPing(EventId.create(),Instant.now()));}
+            }));
+            assertEquals(org.vernac.runtime.tenancy.TenancyException.Code.TENANT_EVENT_DELIVERY_UNSUPPORTED,error.code());
+            var deferred=new EventHandler() {
+                public String listenerId(){return "deferred";}
+                public Class<? extends DomainEvent> eventClass(){return Ping.class;}
+                public boolean deferred(){return true;}
+                public void handle(DomainEvent event){fail("Deferred tenant event must not run through an unscoped path");}
+            };
+            assertThrows(org.vernac.runtime.tenancy.TenancyException.class,()->tx.executeWithoutResult(status->{
+                try(var events=EventContext.open(()->List.of(deferred))){EventContext.emit(new Ping());}
+            }));
+        }
+    }
+
     private EventHandler handler(String name, java.util.function.Consumer<DomainEvent> body) {
         return new EventHandler() {
             public String listenerId() { return name; }

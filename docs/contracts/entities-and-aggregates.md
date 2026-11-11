@@ -231,4 +231,9 @@ global aggregate is an explicit spelling of the existing unscoped aggregate.
 It changes neither factories nor generated schema. Projects can require explicit
 classification through tenancy explicit in .vapplication or .vmodule.
 See [explicit persistence classification](explicit-tenancy.md) for exact scope,
-editor behavior and the still-incomplete tenant-bound counterpart.
+editor behavior and tenant-bound persistence. tenant aggregate adds technical
+ownership and scoped JDBC behavior without changing public business factory
+arguments, equality or Read/Write/Access views. Generated entity implementations keep
+technical ownership outside those views; public manual entity reconstruction remains
+unscoped, while trusted JDBC reconstruction preserves the stored boundary.
+See [integration limits](../development/tenant-persistence-integration.md).

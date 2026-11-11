@@ -106,3 +106,5 @@ mappings, Java-backed Vernac breakpoints and the installed-IDE acceptance walkth
 - [Tenant schema foundation](tenant-schema-foundation.md): versioned classification, fresh-table RLS DDL, fail-closed conversion guards and policy drift checks.
 
 - [Explicit persistence classification](../contracts/explicit-tenancy.md): source-controlled tenancy rule and explicit global aggregates; tenant generation remains in progress.
+
+- [Local tenant persistence integration](tenant-persistence-integration.md): implemented generated graph/query paths, configuration contract and remaining module/event/SaaS boundaries.
