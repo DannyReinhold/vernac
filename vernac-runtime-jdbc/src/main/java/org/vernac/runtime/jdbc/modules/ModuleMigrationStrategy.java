@@ -12,7 +12,6 @@ import com.fasterxml.jackson.core.util.*;
 import org.flywaydb.core.Flyway;
 import org.springframework.beans.factory.BeanClassLoaderAware;
 import org.springframework.boot.autoconfigure.flyway.FlywayMigrationStrategy;
-import org.springframework.jdbc.datasource.DelegatingDataSource;
 import org.vernac.runtime.application.AdapterBindings;
 import org.vernac.runtime.persistence.*;
 
@@ -22,9 +21,9 @@ public final class ModuleMigrationStrategy implements FlywayMigrationStrategy,Be
         .enable(SerializationFeature.INDENT_OUTPUT).setDefaultPrettyPrinter(new DefaultPrettyPrinter().withObjectIndenter(new DefaultIndenter("  ","\n")));
     private final AdapterBindings bindings;
     private final String applicationSchema;
-    private final DataSource dataSource;
+    private final DataSource runtimeDataSource;
     private ClassLoader loader=ModuleMigrationStrategy.class.getClassLoader();
-    public ModuleMigrationStrategy(AdapterBindings bindings,String applicationSchema,DataSource dataSource){this.bindings=bindings;this.applicationSchema=applicationSchema;this.dataSource=dataSource;}
+    public ModuleMigrationStrategy(AdapterBindings bindings,String applicationSchema,DataSource dataSource){this.bindings=bindings;this.applicationSchema=applicationSchema;this.runtimeDataSource=dataSource;}
     @Override public void setBeanClassLoader(ClassLoader loader){this.loader=loader;}
     public record Prepared(String module,String location,String historySchema,SchemaDescription schema,Set<String> owned) { }
     /** Testable orchestration; executing/validating SQL stays in the JDBC adapter below. */
@@ -50,29 +49,61 @@ public final class ModuleMigrationStrategy implements FlywayMigrationStrategy,Be
             .defaultSchema("public").load();
     }
     @Override public void migrate(Flyway application) {
-        if(unwrap(application.getConfiguration().getDataSource())!=unwrap(dataSource))throw new IllegalStateException("Persistent modules require the application Flyway and JDBC infrastructure to share one DataSource. A separate spring.flyway.url/DataSource is not supported yet.");
-        var history=stableApplicationHistory(application);
+        DataSource migrations = application.getConfiguration().getDataSource();
+        ModuleDatabaseConnections.verify(runtimeDataSource, migrations);
+        var history = stableApplicationHistory(application);
         try {
-            var node=JSON.readTree(resource(applicationSchema));
-            var app=JSON.treeToValue(node.get("schema"),SchemaDescription.class);
-            Set<String> appOwned=new TreeSet<>();node.path("ownedTables").forEach(t->appOwned.add(t.asText()));
-            List<Prepared> modules=new ArrayList<>();
-            for(String module:bindings.persistentModules())modules.add(prepare(module));
-            if(Arrays.stream(history.info().all()).anyMatch(m->m.getState().name().startsWith("FUTURE")))throw new IllegalStateException("Application database contains migration versions newer than this artifact. Refusing persistent module startup.");
-            for(var location:history.getConfiguration().getLocations()) {
-                String path=location.getDescriptor();
-                if(path.startsWith("classpath:")) {
-                    String prefix=path.substring("classpath:".length()).replaceFirst("^/+","").replaceFirst("[*?].*$","");
-                    if(modules.stream().anyMatch(m->m.location().substring("classpath:".length()).startsWith(prefix)))throw new IllegalStateException("Application Flyway locations overlap isolated module resources. Keep module migration locations owned by the coordinator.");
-                }
+            var app = prepareApplication();
+            List<Prepared> modules = new ArrayList<>();
+            for (String module : bindings.persistentModules()) modules.add(prepare(module));
+            verifyApplicationHistory(history, modules);
+            coordinate(modules, app.schema(), app.owned(), operations(history, migrations));
+        } catch (IOException failed) {
+            throw new IllegalStateException("Invalid/missing module migration or application schema resources. "
+                    + "Rebuild the application and its dependency artifacts.", failed);
+        }
+    }
+
+    private record Application(SchemaDescription schema, Set<String> owned) { }
+
+    private Application prepareApplication() throws IOException {
+        var node = JSON.readTree(resource(applicationSchema));
+        var schema = JSON.treeToValue(node.get("schema"), SchemaDescription.class);
+        Set<String> owned = new TreeSet<>();
+        node.path("ownedTables").forEach(table -> owned.add(table.asText()));
+        return new Application(schema, Set.copyOf(owned));
+    }
+
+    private static void verifyApplicationHistory(Flyway history, List<Prepared> modules) {
+        if (Arrays.stream(history.info().all()).anyMatch(m -> m.getState().name().startsWith("FUTURE")))
+            throw new IllegalStateException("Application database contains migration versions newer than this artifact. "
+                    + "Refusing persistent module startup.");
+        for (var location : history.getConfiguration().getLocations()) {
+            String path = location.getDescriptor();
+            if (!path.startsWith("classpath:")) continue;
+            String prefix = path.substring("classpath:".length()).replaceFirst("^/+", "").replaceFirst("[*?].*$", "");
+            if (modules.stream().anyMatch(m -> m.location().substring("classpath:".length()).startsWith(prefix)))
+                throw new IllegalStateException("Application Flyway locations overlap isolated module resources. "
+                        + "Keep module migration locations owned by the coordinator.");
+        }
+    }
+
+    private Operations operations(Flyway history, DataSource migrations) {
+        return new Operations() {
+            public void migrate(Prepared module) {
+                Flyway.configure(loader).dataSource(migrations).locations(module.location())
+                        .schemas(module.historySchema()).defaultSchema(module.historySchema())
+                        .table("flyway_schema_history").validateMigrationNaming(true)
+                        .ignoreMigrationPatterns(new String[0]).load().migrate();
             }
-            coordinate(modules,app,appOwned,new Operations(){
-                public void migrate(Prepared module){Flyway.configure(loader).dataSource(dataSource).locations(module.location()).schemas(module.historySchema()).defaultSchema(module.historySchema()).table("flyway_schema_history").validateMigrationNaming(true).ignoreMigrationPatterns(new String[0]).load().migrate();}
-                public void validate(Prepared module){JdbcModuleSchemaValidator.validate(dataSource,module.schema(),module.owned(),module.module());}
-                public void migrateApplication(){history.migrate();}
-                public void validateApplication(SchemaDescription schema,Set<String> owned){JdbcModuleSchemaValidator.validate(dataSource,schema,owned,"@application");}
-            });
-        }catch(IOException e){throw new IllegalStateException("Invalid/missing module migration or application schema resources. Rebuild the application and its dependency artifacts.",e);}
+            public void validate(Prepared module) {
+                JdbcModuleSchemaValidator.validate(migrations, module.schema(), module.owned(), module.module());
+            }
+            public void migrateApplication() { history.migrate(); }
+            public void validateApplication(SchemaDescription schema, Set<String> owned) {
+                JdbcModuleSchemaValidator.validate(migrations, schema, owned, "@application");
+            }
+        };
     }
     private byte[] resource(String name) throws IOException {
         var urls=Collections.list(loader.getResources(name));if(urls.size()!=1)throw new IOException("Expected one artifact resource: "+name);
@@ -118,5 +149,5 @@ public final class ModuleMigrationStrategy implements FlywayMigrationStrategy,Be
     public static String fingerprint(SchemaDescription schema) throws IOException {return hash((JSON.writeValueAsString(schema)+"\n").getBytes(StandardCharsets.UTF_8));}
     private static String key(SchemaDescription.Table t){return SqlIdentifiers.physical(t.namespace())+"/"+SqlIdentifiers.physical(t.name());}
     private static String hash(byte[] bytes){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));}catch(java.security.NoSuchAlgorithmException e){throw new IllegalStateException(e);}}
-    private static DataSource unwrap(DataSource source){while(source instanceof DelegatingDataSource proxy&&proxy.getTargetDataSource()!=null)source=proxy.getTargetDataSource();return source;}
+
 }

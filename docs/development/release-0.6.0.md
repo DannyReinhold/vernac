@@ -238,5 +238,14 @@ module-contracts-10 preserves exported aggregate scope and entity ownership/rest
 capability. Read-only import views retain scope; scope changes are incompatible. Tests
 compile a producer JAR and persist its entities inside a local tenant graph without
 regenerating dependency classes. This is partial A20 evidence. Persistent tenant module
-activation still requires separate migration/runtime DataSources; its publication guard
-remains. Durable event routing and A19/A20/A21 remain OPEN.
+activation still requires tenant-specific startup/RLS acceptance; its publication guard
+remains. Separate migration/runtime connections are now supported. Durable event routing and A19/A20/A21 remain OPEN.
+
+## Separate module migration DataSources
+
+Persistent modules now use application Flyway credentials for every isolated module
+history and schema validation, while repositories retain runtime credentials. Boot
+regressions verify restricted runtime access, successful restart, and rejection of
+a different migration database before schema writes. Tenant module publication remains
+guarded pending its own RLS/startup acceptance. No SaaS release gate is closed by this
+connection-routing increment.

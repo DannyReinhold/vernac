@@ -37,7 +37,7 @@ class TenantMappingTest {
         assertTrue(java.contains("__vernacRestore"));
         assertTrue(java.contains("__vernacTenantOwnership"));
     }
-    @Test void persistentTenantModulesAreRejectedUntilSeparateMigrationConnectionsExist() throws Exception {
+    @Test void persistentTenantModulesAreRejectedUntilTenantActivationIsVerified() throws Exception {
         var root=source();
         var resolved=new VernacCompiler().analyzeProject(root);
         var module=org.vernac.compiler.modules.ModuleDefinition.parse(directory.resolve("other.vmodule"),"module example.billing {}");

@@ -89,8 +89,9 @@ data and deployment compatibility as always; a generated candidate is not a guar
 
 - Tenant type exports and imported entity graphs use module-contracts-10 metadata.
   Tenant repository publication remains rejected by compilation and direct publication:
-  activation must first support separate migration/runtime DataSources. Global module
-  persistence remains unchanged; no tenant context is established by imports.
+  tenant-specific activation and RLS acceptance remain pending. The module coordinator
+  now supports separate migration/runtime DataSources for the same writer database.
+  Global module persistence remains supported; no tenant context is established by imports.
 - Synchronous immediate events retain the current context/transaction. Recorded/deferred
   emission while a tenant is selected fails with TENANT_EVENT_DELIVERY_UNSUPPORTED
   before storage or dispatch, and the failed event context prevents commit. Durable
@@ -133,3 +134,20 @@ existing-binding verification and per-table role verification. SQL failures stil
 pass through the same sanitization boundary and connections are released in the
 same `finally` blocks. This decomposition is internal and changes no language or
 public runtime contract.
+
+## Separate module migration credentials
+
+The module coordinator routes every isolated module history and schema validation to
+the DataSource configured on the application's Flyway instance. Repositories and the
+application transaction manager retain the runtime DataSource. Distinct connections
+undergo read-only PostgreSQL instance/database preflight before migration writes.
+
+The Boot regression starts and restarts required/dependent modules using a DDL-capable
+migration login and a separate DML-only runtime login. Generated cross-module usecases
+work without access to Flyway histories. A second proof configures different databases
+and verifies rejection before either receives histories or domain tables. Existing
+single-DataSource migration, retry, schema drift and REQUIRED transaction tests remain.
+
+These are connection-routing foundations, not completed tenant module activation. The
+producer guard stays until module-specific RLS/runtime startup and tenant transaction
+proofs are added. A19/A20/A21 remain OPEN.

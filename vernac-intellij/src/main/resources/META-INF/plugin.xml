@@ -100,6 +100,12 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>0.6.0 development — Separate module migration credentials</h3>
+<p>Module and application histories use Spring Boot's Flyway credentials while
+repositories retain runtime credentials. Distinct connections are checked against
+the same PostgreSQL writer database before migration writes. Tenant module activation
+still awaits its dedicated RLS/startup acceptance.</p>
+
 <h3>0.6.0 development — Tenant-aware module contracts</h3>
 <p>Dependency contract views preserve tenant/global aggregate scope. Local tenant
 aggregates can persist imported module entities with ownership-aware restoration.

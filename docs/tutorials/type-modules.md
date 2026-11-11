@@ -616,8 +616,36 @@ Add the Vernac JDBC Spring Boot starter and the module Maven dependencies. Confi
 your application's usual `spring.datasource` connection and keep application migrations
 in `classpath:db/migration`. Do not add module SQL directories to `spring.flyway.locations`:
 the coordinator selects them from verified module bundles. Keep Flyway enabled and
-provide the application transaction manager. Separate `spring.flyway.url` connections
-and a custom FlywayMigrationStrategy are not supported by this integration.
+provide the application transaction manager. A separate `spring.flyway.url` connection
+is supported when it reaches the same PostgreSQL writer database. A custom
+FlywayMigrationStrategy remains unsupported: Vernac owns module migration ordering.
+
+For separate migration and runtime roles, use the same database URL with different
+credentials:
+
+```yaml
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_RUNTIME_USER}
+    password: ${DB_RUNTIME_PASSWORD}
+  flyway:
+    url: ${DB_URL}
+    user: ${DB_MIGRATION_USER}
+    password: ${DB_MIGRATION_PASSWORD}
+```
+
+All module histories and the application history use the Flyway credentials; repositories
+and REQUIRED usecase transactions use the runtime credentials. Vernac checks that the
+connections reach the same database instance before migration writes. Keep module SQL
+locations out of spring.flyway.locations even when the credentials differ.
+
+Provision runtime USAGE/DML grants on the intended domain schemas/tables yourself, with
+reviewed deployment SQL or default privileges as appropriate. The runtime role needs no
+DDL rights or access to Flyway history tables. Generated migration candidates do not
+create roles or grant permissions automatically. Never give repositories the migration
+DataSource to work around missing grants. Review migrations and operational privileges
+before deployment; the generated candidate remains your responsibility.
 
 Explicitly activate the module in your existing `.vapplication` file. Functional
 dependencies participate transitively; a type import alone does not activate a module.
@@ -710,6 +738,6 @@ See [reuse an entity from a type module](tenant-persistence.md#reuse-an-entity-f
 for a producer and consumer example.
 
 This does not yet enable a module's own tenant repository. That combination remains
-blocked until the module migration coordinator supports separate runtime/migration
-credentials. The global persistent-module walkthrough above retains its existing
+blocked until tenant-specific module startup and RLS acceptance are completed.
+The migration coordinator now supports separate runtime/migration credentials. The global persistent-module walkthrough above retains its existing
 behavior. Durable tenant event routing and full SaaS activation remain in progress.

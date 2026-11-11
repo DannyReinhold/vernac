@@ -53,7 +53,8 @@ Implement with Spring-managed transaction resources/synchronization and the actu
 transaction-bound JDBC connection, not a process-global variable, singleton field,
 connection checkout default, or unrelated connection. An execution ThreadLocal alone
 is not a transaction-binding mechanism. The first implementation supports the existing
-single-DataSource, synchronous JDBC transaction architecture; XA/reactive propagation
+single-runtime-DataSource, synchronous JDBC transaction architecture; separate
+migration credentials do not add another business transaction resource. XA/reactive propagation
 is not implied. Document/reject unsupported transaction managers/configurations.
 
 REQUIRED nested usecases inherit the binding. A request to switch tenants while a

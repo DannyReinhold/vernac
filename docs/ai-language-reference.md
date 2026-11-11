@@ -1698,9 +1698,12 @@ local tenant roots may contain imported entities without regenerating dependency
 classes. Type imports do not activate modules or select a tenant. A change from
 TENANT to GLOBAL (or back) is an incompatible module contract change. Rebuild older
 producer/consumer artifacts; this compiler intentionally rejects older metadata.
-Tenant repositories inside reusable modules remain blocked until their activation
-supports separate migration/runtime DataSources. Imported immutable IDs/VOs remain
-reusable. Recorded/deferred publication while tenant context is selected fails
+Persistent module migrations may use a separate Flyway DataSource for the same
+PostgreSQL writer database. Configure spring.datasource.* for runtime credentials and
+spring.flyway.* for migration credentials; the latter execute all module/application
+histories and installed-schema checks. Repositories keep the runtime DataSource.
+Tenant repositories inside reusable modules remain blocked pending tenant-specific
+activation/RLS acceptance. Imported immutable IDs/VOs remain reusable. Recorded/deferred publication while tenant context is selected fails
 clearly until tenant event routing exists; synchronous listeners remain supported.
 Manual tenant reconstitute creates detached state; use repository loading for updates.
 The separate SaaS Wizard/starter, identity/authorization and reviewed conversions are

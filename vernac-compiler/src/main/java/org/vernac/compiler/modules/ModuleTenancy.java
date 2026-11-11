@@ -47,8 +47,8 @@ public final class ModuleTenancy {
                 if (!(resolved.type().orElse(null) instanceof ResolvedType.Declared target)) continue;
                 if (tenantAggregate(project, target.symbol().identity().qualifiedName()))
                     diagnostics.add(CompilerDiagnostic.error(repository.location(),
-                            "Tenant repositories in reusable modules require separate migration/runtime DataSources, "
-                                    + "which are not supported by module activation yet. Tenant type exports are supported."));
+                            "Tenant repositories in reusable modules require verified tenant activation/RLS startup, "
+                                    + "which is not implemented yet. Tenant type exports and separate migration connections are supported."));
             }
         }
     }
