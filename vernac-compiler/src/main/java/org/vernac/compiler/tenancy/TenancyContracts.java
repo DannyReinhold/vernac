@@ -42,6 +42,12 @@ public final class TenancyContracts {
                         "Cannot read Vernac tenancy configuration."));
             }
         }
+        if (Files.exists(base.resolve(ModuleDefinition.FILE))) {
+            for (var source : project.sources()) if (!source.external()) for (var definition : source.unit().definitions())
+                if (definition instanceof AggregateNode aggregate && aggregate.tenant())
+                    diagnostics.add(CompilerDiagnostic.error(aggregate.location(),
+                            "Tenant aggregates in reusable modules require tenant metadata/activation support, which is not implemented yet."));
+        }
         if (!explicit) return diagnostics;
         Map<String, AggregateNode> own = new HashMap<>();
         for (var source : project.sources()) if (!source.external()) for (var definition : source.unit().definitions()) {
@@ -54,11 +60,10 @@ public final class TenancyContracts {
             if (!(resolved instanceof ResolvedType.Declared declared)) continue;
             String identity = declared.symbol().identity().qualifiedName();
             var aggregate = own.get(identity);
-            if (aggregate != null && !aggregate.global() && checked.add(identity)) {
+            if (aggregate != null && !aggregate.global() && !aggregate.tenant() && checked.add(identity)) {
                 diagnostics.add(CompilerDiagnostic.error(aggregate.location(),
                         "tenancy explicit requires classification of persisted aggregate '" + identity
-                        + "'. Use global aggregate only for intentionally unscoped data. "
-                        + "Tenant aggregate generation is not available yet; no classification is inferred."));
+                        + "'. Choose tenant aggregate or global aggregate explicitly; no classification is inferred."));
             }
         }
         return diagnostics;

@@ -221,3 +221,13 @@ The separate SaaS Wizard choice must enable the rule only when its complete tena
 starter works. Existing simple templates stay unchanged. Tenant syntax, owned
 mapping, runtime wiring and migration transitions remain OPEN; A19/A20/A21 are not
 VERIFIED by this rule.
+
+## Local generated tenant persistence evidence
+
+The [local integration](tenant-persistence-integration.md) connects tenant aggregate
+classification to complete local owned schema graphs and generated JDBC CRUD/search/
+count/cursor paths. Verification includes actual generated Java, restricted PostgreSQL
+roles, shared entities/nested collections, global coexistence, concurrent requests and
+optimistic conflicts. This is partial A19 evidence, not A19/A20/A21 completion.
+Tenant modules/imported entities, durable tenant events, historical classification
+conversions, identity/authorization and the SaaS starter remain OPEN or fail closed.

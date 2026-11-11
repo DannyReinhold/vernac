@@ -256,10 +256,8 @@ class TenantIsolationPostgresTest {
             isolated.setMaximumPoolSize(1);
             var sql=new JdbcTemplate(isolated);
             sql.queryForObject("SELECT set_config('vernac.tenant_id',?,false)",String.class,A.toString());
-            var candidate=new TenantBoundary(isolated,(a,t)->true);
-            var tx=new TransactionTemplate(new DataSourceTransactionManager(isolated));
-            try(var selection=candidate.select(B)) {
-                code("TENANT_CONTEXT_CONTAMINATED",()->tx.execute(status->candidate.requireBound()));
+            try {
+                code("TENANT_CONTEXT_CONTAMINATED",()->new TenantBoundary(isolated,(a,t)->true));
             } finally {sql.queryForObject("SELECT set_config('vernac.tenant_id','',false)",String.class);}
         }
         code("TENANT_CONTEXT_MISMATCH",()->inTenant(A,()->{

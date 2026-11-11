@@ -106,3 +106,10 @@ The chapter explains explicit activation, provider selection, dependency navigat
 [Run the persistent module lifecycle](https://github.com/DannyReinhold/vernac/blob/main/examples/persistent-modules/README.md):
 call two persistent modules from an application, then upgrade their shared value
 with reviewed backfills while retaining existing data. Its separate API module and durable event receivers demonstrate the same activation graph.
+
+## 0.6.0 development: shared-database tenant persistence
+
+[Keep each tenant's notes private](tenant-persistence.md) explains local tenant/global
+aggregate classification, reviewed migrations, separate database roles and trusted
+execution selection. This chapter requires development artifacts and explicitly
+identifies module, event and SaaS provisioning work that is not complete yet.

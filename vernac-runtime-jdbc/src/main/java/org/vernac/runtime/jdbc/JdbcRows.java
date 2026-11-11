@@ -24,6 +24,9 @@ final class JdbcRows {
             };
             row.put(c.name(),value);
         }
+        if(table.tenant() && !org.vernac.runtime.tenancy.TenantContext.requireTenant().value().equals(row.get("@tenantId")))
+            throw new org.vernac.runtime.tenancy.TenancyException(
+                    org.vernac.runtime.tenancy.TenancyException.Code.TENANT_CONTEXT_MISMATCH);
         return row;
     }
     static MapSqlParameterSource params(Table t,Map<String,@Nullable Object> row) {

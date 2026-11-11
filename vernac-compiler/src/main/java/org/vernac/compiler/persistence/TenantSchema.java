@@ -25,7 +25,15 @@ public final class TenantSchema {
         if (root) {
             qualified.add(new Constraint("@unique:tenant:" + unscoped.name(),
                     "UNIQUE (" + name(COLUMN) + ", " + name("id") + ")"));
-        } else key.addFirst(COLUMN);
+        } else {
+            key.addFirst(COLUMN);
+            if(columns.stream().anyMatch(c->c.name().equals("@rowId"))) {
+                List<String> rowKey=columns.stream().anyMatch(c->c.name().equals("@aggregateId"))
+                        ?List.of(COLUMN,"@aggregateId","@rowId"):List.of(COLUMN,"@rowId");
+                if(!key.equals(rowKey)) qualified.add(new Constraint("@unique:tenant-row:"+unscoped.name(),
+                        "UNIQUE ("+names(rowKey)+")"));
+            }
+        }
         return new Table(unscoped.namespace(), unscoped.name(), unscoped.origin(),
                 columns, key, qualified, new TenantIsolation(aggregate, root));
     }

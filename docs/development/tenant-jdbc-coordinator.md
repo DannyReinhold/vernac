@@ -3,7 +3,8 @@ title: PostgreSQL tenant coordinator — explicit runtime integration
 ---
 # PostgreSQL tenant coordinator — explicit runtime integration
 
-Status: **production coordinator implemented; generated persistence integration remains OPEN**.
+Status: **production coordinator and local generated store integration implemented**.
+See the [current integration contract](tenant-persistence-integration.md).
 
 This follows the [runtime foundation](tenant-runtime-foundation.md). It moves the
 physical-connection mechanism from the experiment into vernac-runtime-jdbc, while the
@@ -11,19 +12,19 @@ experiment continues to provide handwritten schema, SQL and authentication fixtu
 
 ## Entry points and lifecycle
 
-Create one JdbcTenantCoordinator for the application's supported DataSource and the
-complete set of tenant-owned tables. Table names are PostgreSQL regclass strings;
+Create a coordinator for each generated graph on the same supported DataSource.
+Transaction binding is shared by DataSource identity; each table set is verified. Table names are PostgreSQL regclass strings;
 quoted namespace/table names work. They are bound parameters, never interpolated SQL.
 
 Call verifyRuntimeRole() after migrations and before serving tenant traffic.
 It borrows a connection without establishing tenant authority. Missing tables fail.
 For every configured root/child/relationship table it rejects superusers, BYPASSRLS,
-effective table owners, schema CREATE privilege, TRUNCATE privilege and missing
+table owners and owner-role membership, schema CREATE privilege, TRUNCATE privilege and missing
 ENABLE/FORCE ROW LEVEL SECURITY.
 
-This check does not yet validate the exact policy expression, foreign-key shape,
-discriminator type or complete table inventory. Those require the upcoming shared
-schema/storage plan. It does not create roles, schemas or policies and is not an
+The generated-store mode additionally verifies the exact owned policy. The
+two-argument custom-infrastructure mode retains RLS flag checks without asserting
+the generated policy expression. Neither mode is a full live structural validator; schema-check supplies broader\nowned-schema drift verification. It does not create roles, schemas or policies and is not an
 automatic Spring Boot configuration in this increment.
 
 Before **every** tenant-aware storage operation, call requireBound(). It:
@@ -37,8 +38,9 @@ Before **every** tenant-aware storage operation, call requireBound(). It:
 5. Suspends/resumes its resource with Spring REQUIRES_NEW, and releases only its own
    metadata on commit/rollback. Spring retains ownership of the JDBC connection.
 
-Use the same coordinator for these calls; separate coordinator instances are not
-interchangeable registrations for the same physical transaction. The supported
+Coordinators on the same DataSource share the physical transaction binding;
+additional table sets are verified before use. Construction requires an empty/unset
+session tenant and autocommit-enabled pool baseline outside an active transaction. The supported
 architecture remains synchronous Spring JDBC with one application DataSource.
 XA, reactive transactions and cross-DataSource atomicity are not provided.
 
@@ -48,10 +50,9 @@ This coordinator does not authenticate or check membership.
 
 ## What changes for applications?
 
-Existing generated repositories do not invoke this coordinator yet and stay
-unscoped. Merely adding the dependency, selecting a tenant or constructing a
-coordinator does not secure arbitrary SQL. The generated tenant marker, central
-predicates and schema plan are separate remaining increments.
+Local tenant-marked generated repositories invoke this coordinator. Existing
+unscoped repositories stay unscoped. Merely adding the dependency, selecting a tenant or constructing a
+coordinator does not secure arbitrary SQL. Local tenant generation now explicitly\nselects the shared schema plan, central predicates and checked restoration path.
 
 Trusted custom infrastructure can explicitly use the API after configuring the
 restricted runtime role and reviewed RLS schema. Domain code should not manage
@@ -69,8 +70,9 @@ REQUIRES_NEW, rollback, pooled connection reuse, parallel requests, stale sessio
 context and setting tampering, as well as the existing ownership/storage scenarios.
 The CI gate requires every named proof with no skips.
 
-## Next bounded increment
+## Remaining integration
 
-The [schema foundation](tenant-schema-foundation.md) now provides explicit model\nclassification and fresh-table DDL. Next connect source/owned storage plans and exact\nruntime policy validation; then connect generated repository/query operations to
-the coordinator and central predicates. Counts, pagination, graphs, modules and
-events remain explicit release requirements, not implied by this low-level PR.
+Local aggregate/owned graph/query integration now exists. Tenant module activation,
+durable event routing, reviewed conversions and the complete SaaS starter remain
+explicit release requirements. See the integration record for current test evidence
+and operational prerequisites.

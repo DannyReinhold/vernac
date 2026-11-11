@@ -259,3 +259,13 @@ transaction. An application-provided JdbcEventWorker replaces the default worker
 A recorded-only application does not start polling and needs no delivery table.
 Graceful shutdown waits for the current work through Spring's lifecycle shutdown phase;
 forced termination is handled by lease recovery.
+
+## Tenant execution boundary (0.6.0 development)
+
+Synchronous immediate listeners can run within the selected tenant's current
+transaction. Recorded/deferred publication while TenantContext is selected currently
+throws TENANT_EVENT_DELIVERY_UNSUPPORTED before persistence or listener dispatch.
+The failed event context prevents commit as with other delivery failures. This
+fail-closed boundary avoids silently storing tenant payloads or deliveries in the
+current unscoped event tables. Durable tenant envelopes, worker restoration and
+module routing remain OPEN; this is not completed tenant event support.

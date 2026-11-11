@@ -27,6 +27,7 @@ public final class SchemaBuilder {
     private final Map<String, MutableTable> entities = new HashMap<>();
     private final Set<String> expandingEntities = new HashSet<>();
     private MutableTable root;
+    private boolean tenantRoot;
     private final List<StoragePlan> plans = new ArrayList<>();
     private final List<StoragePlan.Relation> relations = new ArrayList<>();
     private final List<EventStoragePlan> eventPlans = new ArrayList<>();
@@ -34,6 +35,8 @@ public final class SchemaBuilder {
     public List<StoragePlan> plans() { return List.copyOf(plans); }
     private void publish(MutableTable table) {
         var schema = table.freeze();
+        if(tenantRoot) schema=TenantSchema.table(schema,root.origin,table==root,
+                schema.constraints().stream().map(c->table.tenantConstraints.getOrDefault(c.name(),c)).toList());
         tables.add(schema);
         relations.add(new StoragePlan.Relation(schema, table.predicate, table.depth, List.copyOf(table.properties)));
     }
@@ -66,6 +69,7 @@ public final class SchemaBuilder {
                 AggregateNode a = (AggregateNode) definitions.get(key);
                 MutableTable t = new MutableTable(type.symbol().identity().namespace(), a.name(), key, List.of("id"));
                 root = t;
+                tenantRoot = a.tenant();
                 relations.clear();
                 t.predicate = name("id") + " = :aggregateId";
                 entities.clear();
@@ -82,9 +86,10 @@ public final class SchemaBuilder {
         }
         buildEvents();
         if (!codes.keySet().containsAll(enumOverrides.keySet())) throw new IllegalArgumentException("Enum-code override names an enum not used by persistence.");
-        return new SchemaModel(1, 1, tables, codes);
+        return new SchemaModel(tables.stream().anyMatch(t->t.tenantIsolation()!=null)?2:1, 1, tables, codes);
     }
     private void buildEvents() {
+        tenantRoot=false;
         Set<String> deferredEvents = new HashSet<>();
         for(var source:project.project().sources()) if(!source.external()) for(var definition:source.unit().definitions()) {
             if(definition instanceof ListenerNode listener && listener.deferred()) {
@@ -132,9 +137,8 @@ public final class SchemaBuilder {
         if (symbol.kind() == TypeSymbol.Kind.ENTITY) {
             MutableTable target = entity(symbol, loc);
             t.column(path, "UUID", optional || !parent.equals("TRUE"), "entity-reference:" + identity, identity);
-            t.constraints.add(new Constraint("@fk:entity:" + path, "FOREIGN KEY ("
-                    + name(aggregateColumn(t)) + ", " + name(path) + ") REFERENCES "
-                    + table(target.namespace, target.name) + " (" + name("@aggregateId") + ", " + name("id") + ") DEFERRABLE INITIALLY DEFERRED"));
+            t.foreignKey("@fk:entity:" + path, List.of(aggregateColumn(t),path),target.namespace,target.name,
+                    List.of("@aggregateId","id"),true);
             return new StoragePlan.Value(type, optional, path, null, List.of(path), List.of(), target.freeze().identity(), null, null, false);
         }
         if (symbol.kind() == TypeSymbol.Kind.COLLECTION) return collection(t, path, symbol, optional, parent, loc);
@@ -142,22 +146,30 @@ public final class SchemaBuilder {
             fail(loc, "Entity persistence is not implemented yet; cannot persist field '" + path + "' of type " + identity);
         }
         ValueObjectNode value = (ValueObjectNode) definitions.get(identity);
-        if (value.isEnum()) {
-            Map<String, String> mapping = new TreeMap<>();
-            var old = previous.enumCodes().getOrDefault(identity, Map.of());
-            value.enumConstants().forEach(c -> mapping.put(c.name(), old.getOrDefault(c.name(), c.name())));
-            if (enumOverrides.containsKey(identity)) {
-                var override = enumOverrides.get(identity);
-                if (!override.keySet().equals(mapping.keySet()) || override.values().stream().anyMatch(Objects::isNull))
-                    fail(loc, "Enum-code override must map every current constant exactly once: " + identity);
-                mapping.clear(); mapping.putAll(override);
-            }
-            if (new HashSet<>(mapping.values()).size() != mapping.size()) fail(loc, "Duplicate persistence codes for " + identity);
-            codes.put(identity, mapping);
-            scalar(t, path, "String", parent, optional, identity);
-            t.check("enum:" + path, name(path) + " IN (" + String.join(", ", mapping.values().stream().map(SqlNames::literal).toList()) + ")");
-            return leaf(type, optional, path, "String");
+        if (value.isEnum()) return enumValue(t, path, type, optional, parent, loc, value, identity);
+        return flattenedValue(t, path, type, optional, parent, value, identity);
+    }
+
+    private StoragePlan.Value enumValue(MutableTable t, String path, ResolvedType type, boolean optional,
+                                       String parent, SourceLocation loc, ValueObjectNode value, String identity) {
+        Map<String, String> mapping = new TreeMap<>();
+        var old = previous.enumCodes().getOrDefault(identity, Map.of());
+        value.enumConstants().forEach(c -> mapping.put(c.name(), old.getOrDefault(c.name(), c.name())));
+        if (enumOverrides.containsKey(identity)) {
+            var override = enumOverrides.get(identity);
+            if (!override.keySet().equals(mapping.keySet()) || override.values().stream().anyMatch(Objects::isNull))
+                fail(loc, "Enum-code override must map every current constant exactly once: " + identity);
+            mapping.clear(); mapping.putAll(override);
         }
+        if (new HashSet<>(mapping.values()).size() != mapping.size()) fail(loc, "Duplicate persistence codes for " + identity);
+        codes.put(identity, mapping);
+        scalar(t, path, "String", parent, optional, identity);
+        t.check("enum:" + path, name(path) + " IN (" + String.join(", ", mapping.values().stream().map(SqlNames::literal).toList()) + ")");
+        return leaf(type, optional, path, "String");
+    }
+
+    private StoragePlan.Value flattenedValue(MutableTable t, String path, ResolvedType type, boolean optional,
+                                            String parent, ValueObjectNode value, String identity) {
         Set<String> before = new HashSet<>(t.columns.keySet());
         String active = parent;
         String presence = null, markerName = null;
@@ -242,6 +254,8 @@ public final class SchemaBuilder {
     }
     private MutableTable entity(TypeSymbol symbol, SourceLocation loc) {
         String identity = symbol.identity().qualifiedName();
+        if(tenantRoot && project.project().sources().stream().anyMatch(s->s.external() && s.path().equals(symbol.sourceFile())))
+            fail(loc,"Tenant entity imports require module ownership metadata, which is not implemented yet: "+identity);
         if (expandingEntities.contains(identity)) fail(loc, "Cyclic entity containment: " + identity);
         MutableTable existing = entities.get(identity);
         if (existing != null) return existing;
@@ -254,8 +268,7 @@ public final class SchemaBuilder {
         expandingEntities.add(identity);
         t.column("@aggregateId", "UUID", false, "aggregate-owner", root.origin);
         t.column("id", "UUID", false, "UUID", identity + ".id");
-        t.constraints.add(new Constraint("@fk:aggregate", "FOREIGN KEY (" + name("@aggregateId")
-                + ") REFERENCES " + table(root.namespace, root.name) + " (" + name("id") + ")"));
+        t.foreignKey("@fk:aggregate",List.of("@aggregateId"),root.namespace,root.name,List.of("id"),false);
         for (FieldNode f : node.fields()) t.properties.add(new StoragePlan.Property(f.name(), field(t, f.name(), project.typeOf(f.type()),
                 f.type().isOptional(), "TRUE", f.location())));
         expandingEntities.remove(identity);
@@ -278,11 +291,10 @@ public final class SchemaBuilder {
             link.column("@position", "INTEGER", false, "list-position", path);
             link.check("position", name("@position") + " >= 0");
         }
-        link.constraints.add(new Constraint("@fk:owner", "FOREIGN KEY (" + sqlNames(ownerColumns)
-                + ") REFERENCES " + table(owner.namespace, owner.name) + " ("
-                + sqlNames(rootOwner ? List.of("id") : List.of("@aggregateId", "id")) + ")"));
-        link.constraints.add(new Constraint("@fk:entity", "FOREIGN KEY (" + sqlNames(List.of("@aggregateId", "@entityId"))
-                + ") REFERENCES " + table(target.namespace, target.name) + " (" + sqlNames(List.of("@aggregateId", "id")) + ") DEFERRABLE INITIALLY DEFERRED"));
+        link.foreignKey("@fk:owner",ownerColumns,owner.namespace,owner.name,
+                rootOwner?List.of("id"):List.of("@aggregateId","id"),false);
+        link.foreignKey("@fk:entity",List.of("@aggregateId","@entityId"),target.namespace,target.name,
+                List.of("@aggregateId","id"),true);
         link.predicate = name("@aggregateId") + " = :aggregateId";
         publish(link);
         return link;
@@ -291,54 +303,105 @@ public final class SchemaBuilder {
         return String.join(", ", columns.stream().map(SqlNames::name).toList());
     }
 
-    private StoragePlan.Value collection(MutableTable owner, String path, TypeSymbol symbol, boolean optional, String parent, SourceLocation loc) {
-        var c = CollectionTypes.find(project.project(), symbol.identity()).orElseThrow();
-        var element = project.project().symbols().find(symbol.identity().namespace() + "." + c.elementName()).orElseThrow();
-        if (!c.valueElements() && element.kind() != TypeSymbol.Kind.ENTITY)
+    private StoragePlan.Value collection(MutableTable owner, String path, TypeSymbol symbol,
+                                         boolean optional, String parent, SourceLocation loc) {
+        var declaration = CollectionTypes.find(project.project(), symbol.identity()).orElseThrow();
+        var element = project.project().symbols()
+                .find(symbol.identity().namespace() + "." + declaration.elementName()).orElseThrow();
+        if (!declaration.valueElements() && element.kind() != TypeSymbol.Kind.ENTITY)
             fail(loc, "Aggregate collections cannot be contained: " + path);
-        if (optional || !parent.equals("TRUE")) {
-            String marker = "@present:" + path;
-            owner.column(marker, "BOOLEAN", !parent.equals("TRUE"), "collection-presence", symbol.identity().qualifiedName());
-            if (!parent.equals("TRUE")) owner.check("presence:" + path, "((" + parent + ") AND " + name(marker) + (optional ? " IS NOT NULL" : " IS TRUE")
-                    + ") OR ((NOT (" + parent + ")) AND " + name(marker) + " IS NULL)");
-        }
-        boolean list = c.definition().kind() == CollectionDefinitionNode.Kind.LIST;
-        if (element.kind() == TypeSymbol.Kind.ENTITY) {
-            MutableTable link = entityCollection(owner, path, element, list, loc);
-            var item = new StoragePlan.Value(new ResolvedType.Declared(element), false, null, null, List.of("@entityId"), List.of(),
-                    entities.get(element.identity().qualifiedName()).freeze().identity(), null, null, false);
-            return new StoragePlan.Value(new ResolvedType.Declared(symbol), optional, null,
-                    optional || !parent.equals("TRUE") ? "@present:" + path : null, List.of(), List.of(new StoragePlan.Property("value", item)),
-                    link.freeze().identity(), owner == root ? "@aggregateId" : "@ownerId", "id", list);
-        }
-        String tableName = owner.name + "." + path;
-        MutableTable child = new MutableTable(owner.namespace, tableName, symbol.identity().qualifiedName(),
-                list ? (owner.primaryKey.equals(List.of("@aggregateId", "id"))
-                        ? List.of("@aggregateId", "@ownerId", "@position") : List.of("@ownerId", "@position"))
-                        : List.of("@rowId"));
+
+        String marker = collectionPresence(owner, path, symbol, optional, parent);
+        boolean list = declaration.definition().kind() == CollectionDefinitionNode.Kind.LIST;
+        if (element.kind() == TypeSymbol.Kind.ENTITY)
+            return entityCollectionValue(owner, path, symbol, element, optional, marker, list, loc);
+        return valueCollectionValue(owner, path, symbol, element, optional, marker, list, loc);
+    }
+
+    private String collectionPresence(MutableTable owner, String path, TypeSymbol symbol,
+                                      boolean optional, String parent) {
+        if (!optional && parent.equals("TRUE")) return null;
+        String marker = "@present:" + path;
+        owner.column(marker, "BOOLEAN", !parent.equals("TRUE"), "collection-presence", symbol.identity().qualifiedName());
+        if (!parent.equals("TRUE")) owner.check("presence:" + path,
+                "((" + parent + ") AND " + name(marker) + (optional ? " IS NOT NULL" : " IS TRUE")
+                        + ") OR ((NOT (" + parent + ")) AND " + name(marker) + " IS NULL)");
+        return marker;
+    }
+
+    private StoragePlan.Value entityCollectionValue(MutableTable owner, String path, TypeSymbol symbol,
+            TypeSymbol element, boolean optional, String marker, boolean list, SourceLocation loc) {
+        MutableTable link = entityCollection(owner, path, element, list, loc);
+        var item = new StoragePlan.Value(new ResolvedType.Declared(element), false, null, null,
+                List.of("@entityId"), List.of(), entities.get(element.identity().qualifiedName()).freeze().identity(),
+                null, null, false);
+        return collectionValue(symbol, optional, marker, item, link,
+                owner == root ? "@aggregateId" : "@ownerId", "id", list);
+    }
+
+    private StoragePlan.Value valueCollectionValue(MutableTable owner, String path, TypeSymbol symbol,
+            TypeSymbol element, boolean optional, String marker, boolean list, SourceLocation loc) {
+        MutableTable child = valueCollectionTable(owner, path, symbol, list);
+        String ownerKey = valueCollectionOwnerKey(owner);
+        linkValueCollection(owner, child, ownerKey);
+        child.predicate = valueCollectionPredicate(owner, ownerKey);
+        var item = field(child, "value", new ResolvedType.Declared(element), false, "TRUE", loc);
+        publish(child);
+        return collectionValue(symbol, optional, marker, item, child, "@ownerId", ownerKey, list);
+    }
+
+    private MutableTable valueCollectionTable(MutableTable owner, String path, TypeSymbol symbol, boolean list) {
+        List<String> key = list ? (isEntityTable(owner)
+                ? List.of("@aggregateId", "@ownerId", "@position") : List.of("@ownerId", "@position"))
+                : List.of("@rowId");
+        MutableTable child = new MutableTable(owner.namespace, owner.name + "." + path,
+                symbol.identity().qualifiedName(), key);
         child.depth = owner.depth + 1;
         child.column("@rowId", "UUID", false, "collection-row", path);
         child.column("@ownerId", "UUID", false, "collection-owner", path);
         if (list) {
             child.column("@position", "INTEGER", false, "list-position", path);
             child.check("position", name("@position") + " >= 0");
-            child.constraints.add(new Constraint("@unique:row:" + tableName, "UNIQUE (" + name("@rowId") + ")"));
+            child.constraints.add(new Constraint("@unique:row:" + child.name, "UNIQUE (" + name("@rowId") + ")"));
         }
-        String ownerKey = owner == root ? root.primaryKey.getFirst() : "@rowId";
-        if (owner.primaryKey.equals(List.of("@aggregateId", "id"))) {
+        return child;
+    }
+
+    private void linkValueCollection(MutableTable owner, MutableTable child, String ownerKey) {
+        if (isEntityTable(owner) || tenantRoot)
             child.column("@aggregateId", "UUID", false, "aggregate-owner", root.origin);
-            child.constraints.add(new Constraint("@fk:owner", "FOREIGN KEY (" + sqlNames(List.of("@aggregateId", "@ownerId"))
-                    + ") REFERENCES " + table(owner.namespace, owner.name) + " (" + sqlNames(List.of("@aggregateId", "id")) + ")"));
-        } else child.constraints.add(new Constraint("@fk:owner", "FOREIGN KEY (" + name("@ownerId") + ") REFERENCES "
-                + table(owner.namespace, owner.name) + " (" + name(ownerKey) + ")"));
-        boolean entityOwner = owner.primaryKey.equals(List.of("@aggregateId", "id"));
-        child.predicate = entityOwner ? name("@aggregateId") + " = :aggregateId"
-                : name("@ownerId") + " IN (SELECT " + name(ownerKey) + " FROM " + table(owner.namespace, owner.name) + " WHERE " + owner.predicate + ")";
-        var item = field(child, "value", new ResolvedType.Declared(element), false, "TRUE", loc);
-        publish(child);
-        return new StoragePlan.Value(new ResolvedType.Declared(symbol), optional, null,
-                optional || !parent.equals("TRUE") ? "@present:" + path : null, List.of(), List.of(new StoragePlan.Property("value", item)),
-                child.freeze().identity(), "@ownerId", entityOwner ? "id" : ownerKey, list);
+        if (isEntityTable(owner) || (tenantRoot && owner != root)) {
+            child.foreignKey("@fk:owner", List.of("@aggregateId", "@ownerId"), owner.namespace, owner.name,
+                    List.of("@aggregateId", ownerKey), false);
+        } else {
+            child.foreignKey("@fk:owner", List.of("@ownerId"), owner.namespace, owner.name, List.of(ownerKey), false);
+        }
+        if (tenantRoot && owner == root)
+            child.check("aggregate-owner", name("@aggregateId") + " = " + name("@ownerId"));
+    }
+
+    private String valueCollectionPredicate(MutableTable owner, String ownerKey) {
+        if (isEntityTable(owner)) return name("@aggregateId") + " = :aggregateId";
+        return name("@ownerId") + " IN (SELECT " + name(ownerKey) + " FROM " + table(owner.namespace, owner.name)
+                + " WHERE " + scoped(owner.predicate) + ")";
+    }
+
+    private String valueCollectionOwnerKey(MutableTable owner) {
+        if (isEntityTable(owner)) return "id";
+        return owner == root ? root.primaryKey.getFirst() : "@rowId";
+    }
+
+    private static boolean isEntityTable(MutableTable table) {
+        return table.primaryKey.equals(List.of("@aggregateId", "id"));
+    }
+
+    private static StoragePlan.Value collectionValue(TypeSymbol symbol, boolean optional, String marker,
+            StoragePlan.Value item, MutableTable table, String ownerColumn, String ownerKey, boolean list) {
+        return new StoragePlan.Value(new ResolvedType.Declared(symbol), optional, null, marker, List.of(),
+                List.of(new StoragePlan.Property("value", item)), table.freeze().identity(), ownerColumn, ownerKey, list);
+    }
+    private String scoped(String predicate) {
+        return tenantRoot ? name(TenantSchema.COLUMN)+" = :__vernacTenant AND ("+predicate+")" : predicate;
     }
     private static void fail(SourceLocation loc, String message) {
         throw new SemanticValidationException(List.of(CompilerDiagnostic.error(loc, message)));
@@ -348,6 +411,7 @@ public final class SchemaBuilder {
         final List<String> primaryKey;
         final Map<String, Column> columns = new TreeMap<>();
         final List<Constraint> constraints = new ArrayList<>();
+        final Map<String,Constraint> tenantConstraints=new HashMap<>();
         final List<StoragePlan.Property> properties = new ArrayList<>();
         String predicate;
         int depth;
@@ -357,6 +421,11 @@ public final class SchemaBuilder {
         void column(String name, String type, boolean nullable, String codec, String origin) {
             if (columns.putIfAbsent(name, new Column(name, type, nullable, codec, origin)) != null)
                 throw new IllegalArgumentException("Flattened column collision: " + this.name + "." + name);
+        }
+        void foreignKey(String name,List<String> from,String namespace,String target,List<String> to,boolean deferred) {
+            constraints.add(new Constraint(name,"FOREIGN KEY ("+sqlNames(from)+") REFERENCES "+table(namespace,target)
+                    +" ("+sqlNames(to)+")"+(deferred?" DEFERRABLE INITIALLY DEFERRED":"")));
+            tenantConstraints.put(name,TenantSchema.foreignKey(name,from,namespace,target,to,deferred));
         }
         void check(String name, String expression) { constraints.add(new Constraint("@check:" + name, "CHECK (" + expression + ")")); }
         Table freeze() { return new Table(namespace, name, origin, List.copyOf(columns.values()), primaryKey, constraints); }

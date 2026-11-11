@@ -1,27 +1,27 @@
 # Explicit persistence classification
 
-Status: **0.6.0 development: configuration rule and global declaration implemented;
-tenant-bound generation remains in progress**. Released 0.5.x compilers do not support
+Status: **0.6.0 development: classification rule and local tenant persistence implemented;
+module/event integration and historical conversions remain in progress**. Released 0.5.x compilers do not support
 these additions.
 
 ## Source-controlled project rule
 
 An application MAY declare the following beside its POM:
 
-~~~text
+```text
 application example.invoicing {
     tenancy explicit;
 }
-~~~
+```
 
 A reusable module MAY declare the same rule in its own publication definition:
 
-~~~text
+```text
 module example.shared {
     tenancy explicit;
     export example.shared.PlanId;
 }
-~~~
+```
 
 The files are respectively vernac-application.vapplication and vernac-module.vmodule.
 The declaration MAY appear before, between or after existing entries. Each file MUST
@@ -35,12 +35,12 @@ An ordinary aggregate retains its existing unscoped semantics when the rule is a
 A global aggregate is an explicit spelling of those same semantics; it MUST produce
 the same generated Java and relational schema.
 
-~~~vernac
+```vernac
 namespace example.catalog;
 id PlanId;
 global aggregate Plan[PlanId]();
 repository PlanRepository for Plan {}
-~~~
+```
 
 With tenancy explicit, every **locally declared aggregate targeted by a local
 persistence repository** MUST have explicit classification. Export visibility does
@@ -53,11 +53,16 @@ global is appropriate only for intentionally unscoped data. No implicit tenant,
 user, organization or subscription is assigned. A type without a persistence
 repository is outside this initial rule.
 
-The agreed complementary spelling is tenant aggregate. **It is not accepted/generated
-by this increment.** Until its complete mapping and repository integration are
-implemented, the strict rule is useful only for explicit global classification;
-it is not a functioning SaaS persistence feature. Do not mark private tenant data
-global to make an unfinished tenant model compile.
+The complementary spelling tenant aggregate selects tenant-bound factories, the
+complete local owned schema graph and tenant-aware generated JDBC repositories.
+It requires a trusted TenantContext and a Spring JDBC transaction for repository
+operations. A selected tenant alone never changes a global aggregate's meaning.
+Do not mark private tenant data global to bypass classification or context checks.
+
+See the [current integration boundaries](../development/tenant-persistence-integration.md).
+This is not yet a complete SaaS feature: tenant-module publication/imported entities,
+durable tenant event delivery and reviewed historical classification conversions
+remain blocked or OPEN.
 
 Imported definitions retain their published contract. The consuming application's
 rule MUST NOT reinterpret them or require edits to their read-only sources. Tenant
@@ -81,7 +86,7 @@ The future separate SaaS starter MUST write tenancy explicit into its applicatio
 definition. Existing simple application/library templates remain unchanged. The
 Wizard does not enable it yet: the SaaS starter waits for complete tenant support.
 
-Eventually, accidentally deleting tenant from a persisted declaration fails this
+Accidentally deleting tenant from a persisted declaration fails this
 rule before migration generation. A deliberate change to global then reaches the
 [tenant migration safeguards](../development/tenant-technical-contract.md#tenant-classification-changes-in-mavenflyway-candidates).
 Global does not authorize a boundary-removing migration by itself. Existing unscoped
@@ -92,5 +97,5 @@ aggregate to global aggregate changes no schema and needs no migration.
 Parser/compiler tests cover settings and duplicate detection in both file types,
 unchanged global Java/schema output, private persisted aggregates, unpersisted
 types and external-source exemption. LSP tests cover unsaved configuration changes,
-unsaved global declarations and navigation. Complete tenant syntax, graph propagation,
-generated SQL, module metadata and conversion paths remain OPEN.
+unsaved global declarations and navigation. Local tenant syntax, graph propagation and generated SQL are implemented. Module
+metadata, event routing, identity provisioning and conversion paths remain OPEN.

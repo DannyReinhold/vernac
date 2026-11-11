@@ -3,7 +3,8 @@ title: Tenant runtime foundation — implemented low-level APIs
 ---
 # Tenant runtime foundation — implemented low-level APIs
 
-Status: **low-level runtime implemented; automatic persistence isolation not implemented**.
+Status: **runtime foundation implemented; local generated integration is now available**.
+Current scope: [tenant persistence integration](tenant-persistence-integration.md).
 This is the first additive production increment after the
 [PostgreSQL/Spring feasibility spike](tenant-isolation-spike.md).
 The technical [tenant contract](tenant-technical-contract.md) still describes later
@@ -59,7 +60,7 @@ remove that pin: a different tenant cannot be reopened before transaction comple
 [production JDBC coordinator](tenant-jdbc-coordinator.md) validates the actual
 DataSource/physical transaction and initializes PostgreSQL transaction-local state.
 The experiment now exercises that coordinator with real connections, including
-the wrong-DataSource failure. Generated repository invocation remains OPEN.
+the wrong-DataSource failure. Local tenant repositories now invoke it explicitly.
 The core pin is not sufficient to secure a query or an unrelated transaction manager.
 
 ### Object origin and immutable assignment
@@ -70,7 +71,7 @@ concurrent different first owners cannot both succeed. This does not make a muta
 aggregate thread-safe or replace persistence authorization.
 
 - `newAggregate()` captures the live verified selection if present, else waits for
-  first assignment. A future tenant-marked root factory uses this path.
+  first assignment. Generated local tenant-marked root factories use this path.
 - `newEntity()` remains unassigned until its root adopts it, even in an ambient scope.
 - `restored(tenant)` is for a trusted storage adapter; it keeps that owner.
 - `detached()` represents manual reconstruction and cannot be claimed as a NEW root.
@@ -86,11 +87,12 @@ No public reattachment/import API or source-level factory parameter is introduce
 
 These APIs are architectural helpers for trusted generated/storage code. Application
 Java can construct technical objects, so they are not unforgeable security capabilities.
-The production generator does not yet select these factories or add state to entities.
+The local tenant generator now selects these factories and adds technical entity
+ownership, as described in the integration record. Module/event work remains separate.
 
 ## Validation and limits
 
-Local build: `mvn -pl vernac-runtime -am clean install` executed **55 tests**, including
+Original foundation verification (historical): `mvn -pl vernac-runtime -am clean install` executed **55 tests**, including
 16 new foundation tests. The standalone PostgreSQL project then executed **12 tests**
 using the actual installed runtime. Both report zero failures/errors/skips. The
 workflow now builds the runtime first and checks all named foundation/spike proofs.
@@ -103,14 +105,12 @@ No credentials, SQL values or private tenant data are added to production loggin
 
 ## Still OPEN
 
-`tenant` parsing/generation; technical storage discriminator and key/RLS schema plans;
-generated JDBC coordinator invocation and tenant predicates; full entity/collection provenance;
-counts/cursors/batches; module metadata/compatibility/migrations; event routing;
+Whole-SaaS completion and the remaining module/event/identity integration; module metadata/compatibility/migrations; event routing;
 identity/membership integration and immutable actor context; HTTP/MVC behavior;
 subscriptions/limits and SaaS UI/Wizard. A19/A20/A21 are not VERIFIED by this PR.
-Existing repositories do not start filtering merely because TenantContext exists.
+Existing unscoped repositories do not start filtering merely because TenantContext exists;
+local tenant-marked repositories now explicitly invoke the coordinator.
 
-The separate JDBC coordinator increment is documented above. Next introduce shared
-tenant storage-plan/schema representation and exact policy validation, followed by
-generated repository/query integration. Keep simple non-SaaS applications and the separate
-SaaS starter objective intact throughout.
+Local generated persistence is described in the integration record. Next complete
+tenant module/event metadata, identity integration and reviewed conversions. Existing
+simple non-SaaS applications and the separate SaaS starter objective remain distinct.

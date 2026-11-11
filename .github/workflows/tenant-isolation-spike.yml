@@ -49,7 +49,7 @@ jobs:
       - name: Execute real PostgreSQL and Spring boundary tests
         run: mvn -B -ntp -f experiments/tenant-isolation-spike/pom.xml clean verify
       - name: Execute tenant schema replay and schema-check policy proofs
-        run: mvn -B -ntp -pl vernac-maven-plugin -am -Dtest=TenantSchemaPostgresTest,SchemaMojoTest,ExplicitTenancyMojoTest -Dsurefire.failIfNoSpecifiedTests=false test
+        run: mvn -B -ntp -pl vernac-maven-plugin -am -Dtest=DocumentationExamplesTest,TenantSchemaPostgresTest,SchemaMojoTest,ExplicitTenancyMojoTest,TenantGeneratedPostgresTest,RepositoryQueryPostgresTest,ScalarQueryPostgresTest,ModuleMigrationPostgresTest,EventStoragePostgresTest,EventWorkerPostgresTest -Dsurefire.failIfNoSpecifiedTests=false test
       - name: Require every spike proof to execute
         run: |
           python3 - <<'PY'
@@ -114,6 +114,58 @@ jobs:
                   assert not any(case.find(tag) is not None for tag in ('skipped', 'failure', 'error')), f'Unverified runtime proof: {name}'
           print('All production runtime foundation proofs executed; none skipped.')
           schema_proofs = {
+              'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.DocumentationExamplesTest.xml': {
+                  'diagramTutorialShowsTheActualGeneratedGraph',
+                  'persistentModuleTutorialHasACompleteExportableProducerModel',
+                  'completeTutorialModelsResolveAndGenerate',
+                  'paginationTutorialGeneratesCompilableJava',
+                  'dispatchPaginationModelAndItsGeneratedJavaCompile',
+                  'aiReferenceExamplesCompileTogetherIncludingHandwrittenJava',
+                  'dddBeginnerModelsGenerateCompilableJava',
+                  'entryPointsTellTheSameExecutableStory',
+              },
+              'vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.persistence.TenantMappingTest.xml': {
+                  'completeOwnedGraphUsesTenantKeysAndLegacyGlobalGraphStaysUnscoped',
+                  'reusableTenantModulesAreRejectedUntilMetadataAndActivationSupportExist',
+                  'sourceClassificationRemovalReachesSpecificMigrationGuard',
+              },
+              'vernac-runtime/target/surefire-reports/TEST-org.vernac.runtime.events.EventContextTest.xml': {
+                  'tenantContextAllowsSynchronousEventsButRejectsUnscopedStoredDelivery',
+              },
+              'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.TenantGeneratedPostgresTest.xml': {
+                  'generatedTenantRepositoriesCompile',
+                  'generatedGraphsQueriesPaginationAndOwnershipRemainTenantScoped',
+                  'concurrentGeneratedRepositoriesRetainIndependentTenantTransactions',
+                  'generatedStoresRejectOwnerRolesAndChangedPolicies',
+                  'tenantMigrationBackfillsAllTenantsWithDedicatedMigrationPrivileges',
+              },
+              'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.RepositoryQueryPostgresTest.xml': {
+                  'generatedRepositoryCompiles',
+                  'generatedRepositoryCompilesWithSeveralExplicitReturnCollections',
+                  'generatedRepositoryExecutesQueriesAndLoadsCompleteGraphs',
+              },
+              'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.ScalarQueryPostgresTest.xml': {
+                  'textSearchMatchesLiteralJavaOperationsAndLikePatterns',
+                  'equalityAndInequalityMatchJavaForEveryScalarFamily',
+              },
+              'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.ModuleMigrationPostgresTest.xml': {
+                  'fixtureModulesCompileAndShareTheRuntimeFingerprintContract',
+                  'durableFixturesKeepPayloadAndSharedDeliveryOwnershipSeparate',
+                  'deferredModuleReceiversResumeAfterRestartAndRetryWithoutDuplicatingCommittedWrites',
+                  'freshStartupRestartSeparateHistoriesAndRequiredTransactions',
+                  'failedLaterHistoryStopsApplicationAndRetryRetainsEarlierSuccess',
+                  'upgradesModuleAndApplicationCopiesOfAnExternalValueWithExistingData',
+                  'synchronousModuleListenerFailureRollsBackTheCallingTransaction',
+                  'manualOwnedSchemaDriftBlocksRestart',
+              },
+              'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.EventStoragePostgresTest.xml': {
+                  'generatedEventStorageCompiles',
+                  'eventGraphsAndDeliveriesCommitOrRollbackTogether',
+              },
+              'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.EventWorkerPostgresTest.xml': {
+                  'generatedWorkerFixtureCompiles',
+                  'workersRetryFenceAndRecoverClaims',
+              },
               'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.ExplicitTenancyMojoTest.xml': {
                   'compileSchemaAndForcedMigrationRejectMissingClassificationBeforeWriting',
                   'explicitGlobalBuildAndSchemaRemainUsableInStrictMode',
