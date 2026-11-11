@@ -74,7 +74,8 @@ The CI gate requires every named proof with no skips.
 
 ## Remaining integration
 
-Local aggregate/owned graph/query integration now exists. Tenant module activation,
-durable event routing, reviewed conversions and the complete SaaS starter remain
+Local aggregate/owned graph/query integration and persistent tenant module activation
+now exist. Durable tenant event routing, reviewed conversions and the complete SaaS
+starter remain
 explicit release requirements. See the integration record for current test evidence
 and operational prerequisites.

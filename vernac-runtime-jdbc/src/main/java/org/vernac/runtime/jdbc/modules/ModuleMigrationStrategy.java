@@ -17,8 +17,13 @@ import org.vernac.runtime.persistence.*;
 
 /** One coordinator: verify all inputs, migrate dependencies first, then the application. */
 public final class ModuleMigrationStrategy implements FlywayMigrationStrategy,BeanClassLoaderAware {
-    private static final ObjectMapper JSON=new ObjectMapper().enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+    private static final ObjectMapper JSON=new ObjectMapper().addMixIn(SchemaDescription.Table.class, TenantTableJson.class).enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
         .enable(SerializationFeature.INDENT_OUTPUT).setDefaultPrettyPrinter(new DefaultPrettyPrinter().withObjectIndenter(new DefaultIndenter("  ","\n")));
+    /** Keep version-1 snapshot bytes unchanged without adding JSON dependencies to core runtime data. */
+    private abstract static class TenantTableJson {
+        @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+        abstract SchemaDescription.TenantIsolation tenantIsolation();
+    }
     private final AdapterBindings bindings;
     private final String applicationSchema;
     private final DataSource runtimeDataSource;
@@ -32,13 +37,20 @@ public final class ModuleMigrationStrategy implements FlywayMigrationStrategy,Be
         void validate(Prepared module);
         void migrateApplication();
         void validateApplication(SchemaDescription schema,Set<String> owned);
+        default void verifyRuntime(String owner, SchemaDescription schema) { }
     }
     public static void coordinate(List<Prepared> modules,SchemaDescription application,Set<String> owned,Operations operations) {
         Map<String,String> owners=new TreeMap<>();
         for(var module:modules)for(String table:module.owned())claim(owners,table,module.module());
         for(String table:owned)claim(owners,table,"@application");
-        for(var module:modules){operations.migrate(module);operations.validate(module);}
-        operations.migrateApplication();operations.validateApplication(application,owned);
+        for (var module : modules) {
+            operations.migrate(module);
+            operations.validate(module);
+            operations.verifyRuntime(module.module(), module.schema());
+        }
+        operations.migrateApplication();
+        operations.validateApplication(application, owned);
+        operations.verifyRuntime("@application", application);
     }
     private static void claim(Map<String,String> owners,String table,String owner){String previous=owners.putIfAbsent(table,owner);if(previous!=null)throw new IllegalStateException("Schema ownership collision: "+table+" belongs to "+previous+" and "+owner);}
     /** Do not let PostgreSQL's implicit $user search path move history after a schema is created. */
@@ -98,6 +110,13 @@ public final class ModuleMigrationStrategy implements FlywayMigrationStrategy,Be
             }
             public void validate(Prepared module) {
                 JdbcModuleSchemaValidator.validate(migrations, module.schema(), module.owned(), module.module());
+            }
+            public void verifyRuntime(String owner, SchemaDescription schema) {
+                try { ModuleTenantStartup.verify(runtimeDataSource, schema); }
+                catch (org.vernac.runtime.tenancy.TenancyException failed) {
+                    throw new IllegalStateException("Tenant runtime verification failed for " + owner
+                            + ". Check runtime role grants and owned RLS policies.", failed);
+                }
             }
             public void migrateApplication() { history.migrate(); }
             public void validateApplication(SchemaDescription schema, Set<String> owned) {

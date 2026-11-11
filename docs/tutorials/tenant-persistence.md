@@ -8,7 +8,7 @@ return another customer's objects just because their IDs are known. Vernac's 0.6
 development compiler can establish this boundary for local aggregate persistence.
 
 This tutorial covers that persistence boundary, **not a finished SaaS starter**.
-Registration, membership verification, persistent tenant module activation and durable tenant events
+Registration, membership verification and durable tenant events
 are still being implemented. Use matching 0.6.0 development artifacts.
 
 ## Declare the data boundary
@@ -188,8 +188,8 @@ stored tenant ownership. Reusing one of those instances in another tenant is rej
 just like reusing a locally declared entity. Module dependency classes are never
 regenerated in the consumer.
 
-Exported tenant aggregate types also retain their classification when imported. However,
-a producer with its own tenant repository is still rejected: persistent tenant-module
-activation needs separate migration/runtime credentials first. Existing global persistent
-modules retain their earlier lifecycle. See [module lifecycle](type-modules.md) and the
+Exported tenant aggregate types also retain their classification when imported.
+A producer with its own tenant repository can be explicitly activated with separate
+migration/runtime credentials and startup RLS checks. See [persistent tenant modules](tenant-modules.md).
+Existing global persistent modules retain their earlier lifecycle. See [module lifecycle](type-modules.md) and the
 [precise tenant module contract](../contracts/modules.md#tenant-contracts-and-ownership-aware-type-imports-060-development).

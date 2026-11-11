@@ -100,4 +100,4 @@ current behavior. Feature gaps belong on the linked roadmaps, not in guessed syn
 [Documentation home](index.md) · [All tutorial chapters](tutorials/index.md) ·
 [FAQ](faq/index.md) · [Specification index](specification/index.md)
 
-- **0.6.0 development tenant persistence:** [model and operational walkthrough](tutorials/tenant-persistence.md), with explicit current limitations.
+- **0.6.0 development tenant persistence:** [local modeling and roles](tutorials/tenant-persistence.md), then [tenant-aware module lifecycle](tutorials/tenant-modules.md), with explicit current limitations.

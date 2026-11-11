@@ -42,8 +42,6 @@ public final class TenancyContracts {
                         "Cannot read Vernac tenancy configuration."));
             }
         }
-        if (Files.exists(base.resolve(ModuleDefinition.FILE)))
-            ModuleTenancy.validatePublication(project, scopes, diagnostics);
         if (!explicit) return diagnostics;
         Map<String, AggregateNode> own = new HashMap<>();
         for (var source : project.sources()) if (!source.external()) for (var definition : source.unit().definitions()) {

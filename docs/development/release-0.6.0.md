@@ -229,7 +229,7 @@ classification to complete local owned schema graphs and generated JDBC CRUD/sea
 count/cursor paths. Verification includes actual generated Java, restricted PostgreSQL
 roles, shared entities/nested collections, global coexistence, concurrent requests and
 optimistic conflicts. This is partial A19 evidence, not A19/A20/A21 completion.
-Persistent tenant-module activation, durable tenant events, historical classification
+Durable tenant events, historical classification
 conversions, identity/authorization and the SaaS starter remain OPEN or fail closed.
 
 ## Tenant module metadata evidence
@@ -237,15 +237,25 @@ conversions, identity/authorization and the SaaS starter remain OPEN or fail clo
 module-contracts-10 preserves exported aggregate scope and entity ownership/restoration
 capability. Read-only import views retain scope; scope changes are incompatible. Tests
 compile a producer JAR and persist its entities inside a local tenant graph without
-regenerating dependency classes. This is partial A20 evidence. Persistent tenant module
-activation still requires tenant-specific startup/RLS acceptance; its publication guard
-remains. Separate migration/runtime connections are now supported. Durable event routing and A19/A20/A21 remain OPEN.
+regenerating dependency classes. This is partial A20 evidence. Persistent tenant module activation now verifies
+startup/RLS/DML requirements through the runtime connection. Separate migration/runtime
+connections are supported. Durable event routing and A19/A20/A21 remain OPEN.
 
 ## Separate module migration DataSources
 
 Persistent modules now use application Flyway credentials for every isolated module
 history and schema validation, while repositories retain runtime credentials. Boot
 regressions verify restricted runtime access, successful restart, and rejection of
-a different migration database before schema writes. Tenant module publication remains
-guarded pending its own RLS/startup acceptance. No SaaS release gate is closed by this
-connection-routing increment.
+a different migration database before schema writes. Tenant module publication and
+startup/RLS acceptance now have dedicated proofs. No SaaS release gate is closed by
+these persistence increments.
+
+## Persistent tenant module activation evidence
+
+Generated application activation and real module JARs are verified with separate roles.
+The coordinator preserves format-2 boundaries and version-1 fingerprints, rejects
+unsafe/missing runtime RLS/DML privileges before component initialization, and keeps
+module/application REQUIRED writes in one tenant transaction. Proofs cover restart,
+parallel requests, rollback across all owners, additive external-VO upgrades/backfills
+for both tenants, later migration failure and retry. This is partial A19/A20 evidence;
+A19/A20/A21 remain OPEN pending the rest of the SaaS execution/identity/event lifecycle.

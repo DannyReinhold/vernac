@@ -1702,8 +1702,14 @@ Persistent module migrations may use a separate Flyway DataSource for the same
 PostgreSQL writer database. Configure spring.datasource.* for runtime credentials and
 spring.flyway.* for migration credentials; the latter execute all module/application
 histories and installed-schema checks. Repositories keep the runtime DataSource.
-Tenant repositories inside reusable modules remain blocked pending tenant-specific
-activation/RLS acceptance. Imported immutable IDs/VOs remain reusable. Recorded/deferred publication while tenant context is selected fails
+Persistent tenant modules are supported through explicit activation. Each module's
+format-2 owned graph is migrated with the Flyway credentials and verified against
+runtime role/RLS/DML requirements before callable components initialize. REQUIRED
+usecases across modules and the application share the selected tenant and runtime
+transaction. Activation never creates a tenant selection. Additive migrations and
+reviewed backfills update module tables and consumer-owned flattened VO copies through
+independent histories. Existing-table tenant/global conversion remains blocked.
+See [tenant modules](tutorials/tenant-modules.md). Imported immutable IDs/VOs remain reusable. Recorded/deferred publication while tenant context is selected fails
 clearly until tenant event routing exists; synchronous listeners remain supported.
 Manual tenant reconstitute creates detached state; use repository loading for updates.
 The separate SaaS Wizard/starter, identity/authorization and reviewed conversions are

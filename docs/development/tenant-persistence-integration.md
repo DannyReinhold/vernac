@@ -87,11 +87,10 @@ data and deployment compatibility as always; a generated candidate is not a guar
 
 ## Explicit remaining boundaries
 
-- Tenant type exports and imported entity graphs use module-contracts-10 metadata.
-  Tenant repository publication remains rejected by compilation and direct publication:
-  tenant-specific activation and RLS acceptance remain pending. The module coordinator
-  now supports separate migration/runtime DataSources for the same writer database.
-  Global module persistence remains supported; no tenant context is established by imports.
+- Tenant type imports and persistent tenant modules use module-contracts-10 metadata.
+  Explicit activation migrates format-2 owned graphs and checks runtime RLS/DML access
+  before callable module components initialize. Separate migration/runtime connections
+  target the same writer database. Neither imports nor activation select a tenant.
 - Synchronous immediate events retain the current context/transaction. Recorded/deferred
   emission while a tenant is selected fails with TENANT_EVENT_DELIVERY_UNSUPPORTED
   before storage or dispatch, and the failed event context prevents commit. Durable
@@ -105,7 +104,7 @@ data and deployment compatibility as always; a generated candidate is not a guar
 ## Verification scope
 
 Compiler tests cover owned graph classification, technical APIs, source modifier
-removal diagnostics, module scope compatibility and rejection of persistent tenant modules. Real PostgreSQL tests
+removal diagnostics, module scope compatibility and publication of persistent tenant modules. Real PostgreSQL tests
 compile generated Java and exercise complete graphs, nested value collections, shared
 children, multiple repositories in one transaction, global coexistence, predicates,
 singletons, counts, tenant-bound cursors, CRUD/cleanup, detached/reset states, rollback,
@@ -148,6 +147,12 @@ work without access to Flyway histories. A second proof configures different dat
 and verifies rejection before either receives histories or domain tables. Existing
 single-DataSource migration, retry, schema drift and REQUIRED transaction tests remain.
 
-These are connection-routing foundations, not completed tenant module activation. The
-producer guard stays until module-specific RLS/runtime startup and tenant transaction
-proofs are added. A19/A20/A21 remain OPEN.
+Persistent tenant module activation now consumes these connections. Runtime schema
+format 2 retains tenant classifications, with version-1 fingerprint compatibility.
+The coordinator checks exact policy/role/access requirements after each owned history
+and before component startup. Tests use generated application activation, actual
+module JARs, private tenant graphs, cross-module/application rollback, parallel physical
+transactions, restart, shared-VO backfills across both tenants, failed later migrations
+and retries. Policy/role drift blocks startup. A19/A20/A21 remain OPEN: durable tenant
+event routing, identity/authorization, provisioning and the complete SaaS starter are
+not delivered by this persistence increment.

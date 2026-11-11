@@ -5,7 +5,7 @@ import java.util.*;
 /** Shared immutable schema data; serialization belongs to compiler/JDBC infrastructure. */
 public record SchemaDescription(int formatVersion,int mappingVersion,List<Table> tables,Map<String,Map<String,String>> enumCodes) {
     public SchemaDescription {
-        if (formatVersion != 1 || mappingVersion != 1) throw new IllegalArgumentException("Unsupported schema/mapping version");
+        if ((formatVersion != 1 && formatVersion != 2) || mappingVersion != 1) throw new IllegalArgumentException("Unsupported schema/mapping version");
         tables = tables.stream().sorted(Comparator.comparing(Table::identity)).toList();
         Map<String, Map<String, String>> copy = new TreeMap<>();
         enumCodes.forEach((k,v) -> copy.put(k, Collections.unmodifiableMap(new TreeMap<>(v))));
@@ -14,6 +14,8 @@ public record SchemaDescription(int formatVersion,int mappingVersion,List<Table>
         Map<String, String> schemas = new HashMap<>();
         Set<String> relations = new HashSet<>();
         for (Table table : tables) {
+            if (formatVersion == 1 && table.tenantIsolation() != null)
+                throw new IllegalArgumentException("Tenant classification requires schema format 2");
             if (!identities.add(table.identity())) throw new IllegalArgumentException("Duplicate table " + table.identity());
             String physical = SqlIdentifiers.physical(table.namespace());
             String old = schemas.putIfAbsent(physical, table.namespace());
@@ -23,11 +25,22 @@ public record SchemaDescription(int formatVersion,int mappingVersion,List<Table>
             for (Constraint c : table.constraints()) if (c.clause().startsWith("UNIQUE ") && !relations.add(physical + "/" + SqlIdentifiers.physical(c.name())))
                 throw new IllegalArgumentException("SQL unique-index name collision");
         }
+        TenantSchemaValidation.graph(tables);
     }
     public record Column(String name, String sqlType, boolean nullable, String codec, String origin) { }
     public record Constraint(String name, String clause) { }
+    public record TenantIsolation(String aggregate, boolean root) {
+        public TenantIsolation {
+            if (aggregate == null || aggregate.isBlank())
+                throw new IllegalArgumentException("Tenant aggregate identity is required");
+        }
+    }
     public record Table(String namespace, String name, String origin, List<Column> columns,
-                        List<String> primaryKey, List<Constraint> constraints) {
+                        List<String> primaryKey, List<Constraint> constraints, TenantIsolation tenantIsolation) {
+        public Table(String namespace, String name, String origin, List<Column> columns,
+                     List<String> primaryKey, List<Constraint> constraints) {
+            this(namespace, name, origin, columns, primaryKey, constraints, null);
+        }
         public Table {
             columns = columns.stream().sorted(Comparator.comparing(Column::name)).toList();
             primaryKey = List.copyOf(primaryKey);
@@ -35,6 +48,7 @@ public record SchemaDescription(int formatVersion,int mappingVersion,List<Table>
             Set<String> names = new HashSet<>();
             for (Column column : columns) if (!names.add(SqlIdentifiers.physical(column.name())))
                 throw new IllegalArgumentException("SQL column collision: " + origin + "." + column.name());
+            if (tenantIsolation != null) TenantSchemaValidation.table(columns, primaryKey, constraints, tenantIsolation);
             names.clear();
             for (Constraint c : constraints) if (!names.add(SqlIdentifiers.physical(c.name())))
                 throw new IllegalArgumentException("SQL constraint collision: " + c.name());

@@ -737,7 +737,8 @@ repository. Type imports do not activate modules or establish a tenant selection
 See [reuse an entity from a type module](tenant-persistence.md#reuse-an-entity-from-a-type-module)
 for a producer and consumer example.
 
-This does not yet enable a module's own tenant repository. That combination remains
-blocked until tenant-specific module startup and RLS acceptance are completed.
-The migration coordinator now supports separate runtime/migration credentials. The global persistent-module walkthrough above retains its existing
-behavior. Durable tenant event routing and full SaaS activation remain in progress.
+A module's own tenant repository is supported through explicit activation and runtime
+RLS/privilege verification. Follow [the tenant module walkthrough](tenant-modules.md)
+for publication, separate credentials, transactions and shared-VO upgrades. The global
+persistent-module walkthrough above retains its existing behavior. Durable tenant event
+routing and full SaaS provisioning remain in progress.
