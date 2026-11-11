@@ -324,6 +324,17 @@ Split these into smaller reviewable PRs where useful. Target `feature/0.6.0`, in
 code/tests/docs in each feature PR, and keep supported user documentation accurate.
 No automatic merges or publication are authorized by this plan.
 
+## Preserve the simple application; add SaaS explicitly
+
+Keep existing small Vernac examples and current non-SaaS Wizard templates intact.
+The full SaaS example is a separate application, tentatively `examples/saas-workspace`,
+not a transformation of Dispatch or the basic Spring Boot starter. Add an explicit
+**SaaS application** option to New Vernac Project alongside the existing choices.
+It must generate an independently buildable starter with the required modules,
+activation/migrations, reusable UI, local database and predefined test payment/mail
+providers. A first run needs no real API keys. Existing choices/default behavior stay
+usable without SaaS dependencies. Verify both paths from the actually packaged plugin.
+
 ## Documentation and evidence
 
 Update contracts, language/AI references, configuration reference, FAQs, IDE What's

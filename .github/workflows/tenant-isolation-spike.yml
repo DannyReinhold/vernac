@@ -1,0 +1,71 @@
+name: Tenant isolation feasibility
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/tenant-isolation-spike/**'
+      - '.github/workflows/tenant-isolation-spike.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  spike:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_USER: vernac
+          POSTGRES_PASSWORD: ephemeral-spike-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vernac -d postgres"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      VERNAC_PG_TEST_URL: jdbc:postgresql://localhost:5432/postgres
+      VERNAC_PG_TEST_USER: vernac
+      VERNAC_PG_TEST_PASSWORD: ephemeral-spike-only
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Execute real PostgreSQL and Spring boundary tests
+        run: mvn -B -ntp -f experiments/tenant-isolation-spike/pom.xml clean verify
+      - name: Require every spike proof to execute
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          report = Path('experiments/tenant-isolation-spike/target/surefire-reports/TEST-org.vernac.experiments.tenancy.TenantIsolationPostgresTest.xml')
+          root = ET.parse(report).getroot()
+          required = {
+              'missingAuthenticationMembershipAndTransactionFailClosed',
+              'byIdFindOrCountAndRawSqlAreTenantScoped',
+              'unmarkedGlobalDataNeedsNoTenantAndDoesNotBindOne',
+              'runtimeRoleAndForcedOwnerProtectionAreReal',
+              'rowSecurityBlocksCrossTenantWritesAndForeignKeysBlockCrossTenantLinks',
+              'requiredAndRequiresNewBindDifferentConnectionsAndRestoreOuterContext',
+              'caughtInnerRequiredFailureMakesOuterTransactionRollbackOnly',
+              'innerPermissionIsCheckedOnlyWhenReachedAndBeforeItsBody',
+              'ownershipAndRollbackPreventRetaggingWhileStaleVersionsStillConflict',
+              'sameThreadAndPooledConnectionsDoNotLeakAcrossRepeatedRequestsOrRollback',
+              'twoThreadsHaveIndependentSecuritySelectionsAndPhysicalTransactions',
+              'staleSessionTenantAndMidTransactionSettingTamperingAreRejected',
+          }
+          cases = {case.attrib['name']: case for case in root.findall('testcase')}
+          missing = required - cases.keys()
+          assert not missing, f'Missing required proofs: {sorted(missing)}'
+          for name, case in cases.items():
+              assert not any(case.find(tag) is not None for tag in ('skipped', 'failure', 'error')), f'Unverified proof: {name}'
+          assert all(int(root.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
+          print(f'{len(cases)} real PostgreSQL/Spring proofs executed; none skipped.')
+          PY

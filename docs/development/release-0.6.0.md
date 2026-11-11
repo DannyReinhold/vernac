@@ -25,6 +25,13 @@ manifest, including extension modules and non-database output paths.
 semantics and AUTH-01–08 test requirements. It is not implementation evidence.
 A03/A04/A15/A18 remain OPEN; the Spring transaction/security spike is still pending.
 
+## First executable tenancy spike
+
+The [test-only feasibility record](tenant-isolation-spike.md) supplies narrow evidence
+for transaction binding/RLS/guard ordering, not production implementation. A03/A04,
+A19/A20 and the new A21 SaaS Wizard/example requirement remain OPEN. Subsequent PRs
+must link actual generated/runtime integration and full E2E evidence before verification.
+
 ## Completion policy
 
 Use these states: `OPEN`, `IN PROGRESS`, `IMPLEMENTED / UNVERIFIED`, `VERIFIED`,
@@ -69,6 +76,7 @@ Evidence is currently **none** for all rows. All statuses are OPEN.
 | A18 | Business observability and actionable failures | Stable safe reasons across API/UI/workers; rights/limits/payment/renewal failures and recovery; useful event correlation; seeded sensitive values absent from normal/error logs | OPEN / none |
 | A19 | Automatic shared-database tenant isolation | Declarative classification; byId/find/CRUD/graphs/pages/count/cursors; cross-tenant references and object-save rejection; missing context and pooling/concurrency tests under the actual database role | OPEN / none |
 | A20 | Tenant lifecycle and whole-SaaS propagation | Personal/shared membership, provisioning/global data, module metadata/DDL/backfill, event/payment/mail workers, files/caches and fresh/upgrade E2E isolation | OPEN / none |
+| A21 | Separate SaaS sample and New Project Wizard option | Existing non-SaaS examples/templates still build and run unchanged; explicit SaaS selection generates a complete independent app with module activation/UI/local DB and test providers, no API keys; verify packaged plugin | OPEN / none |
 
 ## Required integrated journeys
 
@@ -108,7 +116,7 @@ Schedule a separate review PR after integration, before calling the release read
 The review may use the same contributor but must be a new, explicit assessment of
 the final implementation, not merely a repetition of prior progress summaries.
 
-- [ ] Reconcile every plan/release promise, D01–D13 decision and A01–A20 row against
+- [ ] Reconcile every plan/release promise, D01–D13 decision and A01–A21 row against
       actual source, tests, public APIs, generated output and consuming application.
 - [ ] Inspect stubs, TODO/FIXME/UnsupportedOperationException paths, empty adapters,
       commented/disabled/skipped tests and happy-path-only simulators. Classify relevant
