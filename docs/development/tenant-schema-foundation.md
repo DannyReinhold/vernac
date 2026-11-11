@@ -7,7 +7,8 @@ Status: **schema foundation implemented and now selected by local tenant aggrega
 See [local integration](tenant-persistence-integration.md) for current scope and limits.
 
 This increment follows the [JDBC coordinator](tenant-jdbc-coordinator.md).
-The shared model is now selected by local tenant declarations and their owned\nstorage plans; generated repositories consume that classification. No existing example becomes tenant-aware.
+The shared model is now selected by local tenant declarations and their owned
+storage plans; generated repositories consume that classification. No existing example becomes tenant-aware.
 
 ## Versioned classification without rewriting existing history
 
@@ -32,7 +33,9 @@ deferred relationships rather than rewriting an existing SQL clause.
 
 Schema validation requires a matching root for each classified graph and rejects
 foreign keys crossing tenant/unscoped or distinct aggregate-graph boundaries.
-The lower-level factory takes explicit graph data; SchemaBuilder now supplies it\nfrom local tenant declarations. It does not infer missing classification or rewrite\nimported module contracts.
+The lower-level factory takes explicit graph data; SchemaBuilder now supplies it
+from local tenant declarations. It does not infer missing classification or rewrite
+imported module contracts.
 
 ## New table candidates
 
@@ -89,6 +92,7 @@ requires the new named schema proofs as well as the existing runtime/spike proof
 No full IntelliJ or complete SaaS release verification is claimed.
 
 The local tenant modifier, owned graph propagation and generated CRUD/query/count/
-page integration now exist. Reviewed conversions, tenant module compatibility and
+page integration now exist. Reviewed conversions, persistent tenant module activation and
 event routing remain OPEN. A19/A20/A21 are not
-VERIFIED. Next extend tenant classification through modules/events and reviewed\nconversion paths while retaining unscoped source and history behavior.
+VERIFIED. Next complete persistent tenant module activation and tenant event routing and reviewed
+conversion paths while retaining unscoped source and history behavior.

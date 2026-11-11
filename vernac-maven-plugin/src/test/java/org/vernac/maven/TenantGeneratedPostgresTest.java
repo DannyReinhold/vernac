@@ -15,6 +15,7 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.vernac.compiler.pipeline.VernacCompiler;
 import org.vernac.compiler.persistence.*;
+import org.vernac.compiler.modules.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -22,25 +23,94 @@ class TenantGeneratedPostgresTest {
     @TempDir static Path directory;
     private URLClassLoader code;
     private SchemaModel schema;
+    private URLClassLoader moduleCode;
+    private SchemaModel moduleSchema;
+    private record Compiled(URLClassLoader code, SchemaModel schema) { }
+
     @BeforeAll void compile() throws Exception {
-        Path root=Files.createDirectories(directory.resolve("model/tenantdemo")).getParent();
-        Files.writeString(root.resolve("tenantdemo/model.vernac"),resource("model.vernac"));
-        var compiler=new VernacCompiler();
-        schema=new SchemaBuilder(compiler.analyzeProject(root),SchemaModel.empty()).build();
-        Path java=Files.createDirectories(directory.resolve("java"));
-        Path classes=Files.createDirectories(directory.resolve("classes"));
-        compiler.compileProject(root).writeTo(java);
-        Files.writeString(Files.createDirectories(java.resolve("tenantdemo")).resolve("TenantProbe.java"),resource("TenantProbe.java.txt"));
-        var javac=Objects.requireNonNull(ToolProvider.getSystemJavaCompiler());
-        var diagnostics=new DiagnosticCollector<JavaFileObject>();
-        try(var manager=javac.getStandardFileManager(diagnostics,null,StandardCharsets.UTF_8);var paths=Files.walk(java)) {
-            var files=paths.filter(p->p.toString().endsWith(".java")).toList();
-            assertTrue(javac.getTask(null,manager,diagnostics,List.of("--release","21","-proc:none","-classpath",System.getProperty("java.class.path"),"-d",classes.toString()),null,
-                    manager.getJavaFileObjectsFromPaths(files)).call(),()->diagnostics.getDiagnostics().toString());
-        }
-        code=new URLClassLoader(new java.net.URL[]{classes.toUri().toURL()},getClass().getClassLoader());
+        var local = compileFixture(false);
+        code = local.code(); schema = local.schema();
+        var imported = compileFixture(true);
+        moduleCode = imported.code(); moduleSchema = imported.schema();
     }
-    @AfterAll void close() throws Exception {if(code!=null)code.close();}
+
+    private Compiled compileFixture(boolean imported) throws Exception {
+        Path fixture = Files.createTempDirectory(directory, imported ? "imported-" : "local-");
+        Path root = Files.createDirectories(fixture.resolve("model/tenantdemo")).getParent();
+        String model = resource("model.vernac");
+        List<ModuleDescriptor> modules = List.of();
+        Path dependency = null;
+        if (imported) {
+            dependency = publishEntities(fixture, model);
+            modules = ModuleArtifacts.read(List.of(dependency));
+            model = "namespace tenantdemo; id InvoiceId; id AuditId; id CatalogId; id ArchiveId;\n"
+                    + model.substring(model.indexOf("tenant aggregate Invoice"));
+        }
+        Files.writeString(root.resolve("tenantdemo/model.vernac"), model);
+        var compiler = new VernacCompiler();
+        var resolved = compiler.analyzeProject(root, modules);
+        var schema = new SchemaBuilder(resolved, SchemaModel.empty()).build();
+        Path java = Files.createDirectories(fixture.resolve("java"));
+        Path classes = Files.createDirectories(fixture.resolve("classes"));
+        var generated = compiler.generate(resolved, SchemaModel.empty(), Map.of());
+        if (imported) assertTrue(generated.generatedFiles().stream().noneMatch(f -> f.typeSpec().name().equals("Stop")));
+        generated.writeTo(java);
+        Files.writeString(Files.createDirectories(java.resolve("tenantdemo")).resolve("TenantProbe.java"), resource("TenantProbe.java.txt"));
+        compileJava(java, classes, dependency);
+        var urls = new ArrayList<java.net.URL>(); urls.add(classes.toUri().toURL());
+        if (dependency != null) urls.add(dependency.toUri().toURL());
+        return new Compiled(new URLClassLoader(urls.toArray(java.net.URL[]::new), getClass().getClassLoader()), schema);
+    }
+
+    private Path publishEntities(Path fixture, String model) throws Exception {
+        Path base = Files.createDirectories(fixture.resolve("producer"));
+        Path root = Files.createDirectories(base.resolve("src/main/vernac/tenantdemo")).getParent();
+        String source = model.substring(0, model.indexOf("tenant aggregate Invoice"));
+        for (String id : List.of("InvoiceId", "AuditId", "CatalogId", "ArchiveId")) source = source.replace("id " + id + ";", "");
+        Files.writeString(root.resolve("tenantdemo/model.vernac"), source);
+        String manifest = "module example.entities {"
+                + List.of("StopId", "ParcelId", "Title", "Tag", "Tags", "TagGroup", "TagGroups", "Parcel", "Parcels", "Stop", "Stops")
+                    .stream().map(n -> "export tenantdemo." + n + ";").collect(java.util.stream.Collectors.joining()) + "}";
+        Path definition = base.resolve(ModuleDefinition.FILE); Files.writeString(definition, manifest);
+        var compiler = new VernacCompiler(); var resolved = compiler.analyzeProject(root);
+        var generated = compiler.generate(resolved, SchemaModel.empty(), Map.of());
+        var descriptor = ModuleContracts.publish(ModuleDefinition.parse(definition, manifest), resolved,
+                generated.generatedFiles(), "example", "entities", "1", List.of());
+        Path java = Files.createDirectories(base.resolve("java")); generated.writeTo(java);
+        Path classes = Files.createDirectories(base.resolve("classes")); compileJava(java, classes, null);
+        ModuleDescriptor.write(classes.resolve(ModuleDescriptor.RESOURCE), descriptor);
+        Path jar = base.resolve("entities.jar");
+        try (var output = new java.util.jar.JarOutputStream(Files.newOutputStream(jar)); var files = Files.walk(classes)) {
+            for (Path file : files.filter(Files::isRegularFile).sorted().toList()) {
+                output.putNextEntry(new java.util.jar.JarEntry(classes.relativize(file).toString().replace('\\', '/')));
+                Files.copy(file, output); output.closeEntry();
+            }
+        }
+        return jar;
+    }
+
+    private void compileJava(Path java, Path classes, Path dependency) throws Exception {
+        var javac = Objects.requireNonNull(ToolProvider.getSystemJavaCompiler());
+        var diagnostics = new DiagnosticCollector<JavaFileObject>();
+        String classpath = System.getProperty("java.class.path")
+                + (dependency == null ? "" : System.getProperty("path.separator") + dependency);
+        try (var manager = javac.getStandardFileManager(diagnostics, null, StandardCharsets.UTF_8); var paths = Files.walk(java)) {
+            var files = paths.filter(p -> p.toString().endsWith(".java")).toList();
+            assertTrue(javac.getTask(null, manager, diagnostics,
+                    List.of("--release", "21", "-proc:none", "-classpath", classpath, "-d", classes.toString()), null,
+                    manager.getJavaFileObjectsFromPaths(files)).call(), () -> diagnostics.getDiagnostics().toString());
+        }
+    }
+
+    @AfterAll void close() throws Exception {
+        if (code != null) code.close();
+        if (moduleCode != null) moduleCode.close();
+    }
+    @Test void importedModuleEntitiesCompileFromPackagedClasses() {assertNotNull(moduleCode);}
+    @Test @EnabledIfEnvironmentVariable(named="VERNAC_PG_TEST_URL",matches=".+")
+    void importedModuleEntitiesRetainOwnershipAndSharedIdentityAcrossTenants() throws Exception {
+        database("lifecycle", false, moduleCode, moduleSchema);
+    }
     @Test void generatedTenantRepositoriesCompile(){assertNotNull(code);}
     @Test @EnabledIfEnvironmentVariable(named="VERNAC_PG_TEST_URL",matches=".+")
     void generatedGraphsQueriesPaginationAndOwnershipRemainTenantScoped() throws Exception {database("lifecycle",false);}
@@ -50,7 +120,7 @@ class TenantGeneratedPostgresTest {
     void generatedStoresRejectOwnerRolesAndChangedPolicies() throws Exception {database("policies",true);}
     @Test @EnabledIfEnvironmentVariable(named="VERNAC_PG_TEST_URL",matches=".+")
     void tenantMigrationBackfillsAllTenantsWithDedicatedMigrationPrivileges() throws Exception {database("migration",false);}
-    private void evolve(DataSource owner) throws Exception {
+    private void evolve(DataSource owner, SchemaModel schema) throws Exception {
         var tables=schema.tables().stream().map(t->{
             if(!t.name().equals("Invoice"))return t;
             var columns=new ArrayList<>(t.columns());
@@ -68,6 +138,9 @@ class TenantGeneratedPostgresTest {
         }
     }
     private void database(String method,boolean needsAdmin) throws Exception {
+        database(method, needsAdmin, code, schema);
+    }
+    private void database(String method, boolean needsAdmin, URLClassLoader code, SchemaModel schema) throws Exception {
         String url=System.getenv("VERNAC_PG_TEST_URL");
         var credentials=new Properties();credentials.setProperty("user",System.getenv("VERNAC_PG_TEST_USER"));
         credentials.setProperty("password",System.getenv("VERNAC_PG_TEST_PASSWORD"));
@@ -90,7 +163,7 @@ class TenantGeneratedPostgresTest {
                 var data=new DriverManagerDataSource(target,role,password);
                 try {
                     var probe=code.loadClass("tenantdemo.TenantProbe");
-                    if(method.equals("migration")){probe.getMethod("seed",DataSource.class).invoke(null,data);evolve(owner);}
+                    if(method.equals("migration")){probe.getMethod("seed",DataSource.class).invoke(null,data);evolve(owner,schema);}
                     else if(needsAdmin)probe.getMethod(method,DataSource.class,DataSource.class).invoke(null,data,owner);
                     else probe.getMethod(method,DataSource.class).invoke(null,data);
                 } catch(java.lang.reflect.InvocationTargetException failure) {

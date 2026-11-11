@@ -24,7 +24,8 @@ ENABLE/FORCE ROW LEVEL SECURITY.
 
 The generated-store mode additionally verifies the exact owned policy. The
 two-argument custom-infrastructure mode retains RLS flag checks without asserting
-the generated policy expression. Neither mode is a full live structural validator; schema-check supplies broader\nowned-schema drift verification. It does not create roles, schemas or policies and is not an
+the generated policy expression. Neither mode is a full live structural validator; schema-check supplies broader
+owned-schema drift verification. It does not create roles, schemas or policies and is not an
 automatic Spring Boot configuration in this increment.
 
 Before **every** tenant-aware storage operation, call requireBound(). It:
@@ -52,7 +53,8 @@ This coordinator does not authenticate or check membership.
 
 Local tenant-marked generated repositories invoke this coordinator. Existing
 unscoped repositories stay unscoped. Merely adding the dependency, selecting a tenant or constructing a
-coordinator does not secure arbitrary SQL. Local tenant generation now explicitly\nselects the shared schema plan, central predicates and checked restoration path.
+coordinator does not secure arbitrary SQL. Local tenant generation now explicitly
+selects the shared schema plan, central predicates and checked restoration path.
 
 Trusted custom infrastructure can explicitly use the API after configuring the
 restricted runtime role and reviewed RLS schema. Domain code should not manage

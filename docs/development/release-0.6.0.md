@@ -229,5 +229,14 @@ classification to complete local owned schema graphs and generated JDBC CRUD/sea
 count/cursor paths. Verification includes actual generated Java, restricted PostgreSQL
 roles, shared entities/nested collections, global coexistence, concurrent requests and
 optimistic conflicts. This is partial A19 evidence, not A19/A20/A21 completion.
-Tenant modules/imported entities, durable tenant events, historical classification
+Persistent tenant-module activation, durable tenant events, historical classification
 conversions, identity/authorization and the SaaS starter remain OPEN or fail closed.
+
+## Tenant module metadata evidence
+
+module-contracts-10 preserves exported aggregate scope and entity ownership/restoration
+capability. Read-only import views retain scope; scope changes are incompatible. Tests
+compile a producer JAR and persist its entities inside a local tenant graph without
+regenerating dependency classes. This is partial A20 evidence. Persistent tenant module
+activation still requires separate migration/runtime DataSources; its publication guard
+remains. Durable event routing and A19/A20/A21 remain OPEN.

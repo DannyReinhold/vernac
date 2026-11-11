@@ -18,7 +18,7 @@ public record ModuleDescriptor(int formatVersion,String contractVersion,String m
     }
     public static final String RESOURCE="META-INF/vernac/module.json";
     public static final ObjectMapper JSON=new ObjectMapper();
-    public static final String CONTRACT="module-contracts-9";
+    public static final String CONTRACT="module-contracts-10";
     public record Type(String name,boolean optional,String pageKind) {
         public Type(String name,boolean optional) {this(name,optional,"NONE");}
         public Type {pageKind=pageKind==null?"NONE":pageKind;TypeNode.PageKind.valueOf(pageKind);}
@@ -33,8 +33,22 @@ public record ModuleDescriptor(int formatVersion,String contractVersion,String m
     }
     public record Definition(String identity,String kind,String javaName,List<Field> fields,List<String> constants,
             String element,String collectionKind,List<Method> methods,Map<String,String> javaMembers,
-            String source,int line,int column,String fingerprint) {
+            String source,int line,int column,String fingerprint,String aggregateScope,int entityOwnershipVersion) {
+        public Definition(String identity,String kind,String javaName,List<Field> fields,List<String> constants,
+                String element,String collectionKind,List<Method> methods,Map<String,String> javaMembers,
+                String source,int line,int column,String fingerprint) {
+            this(identity,kind,javaName,fields,constants,element,collectionKind,methods,javaMembers,
+                    source,line,column,fingerprint,kind.equals("AGGREGATE")?"GLOBAL":"NONE",0);
+        }
         public Definition {
+            boolean validScope = kind.equals("AGGREGATE")
+                    ? "GLOBAL".equals(aggregateScope) || "TENANT".equals(aggregateScope)
+                    : "NONE".equals(aggregateScope);
+            if (!validScope)
+                throw new IllegalArgumentException("Invalid aggregate scope: " + identity);
+            if (entityOwnershipVersion < 0 || entityOwnershipVersion > 1
+                    || (!kind.equals("ENTITY") && entityOwnershipVersion != 0))
+                throw new IllegalArgumentException("Invalid entity ownership contract: " + identity);
             fields=List.copyOf(fields);constants=List.copyOf(constants);
             methods=methods.stream().sorted(Comparator.comparing(m->m.name()+m.parameters())).toList();
             javaMembers=Collections.unmodifiableMap(new TreeMap<>(javaMembers));
@@ -64,7 +78,7 @@ public record ModuleDescriptor(int formatVersion,String contractVersion,String m
         vocabulary=vocabulary==null?List.of():List.copyOf(vocabulary);
         components=components==null?List.of():components.stream().sorted(Comparator.comparing(Component::identity)).toList();
         exports=List.copyOf(exports);externalContracts=List.copyOf(externalContracts);internalTypes=internalTypes==null?List.of():List.copyOf(internalTypes);
-        if(formatVersion!=1 || !CONTRACT.equals(contractVersion))throw new IllegalArgumentException("Unsupported Vernac module format/contract version");
+        if(formatVersion!=1 || !CONTRACT.equals(contractVersion))throw new IllegalArgumentException("Unsupported Vernac module format/contract version; expected " + CONTRACT + ". Rebuild producer and consumer artifacts.");
         Objects.requireNonNull(module);Objects.requireNonNull(groupId);Objects.requireNonNull(artifactId);Objects.requireNonNull(version);
     }
 }

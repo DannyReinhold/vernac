@@ -37,7 +37,7 @@ class TenantMappingTest {
         assertTrue(java.contains("__vernacRestore"));
         assertTrue(java.contains("__vernacTenantOwnership"));
     }
-    @Test void reusableTenantModulesAreRejectedUntilMetadataAndActivationSupportExist() throws Exception {
+    @Test void persistentTenantModulesAreRejectedUntilSeparateMigrationConnectionsExist() throws Exception {
         var root=source();
         var resolved=new VernacCompiler().analyzeProject(root);
         var module=org.vernac.compiler.modules.ModuleDefinition.parse(directory.resolve("other.vmodule"),"module example.billing {}");
@@ -45,7 +45,7 @@ class TenantMappingTest {
                 module,resolved,null,"example","billing","1",List.of()));
         Files.writeString(directory.resolve("vernac-module.vmodule"),"module example.billing {}");
         var error=assertThrows(SemanticValidationException.class,()->new VernacCompiler().compileProject(root));
-        assertTrue(error.getMessage().contains("Tenant aggregates in reusable modules"));
+        assertTrue(error.getMessage().contains("Tenant repositories in reusable modules"));
     }
     @Test void sourceClassificationRemovalReachesSpecificMigrationGuard() throws Exception {
         var root=source();var compiler=new VernacCompiler();

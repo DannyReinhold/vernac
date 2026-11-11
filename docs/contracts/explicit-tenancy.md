@@ -60,13 +60,12 @@ operations. A selected tenant alone never changes a global aggregate's meaning.
 Do not mark private tenant data global to bypass classification or context checks.
 
 See the [current integration boundaries](../development/tenant-persistence-integration.md).
-This is not yet a complete SaaS feature: tenant-module publication/imported entities,
+This is not yet a complete SaaS feature: persistent tenant-module activation,
 durable tenant event delivery and reviewed historical classification conversions
 remain blocked or OPEN.
 
 Imported definitions retain their published contract. The consuming application's
-rule MUST NOT reinterpret them or require edits to their read-only sources. Tenant
-metadata publication/compatibility is part of the later tenant implementation.
+rule MUST NOT reinterpret them or require edits to their read-only sources. Aggregate scope and entity ownership metadata are preserved by module-contracts-10.
 
 ## Compiler and editor consistency
 

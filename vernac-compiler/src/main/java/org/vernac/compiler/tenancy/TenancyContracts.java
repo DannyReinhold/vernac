@@ -42,12 +42,8 @@ public final class TenancyContracts {
                         "Cannot read Vernac tenancy configuration."));
             }
         }
-        if (Files.exists(base.resolve(ModuleDefinition.FILE))) {
-            for (var source : project.sources()) if (!source.external()) for (var definition : source.unit().definitions())
-                if (definition instanceof AggregateNode aggregate && aggregate.tenant())
-                    diagnostics.add(CompilerDiagnostic.error(aggregate.location(),
-                            "Tenant aggregates in reusable modules require tenant metadata/activation support, which is not implemented yet."));
-        }
+        if (Files.exists(base.resolve(ModuleDefinition.FILE)))
+            ModuleTenancy.validatePublication(project, scopes, diagnostics);
         if (!explicit) return diagnostics;
         Map<String, AggregateNode> own = new HashMap<>();
         for (var source : project.sources()) if (!source.external()) for (var definition : source.unit().definitions()) {
