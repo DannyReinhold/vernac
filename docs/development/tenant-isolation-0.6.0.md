@@ -33,6 +33,31 @@ A tenant filter does not prove membership or grant rights; an Allow does not rem
 the tenant filter. Account billing and provider-side customer identity do not decide
 which product rows are readable.
 
+## Tenant lifetime versus subscription lifetime
+
+Keep TenantId, account identity and SubscriptionId distinct. Recommended initial SaaS
+assembly: a stable tenant for a personal/shared workspace, a current base offer
+(free/trial/paid as agreed later), and optionally separately defined add-ons. This is
+a proposed billing composition, not a requirement that every tenant already has a
+paid subscription or that all modules support multiple simultaneous subscriptions.
+
+A subscription grants benefits to a configured beneficiary, normally that tenant in
+the simple SaaS assembly. It can determine the allowed capacity/usage, but the tenant
+owns the isolated product data independently of renewal, upgrades or provider changes.
+Do not create a new tenant on plan change, erase data on failed payment/cancellation
+or require new tenant data migrations merely because SubscriptionId changes.
+
+Quota/capacity allocations need an explicit owner, source and lifetime: for example,
+a tenant's export budget for one defined usage period, funded by its current offer.
+Do not blindly key usage only by provider subscription ID or reset it on upgrades/
+resubscription. Combining base offers/add-ons, billing versus calendar periods, unused
+allowance and cancellation behavior remain D05–D07 decisions. Users in a shared tenant
+normally consume its common allocation unless a separate per-user budget is defined.
+
+For multiple products/workspaces or a payer covering several tenants, model the
+beneficiary relation explicitly; do not infer universal one-tenant-per-subscription
+cardinality. Exact initial support is a reviewed SaaS-module decision.
+
 ## Small declaration; automatic aggregate boundary
 
 Candidate syntax for review (not current language):
@@ -61,12 +86,18 @@ self.invoiceRepository().delete(invoice);
 No `inAccount()` or repeated predicate is required for basic tenant safety. Explicit cross-tenant transfers are not ordinary
 save operations and are outside the initial automatic isolation mechanism.
 
-Existing non-SaaS models without this marker must not silently change interpretation.
-The SaaS assembly MUST require an explicit tenant/global classification for reachable
-persistent roots, including module metadata, rather than treating an accidental
-omission as global data. Decide the spelling of explicit global classification and
-module opt-in before implementation. Global roots are still permission protected.
-No implicit rule makes all users, reference data, plans or subscriptions tenant-owned.
+Omitting `tenant` retains existing unscoped persistence semantics: that aggregate's
+repository neither requires nor checks a tenant context, even if a context is active.
+No second `global` keyword or mandatory explicit-global declaration is required.
+A separate usecase permission requirement can still require actor/scope context;
+unscoped persistence is not anonymous/public authorization.
+
+The SaaS assembly/release audit must inventory unmarked roots and flag accidental
+shared sensitive data for review, but must not reject a model merely because an
+intentionally global aggregate omits `tenant`. No marker is inferred from a name,
+namespace, module activation or having a TenantId/AccountId business field. Global
+roots still need suitable permissions and deliberate exposure. This distinction must
+remain visible in exported module metadata and generated schema plans.
 
 ## Trusted execution and transaction context
 
