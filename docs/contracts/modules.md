@@ -894,9 +894,34 @@ repository for its own aggregate, its schema includes the entire owned graph, in
 imported entity tables and flattened external values. The consumer generates and reviews
 that migration. Import/export closure and transitive dependency rules are unchanged.
 
-**Remaining boundary:** a reusable module declaring a tenant repository is rejected
-by normal project analysis and direct publication. Separate migration/runtime credentials are now supported and verified with real Boot
-configuration. Tenant-specific module startup, migration and RLS acceptance must still
-be implemented and tested before this guard is removed. This restriction does not block tenant type-only exports or
-existing global module persistence. Tenant event routing and full SaaS support remain
-OPEN. See [tenant persistence integration](../development/tenant-persistence-integration.md).
+## Persistent tenant module activation (0.6.0 development)
+
+Modules MAY publish tenant repositories and their owned schema graphs. Normal export
+closure, explicit activation, functional dependency ordering and separate migration
+histories apply. Private aggregates/entities are included in the persistence bundle
+and MUST NOT escape validation merely because they are not exported APIs.
+
+Runtime schema data MUST preserve format-2 tenant classification and reject incomplete
+discriminators, ambiguous roots and cross-graph owned foreign keys. Format-1 unscoped
+snapshot serialization/fingerprints MUST remain unchanged. The module contract remains
+module-contracts-10; persistence bundle/snapshot envelopes remain version 1.
+
+After migration and structural validation of each owner, the coordinator MUST verify
+its tenant tables through the runtime DataSource, before callable module components
+initialize. Checks include the exact owned policy, ENABLE/FORCE RLS, non-owner and
+non-bypassing runtime identity, absence of unsafe schema CREATE/TRUNCATE privileges,
+schema USAGE and all four normal repository DML privileges. A changed/extra policy or
+missing privilege MUST abort startup. Safe diagnostics identify the owner and retain
+the classified TenancyException cause without copying tenant values or driver details.
+
+The application and required modules MUST retain REQUIRED propagation on the same
+runtime transaction manager/DataSource. Activation MUST NOT create a tenant context
+or reinterpret global data. Trusted execution selection is required only when code
+reaches tenant storage. Immediate synchronous listeners retain that execution context.
+
+Additive tenant schema upgrades use reviewed independent histories/backfills, including
+consumer-owned flattened copies of external VOs. Migration credentials must intentionally
+authorize all affected rows. Earlier successful histories remain recorded on later
+failure; dependent application startup stops. Existing-table tenant/global conversion
+remains blocked even with force. Durable tenant events, tenant provisioning and full
+SaaS integration remain OPEN. See [the tenant module walkthrough](../tutorials/tenant-modules.md).

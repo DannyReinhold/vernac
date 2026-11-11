@@ -19,7 +19,6 @@ public final class ModuleContracts {
     public static ModuleDescriptor publish(ModuleDefinition module,ResolvedProject project,List<JavaFile> generated,
             String group,String artifact,String version,List<ModuleDescriptor> dependencies) {
         List<CompilerDiagnostic> errors=new ArrayList<>();List<Definition> definitions=new ArrayList<>();
-        ModuleTenancy.validatePublication(project, errors);
         Set<String> exports=new TreeSet<>();module.exports().forEach(e->exports.add(e.name()));
         Map<String,TopLevelDefinition> local=new HashMap<>();Map<String,CollectionDeclaration> collections=new HashMap<>();
         Map<String,VernacSourceFile> origins=new HashMap<>();

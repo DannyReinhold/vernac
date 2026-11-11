@@ -37,15 +37,21 @@ class TenantMappingTest {
         assertTrue(java.contains("__vernacRestore"));
         assertTrue(java.contains("__vernacTenantOwnership"));
     }
-    @Test void persistentTenantModulesAreRejectedUntilTenantActivationIsVerified() throws Exception {
-        var root=source();
-        var resolved=new VernacCompiler().analyzeProject(root);
-        var module=org.vernac.compiler.modules.ModuleDefinition.parse(directory.resolve("other.vmodule"),"module example.billing {}");
-        assertThrows(SemanticValidationException.class,()->org.vernac.compiler.modules.ModuleContracts.publish(
-                module,resolved,null,"example","billing","1",List.of()));
-        Files.writeString(directory.resolve("vernac-module.vmodule"),"module example.billing {}");
-        var error=assertThrows(SemanticValidationException.class,()->new VernacCompiler().compileProject(root));
-        assertTrue(error.getMessage().contains("Tenant repositories in reusable modules"));
+    @Test void persistentTenantModulesPublishVersionedOwnedGraphs() throws Exception {
+        var root = source();
+        var module = org.vernac.compiler.modules.ModuleDefinition.parse(directory.resolve("other.vmodule"), "module example.billing {}");
+        Files.writeString(directory.resolve("vernac-module.vmodule"), "module example.billing {}");
+        var compiler = new VernacCompiler(); var resolved = compiler.analyzeProject(root);
+        var generated = compiler.generate(resolved, SchemaModel.empty(), Map.of());
+        var published = org.vernac.compiler.modules.ModuleContracts.publish(module, resolved,
+                generated.generatedFiles(), "example", "billing", "1", List.of());
+        assertTrue(published.persistent());
+        var model = new SchemaBuilder(resolved, SchemaModel.empty()).build();
+        assertEquals(2, model.formatVersion());
+        var runtime = SchemaModel.JSON.readValue(model.json(), org.vernac.runtime.persistence.SchemaDescription.class);
+        assertEquals(model.tables().size(), runtime.tables().size());
+        assertEquals(model.tables().stream().filter(t -> t.tenantIsolation() != null).count(),
+                runtime.tables().stream().filter(t -> t.tenantIsolation() != null).count());
     }
     @Test void sourceClassificationRemovalReachesSpecificMigrationGuard() throws Exception {
         var root=source();var compiler=new VernacCompiler();

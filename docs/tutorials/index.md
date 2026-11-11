@@ -113,3 +113,8 @@ with reviewed backfills while retaining existing data. Its separate API module a
 aggregate classification, reviewed migrations, separate database roles and trusted
 execution selection. This chapter requires development artifacts and explicitly
 identifies module, event and SaaS provisioning work that is not complete yet.
+
+[Run tenant-aware modules together](tenant-modules.md) follows a producer and consumer
+through publication, explicit activation, separated database roles, REQUIRED transactions
+and additive shared-value migrations. Runtime policy drift and failed startup are part
+of the walkthrough; durable tenant events and SaaS provisioning remain future work.

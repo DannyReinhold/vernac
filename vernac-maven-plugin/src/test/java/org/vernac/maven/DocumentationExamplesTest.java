@@ -42,6 +42,48 @@ class DocumentationExamplesTest {
         assertTrue(descriptor.persistent());assertEquals(5,descriptor.exports().size());
     }
 
+    @Test void persistentTenantModuleTutorialCompilesBothProjectsAndGeneratedActivation() throws Exception {
+        String document = Files.readString(Path.of("../docs/tutorials/tenant-modules.md"));
+        var models = Pattern.compile("```vernac\\n(.*?)```", Pattern.DOTALL).matcher(document);
+        assertTrue(models.find()); Path producer = writeModel("tenant-producer", models.group(1));
+        assertTrue(models.find()); Path consumer = writeModel("tenant-consumer", models.group(1));
+        var manifests = Pattern.compile("```vernac-module\\n(.*?)```", Pattern.DOTALL).matcher(document);
+        assertTrue(manifests.find()); Path manifest = producer.resolve("vernac-module.vmodule");
+        Files.writeString(manifest, manifests.group(1));
+        var compiler = new VernacCompiler(); var resolved = compiler.analyzeProject(producer);
+        var generated = compiler.generate(resolved, org.vernac.compiler.persistence.SchemaModel.empty(), java.util.Map.of());
+        var module = org.vernac.compiler.modules.ModuleContracts.publish(
+                org.vernac.compiler.modules.ModuleDefinition.parse(manifest, manifests.group(1)), resolved,
+                generated.generatedFiles(), "org.example", "billing-domain", "1.0.0", List.of());
+        assertTrue(module.persistent());
+        var applications = Pattern.compile("```vernac-application\\n(.*?)```", Pattern.DOTALL).matcher(document);
+        assertTrue(applications.find()); Path application = consumer.resolve("vernac-application.vapplication");
+        Files.writeString(application, applications.group(1));
+        var appModel = compiler.analyzeProject(consumer, List.of(module));
+        var app = org.vernac.compiler.application.ApplicationDefinition.parse(application, applications.group(1));
+        var appFiles = org.vernac.compiler.application.ApplicationBindings.generate(app, appModel, List.of(module),
+                compiler.generate(appModel, org.vernac.compiler.persistence.SchemaModel.empty(), java.util.Map.of()).generatedFiles(), false);
+        assertTrue(appFiles.configuration().isPresent());
+        Path javaRoot = temporary.resolve("tenant-module-java"); generated.writeTo(javaRoot);
+        for (var file : appFiles.files()) file.writeTo(javaRoot);
+        Path classes = Files.createDirectories(temporary.resolve("tenant-module-classes"));
+        var arguments = new ArrayList<>(List.of("--release", "21", "-proc:none", "-classpath",
+                System.getProperty("java.class.path"), "-d", classes.toString()));
+        try (var paths = Files.walk(javaRoot)) {
+            paths.filter(p -> p.toString().endsWith(".java")).map(Path::toString).forEach(arguments::add);
+        }
+        assertEquals(0, ToolProvider.getSystemJavaCompiler().run(null, null, null, arguments.toArray(String[]::new)));
+    }
+
+    private Path writeModel(String folder, String model) throws Exception {
+        var namespace = Pattern.compile("namespace ([\\p{L}\\p{N}_.]+);").matcher(model);
+        assertTrue(namespace.find());
+        Path root = temporary.resolve(folder);
+        Path source = root.resolve(namespace.group(1).replace('.', '/')).resolve("model.vernac");
+        Files.createDirectories(source.getParent()); Files.writeString(source, model);
+        return root;
+    }
+
     @Test void tenantModuleTutorialPreservesEntityOwnership() throws Exception {
         String document = Files.readString(Path.of("../docs/tutorials/tenant-persistence.md"));
         var blocks = Pattern.compile("```vernac\\n(.*?)```", Pattern.DOTALL).matcher(document);
@@ -68,7 +110,7 @@ class DocumentationExamplesTest {
         for (String name : List.of("domain-diagrams", "ubiquitous-language", "repository-queries", "usecases", "enum-value-objects",
                 "outbound-ports", "declarative-rest", "declarative-errors", "default-names",
                 "adapter-dtos", "domain-events", "http-adapter-runtime", "collections",
-                "your-first-domain-model", "tenant-persistence", "what-is-ddd", "ddd-for-small-projects", "adapter-mappings", "inbound-http", "inbound-mvc", "pagination")) {
+                "your-first-domain-model", "tenant-persistence", "tenant-modules", "what-is-ddd", "ddd-for-small-projects", "adapter-mappings", "inbound-http", "inbound-mvc", "pagination")) {
             String document = Files.readString(Path.of("../docs/tutorials/" + name + ".md"))
                     .replace("\r\n", "\n");
             var block = Pattern.compile("```vernac\\n(.*?)```", Pattern.DOTALL).matcher(document);

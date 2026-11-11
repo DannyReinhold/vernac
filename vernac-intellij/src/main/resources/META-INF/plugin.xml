@@ -100,6 +100,13 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>0.6.0 development — Persistent tenant modules</h3>
+<p>Activate modules with tenant repositories and independent migration histories.
+Generated activation verifies runtime role, owned RLS policy and DML access before
+module functions start. Cross-module/application REQUIRED transactions, upgrades and
+packaged module JARs are covered by PostgreSQL tests. Durable tenant event routing and
+the complete SaaS starter remain in progress.</p>
+
 <h3>0.6.0 development — Separate module migration credentials</h3>
 <p>Module and application histories use Spring Boot's Flyway credentials while
 repositories retain runtime credentials. Distinct connections are checked against
