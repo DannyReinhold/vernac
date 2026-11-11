@@ -202,3 +202,12 @@ the affected graph and exposure risk, in addition to the standard responsibility
 header. Force cannot supply missing backfill or collision-resolution decisions.
 Both directions require snapshot/diff and real PostgreSQL replay/schema-check proofs.
 This remains OPEN; the current JDBC coordinator does not implement migration tooling.
+
+## Partial tenant schema infrastructure evidence
+
+The [tenant schema foundation](tenant-schema-foundation.md) adds model format 2
+classification, fresh-table candidate protection and policy drift catalog comparison.
+Existing-table classification conversions are blocked even with force until reviewed
+data assignment/removal support exists. This is a guard, not completed conversion
+tooling. Source modifier/owned graph propagation, generated repositories, module/event
+integration and full conversion acceptance remain OPEN; A19/A20/A21 are unchanged.

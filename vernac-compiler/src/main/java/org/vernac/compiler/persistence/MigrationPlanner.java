@@ -26,6 +26,18 @@ public final class MigrationPlanner {
     public Plan plan(SchemaModel before, SchemaModel after, Options options) {
         Map<String, Table> oldTables = index(before.tables(), Table::identity);
         Map<String, Table> newTables = index(after.tables(), Table::identity);
+        for (Table old : before.tables()) {
+            Table next = newTables.get(old.identity());
+            if (next != null && !Objects.equals(old.tenantIsolation(), next.tenantIsolation())) {
+                String reason = old.tenantIsolation() == null
+                        ? "TENANT ASSIGNMENT REQUIRED: existing rows need an explicit reviewed tenant backfill"
+                        : next.tenantIsolation() == null
+                        ? "TENANT ISOLATION REMOVAL: formerly isolated tenants' data would become accessible through the unscoped repository"
+                        : "TENANT OWNERSHIP CHANGE: aggregate graph classification changed";
+                throw new IllegalArgumentException(reason + ": " + old.identity()
+                        + ". This classification transition is not implemented; force cannot bypass it. No candidate was generated.");
+            }
+        }
         List<String> risks = new ArrayList<>(), sql = new ArrayList<>(), drops = new ArrayList<>(), adds = new ArrayList<>();
         Set<String> usedBackfills = new HashSet<>(), usedConversions = new HashSet<>();
         // Retain unchanged constraints unless a dependent column changes its SQL
@@ -105,6 +117,9 @@ public final class MigrationPlanner {
         // UNIQUE targets first, foreign keys last; all tables/columns now exist.
         adds.sort(Comparator.comparingInt(statement -> statement.contains(" FOREIGN KEY (") ? 1 : 0));
         sql.addAll(adds);
+        for (Table next : after.tables()) if (!oldTables.containsKey(next.identity())) {
+            sql.addAll(TenantSchema.protectionSql(next));
+        }
         if (!risks.isEmpty() && !options.force()) throw new IllegalArgumentException("Potential data loss. Review these operations and use force only to continue candidate generation:\n" + String.join("\n", risks));
         String warnings = risks.isEmpty() ? "" : "-- WARNING: force bypasses generation safeguards only; it is no approval or guarantee.\n"
                 + risks.stream().map(r -> "-- " + r.replace('\n', ' ').replace('\r', ' ') + "\n").collect(Collectors.joining());

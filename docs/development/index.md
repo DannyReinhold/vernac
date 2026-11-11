@@ -102,3 +102,5 @@ mappings, Java-backed Vernac breakpoints and the installed-IDE acceptance walkth
 - [Live value-object Java APIs](live-value-object-java-apis.md): in-memory Java views before generation, ownership and scope boundaries.
 
 - [PostgreSQL tenant coordinator](tenant-jdbc-coordinator.md): explicit physical-transaction binding and role safeguards; generated persistence remains open.
+
+- [Tenant schema foundation](tenant-schema-foundation.md): versioned classification, fresh-table RLS DDL, fail-closed conversion guards and policy drift checks.

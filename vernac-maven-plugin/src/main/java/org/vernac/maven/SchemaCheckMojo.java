@@ -99,6 +99,8 @@ public final class SchemaCheckMojo extends SchemaMojo {
                 + from + "JOIN pg_constraint k ON k.conrelid=t.oid");
         collect(c, owned, result, prefix + "'INDEX:' || pg_get_indexdef(i.indexrelid)" + from + "JOIN pg_index i ON i.indrelid=t.oid");
         collect(c, owned, result, prefix + "'TRIGGER:' || pg_get_triggerdef(g.oid)" + from + "JOIN pg_trigger g ON g.tgrelid=t.oid WHERE NOT g.tgisinternal");
+        collect(c, owned, result, prefix + "'POLICY:' || p.policyname || ':' || p.permissive || ':' || p.roles::text || ':' || p.cmd || ':' || COALESCE(p.qual,'') || ':' || COALESCE(p.with_check,'')"
+                + from + "JOIN pg_policies p ON p.schemaname=n.nspname AND p.tablename=t.relname");
         return result;
     }
     private static void collect(Connection c, Set<String> owned, Set<String> rows, String sql) throws SQLException {
