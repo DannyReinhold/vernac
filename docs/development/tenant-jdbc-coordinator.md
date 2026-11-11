@@ -71,7 +71,6 @@ The CI gate requires every named proof with no skips.
 
 ## Next bounded increment
 
-Introduce the shared tenant storage/schema representation, policy validation and
-generated schema changes; then connect generated repository/query operations to
+The [schema foundation](tenant-schema-foundation.md) now provides explicit model\nclassification and fresh-table DDL. Next connect source/owned storage plans and exact\nruntime policy validation; then connect generated repository/query operations to
 the coordinator and central predicates. Counts, pagination, graphs, modules and
 events remain explicit release requirements, not implied by this low-level PR.

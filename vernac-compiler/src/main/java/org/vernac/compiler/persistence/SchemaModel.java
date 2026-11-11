@@ -3,6 +3,7 @@
 package org.vernac.compiler.persistence;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.core.util.DefaultIndenter;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
@@ -19,7 +20,7 @@ public record SchemaModel(int formatVersion, int mappingVersion, List<Table> tab
             .setDefaultPrettyPrinter(new DefaultPrettyPrinter()
                     .withObjectIndenter(new DefaultIndenter("  ", "\n")));
     public SchemaModel {
-        if (formatVersion != 1 || mappingVersion != 1) throw new IllegalArgumentException("Unsupported schema/mapping version");
+        if ((formatVersion != 1 && formatVersion != 2) || mappingVersion != 1) throw new IllegalArgumentException("Unsupported schema/mapping version");
         tables = tables.stream().sorted(Comparator.comparing(Table::identity)).toList();
         Map<String, Map<String, String>> copy = new TreeMap<>();
         enumCodes.forEach((k,v) -> copy.put(k, Collections.unmodifiableMap(new TreeMap<>(v))));
@@ -28,6 +29,8 @@ public record SchemaModel(int formatVersion, int mappingVersion, List<Table> tab
         Map<String, String> schemas = new HashMap<>();
         Set<String> relations = new HashSet<>();
         for (Table table : tables) {
+            if (formatVersion == 1 && table.tenantIsolation() != null)
+                throw new IllegalArgumentException("Tenant classification requires schema format 2");
             if (!identities.add(table.identity())) throw new IllegalArgumentException("Duplicate table " + table.identity());
             String physical = SqlNames.physical(table.namespace());
             String old = schemas.putIfAbsent(physical, table.namespace());
@@ -36,6 +39,23 @@ public record SchemaModel(int formatVersion, int mappingVersion, List<Table> tab
             if (!relations.add(physical + "/" + SqlNames.physical("@pk:" + table.name()))) throw new IllegalArgumentException("SQL index name collision");
             for (Constraint c : table.constraints()) if (c.clause().startsWith("UNIQUE ") && !relations.add(physical + "/" + SqlNames.physical(c.name())))
                 throw new IllegalArgumentException("SQL unique-index name collision");
+        }
+        for (Table source : tables) if (source.tenantIsolation() != null) {
+            var isolation = source.tenantIsolation();
+            long roots = tables.stream().filter(t -> t.tenantIsolation() != null
+                    && t.tenantIsolation().root() && t.tenantIsolation().aggregate().equals(isolation.aggregate())
+                    && t.origin().equals(isolation.aggregate())).count();
+            if (roots != 1) throw new IllegalArgumentException("Tenant graph requires exactly one matching root: " + isolation.aggregate());
+        }
+        for (Table source : tables) for (Constraint c : source.constraints()) if (c.clause().startsWith("FOREIGN KEY")) {
+            List<Table> targets = tables.stream().filter(t -> c.clause().contains("REFERENCES " + t.sqlName() + " (")).toList();
+            if (source.tenantIsolation() != null && targets.size() != 1)
+                throw new IllegalArgumentException("Tenant foreign key requires a known owned target: " + source.identity());
+            for (Table target : targets) {
+                var from = source.tenantIsolation(); var to = target.tenantIsolation();
+                if ((from != null || to != null) && (from == null || to == null || !from.aggregate().equals(to.aggregate())))
+                    throw new IllegalArgumentException("Foreign key crosses tenant graph boundary: " + source.identity());
+            }
         }
     }
     public static SchemaModel empty() { return new SchemaModel(1, 1, List.of(), Map.of()); }
@@ -47,8 +67,18 @@ public record SchemaModel(int formatVersion, int mappingVersion, List<Table> tab
     public String fingerprint() { return SqlNames.hash(json()); }
     public record Column(String name, String sqlType, boolean nullable, String codec, String origin) { }
     public record Constraint(String name, String clause) { }
+    public record TenantIsolation(String aggregate, boolean root) {
+        public TenantIsolation {
+            if (aggregate == null || aggregate.isBlank()) throw new IllegalArgumentException("Tenant aggregate identity is required");
+        }
+    }
     public record Table(String namespace, String name, String origin, List<Column> columns,
-                        List<String> primaryKey, List<Constraint> constraints) {
+                        List<String> primaryKey, List<Constraint> constraints,
+                        @JsonInclude(JsonInclude.Include.NON_NULL) TenantIsolation tenantIsolation) {
+        public Table(String namespace, String name, String origin, List<Column> columns,
+                     List<String> primaryKey, List<Constraint> constraints) {
+            this(namespace, name, origin, columns, primaryKey, constraints, null);
+        }
         public Table {
             columns = columns.stream().sorted(Comparator.comparing(Column::name)).toList();
             primaryKey = List.copyOf(primaryKey);
@@ -56,6 +86,7 @@ public record SchemaModel(int formatVersion, int mappingVersion, List<Table> tab
             Set<String> names = new HashSet<>();
             for (Column column : columns) if (!names.add(SqlNames.physical(column.name())))
                 throw new IllegalArgumentException("SQL column collision: " + origin + "." + column.name());
+            if (tenantIsolation != null) TenantSchema.validate(columns, primaryKey, constraints, tenantIsolation);
             names.clear();
             for (Constraint c : constraints) if (!names.add(SqlNames.physical(c.name())))
                 throw new IllegalArgumentException("SQL constraint collision: " + c.name());
