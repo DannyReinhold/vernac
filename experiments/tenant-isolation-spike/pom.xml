@@ -7,6 +7,7 @@
     <name>Tenant isolation feasibility spike (test-only)</name>
     <properties>
         <maven.compiler.release>21</maven.compiler.release>
+        <vernac.version>0.6.0-SNAPSHOT</vernac.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
@@ -14,6 +15,7 @@
         <groupId>org.springframework.boot</groupId><artifactId>spring-boot-dependencies</artifactId><version>3.4.2</version><type>pom</type><scope>import</scope>
     </dependency></dependencies></dependencyManagement>
     <dependencies>
+        <dependency><groupId>org.vernac</groupId><artifactId>vernac-runtime</artifactId><version>${vernac.version}</version><scope>test</scope></dependency>
         <dependency><groupId>org.springframework</groupId><artifactId>spring-context</artifactId><scope>test</scope></dependency>
         <dependency><groupId>org.springframework</groupId><artifactId>spring-jdbc</artifactId><scope>test</scope></dependency>
         <dependency><groupId>org.springframework.security</groupId><artifactId>spring-security-core</artifactId><scope>test</scope></dependency>

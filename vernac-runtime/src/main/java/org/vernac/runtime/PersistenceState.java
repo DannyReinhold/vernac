@@ -3,6 +3,8 @@
 package org.vernac.runtime;
 
 import org.jspecify.annotations.NullMarked;
+import org.vernac.runtime.tenancy.TenantId;
+import org.vernac.runtime.tenancy.TenantOwnership;
 
 /** Technical adapter state, deliberately absent from domain read/write views.
  * Version changes do not count as domain modifications. Transaction rollback handling
@@ -11,10 +13,32 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 public final class PersistenceState {
     private long version;
+    private final TenantOwnership ownership;
 
     public PersistenceState(long version) {
-        version(version);
+        this(version, TenantOwnership.unscoped());
     }
+
+    private PersistenceState(long version, TenantOwnership ownership) {
+        version(version);
+        this.ownership = ownership;
+    }
+
+    /** Additive technical factory; existing generated constructors remain unscoped. */
+    public static PersistenceState newTenantAggregate() {
+        return new PersistenceState(0, TenantOwnership.newAggregate());
+    }
+
+    public static PersistenceState restoredTenant(long version, TenantId tenant) {
+        if (version < 1) throw new IllegalArgumentException("Restored persistence version must be positive");
+        return new PersistenceState(version, TenantOwnership.restored(tenant));
+    }
+
+    public static PersistenceState detachedTenant(long version) {
+        return new PersistenceState(version, TenantOwnership.detached());
+    }
+
+    public TenantOwnership ownership() { return ownership; }
 
     public long version() { return version; }
 

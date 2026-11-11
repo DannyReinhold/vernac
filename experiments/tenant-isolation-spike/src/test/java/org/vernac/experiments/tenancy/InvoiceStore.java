@@ -4,7 +4,8 @@ package org.vernac.experiments.tenancy;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
+import org.vernac.runtime.tenancy.TenantId;
+import org.vernac.runtime.tenancy.TenantOwnership;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /** Handwritten candidate repository, NOT generated Vernac code or a public runtime API. */
@@ -35,13 +36,7 @@ final class InvoiceStore {
 
     void save(Invoice invoice) {
         UUID tenant = boundary.requireBound();
-        UUID owner = invoice.tenant.get();
-        if (owner == null && invoice.origin == Origin.NEW) {
-            invoice.tenant.compareAndSet(null, tenant);
-            owner = invoice.tenant.get();
-        }
-        if (!tenant.equals(owner)) throw new TenantBoundary.Failure("TENANT_OWNERSHIP_MISMATCH");
-        if (invoice.origin == Origin.DETACHED) throw new TenantBoundary.Failure("TENANT_OWNERSHIP_MISMATCH");
+        invoice.ownership.claimForTenant(TenantId.of(tenant));
         if (invoice.version == 0 && invoice.origin == Origin.NEW) {
             jdbc.update("INSERT INTO tenant_spike.invoice (id, tenant_id, title, version) VALUES (?,?,?,1)",
                     invoice.id, tenant, invoice.title);
@@ -56,7 +51,7 @@ final class InvoiceStore {
 
     void delete(Invoice invoice) {
         UUID tenant = boundary.requireBound();
-        if (!tenant.equals(invoice.tenant.get())) throw new TenantBoundary.Failure("TENANT_OWNERSHIP_MISMATCH");
+        invoice.ownership.claimForTenant(TenantId.of(tenant));
         if (jdbc.update("DELETE FROM tenant_spike.invoice WHERE tenant_id=? AND id=? AND version=?",
                 tenant, invoice.id, invoice.version) != 1) throw new TenantBoundary.Failure("OPTIMISTIC_CONFLICT");
     }
@@ -67,9 +62,13 @@ final class InvoiceStore {
         String title;
         long version;
         final Origin origin;
-        final AtomicReference<UUID> tenant;
+        final TenantOwnership ownership;
         private Invoice(UUID id, String title, long version, UUID tenant, Origin origin) {
-            this.id=id; this.title=title; this.version=version; this.tenant=new AtomicReference<>(tenant); this.origin=origin;
+            this.id=id; this.title=title; this.version=version; this.ownership = switch (origin) {
+                case NEW -> TenantOwnership.newAggregate();
+                case STORED -> TenantOwnership.restored(TenantId.of(tenant));
+                case DETACHED -> TenantOwnership.detached();
+            }; this.origin=origin;
         }
         static Invoice create(String title) { return new Invoice(UUID.randomUUID(), title, 0, null, Origin.NEW); }
         static Invoice detached(UUID id, String title) { return new Invoice(id, title, 0, null, Origin.DETACHED); }

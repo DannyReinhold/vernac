@@ -12,7 +12,10 @@ modify the root reactor, generated code, current examples or current Wizard temp
 
 Validate transaction-bound tenant context, real PostgreSQL protection and the proposed
 in-method usecase guard before changing compiler/runtime/module persistence paths.
-The fixture uses handwritten candidate classes, not generated `.vernac` models.
+The first fixture used handwritten candidate classes, not generated `.vernac` models.
+It now consumes the [production runtime foundation](tenant-runtime-foundation.md) for
+TenantContext/TenantId/TenantOwnership. Its JDBC repository and authorization policy
+remain handwritten candidates.
 
 Local verification: PostgreSQL **17.11**, Zulu JDK **25.0.4.1** compiling with `--release 21`,
 Maven **3.9.11**, Spring dependencies resolved from the existing **Spring Boot 3.4.2 BOM**.
@@ -25,6 +28,10 @@ Local result: **12 tests, 0 failures, 0 errors, 0 skipped**. Documentation links
 12 existing tooling tests also pass. The workflow's report gate was exercised against
 the real report and deliberately modified copies: missing/skipped proofs were rejected.
 No root reactor/IntelliJ build is claimed for this isolated test-only change.
+
+Current runtime-integration result: **55 runtime unit tests and 12 PostgreSQL spike
+tests passed, zero failures/errors/skips**. This narrows the remaining duplication;
+it does not implement the production SQL/schema/generation boundary.
 
 ## Proof inventory
 
@@ -93,8 +100,9 @@ A21 in the [release ledger](release-0.6.0.md), not implemented by this experimen
 
 ## Next implementation boundary
 
-After review/CI of this spike, introduce tested general tenant context/provenance and
-shared storage-plan/schema changes in small PRs; then integrate production repositories,
+The general tenant context/provenance foundation now has its own production code and
+tests. Next introduce shared storage-plan/schema/JDBC coordinator changes in small PRs;
+then integrate production repositories,
 queries, modules/events and compiler/tooling. Retain unscoped regression tests throughout.
 Keep the [technical contract](tenant-technical-contract.md) synchronized with executable
 findings, and attach production evidence before marking any whole-SaaS capability complete.

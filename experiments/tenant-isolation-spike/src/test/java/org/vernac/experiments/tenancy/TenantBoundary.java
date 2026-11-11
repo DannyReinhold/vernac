@@ -14,13 +14,14 @@ import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.vernac.runtime.tenancy.TenantContext;
+import org.vernac.runtime.tenancy.TenantId;
 
 /** Test-only candidate: trusted selection plus a resource bound to the physical JDBC transaction. */
 final class TenantBoundary {
     private final DataSource source;
     private final JdbcTemplate jdbc;
     private final Object resourceKey = new Object();
-    private final ThreadLocal<UUID> selection = new ThreadLocal<>();
     private final BiPredicate<String, UUID> membership;
 
     TenantBoundary(DataSource source, BiPredicate<String, UUID> membership) {
@@ -29,7 +30,7 @@ final class TenantBoundary {
         this.membership = membership;
     }
 
-    Scope select(UUID requested) {
+    TenantContext.Scope select(UUID requested) {
         Objects.requireNonNull(requested);
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()
@@ -39,15 +40,7 @@ final class TenantBoundary {
         if (!membership.test(authentication.getName(), requested)) {
             throw new Failure("ACCESS_DENIED");
         }
-        UUID previous = selection.get();
-        var binding = binding();
-        if (TransactionSynchronizationManager.isActualTransactionActive()
-                && ((previous != null && !previous.equals(requested))
-                    || (binding != null && !binding.tenant().equals(requested)))) {
-            throw new Failure("TENANT_CONTEXT_MISMATCH");
-        }
-        selection.set(requested);
-        return new Scope(previous);
+        return TenantContext.openVerified(TenantId.of(requested));
     }
 
     UUID requireBound() {
@@ -55,8 +48,7 @@ final class TenantBoundary {
                 || !TransactionSynchronizationManager.isSynchronizationActive()) {
             throw new Failure("TRANSACTION_REQUIRED");
         }
-        UUID current = selection.get();
-        if (current == null) throw new Failure("TENANT_CONTEXT_REQUIRED");
+        UUID current = TenantContext.bindToCurrentTransaction().value();
         var existing = binding();
         if (existing != null) {
             if (!existing.tenant().equals(current)) throw new Failure("TENANT_CONTEXT_MISMATCH");
@@ -135,21 +127,9 @@ final class TenantBoundary {
         }
     }
 
-    boolean isBound() { return binding() != null; }
-    boolean isSelected() { return selection.get() != null; }
+    boolean isBound() { return binding() != null || TenantContext.transactionTenant().isPresent(); }
+    boolean isSelected() { return TenantContext.currentTenant().isPresent(); }
     private record Binding(UUID tenant) {}
-
-    final class Scope implements AutoCloseable {
-        private final UUID previous;
-        private boolean closed;
-        private Scope(UUID previous) { this.previous = previous; }
-        @Override public void close() {
-            if (!closed) {
-                if (previous == null) selection.remove(); else selection.set(previous);
-                closed = true;
-            }
-        }
-    }
 
     static final class Failure extends RuntimeException {
         Failure(String safeCode) { super(safeCode); }

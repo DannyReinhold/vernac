@@ -32,6 +32,12 @@ for transaction binding/RLS/guard ordering, not production implementation. A03/A
 A19/A20 and the new A21 SaaS Wizard/example requirement remain OPEN. Subsequent PRs
 must link actual generated/runtime integration and full E2E evidence before verification.
 
+## Additive production runtime foundation
+
+[Tenant context/provenance APIs](tenant-runtime-foundation.md) now have production
+runtime code and tests; the PostgreSQL spike consumes them. This is partial evidence,
+not completion of storage/schema/generated/module/SaaS paths. A19/A20/A21 stay OPEN.
+
 ## Completion policy
 
 Use these states: `OPEN`, `IN PROGRESS`, `IMPLEMENTED / UNVERIFIED`, `VERIFIED`,

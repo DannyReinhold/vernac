@@ -38,6 +38,9 @@ For a guide across all documentation, use the [documentation map](../documentati
 
 ## Current priorities
 
+- [Tenant runtime foundation](tenant-runtime-foundation.md): implemented low-level
+  context/provenance APIs; generated persistence and SaaS integration still OPEN.
+
 - [Tenant isolation feasibility record](tenant-isolation-spike.md): first executable
   Spring/PostgreSQL experiment, tested boundaries and explicit remaining work.
 
