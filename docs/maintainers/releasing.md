@@ -6,6 +6,16 @@ and source branch for the next release. Never rerun publication for existing
 coordinates. The [0.5.0 checklist](../development/release-0.5.0.md) and
 [release notes](releases/0.5.0.md) retain their own verification/publication context.
 
+## Additional mandatory acceptance for 0.6.0
+
+Before a 0.6.0 publication, complete the
+[0.6.0 acceptance ledger and dedicated completeness audit](../development/release-0.6.0.md).
+This covers the entire [SaaS objective](../development/saas-0.6.0-plan.md), including
+required extension modules, standalone application journeys, invoices and mail.
+A green reactor/dry run is necessary but does not establish complete delivery.
+The required automated acceptance gate is currently planned, **not implemented**;
+0.6.0 is NOT READY until that gate, evidence and maintainer go/no-go are in place.
+
 ## Scope and one version input
 
 `revision` in the root POM drives Maven modules, the IntelliJ ZIP and the dependency

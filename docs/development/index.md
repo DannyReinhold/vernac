@@ -38,8 +38,13 @@ For a guide across all documentation, use the [documentation map](../documentati
 
 ## Current priorities
 
+- [0.6.0 SaaS delivery plan](saas-0.6.0-plan.md): full reusable SaaS foundation,
+  security boundaries, open decisions and incremental implementation PRs.
+- [0.6.0 completeness and release acceptance](release-0.6.0.md): requirement ledger,
+  integrated journeys and a dedicated final audit; a green build alone is insufficient.
+
 - [Platform roadmap](platform-roadmap.md): IDE depth, language consistency, standard
-  adapters, Kafka replication, HTML fragment composition and the separate SaaS project.
+  adapters, Kafka replication, HTML fragment composition and SaaS extension boundaries.
 
 ## Modeling follow-up
 
@@ -52,7 +57,7 @@ For a guide across all documentation, use the [documentation map](../documentati
 - [Deep IntelliJ integration roadmap](intellij-deep-integration.md): cross-language refactoring and debugger
   integration (implemented) and refactoring follow-up.
 - [Versioned module completion](module-completion-roadmap.md): implemented scope, regression entrypoints and operational boundaries.
-- [Capabilities and usecase authorization](capabilities-and-usecase-authorization.md): future SaaS policy and reusable capability design on the implemented module system.
+- [Capabilities and usecase authorization](capabilities-and-usecase-authorization.md): 0.6.0 SaaS policy and reusable capability design on the implemented module system.
 - [Consolidation status](consolidation-status.md)
 - [Pagination implementation sequence](pagination.md): runtime foundation and remaining repository/Result/HTTP work.
 - [0.4.0 release plan](release-0.4.0.md)

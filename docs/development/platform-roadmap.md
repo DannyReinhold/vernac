@@ -1,10 +1,14 @@
 # Vernac platform roadmap
 
-Status: **planning, not implemented contracts**. Updated 2026-10-14 after the 0.4.0
-release. This records priorities and design questions, not a commitment to ship every
-item in 0.5.0. Existing contracts remain authoritative.
+Status: **planning, not implemented contracts**. Updated 2026-11-11.
+The coordinated **0.6.0 objective is a complete SaaS foundation**, including any
+required extension modules and an executable consuming application. See the
+[delivery plan](saas-0.6.0-plan.md) and mandatory
+[completeness/release acceptance](release-0.6.0.md). This supersedes the previous
+priority placing SaaS wholly after the immediate core work. Existing language
+contracts remain authoritative until implementation PRs amend them.
 
-## Immediate focus: language and developer experience
+## Supporting workstreams: language and developer experience
 
 1. Deep IntelliJ integration: cross-language rename/refactoring, usage search,
    source-aware diagnostics, navigation and debugger investigation. Follow the
@@ -65,22 +69,19 @@ one unavailable context, independent deployment and the user-visible consistency
 boundary between a command and an asynchronously updated read model. Keep the initial
 Kafka example independently usable; do not require UI composition to learn messaging.
 
-## Separate SaaS extension project
+## 0.6.0 SaaS foundation and extension boundary
 
-Identity/user management, subscriptions, Mollie/Stripe payments, Brevo mail and local
-simulation adapters belong in a separately versioned and released extension project.
-Vernac supplies general module composition, ports/adapters, ACL, configuration,
-transactions/events and suitable policy extension points. Provider-specific SaaS
-concepts should not become core keywords by default.
+Deliver the complete [SaaS plan](saas-0.6.0-plan.md): identity, accounts, rights/roles,
+dynamic restrictions, subscriptions, payments, customer invoices, system mail,
+reusable UI and local/production assembly. Core versus extension ownership,
+repositories, coordinates and licenses are open decisions, not reasons to omit
+required functionality from acceptance. The separate extension project's possible
+commercial/hybrid model remains undecided; this plan does not change Vernac's license.
 
-Keep [capabilities/authorization](capabilities-and-usecase-authorization.md) as design
-input, not the immediate core implementation priority. Distinguish general execution
-policy hooks from subscription-specific entitlement and quota semantics. Use real
-extension examples to establish what belongs in the core.
-
-The separate project's licensing/commercial model, potentially hybrid, is undecided.
-No Vernac licensing change is proposed by this roadmap. Define the extension boundary,
-distribution units and maintenance responsibilities before choosing that model.
+General language/security/module foundations should remain reusable without SaaS.
+Use real consuming examples to establish boundaries. Provider-specific SaaS concepts
+do not become compiler keywords by default. Track precise questions in
+[capabilities/authorization](capabilities-and-usecase-authorization.md).
 
 ## Later: strategic DDD
 
