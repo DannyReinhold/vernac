@@ -104,3 +104,5 @@ mappings, Java-backed Vernac breakpoints and the installed-IDE acceptance walkth
 - [PostgreSQL tenant coordinator](tenant-jdbc-coordinator.md): explicit physical-transaction binding and role safeguards; generated persistence remains open.
 
 - [Tenant schema foundation](tenant-schema-foundation.md): versioned classification, fresh-table RLS DDL, fail-closed conversion guards and policy drift checks.
+
+- [Explicit persistence classification](../contracts/explicit-tenancy.md): source-controlled tenancy rule and explicit global aggregates; tenant generation remains in progress.

@@ -14,15 +14,19 @@ import java.util.stream.Collectors;
 /** Resolves imports and VO field references without recursively following declarations. */
 public final class ProjectTypeResolver {
     public ResolvedProject resolve(VernacProject project) {
-        return resolve(project, true);
+        return resolve(project, true, Map.of());
     }
 
     /** Read-only partial type information for editor APIs; never a generation entrypoint. */
     public ResolvedProject resolveForAnalysis(VernacProject project) {
-        return resolve(project, false);
+        return resolve(project, false, Map.of());
     }
 
-    private ResolvedProject resolve(VernacProject project, boolean strict) {
+    public ResolvedProject resolve(VernacProject project, Map<Path, String> configurationSnapshots) {
+        return resolve(project, true, configurationSnapshots);
+    }
+
+    private ResolvedProject resolve(VernacProject project, boolean strict, Map<Path, String> configurationSnapshots) {
         Set<String> namespaces = project.sources().stream().map(source -> source.unit().namespace())
                 .collect(Collectors.toCollection(TreeSet::new));
         Map<Path, FileTypeScope> scopes = new LinkedHashMap<>();
@@ -150,6 +154,7 @@ public final class ProjectTypeResolver {
                 diagnostics.addAll(BehaviorImports.validateLowered(source.unit().namespace(), value.name(), value.methods(), fieldTypes));
             }
         }
+        diagnostics.addAll(org.vernac.compiler.tenancy.TenancyContracts.validate(project, scopes, configurationSnapshots));
         diagnostics.addAll(new ContainmentValidator().validate(project, fieldTypes));
         var queries = new org.vernac.compiler.query.QueryResolver(project, fieldTypes, diagnostics).resolve(project, scopes);
         Set<String> invalidSources=diagnostics.stream().filter(d -> d.severity()==CompilerDiagnostic.Severity.ERROR)

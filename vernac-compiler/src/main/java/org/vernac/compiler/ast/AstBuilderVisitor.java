@@ -152,7 +152,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         }
 
         return new AggregateNode(toLocation(ctx), name, idDef, fields, validations,
-                behaviorMethods(ctx.behaviorBlock()), collections(ctx.collectionDefinition()), behaviorImports(ctx.behaviorBlock()));
+                behaviorMethods(ctx.behaviorBlock()), collections(ctx.collectionDefinition()), behaviorImports(ctx.behaviorBlock()), ctx.global != null);
     }
 
     @Override

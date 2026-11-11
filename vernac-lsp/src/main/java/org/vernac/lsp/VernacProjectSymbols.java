@@ -119,7 +119,9 @@ final class VernacProjectSymbols {
         while(start>0) {int cp=text.codePointBefore(start);if(!Character.isJavaIdentifierPart(cp)&&cp!='.')break;start-=Character.charCount(cp);}
         String before=text.substring(0,start).stripTrailing(),prefix=text.substring(start,point);
         java.util.stream.Stream<String> names;
-        if(before.endsWith("activate")) {
+        if(before.endsWith("tenancy")) {
+            names=java.util.stream.Stream.of("explicit;");
+        } else if(before.endsWith("activate")) {
             names=modules.stream().filter(org.vernac.compiler.modules.ModuleDescriptor::activatable).map(org.vernac.compiler.modules.ModuleDescriptor::module);
         } else if(before.endsWith("bind")) {
             names=declarations.stream().filter(d->d.kind()==TypeSymbol.Kind.PORT).map(d->d.identity().qualifiedName());
@@ -129,7 +131,7 @@ final class VernacProjectSymbols {
             names=declarations.stream().filter(d->d.kind()==TypeSymbol.Kind.OUTBOUND_ADAPTER)
                     .filter(d->port!=null&&adapterPort(d).filter(port::equals).isPresent()).map(d->d.identity().qualifiedName());
         } else {
-            names=java.util.stream.Stream.of("activate", "bind");
+            names=java.util.stream.Stream.of("activate", "bind", "tenancy explicit;");
             if(!before.endsWith("{")&&!before.endsWith(";"))return List.of();
         }
         Range range=new Range(position(text,start),at);
@@ -171,7 +173,14 @@ final class VernacProjectSymbols {
     List<CompletionItem> moduleComplete(String text,Position at) {
         int point=offset(text,at),start=point;
         while(start>0) {int cp=text.codePointBefore(start);if(!Character.isJavaIdentifierPart(cp)&&cp!='.')break;start-=Character.charCount(cp);}
-        if(!text.substring(0,start).stripTrailing().endsWith("export"))return List.of();
+        String before=text.substring(0,start).stripTrailing();
+        if(!before.endsWith("export")) {
+            String prefix=text.substring(start,point);
+            List<String> words=before.endsWith("tenancy")?List.of("explicit;")
+                    :before.endsWith("{")||before.endsWith(";")?List.of("export","tenancy explicit;"):List.of();
+            Range range=new Range(position(text,start),at);
+            return words.stream().filter(w->w.startsWith(prefix)).map(w->{var item=new CompletionItem(w);item.setTextEdit(Either.forLeft(new TextEdit(range,w)));return item;}).toList();
+        }
         String prefix=text.substring(start,point);Range range=new Range(position(text,start),at);
         return declarations.stream().filter(d->d.sourceFile().startsWith(root) && !d.sourceFile().toString().contains(".module-contracts"))
             .filter(d->d.kind()!=TypeSymbol.Kind.LISTENER && d.kind()!=TypeSymbol.Kind.INBOUND_HTTP_ADAPTER)

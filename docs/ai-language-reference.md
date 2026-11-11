@@ -1653,3 +1653,18 @@ If completion fails, **Tools → Vernac → Diagnose Embedded Java Context** pro
 read-only local report without running Maven. DSL field completion, Java compilation
 and runtime debugging are separate mechanisms; do not treat success in one as proof
 that another has completed.
+
+## Explicit persistence classification (0.6.0 development only)
+
+Current source checkouts accept global aggregate as the explicit unscoped spelling
+of aggregate, with identical Java/schema behavior. Application definitions
+(.vapplication) and module definitions (.vmodule) may contain tenancy explicit;
+this requires explicit classification for their own aggregates targeted by local
+repositories. It checks private persisted types too; imports retain their published
+meaning. Without this declaration, ordinary aggregate retains existing behavior.
+
+Tenant-bound aggregate syntax/generation is still under implementation. Do not
+invent tenant aggregate code for this intermediate compiler or label private tenant
+data global to bypass the check. Existing Wizard templates do not enable this rule.
+See the [precise contract](contracts/explicit-tenancy.md). These additions require
+the 0.6.0 development compiler and are unavailable in the released 0.5.x baseline.

@@ -211,3 +211,13 @@ Existing-table classification conversions are blocked even with force until revi
 data assignment/removal support exists. This is a guard, not completed conversion
 tooling. Source modifier/owned graph propagation, generated repositories, module/event
 integration and full conversion acceptance remain OPEN; A19/A20/A21 are unchanged.
+
+## Explicit classification rule and SaaS starter prerequisite
+
+The [classification contract](../contracts/explicit-tenancy.md) records the agreed
+source-controlled tenancy explicit mode in application/module definitions and
+global aggregate spelling. Compiler/editor validation is a partial foundation.
+The separate SaaS Wizard choice must enable the rule only when its complete tenant
+starter works. Existing simple templates stay unchanged. Tenant syntax, owned
+mapping, runtime wiring and migration transitions remain OPEN; A19/A20/A21 are not
+VERIFIED by this rule.

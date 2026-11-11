@@ -11,7 +11,8 @@ import org.vernac.compiler.parser.*;
 import org.vernac.language.VernacNames;
 
 /** Explicit publication manifest, parsed independently of model compilation units. */
-public record ModuleDefinition(String name,List<Export> exports) {
+public record ModuleDefinition(String name,List<Export> exports,boolean explicitTenancy) {
+    public ModuleDefinition(String name,List<Export> exports) {this(name,exports,false);}
     public static final String FILE="vernac-module.vmodule";
     public record Export(String name,SourceLocation location) { }
     public static ModuleDefinition parse(Path path,String text) {
@@ -35,7 +36,11 @@ public record ModuleDefinition(String name,List<Export> exports) {
             if(!seen.add(type))errors.add(CompilerDiagnostic.error(location,"Duplicate export: "+type));
             exports.add(new Export(type,location));
         }
+        if(tree.tenancyDeclaration().size()>1) {
+            var duplicate=tree.tenancyDeclaration().get(1).getStart();
+            errors.add(CompilerDiagnostic.error(new SourceLocation(path.toString(),duplicate.getLine(),duplicate.getCharPositionInLine()+1),"Duplicate tenancy declaration."));
+        }
         if(!errors.isEmpty())throw new SemanticValidationException(errors);
-        return new ModuleDefinition(name,List.copyOf(exports));
+        return new ModuleDefinition(name,List.copyOf(exports),!tree.tenancyDeclaration().isEmpty());
     }
 }

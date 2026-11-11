@@ -224,3 +224,11 @@ format. Identity-only equality and hashing remain unchanged.
 Navigation to a technical access **type** stays in Java. Navigation to domain types and
 source-backed getters/behavior methods, including `self.field()` in injected Java,
 continues to target Vernac. Private implementation companions are not redirected.
+
+## Explicit unscoped aggregates (0.6.0 development)
+
+global aggregate is an explicit spelling of the existing unscoped aggregate.
+It changes neither factories nor generated schema. Projects can require explicit
+classification through tenancy explicit in .vapplication or .vmodule.
+See [explicit persistence classification](explicit-tenancy.md) for exact scope,
+editor behavior and the still-incomplete tenant-bound counterpart.
