@@ -51,6 +51,8 @@ Evidence is currently **none** for all rows. All statuses are OPEN.
 | A14 | Deployable complete sample | Clean-machine local start without production secrets; deployment configuration, persistent restart, health/logging and recovery walkthrough | OPEN / none |
 | A15 | Language/tooling/documentation completeness | Parser/analyzer/generator consistency, live Java APIs, module metadata, LSP/IDE completion/navigation/diagnostics, compiled reference/AI examples, tutorials/FAQ | OPEN / none |
 | A16 | Release distribution integrity | Exact-commit dry run, required test execution, actual packaged ZIP verification, supported-IDE smoke, Maven/extension fresh consumption and Marketplace approval | OPEN / none |
+| A17 | Credential-free predefined test providers | Fresh application startup with fixed success and selectable failure sequences, local inbox, same processing paths, no unexpected provider traffic, explicit test/production bindings | OPEN / none |
+| A18 | Business observability and actionable failures | Stable safe reasons across API/UI/workers; rights/limits/payment/renewal failures and recovery; useful event correlation; seeded sensitive values absent from normal/error logs | OPEN / none |
 
 ## Required integrated journeys
 
@@ -77,6 +79,11 @@ local providers; add sandbox evidence for the agreed real adapters separately.
   provider configuration → usable UI/deployment; no edits to generated files or
   undocumented local source dependencies.
 
+Extend J01/J03/J04/J06 with the predefined test-provider scenarios and verify the
+corresponding actionable user/developer outcomes. Capture correlated operational
+events, assert no sensitive values appear in logs and prove production cannot silently
+substitute a simulated success. J08 must work without real provider API keys.
+
 All journeys are currently **OPEN / no evidence**.
 
 ## Dedicated pre-release completeness audit
@@ -85,7 +92,7 @@ Schedule a separate review PR after integration, before calling the release read
 The review may use the same contributor but must be a new, explicit assessment of
 the final implementation, not merely a repetition of prior progress summaries.
 
-- [ ] Reconcile every plan/release promise, D01–D12 decision and A01–A16 row against
+- [ ] Reconcile every plan/release promise, D01–D12 decision and A01–A18 row against
       actual source, tests, public APIs, generated output and consuming application.
 - [ ] Inspect stubs, TODO/FIXME/UnsupportedOperationException paths, empty adapters,
       commented/disabled/skipped tests and happy-path-only simulators. Classify relevant

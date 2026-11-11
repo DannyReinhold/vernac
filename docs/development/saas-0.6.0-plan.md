@@ -175,6 +175,81 @@ agreed and evidenced. Local payment/mail adapters are mandatory and credential-f
 They must exercise the same verification/result-processing and delivery workflows,
 not a separate happy-path shortcut. Live credentials are never required in CI.
 
+## Ready-to-use test providers
+
+Provide payment and mail test providers in addition to the selected Mollie/Stripe
+and Brevo integrations. An application must start and exercise its complete local
+flows without API keys, paid accounts or outbound provider calls. Choose test versus
+real bindings explicitly through normal application/profile configuration.
+
+The first-run default test scenario returns a documented, predefined success result.
+Configuration and test controls also select deterministic refusal, cancellation,
+pending, timeout/failure and recovery scenarios, including predefined response
+sequences. A mail provider exposes rendered messages in a local inbox rather than
+sending them externally. A payment response must still travel through the normal
+checkout/result and entitlement workflow; simulated success is never a bypass.
+
+Test providers are visibly identified in the UI and operational events and can be
+reset/seeded for reproducible E2E tests. Verify default startup without any provider
+credentials and assert no unexpected network traffic. Never silently fall back to
+simulation when a real provider is misconfigured or unavailable. Production startup
+must reject test bindings unless an explicit, documented deployment option permits
+a deliberately simulated environment; no silent successful fake payment.
+
+## Business-oriented observability and safe logging
+
+Generate structured, understandable operational events for registration lifecycle,
+membership/permission decisions, restriction allocation/denial, subscription
+transitions, payment/reconciliation, invoice issue/correction and mail dispatch.
+An application developer should be able to explain what happened, its outcome,
+which component must react and how to correlate related work.
+
+Use stable event/reason codes, safe operation/provider identifiers, transition names,
+attempt/outcome and an opaque operational correlation reference. Logging fields must
+be allowlisted and reviewed. Do not log passwords, credentials/tokens, reset or
+verification links, email addresses, names, addresses, invoice/document contents,
+payment instrument details, authorization headers or arbitrary request/response
+bodies. Raw account/user IDs are not automatically harmless: omit them by default
+and define any pseudonymous reference and access/retention policy explicitly.
+Sanitize third-party exception text and prevent unsafe payloads from leaking through
+stack traces, HTTP errors or simulator diagnostics. Do not print full local mail
+content in ordinary application logs; the local inbox is a separate controlled UI.
+
+Keep operational logs distinct from business ledgers and any formal audit trail.
+Neither successful logging nor a missing log line decides whether payment happened
+or quota was consumed. Test useful positive/negative event sequences and scan captured
+logs for deliberately seeded sensitive values, including failures and retries.
+
+## Clear outcomes, errors and recovery
+
+Define a shared outcome/reason catalog before implementing the workflows. Every
+failure contract must specify a stable typed code, a safe user message, available
+next action, developer/operator classification, correlation reference, and retry
+semantics. Successful, denied, pending, exhausted and technically failed operations
+must be distinguishable without parsing exception text. Public details must not
+reveal hidden objects, other accounts, confidential policy data or provider payloads.
+
+| Situation | Required understandable result and reaction |
+| --- | --- |
+| Missing authentication or expired session | Login/re-authentication path; distinguish from missing permission |
+| Missing right or invalid scope | Explicit denial; no execution or privilege gain; suitable contact/role guidance without data disclosure |
+| Per-operation limit exceeded | Explain the allowed request adjustment when safe; do not partially truncate work silently |
+| Capacity or quota exhausted | Identify the applicable restriction and safe remaining/reset information; offer delete/reduce/wait/upgrade only when meaningful |
+| Subscription inactive or benefit unavailable | Explain the effective entitlement state and permitted account-management action; avoid a generic login error |
+| Payment refused/cancelled | No successful-payment claim; explain retry/change method/cancel action with safe provider-neutral reasons |
+| Payment pending or outcome unknown | Explicit processing/verification state; no premature paid entitlement, duplicate charge or invoice retry |
+| Renewal failed | Apply the agreed grace/retry/suspension policy; notify appropriate customer/admin; recovery path must be specified |
+| Provider/configuration/infrastructure failure | Distinguish local configuration from remote failure where known; safe operator evidence and retry guidance, never a fabricated business refusal |
+| Invoice or email processing failed | Preserve authoritative payment/subscription state; expose delivery/issuance recovery without charging again |
+
+REST responses, MVC pages/forms, background workers and developer-facing APIs must
+agree on meaning while using appropriate transport presentation. Automatic retries
+are permitted only for expressly defined idempotent operations; uncertain external
+effects require reconciliation. Expected denials need useful, proportionate logs,
+not indiscriminate ERROR stack traces. Choose HTTP statuses, error structures,
+localization/message customization and public disclosure rules in D03 rather than
+baking speculative mappings into this planning document.
+
 ## Decisions before implementation
 
 All decisions below are **open**. Record an accepted resolution, rationale, PR and
