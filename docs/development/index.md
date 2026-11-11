@@ -100,3 +100,5 @@ mappings, Java-backed Vernac breakpoints and the installed-IDE acceptance walkth
 - [Editor declaration recovery](editor-declaration-recovery.md): declaration-level recovery, strict build separation and source ranges.
 
 - [Live value-object Java APIs](live-value-object-java-apis.md): in-memory Java views before generation, ownership and scope boundaries.
+
+- [PostgreSQL tenant coordinator](tenant-jdbc-coordinator.md): explicit physical-transaction binding and role safeguards; generated persistence remains open.

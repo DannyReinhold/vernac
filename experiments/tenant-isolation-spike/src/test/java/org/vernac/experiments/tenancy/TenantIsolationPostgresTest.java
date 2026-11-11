@@ -131,6 +131,31 @@ class TenantIsolationPostgresTest {
         finally {fixture.admin("ALTER ROLE "+fixture.runtime+" NOBYPASSRLS");}
     }
 
+    @Test void coordinatorRejectsIncompleteConfigurationAndUnsafeChildTables() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new org.vernac.runtime.jdbc.tenancy.JdbcTenantCoordinator(fixture.pool, java.util.List.of()));
+        var missing = new org.vernac.runtime.jdbc.tenancy.JdbcTenantCoordinator(
+                fixture.pool, java.util.List.of("tenant_spike.missing"));
+        code("TENANT_CONTEXT_CONFIGURATION_ERROR", missing::verifyRuntimeRole);
+        fixture.admin("ALTER TABLE tenant_spike.line NO FORCE ROW LEVEL SECURITY");
+        try { code("TENANT_RUNTIME_ROLE_INVALID", boundary::verifyRuntimeRole); }
+        finally { fixture.admin("ALTER TABLE tenant_spike.line FORCE ROW LEVEL SECURITY"); }
+        fixture.admin("ALTER TABLE tenant_spike.line DISABLE ROW LEVEL SECURITY");
+        try { code("TENANT_RUNTIME_ROLE_INVALID", boundary::verifyRuntimeRole); }
+        finally { fixture.admin("ALTER TABLE tenant_spike.line ENABLE ROW LEVEL SECURITY"); }
+        assertFalse(boundary.isBound());
+    }
+
+    @Test void coordinatorRejectsSchemaCreationAndTruncatePrivileges() {
+        fixture.admin("GRANT CREATE ON SCHEMA tenant_spike TO " + fixture.runtime);
+        try { code("TENANT_RUNTIME_ROLE_INVALID", boundary::verifyRuntimeRole); }
+        finally { fixture.admin("REVOKE CREATE ON SCHEMA tenant_spike FROM " + fixture.runtime); }
+        fixture.admin("GRANT TRUNCATE ON tenant_spike.line TO " + fixture.runtime);
+        try { code("TENANT_RUNTIME_ROLE_INVALID", boundary::verifyRuntimeRole); }
+        finally { fixture.admin("REVOKE TRUNCATE ON tenant_spike.line FROM " + fixture.runtime); }
+        boundary.verifyRuntimeRole();
+    }
+
     @Test void rowSecurityBlocksCrossTenantWritesAndForeignKeysBlockCrossTenantLinks() {
         assertThrows(org.springframework.dao.DataAccessException.class, () -> inTenant(A, () -> {
             boundary.requireBound(); return jdbc.update("INSERT INTO tenant_spike.invoice VALUES (?,?,?,1)",UUID.randomUUID(),B,"denied"); }));

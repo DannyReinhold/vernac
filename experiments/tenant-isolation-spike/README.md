@@ -20,7 +20,7 @@ docker compose -f .\experiments\tenant-isolation-spike\compose.yaml up -d --wait
 $env:VERNAC_PG_TEST_URL = 'jdbc:postgresql://localhost:55439/postgres'
 $env:VERNAC_PG_TEST_USER = 'vernac'
 $env:VERNAC_PG_TEST_PASSWORD = 'local-spike-only'
-mvn -B -ntp -pl vernac-runtime -am clean install
+mvn -B -ntp -pl vernac-runtime-jdbc -am clean install
 if ($LASTEXITCODE -ne 0) { throw "Runtime build failed." }
 mvn -B -ntp -f .\experiments\tenant-isolation-spike\pom.xml clean verify
 ```
@@ -74,3 +74,8 @@ engine, immutable actor-context model or production startup-audit implementation
 The separate CI workflow runs this project with a disposable service and rejects
 missing/failed/skipped required test cases. See the
 [results and next-step record](../../docs/development/tenant-isolation-spike.md).
+
+The fixture now delegates physical connection binding to the production
+[JdbcTenantCoordinator](../../docs/development/tenant-jdbc-coordinator.md). The
+handwritten schema and repository SQL remain experimental. The suite executes
+14 real PostgreSQL proofs, including unsafe child-table and privilege checks.

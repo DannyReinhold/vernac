@@ -5,6 +5,7 @@ on:
     paths:
       - 'experiments/tenant-isolation-spike/**'
       - 'vernac-runtime/**'
+      - 'vernac-runtime-jdbc/**'
       - 'pom.xml'
       - '.github/workflows/tenant-isolation-spike.yml'
   workflow_dispatch:
@@ -41,7 +42,7 @@ jobs:
           distribution: temurin
           java-version: '25'
       - name: Build production runtime and run its unit tests
-        run: mvn -B -ntp -pl vernac-runtime -am clean install
+        run: mvn -B -ntp -pl vernac-runtime-jdbc -am clean install
       - name: Execute real PostgreSQL and Spring boundary tests
         run: mvn -B -ntp -f experiments/tenant-isolation-spike/pom.xml clean verify
       - name: Require every spike proof to execute
@@ -56,6 +57,8 @@ jobs:
               'byIdFindOrCountAndRawSqlAreTenantScoped',
               'unmarkedGlobalDataNeedsNoTenantAndDoesNotBindOne',
               'runtimeRoleAndForcedOwnerProtectionAreReal',
+              'coordinatorRejectsIncompleteConfigurationAndUnsafeChildTables',
+              'coordinatorRejectsSchemaCreationAndTruncatePrivileges',
               'rowSecurityBlocksCrossTenantWritesAndForeignKeysBlockCrossTenantLinks',
               'requiredAndRequiresNewBindDifferentConnectionsAndRestoreOuterContext',
               'caughtInnerRequiredFailureMakesOuterTransactionRollbackOnly',

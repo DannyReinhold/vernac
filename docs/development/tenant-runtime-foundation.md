@@ -55,10 +55,11 @@ repeat binding to the same tenant is idempotent. Synchronization suspend/resume 
 completion preserve REQUIRED/REQUIRES_NEW lifecycle. Scope close does not prematurely
 remove that pin: a different tenant cannot be reopened before transaction completion.
 
-**This is not yet JDBC connection binding.** The future coordinator must validate the
-actual DataSource/physical transaction, initialize PostgreSQL transaction-local state
-and verify roles/RLS before SQL. The experiment still supplies that candidate JDBC
-layer and tests it with real connections, including the wrong-DataSource failure.
+**The core pin is not JDBC connection binding.** The separate
+[production JDBC coordinator](tenant-jdbc-coordinator.md) validates the actual
+DataSource/physical transaction and initializes PostgreSQL transaction-local state.
+The experiment now exercises that coordinator with real connections, including
+the wrong-DataSource failure. Generated repository invocation remains OPEN.
 The core pin is not sufficient to secure a query or an unrelated transaction manager.
 
 ### Object origin and immutable assignment
@@ -103,13 +104,13 @@ No credentials, SQL values or private tenant data are added to production loggin
 ## Still OPEN
 
 `tenant` parsing/generation; technical storage discriminator and key/RLS schema plans;
-production JDBC coordinator and tenant predicates; full entity/collection provenance;
+generated JDBC coordinator invocation and tenant predicates; full entity/collection provenance;
 counts/cursors/batches; module metadata/compatibility/migrations; event routing;
 identity/membership integration and immutable actor context; HTTP/MVC behavior;
 subscriptions/limits and SaaS UI/Wizard. A19/A20/A21 are not VERIFIED by this PR.
 Existing repositories do not start filtering merely because TenantContext exists.
 
-Next separate PR: production JDBC coordinator and shared tenant storage-plan/schema
-representation, with actual PostgreSQL role/context tests, followed by generated
-repository/query integration. Keep simple non-SaaS applications and the separate
+The separate JDBC coordinator increment is documented above. Next introduce shared
+tenant storage-plan/schema representation and exact policy validation, followed by
+generated repository/query integration. Keep simple non-SaaS applications and the separate
 SaaS starter objective intact throughout.
