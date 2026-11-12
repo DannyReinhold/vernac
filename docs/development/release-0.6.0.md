@@ -404,3 +404,15 @@ A migration-history-only producer regression verifies that publication retains p
 access requirements and vocabulary after the last storage component is removed. The
 synchronous event registry fixture supplies only a clean startup-baseline connection;
 actual persistence SQL is rejected there and remains covered by PostgreSQL suites.
+
+
+## Identity/membership design checkpoint
+
+The [proposed module contract](identity-membership-0.6.0.md) distinguishes login identity,
+account, tenant, membership and role grants. It covers verification-before-provisioning,
+Spring session integration, trusted selection with invocation-time rechecks, owner-safe
+concurrency, invitation constraints, role/plan separation and safe outcomes. This is a
+review proposal, not delivered registration or identity code. D01/D05/D14 and related
+mail integration require decisions before implementation/publication. No extension
+repository, license, artifact or new runtime API is introduced by this proposal.
+All identity/whole-SaaS acceptance rows and the final manual review remain OPEN.

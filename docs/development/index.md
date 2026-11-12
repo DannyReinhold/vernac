@@ -38,6 +38,9 @@ For a guide across all documentation, use the [documentation map](../documentati
 
 ## Current priorities
 
+- [Identity, memberships and roles](identity-membership-0.6.0.md): review proposal for
+  reusable SaaS modules; packaging/license and credential defaults remain OPEN.
+
 - [Explicit application access](../contracts/explicit-authorization.md): implemented
   startup inventory checks; complete SaaS assembly adoption remains required.
 
