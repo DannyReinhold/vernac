@@ -68,8 +68,8 @@ It does not implement or verify production code generation, exported module meta
 cursor encryption/binding, complete aggregate graphs/orphan cleanup, full entity
 provenance/factory integration, migrations/schema-check, production event claim/payload routing,
 generated HTTP/MVC/CSRF integration, quotas, email, billing or a SaaS Wizard. Those remain separate
-OPEN requirements, even if this experiment is green. There is no production all/any policy engine, actor-context model or startup-audit
-implementation here. The separate authorization-entry candidate below is test-only.
+OPEN requirements, even if this experiment is green. Production guard/actor/Spring APIs now live in vernac-runtime. The entrypoint and policy
+fixtures below are test-only; no complete SaaS identity or reachable-usecase audit is supplied.
 
 The separate CI workflow runs this project with a disposable service and rejects
 missing/failed/skipped required test cases. See the
@@ -98,12 +98,13 @@ proof. The original limitations above still apply to production event integratio
 
 ## Authorization entry experiment
 
-Nine additional tests exercise the proposed body guard with Spring REQUIRED/MANDATORY,
+Nine additional tests exercise the production body guard with Spring REQUIRED/MANDATORY,
 typed resource facts, all/any short-circuit and technical failures, nested actor/tenant
 retention, executor cleanup and real MockMvc/Spring Security filter-chain boundaries.
 The complete Maven command now runs **30 tests**. CSRF remains active, and policies
-read through the restricted-role tenant boundary. No new production authorization
-syntax, startup audit or public runtime API is supplied by these handwritten fixtures.
+read through the restricted-role tenant boundary. The [production runtime contract](../../docs/contracts/usecase-authorization-runtime.md)
+defines the implemented Java API. These entrypoints/policies remain handwritten fixtures;
+there is no permission DSL or complete reachable-usecase audit yet.
 
 See the [evidence and remaining production work](../../docs/development/authorization-entry-spike.md).
 Missing database configuration fails the suite; CI also checks the nine required case

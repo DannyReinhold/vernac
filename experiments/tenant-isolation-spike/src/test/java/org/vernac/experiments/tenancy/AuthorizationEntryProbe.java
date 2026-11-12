@@ -4,19 +4,17 @@ package org.vernac.experiments.tenancy;
 
 import java.util.List;
 import java.util.function.Supplier;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.vernac.runtime.DomainChecks;
 import org.vernac.runtime.tenancy.TenantContext;
 import org.vernac.runtime.tenancy.TenantId;
 
-/** Test-only body-guard sketch. NOT a production authorization API or generated output. */
+/** Handwritten entry/policy fixtures using the production guard; NOT generated output. */
 final class AuthorizationEntryProbe {
     private AuthorizationEntryProbe() {}
 
@@ -41,7 +39,6 @@ final class AuthorizationEntryProbe {
     record Call(String operation, Actor actor, TenantId tenant, Permission permission, Object resource) {
         @Override public String toString() { return "Call[redacted]"; }
     }
-    record Identity(Actor actor, TenantId tenant) {}
 
     sealed interface Requirement permits Leaf, All, Any, Mode {}
     record Leaf(Permission permission, Object resource) implements Requirement {}
@@ -52,73 +49,62 @@ final class AuthorizationEntryProbe {
     /** Trusted mapper, replaceable only by infrastructure, not the ordinary behavior Access. */
     interface ActorMapper { Actor map(Authentication authentication); }
 
+    /** Test adapter around the production guard; no second permission/context implementation. */
     static final class Guard {
-        private static final ThreadLocal<Identity> CURRENT = new ThreadLocal<>();
-        private final ActorMapper mapper;
-        private final AuthorizationManager<Call> policy;
-        Guard(ActorMapper mapper, AuthorizationManager<Call> policy) { this.mapper = mapper; this.policy = policy; }
-
-        <T> T invoke(String operation, Requirement requirement, Supplier<T> body) {
-            if (requirement != Mode.PUBLIC && (!TransactionSynchronizationManager.isActualTransactionActive()
-                    || !TransactionSynchronizationManager.isSynchronizationActive())) {
-                throw new Failure(Code.AUTHORIZATION_CONFIGURATION_ERROR);
-            }
-            Identity previous = CURRENT.get();
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            Actor actor = verifiedActor(authentication);
-            TenantId tenant = TenantContext.currentTenant().orElse(null);
-            Identity identity = new Identity(actor, tenant);
-            if (previous != null && !previous.equals(identity)) throw new Failure(Code.AUTHORIZATION_CONFIGURATION_ERROR);
-            CURRENT.set(identity);
-            try {
-                if (requirement != Mode.PUBLIC) {
-                    if (actor == null) throw new Failure(Code.AUTHENTICATION_REQUIRED);
-                    if (requirement != Mode.AUTHENTICATED) {
-                        if (tenant == null) throw new Failure(Code.SCOPE_REQUIRED);
-                        TenantContext.bindToCurrentTransaction();
-                        if (policy == null) throw new Failure(Code.AUTHORIZATION_CONFIGURATION_ERROR);
-                        if (!evaluate(operation, identity, authentication, requirement)) throw new Failure(Code.ACCESS_DENIED);
-                    }
-                }
-                return body.get();
-            } finally {
-                if (previous == null) CURRENT.remove(); else CURRENT.set(previous);
-            }
-        }
-
-        private Actor verifiedActor(Authentication authentication) {
-            if (authentication == null || !authentication.isAuthenticated()
-                    || authentication instanceof AnonymousAuthenticationToken) return null;
-            if (mapper == null) throw new Failure(Code.AUTHORIZATION_CONFIGURATION_ERROR);
-            try {
-                Actor actor = mapper.map(authentication);
-                if (actor == null) throw new Failure(Code.AUTHORIZATION_CONFIGURATION_ERROR);
-                return actor;
-            } catch (Failure failure) { throw failure; }
-            catch (RuntimeException failure) { throw new Failure(Code.AUTHORIZATION_CONFIGURATION_ERROR); }
-        }
-
-        private boolean evaluate(String operation, Identity identity, Authentication authentication, Requirement tree) {
-            if (tree instanceof Leaf leaf) {
+        private final org.vernac.runtime.authorization.AuthorizationGuard delegate;
+        Guard(ActorMapper mapper, AuthorizationManager<Call> policy) {
+            var actors = new org.vernac.runtime.authorization.spring.SpringSecurityActorResolver(auth -> {
+                if (mapper == null) throw new IllegalStateException("Missing mapper");
+                Actor actor = java.util.Objects.requireNonNull(mapper.map(auth));
+                return java.util.Optional.of(new org.vernac.runtime.authorization.VerifiedActor("fixture", actor.subject(),
+                        org.vernac.runtime.authorization.VerifiedActor.Kind.valueOf(actor.kind().name())));
+            });
+            delegate = new org.vernac.runtime.authorization.AuthorizationGuard(actors, request -> {
+                if (policy == null) throw new IllegalStateException("Missing policy");
+                var actor = new Actor(request.actor().subject(), Actor.Kind.valueOf(request.actor().kind().name()));
+                String name = request.permission().qualifiedName();
+                var permission = Permission.valueOf(name.substring(name.lastIndexOf('.') + 1));
+                var resource = request.resource() == null ? null : request.resource().value();
                 try {
-                    var decision = policy.authorize(() -> authentication,
-                            new Call(operation, identity.actor(), identity.tenant(), leaf.permission(), leaf.resource()));
-                    if (decision == null) throw new Failure(Code.AUTHORIZATION_CONFIGURATION_ERROR);
-                    return decision.isGranted();
-                } catch (Failure failure) { throw failure; }
-                catch (RuntimeException failure) { throw new Failure(Code.AUTHORIZATION_CONFIGURATION_ERROR); }
-            }
-            List<Requirement> children = tree instanceof All all ? all.children() : tree instanceof Any any ? any.children() : List.of();
-            if (children.isEmpty()) throw new Failure(Code.AUTHORIZATION_CONFIGURATION_ERROR);
-            boolean all = tree instanceof All;
-            for (Requirement child : children) {
-                boolean granted = evaluate(operation, identity, authentication, child);
-                if (all && !granted) return false;
-                if (!all && granted) return true;
-            }
-            return all;
+                    var decision = policy.authorize(() -> SecurityContextHolder.getContext().getAuthentication(),
+                            new Call(request.operation(), actor, request.tenant(), permission, resource));
+                    if (decision == null) return null; // Production guard must reject abstention.
+                    return decision.isGranted() ? org.vernac.runtime.authorization.PermissionDecision.ALLOW
+                            : org.vernac.runtime.authorization.PermissionDecision.DENY;
+                } catch (Failure failure) { throw productionFailure(failure.code); }
+            });
         }
-        static boolean contextPresent() { return CURRENT.get() != null; }
+        <T> T invoke(String operation, Requirement requirement, Supplier<T> body) {
+            org.vernac.runtime.authorization.AuthorizationRequirement converted;
+            try { converted = convert(requirement); }
+            catch (IllegalArgumentException malformed) { throw new Failure(Code.AUTHORIZATION_CONFIGURATION_ERROR); }
+            try (var invocation = delegate.enter(operation, converted)) { return body.get(); }
+            catch (org.vernac.runtime.authorization.AuthorizationException failure) {
+                throw new Failure(Code.valueOf(failure.code().name()));
+            }
+        }
+        static org.vernac.runtime.authorization.AuthorizationException productionFailure(Code code) {
+            return new org.vernac.runtime.authorization.AuthorizationException(
+                    org.vernac.runtime.authorization.AuthorizationException.Code.valueOf(code.name()));
+        }
+        private static org.vernac.runtime.authorization.AuthorizationRequirement convert(Requirement requirement) {
+            if (requirement == Mode.PUBLIC) return org.vernac.runtime.authorization.AuthorizationRequirement.Mode.PUBLIC;
+            if (requirement == Mode.AUTHENTICATED) return org.vernac.runtime.authorization.AuthorizationRequirement.Mode.AUTHENTICATED;
+            if (requirement instanceof Leaf leaf) {
+                var key = org.vernac.runtime.authorization.PermissionKey.of("example.Permissions." + leaf.permission().name());
+                return leaf.resource() == null ? org.vernac.runtime.authorization.AuthorizationRequirement.permission(key)
+                        : org.vernac.runtime.authorization.AuthorizationRequirement.permission(key, resource(leaf.resource()));
+            }
+            var children = requirement instanceof All all ? all.children() : ((Any) requirement).children();
+            var converted = children.stream().map(Guard::convert).toList();
+            return requirement instanceof All ? new org.vernac.runtime.authorization.AuthorizationRequirement.All(converted)
+                    : new org.vernac.runtime.authorization.AuthorizationRequirement.Any(converted);
+        }
+        @SuppressWarnings("unchecked")
+        private static <T> org.vernac.runtime.authorization.ResourceReference<T> resource(T value) {
+            return org.vernac.runtime.authorization.ResourceReference.of((Class<T>) value.getClass(), value);
+        }
+        static boolean contextPresent() { return org.vernac.runtime.authorization.AuthorizationGuard.currentActor().isPresent(); }
     }
 
     static final class Trace {

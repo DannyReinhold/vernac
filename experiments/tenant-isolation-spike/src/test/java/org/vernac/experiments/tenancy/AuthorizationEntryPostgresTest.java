@@ -213,13 +213,13 @@ class AuthorizationEntryPostgresTest {
                     .with(user("member"))).andReturn();
             assertEquals(403, denied.getResponse().getStatus());
             assertEquals("access-denied", denied.getModelAndView().getViewName());
-            assertEquals("ACCESS_DENIED", denied.getModelAndView().getModel().get("code"));
+            assertEquals("ACCESS_DENIED", ((org.vernac.runtime.http.inbound.InboundHttpErrors.Body) denied.getModelAndView().getModel().get("error")).code());
             assertEquals(List.of("policy:EXPORT"), trace.events); assertEquals(0, trace.genericErrorHooks);
             policyTarget.broken = Permission.EXPORT; policyTarget.unavailable = true;
             var unavailable = mvc.perform(get("/mvc")
                     .with(user("member"))).andReturn();
             assertEquals(503, unavailable.getResponse().getStatus());
-            assertEquals("AUTHORIZATION_UNAVAILABLE", unavailable.getModelAndView().getModel().get("code"));
+            assertEquals("AUTHORIZATION_UNAVAILABLE", ((org.vernac.runtime.http.inbound.InboundHttpErrors.Body) unavailable.getModelAndView().getModel().get("error")).code());
             var remote = mvc.perform(get("/api")
                     .with(user("member"))).andReturn();
             assertEquals(503, remote.getResponse().getStatus());

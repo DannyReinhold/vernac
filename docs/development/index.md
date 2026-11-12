@@ -38,6 +38,10 @@ For a guide across all documentation, use the [documentation map](../documentati
 
 ## Current priorities
 
+- [Production authorization runtime](../contracts/usecase-authorization-runtime.md):
+  actor/policy SPI, ordered guard, explicit Spring binding and terminal HTTP/MVC handling;
+  permission DSL, module/editor integration and SaaS identity remain OPEN.
+
 - [Authorization entry feasibility](authorization-entry-spike.md): executable Spring
   guard/REQUIRED/HTTP/MVC evidence; production permission syntax and integration remain OPEN.
 

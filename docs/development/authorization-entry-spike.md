@@ -3,11 +3,14 @@ title: Authorization entry and Spring integration feasibility
 ---
 # Authorization entry and Spring integration feasibility
 
-Status: **test-only executable evidence; production authorization is not implemented**.
+Status: **handwritten entrypoint evidence using the production authorization runtime**.
+The [runtime foundation](../contracts/usecase-authorization-runtime.md) now replaces the
+original parallel guard and classifier; these entrypoints/policies remain test fixtures.
 Baseline: 2026-11-12, Spring Boot 3.4.2 dependency management, Java 21 application target.
 This follows the [usecase authorization contract](usecase-authorization-contract.md).
 It does not add permission declarations, `requires` syntax, generated guards, SaaS
-identity, startup audits or a public authorization API. A03/A04/A19/A20 remain OPEN.
+identity or the reachable-usecase startup audit. The separate runtime contract defines
+the implemented Java APIs and provider-binding startup checks. A03/A04/A19/A20 remain OPEN.
 
 ## Question and implementation
 
@@ -18,16 +21,16 @@ distinguish authentication, authorization and technical failures at HTTP/MVC bou
 The isolated [experiment](https://github.com/DannyReinhold/vernac/tree/feature/0.6.0/experiments/tenant-isolation-spike)
 now contains three handwritten, test-only fixtures:
 
-- `AuthorizationEntryProbe`: a body guard, typed actor/nominal-resource carriers,
-  ordered all/any tree, Spring AuthorizationManager policy and entrypoints shaped like
+- `AuthorizationEntryProbe`: an adapter to the production body guard and Spring actor resolver, typed fixture
+  carriers, a Spring AuthorizationManager policy and entrypoints shaped like
   the intended generated Java. There is no second permission interceptor.
 - `AuthorizationEntryPostgresTest`: real proxied REQUIRED/MANDATORY calls and scoped
   PostgreSQL reads/writes using the existing restricted runtime role and coordinator.
 - `AuthorizationWebProbe`: application-owned SecurityFilterChain, MockMvc dispatch,
-  API error bodies and MVC error views using one candidate terminal classifier.
+  API error bodies and MVC error views using the production terminal classifier.
 
-They live only in `src/test/java` of the standalone experiment. They are neither a
-replacement production repository SPI nor a reusable security starter. Test actors,
+They live only in `src/test/java` of the standalone experiment. They are not a
+production repository SPI, generated entrypoint or complete security starter. Test actors,
 permissions and resource records are fixture types; enum constants are not the final
 qualified permission identity representation. The fixture uses a fixed, preverified
 tenant selection, never a request header. It does not implement membership resolution.
@@ -71,14 +74,16 @@ clean install of the current runtime/JDBC reactor and its unit tests.
 
 ## Limitations and required production work
 
-This is feasibility, not proof of the complete AUTH-01–08 contract. In particular:
+The original experiment does not prove the complete AUTH-01–08 contract. The runtime
+follow-up now supplies the guard, actor SPI, provider binding and helper classification;
+remaining full-integration limits below still apply:
 
 - Grammar, semantic diagnostics, generation, qualified permission identities, explicit
   exports, module metadata/compatibility, IDE/LSP and supported reference examples are
   not added here. Invalid requirement trees must ultimately fail at compile time.
 - The actor mapper is a trusted fixture. Real authentication, disabled/expired accounts,
-  tenant membership selection, provider binding, technical-worker grants and immutable
-  production context lifecycle still require implementation and acceptance tests.
+  tenant membership selection, provider binding, technical-worker grants and their integration with the implemented immutable
+  invocation lifecycle still require end-to-end acceptance tests.
 - The test controller/advice illustrates the required order. It is not generated HTTP
   or MVC code and does not prove generated adapter custom-hook integration. Configured
   browser login redirects, public registration forms, redisplay-loader suppression,
@@ -88,7 +93,7 @@ This is feasibility, not proof of the complete AUTH-01–08 contract. In particu
   runtime failure on missing infrastructure; it does not substitute that for startup
   validation.
 - The probe catches backend exceptions into safe public codes without retaining raw
-  causes. Production observability needs a deliberately safe operational classifier
+  causes. Complete production observability still needs a deliberately safe operational classifier
   and correlation strategy. This is not a completed logging/monitoring implementation.
 - No subscription policy, quota reservation/consumption or role precedence is inferred.
   Successful authorization is an invocation-time decision, not instantaneous revocation
@@ -111,8 +116,8 @@ To run only this suite, add `-Dtest=AuthorizationEntryPostgresTest`. For CI/rele
 verification run all experiment suites and the named-report gate. Do not use the
 application database or migration credentials as the runtime query role.
 
-Next: implement the production actor/permission/guard boundary with its Spring binding
-and explicit safe failure model, then grammar/generation/module/tooling integration.
+Next: integrate the implemented production runtime with grammar/generation/module/
+tooling and complete the reachable-usecase audit and identity integration.
 Keep HTTP/MVC and nested tenant usecase tests as acceptance criteria rather than
 assuming the handwritten probe proves generated output. Review A01–A23 against the
 [release ledger](release-0.6.0.md); this PR closes no complete SaaS acceptance row.

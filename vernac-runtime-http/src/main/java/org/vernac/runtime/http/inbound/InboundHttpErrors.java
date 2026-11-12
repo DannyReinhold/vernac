@@ -12,6 +12,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MissingRequestValueException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.vernac.runtime.*;
+import org.vernac.runtime.authorization.AuthorizationException;
 import org.vernac.runtime.json.*;
 import org.vernac.runtime.ports.*;
 
@@ -81,9 +82,24 @@ public final class InboundHttpErrors {
     }
     public static Reply withStatus(Exception error,int status) {
         Reply defaults=defaultReply(error);
+        if (authorizationReply(error).isPresent()) return defaults;
         return new Reply(status,defaults.code(),defaults.message());
     }
+    /** Only direct or boundary-owned invocation wrappers; never arbitrary cause-chain matching. */
+    public static java.util.Optional<Reply> authorizationReply(Exception error) {
+        Exception actual = policyError(error);
+        if (!(actual instanceof AuthorizationException auth)) return java.util.Optional.empty();
+        return java.util.Optional.of(switch (auth.code()) {
+            case AUTHENTICATION_REQUIRED -> new Reply(401, auth.code().name(), "Authentication is required.");
+            case ACCESS_DENIED -> new Reply(403, auth.code().name(), "You are not allowed to perform this operation.");
+            case SCOPE_REQUIRED -> new Reply(403, auth.code().name(), "Select an authorized execution scope.");
+            case AUTHORIZATION_CONFIGURATION_ERROR -> new Reply(500, auth.code().name(), "The operation could not be authorized.");
+            case AUTHORIZATION_UNAVAILABLE -> new Reply(503, auth.code().name(), "Authorization is temporarily unavailable.");
+        });
+    }
     public static Reply defaultReply(Exception error) {
+        var authorization = authorizationReply(error);
+        if (authorization.isPresent()) return authorization.get();
         error=policyError(error);
         if(error instanceof HttpMessageNotReadableException || error instanceof MissingRequestValueException
                 || error instanceof MethodArgumentTypeMismatchException || error instanceof WireValueException || error instanceof DtoContractException)
@@ -100,6 +116,13 @@ public final class InboundHttpErrors {
     public static ResponseEntity<Body> respond(Exception error) {return respond(error,InboundHttpErrors::defaults);}
     private static Reply defaults(String endpoint,Exception error) {return defaultReply(error);}
     public static ResponseEntity<Body> respond(Exception error,BiFunction<String,Exception,Reply> handler) {
+        var authorization = authorizationReply(error);
+        if (authorization.isPresent()) {
+            Reply reply = authorization.get();
+            if (reply.status() >= 500) Logger.getLogger(InboundHttpErrors.class.getName())
+                    .log(Level.SEVERE, "Authorization failure: {0}", reply.code());
+            return ResponseEntity.status(reply.status()).body(new Body(reply.code(), reply.message()));
+        }
         String endpoint=error instanceof InvocationFailure f?f.endpoint():"request";
         Exception cause=error instanceof InvocationFailure f?f.exception():error;
         Reply reply;

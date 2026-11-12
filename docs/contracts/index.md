@@ -18,3 +18,5 @@ Use the specification index for the full feature catalog. In this revision:
 - [Ubiquitous language](ubiquitous-language.md): namespaced terms, model association, hover, glossary output and exported-type documentation.
 
 - [Domain diagrams](domain-diagrams.md): resolved namespace graphs and shared Maven/IDE exports.
+
+- [Actor and authorization runtime foundation](usecase-authorization-runtime.md): implemented Java/Spring guard SPI; permission DSL and generated enforcement still pending.
