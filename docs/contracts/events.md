@@ -296,3 +296,16 @@ each global phase verifies its database context before SQL and again before comm
 A callback that changes the origin cannot commit its local writes or acknowledgement.
 These checks do not replace the future mixed-origin schema, RLS or worker routing.
 No SQL schema or migration format changes in this step.
+
+### Origin schema infrastructure (0.6.0 development)
+
+Schema format 3 can represent mixed GLOBAL/tenant event graphs independently of
+aggregate tenant classification. Its SQL vocabulary provides a non-null relationship
+scope key, scope-qualified nested foreign keys and mixed-origin RLS. Reviewed legacy
+upgrades require explicit `'GLOBAL'` backfills; tenant attribution is never inferred.
+Formats 1/2 and their fingerprints remain compatible.
+
+The normal generator still uses the existing event layout. The module coordinator
+rejects the new event classification before migrations until compatible generated
+storage and worker routing are implemented. This metadata support does not remove
+the emission guard. See the [schema and upgrade contract](../development/event-origin-schema.md).

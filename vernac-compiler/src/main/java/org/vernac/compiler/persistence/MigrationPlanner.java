@@ -28,6 +28,13 @@ public final class MigrationPlanner {
         Map<String, Table> newTables = index(after.tables(), Table::identity);
         for (Table old : before.tables()) {
             Table next = newTables.get(old.identity());
+            if (next != null && EventSchema.legacyUpgrade(old, next)) {
+                String key = next.identity() + "/" + EventSchema.SCOPE;
+                if (!"'GLOBAL'".equals(options.backfills().getOrDefault(key, "").trim())
+                        || options.backfills().containsKey(next.identity() + "/" + EventSchema.TENANT))
+                    throw new IllegalArgumentException("EVENT ORIGIN UPGRADE requires an explicit 'GLOBAL' SQL backfill for "
+                            + key + ". Historical tenant attribution cannot be inferred; force cannot bypass this review.");
+            }
             if (next != null && !Objects.equals(old.tenantIsolation(), next.tenantIsolation())) {
                 String reason = old.tenantIsolation() == null
                         ? "TENANT ASSIGNMENT REQUIRED: existing rows need an explicit reviewed tenant backfill"
@@ -117,8 +124,14 @@ public final class MigrationPlanner {
         // UNIQUE targets first, foreign keys last; all tables/columns now exist.
         adds.sort(Comparator.comparingInt(statement -> statement.contains(" FOREIGN KEY (") ? 1 : 0));
         sql.addAll(adds);
-        for (Table next : after.tables()) if (!oldTables.containsKey(next.identity())) {
-            sql.addAll(TenantSchema.protectionSql(next));
+        for (Table next : after.tables()) {
+            Table old = oldTables.get(next.identity());
+            if (old == null) sql.addAll(TenantSchema.protectionSql(next));
+            if (old == null || EventSchema.legacyUpgrade(old, next)) {
+                if (old != null) sql.add("-- EVENT ORIGIN UPGRADE: reviewed historical rows remain GLOBAL. No tenant attribution is inferred.\n"
+                        + "-- You alone must verify provenance, deployment ordering and application compatibility before applying.");
+                sql.addAll(EventSchema.protectionSql(next));
+            }
         }
         if (!risks.isEmpty() && !options.force()) throw new IllegalArgumentException("Potential data loss. Review these operations and use force only to continue candidate generation:\n" + String.join("\n", risks));
         String warnings = risks.isEmpty() ? "" : "-- WARNING: force bypasses generation safeguards only; it is no approval or guarantee.\n"

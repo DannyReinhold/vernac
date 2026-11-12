@@ -201,3 +201,12 @@ This establishes no tenant-capable generated adapter, schema revision or migrati
 The next implementation must provide those capabilities and exact-origin routing
 before removing `TENANT_EVENT_DELIVERY_UNSUPPORTED`. The seven experimental proofs
 remain feasibility evidence, separate from the new production boundary regressions.
+
+## Implemented schema foundation
+
+[Schema format 3 and reviewed global upgrades](event-origin-schema.md) now represent
+mixed-origin payload graphs explicitly, with non-null scope-qualified relationships.
+Compiler and module-runtime serialization preserve earlier fingerprints. Real DDL,
+RLS and upgrade/catalog proofs are separate from the handwritten feasibility store.
+Normal event code generation is not switched yet; activation rejects the pending
+capability before migrations. Generated storage and worker restoration remain OPEN.

@@ -49,7 +49,7 @@ jobs:
       - name: Execute real PostgreSQL and Spring boundary tests
         run: mvn -B -ntp -f experiments/tenant-isolation-spike/pom.xml clean verify
       - name: Execute tenant schema replay and schema-check policy proofs
-        run: mvn -B -ntp -pl vernac-maven-plugin -am -Dtest=DocumentationExamplesTest,TenantSchemaPostgresTest,SchemaMojoTest,ExplicitTenancyMojoTest,TenantModuleActivationPostgresTest,TenantGeneratedPostgresTest,RepositoryQueryPostgresTest,ScalarQueryPostgresTest,ModuleMigrationPostgresTest,EventStoragePostgresTest,EventWorkerPostgresTest -Dsurefire.failIfNoSpecifiedTests=false test
+        run: mvn -B -ntp -pl vernac-maven-plugin -am -Dtest=EventSchemaPostgresTest,DocumentationExamplesTest,TenantSchemaPostgresTest,SchemaMojoTest,ExplicitTenancyMojoTest,TenantModuleActivationPostgresTest,TenantGeneratedPostgresTest,RepositoryQueryPostgresTest,ScalarQueryPostgresTest,ModuleMigrationPostgresTest,EventStoragePostgresTest,EventWorkerPostgresTest -Dsurefire.failIfNoSpecifiedTests=false test
       - name: Require every spike proof to execute
         run: |
           python3 - <<'PY'
@@ -146,6 +146,21 @@ jobs:
                   assert not any(case.find(tag) is not None for tag in ('skipped', 'failure', 'error')), f'Unverified runtime proof: {name}'
           print('All production runtime foundation proofs executed; none skipped.')
           schema_proofs = {
+              'vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.persistence.EventOriginSchemaTest.xml': {
+                  'formatThreeRoundTripsAndDoesNotPolluteLegacySnapshotBytes',
+                  'newGraphKeepsIdentitiesButQualifiesRelationshipsAndInstallsMixedOriginPolicies',
+                  'legacyUpgradeRequiresReviewedGlobalBackfillsAndPreservesSourceHistory',
+                  'originRemovalAndArbitraryReclassificationCannotBeForced',
+                  'nullableScopeOrUnqualifiedLinksAndCrossGraphRelationshipsAreRejected',
+              },
+              'vernac-runtime-jdbc/target/surefire-reports/TEST-org.vernac.runtime.jdbc.modules.ModuleCoordinatorTest.xml': {
+                  'pendingEventSchemaCapabilityStopsBeforeAnyModuleOrApplicationMigration',
+              },
+              'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.EventSchemaPostgresTest.xml': {
+                  'moduleMetadataPreservesFormatOneTwoAndThreeFingerprints',
+                  'freshMixedOriginGraphEnforcesRlsAndScopeQualifiedNestedRelationships',
+                  'reviewedLegacyUpgradePreservesGlobalRowsAndMatchesFreshSchemaCheckCatalog',
+              },
               'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.DocumentationExamplesTest.xml': {
                   'tenantModuleTutorialPreservesEntityOwnership',
                   'persistentTenantModuleTutorialCompilesBothProjectsAndGeneratedActivation',

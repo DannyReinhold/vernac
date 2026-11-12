@@ -1720,12 +1720,11 @@ See the [classification contract](contracts/explicit-tenancy.md),
 [implementation boundaries](development/tenant-persistence-integration.md).
 These additions require 0.6.0 development artifacts, not the released 0.5.x baseline.
 
-The next durable-tenant-event step has a [technical routing candidate](development/tenant-event-routing-contract.md)
-and test-only PostgreSQL proofs. These are not supported event APIs: do not generate
-tenant outbox code from the experimental helper classes or assume the emission guard
-has been removed.
-
-Internal `EventOrigin` storage bridges and JDBC global-context guards are now present
-in the 0.6.0 runtime. They do not enable durable tenant events or introduce Vernac
-syntax. Do not put a tenant parameter on event factories or bypass the emission guard;
-see the [current event boundary](contracts/events.md#internal-origin-and-legacy-storage-boundaries-060-development).
+Durable tenant event delivery remains unsupported. The 0.6.0 runtime captures an
+internal `EventOrigin` and guards legacy GLOBAL storage/worker paths. The
+[schema foundation](development/event-origin-schema.md) adds format-3 metadata and
+reviewed GLOBAL upgrade infrastructure, but normal event generation is not switched
+and activation rejects the pending capability before migrations. These are internal
+steps, not new Vernac syntax. Do not add tenant parameters to event factories, use
+experimental helpers as application APIs or bypass the emission guard. See the
+[current event contract](contracts/events.md#internal-origin-and-legacy-storage-boundaries-060-development).

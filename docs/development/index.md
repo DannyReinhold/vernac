@@ -112,3 +112,7 @@ mappings, Java-backed Vernac breakpoints and the installed-IDE acceptance walkth
 - [Durable tenant event routing](tenant-event-routing-contract.md): technical candidate,
   non-null relationship-scope design and real PostgreSQL routing/lease feasibility proofs;
   production emission remains guarded.
+
+- [Event origin schema and upgrades](event-origin-schema.md): format-3 metadata,
+  scope-qualified payload relationships, reviewed historical GLOBAL backfills and
+  real PostgreSQL fresh/upgrade evidence; generated-storage activation still pending.

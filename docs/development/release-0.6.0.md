@@ -280,3 +280,15 @@ adapter dispatch, generated storage bypasses, contaminated sessions and rollback
 when a global callback changes its origin. No schema history or migration changed.
 Durable tenant publication is still blocked. Generated mixed-origin schemas/storage,
 worker restoration, migration replay/module compatibility and A19/A20/A21 remain OPEN.
+
+## Event origin schema foundation
+
+Schema format 3 represents event origin separately from aggregate tenancy. Non-null
+scope-qualified child FKs protect GLOBAL as well as tenant graphs. Explicit reviewed
+GLOBAL backfills preserve legacy data/positions and existing source history; origin
+removal/ownership changes remain blocked even with force. PostgreSQL fresh/upgrade
+catalog comparisons and restricted-role RLS proofs cover this infrastructure.
+Earlier snapshot/module fingerprints are retained. Normal generation remains on the
+old layout; pending event-classified activation is refused before any migration.
+Generated storage, worker restoration and complete tenant event acceptance remain
+OPEN, as do A19/A20/A21.
