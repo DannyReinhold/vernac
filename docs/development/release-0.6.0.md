@@ -477,3 +477,19 @@ attempt budgets, bounded cleanup with activation-race protection, safe capacity 
 and bounded local-inbox/logging behavior are explicit acceptance prerequisites. A rotating
 source/address attack must not create unbounded business or auxiliary records. This remains
 a contract change; no admission/cleanup implementation or attack-resilience proof is claimed.
+
+
+## Credential primitives after D14 acceptance
+
+PR #33 was accepted/merged, including bounded registration storage and cleanup policy.
+D14 is now an accepted policy baseline; implementation acceptance remains separate. The
+existing optional identity Spring Security artifact adds ASCII LoginAddress parsing,
+NFC/scalar/password bounds, explicit integrity-checked offline corpus loading and the
+real Spring Argon2id encoder with bounded stored-hash verification. BouncyCastle 1.86 is
+explicitly pinned in that optional artifact; core and the pure identity library do not
+depend on these additions. The [implemented contract](../contracts/saas-credential-primitives.md)
+records exact Java boundaries and failures. CI/release inventory requires the new proofs.
+
+No production corpus, public credential endpoint, registration/provisioning, challenge or
+admission/cleanup persistence, protected delivery, rehash storage or session integration
+is claimed. A01/A02 and all complete-SaaS/manual release gates remain OPEN.

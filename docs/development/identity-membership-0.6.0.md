@@ -90,8 +90,8 @@ commit through the shared mail/outbox path, not inside the database transaction.
 
 Login-key canonicalization is an explicit prerequisite: preserve the delivery address;
 do not invent provider-specific dot/plus normalization. The concrete ASCII/case policy,
-uniqueness representation and migration behavior are specified for review in the
-[D14 credential proposal](../contracts/saas-identity-credentials.md).
+uniqueness representation and migration behavior are accepted as policy in the
+[D14 credential contract](../contracts/saas-identity-credentials.md).
 Never change those rules invisibly for existing users.
 
 ## 4. Credentials, sessions and challenges
@@ -101,8 +101,9 @@ password comparison, reversible password storage, home-grown session protocol or
 JWT implementation. Use an adaptive encoder with an upgrade strategy. Pin encoder
 parameters and input bounds in the implementation contract against the managed Spring
 versions; reject unsupported lengths rather than silently truncating. The
-[D14 proposal](../contracts/saas-identity-credentials.md) explicitly selects the algorithm,
-parameters and password policy for review; this is not implemented behavior.
+[D14 policy](../contracts/saas-identity-credentials.md) selects the algorithm, parameters
+and password policy. The [first primitives](../contracts/saas-credential-primitives.md)
+are implemented; credential persistence and complete public workflows are not.
 
 Proposed first browser path: stateful Spring Security sessions with Spring Session JDBC
 for shared storage across instances. Session tables have an explicit reviewed migration
@@ -130,8 +131,8 @@ password reset invalidates existing sessions; disable/closure also blocks their 
 use. A stale stored principal cannot override current disabled state. Rate limiting
 is required for public credential/challenge operations, distinct from paid usage quotas.
 Concrete lifetimes, resend policy, encoder settings, abuse/storage limits and cleanup
-requirements are proposed in
-[D14](../contracts/saas-identity-credentials.md); runtime delivery remains OPEN.
+requirements are accepted in
+[D14](../contracts/saas-identity-credentials.md); full runtime delivery remains OPEN.
 
 ## 5. Membership, selection and the existing runtime
 
@@ -242,11 +243,11 @@ must be retryable without creating another user, membership or consumed verifica
 | D01 | ACCEPTED: same repository, Apache-2.0, separate `org.vernac` artifacts, shared 0.6.0 version | Apply this boundary to each added module; do not add SaaS dependencies to core |
 | D02 | Stable realm/UserId actor; verified account-to-tenant selection | Concrete module adapter API and enabled-state/session refresh proof |
 | D05 | Account roles union explicit keys; no wildcard/negative/hierarchy; explicit owner invariants | Approve catalog/configuration ownership and protected assignment operations |
-| D14 | Spring authentication/encoder, JDBC browser sessions, purpose-bound challenges | Review the [concrete D14 baseline](../contracts/saas-identity-credentials.md), then implement/test it; all delivery gates remain OPEN |
+| D14 | Spring authentication/encoder, JDBC browser sessions, purpose-bound challenges | ACCEPTED through PR #33; implement/test the [D14 baseline](../contracts/saas-identity-credentials.md); full delivery gates remain OPEN |
 | D10 | Shared mail/outbox integration; credential-free local inbox | Actual mail-module contract; no temporary direct-send shortcut |
 
-D14 is a new explicit checkpoint so credential behavior cannot be guessed while writing
-code. Source/license/version choices are now settled as recorded above; publication remains
+D14 was accepted through PR #33, so credential behavior is not guessed while writing
+code; its runtime/flow acceptance remains separate. Source/license/version choices are now settled as recorded above; publication remains
 a separate release action.
 Once reviewed, proceed in small executable slices:
 

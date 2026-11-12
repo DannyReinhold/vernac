@@ -1850,8 +1850,11 @@ starter is provided. See the [JDBC contract](contracts/saas-identity-jdbc.md). D
 [exact foundation contract](contracts/saas-identity-foundation.md).
 
 
-The [D14 credential policy](contracts/saas-identity-credentials.md) is a **decision
-proposal, not callable syntax or runtime APIs**. It specifies the planned email-first
+The [D14 credential policy](contracts/saas-identity-credentials.md) is **accepted policy,
+not new DSL syntax or a complete identity implementation**. It specifies the email-first
 registration and credential/session behavior. Do not generate registration/login DSL
-keywords, invented Spring beans or management endpoints from that proposal. The only
-implemented identity APIs remain those in the foundation/JDBC contracts above.
+keywords, invented Spring beans or management endpoints from that policy. The implemented identity boundaries are documented by the
+foundation/JDBC contracts
+and [credential primitives](contracts/saas-credential-primitives.md). The latter adds
+explicit Java helpers in org.vernac.saas.identity.security.credentials, not a Spring
+AuthenticationProvider, registration endpoint, production corpus or default beans.

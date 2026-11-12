@@ -7,7 +7,7 @@ Maven artifacts, not extra compiler keywords or dependencies of the general runt
 | Implemented artifact | Current scope |
 | --- | --- |
 | `org.vernac:vernac-saas-identity` | Nominal UserId, identity status vocabulary and trusted IdentityDirectory port; published Vernac module contracts |
-| `org.vernac:vernac-saas-identity-spring-security` | Explicit technical principal and live-status ActorResolver for Spring Security |
+| `org.vernac:vernac-saas-identity-spring-security` | Explicit principal/live-status ActorResolver and credential parsing/corpus/real encoder primitives |
 | `org.vernac:vernac-saas-identity-jdbc` | Explicit optional persistent status directory; internal repository and separate module migrations |
 
 The module identity is `vernac.saas.identity`. Import exported definitions under
@@ -25,12 +25,14 @@ disposable-database test environment when validating the full reactor; skipped d
 cases do not count as passed. CI separately requires the relevant database proofs.
 
 Read the [implemented identity foundation contract](../docs/contracts/saas-identity-foundation.md)
-the [credential-policy review baseline](../docs/contracts/saas-identity-credentials.md)
+the [accepted credential policy](../docs/contracts/saas-identity-credentials.md)
 and the [larger lifecycle proposal](../docs/development/identity-membership-0.6.0.md).
 
 ## Deliberately unfinished
 
-The optional [JDBC directory](../docs/contracts/saas-identity-jdbc.md) persists internal eligibility. No password storage, registration/verification/recovery,
+The optional [credential primitives](../docs/contracts/saas-credential-primitives.md)
+provide explicit Java validation/encoding, not automatic login or a production corpus.
+The optional [JDBC directory](../docs/contracts/saas-identity-jdbc.md) persists internal eligibility. No persisted password credentials, registration/verification/recovery,
 login/session filter chain, account/membership/role implementation or SaaS starter is
 provided yet. The directory supplies internal state, not the missing trusted workflows.
 Do not implement a directory that returns ACTIVE for everyone or treat an actor as a

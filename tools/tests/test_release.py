@@ -130,13 +130,15 @@ class ReleaseTests(unittest.TestCase):
         folder = self.root / "module/target/surefire-reports"
         folder.mkdir(parents=True)
         for name in release.REQUIRED_TESTS:
-            if not name.startswith("Identity"):
+            if name not in release.SAAS_IDENTITY_TESTS:
                 (folder / f"TEST-{name}.xml").write_text(f'<testsuite name="org.vernac.{name}" tests="1" failures="0" errors="0" skipped="0"/>')
         nested = self.root / "saas/identity/target/failsafe-reports"
         nested.mkdir(parents=True)
         for name in release.REQUIRED_TESTS:
-            if name.startswith("Identity"):
-                report_dir = nested if name.endswith("IT") else self.root / "saas/identity-spring-security/target/surefire-reports"
+            if name in release.SAAS_IDENTITY_TESTS:
+                module = "identity-jdbc" if name == "IdentityJdbcModuleIT" else "identity" if name.endswith("IT") else "identity-spring-security"
+                kind = "failsafe-reports" if name.endswith("IT") else "surefire-reports"
+                report_dir = self.root / f"saas/{module}/target/{kind}"
                 report_dir.mkdir(parents=True, exist_ok=True)
                 (report_dir / f"TEST-{name}.xml").write_text(f'<testsuite name="org.vernac.{name}" tests="1" failures="0" errors="0" skipped="0"/>')
         release.audit_tests()

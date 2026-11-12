@@ -149,6 +149,7 @@ registration/verification/provisioning, session integration, memberships/roles a
 mail/UI/migration paths must be implemented and reviewed before claiming a working SaaS.
 
 
-The [D14 credential-policy proposal](saas-identity-credentials.md) supplies the concrete
-review baseline for the next implementation slices. It does not add registration,
-credential or session APIs to these implemented artifacts.
+The [accepted D14 policy](saas-identity-credentials.md) and
+[implemented credential primitives](saas-credential-primitives.md) describe the next
+boundary. The latter supplies explicit Java helpers, without registration endpoints,
+credential persistence or session integration.
