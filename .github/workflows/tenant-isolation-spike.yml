@@ -116,6 +116,22 @@ jobs:
           for name, case in auth_cases.items():
               assert not any(case.find(tag) is not None for tag in ('skipped', 'failure', 'error')), f'Unverified authorization proof: {name}'
           print(f'{len(auth_cases)} authorization-entry feasibility proofs executed; none skipped.')
+          generated_report = Path('experiments/tenant-isolation-spike/target/surefire-reports/TEST-org.vernac.experiments.tenancy.GeneratedAuthorizationPostgresTest.xml')
+          generated_root = ET.parse(generated_report).getroot()
+          generated_required = {
+              'nullChecksAndPermissionDenialsPrecedeGeneratedValidationAndInlineBody',
+              'generatedPublicOuterChecksOnlyReachedInnerAndRetainsRequiredRollback',
+              'externalImplementationHasTheSameGuardAndDirectConstructionCannotSupplyATransaction',
+              'publicAndAuthenticatedModesPreserveTheirDifferentActorRequirements',
+              'crossTenantPolicyReadsCannotAuthorizeTheSameNominalId',
+              'publicEntryWorksWithoutAuthorizationBeansButProtectedBeanFailsStartup',
+          }
+          generated_cases = {c.attrib['name']: c for c in generated_root.findall('testcase')}
+          assert not (generated_required - generated_cases.keys()), 'Missing generated authorization proofs'
+          assert all(int(generated_root.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
+          for name, case in generated_cases.items():
+              assert not any(case.find(k) is not None for k in ('failure', 'error', 'skipped')), f'Unverified generated authorization proof: {name}'
+          print(f'{len(generated_cases)} generated authorization/Spring/PostgreSQL proofs executed; none skipped.')
           runtime_auth = {
               'vernac-runtime/target/surefire-reports/TEST-org.vernac.runtime.authorization.AuthorizationGuardTest.xml': 9,
               'vernac-runtime/target/surefire-reports/TEST-org.vernac.runtime.authorization.SpringAuthorizationTest.xml': 5,
@@ -176,6 +192,14 @@ jobs:
                   assert not any(case.find(tag) is not None for tag in ('skipped', 'failure', 'error')), f'Unverified runtime proof: {name}'
           print('All production runtime foundation proofs executed; none skipped.')
           schema_proofs = {
+              'vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.authorization.AuthorizationLanguageTest.xml': {
+                  'emitsTechnicalPermissionEnumsAndNominalGuardBeforeValidationAndImplementation',
+                  'modulePublicationFailsRatherThanDroppingAnyAuthorizationContract',
+                  'nativeAndJavaNavigationLocatePermissionDeclarationsAndMembers',
+              },
+              'vernac-lsp/target/surefire-reports/TEST-org.vernac.lsp.AuthorizationSymbolsTest.xml': {
+                  'unsavedPermissionMembersUseTheCompilerAndRecoverAfterAnError',
+              },
               'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.InboundErrorPolicyExecutionTest.xml': {
                   'generatedPoliciesRunInMvcAndPreserveDefaultsWithoutPublishingExceptionMessages',
               },

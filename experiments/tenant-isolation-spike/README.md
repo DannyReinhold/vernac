@@ -110,3 +110,15 @@ See the [evidence and remaining production work](../../docs/development/authoriz
 Missing database configuration fails the suite; CI also checks the nine required case
 names and rejects skips. To focus locally, add `-Dtest=AuthorizationEntryPostgresTest`
 to the existing Maven command. Run the full suite for PR verification.
+
+
+## Generated authorization language proof
+
+GeneratedAuthorizationPostgresTest compiles actual local permission/requires declarations,
+including imported keys and unusual Java-valid constant names. Its six proofs invoke
+real generated Spring beans: null checks/denials before validates/body, conditional
+inner checks with REQUIRED rollback, inline/external parity, public versus authenticated
+actors, missing-Guard startup and cross-tenant nominal resources. The complete experiment
+now runs 36 tests; CI names all six new cases and rejects missing/skipped proofs.
+Module security metadata is not yet implemented and publication fails explicitly.
+See the [language tutorial](../../docs/tutorials/usecase-authorization.md).

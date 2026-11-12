@@ -19,4 +19,4 @@ Use the specification index for the full feature catalog. In this revision:
 
 - [Domain diagrams](domain-diagrams.md): resolved namespace graphs and shared Maven/IDE exports.
 
-- [Actor and authorization runtime foundation](usecase-authorization-runtime.md): implemented Java/Spring guard SPI; permission DSL and generated enforcement still pending.
+- [Actor and authorization runtime foundation](usecase-authorization-runtime.md): implemented Java/Spring guard SPI; with the [local permission/requires contract](usecase-authorization.md); module metadata and full SaaS integration still pending.

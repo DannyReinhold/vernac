@@ -5,15 +5,16 @@ title: Usecase authorization — proposed 0.6.0 contract
 
 Status: **language design baseline; production Java runtime foundation implemented**.
 Baseline: 2026-11-12. The [runtime/Spring SPI](../contracts/usecase-authorization-runtime.md)
-is available; permission/requires DSL and generated enforcement remain unimplemented.
+is available; the [local permission/requires language](../contracts/usecase-authorization.md)
+and generated guards are now implemented. Module metadata and full SaaS integration remain OPEN.
 This is the next design slice of the [0.6.0 SaaS plan](saas-0.6.0-plan.md), covering
 D02/D03 and the authorization part of D04. MUST describes the proposed implementation
 requirement, not current compiler behavior. Merging this document accepts a design
 baseline; it does not verify A03/A04 or close the Spring feasibility work.
 
 The current [usecase contract](../contracts/usecases.md) remains authoritative for
-existing syntax. All new syntax below is deliberately fenced as text. The Java runtime foundation does not change the grammar or the supported public
-language baseline. Do not use the proposed syntax until compiler integration lands.
+existing syntax. All new syntax below is deliberately fenced as text. The implemented 0.6.0 language subset is defined by the local language contract;
+this broader planning document still includes unimplemented module/audit/integration requirements.
 
 ## Technical tenant integration
 
@@ -399,7 +400,8 @@ AUTH-03/04/06/07 evidence against the managed dependency versions. It is handwri
 test-only code, not generated enforcement or a complete startup/web-security audit.
 The [production runtime/Spring foundation](../contracts/usecase-authorization-runtime.md)
 now supplies actor/policy/guard APIs and terminal HTTP/MVC handling; the same experiment
-uses those APIs. Next implement grammar/generation, module metadata and tooling,
+uses those APIs. The local compiler now emits guards, with an optional provider for public entry and
+a required Guard for protected entry. Next implement module metadata and deeper tooling,
 retaining the full acceptance requirements above.
 Reference sources (not proof that the spike has run):
 - [Spring Security method-security design](https://docs.spring.io/spring-security/reference/servlet/authorization/method-security.html)

@@ -32,6 +32,7 @@ final class UseCaseContracts {
                     || !Set.of(TypeSymbol.Kind.REPOSITORY,TypeSymbol.Kind.PORT,TypeSymbol.Kind.DOMAIN_SERVICE,TypeSymbol.Kind.USE_CASE).contains(d.symbol().kind()))
                 error(errors,f.location(),"uses requires a non-optional repository, port, service or usecase.");
         }
+        u.authorization().ifPresent(a -> new AuthorizationContracts().requirement(a, u, scope, types, errors, project));
         var visible=new HashMap<>(BehaviorImports.visible(project,scope));
         for(var source:project.sources()) for(var symbol:project.symbols().inNamespace(source.unit().namespace())) {
             var lookup=scope.resolve(symbol.identity().name(),u.location());
@@ -67,8 +68,7 @@ final class UseCaseContracts {
     }
     static String javaName(ResolvedType t) {
         if(t instanceof ResolvedType.Declared d) {
-            String ns=d.symbol().identity().namespace(),name=d.symbol().identity().name();
-            return ns+(d.symbol().kind()==TypeSymbol.Kind.USE_CASE?".usecase.":".domain.")+name;
+            return JavaTypeNames.canonicalName(d);
         }
         return JavaTypeNames.canonicalName(t);
     }

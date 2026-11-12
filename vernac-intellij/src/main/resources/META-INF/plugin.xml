@@ -100,6 +100,14 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>0.6.0 development — Declarative usecase access</h3>
+<p>Declare named permissions and usecase requires clauses with ordered all/any groups
+and required typed resources. Matching 0.6.0 compiler/runtime generates Spring guards
+before validation and inline/external implementations. Local source diagnostics,
+permission declaration navigation and syntax keywords are supported. Module publication
+of these contracts is temporarily rejected until security metadata support lands;
+advanced requirement completion and the complete SaaS identity system remain in progress.</p>
+
 <h3>0.6.0 development — Durable tenant events</h3>
 <p>Publish ordinary domain events under a verified tenant selection. Current generated
 storage and the production worker retain origin through queued delivery, restart,

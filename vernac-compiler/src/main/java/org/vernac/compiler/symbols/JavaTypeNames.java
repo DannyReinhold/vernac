@@ -22,6 +22,7 @@ public final class JavaTypeNames {
                 case INBOUND_HTTP_ADAPTER -> declared.symbol().identity().namespace()+".adapter.inbound.http."+declared.symbol().identity().name();
                 case OUTBOUND_ADAPTER -> declared.symbol().identity().namespace()+".adapter.outbound."+declared.symbol().identity().name();
                 case LISTENER -> declared.symbol().identity().namespace()+".adapter.inbound.event."+declared.symbol().identity().name();
+                case PERMISSION -> declared.symbol().identity().namespace()+".authorization."+declared.symbol().identity().name();
                 case USE_CASE -> declared.symbol().identity().namespace()+".usecase."+declared.symbol().identity().name();
                 default -> throw new IllegalArgumentException("No reviewed Java mapping for " + declared.symbol().kind());
             };

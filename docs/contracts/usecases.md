@@ -173,9 +173,12 @@ See [the pagination contract](pagination.md) for precise types, transport shapes
 counts, cursor binding and transaction limits.
 
 
-## Planned authorization (not implemented)
+## Declarative authorization (0.6.0 local application addition)
 
-The 0.6.0 [authorization contract proposal](../development/usecase-authorization-contract.md)
-is under review. It proposes requirements at generated execute entry, trusted
-actor/scope integration and nested-call enforcement. It does not change the syntax
-or runtime guarantees documented above until implementation and verification land.
+The optional requires clause follows returns and precedes uses/validates/behavior.
+Named permission declarations, public/authenticated modes, ordered all/any groups and
+required typed resource inputs generate the [authorization entry boundary](usecase-authorization.md).
+Mandatory-null checks precede it; validates and the implementation follow it. Existing
+usecases without a clause retain their API/behavior. Module publication of the new
+contracts is rejected until security metadata support lands; identity/roles/plans and
+the SaaS exposure audit remain OPEN.

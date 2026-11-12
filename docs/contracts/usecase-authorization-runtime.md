@@ -4,11 +4,10 @@ title: Actor and authorization runtime foundation
 # Actor and authorization runtime foundation
 
 Status: **Java runtime/Spring foundation implemented in 0.6.0-SNAPSHOT**.
-Permission declarations, `requires` grammar, generated usecase guards, module permission
-metadata, IDE/LSP support and the SaaS reachable-usecase audit are **not implemented**
-by this increment. Existing generated usecases do not become protected automatically.
-The [language proposal](../development/usecase-authorization-contract.md) remains the
-contract for those next increments. This document specifies the implemented Java SPI.
+The [local application language contract](usecase-authorization.md) now adds permission
+and requires declarations with generated entry guards. Module metadata, advanced IDE
+support and the SaaS reachable-usecase audit remain OPEN. Existing usecases without a
+clause do not become protected automatically. This document specifies the Java SPI.
 
 The supported application platform is Java/Spring Boot. The core APIs live in
 `org.vernac.runtime.authorization` in `vernac-runtime`; the explicitly selected Spring
@@ -73,8 +72,8 @@ try (var invocation = authorization.enter("example.billing.ExportInvoice", requi
 
 This is an infrastructure fragment, not new Vernac syntax or a complete application.
 The existing [executable Spring/PostgreSQL fixtures](../development/authorization-entry-spike.md)
-exercise the production guard with proxied entrypoints. The compiler will add this
-entry boundary in a subsequent increment; the declaration alone cannot enforce it yet.
+exercise the production guard with proxied entrypoints. The compiler now emits this entry boundary for explicit protected local usecases.
+An omitted clause retains existing behavior; requires public uses an optional provider.
 
 `AuthorizationGuard.enter` MUST require a real synchronized Spring transaction for
 protected entry. It does not create one. No actor/scope data lookup or evaluator may
@@ -194,8 +193,7 @@ production APIs; the handwritten parallel guard is removed. Generated MVC execut
 checks that even a throwing custom error hook is bypassed for authorization and that
 no loader runs. Generated HTTP policy tests preserve the auth defaults.
 
-Still OPEN: permission/requires language and generation; qualified permission/module
-contracts and compatibility; editor support; reachable-usecase audits; actual identity/
+Still OPEN: permission/module metadata and compatibility; advanced editor support; reachable-usecase audits; actual identity/
 membership/role/subscription modules; safe operational correlation; full SaaS end-to-end
-acceptance. No existing user operation is secured merely by upgrading the runtime.
+acceptance. An existing operation with no requires clause is not secured merely by upgrading.
 A03/A04/A19/A20 and the [0.6.0 release gates](../development/release-0.6.0.md) remain OPEN.

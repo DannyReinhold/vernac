@@ -1740,10 +1740,70 @@ remain GLOBAL-only and are explicitly rejected/blocked for tenant work. Never ad
 factory arguments or infer a tenant for historical data. See the [event contract](contracts/events.md).
 
 
-## 0.6.0 Java authorization foundation (not DSL syntax)
+## 0.6.0 addition: local usecase authorization
 
-The [actor/authorization runtime](contracts/usecase-authorization-runtime.md) supplies
-Java guard/policy APIs, explicit Spring integration and terminal HTTP/MVC classification.
-Permission declarations and `requires` clauses are not implemented language syntax yet,
-and existing generated usecases are not automatically guarded. Do not generate that
-proposed syntax or claim an operation is secured merely because these APIs are present.
+Requires matching 0.6.0-SNAPSHOT artifacts; do not use with the 0.5.0 release baseline.
+Declare keys with `permission Name { VIEW; EXPORT; }`. These are technical permission
+enums in <namespace>.authorization, not domain field/input/result types. Their stable
+key is <namespace>.<Declaration>.<member>, without the Java package suffix.
+
+Clause order: inputs, optional returns, optional requires, optional uses, optional
+validates, behavior. The following alternatives are fragments:
+
+```text
+requires public
+requires authenticated
+requires permission InvoicePermissions.EXPORT on invoiceId
+requires all {
+    permission InvoicePermissions.VIEW on invoiceId;
+    any {
+        permission InvoicePermissions.EXPORT on invoiceId;
+        permission InvoicePermissions.VIEW;
+    }
+}
+```
+
+Groups must be nonempty. Leaves in groups require semicolons; nested groups do not.
+Public/authenticated must be standalone. on accepts one required named ID/VO input
+(including domain enum VOs), never an optional, collection, dependency or expression.
+Imported and fully qualified permission names use ordinary local namespace rules.
+Unknown members and exact duplicate sibling leaves are compile errors.
+
+The generated protected execute method checks mandatory null inputs first, then uses
+AuthorizationGuard before validates, inline/external body and result checks. Spring
+REQUIRED is unchanged. Each reached inner usecase rechecks; unreachable branches do
+not. all/any retain order and short-circuit, but technical failures abort even in any.
+Permission checks require a verified actor and selected tenant; missing scope is never
+a global grant. Authenticated alone requires a verified actor, not a selected tenant.
+
+The application must explicitly bind the Spring [actor/policy runtime](contracts/usecase-authorization-runtime.md).
+Do not invent a user model or grant from a browser role/tenant claim. Spring Security
+retains URL/login/CSRF protection. A missing clause preserves existing behavior. Public
+adds no rights and uses only an optional Guard provider. Permissions alone grant nothing.
+No automatic exposure audit, user registration, role/plan policy or quota is supplied.
+
+**Current limit:** publishing a module containing any permission/requires definition
+is rejected until security metadata support is implemented. Local application imports
+work; do not claim module exports/requires compatibility is already supported.
+See the [language contract](contracts/usecase-authorization.md) and
+[tutorial](tutorials/usecase-authorization.md). Complete compilable local example:
+
+```vernac
+namespace ai.authorization.demo;
+id InvoiceId;
+value ExportToken(String);
+permission InvoicePermissions { VIEW; EXPORT; }
+port Exports { ExportToken start(InvoiceId); }
+usecase RequestExport(InvoiceId) returns ExportToken
+    requires all {
+        permission InvoicePermissions.VIEW on invoiceId;
+        permission InvoicePermissions.EXPORT on invoiceId;
+    }
+    uses Exports
+behavior {
+    execute { return self.exports().start(invoiceId); }
+}
+```
+
+The model compiles. Running it requires the Exports implementation, trusted actor/tenant
+selection and a configured policy/Guard. It is not a complete identity/export application.

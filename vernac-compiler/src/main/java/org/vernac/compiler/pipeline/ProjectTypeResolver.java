@@ -72,6 +72,7 @@ public final class ProjectTypeResolver {
             }
             for (var definition : source.unit().definitions()) {
                 diagnostics.addAll(ValidationContracts.validate(definition, source.unit().namespace(), project));
+                if (definition instanceof PermissionNode permission) new AuthorizationContracts().declaration(permission, diagnostics);
                 if (definition instanceof UseCaseNode usecase && validScope)
                     new UseCaseContracts().validate(usecase, scope, fieldTypes, diagnostics, project, source.unit().namespace());
                 if (definition instanceof PortNode port && validScope)
@@ -181,7 +182,7 @@ public final class ProjectTypeResolver {
         if (strict) failOnErrors(diagnostics);
         List<TypeSymbol> deferred = namespaces.stream().flatMap(namespace -> project.symbols().inNamespace(namespace).stream())
                 .filter(symbol -> switch (symbol.kind()) {
-                    case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, REPOSITORY, USE_CASE, DOMAIN_SERVICE, EVENT, LISTENER, PORT, OUTBOUND_ADAPTER, INBOUND_HTTP_ADAPTER -> false;
+                    case PERMISSION, ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, REPOSITORY, USE_CASE, DOMAIN_SERVICE, EVENT, LISTENER, PORT, OUTBOUND_ADAPTER, INBOUND_HTTP_ADAPTER -> false;
                     default -> true;
                 }).toList();
         return new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries, schemas, mappings, restOperations, inboundAdapters);
