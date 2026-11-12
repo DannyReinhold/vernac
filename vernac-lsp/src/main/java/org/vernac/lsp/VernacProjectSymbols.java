@@ -121,7 +121,7 @@ final class VernacProjectSymbols {
         while(start>0) {int cp=text.codePointBefore(start);if(!Character.isJavaIdentifierPart(cp)&&cp!='.')break;start-=Character.charCount(cp);}
         String before=text.substring(0,start).stripTrailing(),prefix=text.substring(start,point);
         java.util.stream.Stream<String> names;
-        if(before.endsWith("tenancy")) {
+        if(before.endsWith("tenancy")||before.endsWith("authorization")) {
             names=java.util.stream.Stream.of("explicit;");
         } else if(before.endsWith("activate")) {
             names=modules.stream().filter(org.vernac.compiler.modules.ModuleDescriptor::activatable).map(org.vernac.compiler.modules.ModuleDescriptor::module);
@@ -133,7 +133,7 @@ final class VernacProjectSymbols {
             names=declarations.stream().filter(d->d.kind()==TypeSymbol.Kind.OUTBOUND_ADAPTER)
                     .filter(d->port!=null&&adapterPort(d).filter(port::equals).isPresent()).map(d->d.identity().qualifiedName());
         } else {
-            names=java.util.stream.Stream.of("activate", "bind", "tenancy explicit;");
+            names=java.util.stream.Stream.of("activate", "bind", "tenancy explicit;", "authorization explicit;");
             if(!before.endsWith("{")&&!before.endsWith(";"))return List.of();
         }
         Range range=new Range(position(text,start),at);

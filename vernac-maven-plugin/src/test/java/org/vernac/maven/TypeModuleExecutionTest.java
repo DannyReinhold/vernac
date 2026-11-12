@@ -135,6 +135,35 @@ class TypeModuleExecutionTest {
         assertThrows(Exception.class,()->compile(application));
     }
 
+    /** Only the clean startup baseline is simulated; any actual persistence SQL must fail here. */
+    private static javax.sql.DataSource registryOnlyDataSource() {
+        return new org.springframework.jdbc.datasource.AbstractDataSource() {
+            @Override public java.sql.Connection getConnection() {
+                return (java.sql.Connection)java.lang.reflect.Proxy.newProxyInstance(getClass().getClassLoader(),new Class<?>[]{java.sql.Connection.class},(proxy,method,args)->switch(method.getName()) {
+                    case "getAutoCommit" -> true;
+                    case "close" -> null;
+                    case "isClosed" -> false;
+                    case "hashCode" -> System.identityHashCode(proxy);
+                    case "equals" -> proxy==args[0];
+                    case "toString" -> "Registry-only startup connection";
+                    case "createStatement" -> java.lang.reflect.Proxy.newProxyInstance(getClass().getClassLoader(),new Class<?>[]{java.sql.Statement.class},(statement,call,values)-> {
+                        if(call.getName().equals("close"))return null;
+                        if(!call.getName().equals("executeQuery")||!values[0].equals("SELECT current_setting('vernac.tenant_id', true)"))
+                            throw new java.sql.SQLException("Registry fixture does not execute persistence SQL");
+                        var first=new java.util.concurrent.atomic.AtomicBoolean(true);
+                        return java.lang.reflect.Proxy.newProxyInstance(getClass().getClassLoader(),new Class<?>[]{java.sql.ResultSet.class},(result,read,columns)->switch(read.getName()) {
+                            case "next" -> first.getAndSet(false);
+                            case "getString", "close" -> null;
+                            default -> throw new java.sql.SQLException("Unsupported registry result operation");
+                        });
+                    });
+                    default -> throw new java.sql.SQLException("Registry fixture does not execute persistence SQL");
+                });
+            }
+            @Override public java.sql.Connection getConnection(String user,String password) throws java.sql.SQLException {throw new java.sql.SQLException("Registry fixture has no credentials");}
+        };
+    }
+
     @Test void exportedEventsReachOnlyActivatedSynchronousReceiversInTheCallingTransaction() throws Exception {
         var publisher=project(root.resolve("event-publisher"),"event-publisher");
         Path publisherSource=publisher.getBasedir().toPath().resolve("src/main/vernac/events/api/model.vernac");Files.createDirectories(publisherSource.getParent());
@@ -160,7 +189,7 @@ class TypeModuleExecutionTest {
             try(var code=new URLClassLoader(new URL[]{classes.toUri().toURL(),publisherJar.toUri().toURL(),observerJar.toUri().toURL()},getClass().getClassLoader());var context=new org.springframework.context.annotation.AnnotationConfigApplicationContext()) {
                 context.setClassLoader(code);context.registerBean("transactionManager",CountingTransactions.class);
                 // Registry/transaction test only: real SQL startup is covered by ModuleMigrationPostgresTest.
-                context.registerBean("dataSource",javax.sql.DataSource.class,()->new org.springframework.jdbc.datasource.DriverManagerDataSource());
+                context.registerBean("dataSource",javax.sql.DataSource.class,TypeModuleExecutionTest::registryOnlyDataSource);
                 context.registerBean("jdbc",org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate.class,()->new org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate(context.getBean(javax.sql.DataSource.class)));
                 context.registerBean("flywayInitializer",org.springframework.boot.autoconfigure.flyway.FlywayMigrationInitializer.class,()->new org.springframework.boot.autoconfigure.flyway.FlywayMigrationInitializer(org.flywaydb.core.Flyway.configure().dataSource(context.getBean(javax.sql.DataSource.class)).load()){@Override public void afterPropertiesSet(){}});
                 context.register(code.loadClass("app.configuration.__VernacApplication"),code.loadClass("app.usecase.Forward"));context.refresh();

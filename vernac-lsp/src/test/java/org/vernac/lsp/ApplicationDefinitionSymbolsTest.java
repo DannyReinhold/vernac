@@ -19,6 +19,15 @@ class ApplicationDefinitionSymbolsTest {
             org.vernac.compiler.modules.ModuleDefinition.parse(root.resolve("producer/module.vmodule"),"module example.support {}"),
             resolved,compiler.generate(resolved,org.vernac.compiler.persistence.SchemaModel.empty(),Map.of()).generatedFiles(),"example","support","1",List.of());
     }
+    @Test void completesTheApplicationAuthorizationPolicyWithoutChangingModuleSyntax() {
+        var symbols=new VernacProjectSymbols(root,Map.of());
+        String text="application app {author";
+        assertTrue(symbols.applicationComplete(text,new Position(0,text.length()),List.of()).stream().anyMatch(c->c.getLabel().equals("authorization explicit;")));
+        text="application app {authorization exp";
+        assertTrue(symbols.applicationComplete(text,new Position(0,text.length()),List.of()).stream().anyMatch(c->c.getLabel().equals("explicit;")));
+        String module="module example.library {author";
+        assertFalse(symbols.moduleComplete(module,new Position(0,module.length())).stream().anyMatch(c->c.getLabel().startsWith("authorization")));
+    }
     @Test void activationNavigatesToTheLogicalModuleEvenWithoutExportsAndFromTheMiddleOfItsName() throws Exception {
         var module=internalModule();Files.writeString(root.resolve("pom.xml"),"<project/>");Files.createDirectories(root.resolve("target"));
         Files.writeString(root.resolve("target/vernac-module-index.json"),org.vernac.compiler.modules.ModuleDescriptor.JSON.writeValueAsString(List.of(module)));

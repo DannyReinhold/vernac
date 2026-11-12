@@ -15,7 +15,8 @@ baseline; it does not verify A03/A04 or close the Spring feasibility work.
 
 The current [usecase contract](../contracts/usecases.md) remains authoritative for
 existing syntax. All new syntax below is deliberately fenced as text. The implemented 0.6.0 language subset is defined by the local language contract;
-this broader planning document still includes unimplemented module/audit/integration requirements.
+Module metadata and the [explicit-access assembly check](../contracts/explicit-authorization.md)
+are now implemented; this broader plan still includes incomplete SaaS integration.
 
 ## Technical tenant integration
 

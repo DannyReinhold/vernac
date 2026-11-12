@@ -30,7 +30,7 @@ public class VernacTextDocumentService implements TextDocumentService {
             "client", "base", "body", "response", "errors", "path", "query", "header",
             "counted", "cursor", "offset", "counting", "where", "and", "or", "not", "order", "asc", "desc", "is", "absent", "present", "like", "contains", "starts", "ends", "with",
             "namespace", "package", "import", "as", "id",
-            "tenant", "global", "tenancy", "explicit", "aggregate", "value", "entity", "event", "recorded", "synchronous", "deferred", "service", "external", "schema",
+            "tenant", "global", "tenancy", "authorization", "explicit", "aggregate", "value", "entity", "event", "recorded", "synchronous", "deferred", "service", "external", "schema",
             "inbound", "http", "mvc", "render", "model", "redirect", "redisplay", "form", "sensitive", "error", "view", "message", "respond", "configuration", "from", "using", "naming", "named", "patch", "repository", "for", "table", "find", "custom", "validates", "require",
             "read", "modify", "behavior", "java", "imports", "implemented", "by", "mut", "invariant", "mapping", "list", "set",
             "port", "adapter", "rest", "on", "throw", "throws",

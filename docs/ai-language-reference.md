@@ -1795,8 +1795,7 @@ Adding permission keys is compatible; removing/renaming keys requires stored-gra
 review. Rebuild older development artifacts; do not edit frozen migrations for this
 metadata upgrade. See the [module contract](contracts/module-authorization.md) and
 [module walkthrough](tutorials/module-authorization.md). Key/resource completion and navigation honor import visibility, ambiguity and required
-nominal input rules, including exported module keys and unsaved changes. The final
-installed-IDE check and SaaS exposure audit remain future work.
+nominal input rules, including exported module keys and unsaved changes. The final installed-IDE check and full SaaS integration remain future work.
 See the [language contract](contracts/usecase-authorization.md) and
 [tutorial](tutorials/usecase-authorization.md). Complete compilable local example:
 
@@ -1819,3 +1818,17 @@ behavior {
 
 The model compiles. Running it requires the Exports implementation, trusted actor/tenant
 selection and a configured policy/Guard. It is not a complete identity/export application.
+
+
+### Explicit application access audit (0.6.0 development)
+
+An application may declare `authorization explicit;` inside its `.vapplication`.
+It is independent of `tenancy explicit;`, forbidden in `.vmodule`, and not enabled
+by default in ordinary applications. The complete SaaS assembly must enable it.
+The generated Spring check requires a non-omitted requires clause on registered
+local and activated-module usecases, including private and lazy normal definitions.
+Inactive type dependencies are not exposed by import alone. It inspects declarations,
+never grants access or preauthorizes inner calls. Opaque custom factory products are
+checked when materialized; arbitrary unmanaged Java is not a whole-program audit.
+No metadata/schema version change or SQL migration is needed for this switch.
+See the [formal startup contract](contracts/explicit-authorization.md).

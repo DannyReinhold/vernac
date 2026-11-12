@@ -6,7 +6,8 @@ title: Declarative usecase authorization
 Status: **local and reusable-module declarations with generated enforcement implemented
 in 0.6.0-SNAPSHOT**. Use matching compiler/runtime/tooling versions and rebuild module
 artifacts for module-contracts-11. This is not a complete identity/roles/subscription
-system or exposure audit.
+system. The optional [explicit-access startup audit](explicit-authorization.md) checks
+registered generated usecases; it is not a whole-program security proof.
 
 ## Declarations and identities
 
@@ -172,12 +173,13 @@ and LSP navigation locate permission members and explicit/implicit resource inpu
 The editor preserves normal import/ambiguity rules. Key completion excludes ordinary
 domain enums; resource completion excludes optional values, collections and dependencies.
 Full installed-IDE
-acceptance and exposure inspection remain follow-up work.
+acceptance remains follow-up work. The application can enable the
+[explicit-access audit](explicit-authorization.md) for registered local/module usecases.
 
 Compiler tests cover invalid declarations/trees/resources/imports, ordinary Java/domain
 name collisions, explicit module export closure and authorization compatibility. Generated PostgreSQL/Spring tests
 compile the real enum/guard code and prove null/deny ordering, validates suppression,
 inline/external parity, public/authenticated modes, nominal cross-tenant resource
 reads, missing-Guard startup, conditional nested checks and REQUIRED rollback.
-The SaaS reachable-usecase exposure audit, identity/membership/role/plan policies,
+The complete SaaS assembly and identity/membership/role/plan policies,
 limits/quotas and full 0.6.0 acceptance remain OPEN.

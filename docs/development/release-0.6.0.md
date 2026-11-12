@@ -384,3 +384,23 @@ works from read-only metadata without producer sources or Java generation.
 Automated compiler/LSP tests cover these cases. Final packaged-plugin/manual
 acceptance, reachable-usecase exposure audits, identity/membership/role policies and
 the full SaaS end-to-end review remain OPEN. PR review/merge is not that acceptance.
+
+
+## Explicit-access startup evidence
+
+Applications can enable `authorization explicit;` independently of aggregate tenancy.
+Generated inventory inspection rejects omitted clauses on registered local and activated
+module usecases, including private/lazy normal definitions, before their construction.
+It does not evaluate policy or authorize branches. Inactive type dependencies remain
+inactive; an opaque custom factory product has a late materialization backstop.
+Generated Spring execution and runtime/compiler/LSP tests cover these boundaries.
+
+This completes a bounded assembly-audit slice, not an identity system or whole-program
+security proof. Complete SaaS Wizard opt-in, identity/membership/role/entitlement setup,
+web security integration and final installed-plugin/manual/end-to-end acceptance remain
+OPEN. A03/A04/A15/A19/A20/A21/A22/A23 and full release acceptance remain OPEN.
+
+A migration-history-only producer regression verifies that publication retains private
+access requirements and vocabulary after the last storage component is removed. The
+synchronous event registry fixture supplies only a clean startup-baseline connection;
+actual persistence SQL is rejected there and remains covered by PostgreSQL suites.
