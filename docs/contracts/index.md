@@ -35,3 +35,5 @@ Use the specification index for the full feature catalog. In this revision:
 - [Credential primitives](saas-credential-primitives.md): implemented optional Java parsing, corpus and Spring password operations; not a complete login system.
 
 - [Bundled password corpus](saas-password-corpus.md): pinned offline dataset, license/provenance, explicit loading and reproducible maintenance.
+
+- [Private identity storage budgets](saas-identity-capacity.md): transactional fixed-resource capacity foundation; admission/cleanup and public registration remain OPEN.

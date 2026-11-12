@@ -1861,3 +1861,11 @@ AuthenticationProvider, registration endpoint or default beans. The
 [bundled offline corpus](contracts/saas-password-corpus.md) is now available through
 OfflinePasswordBlocklist.bundled(); it is a pinned finite common-password list, not an
 external breach API or a guarantee that an accepted password was never compromised.
+
+
+The [identity storage-capacity foundation](contracts/saas-identity-capacity.md) is private
+implementation infrastructure in vernac-saas-identity-jdbc. Do not import its models,
+repository or Java helper into application .vernac code or invent capacity DSL syntax.
+It supplies transactional fixed-resource counters, not a public registration API, paid
+quota accounting, a rate limiter or automatic cleanup. Full real-row accounting remains
+a delivery gate.
