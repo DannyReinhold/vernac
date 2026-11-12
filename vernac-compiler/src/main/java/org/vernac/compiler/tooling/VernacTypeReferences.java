@@ -43,6 +43,7 @@ public final class VernacTypeReferences {
                 node -> {
                     ParserRuleContext name = null, anchor = null;
                     String qualifiedTerm = null;
+                    String permissionType = null;
                     if (node instanceof VernacParser.TermDefinitionContext term) {
                         String label = termNames.get(term);
                         if (label == null
@@ -66,13 +67,20 @@ public final class VernacTypeReferences {
                         name = repository.aggregateName;
                         anchor = name;
                     }
+                    if (node instanceof VernacParser.PermissionRequirementContext permission) {
+                        var parts = permission.key.qualifiedNameSegment();
+                        if (parts.size() < 2) return;
+                        name = permission.key; anchor = parts.get(parts.size() - 2);
+                        permissionType = parts.subList(0, parts.size() - 1).stream()
+                                .map(ParseTree::getText).collect(java.util.stream.Collectors.joining("."));
+                    }
                     if (name == null
                             || anchor == null
                             || name.getStart() == null
                             || anchor.getStop() == null) return;
                     var resolved =
                             scope.resolve(
-                                            qualifiedTerm != null ? qualifiedTerm : name.getText(),
+                                            qualifiedTerm != null ? qualifiedTerm : permissionType != null ? permissionType : name.getText(),
                                             source.get().unit().location())
                                     .type();
                     if (!(resolved.orElse(null) instanceof ResolvedType.Declared declared)) return;

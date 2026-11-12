@@ -107,7 +107,7 @@ class DocumentationExamplesTest {
     }
 
     @Test void completeTutorialModelsResolveAndGenerate() throws Exception {
-        for (String name : List.of("domain-diagrams", "ubiquitous-language", "repository-queries", "usecases", "enum-value-objects",
+        for (String name : List.of("usecase-authorization", "domain-diagrams", "ubiquitous-language", "repository-queries", "usecases", "enum-value-objects",
                 "outbound-ports", "declarative-rest", "declarative-errors", "default-names",
                 "adapter-dtos", "domain-events", "tenant-events", "http-adapter-runtime", "collections",
                 "your-first-domain-model", "tenant-persistence", "tenant-modules", "what-is-ddd", "ddd-for-small-projects", "adapter-mappings", "inbound-http", "inbound-mvc", "pagination")) {

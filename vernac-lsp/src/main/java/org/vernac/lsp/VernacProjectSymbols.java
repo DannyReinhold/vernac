@@ -94,6 +94,8 @@ final class VernacProjectSymbols {
                     add(path,namespace,top.outboundAdapterDefinition().name,TypeSymbol.Kind.OUTBOUND_ADAPTER);
                 } else if (top.portDefinition() != null) {
                     add(path, namespace, top.portDefinition().name, TypeSymbol.Kind.PORT);
+                } else if (top.permissionDefinition() != null) {
+                    add(path, namespace, top.permissionDefinition().name, TypeSymbol.Kind.PERMISSION);
                 } else if (top.usecaseDefinition() != null) {
                     add(path, namespace, top.usecaseDefinition().name, TypeSymbol.Kind.USE_CASE);
                 } else if (top.domainServiceDefinition() != null) {

@@ -122,3 +122,11 @@ extends this foundation with durable worker routing; SaaS provisioning remains f
 
 [Deliver domain events in the tenant that published them](tenant-events.md) follows
 publication, restricted database roles, queue upgrades, retries and worker context cleanup.
+
+
+## 0.6.0 development: declarative access requirements
+
+[Put access requirements beside the operation](usecase-authorization.md) introduces
+named permissions, requires, generated guards and Spring actor/policy integration.
+Local application contracts are implemented; module security metadata and the complete
+SaaS identity/role/plan system remain in progress. Use matching development artifacts.

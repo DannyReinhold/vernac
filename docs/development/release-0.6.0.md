@@ -320,7 +320,8 @@ The [test-only Spring authorization experiment](authorization-entry-spike.md) ve
 body-guard ordering, conditional nested checks, REQUIRED rollback, scoped MANDATORY
 policy reads, anonymous rejection, all/any failure semantics and candidate HTTP/MVC
 classification. Nine new proofs join the twenty-one existing experiment tests.
-This does not implement production permission syntax/runtime, startup audits, identity,
+The initial experiment did not implement production permission syntax/runtime;
+subsequent sections record the runtime and local DSL. Startup audits, identity,
 module metadata or generated adapter integration. A03/A04/A19/A20 and all full SaaS
 acceptance remain OPEN. Next implement the production actor/guard/Spring boundary,
 then compiler/module/editor and adapter integration with generated end-to-end tests.
@@ -333,8 +334,23 @@ verified actor mapping, nominal permission/resource inputs, ordered pure require
 evaluation, immutable nested invocation frames, transaction prerequisites and explicit
 single-provider startup binding. HTTP/MVC authorization failures are terminal before
 generic policies/redisplay. Existing authorization PostgreSQL probes now exercise the
-production APIs rather than a parallel handwritten guard. This is partial evidence,
-not permission syntax/generated enforcement, module/editor support, identity or the
+production APIs rather than a parallel handwritten guard. This is partial evidence; local syntax/generated enforcement is recorded below.
+It does not complete module/editor security support, identity or the
 SaaS reachable-usecase audit. A03/A04/A19/A20 and full release acceptance remain OPEN.
-Next: compiler/generator permission integration, then metadata/editor/activation audit
-and complete identity/membership/entitlement flows.
+Local compiler/generator integration is now implemented. Next: metadata/editor/activation
+audit and complete identity/membership/entitlement flows.
+
+
+## Local permission/requires language evidence
+
+The [0.6.0 local authorization contract](../contracts/usecase-authorization.md) now
+defines permission declarations and generated usecase guards. Compiler diagnostics
+reject unknown members/types, illegal or optional resources, invalid/duplicate groups
+and domain misuse. Generated Spring/PostgreSQL proofs cover null/deny/validates/body
+ordering, external parity, public/authenticated startup and identity behavior, tenant
+resource isolation and conditional nested REQUIRED rollback. Basic local keyword/type
+navigation and unsaved diagnostics are included. Module publication with these new
+contracts fails explicitly until metadata/compatibility support lands; no security
+contract is silently dropped. Advanced completion, module activation audits, actual
+identity/role/entitlement policies and complete SaaS E2E remain required. A03/A04/A19/A20
+and full release acceptance stay OPEN.

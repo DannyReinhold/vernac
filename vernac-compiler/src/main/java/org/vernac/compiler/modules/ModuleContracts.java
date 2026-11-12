@@ -18,6 +18,14 @@ public final class ModuleContracts {
     private ModuleContracts() { }
     public static ModuleDescriptor publish(ModuleDefinition module,ResolvedProject project,List<JavaFile> generated,
             String group,String artifact,String version,List<ModuleDescriptor> dependencies) {
+        // Never publish a descriptor that silently drops a security contract.
+        var unsupported = project.project().sources().stream().filter(s -> !s.external())
+                .flatMap(s -> s.unit().definitions().stream())
+                .filter(d -> d instanceof PermissionNode || d instanceof UseCaseNode u && u.authorization().isPresent())
+                .map(d -> CompilerDiagnostic.error(d.location(),
+                        "Permission/requires module metadata is not implemented yet. Publish no module with these declarations until authorization metadata support is available."))
+                .toList();
+        if (!unsupported.isEmpty()) throw new SemanticValidationException(unsupported);
         List<CompilerDiagnostic> errors=new ArrayList<>();List<Definition> definitions=new ArrayList<>();
         Set<String> exports=new TreeSet<>();module.exports().forEach(e->exports.add(e.name()));
         Map<String,TopLevelDefinition> local=new HashMap<>();Map<String,CollectionDeclaration> collections=new HashMap<>();

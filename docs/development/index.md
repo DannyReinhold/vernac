@@ -40,10 +40,10 @@ For a guide across all documentation, use the [documentation map](../documentati
 
 - [Production authorization runtime](../contracts/usecase-authorization-runtime.md):
   actor/policy SPI, ordered guard, explicit Spring binding and terminal HTTP/MVC handling;
-  permission DSL, module/editor integration and SaaS identity remain OPEN.
+  local permission DSL is now implemented; module metadata, advanced editor integration and SaaS identity remain OPEN.
 
 - [Authorization entry feasibility](authorization-entry-spike.md): executable Spring
-  guard/REQUIRED/HTTP/MVC evidence; production permission syntax and integration remain OPEN.
+  guard/REQUIRED/HTTP/MVC evidence; local production guards now use the runtime; full SaaS integration remains OPEN.
 
 - [Tenant runtime foundation](tenant-runtime-foundation.md): implemented low-level
   context/provenance APIs; generated persistence and SaaS integration still OPEN.

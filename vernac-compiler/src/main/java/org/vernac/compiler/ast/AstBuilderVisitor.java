@@ -51,6 +51,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         if (ctx.outboundAdapterDefinition() != null) return visitOutboundAdapterDefinition(ctx.outboundAdapterDefinition());
         if (ctx.portDefinition() != null) return visitPortDefinition(ctx.portDefinition());
         if (ctx.repositoryDefinition() != null) return visitRepositoryDefinition(ctx.repositoryDefinition());
+        if (ctx.permissionDefinition() != null) return visitPermissionDefinition(ctx.permissionDefinition());
         if (ctx.usecaseDefinition() != null) return visitUsecaseDefinition(ctx.usecaseDefinition());
         if (ctx.domainServiceDefinition() != null) return visitDomainServiceDefinition(ctx.domainServiceDefinition());
         if (ctx.listenerDefinition() != null) return visitListenerDefinition(ctx.listenerDefinition());
@@ -514,7 +515,28 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 implementation=Optional.ofNullable(member.implementation).map(ParserRuleContext::getText); }
         }
         return new UseCaseNode(toLocation(ctx),ctx.name.getText(),inputs,rules,dependencies,
-                Optional.ofNullable(ctx.resultType).map(this::toTypeNode),results,imports,helpers,body,implementation,count);
+                Optional.ofNullable(ctx.resultType).map(this::toTypeNode),results,imports,helpers,body,implementation,count,Optional.ofNullable(ctx.requiresClause()).map(c -> authorization(c.authorizationRequirement())));
+    }
+
+    @Override public PermissionNode visitPermissionDefinition(VernacParser.PermissionDefinitionContext ctx) {
+        return new PermissionNode(toLocation(ctx), ctx.name.getText(), ctx.members.stream()
+                .map(m -> new EnumConstantNode(toLocation(m), m.getText())).toList());
+    }
+    private AuthorizationNode authorization(VernacParser.AuthorizationRequirementContext ctx) {
+        if (ctx.permissionRequirement() != null) return permission(ctx.permissionRequirement());
+        if (ctx.authorizationGroup() != null) return group(ctx.authorizationGroup());
+        return new AuthorizationNode.Mode(toLocation(ctx), ctx.getText().equals("authenticated"));
+    }
+    private AuthorizationNode permission(VernacParser.PermissionRequirementContext ctx) {
+        String name = ctx.key.getText(); int split = name.lastIndexOf('.');
+        return new AuthorizationNode.Permission(toLocation(ctx),
+                new TypeNode(toLocation(ctx.key), split < 0 ? name : name.substring(0, split), List.of(), false),
+                split < 0 ? "" : name.substring(split + 1), Optional.ofNullable(ctx.resource).map(ParserRuleContext::getText));
+    }
+    private AuthorizationNode group(VernacParser.AuthorizationGroupContext ctx) {
+        return new AuthorizationNode.Group(toLocation(ctx), ctx.kind.getText().equals("all"),
+                ctx.authorizationChild().stream().map(c -> c.permissionRequirement() != null
+                        ? permission(c.permissionRequirement()) : group(c.authorizationGroup())).toList());
     }
 
     public DomainServiceNode visitDomainServiceDefinition(VernacParser.DomainServiceDefinitionContext ctx) {

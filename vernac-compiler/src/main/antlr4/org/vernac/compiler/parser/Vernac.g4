@@ -43,6 +43,7 @@ topLevelDeclaration
     | outboundAdapterDefinition
     | repositoryDefinition
     | usecaseDefinition
+    | permissionDefinition
     | domainServiceDefinition
     | listenerDefinition
     ;
@@ -285,9 +286,24 @@ repositoryOrder
 // ==========================================
 // 6. Use Cases
 // ==========================================
+permissionDefinition
+    : 'permission' name=typeName '{' (members+=qualifiedNameSegment ';')* '}' ';'?
+    ;
+requiresClause : 'requires' authorizationRequirement ;
+authorizationRequirement
+    : 'public'
+    | 'authenticated'
+    | permissionRequirement
+    | authorizationGroup
+    ;
+permissionRequirement : 'permission' key=qualifiedName ('on' resource=variableName)? ;
+authorizationGroup : kind=('all' | 'any') '{' authorizationChild* '}' ;
+authorizationChild : permissionRequirement ';' | authorizationGroup ;
+
 usecaseDefinition
     : 'usecase' name=typeName '(' inputs=parameterList? ')'
       ('returns' (resultType=pageType | '(' results=resultParameterList ')'))?
+      requiresClause?
       ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
       ('validates' validationBlock)?
       'behavior' '{' javaImports? usecaseBehaviorMember* '}' ';'?
@@ -350,7 +366,8 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'tenant' | 'global' | 'tenancy' | 'explicit'
+    : 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
+    | 'tenant' | 'global' | 'tenancy' | 'explicit'
     | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | IDENTIFIER
@@ -455,7 +472,8 @@ typeName
     ;
 
 methodName
-    : 'tenant' | 'global' | 'tenancy' | 'explicit'
+    : 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
+    | 'tenant' | 'global' | 'tenancy' | 'explicit'
     | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
@@ -467,7 +485,8 @@ methodName
     ;
 
 variableName
-    : 'tenant' | 'global' | 'tenancy' | 'explicit'
+    : 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
+    | 'tenant' | 'global' | 'tenancy' | 'explicit'
     | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'read' | 'modify'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'

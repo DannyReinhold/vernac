@@ -85,3 +85,5 @@ defines parameter nullability, external target resolution and overload identity
 across behavior, usecases, services, listeners and adapters.
 
 - [Explicit persistence classification](../contracts/explicit-tenancy.md): source-controlled tenancy rule and explicit global aggregates; tenant generation remains in progress.
+
+- [Local usecase authorization](../contracts/usecase-authorization.md): 0.6.0 permission/requires syntax and generated Spring guard; module metadata follows separately.

@@ -8,8 +8,10 @@ The [runtime foundation](../contracts/usecase-authorization-runtime.md) now repl
 original parallel guard and classifier; these entrypoints/policies remain test fixtures.
 Baseline: 2026-11-12, Spring Boot 3.4.2 dependency management, Java 21 application target.
 This follows the [usecase authorization contract](usecase-authorization-contract.md).
-It does not add permission declarations, `requires` syntax, generated guards, SaaS
-identity or the reachable-usecase startup audit. The separate runtime contract defines
+The original handwritten fixtures do not add syntax or generated entrypoints. A
+separate GeneratedAuthorizationPostgresTest now compiles the implemented local
+permission/requires language and exercises real generated guards. SaaS identity and
+the reachable-usecase audit remain OPEN. The separate runtime contract defines
 the implemented Java APIs and provider-binding startup checks. A03/A04/A19/A20 remain OPEN.
 
 ## Question and implementation
@@ -78,9 +80,10 @@ The original experiment does not prove the complete AUTH-01–08 contract. The r
 follow-up now supplies the guard, actor SPI, provider binding and helper classification;
 remaining full-integration limits below still apply:
 
-- Grammar, semantic diagnostics, generation, qualified permission identities, explicit
-  exports, module metadata/compatibility, IDE/LSP and supported reference examples are
-  not added here. Invalid requirement trees must ultimately fail at compile time.
+- Local grammar, semantic diagnostics, generation and reference examples are now
+  implemented by the [language slice](../contracts/usecase-authorization.md).
+  Explicit exports, module metadata/compatibility and deeper IDE support remain OPEN.
+  Invalid local trees fail at compile time; module publication is explicitly blocked.
 - The actor mapper is a trusted fixture. Real authentication, disabled/expired accounts,
   tenant membership selection, provider binding, technical-worker grants and their integration with the implemented immutable
   invocation lifecycle still require end-to-end acceptance tests.
@@ -116,8 +119,8 @@ To run only this suite, add `-Dtest=AuthorizationEntryPostgresTest`. For CI/rele
 verification run all experiment suites and the named-report gate. Do not use the
 application database or migration credentials as the runtime query role.
 
-Next: integrate the implemented production runtime with grammar/generation/module/
-tooling and complete the reachable-usecase audit and identity integration.
+Local grammar/generation is now implemented. Next complete module security metadata,
+advanced tooling, the reachable-usecase audit and identity integration.
 Keep HTTP/MVC and nested tenant usecase tests as acceptance criteria rather than
 assuming the handwritten probe proves generated output. Review A01–A23 against the
 [release ledger](release-0.6.0.md); this PR closes no complete SaaS acceptance row.

@@ -9,5 +9,12 @@ public record UseCaseNode(SourceLocation location, String name,
         List<FieldNode> parameters, List<ValidationRuleNode> validations,
         List<FieldNode> injections, Optional<TypeNode> resultType, List<FieldNode> resultFields,
         List<JavaImportNode> javaImports, List<MethodNode> methods,
-        String bodyCode, Optional<String> implementation, int executeCount) implements TopLevelDefinition {
+        String bodyCode, Optional<String> implementation, int executeCount, Optional<AuthorizationNode> authorization) implements TopLevelDefinition {
+    public UseCaseNode(SourceLocation location, String name, List<FieldNode> parameters,
+            List<ValidationRuleNode> validations, List<FieldNode> injections, Optional<TypeNode> resultType,
+            List<FieldNode> resultFields, List<JavaImportNode> javaImports, List<MethodNode> methods,
+            String bodyCode, Optional<String> implementation, int executeCount) {
+        this(location, name, parameters, validations, injections, resultType, resultFields,
+                javaImports, methods, bodyCode, implementation, executeCount, Optional.empty());
+    }
 }
