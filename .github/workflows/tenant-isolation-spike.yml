@@ -97,6 +97,25 @@ jobs:
           for name, case in event_cases.items():
               assert not any(case.find(tag) is not None for tag in ('skipped', 'failure', 'error')), f'Unverified event proof: {name}'
           print(f'{len(event_cases)} event-routing feasibility proofs executed; none skipped.')
+          auth_report = Path('experiments/tenant-isolation-spike/target/surefire-reports/TEST-org.vernac.experiments.tenancy.AuthorizationEntryPostgresTest.xml')
+          auth_root = ET.parse(auth_report).getroot()
+          auth_required = {
+              'guardOrdersNullPermissionValidationBodyAndResult',
+              'nestedChecksRunOnlyWhenReachedAndRequiredFailureRollsBackAllWrites',
+              'allAnyShortCircuitAndTechnicalFailureNeverBecomesAnotherAlternative',
+              'absentForeignAndWrongNominalResourcesDenyWithoutDisclosingExistence',
+              'directEntryMissingInfrastructureAndAnonymousNeverReachPolicyOrBody',
+              'nestedActorOrTenantReplacementFailsAndTechnicalActorsAreExplicit',
+              'reusedExecutorClearsInvocationTenantAndAuthenticationAfterFailure',
+              'restAndMvcUseTerminalSafeFailuresBeforeGenericErrorHooks',
+              'applicationFilterChainKeepsLoginAndCsrfWithoutDuplicatingPermissionChecks',
+          }
+          auth_cases = {case.attrib['name']: case for case in auth_root.findall('testcase')}
+          assert not (auth_required - auth_cases.keys()), 'Missing authorization-entry proofs'
+          assert all(int(auth_root.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
+          for name, case in auth_cases.items():
+              assert not any(case.find(tag) is not None for tag in ('skipped', 'failure', 'error')), f'Unverified authorization proof: {name}'
+          print(f'{len(auth_cases)} authorization-entry feasibility proofs executed; none skipped.')
           origin_report = Path('vernac-runtime/target/surefire-reports/TEST-org.vernac.runtime.events.EventOriginTest.xml')
           origin_result = ET.parse(origin_report).getroot()
           origin_expected = {

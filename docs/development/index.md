@@ -38,6 +38,9 @@ For a guide across all documentation, use the [documentation map](../documentati
 
 ## Current priorities
 
+- [Authorization entry feasibility](authorization-entry-spike.md): executable Spring
+  guard/REQUIRED/HTTP/MVC evidence; production permission syntax and integration remain OPEN.
+
 - [Tenant runtime foundation](tenant-runtime-foundation.md): implemented low-level
   context/provenance APIs; generated persistence and SaaS integration still OPEN.
 
