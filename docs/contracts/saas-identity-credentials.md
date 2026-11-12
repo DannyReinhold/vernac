@@ -210,6 +210,8 @@ meaning; it must not expose exception class names or causes. Expired/malformed t
 must not select different public messages. Authorized operational tooling may use
 allowlisted reason codes, without logging secrets or exposing them in public responses.
 
+The [private global ingress gate](saas-identity-ingress.md) implements the coarse
+deployment cap below; public ingress wiring and keyed admission are still unfinished.
 Before expensive password work, apply independent atomic limits shared across instances.
 These are security admission controls, **not paid quotas or tenant capacity**. Start with:
 

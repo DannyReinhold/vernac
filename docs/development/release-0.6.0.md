@@ -563,3 +563,38 @@ The full migration replay matches the expected owned schema. All 16 release-tool
 and documentation-link checks pass. These are local proofs; GitHub checks and the final
 installed-IDE/full-SaaS release gates are separate. Next: private credential persistence
 and admission/complete cleanup, then protected delivery and provisioning/session flows.
+
+## Private global identity admission
+
+The [global ingress foundation](../contracts/saas-identity-ingress.md) now implements
+the D14 deployment-wide fixed-window cap (initial default 300 combined public identity
+requests per UTC minute). A singleton private Vernac aggregate and fourth generated
+module migration share atomic admission across instances. Explicit initialization
+charges one limiter-key slot exactly once; restart/configuration checks preserve usage.
+The helper owns a committed Spring transaction before lookup/hashing/business work;
+later business rollback cannot refund admission. Ambient business transactions are
+rejected to avoid accidental coupling or self-deadlock. No public filter or keyed
+admission is installed, and no new cryptography/DSL/framework is introduced.
+
+A01/A02 and complete abuse/public-flow/full-SaaS/manual acceptance remain OPEN. Remaining
+admission work includes purpose-separated keyed source/identifier/locator gates, key
+ownership/retention, trusted source resolution, bounded password work and ingress wiring.
+The existing challenge implementation is retained.
+
+### Credential-storage prerequisite found during this slice
+
+The current generated ordinary value/aggregate toString implementations render modeled
+fields. Persisted password encodings must not be placed in those representations under
+D14. A private module alone is not redaction, and a reversible numeric/base64 wrapper is
+not a remedy. Directly storing a hash in a generated String value would violate the
+accepted policy. Before delivering credential persistence, establish a reviewed safe
+representation/storage boundary with tests that seed and scan hashes; do not silently
+weaken D14 or hand-edit generated Java. No new language syntax or competing crypto is
+selected by this finding. The independently implementable agreed coarse admission gate
+was delivered first, without expanding credential behavior or rebuilding challenges.
+
+Local validation: 53 identity/SaaS cases across 15 required suites pass without failures,
+errors or skips under JDK 25. Tests include failed bootstrap reservation rollback and
+corrupt stored-state failure. Four-migration PostgreSQL replay matches the expected
+owned schema. All 16 Python tooling tests and documentation navigation/link checks pass.
+GitHub CI and final installed-IDE/whole-SaaS acceptance are separate from these local proofs.
