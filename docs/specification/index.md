@@ -95,3 +95,5 @@ across behavior, usecases, services, listeners and adapters.
   UserId/status/lookup contracts and explicit actor integration (0.6.0 development).
 
 - [Optional JDBC identity directory](../contracts/saas-identity-jdbc.md): explicit persistent status lookup and module-owned migration; registration remains OPEN.
+
+- [SaaS credential policy proposal](../contracts/saas-identity-credentials.md): D14 review baseline for registration, passwords, one-time actions and browser sessions; not implemented APIs.

@@ -147,3 +147,8 @@ releases retains the earlier artifact inventory. No artifact is published by thi
 A01/A02 and all complete SaaS acceptance remain OPEN. Credentials/canonicalization,
 registration/verification/provisioning, session integration, memberships/roles and their
 mail/UI/migration paths must be implemented and reviewed before claiming a working SaaS.
+
+
+The [D14 credential-policy proposal](saas-identity-credentials.md) supplies the concrete
+review baseline for the next implementation slices. It does not add registration,
+credential or session APIs to these implemented artifacts.

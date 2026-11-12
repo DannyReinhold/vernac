@@ -25,6 +25,7 @@ disposable-database test environment when validating the full reactor; skipped d
 cases do not count as passed. CI separately requires the relevant database proofs.
 
 Read the [implemented identity foundation contract](../docs/contracts/saas-identity-foundation.md)
+the [credential-policy review baseline](../docs/contracts/saas-identity-credentials.md)
 and the [larger lifecycle proposal](../docs/development/identity-membership-0.6.0.md).
 
 ## Deliberately unfinished

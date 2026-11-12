@@ -451,3 +451,29 @@ This closes only the persistent status-lookup foundation. D14 credential/login p
 registration/verification/recovery, sessions and memberships/roles remain OPEN, as do
 the complete SaaS acceptance and final manual gates. No account provisioning or
 payment/mail workflow is delivered by this slice.
+
+
+## D14 credential-policy proposal
+
+A [concrete policy baseline](../contracts/saas-identity-credentials.md) is now available
+for review before credential implementation. It specifies email-first registration
+(password selected at verification), email/login-key rules, Spring Argon2id settings,
+password/blocked-secret policy, purpose-bound challenges, distributed admission limits,
+Spring JDBC sessions and security-epoch revocation semantics. It also records why
+retryable verification mail requires a protected delivery envelope rather than putting
+plaintext links into generic events. D10 protection/key ownership and D05 provisioning
+remain separate required dependencies.
+
+This is documentation/decision preparation only. No credential storage, public endpoint,
+password encoder, delivery encryption or session integration is implemented by this PR.
+Merging records acceptance of the D14 policy; all corresponding implementation proofs,
+A01/A02, complete SaaS coverage and final manual acceptance remain OPEN.
+
+
+D14 abuse-storage follow-up: the same policy PR now requires deployment-wide hard caps
+for pending registrations, challenge/mail allocations, protected payload bytes, retained
+terminal metadata and limiter-key cardinality. Atomic reservations, independent spent
+attempt budgets, bounded cleanup with activation-race protection, safe capacity outcomes
+and bounded local-inbox/logging behavior are explicit acceptance prerequisites. A rotating
+source/address attack must not create unbounded business or auxiliary records. This remains
+a contract change; no admission/cleanup implementation or attack-resilience proof is claimed.

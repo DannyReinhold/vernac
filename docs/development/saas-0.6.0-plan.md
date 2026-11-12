@@ -315,7 +315,7 @@ is not approval; record accepted resolutions and their PRs.
 | D11 | Reusable UI delivery/customization, module activation and single-command local start/deployment |
 | D12 | Release inventory and automated acceptance gate; scope agreements across extension repositories |
 | D13 | Tenant technical foundation implemented; provisioning and whole-SaaS integration remain OPEN (no platform admin) |
-| D14 | Identity credentials, email login-key canonicalization, challenge lifetimes, public-flow abuse protection and session policy — proposed in the identity contract |
+| D14 | Identity credentials, email login-key canonicalization, challenge lifetimes, public-flow abuse protection and session policy — [concrete D14 proposal](../contracts/saas-identity-credentials.md), implementation remains OPEN |
 
 These can be resolved incrementally. Identity credentials, tax algorithms and payment
 semantics must not be guessed to avoid asking a genuinely necessary question.
@@ -380,3 +380,13 @@ References for the implementation spike:
 - [Spring request and method authorization](https://docs.spring.io/spring-security/reference/features/authorization/index.html)
 - [Method security and ordering](https://docs.spring.io/spring-security/reference/servlet/authorization/method-security.html)
 - [Browser CSRF protection](https://docs.spring.io/spring-security/reference/servlet/exploits/csrf.html)
+
+
+### Credential-policy review checkpoint
+
+The [D14 proposal](../contracts/saas-identity-credentials.md) now specifies email-first
+registration, stable ASCII/case-insensitive login keys, password/encoder policy,
+challenge lifetimes, abuse budgets, browser sessions and revocation requirements.
+Merge/review accepts the policy baseline, not completed identity functionality.
+Protected durable mail secrets (D10) and account/owner provisioning (D05) remain
+explicit dependencies before public end-to-end registration can ship.
