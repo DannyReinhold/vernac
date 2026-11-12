@@ -61,8 +61,8 @@ usecase that recursively resolves the actor. Use a controlled internal read with
 appropriate transaction participation instead. Reentering the same resolver fails
 with AUTHORIZATION_CONFIGURATION_ERROR and its per-thread resolution frame is cleared.
 
-No persistent directory implementation is shipped yet. Its future global metadata
-storage remains internal and must not expose unrestricted user queries to clients.
+An optional [JDBC directory](saas-identity-jdbc.md) now supplies internal global metadata
+storage. It exposes neither unrestricted user queries nor registration workflows.
 
 ## Technical principal
 
@@ -140,7 +140,7 @@ redacted diagnostics and the technical principal roundtrip. The transaction-comp
 unit uses Spring's transaction lifecycle, not a database; PostgreSQL identity storage
 is still future work.
 
-Release tooling selects the nested reactor modules, requires both artifacts from
+Release tooling selects the nested reactor modules, requires the optional SaaS artifacts from
 0.6.0 onward, and discovers their nested test reports. Plugin-only recovery for older
 releases retains the earlier artifact inventory. No artifact is published by this PR.
 

@@ -428,12 +428,26 @@ composition, concurrent principals and safe failure/serialization boundaries hav
 automated coverage. Release inventory and nested test-report discovery include both
 artifacts while preserving pre-0.6 plugin recovery. No publication occurred.
 
-This is not login or registration. No persistent directory, credential policy,
-verification/provisioning, session infrastructure, memberships/roles, SaaS starter
-or UI is delivered by this first boundary. A01/A02, D14 and all complete identity/SaaS
+This first boundary does not supply login or registration. The later optional JDBC
+slice below adds a persistent directory; credential policy, verification/provisioning,
+session infrastructure, memberships/roles, SaaS starter and UI remain unfinished. A01/A02, D14 and all complete identity/SaaS
 acceptance remain OPEN. Final manual acceptance is not replaced by these tests.
 
 D02 follow-up: a live identity becoming ineligible inside an active invocation currently
 hits the guard's actor pin (AUTHORIZATION_CONFIGURATION_ERROR). A dedicated test proves
 no nested body/context leak; final user-facing revocation/session handling remains part
 of the unclosed identity integration, not evidence of a complete authentication UX.
+
+
+## Optional persistent identity directory
+
+saas/identity-jdbc adds the selected StoredIdentityDirectory provider, private global
+identity state/repository and module-owned migration history. Actual packaged-module
+consumption and PostgreSQL/Boot proofs cover status lookup, rollback participation,
+restart, optimistic locking, restricted runtime credentials and sanitized resolver
+failure/recovery. Release/CI inventories include the third optional SaaS artifact.
+
+This closes only the persistent status-lookup foundation. D14 credential/login policy,
+registration/verification/recovery, sessions and memberships/roles remain OPEN, as do
+the complete SaaS acceptance and final manual gates. No account provisioning or
+payment/mail workflow is delivered by this slice.

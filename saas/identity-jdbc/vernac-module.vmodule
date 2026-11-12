@@ -1,0 +1,4 @@
+module vernac.saas.identity.jdbc {
+    tenancy explicit;
+    export org.vernac.saas.identity.persistence.StoredIdentityDirectory;
+}

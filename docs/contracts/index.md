@@ -27,3 +27,5 @@ Use the specification index for the full feature catalog. In this revision:
 
 - [Optional SaaS identity foundation](saas-identity-foundation.md): nominal library and
   explicit live-status Spring actor bridge; full identity workflows remain OPEN.
+
+- [Optional JDBC identity directory](saas-identity-jdbc.md): explicit persistent status lookup and module-owned migration; registration remains OPEN.

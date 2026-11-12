@@ -93,3 +93,5 @@ across behavior, usecases, services, listeners and adapters.
 
 - [SaaS identity foundation](../contracts/saas-identity-foundation.md): optional artifacts,
   UserId/status/lookup contracts and explicit actor integration (0.6.0 development).
+
+- [Optional JDBC identity directory](../contracts/saas-identity-jdbc.md): explicit persistent status lookup and module-owned migration; registration remains OPEN.

@@ -26,7 +26,9 @@ back on them. There is no separate private repository or pending commercial lice
 D01 is resolved for this baseline. The first actual artifacts are
 `org.vernac:vernac-saas-identity` and `org.vernac:vernac-saas-identity-spring-security`.
 Their [implemented foundation](../contracts/saas-identity-foundation.md) supplies nominal
-contracts and an explicit actor bridge only. Remaining lifecycle sections below are
+contracts and an explicit actor bridge. The optional
+[JDBC directory](../contracts/saas-identity-jdbc.md) now adds internal persisted
+eligibility state without registration, credentials or membership operations. Remaining lifecycle sections below are
 still proposals, not delivered registration or account functionality. Future artifact
 splits will follow actual boundaries rather than creating every planned module now.
 
