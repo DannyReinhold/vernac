@@ -1891,3 +1891,15 @@ It commits admission before business work and preserves attempts on business rol
 It is private, requires explicit initialization and must not be called inside a
 transaction. Do not invent public HTTP filters, rate-limit DSL or keyed admission APIs
 from this foundation. Dynamic keyed admission and complete public flows remain OPEN.
+
+
+## Explicit value string representation
+
+An ordinary value can now use existing behavior syntax to declare public String
+toString() with no parameters. It replaces the default field-rendering method, just
+as an enum override does. Return type must be non-optional String; private/duplicate
+overrides and fields named toString remain errors. Overloads with parameters do not
+suppress the default. Use an explicit constant redacted representation for internal
+secret encodings. This changes display only: never infer encrypted storage, serializer
+redaction, hidden getters, or permission to export credentials. See the
+[value contract](contracts/value-objects.md#string-representation). No new keyword.

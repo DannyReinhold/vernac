@@ -41,6 +41,10 @@ canonical unpadded Base64url: 80 ASCII characters total. Parsing rejects malform
 oversized and noncanonical encodings before database work. Only the explicit delivery
 accessor reveals the transport value; token/issue toString representations are redacted.
 The table holds only a SHA-256 verifier, compared with MessageDigest.isEqual.
+Its generated value explicitly overrides toString to return a constant redacted label;
+containing challenge representations therefore do not render the verifier either.
+The encoded getter still exposes the verifier to trusted comparison/persistence code.
+This is display protection, not permission to publish the generated internal row.
 No plaintext secret is persisted, logged, emitted or placed in a generic outbox.
 
 Verification expires after 24 hours; recovery after 30 minutes. The injected Clock

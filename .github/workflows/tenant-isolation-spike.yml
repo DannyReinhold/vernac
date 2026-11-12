@@ -154,7 +154,29 @@ jobs:
           for name, case in module_cases.items():
               assert not any(case.find(k) is not None for k in ('failure', 'error', 'skipped')), f'Unverified module authorization proof: {name}'
           print(f'{len(module_cases)} module-JAR/Spring/PostgreSQL authorization proofs executed; none skipped.')
+          representation_proofs = {
+              'vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.pipeline.ValueStringRepresentationTest.xml': {
+                  'customRepresentationRedactsNestedValuesWithoutChangingStateOrEquality',
+                  'invalidOverridesDuplicateSignaturesAndGetterCollisionsFailBeforeJavaGeneration',
+                  'nullCustomRepresentationFailsWithTheExistingSafeBehaviorContract',
+                  'liveEditorUsesTheSameRepresentationMethodAndRejectsInvalidSignatures',
+              },
+              'vernac-lsp/target/surefire-reports/TEST-org.vernac.lsp.VernacProjectDiagnosticsTest.xml': {
+                  'valueStringRepresentationDiagnosticsFollowUnsavedEdits',
+              },
+          }
+          for path, expected in representation_proofs.items():
+              root = ET.parse(path).getroot()
+              cases = {c.attrib['name']: c for c in root.findall('testcase')}
+              assert not (expected - cases.keys()), f'Missing representation proofs: {path}'
+              assert all(int(root.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
+              for case in cases.values():
+                  assert not any(case.find(t) is not None for t in ('skipped', 'failure', 'error'))
+          print('Value representation and unsaved LSP proofs executed; none skipped.')
           saas_proofs = {
+              'saas/identity-jdbc/target/surefire-reports/TEST-org.vernac.saas.identity.persistence.IdentityChallengeRepresentationTest.xml': {
+                  'generatedVerifierAndContainingChallengeDoNotRenderTheStoredHash',
+              },
               'saas/identity-jdbc/target/surefire-reports/TEST-org.vernac.saas.identity.persistence.IdentityIngressModelTest.xml': {
                   'maximumCounterDoesNotOverflowAndClockRegressionDoesNotReset',
               },
