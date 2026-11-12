@@ -1,0 +1,21 @@
+namespace org.vernac.saas.identity.persistence;
+
+import org.vernac.saas.identity.UserId;
+
+id IdentityChallengeId;
+value IdentityChallengeExpiry(Instant instant);
+value IdentityChallengePurpose = VERIFICATION | RECOVERY;
+value IdentityChallengeVerifier(String encoded) validates {
+    require(self.encoded().matches("[0-9a-f]{64}"), "Invalid identity challenge verifier");
+};
+term IdentityChallenge {
+    description "Private one-time identity action, storing only a high-entropy secret verifier.";
+    note "Only the controlled JDBC lifecycle may create/delete these records under the capacity lock. Never log or publish generated representations.";
+}
+global aggregate IdentityChallenge[IdentityChallengeId](UserId subject, IdentityChallengePurpose purpose, IdentityChallengeVerifier verifier, IdentityChallengeExpiry expiresAt);
+
+repository IdentityChallengeRepository for IdentityChallenge {
+    find IdentityChallenge? current(UserId subject, IdentityChallengePurpose purpose)
+        where subject = :subject and purpose = :purpose;
+    find IdentityChallenge? existing(IdentityChallengeId id) where id = :id;
+}

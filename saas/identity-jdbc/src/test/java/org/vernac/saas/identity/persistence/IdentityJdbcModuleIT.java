@@ -64,7 +64,13 @@ class IdentityJdbcModuleIT {
                         "IdentityCapacity",
                         "IdentityCapacityId",
                         "IdentityCapacityQuantity",
-                        "IdentityCapacityRepository")) {
+                        "IdentityCapacityRepository",
+                        "IdentityChallenge",
+                        "IdentityChallengeId",
+                        "IdentityChallengePurpose",
+                        "IdentityChallengeVerifier",
+                        "IdentityChallengeExpiry",
+                        "IdentityChallengeRepository")) {
             String type = "org.vernac.saas.identity.persistence." + internal;
             Files.writeString(
                     file, "namespace forbidden; import " + type + "; value Allowed(String);");
@@ -100,7 +106,7 @@ class IdentityJdbcModuleIT {
                                         .status(committed[0])
                                         .orElseThrow());
                     });
-                    assertEquals(2, database.migrationCount());
+                    assertEquals(3, database.migrationCount());
                 });
     }
 

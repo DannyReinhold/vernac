@@ -93,9 +93,11 @@ optimistic locking, sanitized lookup failure and recovery after privileges retur
 The PostgreSQL proof requires VERNAC_PG_TEST_URL, VERNAC_PG_TEST_USER and
 VERNAC_PG_TEST_PASSWORD; CI and release checks reject missing or skipped proof.
 
-Credential policy, canonical login identifiers, password hashes, verification and
-recovery tokens, registration, login/session infrastructure, memberships, roles and
-the final SaaS application remain unfinished. This provider does not close those
+The [credential policy](saas-identity-credentials.md),
+[credential primitives](saas-credential-primitives.md) and
+[private challenge lifecycle](saas-identity-challenges.md) are now available. Persisted
+password credentials, complete registration/verification/recovery, login/session
+infrastructure, memberships, roles and the final SaaS application remain unfinished. This provider does not close those
 release acceptance items.
 
 
@@ -104,3 +106,7 @@ second generated module migration and controlled internal storage-budget primiti
 The export/provider contract above is unchanged; activating this module alone does not
 initialize budgets, install registration endpoints or implement the remaining anti-abuse
 lifecycle requirements.
+
+The [private challenge lifecycle](saas-identity-challenges.md) adds the third generated
+module migration and actual-record budget accounting for one-time challenges. No public
+flow or automatic cleanup schedule is enabled by module activation.

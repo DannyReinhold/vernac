@@ -544,3 +544,22 @@ per-record release idempotency, cleanup or mail/session flows. Capacity alone ca
 which record was deleted: guarded transitions must be coupled in the same transaction in
 the next slices. Independent abuse attempts must not be refunded by business rollback.
 A01/A02, full anti-DoS registration coverage and whole-SaaS/manual acceptance remain OPEN.
+
+
+## Private one-time identity challenge persistence
+
+The [challenge lifecycle](../contracts/saas-identity-challenges.md) adds private Vernac
+records and a third generated module migration. Secure random canonical tokens store
+only SHA-256 verifiers. Purpose/status/expiry checks, resend replacement and one-winner
+consumption share the bound writer transaction and capacity lock. Actual deletion
+releases one charged slot; caught callback failures poison the transaction. Explicit
+bounded expiration cleanup is available, with no automatic job or public endpoint.
+Credentials/admission, complete cleanup, protected mail, provisioning and sessions/UI
+remain next. A01/A02 and complete SaaS/final manual acceptance remain OPEN.
+
+Validation for this slice: 48 identity/SaaS cases pass without failures, errors or skips,
+including real PostgreSQL restricted-role consumers and two independent Boot contexts.
+The full migration replay matches the expected owned schema. All 16 release-tool tests
+and documentation-link checks pass. These are local proofs; GitHub checks and the final
+installed-IDE/full-SaaS release gates are separate. Next: private credential persistence
+and admission/complete cleanup, then protected delivery and provisioning/session flows.
