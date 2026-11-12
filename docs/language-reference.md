@@ -1055,3 +1055,14 @@ never grants access or preauthorizes inner calls. Opaque custom factory products
 checked when materialized; arbitrary unmanaged Java is not a whole-program audit.
 No metadata/schema version change or SQL migration is needed for this switch.
 See the [formal startup contract](contracts/explicit-authorization.md).
+
+
+### Optional identity library (0.6.0 development)
+
+The separate org.vernac:vernac-saas-identity artifact exports UserId, IdentityStatus
+and IdentityDirectory under org.vernac.saas.identity. The logical module is
+vernac.saas.identity; normal imports use the exported qualified type names. No
+activation is needed. The separate vernac-saas-identity-spring-security artifact
+offers explicit principal/actor integration. These modules do not add compiler
+keywords, grant rights or deliver registration/session/membership workflows yet.
+See the [implemented foundation](contracts/saas-identity-foundation.md).

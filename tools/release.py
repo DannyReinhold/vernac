@@ -17,7 +17,16 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 MODULES = ("vernac", "vernac-runtime", "vernac-runtime-json", "vernac-runtime-http",
-           "vernac-runtime-jdbc", "vernac-jdbc-spring-boot-starter", "vernac-compiler", "vernac-maven-plugin")
+           "vernac-runtime-jdbc", "vernac-jdbc-spring-boot-starter", "vernac-compiler", "vernac-maven-plugin",
+           "vernac-saas-identity", "vernac-saas-identity-spring-security")
+MODULE_PATHS = {"vernac-saas-identity": "saas/identity",
+                "vernac-saas-identity-spring-security": "saas/identity-spring-security"}
+
+
+def reactor_modules():
+    return tuple(MODULE_PATHS.get(module, module) for module in MODULES[1:])
+
+
 CENTRAL = "https://repo.maven.apache.org/maven2/org/vernac"
 MARKETPLACE = "https://plugins.jetbrains.com/api/updates/upload"
 PLUGIN_ID = "org.vernac"
@@ -27,6 +36,8 @@ REQUIRED_TESTS = ("AdapterBindingsTest","PortModuleTest", "PortModuleSymbolsTest
                   "RequiredFieldBackfillTest", "SchemaMojoTest", "PluginDistributionIT",
     "DocumentationExamplesTest", "InboundHttpContractTest", "InboundHttpExecutionTest",
     "InboundHttpRuntimeTest", "InboundHttpSymbolsTest", "PaginationTest", "JdbcCursorCodecTest", "PaginationHttpExecutionTest", "JsonPagesTest", "PaginationResultContractTest")
+
+REQUIRED_TESTS += ("IdentityModuleContractIT", "IdentityActorResolverTest", "IdentityPrincipalTest")
 
 # 0.4.0 acceptance: module contracts/lifecycle, pagination, vocabulary and diagrams.
 REQUIRED_TESTS += (
@@ -138,9 +149,14 @@ def verify_provenance(directory, release, run_id, attempt, run_file, jobs_file, 
     summary(f"Verified plugin {release}, source `{manifest['commit']}`, SHA-256 `{manifest['sha256']}`.")
 
 
-def central_paths(release):
+def published_modules(release):
     version(release)
-    for module in MODULES:
+    # Plugin-only recovery for pre-0.6 releases must not wait for later SaaS artifacts.
+    return MODULES if tuple(map(int, release.split("."))) >= (0, 6, 0) else tuple(m for m in MODULES if m not in MODULE_PATHS)
+
+
+def central_paths(release):
+    for module in published_modules(release):
         for extension in (("pom",) if module == "vernac" else ("pom", "jar")):
             yield f"{module}/{release}/{module}-{release}.{extension}"
 
@@ -167,7 +183,7 @@ def central(release, timeout, unpublished=False):
     while True:
         paths = [path for path in paths if not available(path)]
         if not paths:
-            summary(f"All eight Vernac coordinates at {release} are available on Maven Central.")
+            summary(f"All {len(published_modules(release))} Vernac coordinates at {release} are available on Maven Central.")
             return
         require(time.monotonic() < deadline,
                 "Central is not ready. Publish the validated deployment in the Portal, then retry only the plugin workflow.")
@@ -178,6 +194,8 @@ def central(release, timeout, unpublished=False):
 def audit_tests():
     reports = list(Path(".").glob("*/target/surefire-reports/TEST-*.xml"))
     reports += list(Path(".").glob("*/target/failsafe-reports/TEST-*.xml"))
+    reports += list(Path(".").glob("saas/*/target/surefire-reports/TEST-*.xml"))
+    reports += list(Path(".").glob("saas/*/target/failsafe-reports/TEST-*.xml"))
     seen = set()
     for path in reports:
         suite = ET.parse(path).getroot()
@@ -260,7 +278,7 @@ def main():
     parser.add_argument("--output", type=Path, default=Path("central-consumer"))
     parser.add_argument("--timeout", type=int, default=1800)
     args = parser.parse_args()
-    if args.command == "modules": print(",".join(MODULES[1:]))
+    if args.command == "modules": print(",".join(reactor_modules()))
     elif args.command == "version": print(version(args.version))
     elif args.command == "candidate": candidate(args.version, args.directory)
     elif args.command == "tests": audit_tests()

@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - 'experiments/tenant-isolation-spike/**'
+      - 'saas/**'
+      - 'tools/release.py'
+      - 'tools/tests/**'
       - 'vernac-runtime/**'
       - 'vernac-runtime-jdbc/**'
       - 'vernac-compiler/**'
@@ -46,6 +49,14 @@ jobs:
           java-version: '25'
       - name: Build production runtime and run its unit tests
         run: mvn -B -ntp -pl vernac-lsp,vernac-runtime-http,vernac-runtime-jdbc -am clean install
+      - name: Build the compiler plugin for optional SaaS modules
+        run: mvn -B -ntp -pl vernac-maven-plugin -DskipTests install
+      - name: Verify optional identity artifacts and their JAR consumer
+        run: mvn -B -ntp -pl saas/identity,saas/identity-spring-security clean verify
+      - name: Check release tooling and documentation links
+        run: |
+          python3 -m unittest discover -s tools/tests -v -b
+          python3 tools/check-doc-links.py
       - name: Execute real PostgreSQL and Spring boundary tests
         run: mvn -B -ntp -f experiments/tenant-isolation-spike/pom.xml clean verify
       - name: Execute tenant schema replay and schema-check policy proofs
@@ -141,6 +152,33 @@ jobs:
           for name, case in module_cases.items():
               assert not any(case.find(k) is not None for k in ('failure', 'error', 'skipped')), f'Unverified module authorization proof: {name}'
           print(f'{len(module_cases)} module-JAR/Spring/PostgreSQL authorization proofs executed; none skipped.')
+          saas_proofs = {
+              'saas/identity/target/failsafe-reports/TEST-org.vernac.saas.identity.IdentityModuleContractIT.xml': {
+                  'actualProducerJarExportsOnlyNominalContractsWithoutActivationOrRegeneration',
+              },
+              'saas/identity-spring-security/target/surefire-reports/TEST-org.vernac.saas.identity.security.IdentityActorResolverTest.xml': {
+                  'activeNominalIdentityMapsToAHumanWithoutRolesOrTenantSelection',
+                  'absentAnonymousUnauthenticatedAndForeignPrincipalsNeverQueryTheDirectory',
+                  'everyNonActiveOrMissingIdentityDeniesEvenWithAdministratorAuthorities',
+                  'restoredPrincipalsDoNotCacheEnabledStateAcrossResolutions',
+                  'generatedGuardContractUsesTheLiveActorAndRetainsSafeDenialSemantics',
+                  'sharedResolverDoesNotCacheSubjectsAcrossConcurrentSecurityContexts',
+                  'eligibilityChangeInsideActiveInvocationAbortsThroughTheExistingContextPin',
+                  'storageFailuresAndMalformedResultsAreDistinctAndDoNotRetainSecrets',
+                  'miswiredRecursiveDirectoryFailsClearlyAndCleansItsResolutionFrame',
+              },
+              'saas/identity-spring-security/target/surefire-reports/TEST-org.vernac.saas.identity.security.IdentityPrincipalTest.xml': {
+                  'technicalSessionRoundTripPreservesNominalIdentityWithoutSerializingDomainObjects',
+                  'rejectsMissingSubjectsAtConstructionAndDeserialization',
+              },
+          }
+          for path, expected in saas_proofs.items():
+              result = ET.parse(path).getroot()
+              cases = {c.attrib['name']: c for c in result.findall('testcase')}
+              assert not (expected - cases.keys()), f'Missing SaaS identity proofs: {path}'
+              assert all(int(result.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
+              assert all(not any(c.find(k) is not None for k in ('failure', 'error', 'skipped')) for c in cases.values())
+          print('Optional SaaS identity proofs executed; none skipped.')
           runtime_auth = {
               'vernac-runtime/target/surefire-reports/TEST-org.vernac.runtime.authorization.UseCaseAccessAuditTest.xml': 4,
               'vernac-runtime/target/surefire-reports/TEST-org.vernac.runtime.authorization.AuthorizationGuardTest.xml': 9,

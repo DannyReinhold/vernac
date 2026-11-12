@@ -5,7 +5,8 @@ title: Identity, membership and roles — proposed SaaS module contract
 
 Status: **review proposal, not implemented functionality**. This is the next slice of
 [the 0.6.0 SaaS plan](saas-0.6.0-plan.md). Merging this document accepts the design
-baseline; it does not publish a module, select a license or close release acceptance.
+baseline; it does not publish artifacts or close release acceptance. The source/license
+decision and the small implemented foundation are recorded separately below.
 The current compiler/runtime APIs remain authoritative. Names of future modules,
 operations and configuration below are proposals, not callable APIs.
 
@@ -16,19 +17,18 @@ verified actor integration, tenant isolation and explicit-access inspection. Ide
 accounts, membership and role administration belong in reusable functional modules,
 not provider-specific compiler keywords or a universal User aggregate in product code.
 
-Proposed source home: a separate, initially private **vernac-saas** repository, with separate identity,
-accounts/access and Spring web/session artifacts. Reuse the existing Vernac module
-export/activation/migration mechanism. Test support belongs in an explicit test artifact;
-it must not install successful fake authentication in production.
+Source/release decision accepted after this proposal's review: SaaS extensions live
+under `saas/` in the existing Vernac repository, are free/open source under the same
+Apache-2.0 license, and initially share version 0.6.0 with the coordinated release.
+They remain independent Maven artifacts; compiler and general runtime MUST NOT depend
+back on them. There is no separate private repository or pending commercial license.
 
-Repository name, artifact coordinates, version scheme and license remain **D01 OPEN**.
-No repository creation, publishing, license change or additional reactor module is
-part of this PR. Agree source placement/ownership before implementation; settle license
-and public coordinates before publication. An explicitly approved private, nonpublishing
-implementation branch can precede the final license choice. Do not automatically copy
-the core license into that extension source. A shared 0.6.0 acceptance milestone does not imply identical artifact
-versions. In particular, the Apache-2.0 license of Vernac does not settle the future
-SaaS extension license. Decide these points before adding distributable implementations.
+D01 is resolved for this baseline. The first actual artifacts are
+`org.vernac:vernac-saas-identity` and `org.vernac:vernac-saas-identity-spring-security`.
+Their [implemented foundation](../contracts/saas-identity-foundation.md) supplies nominal
+contracts and an explicit actor bridge only. Remaining lifecycle sections below are
+still proposals, not delivered registration or account functionality. Future artifact
+splits will follow actual boundaries rather than creating every planned module now.
 
 | Boundary | Owns | Deliberately does not own |
 | --- | --- | --- |
@@ -232,17 +232,18 @@ must be retryable without creating another user, membership or consumed verifica
 
 | Decision | Proposed direction | Still required before implementation |
 | --- | --- | --- |
-| D01 | Separate SaaS extension source/release; narrow functional artifacts | Repository, coordinates, license and version policy |
+| D01 | ACCEPTED: same repository, Apache-2.0, separate `org.vernac` artifacts, shared 0.6.0 version | Apply this boundary to each added module; do not add SaaS dependencies to core |
 | D02 | Stable realm/UserId actor; verified account-to-tenant selection | Concrete module adapter API and enabled-state/session refresh proof |
 | D05 | Account roles union explicit keys; no wildcard/negative/hierarchy; explicit owner invariants | Approve catalog/configuration ownership and protected assignment operations |
 | D14 | Spring authentication/encoder, JDBC browser sessions, purpose-bound challenges | Reviewed credential policy, canonicalization, lifetimes, throttling and session configuration |
 | D10 | Shared mail/outbox integration; credential-free local inbox | Actual mail-module contract; no temporary direct-send shortcut |
 
 D14 is a new explicit checkpoint so credential behavior cannot be guessed while writing
-code. This proposal does not settle commercial/licensing choices or authorize publication.
+code. Source/license/version choices are now settled as recorded above; publication remains
+a separate release action.
 Once reviewed, proceed in small executable slices:
 
-1. Finalize module packaging and credential defaults; add identity/access migrations and
+1. Packaging is established; finalize credential defaults and add identity/access migrations and
    separate consumer tests. Fresh/upgrade histories and trusted access metadata queries
    precede public exposure.
 2. Implement pending registration, verification and idempotent personal provisioning

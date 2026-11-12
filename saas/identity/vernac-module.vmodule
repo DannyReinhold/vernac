@@ -1,0 +1,5 @@
+module vernac.saas.identity {
+    export org.vernac.saas.identity.UserId;
+    export org.vernac.saas.identity.IdentityStatus;
+    export org.vernac.saas.identity.IdentityDirectory;
+}

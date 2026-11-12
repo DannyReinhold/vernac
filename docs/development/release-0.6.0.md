@@ -416,3 +416,24 @@ review proposal, not delivered registration or identity code. D01/D05/D14 and re
 mail integration require decisions before implementation/publication. No extension
 repository, license, artifact or new runtime API is introduced by this proposal.
 All identity/whole-SaaS acceptance rows and the final manual review remain OPEN.
+
+
+## First optional SaaS artifacts
+
+D01 now selects the existing repository, Apache-2.0, separate org.vernac artifacts
+and shared 0.6.0 version. saas/identity exports nominal IDs/status/lookup vocabulary;
+saas/identity-spring-security supplies the explicit principal and live-status resolver.
+The core/compiler do not depend on these modules. JAR consumption, guarded runtime
+composition, concurrent principals and safe failure/serialization boundaries have
+automated coverage. Release inventory and nested test-report discovery include both
+artifacts while preserving pre-0.6 plugin recovery. No publication occurred.
+
+This is not login or registration. No persistent directory, credential policy,
+verification/provisioning, session infrastructure, memberships/roles, SaaS starter
+or UI is delivered by this first boundary. A01/A02, D14 and all complete identity/SaaS
+acceptance remain OPEN. Final manual acceptance is not replaced by these tests.
+
+D02 follow-up: a live identity becoming ineligible inside an active invocation currently
+hits the guard's actor pin (AUTHORIZATION_CONFIGURATION_ERROR). A dedicated test proves
+no nested body/context leak; final user-facing revocation/session handling remains part
+of the unclosed identity integration, not evidence of a complete authentication UX.

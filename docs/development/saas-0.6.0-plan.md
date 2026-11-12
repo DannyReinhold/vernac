@@ -20,8 +20,8 @@ implement their product, not reconstruct these common lifecycles from examples.
 Reusable UI and application flows are part of the outcome, alongside domain modules.
 
 0.6.0 is the coordinated acceptance milestone for Vernac and any required extension
-modules. Their repository, license, Maven coordinates and individual versions remain
-open. A core release without the required, consumable extension artifacts does not
+modules. They now live in this repository under saas/, use Apache-2.0 and separate
+org.vernac artifacts, and initially share version 0.6.0. A core release without the required, consumable extension artifacts does not
 meet this objective. Small PRs are an implementation sequence, not reduced scope.
 
 The sample is a small document workspace: customers register, create personal or
@@ -61,8 +61,8 @@ A22/A23 in the release ledger track completion; these APIs are not implemented y
 | Payment/mail provider implementations and local simulators | Replaceable adapter modules |
 | Product-specific rights, policies, limits, plans and behavior | Consuming application |
 
-Do not decide licensing, create repositories or add provider-specific compiler keywords
-implicitly. Use the existing [module contract](../contracts/modules.md): explicit
+The accepted same-repository/Apache-2.0 decision does not authorize new repositories
+or provider-specific compiler keywords. Use the existing [module contract](../contracts/modules.md): explicit
 exports/activation, provider selection, compatibility metadata and migration ownership.
 A module is not automatically a bounded context. Do not introduce a universal User
 aggregate shared by identity, billing and every product model.
@@ -302,7 +302,7 @@ is not approval; record accepted resolutions and their PRs.
 
 | ID | Decision |
 | --- | --- |
-| D01 | Core/module boundaries, repositories, licenses, public contracts and release coordinates |
+| D01 | ACCEPTED: optional SaaS modules in this repository, Apache-2.0, separate org.vernac artifacts and aligned 0.6.0 version; core does not depend on them |
 | D02 | Typed actor/scope, account resolution, technical actors and background authorization |
 | D03 | Permission declarations, all/any, public defaults, object scope and failure taxonomy |
 | D04 | Fact providers/access APIs for dynamic limits/capacity/quota; transaction ordering |
@@ -334,8 +334,8 @@ recorded below for context, not as tasks to repeat.
    continue with the shared compiler/analyzer model, generation, runtime/starter,
    LSP/IDE metadata/navigation/completion, executable reference and tutorials together.
 4. **Identity/accounts/roles contract and packaging decision**: review the
-   [identity/membership proposal](identity-membership-0.6.0.md), then resolve D01/D14 before
-   publishing extension implementations. Existing permission/tenant foundations do not
+   [identity/membership proposal](identity-membership-0.6.0.md), then resolve credential-specific D14 before
+   implementing credential workflows. D01 packaging/license is now accepted. Existing permission/tenant foundations do not
    supply a login system.
 5. **Identity/accounts/roles implementation**: reusable modules, public flows, protected
    administration and initial end-to-end UI. Resolve packaging before publishing.

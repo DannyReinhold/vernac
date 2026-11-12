@@ -24,3 +24,6 @@ Use the specification index for the full feature catalog. In this revision:
 
 - [Explicit application access audit](explicit-authorization.md): opt-in startup
   detection of omitted requires clauses on registered local/module usecases.
+
+- [Optional SaaS identity foundation](saas-identity-foundation.md): nominal library and
+  explicit live-status Spring actor bridge; full identity workflows remain OPEN.
