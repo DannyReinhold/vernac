@@ -31,7 +31,9 @@ and the [larger lifecycle proposal](../docs/development/identity-membership-0.6.
 ## Deliberately unfinished
 
 The optional [credential primitives](../docs/contracts/saas-credential-primitives.md)
-provide explicit Java validation/encoding, not automatic login or a production corpus.
+provide explicit Java validation/encoding, not automatic login. An explicitly selected
+[bundled offline corpus](../docs/contracts/saas-password-corpus.md) now supplies a pinned
+real dataset with license and provenance.
 The optional [JDBC directory](../docs/contracts/saas-identity-jdbc.md) persists internal eligibility. No persisted password credentials, registration/verification/recovery,
 login/session filter chain, account/membership/role implementation or SaaS starter is
 provided yet. The directory supplies internal state, not the missing trusted workflows.

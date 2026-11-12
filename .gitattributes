@@ -1,0 +1,6 @@
+# These bytes are covered by the offline password-corpus manifest, including on Windows.
+saas/identity-spring-security/src/main/resources/org/vernac/saas/identity/security/credentials/passwords/* text eol=lf
+saas/identity-spring-security/src/main/resources/META-INF/licenses/seclists-MIT.txt text eol=lf
+saas/identity-spring-security/src/main/resources/META-INF/NOTICE-identity-passwords.txt text eol=lf
+# Password whitespace is data, not source-code formatting.
+saas/identity-spring-security/src/main/resources/org/vernac/saas/identity/security/credentials/passwords/blocked-v1.txt -whitespace

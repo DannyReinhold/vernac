@@ -505,3 +505,20 @@ suite prevent silent loss of this fix. The source change does not publish a plug
 or claim a complete Plugin Verifier result. Full candidate/IDE verification and
 installed-IDE smoke acceptance remain required before release. SaaS work remains
 at the credential-primitives checkpoint; no identity scope is marked complete here.
+
+
+## Bundled common-password corpus
+
+The optional identity security artifact now contains the pinned SecLists-derived
+15–128-code-point corpus (10,908 entries), exact manifest/provenance, MIT license and
+attribution. Explicit bundled() loading uses the existing strict loader with no network
+or permissive fallback. A deterministic maintainer tool reproduces the pin; routine
+builds/tests use tracked resources offline. LF attributes preserve resource checksums
+on Windows. Real bundle/encoder tests and actual-JAR license/payload checks are required
+by CI/release gates. This supersedes the earlier credential-primitives slice's missing
+production-corpus note; no complete registration or identity release gate is closed.
+
+The source is historical, finite common-password data, not complete/current HIBP breach
+coverage or a guarantee for unlisted passwords. Next: private credential/challenge and
+admission persistence, capacity/cleanup proofs, then mail/provisioning/session workflows.
+A01/A02 and full-SaaS/final manual acceptance remain OPEN.

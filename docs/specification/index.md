@@ -99,3 +99,5 @@ across behavior, usecases, services, listeners and adapters.
 - [SaaS credential policy](../contracts/saas-identity-credentials.md): accepted D14 policy for registration, passwords, one-time actions and browser sessions; delivery remains partial.
 
 - [Credential primitives](../contracts/saas-credential-primitives.md): implemented optional Java parsing, corpus and Spring password operations; not a complete login system.
+
+- [Bundled password corpus](../contracts/saas-password-corpus.md): pinned offline dataset, license/provenance, explicit loading and reproducible maintenance.
