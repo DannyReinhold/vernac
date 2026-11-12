@@ -76,6 +76,39 @@ public final class OfflinePasswordBlocklist {
         }
     }
 
+    /**
+     * Explicitly loads the versioned classpath corpus; performs no network access or bean setup.
+     */
+    public static OfflinePasswordBlocklist bundled() {
+        try (var resource =
+                OfflinePasswordBlocklist.class.getResourceAsStream(
+                        "passwords/manifest.properties")) {
+            if (resource == null) throw invalid();
+            byte[] bytes = resource.readNBytes(16_385);
+            if (bytes.length > 16_384) throw invalid();
+            var properties = new Properties();
+            var decoder =
+                    StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT);
+            try (var reader = new InputStreamReader(new ByteArrayInputStream(bytes), decoder)) {
+                properties.load(reader);
+            }
+            if (!"vernac-password-corpus-1".equals(properties.getProperty("format")))
+                throw invalid();
+            var manifest =
+                    new Manifest(
+                            properties.getProperty("version"),
+                            URI.create(properties.getProperty("source")),
+                            properties.getProperty("license"),
+                            properties.getProperty("sha256"),
+                            Integer.parseInt(properties.getProperty("entries")));
+            return load(
+                    OfflinePasswordBlocklist.class.getResourceAsStream("passwords/blocked-v1.txt"),
+                    manifest);
+        } catch (IOException | RuntimeException failure) {
+            throw invalid();
+        }
+    }
+
     private static void validate(@Nullable Manifest manifest) {
         if (manifest == null
                 || manifest.version() == null

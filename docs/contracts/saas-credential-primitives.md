@@ -71,9 +71,11 @@ CredentialConfigurationException(BLOCKLIST_INVALID), without a raw cause.
 
 version() and entryCount() describe the loaded immutable snapshot. toString() and the
 Manifest representation are redacted. There is no API exposing the entire stored list.
-The test corpus is synthetic and TEST-ONLY. **No production corpus is shipped yet.**
-Choosing, reviewing, licensing and packaging the actual corpus remains a required
-registration/release gate; passing these checks with generated test phrases is insufficient.
+The synthetic fixture remains TEST-ONLY. The separate explicit `bundled()` factory
+now supplies the [pinned real common-password corpus](saas-password-corpus.md), including
+license/notice and reproducible provenance. It reads a bounded format-versioned classpath
+manifest and applies the same loader; missing/corrupt resources fail closed. Applications
+still explicitly construct the service; no bean or network update is introduced.
 
 ## CredentialPasswords
 
@@ -126,7 +128,7 @@ verification, NFC/code-point and whitespace cases, safe rejection, corpus integr
 bounded loading, unsupported/excessive stored work, non-granting dummy verification and
 parallel independent subjects. CI/release checks require every suite and reject skips.
 
-Pending: a reviewed production corpus, credentials/challenges/admission persistence,
+Pending: credentials/challenges/admission persistence,
 atomic storage budgets/cleanup, protected mail/local inbox, account provisioning,
 public registration, login/session/logout/recovery and complete UI/SaaS assembly.
 D14 policy acceptance is not implementation acceptance. A01/A02 and final manual/full-SaaS

@@ -103,7 +103,8 @@ parameters and input bounds in the implementation contract against the managed S
 versions; reject unsupported lengths rather than silently truncating. The
 [D14 policy](../contracts/saas-identity-credentials.md) selects the algorithm, parameters
 and password policy. The [first primitives](../contracts/saas-credential-primitives.md)
-are implemented; credential persistence and complete public workflows are not.
+and the [bundled corpus](../contracts/saas-password-corpus.md) are implemented;
+credential persistence and complete public workflows are not.
 
 Proposed first browser path: stateful Spring Security sessions with Spring Session JDBC
 for shared storage across instances. Session tables have an explicit reviewed migration

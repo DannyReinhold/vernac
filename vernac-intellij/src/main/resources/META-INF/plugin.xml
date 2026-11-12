@@ -100,6 +100,11 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>0.6.0 development — Offline common-password baseline</h3>
+<p>The optional identity security artifact now carries an explicitly loaded, pinned
+common-password corpus with license, provenance and actual-JAR checks. No runtime
+network access is needed; complete SaaS registration remains in progress.</p>
+
 <h3>0.6.0 development — Debugger API compatibility</h3>
 <p>Restored the 0.5.2 public-API renderer fix in the development branch. Read/Access
 view applicability uses the public override; a packaged-plugin regression check

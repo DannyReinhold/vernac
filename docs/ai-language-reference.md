@@ -1857,4 +1857,7 @@ keywords, invented Spring beans or management endpoints from that policy. The im
 foundation/JDBC contracts
 and [credential primitives](contracts/saas-credential-primitives.md). The latter adds
 explicit Java helpers in org.vernac.saas.identity.security.credentials, not a Spring
-AuthenticationProvider, registration endpoint, production corpus or default beans.
+AuthenticationProvider, registration endpoint or default beans. The
+[bundled offline corpus](contracts/saas-password-corpus.md) is now available through
+OfflinePasswordBlocklist.bundled(); it is a pinned finite common-password list, not an
+external breach API or a guarantee that an accepted password was never compromised.

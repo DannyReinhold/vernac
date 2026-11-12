@@ -33,3 +33,5 @@ Use the specification index for the full feature catalog. In this revision:
 - [SaaS credential policy](saas-identity-credentials.md): accepted D14 policy for registration, passwords, one-time actions and browser sessions; delivery remains partial.
 
 - [Credential primitives](saas-credential-primitives.md): implemented optional Java parsing, corpus and Spring password operations; not a complete login system.
+
+- [Bundled password corpus](saas-password-corpus.md): pinned offline dataset, license/provenance, explicit loading and reproducible maintenance.
