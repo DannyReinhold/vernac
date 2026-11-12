@@ -11,6 +11,7 @@ spring:
       lifecycle-management: start-only
   flyway:
     enabled: true
+    default-schema: public
 server:
   address: 127.0.0.1
   port: ${DISPATCH_PORT:8087}

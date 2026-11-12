@@ -9,6 +9,7 @@ import org.jspecify.annotations.*;
 import org.springframework.jdbc.core.namedparam.*;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.vernac.runtime.*;
+import org.vernac.runtime.events.EventOrigin;
 import static org.vernac.runtime.jdbc.JdbcMapping.*;
 import static org.vernac.runtime.jdbc.JdbcRows.*;
 
@@ -22,15 +23,34 @@ public final class JdbcEventStore<E extends DomainEvent> {
     private final Domain root;
     private final Map<String,Table> tables = new LinkedHashMap<>();
     private final List<Table> order;
+    private final boolean originSchema;
 
     public JdbcEventStore(NamedParameterJdbcTemplate jdbc, Class<E> type, String eventType, Domain root, List<Table> tables) {
+        this(jdbc,type,eventType,root,tables,false);
+    }
+
+    /**
+     * Explicit generated layout capability; never inferred from an older adapter.
+     * Operations remain GLOBAL-only until tenant delivery routing is implemented.
+     */
+    public static <E extends DomainEvent> JdbcEventStore<E> withOriginSchema(NamedParameterJdbcTemplate jdbc,
+            Class<E> type, String eventType, Domain root, List<Table> tables) {
+        return new JdbcEventStore<>(jdbc,type,eventType,root,tables,true);
+    }
+
+    private JdbcEventStore(NamedParameterJdbcTemplate jdbc, Class<E> type, String eventType, Domain root, List<Table> tables, boolean originSchema) {
+        this.originSchema=originSchema;
         this.jdbc=Objects.requireNonNull(jdbc); this.type=type; this.eventType=eventType; this.root=root;
         tables.forEach(t -> this.tables.put(t.name(),t));
         order=tables.stream().sorted(Comparator.comparingInt(Table::depth).thenComparing(Table::name)).toList();
     }
 
     public void persist(E event, List<String> listenerIds) {
-        requireTransaction(); Objects.requireNonNull(event);
+        persist(event,listenerIds,EventOrigin.capture());
+    }
+
+    public void persist(E event, List<String> listenerIds, EventOrigin origin) {
+        requireTransaction(origin); Objects.requireNonNull(event);
         if(new HashSet<>(listenerIds).size()!=listenerIds.size()) throw new IllegalArgumentException("Duplicate delivery recipient");
         var graph=new WriteGraph();
         var row=graph.row(root.table());
@@ -38,7 +58,7 @@ public final class JdbcEventStore<E extends DomainEvent> {
         for(var field:root.fields()) field.value().write(field.getter().apply(event),row,graph,true);
         int inserted=insert(tables.get(root.table()),row,true);
         if(inserted==0) {
-            E existing=load(event.eventId());
+            E existing=load(event.eventId(),origin);
             for(var field:root.fields()) if(!Objects.equals(field.getter().apply(existing),field.getter().apply(event)))
                 throw new VernacTechnicalException("Conflicting payload for stored event "+eventType+" / "+event.eventId());
             // Subscriber set is fixed by the first publication; never replay to newly added listeners.
@@ -56,10 +76,14 @@ public final class JdbcEventStore<E extends DomainEvent> {
     }
 
     public E load(EventId id) {
-        requireTransaction(); Objects.requireNonNull(id);
+        return load(id,EventOrigin.capture());
+    }
+
+    public E load(EventId id, EventOrigin origin) {
+        requireTransaction(origin); Objects.requireNonNull(id);
         var graph=new LinkedHashMap<String,List<Map<String,@Nullable Object>>>();
         for(var table:order) graph.put(table.name(),jdbc.query("SELECT "+String.join(", ",table.columns().stream().map(c->q(c.name())).toList())
-                +" FROM "+table.name()+" WHERE "+table.predicate(),Map.of("aggregateId",id.value()),(rs,n)->readRow(table,rs)));
+                +" FROM "+table.name()+" WHERE "+loadPredicate(table),loadParameters(id),(rs,n)->readRow(table,rs)));
         var roots=graph.get(root.table());
         if(roots.size()!=1) throw new VernacTechnicalException("Stored event not found: "+eventType+" / "+id);
         Reader reader=new Reader() {
@@ -75,10 +99,19 @@ public final class JdbcEventStore<E extends DomainEvent> {
                 +String.join(", ",java.util.stream.IntStream.range(0,table.columns().size()).mapToObj(i->":p"+i).toList())+")"
                 +(ignoreExisting?" ON CONFLICT (\"@eventId\") DO NOTHING":""),params(table,row));
     }
-    private void requireTransaction() {
+    private String loadPredicate(Table table) {
+        return originSchema ? "("+table.predicate()+") AND \"@scopeKey\"=:__vernacEventScope AND \"@tenantId\" IS NULL" : table.predicate();
+    }
+    private MapSqlParameterSource loadParameters(EventId id) {
+        return new MapSqlParameterSource("aggregateId",id.value()).addValue("__vernacEventScope","GLOBAL")
+                .addValue("__vernacEventTenant",null,java.sql.Types.OTHER);
+    }
+    private void requireTransaction(EventOrigin origin) {
+        Objects.requireNonNull(origin).requireGlobal();
         if(!TransactionSynchronizationManager.isActualTransactionActive() || !TransactionSynchronizationManager.isSynchronizationActive())
             throw new IllegalStateException("Event persistence requires an active synchronized transaction");
         JdbcEventOrigin.requireGlobal(jdbc);
+        JdbcEventLayout.verify(jdbc,order,originSchema);
     }
     private final class WriteGraph implements Writer {
         final Map<String,List<Map<String,@Nullable Object>>> rows=new LinkedHashMap<>();
@@ -86,6 +119,7 @@ public final class JdbcEventStore<E extends DomainEvent> {
         public Map<String,@Nullable Object> row(String table) {
             Map<String,@Nullable Object> row=new LinkedHashMap<>();
             for(var column:tables.get(table).columns()) row.put(column.name(),null);
+            if(originSchema) { row.put("@tenantId",null); row.put("@scopeKey","GLOBAL"); }
             if(row.containsKey("@rowId")) row.put("@rowId",UUID.randomUUID());
             rows.computeIfAbsent(table,k->new ArrayList<>()).add(row);
             return row;

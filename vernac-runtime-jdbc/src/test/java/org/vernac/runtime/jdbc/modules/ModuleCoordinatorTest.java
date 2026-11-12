@@ -46,7 +46,7 @@ class ModuleCoordinatorTest {
         assertThrows(IllegalStateException.class,()->ModuleMigrationStrategy.coordinate(modules,EMPTY,Set.of(),operations));
         assertEquals(List.of("migrate:required","validate:required","runtime:required"),log);
     }
-    @Test void pendingEventSchemaCapabilityStopsBeforeAnyModuleOrApplicationMigration() {
+    @Test void eventOriginSchemaParticipatesInNormalGlobalMigrationOrdering() {
         var event = new SchemaDescription.Table("events", "@event:Raised", "events.Raised", List.of(
                 new SchemaDescription.Column("@eventId", "UUID", false, "EventId", "events.Raised"),
                 new SchemaDescription.Column("@tenantId", "UUID", true, "event-tenant-id", "events.Raised"),
@@ -56,15 +56,16 @@ class ModuleCoordinatorTest {
                 new SchemaDescription.Constraint("@unique:event-origin", "UNIQUE (\"@scopeKey\", \"@eventId\")")),
                 null, new SchemaDescription.EventIsolation("events.Raised", true));
         var pending = new SchemaDescription(3, 1, List.of(event), Map.of());
+        var calls = new ArrayList<String>();
         var operations = new ModuleMigrationStrategy.Operations() {
-            public void migrate(ModuleMigrationStrategy.Prepared module) {fail("No migration may run");}
-            public void validate(ModuleMigrationStrategy.Prepared module) {fail("No module may start");}
-            public void migrateApplication() {fail("No application migration may run");}
-            public void validateApplication(SchemaDescription schema, Set<String> owned) {fail("No application may start");}
+            public void migrate(ModuleMigrationStrategy.Prepared module) {calls.add("migrate:"+module.module());}
+            public void validate(ModuleMigrationStrategy.Prepared module) {calls.add("validate:"+module.module());}
+            public void migrateApplication() {calls.add("application");}
+            public void validateApplication(SchemaDescription schema, Set<String> owned) {calls.add("validate:application");}
         };
-        assertThrows(IllegalStateException.class, () -> ModuleMigrationStrategy.coordinate(List.of(), pending, Set.of(), operations));
         var producer = new ModuleMigrationStrategy.Prepared("events", "classpath:events", "history", pending, Set.of(event.identity()));
-        assertThrows(IllegalStateException.class, () -> ModuleMigrationStrategy.coordinate(List.of(module("earlier", "one/table"), producer), EMPTY, Set.of(), operations));
+        ModuleMigrationStrategy.coordinate(List.of(producer), EMPTY, Set.of(), operations);
+        assertEquals(List.of("migrate:events", "validate:events", "application", "validate:application"), calls);
     }
 
     public static class Probe {

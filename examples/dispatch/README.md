@@ -246,3 +246,15 @@ curl.exe -i -X POST http://localhost:8087/api/tours -H "Content-Type: applicatio
 The command prints the non-success response; inspect its JSON body for `code` and
 `message`. Omitting `capacity` instead produces the shared 400 / INVALID_REQUEST reply.
 These policies do not alter usecase transactions or publish exception messages.
+
+## Event storage upgrade in the 0.6.0 development baseline
+
+The committed `V20261112090000000__event_origin_schema.sql` migration adds explicit
+GLOBAL origin metadata to historical event payloads. Its reviewed backfill expressions
+are retained in `src/main/vernac-schema/event-origin-upgrade.json`; the earlier SQL and
+snapshots are unchanged. A normal Flyway startup applies the additional migration.
+Rebuild with matching current development artifacts before starting against this
+layout. The Flyway history schema is explicitly `public`, so changing the database
+username does not change the history location on restart. Tenant event delivery is
+still pending; the example remains a global application.
+As always, you alone review, test and approve migrations before deployment.

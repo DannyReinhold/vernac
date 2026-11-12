@@ -1,0 +1,6 @@
+{
+  "backfills": {
+    "example.billing/@event:InvoiceOpened/@scopeKey": "'GLOBAL'"
+  },
+  "conversions": {}
+}

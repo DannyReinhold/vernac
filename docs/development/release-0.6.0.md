@@ -288,7 +288,19 @@ scope-qualified child FKs protect GLOBAL as well as tenant graphs. Explicit revi
 GLOBAL backfills preserve legacy data/positions and existing source history; origin
 removal/ownership changes remain blocked even with force. PostgreSQL fresh/upgrade
 catalog comparisons and restricted-role RLS proofs cover this infrastructure.
-Earlier snapshot/module fingerprints are retained. Normal generation remains on the
-old layout; pending event-classified activation is refused before any migration.
-Generated storage, worker restoration and complete tenant event acceptance remain
-OPEN, as do A19/A20/A21.
+Earlier snapshot/module fingerprints are retained. Normal generation now selects the
+origin layout with matching GLOBAL adapters; global module activation remains supported.
+Tenant worker restoration and complete tenant event acceptance remain OPEN, as do
+A19/A20/A21.
+
+## Generated GLOBAL event origin storage
+
+The compiler now emits format-3 event graphs with explicit matching storage factories,
+origin-aware bridges and exact GLOBAL read predicates at every owned level. Runtime
+layout checks reject old/new adapter/database mismatches before payload SQL. Global
+module activation and the existing worker remain operational; tenant emission stays
+blocked pending delivery-origin routing. Populated legacy upgrades preserve recursive
+values, list order/duplicates, optional VOs, temporal precision and decimal scale.
+Existing example histories receive new reviewed migrations instead of rewritten files.
+The next step is the production worker/envelope integration and complete tenant module
+acceptance. A19/A20/A21 remain OPEN.

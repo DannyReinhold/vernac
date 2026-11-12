@@ -161,3 +161,13 @@ The separate [entity graph example](https://github.com/DannyReinhold/vernac/blob
 adds shared entity references, subentities, direct optional references, lists and sets.
 Use it to inspect table ownership and composite foreign keys without modifying the
 small containment example. For generated JDBC operations, use the [runnable database tutorial](database-persistence.md).
+
+## Event origin upgrades in the 0.6.0 development line
+
+The current generator emits explicit origin metadata for persisted event graphs.
+For a database created with the earlier layout, generate a new migration using reviewed
+`'GLOBAL'` backfills for every existing event payload table. Do not replace its initial
+SQL or snapshots. The examples commit both the new candidate and the transformation
+file used to generate it. Follow the [event upgrade contract](../development/event-origin-schema.md)
+and verify the complete history with schema-check. You alone remain responsible for
+review, testing and approval; generation does not infer historical tenant attribution.

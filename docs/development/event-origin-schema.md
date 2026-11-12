@@ -3,11 +3,11 @@ title: Event origin schema and reviewed global upgrades
 ---
 # Event origin schema foundation
 
-Status: **implemented schema infrastructure, not enabled generated event storage**.
-The normal compiler still emits the existing event layout. Durable tenant emission
-remains blocked; neither an `EventIsolation` object nor schema format 3 authorizes
-publication or starts a tenant worker. This step establishes the relational contract
-before switching generated adapters and their tables together.
+Status: **implemented generated GLOBAL event storage on schema format 3**.
+The normal compiler now emits the origin-aware layout and matching storage bindings
+together. Existing global publication, recorded events and deferred workers remain
+supported after the reviewed migration. Durable tenant publication remains blocked:
+this step does not yet persist a tenant delivery envelope or restore it in the worker.
 
 See the [routing design](tenant-event-routing-contract.md) and the
 [current runtime boundary](../contracts/events.md#internal-origin-and-legacy-storage-boundaries-060-development).
@@ -39,8 +39,9 @@ unique root of its event graph; cross-event/unclassified references are rejected
 
 The compiler's `EventSchema` helper constructs constraints without rewriting arbitrary
 SQL text. Compiler and runtime schema validation agree on the resulting metadata.
-This Java infrastructure is not additional Vernac source syntax and should not be
-used as a substitute for the pending generated storage implementation.
+This Java infrastructure is not additional Vernac source syntax. Generated adapters
+select `JdbcEventStore.withOriginSchema` explicitly; old constructors remain legacy
+GLOBAL storage, never an implicit request to reinterpret new tables.
 
 ## Read visibility is broader than delivery routing
 
@@ -48,8 +49,9 @@ The SQL policy permits a selected tenant to read global rows and its own rows, w
 an unscoped reader sees global rows only. Inserts must match the actual transaction
 origin exactly; a selected tenant cannot quietly write a GLOBAL row.
 
-This does **not** replace exact-origin loading. The future event store must additionally
-match a delivery's claimed origin and event identity. Row visibility alone is not
+This does **not** replace exact-origin loading. The current store additionally matches GLOBAL scope and a NULL tenant on every
+payload table, including nested-owner subqueries. The future tenant store must also
+match a delivery's claimed tenant origin and event identity. Row visibility alone is not
 permission to deliver any visible event. Runtime-role/policy verification and worker
 origin restoration are still required by the complete routing contract.
 
@@ -73,9 +75,17 @@ The usual transformation map uses keys such as:
 }
 ```
 
-This illustrates the infrastructure contract; normal source compilation does not yet
-request this upgrade. Do not add these transformations to an existing application
-until the generated-storage change actually selects format 3 for its event graph.
+Save the reviewed expressions in a source-controlled transformation file and use
+normal migration tooling, for example from the project directory:
+
+```shell
+mvn vernac:migration "-Dvernac.migrationDescription=event_origin_schema" "-Dvernac.transformations=src/main/vernac-schema/event-origin-upgrade.json"
+```
+
+Use a current 0.6.0 development compiler/runtime throughout the application and its
+producer modules. For a fresh project, generated initial DDL already contains these
+columns and no historical backfill is needed. For an existing project, generate and
+review the next candidate; never rewrite an applied migration or old snapshot.
 
 The candidate drops old referencing constraints before replacing them, adds nullable
 columns, backfills scopes, sets NOT NULL, creates unique targets before foreign keys,
@@ -91,12 +101,18 @@ rewritten by this upgrade.
 
 ## Module and activation boundary
 
-Compiler/runtime metadata can round-trip formats 1, 2 and 3 with matching fingerprints.
-Until generated storage and worker routing support the new layout, the module
-coordinator rejects a classified event schema **before executing any module or
-application migration**. Reading a data format is not evidence that the associated
-runtime capability is operational. Ordinary existing applications/modules remain on
-their current schema and activation path.
+Compiler/runtime metadata round-trip formats 1, 2 and 3 with matching fingerprints.
+Global event modules now use normal dependency-first migration/validation/activation.
+The temporary blanket rejection of format-3 event activation has been removed because
+matching generated storage is available. Existing format-1/2 snapshots remain intact.
+
+A storage operation verifies its actual table layout on the transaction's DataSource.
+An old adapter against an upgraded table, or a new adapter against an old table, fails
+with a safe capability-mismatch/rebuild diagnostic before payload SQL. The explicit
+new layout requires both origin columns with their expected SQL shape and ENABLE/FORCE
+RLS on every payload table. Global loads include exact-origin predicates even on
+owner/superuser connections that bypass RLS. These checks do not constitute completed
+tenant role/policy verification or permission to emit tenant payloads.
 
 ## Executable evidence and next step
 
@@ -108,8 +124,14 @@ They compare a reviewed legacy upgrade with fresh DDL through the actual schema-
 catalog and verify that missing event RLS policies are detected. Module-runtime and
 compiler fingerprints match for all three supported formats.
 
-These are schema proofs. They do not prove generated event bindings, production
-worker origin restoration, JAR-based event capability negotiation or tenant outbox
-acceptance. Next: select this layout together with compatible generated storage,
-then integrate worker routing and exercise fresh/upgrade/module/concurrency paths
-before lifting the emission guard. A19/A20/A21 remain OPEN.
+Generated-adapter tests also persist/read recursive values, duplicate/empty lists,
+optional VOs, nanosecond timestamps and BigDecimal scale. They upgrade populated legacy
+storage, reject old/new layout mismatches, preserve initial recipients, prevent global
+loads of a tenant-tagged row even for a bypassing owner connection, and verify a GLOBAL
+round trip with a restricted nonowner/NOBYPASSRLS role. Existing global worker retry,
+restart, parallel claim and fencing tests continue to execute on the new layout.
+
+Tenant payload publication and worker context restoration are not enabled yet. Next:
+add durable delivery origin metadata, production worker restoration and the packaged
+module/fresh/upgrade/concurrency acceptance paths before lifting the emission guard.
+A19/A20/A21 remain OPEN.

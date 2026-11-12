@@ -87,8 +87,13 @@ source-controlled snapshots under `src/main/vernac-schema/history`.
 
 All three initial migrations deliberately use version 20261012090000000.
 The subsequent payload/notification/delivery migrations use 20261013190000000;
-they extend each owner's history without rewriting the initial files. There is
-no version collision: the modules use different stable `vernac_module_<hash>` history
+they extend each owner's history without rewriting the initial files. Billing also
+has `V20261112090000000__event_origin_schema.sql`, with reviewed GLOBAL backfills in
+`billing/src/main/vernac-schema/event-origin-upgrade.json`. It upgrades event payloads
+without changing their IDs/data or the other owners' histories. Rebuild producers and
+consumer with matching 0.6.0 development artifacts before starting against this layout.
+Tenant event delivery remains pending; this walkthrough is global. You alone review,
+test and approve every migration before deployment. There is no version collision: the modules use different stable `vernac_module_<hash>` history
 schemas, while the application uses public.flyway_schema_history.
 
 In the `module_demo` database, inspect:

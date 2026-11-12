@@ -154,7 +154,7 @@ jobs:
                   'nullableScopeOrUnqualifiedLinksAndCrossGraphRelationshipsAreRejected',
               },
               'vernac-runtime-jdbc/target/surefire-reports/TEST-org.vernac.runtime.jdbc.modules.ModuleCoordinatorTest.xml': {
-                  'pendingEventSchemaCapabilityStopsBeforeAnyModuleOrApplicationMigration',
+                  'eventOriginSchemaParticipatesInNormalGlobalMigrationOrdering',
               },
               'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.EventSchemaPostgresTest.xml': {
                   'moduleMetadataPreservesFormatOneTwoAndThreeFingerprints',
@@ -240,6 +240,7 @@ jobs:
               'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.EventStoragePostgresTest.xml': {
                   'generatedEventStorageCompiles',
                   'eventGraphsAndDeliveriesCommitOrRollbackTogether',
+                  'generatedAdaptersRequireMatchingLayoutAndLoadReviewedLegacyGraphs',
               },
               'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.EventWorkerPostgresTest.xml': {
                   'generatedWorkerFixtureCompiles',

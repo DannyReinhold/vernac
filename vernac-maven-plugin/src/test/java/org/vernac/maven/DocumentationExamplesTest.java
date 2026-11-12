@@ -150,10 +150,11 @@ class DocumentationExamplesTest {
         Path sources=temporary.resolve("dispatch-java");
         var compiler=new VernacCompiler();
         Path modelRoot=Path.of("../examples/dispatch/src/main/vernac");
-        var snapshot=new com.fasterxml.jackson.databind.ObjectMapper().readTree(Files.readString(Path.of("../examples/dispatch/src/main/vernac-schema/history/V20261011190000000__dispatch.json")));
-        var previous=org.vernac.compiler.persistence.SchemaModel.parse(snapshot.get("model").toString());
+        var previous=new org.vernac.compiler.persistence.SchemaHistory(
+                Path.of("../examples/dispatch/src/main/vernac-schema/history"),
+                Path.of("../examples/dispatch/src/main/resources/db/migration")).read();
         var current=new org.vernac.compiler.persistence.SchemaBuilder(compiler.analyzeProject(modelRoot),previous).build();
-        assertEquals(previous.fingerprint(),current.fingerprint(),"Pagination must not change the existing Dispatch schema");
+        assertEquals(previous.fingerprint(),current.fingerprint(),"Dispatch source must match its complete reviewed schema history");
         compiler.compileProject(modelRoot).writeTo(sources);
         // The model references this external extension; Boot application wiring is built by the standalone example.
         Path extension=sources.resolve("showcase/integration/JournalImplementation.java");Files.createDirectories(extension.getParent());

@@ -208,5 +208,7 @@ remain feasibility evidence, separate from the new production boundary regressio
 mixed-origin payload graphs explicitly, with non-null scope-qualified relationships.
 Compiler and module-runtime serialization preserve earlier fingerprints. Real DDL,
 RLS and upgrade/catalog proofs are separate from the handwritten feasibility store.
-Normal event code generation is not switched yet; activation rejects the pending
-capability before migrations. Generated storage and worker restoration remain OPEN.
+Normal event generation now selects format 3 with matching GLOBAL storage. Global
+module activation is supported after reviewed migrations, and payload SQL verifies
+old/new layout compatibility. Tenant delivery envelopes, worker restoration and the
+final tenant/module acceptance remain OPEN.
