@@ -95,8 +95,9 @@ VERNAC_PG_TEST_PASSWORD; CI and release checks reject missing or skipped proof.
 
 The [credential policy](saas-identity-credentials.md),
 [credential primitives](saas-credential-primitives.md) and
-[private challenge lifecycle](saas-identity-challenges.md) are now available. Persisted
-password credentials, complete registration/verification/recovery, login/session
+[private challenge lifecycle](saas-identity-challenges.md) are now available. Private
+[credential persistence](saas-identity-credentials-jdbc.md) is now available, while
+complete registration/verification/recovery, login/session
 infrastructure, memberships, roles and the final SaaS application remain unfinished. This provider does not close those
 release acceptance items.
 
@@ -114,3 +115,8 @@ flow or automatic cleanup schedule is enabled by module activation.
 The [private global ingress gate](saas-identity-ingress.md) adds the fourth generated
 module migration. Explicit initialization/admission remains separate from module
 activation and must precede business transactions.
+
+The [private credential lifecycle](saas-identity-credentials-jdbc.md) adds the fifth
+generated migration, private encoding/credential models and an initial security epoch.
+The JDBC artifact now depends on the optional identity security artifact at runtime;
+module exports and the existing explicit directory binding are unchanged.

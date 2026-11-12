@@ -8,7 +8,7 @@ Maven artifacts, not extra compiler keywords or dependencies of the general runt
 | --- | --- |
 | `org.vernac:vernac-saas-identity` | Nominal UserId, identity status vocabulary and trusted IdentityDirectory port; published Vernac module contracts |
 | `org.vernac:vernac-saas-identity-spring-security` | Explicit principal/live-status ActorResolver and credential parsing/corpus/real encoder primitives |
-| `org.vernac:vernac-saas-identity-jdbc` | Explicit optional persistent status directory; internal repositories, private storage budgets/one-time challenges/global admission and separate module migrations |
+| `org.vernac:vernac-saas-identity-jdbc` | Explicit optional persistent status directory; internal repositories, private storage budgets/challenges/admission/credential persistence and separate module migrations |
 
 The module identity is `vernac.saas.identity`. Import exported definitions under
 `org.vernac.saas.identity`, not the module identifier. Type-only use needs no activation.
@@ -34,7 +34,9 @@ The optional [credential primitives](../docs/contracts/saas-credential-primitive
 provide explicit Java validation/encoding, not automatic login. An explicitly selected
 [bundled offline corpus](../docs/contracts/saas-password-corpus.md) now supplies a pinned
 real dataset with license and provenance.
-The optional [JDBC directory](../docs/contracts/saas-identity-jdbc.md) persists internal eligibility. No persisted password credentials, registration/verification/recovery,
+The optional [JDBC directory](../docs/contracts/saas-identity-jdbc.md) persists internal eligibility and now has
+[private credential persistence](../docs/contracts/saas-identity-credentials-jdbc.md)
+with redacted encodings and security epochs. No complete registration/verification/recovery,
 login/session filter chain, account/membership/role implementation or SaaS starter is
 provided yet. The directory supplies internal state, not the missing trusted workflows.
 Do not implement a directory that returns ACTIVE for everyone or treat an actor as a
@@ -54,3 +56,7 @@ complete lifecycle/admission/cleanup proofs remain required.
 The [private global ingress gate](../docs/contracts/saas-identity-ingress.md) now provides
 an independently committed fixed-window deployment cap. No automatic public filter,
 source/identifier gate or complete registration protection is installed.
+
+The JDBC artifact now includes the existing identity security artifact as a runtime
+dependency for the shared encoding-format invariant. Vernac registers no authentication/filter
+configuration here; review host Boot auto-configuration with the changed runtime classpath. Epoch-based session validation remains OPEN.

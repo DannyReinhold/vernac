@@ -40,7 +40,7 @@ REQUIRED_TESTS = ("AdapterBindingsTest","PortModuleTest", "PortModuleSymbolsTest
 
 SAAS_IDENTITY_TESTS = ("IdentityModuleContractIT", "IdentityActorResolverTest", "IdentityPrincipalTest", "IdentityJdbcModuleIT",
                    "LoginAddressTest", "PasswordInputTest", "OfflinePasswordBlocklistTest", "CredentialPasswordsTest",
-                   "BundledPasswordBlocklistTest", "CredentialCorpusDistributionIT", "IdentityCapacityPostgresIT", "IdentityChallengeTokenTest", "IdentityChallengesPostgresIT", "IdentityIngressModelTest", "IdentityIngressPostgresIT", "IdentityChallengeRepresentationTest")
+                   "BundledPasswordBlocklistTest", "CredentialCorpusDistributionIT", "IdentityCapacityPostgresIT", "IdentityChallengeTokenTest", "IdentityChallengesPostgresIT", "IdentityIngressModelTest", "IdentityIngressPostgresIT", "IdentityChallengeRepresentationTest", "StoredEncodingPolicyTest", "IdentitySecurityEpochTest", "IdentityCredentialsPostgresIT")
 REQUIRED_TESTS += SAAS_IDENTITY_TESTS
 
 # 0.4.0 acceptance: module contracts/lifecycle, pagination, vocabulary and diagrams.

@@ -41,7 +41,7 @@ class IdentityChallengesPostgresIT {
     }
 
     static UserId seed(AssertableApplicationContext c, long limit) {
-        var user = Identity.create(IdentityStatus.PENDING_VERIFICATION);
+        var user = Identity.create(IdentityStatus.PENDING_VERIFICATION, IdentitySecurityEpoch.of(0));
         tx(c).executeWithoutResult(
                         s -> {
                             var ledger = new JdbcIdentityCapacity(jdbc(c));
@@ -371,9 +371,7 @@ class IdentityChallengesPostgresIT {
                                                         b -> {
                                                             var user = seed(a, 1);
                                                             var another =
-                                                                    Identity.create(
-                                                                            IdentityStatus
-                                                                                    .PENDING_VERIFICATION);
+                                                                    Identity.create(IdentityStatus.PENDING_VERIFICATION, IdentitySecurityEpoch.of(0));
                                                             tx(a).executeWithoutResult(
                                                                             s ->
                                                                                     a.getBean(
