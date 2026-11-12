@@ -69,14 +69,15 @@ a human owner or gain account-wide rights by being technical.
 
 Proposed default journey:
 
-1. Accept a validated address and password through a CSRF-protected public flow.
+1. Accept a validated address through a CSRF-protected public flow (no password yet).
    Concurrent registration uses a database uniqueness constraint on the chosen login
    key. The outward response must not disclose whether that address already exists.
-2. Persist a pending identity, a purpose-bound verification challenge and an outbox
-   mail request in one local transaction. Raw passwords never enter domain events,
+2. Persist a pending identity, a purpose-bound verification challenge and a protected
+   mail-delivery request in one local transaction. Raw passwords never enter domain events,
    persistence or logs. A delivery failure leaves a recoverable pending registration.
-3. Successful verification atomically consumes the challenge, activates the identity
-   and provisions its personal account, tenant mapping and first owner membership.
+3. The explicit verification POST sets the visitor-chosen password, atomically
+   consumes the challenge, activates the identity and provisions its personal account,
+   tenant mapping and first owner membership.
    Failure rolls back that local provisioning; duplicate verification cannot create
    another personal account. Enforce uniqueness in the database, not only application checks.
 4. Require normal authentication after verification. Verification alone does not mint
@@ -88,8 +89,9 @@ that creates its own tenant and owner membership. External mail is delivered aft
 commit through the shared mail/outbox path, not inside the database transaction.
 
 Login-key canonicalization is an explicit prerequisite: preserve the delivery address;
-do not invent provider-specific dot/plus normalization. The exact case/Unicode policy,
-uniqueness representation and migration behavior require review before persistence.
+do not invent provider-specific dot/plus normalization. The concrete ASCII/case policy,
+uniqueness representation and migration behavior are specified for review in the
+[D14 credential proposal](../contracts/saas-identity-credentials.md).
 Never change those rules invisibly for existing users.
 
 ## 4. Credentials, sessions and challenges
@@ -98,8 +100,9 @@ Use Spring Security's authentication/provider/PasswordEncoder contracts; no cust
 password comparison, reversible password storage, home-grown session protocol or
 JWT implementation. Use an adaptive encoder with an upgrade strategy. Pin encoder
 parameters and input bounds in the implementation contract against the managed Spring
-versions; reject unsupported lengths rather than silently truncating. The algorithm,
-parameters and password policy are not selected implicitly by this document.
+versions; reject unsupported lengths rather than silently truncating. The
+[D14 proposal](../contracts/saas-identity-credentials.md) explicitly selects the algorithm,
+parameters and password policy for review; this is not implemented behavior.
 
 Proposed first browser path: stateful Spring Security sessions with Spring Session JDBC
 for shared storage across instances. Session tables have an explicit reviewed migration
@@ -126,7 +129,8 @@ not make an existing identity disabled while a stranger requests email. Successf
 password reset invalidates existing sessions; disable/closure also blocks their later
 use. A stale stored principal cannot override current disabled state. Rate limiting
 is required for public credential/challenge operations, distinct from paid usage quotas.
-Exact lifetimes, resend policy, encoder settings and abuse limits are D14 OPEN below.
+Concrete lifetimes, resend policy, encoder settings and abuse limits are proposed in
+[D14](../contracts/saas-identity-credentials.md); runtime delivery remains OPEN.
 
 ## 5. Membership, selection and the existing runtime
 
@@ -237,7 +241,7 @@ must be retryable without creating another user, membership or consumed verifica
 | D01 | ACCEPTED: same repository, Apache-2.0, separate `org.vernac` artifacts, shared 0.6.0 version | Apply this boundary to each added module; do not add SaaS dependencies to core |
 | D02 | Stable realm/UserId actor; verified account-to-tenant selection | Concrete module adapter API and enabled-state/session refresh proof |
 | D05 | Account roles union explicit keys; no wildcard/negative/hierarchy; explicit owner invariants | Approve catalog/configuration ownership and protected assignment operations |
-| D14 | Spring authentication/encoder, JDBC browser sessions, purpose-bound challenges | Reviewed credential policy, canonicalization, lifetimes, throttling and session configuration |
+| D14 | Spring authentication/encoder, JDBC browser sessions, purpose-bound challenges | Review the [concrete D14 baseline](../contracts/saas-identity-credentials.md), then implement/test it; all delivery gates remain OPEN |
 | D10 | Shared mail/outbox integration; credential-free local inbox | Actual mail-module contract; no temporary direct-send shortcut |
 
 D14 is a new explicit checkpoint so credential behavior cannot be guessed while writing

@@ -29,3 +29,5 @@ Use the specification index for the full feature catalog. In this revision:
   explicit live-status Spring actor bridge; full identity workflows remain OPEN.
 
 - [Optional JDBC identity directory](saas-identity-jdbc.md): explicit persistent status lookup and module-owned migration; registration remains OPEN.
+
+- [SaaS credential policy proposal](saas-identity-credentials.md): D14 review baseline for registration, passwords, one-time actions and browser sessions; not implemented APIs.

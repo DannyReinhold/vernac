@@ -1848,3 +1848,10 @@ for status lookup. REQUIRED lookup joins the caller transaction or opens a short
 transaction. No user/register/login/role DSL, automatic filter chain or complete SaaS
 starter is provided. See the [JDBC contract](contracts/saas-identity-jdbc.md). Do not invent those APIs. See the
 [exact foundation contract](contracts/saas-identity-foundation.md).
+
+
+The [D14 credential policy](contracts/saas-identity-credentials.md) is a **decision
+proposal, not callable syntax or runtime APIs**. It specifies the planned email-first
+registration and credential/session behavior. Do not generate registration/login DSL
+keywords, invented Spring beans or management endpoints from that proposal. The only
+implemented identity APIs remain those in the foundation/JDBC contracts above.
