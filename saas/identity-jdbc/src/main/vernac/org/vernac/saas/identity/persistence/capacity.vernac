@@ -1,0 +1,38 @@
+namespace org.vernac.saas.identity.persistence;
+
+id IdentityCapacityId;
+value IdentityCapacityQuantity(long amount) validates {
+    require(self.amount() >= 0, "Identity capacity quantity must not be negative");
+};
+
+term IdentityCapacity {
+    description "Internal deployment-wide storage budget, not a subscription quota.";
+    note "Only the controlled JDBC capacity helper may allocate or release these fixed resource counters. No request creates a new resource key.";
+}
+global aggregate IdentityCapacity[IdentityCapacityId](mut IdentityCapacityQuantity used, mut IdentityCapacityQuantity limit)
+validates {
+    require(self.limit().amount() > 0, "Identity capacity limit must be positive");
+} behavior {
+    modify boolean reserve(long amount) {
+        if (amount <= 0) throw new org.vernac.runtime.DomainValidationException("Identity capacity reservation must be positive");
+        long used = self.used().amount();
+        long limit = self.limit().amount();
+        if (used > limit || amount > limit - used) return false;
+        self.used(IdentityCapacityQuantity.of(used + amount));
+        return true;
+    }
+    modify void release(long amount) {
+        if (amount <= 0 || amount > self.used().amount()) {
+            throw new org.vernac.runtime.DomainValidationException("Identity capacity release is inconsistent");
+        }
+        self.used(IdentityCapacityQuantity.of(self.used().amount() - amount));
+    }
+    modify void changeLimit(long amount) {
+        if (amount <= 0) throw new org.vernac.runtime.DomainValidationException("Identity capacity limit must be positive");
+        self.limit(IdentityCapacityQuantity.of(amount));
+    }
+};
+
+repository IdentityCapacityRepository for IdentityCapacity {
+    find IdentityCapacity? existing(IdentityCapacityId id) where id = :id;
+}

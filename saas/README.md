@@ -8,7 +8,7 @@ Maven artifacts, not extra compiler keywords or dependencies of the general runt
 | --- | --- |
 | `org.vernac:vernac-saas-identity` | Nominal UserId, identity status vocabulary and trusted IdentityDirectory port; published Vernac module contracts |
 | `org.vernac:vernac-saas-identity-spring-security` | Explicit principal/live-status ActorResolver and credential parsing/corpus/real encoder primitives |
-| `org.vernac:vernac-saas-identity-jdbc` | Explicit optional persistent status directory; internal repository and separate module migrations |
+| `org.vernac:vernac-saas-identity-jdbc` | Explicit optional persistent status directory; internal repositories, private storage-budget foundation and separate module migrations |
 
 The module identity is `vernac.saas.identity`. Import exported definitions under
 `org.vernac.saas.identity`, not the module identifier. Type-only use needs no activation.
@@ -44,3 +44,8 @@ Accounts/access, dynamic limits/quotas, subscriptions, payment/mail providers an
 simulators, invoicing, reusable UI and the separate SaaS example/Wizard remain required
 0.6.0 delivery work. The simple non-SaaS example/starter remains separate. Nothing in
 this directory makes the whole-SaaS release acceptance complete.
+
+
+The [private capacity ledger](../docs/contracts/saas-identity-capacity.md) is the first
+persistent budget foundation. It does not yet enforce capacity against actual registration,
+challenge or mail rows; those lifecycle/admission/cleanup proofs remain required.

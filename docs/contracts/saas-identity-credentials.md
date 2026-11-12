@@ -5,7 +5,9 @@ title: SaaS identity credential and browser-flow policy
 
 Status: **D14 policy accepted for 0.6.0** through PR #33. Implementation is partial:
 [credential primitives](saas-credential-primitives.md) are available, while public flows,
-persistence, mail, admission/cleanup and session integration remain unfinished.
+credential/challenge persistence, mail, admission/cleanup and session integration
+remain unfinished. The [storage-capacity primitive](saas-identity-capacity.md) is
+implemented; real-row accounting and cleanup integration are still required.
 This policy introduces no new language keywords or automatic HTTP/Spring configuration.
 Acceptance of policy is not acceptance of registration/authentication or any SaaS gate.
 

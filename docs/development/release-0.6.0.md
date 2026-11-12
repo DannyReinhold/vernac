@@ -522,3 +522,25 @@ The source is historical, finite common-password data, not complete/current HIBP
 coverage or a guarantee for unlisted passwords. Next: private credential/challenge and
 admission persistence, capacity/cleanup proofs, then mail/provisioning/session workflows.
 A01/A02 and full-SaaS/final manual acceptance remain OPEN.
+
+
+## Private persistent identity storage budgets
+
+A private Vernac IdentityCapacity model/repository and generated second module migration
+now back six fixed resource counters and their limits. The package-private JDBC helper
+requires the bound writer transaction, serializes metadata mutations with a PostgreSQL
+transaction lock, prechecks complete reservation/release bundles and uses normal generated
+version/timestamp persistence. Explicit operational changes preserve occupancy when limits
+are lowered; initialization never silently resets usage/configuration. A composition scope
+lets later lifecycle operations take the budget lock before record locks.
+
+Real PostgreSQL/Boot tests cover two-context last-slot races, shared identity-write rollback,
+restart, original-schema upgrade, transaction/source checks, limit/overflow handling, stale
+versions and sanitized storage failure/recovery. Existing identity tests share extracted
+fixture code; private-type import checks reject the imports themselves.
+
+This is storage-budget infrastructure, not completed credentials/challenges, public admission,
+per-record release idempotency, cleanup or mail/session flows. Capacity alone cannot prove
+which record was deleted: guarded transitions must be coupled in the same transaction in
+the next slices. Independent abuse attempts must not be refunded by business rollback.
+A01/A02, full anti-DoS registration coverage and whole-SaaS/manual acceptance remain OPEN.

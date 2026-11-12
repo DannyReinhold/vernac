@@ -97,3 +97,10 @@ Credential policy, canonical login identifiers, password hashes, verification an
 recovery tokens, registration, login/session infrastructure, memberships, roles and
 the final SaaS application remain unfinished. This provider does not close those
 release acceptance items.
+
+
+The private [identity storage-capacity foundation](saas-identity-capacity.md) now adds a
+second generated module migration and controlled internal storage-budget primitives.
+The export/provider contract above is unchanged; activating this module alone does not
+initialize budgets, install registration endpoints or implement the remaining anti-abuse
+lifecycle requirements.

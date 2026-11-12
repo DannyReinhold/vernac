@@ -136,7 +136,7 @@ class ReleaseTests(unittest.TestCase):
         nested.mkdir(parents=True)
         for name in release.REQUIRED_TESTS:
             if name in release.SAAS_IDENTITY_TESTS:
-                module = "identity-jdbc" if name == "IdentityJdbcModuleIT" else "identity" if name == "IdentityModuleContractIT" else "identity-spring-security"
+                module = "identity-jdbc" if name in ("IdentityJdbcModuleIT", "IdentityCapacityPostgresIT") else "identity" if name == "IdentityModuleContractIT" else "identity-spring-security"
                 kind = "failsafe-reports" if name.endswith("IT") else "surefire-reports"
                 report_dir = self.root / f"saas/{module}/target/{kind}"
                 report_dir.mkdir(parents=True, exist_ok=True)
