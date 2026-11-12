@@ -324,3 +324,17 @@ This does not implement production permission syntax/runtime, startup audits, id
 module metadata or generated adapter integration. A03/A04/A19/A20 and all full SaaS
 acceptance remain OPEN. Next implement the production actor/guard/Spring boundary,
 then compiler/module/editor and adapter integration with generated end-to-end tests.
+
+
+## Production actor/authorization runtime foundation
+
+[Java/Spring guard APIs](../contracts/usecase-authorization-runtime.md) now provide
+verified actor mapping, nominal permission/resource inputs, ordered pure requirement
+evaluation, immutable nested invocation frames, transaction prerequisites and explicit
+single-provider startup binding. HTTP/MVC authorization failures are terminal before
+generic policies/redisplay. Existing authorization PostgreSQL probes now exercise the
+production APIs rather than a parallel handwritten guard. This is partial evidence,
+not permission syntax/generated enforcement, module/editor support, identity or the
+SaaS reachable-usecase audit. A03/A04/A19/A20 and full release acceptance remain OPEN.
+Next: compiler/generator permission integration, then metadata/editor/activation audit
+and complete identity/membership/entitlement flows.

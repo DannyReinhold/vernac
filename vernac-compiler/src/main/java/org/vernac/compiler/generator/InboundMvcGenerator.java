@@ -284,6 +284,10 @@ public final class InboundMvcGenerator {
                         .addParameter(INPUTS, "inputs")
                         .addParameter(Exception.class, "error")
                         .addParameter(REQUEST, "request")
+                        .beginControlFlow("if ($T.authorizationReply(error).isPresent())", ERRORS)
+                        .addStatement("return $T.error($S, $T.defaultReply(error), inputs, error)",
+                                RESPONSES, adapter.errorView().orElseThrow(), ERRORS)
+                        .endControlFlow()
                         .beginControlFlow("try");
         for (var endpoint : adapter.endpoints())
             if (!endpoint.errorRules().isEmpty() || endpoint.errorImplementation().isPresent()) {

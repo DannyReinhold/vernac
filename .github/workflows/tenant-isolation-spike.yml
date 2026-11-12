@@ -45,11 +45,11 @@ jobs:
           distribution: temurin
           java-version: '25'
       - name: Build production runtime and run its unit tests
-        run: mvn -B -ntp -pl vernac-lsp,vernac-runtime-jdbc -am clean install
+        run: mvn -B -ntp -pl vernac-lsp,vernac-runtime-http,vernac-runtime-jdbc -am clean install
       - name: Execute real PostgreSQL and Spring boundary tests
         run: mvn -B -ntp -f experiments/tenant-isolation-spike/pom.xml clean verify
       - name: Execute tenant schema replay and schema-check policy proofs
-        run: mvn -B -ntp -pl vernac-maven-plugin -am -Dtest=TenantEventWorkerPostgresTest,EventSchemaPostgresTest,DocumentationExamplesTest,TenantSchemaPostgresTest,SchemaMojoTest,ExplicitTenancyMojoTest,TenantModuleActivationPostgresTest,TenantGeneratedPostgresTest,RepositoryQueryPostgresTest,ScalarQueryPostgresTest,ModuleMigrationPostgresTest,EventStoragePostgresTest,EventWorkerPostgresTest -Dsurefire.failIfNoSpecifiedTests=false test
+        run: mvn -B -ntp -pl vernac-maven-plugin -am -Dtest=InboundErrorPolicyExecutionTest,InboundMvcExecutionTest,TenantEventWorkerPostgresTest,EventSchemaPostgresTest,DocumentationExamplesTest,TenantSchemaPostgresTest,SchemaMojoTest,ExplicitTenancyMojoTest,TenantModuleActivationPostgresTest,TenantGeneratedPostgresTest,RepositoryQueryPostgresTest,ScalarQueryPostgresTest,ModuleMigrationPostgresTest,EventStoragePostgresTest,EventWorkerPostgresTest -Dsurefire.failIfNoSpecifiedTests=false test
       - name: Require every spike proof to execute
         run: |
           python3 - <<'PY'
@@ -116,6 +116,17 @@ jobs:
           for name, case in auth_cases.items():
               assert not any(case.find(tag) is not None for tag in ('skipped', 'failure', 'error')), f'Unverified authorization proof: {name}'
           print(f'{len(auth_cases)} authorization-entry feasibility proofs executed; none skipped.')
+          runtime_auth = {
+              'vernac-runtime/target/surefire-reports/TEST-org.vernac.runtime.authorization.AuthorizationGuardTest.xml': 9,
+              'vernac-runtime/target/surefire-reports/TEST-org.vernac.runtime.authorization.SpringAuthorizationTest.xml': 5,
+              'vernac-runtime-http/target/surefire-reports/TEST-org.vernac.runtime.http.AuthorizationHttpTest.xml': 3,
+          }
+          for path, expected_count in runtime_auth.items():
+              root = ET.parse(path).getroot()
+              assert len(root.findall('testcase')) >= expected_count, f'Missing runtime authorization proofs: {path}'
+              assert all(int(root.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
+              assert all(not any(c.find(k) is not None for k in ('failure', 'error', 'skipped')) for c in root.findall('testcase'))
+          print('Production authorization runtime/Spring/HTTP unit proofs executed; none skipped.')
           origin_report = Path('vernac-runtime/target/surefire-reports/TEST-org.vernac.runtime.events.EventOriginTest.xml')
           origin_result = ET.parse(origin_report).getroot()
           origin_expected = {
@@ -165,6 +176,12 @@ jobs:
                   assert not any(case.find(tag) is not None for tag in ('skipped', 'failure', 'error')), f'Unverified runtime proof: {name}'
           print('All production runtime foundation proofs executed; none skipped.')
           schema_proofs = {
+              'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.InboundErrorPolicyExecutionTest.xml': {
+                  'generatedPoliciesRunInMvcAndPreserveDefaultsWithoutPublishingExceptionMessages',
+              },
+              'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.InboundMvcExecutionTest.xml': {
+                  'authorizationBypassesCustomPoliciesAndRedisplayBeforeAnyLoaderRuns',
+              },
               'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.TenantEventWorkerPostgresTest.xml': {
                   'tenantModuleEventsSurviveRestartAndRetryWithRequiredWritesAndCleanPools',
                   'parallelWorkersUseDifferentTenantConnectionsAndPreserveOrigin',

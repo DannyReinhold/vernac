@@ -11,12 +11,11 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.vernac.runtime.tenancy.TenantContext;
 import org.vernac.runtime.tenancy.TenantId;
 
-/** Test-only application-owned filter chain and proposed shared terminal classifier. */
+/** Test-only application-owned filter chain using the production terminal classifier. */
 @Configuration(proxyBeanMethods = false)
 @EnableWebSecurity
 @EnableWebMvc
@@ -30,10 +29,10 @@ class AuthorizationWebProbe {
     }
 
     record PublicError(String code, String message) {}
-    static PublicError publicError(Code code) { return new PublicError(code.name(), "The operation could not be authorized."); }
     static void write(HttpServletResponse response, Code code) throws IOException {
-        response.setStatus(code.status); response.setContentType("application/json");
-        response.getWriter().write("{\"code\":\"" + code.name() + "\",\"message\":\"" + publicError(code).message() + "\"}");
+        var reply = org.vernac.runtime.http.inbound.InboundHttpErrors.defaultReply(Guard.productionFailure(code));
+        response.setStatus(reply.status()); response.setContentType("application/json");
+        response.getWriter().write("{\"code\":\"" + reply.code() + "\",\"message\":\"" + reply.message() + "\"}");
     }
     @RestController
     static class Controller {
@@ -54,13 +53,18 @@ class AuthorizationWebProbe {
         Errors(Trace trace) { this.trace = trace; }
         @ExceptionHandler(Failure.class)
         Object auth(Failure failure, jakarta.servlet.http.HttpServletRequest request) {
+            var error = Guard.productionFailure(failure.code);
+            var defaults = org.vernac.runtime.http.inbound.InboundHttpErrors.defaultReply(error);
             if (request.getRequestURI().equals("/mvc")) {
-                var view = new ModelAndView("access-denied");
-                view.setStatus(org.springframework.http.HttpStatus.valueOf(failure.code.status));
-                view.addObject("code", failure.code.name()); return view;
+                return org.vernac.runtime.http.inbound.MvcResponses.redisplay(() -> {
+                    trace.genericErrorHooks++; throw new AssertionError("Authorization must not redisplay");
+                }, defaults, org.vernac.runtime.http.inbound.MvcInputs.empty(), "access-denied", error);
             }
-            return ResponseEntity.status(failure.code.status).body(publicError(failure.code));
+            return org.vernac.runtime.http.inbound.InboundHttpErrors.respond(error, (endpoint, cause) -> {
+                trace.genericErrorHooks++; return new org.vernac.runtime.http.inbound.InboundHttpErrors.Reply(422, "CUSTOM", "Custom policy");
+            });
         }
+
         @ExceptionHandler(Exception.class)
         @ResponseBody
         ResponseEntity<PublicError> generic(Exception failure) {

@@ -1738,3 +1738,12 @@ migration preserves existing GLOBAL jobs. Rebuild matching producer/application/
 artifacts and stop older workers before enabling tenant traffic. Older storage adapters
 remain GLOBAL-only and are explicitly rejected/blocked for tenant work. Never add tenant
 factory arguments or infer a tenant for historical data. See the [event contract](contracts/events.md).
+
+
+## 0.6.0 Java authorization foundation (not DSL syntax)
+
+The [actor/authorization runtime](contracts/usecase-authorization-runtime.md) supplies
+Java guard/policy APIs, explicit Spring integration and terminal HTTP/MVC classification.
+Permission declarations and `requires` clauses are not implemented language syntax yet,
+and existing generated usecases are not automatically guarded. Do not generate that
+proposed syntax or claim an operation is secured merely because these APIs are present.

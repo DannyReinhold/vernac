@@ -94,7 +94,7 @@ class InboundMvcExecutionTest {
             """
             package fixture;
             public final class Probe {
-                public static int loads, submits;
+                public static int loads, submits, policies;
                 public static void main(String[] args) {
                     var events = new org.springframework.beans.factory.support.DefaultListableBeanFactory()
                         .getBeanProvider(org.vernac.runtime.events.EventHandler.class);
@@ -116,6 +116,8 @@ class InboundMvcExecutionTest {
                     submits++;
                     var context = org.vernac.runtime.ports.AdapterInvocation.create("Payments", "Remote", "charge");
                     switch (value) {
+                        case "auth-denied" -> throw new org.vernac.runtime.authorization.AuthorizationException(org.vernac.runtime.authorization.AuthorizationException.Code.ACCESS_DENIED);
+                        case "auth-unavailable" -> throw new org.vernac.runtime.authorization.AuthorizationException(org.vernac.runtime.authorization.AuthorizationException.Code.AUTHORIZATION_UNAVAILABLE);
                         case "invalid" -> throw new org.vernac.runtime.DomainValidationException("PRIVATE_DOMAIN_DETAIL");
                         case "bug" -> throw new IllegalStateException("PRIVATE_INTERNAL_DETAIL");
                         case "conflict" -> throw new org.springframework.dao.OptimisticLockingFailureException("PRIVATE_LOCK_DETAIL");
@@ -133,6 +135,7 @@ class InboundMvcExecutionTest {
             package fixture;
             public final class Policy {
                 public static org.vernac.runtime.http.inbound.InboundHttpErrors.Reply handle(String endpoint, Exception error) {
+                    Probe.policies++;
                     if (Probe.failPolicy) throw new IllegalStateException("PRIVATE_POLICY_DETAIL");
                     return new org.vernac.runtime.http.inbound.InboundHttpErrors.Reply(409,"CUSTOM_CONFLICT","Custom public message.");
                 }
@@ -448,6 +451,25 @@ class InboundMvcExecutionTest {
         } finally {
             logger.removeHandler(handler);
             logger.setUseParentHandlers(parents);
+        }
+    }
+
+    @Test
+    void authorizationBypassesCustomPoliciesAndRedisplayBeforeAnyLoaderRuns() throws Exception {
+        try (var f = fixture()) {
+            f.flag("failPolicy");
+            for (var route : List.of("/submit", "/custom")) {
+                for (var scenario : List.of(new String[]{"auth-denied", "403", "ACCESS_DENIED"},
+                        new String[]{"auth-unavailable", "503", "AUTHORIZATION_UNAVAILABLE"})) {
+                    var result = f.web.perform(post(route).contentType("application/x-www-form-urlencoded")
+                            .param("title", scenario[0]).param("password", "PRIVATE_PASSWORD"))
+                            .andExpect(status().is(Integer.parseInt(scenario[1])))
+                            .andExpect(view().name("problem")).andReturn();
+                    assertEquals(scenario[2], error(result).code());
+                    assertFalse(result.getModelAndView().getModel().containsKey("inputs"));
+                }
+            }
+            assertEquals(0, f.count("loads")); assertEquals(0, f.count("policies"));
         }
     }
 

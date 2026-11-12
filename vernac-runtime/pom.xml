@@ -22,6 +22,12 @@
     <description>Lightweight runtime interfaces and exceptions for Vernac applications</description>
 
     <dependencies>
+        <!-- Only needed when applications explicitly use the Spring Security actor adapter. -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-core</artifactId>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>org.jspecify</groupId>
             <artifactId>jspecify</artifactId>
