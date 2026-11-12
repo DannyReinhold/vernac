@@ -195,8 +195,9 @@ no loader runs. Generated HTTP policy tests preserve the auth defaults.
 
 Module permission/access metadata and compatibility are implemented; see the
 [module contract](module-authorization.md). Key/resource completion and native navigation now supplement the shared diagnostics.
-Still OPEN: installed-IDE acceptance;
-reachable-usecase audits; actual identity/
+The [explicit-access startup check](explicit-authorization.md) is available as an
+application opt-in. Still OPEN: installed-IDE acceptance; complete SaaS adoption of that
+check; actual identity/
 membership/role/subscription modules; safe operational correlation; full SaaS end-to-end
 acceptance. An existing operation with no requires clause is not secured merely by upgrading.
 A03/A04/A19/A20 and the [0.6.0 release gates](../development/release-0.6.0.md) remain OPEN.

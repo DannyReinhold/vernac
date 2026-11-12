@@ -14,11 +14,12 @@ import org.vernac.compiler.symbols.*;
 import org.vernac.language.VernacNames;
 
 /** Parsed application composition. No runtime effects or configuration access. */
-public record ApplicationDefinition(String name,List<Activation> activations,List<Binding> bindings,boolean explicitTenancy) {
+public record ApplicationDefinition(String name,List<Activation> activations,List<Binding> bindings,boolean explicitTenancy,boolean explicitAuthorization) {
     public static final String FILE="vernac-application.vapplication";
     public record Activation(String module,SourceLocation location) { }
     public record Binding(String port,String adapter,String property,SourceLocation location) { }
     public ApplicationDefinition(String name,List<Activation> activations,List<Binding> bindings) {this(name,activations,bindings,false);}
+    public ApplicationDefinition(String name,List<Activation> activations,List<Binding> bindings,boolean explicitTenancy) {this(name,activations,bindings,explicitTenancy,false);}
     public ApplicationDefinition {activations=List.copyOf(activations);bindings=List.copyOf(bindings);}
 
     public static ApplicationDefinition parse(Path path,String text) {
@@ -37,12 +38,15 @@ public record ApplicationDefinition(String name,List<Activation> activations,Lis
         if(!VernacNames.isNamespace(tree.name.getText()))errors.add(CompilerDiagnostic.error(header,"Invalid application identifier."));
         List<Activation> activations=new ArrayList<>();List<Binding> bindings=new ArrayList<>();
         Set<String> modules=new HashSet<>(),ports=new HashSet<>();
-        boolean explicitTenancy=false;
+        boolean explicitTenancy=false,explicitAuthorization=false;
         for(var entry:tree.applicationEntry()) {
             var location=new SourceLocation(path.toString(),entry.getStart().getLine(),entry.getStart().getCharPositionInLine()+1);
             if(entry.tenancyDeclaration()!=null) {
                 if(explicitTenancy)errors.add(CompilerDiagnostic.error(location,"Duplicate tenancy declaration."));
                 explicitTenancy=true;
+            } else if(entry.authorizationDeclaration()!=null) {
+                if(explicitAuthorization)errors.add(CompilerDiagnostic.error(location,"Duplicate authorization declaration."));
+                explicitAuthorization=true;
             } else if(entry.moduleName!=null) {
                 String name=entry.moduleName.getText();qualified(name,location,errors);
                 if(!modules.add(name))errors.add(CompilerDiagnostic.error(location,"Duplicate module activation: "+name));
@@ -62,7 +66,7 @@ public record ApplicationDefinition(String name,List<Activation> activations,Lis
             }
         }
         if(!errors.isEmpty())throw new SemanticValidationException(errors);
-        return new ApplicationDefinition(tree.name.getText(),activations,bindings,explicitTenancy);
+        return new ApplicationDefinition(tree.name.getText(),activations,bindings,explicitTenancy,explicitAuthorization);
     }
     private static void qualified(String name,SourceLocation at,List<CompilerDiagnostic> errors) {
         if(!VernacNames.isNamespace(name)||!name.contains("."))errors.add(CompilerDiagnostic.error(at,"Expected a fully qualified identity: "+name));

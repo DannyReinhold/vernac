@@ -49,7 +49,7 @@ jobs:
       - name: Execute real PostgreSQL and Spring boundary tests
         run: mvn -B -ntp -f experiments/tenant-isolation-spike/pom.xml clean verify
       - name: Execute tenant schema replay and schema-check policy proofs
-        run: mvn -B -ntp -pl vernac-maven-plugin -am -Dtest=InboundErrorPolicyExecutionTest,InboundMvcExecutionTest,TenantEventWorkerPostgresTest,EventSchemaPostgresTest,DocumentationExamplesTest,TenantSchemaPostgresTest,SchemaMojoTest,ExplicitTenancyMojoTest,TenantModuleActivationPostgresTest,TenantGeneratedPostgresTest,RepositoryQueryPostgresTest,ScalarQueryPostgresTest,ModuleMigrationPostgresTest,EventStoragePostgresTest,EventWorkerPostgresTest -Dsurefire.failIfNoSpecifiedTests=false test
+        run: mvn -B -ntp -pl vernac-maven-plugin -am -Dtest=UseCaseAccessAuditExecutionTest,VernacCompileMojoTest,TypeModuleExecutionTest,ModulePersistenceMojoTest,InboundErrorPolicyExecutionTest,InboundMvcExecutionTest,TenantEventWorkerPostgresTest,EventSchemaPostgresTest,DocumentationExamplesTest,TenantSchemaPostgresTest,SchemaMojoTest,ExplicitTenancyMojoTest,TenantModuleActivationPostgresTest,TenantGeneratedPostgresTest,RepositoryQueryPostgresTest,ScalarQueryPostgresTest,ModuleMigrationPostgresTest,EventStoragePostgresTest,EventWorkerPostgresTest -Dsurefire.failIfNoSpecifiedTests=false test
       - name: Require every spike proof to execute
         run: |
           python3 - <<'PY'
@@ -142,6 +142,7 @@ jobs:
               assert not any(case.find(k) is not None for k in ('failure', 'error', 'skipped')), f'Unverified module authorization proof: {name}'
           print(f'{len(module_cases)} module-JAR/Spring/PostgreSQL authorization proofs executed; none skipped.')
           runtime_auth = {
+              'vernac-runtime/target/surefire-reports/TEST-org.vernac.runtime.authorization.UseCaseAccessAuditTest.xml': 4,
               'vernac-runtime/target/surefire-reports/TEST-org.vernac.runtime.authorization.AuthorizationGuardTest.xml': 9,
               'vernac-runtime/target/surefire-reports/TEST-org.vernac.runtime.authorization.SpringAuthorizationTest.xml': 5,
               'vernac-runtime-http/target/surefire-reports/TEST-org.vernac.runtime.http.AuthorizationHttpTest.xml': 3,
@@ -201,6 +202,26 @@ jobs:
                   assert not any(case.find(tag) is not None for tag in ('skipped', 'failure', 'error')), f'Unverified runtime proof: {name}'
           print('All production runtime foundation proofs executed; none skipped.')
           schema_proofs = {
+              'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.UseCaseAccessAuditExecutionTest.xml': {
+                  'generatedLocalAuditRejectsOmissionBeforeAcceptingAnExplicitPublicEntry',
+                  'activatedModulesIncludePrivateUsecasesButInactiveTypeDependenciesDoNot',
+                  'ordinaryApplicationsRetainOmittedClauseBehavior',
+                  'modulesCannotPublishAnApplicationOwnedAuditSwitch',
+                  'historyOnlyPublicationRetainsPrivateAccessAndVocabulary',
+              },
+              'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.TypeModuleExecutionTest.xml': {
+                  'exportedEventsReachOnlyActivatedSynchronousReceiversInTheCallingTransaction',
+              },
+              'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.VernacCompileMojoTest.xml': {
+                  'auditOnlyCompositionPublishesAndRemovesItsSpringImports(Path)',
+              },
+              'vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.application.ApplicationDefinitionTest.xml': {
+                  'authorizationAuditIsExplicitIndependentOfTenancyAndApplicationOnly',
+              },
+              'vernac-lsp/target/surefire-reports/TEST-org.vernac.lsp.ApplicationDefinitionSymbolsTest.xml': {
+                  'completesTheApplicationAuthorizationPolicyWithoutChangingModuleSyntax',
+              },
+
               'vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.authorization.AuthorizationLanguageTest.xml': {
                   'emitsTechnicalPermissionEnumsAndNominalGuardBeforeValidationAndImplementation',
                   'modulePublicationRetainsPermissionAndPublicAccessContracts',

@@ -114,8 +114,8 @@ there is no automatic all-powerful system user.
   aborts even inside any.
 
 A missing clause retains existing behavior; it is not an explicit public classification.
-The planned SaaS exposure audit is not implemented yet, so review reachable usecases
-rather than assuming an omitted clause is detected automatically.
+To detect accidental omissions among registered generated usecases, enable the
+explicit-access check below. Without that switch, omission remains compatible.
 
 ## Nested operations and failures
 
@@ -182,3 +182,34 @@ module permissions without source attachments; member navigation uses the read-o
 contract view. Unsaved changes update suggestions and diagnostics. Generation is not
 needed for these source-level operations. The final packaged-plugin acceptance remains
 a release check; automated compiler/LSP coverage does not replace it.
+
+
+## Make omissions visible before serving requests
+
+Place this in `vernac-application.vapplication` beside the application POM:
+
+```vernac-application
+application example.app {
+    authorization explicit;
+}
+```
+
+Rebuild and start normally. Vernac includes the check through its generated Spring
+configuration; no hand-written Java setup is needed. A registered usecase with no
+requires clause stops normal startup and names the missing operation. Choose public
+only if public access is intentional; otherwise use authenticated or a permission
+requirement. Fixing this metadata does not grant rights or replace the policy.
+
+Private usecases inside activated modules also count. Inactive type dependencies do
+not: merely importing a value or permission key does not expose the producer's
+operations. The check uses registered types after activation/profile/provider selection,
+not guesses about which Java branch a user might execute. Every reached inner call
+still performs its usual runtime check.
+
+This switch is independent of `tenancy explicit;`; a SaaS assembly should enable both.
+The future complete SaaS starter will connect this to identity and entitlement setup.
+Ordinary applications retain their current behavior unless they opt in. A type-opaque
+custom lazy FactoryBean is checked when its product becomes available, which can be
+later than startup; normal generated definitions are checked before construction.
+See the [exact startup contract](../contracts/explicit-authorization.md) for discovery
+boundaries. PR review is not a substitute for the final assembled application's tests.

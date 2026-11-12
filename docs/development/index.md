@@ -38,6 +38,9 @@ For a guide across all documentation, use the [documentation map](../documentati
 
 ## Current priorities
 
+- [Explicit application access](../contracts/explicit-authorization.md): implemented
+  startup inventory checks; complete SaaS assembly adoption remains required.
+
 - [Production authorization runtime](../contracts/usecase-authorization-runtime.md):
   actor/policy SPI, ordered guard, explicit Spring binding and terminal HTTP/MVC handling;
   local and module permission contracts are implemented; key/resource completion is implemented; installed-IDE acceptance and SaaS identity remain OPEN.

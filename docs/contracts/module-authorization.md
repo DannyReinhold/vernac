@@ -40,7 +40,7 @@ OMITTED. A usecase preserves one of:
 | PERMISSION | Qualified permission identity, member, optional input name and nominal input type |
 | ALL / ANY | Ordered, nonempty child trees; ordinary short-circuit rules |
 
-PUBLIC and OMITTED MUST remain distinguishable for later exposure inspection. Group
+PUBLIC and OMITTED MUST remain distinguishable for explicit-access inspection. Group
 order MUST remain significant: policy evaluation is ordered. An `on` reference MUST
 bind to an existing required nominal ID/VO/enum input. Input name, optionality, page
 shape and nominal type are checked; matching underlying UUIDs do not substitute for types.
@@ -104,7 +104,9 @@ and CSRF. Importing a module installs neither an allow-all policy nor a filter c
 Producers and dependent consumers MUST be rebuilt with matching tools after upgrading
 from earlier development metadata. Do not rewrite frozen SQL, Flyway history or schema
 snapshots merely for module-contracts-11: the persistence bundle format remains version 1
-and this security metadata change alone creates no database column. Model/storage changes
+and this security metadata change alone creates no database column.
+Retaining a module migration history after its last current table is removed MUST
+retain vocabulary and public/internal access inventories too. Model/storage changes
 still require the ordinary reviewed migration workflow.
 
 Read-only contract views reconstruct permission declarations and usecase requirements.
@@ -118,5 +120,5 @@ and malformed metadata. LSP tests check imported vocabulary, read-only navigatio
 unsaved member diagnostics. ModuleAuthorizationPostgresTest packages and loads a real
 producer JAR, activates it through generated bindings and checks actor/tenant/REQUIRED
 behavior using PostgreSQL. CI requires the named cases to execute without skips.
-These proofs do not complete identity/membership/role policies, SaaS reachable-usecase
-exposure audits, quotas or the full 0.6.0 release acceptance.
+These proofs do not complete identity/membership/role policies, the full SaaS assembly,
+quotas or the full 0.6.0 release acceptance.

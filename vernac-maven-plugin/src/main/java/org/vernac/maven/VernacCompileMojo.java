@@ -135,7 +135,7 @@ public class VernacCompileMojo extends AbstractMojo {
                     var bundle=ModulePersistence.prepare(published.module(),expected,sourceHistory,sql);
                     ModulePersistence.verify(bundle.descriptor(),bundle.resources());
                     ModulePersistenceResources.write(project,base.resolve("target/generated-resources/vernac-module-persistence"),bundle);
-                    if(!published.persistent())published=new ModuleDescriptor(published.formatVersion(),published.contractVersion(),published.module(),published.groupId(),published.artifactId(),published.version(),published.exports(),published.externalContracts(),published.internalTypes(),published.components(),true);
+                    if(!published.persistent())published=published.withPersistentHistory();
                 }
 
             }

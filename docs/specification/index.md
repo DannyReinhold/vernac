@@ -87,3 +87,6 @@ across behavior, usecases, services, listeners and adapters.
 - [Explicit persistence classification](../contracts/explicit-tenancy.md): source-controlled tenancy rule and explicit global aggregates; tenant generation remains in progress.
 
 - [Usecase authorization](../contracts/usecase-authorization.md): 0.6.0 permission/requires syntax and generated Spring guard; with [module security contracts](../contracts/module-authorization.md).
+
+- [Explicit usecase access at startup](../contracts/explicit-authorization.md):
+  application-owned inspection after component activation (0.6.0 development).

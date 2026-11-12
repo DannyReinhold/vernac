@@ -46,6 +46,9 @@ class AuthorizationModuleTest {
         assertEquals("library.core.InvoiceId",requirement.children().getFirst().resourceType());
         var decoded=ModuleDescriptor.JSON.readValue(ModuleDescriptor.JSON.writeValueAsString(module),ModuleDescriptor.class);
         assertEquals(module,decoded); assertEquals(requirement,decoded.usecaseAccess().getFirst().requirement());
+        var historical=decoded.withPersistentHistory();assertTrue(historical.persistent());
+        assertEquals(decoded.usecaseAccess(),historical.usecaseAccess());assertEquals(decoded.vocabulary(),historical.vocabulary());
+        ModuleContracts.checkDependencies(List.of(historical));
     }
     @Test void importsRestoreGuardsAndPermissionTypesWithoutRegeneratingProducerCode() throws Exception {
         var module=provider(MODEL,"1");

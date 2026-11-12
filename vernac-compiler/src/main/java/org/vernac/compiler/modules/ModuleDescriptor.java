@@ -19,6 +19,11 @@ public record ModuleDescriptor(int formatVersion,String contractVersion,String m
             List<Definition> exports,List<Requirement> externalContracts,List<String> internalTypes,List<Component> components,boolean persistent) {
         this(formatVersion,contractVersion,module,groupId,artifactId,version,exports,externalContracts,internalTypes,components,persistent,List.of());
     }
+    /** Retain the runtime/history obligation after the last current storage component is removed. */
+    public ModuleDescriptor withPersistentHistory() {
+        return new ModuleDescriptor(formatVersion,contractVersion,module,groupId,artifactId,version,exports,externalContracts,
+                internalTypes,components,true,vocabulary,usecaseAccess);
+    }
     public boolean activatable() {
         return persistent || components.stream().anyMatch(c->org.vernac.runtime.application.ActivationPlan.isFunctionalKind(c.kind()));
     }

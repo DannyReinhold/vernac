@@ -19,6 +19,21 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class VernacCompileMojoTest {
 
+    @Test void auditOnlyCompositionPublishesAndRemovesItsSpringImports(@TempDir Path temporary) throws Exception {
+        Path source=temporary.resolve("src/main/vernac/example/model.vernac");Files.createDirectories(source.getParent());
+        Files.writeString(source,"namespace example; usecase Work() requires public behavior {execute {}}");
+        Path application=temporary.resolve("vernac-application.vapplication");
+        Files.writeString(application,"application example.app {authorization explicit;}");
+        var project=new MavenProject();project.setFile(temporary.resolve("pom.xml").toFile());
+        var mojo=new VernacCompileMojo();mojo.setProject(project);mojo.setSourceDirectory(temporary.resolve("src/main/vernac").toFile());
+        Path output=temporary.resolve("target/generated-sources/vernac");mojo.setOutputDirectory(output.toFile());mojo.execute();
+        Path imports=temporary.resolve("target/generated-resources/vernac-application").resolve(org.vernac.compiler.application.ApplicationBindings.IMPORTS);
+        assertThat(Files.readString(imports)).contains("example.app.configuration.__VernacApplication");
+        assertThat(Files.readString(output.resolve("example/app/configuration/__VernacApplication.java"))).contains("UseCaseAccessAudit.verify");
+        Files.writeString(application,"application example.app {}");mojo.execute();assertThat(Files.exists(imports)).isFalse();
+        assertThat(Files.exists(output.resolve("example/app/configuration/__VernacApplication.java"))).isFalse();
+    }
+
     @Test
     void debuggerExampleKeepsAdapterAndListenerMappingsThroughMavenComposition(@TempDir Path temporary) throws Exception {
         Path input=Path.of("../examples/debugger/src/main/vernac");
