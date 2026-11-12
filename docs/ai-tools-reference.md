@@ -12,6 +12,12 @@ application's requirements. It is a workflow reference, not additional syntax.
 
 </details>
 
+The supported application stack is Java/Spring Boot. Preserve its dependency
+injection, transaction, adapter and runtime integration; compiling a domain type or
+running a plain Java test does not verify a framework-independent application path.
+Do not replace Spring Boot with another framework based on the separation of Maven
+artifacts. See the [platform scope](faq/index.md#does-vernac-support-applications-without-spring-boot).
+
 ## Locate the project and respect its configuration
 
 Run commands from the directory containing the application's POM. A standalone

@@ -312,3 +312,15 @@ and return guards, not just tenant predicates or post-hoc metadata. Current repo
 syntax exposes only declarative find methods; the general extension SPI is not yet
 implemented. These are required A22/A23 work, alongside A04/A09/A15/A18/A19/A20, and
 must be reconciled in the final completeness review before release.
+
+
+## Authorization entry feasibility evidence
+
+The [test-only Spring authorization experiment](authorization-entry-spike.md) verifies
+body-guard ordering, conditional nested checks, REQUIRED rollback, scoped MANDATORY
+policy reads, anonymous rejection, all/any failure semantics and candidate HTTP/MVC
+classification. Nine new proofs join the twenty-one existing experiment tests.
+This does not implement production permission syntax/runtime, startup audits, identity,
+module metadata or generated adapter integration. A03/A04/A19/A20 and all full SaaS
+acceptance remain OPEN. Next implement the production actor/guard/Spring boundary,
+then compiler/module/editor and adapter integration with generated end-to-end tests.

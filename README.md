@@ -2,16 +2,21 @@
 
 **Model your domain. Make its architecture executable.**
 
-Vernac is an architecture language for Java applications built around Domain-Driven
-Design. Describe values, identity, aggregate boundaries, application operations and
+Vernac is an architecture language for Java/Spring Boot applications built around
+Domain-Driven Design. Describe values, identity, aggregate boundaries, application operations and
 external capabilities in one coherent model. The compiler generates Java classes,
 Spring transaction boundaries, JDBC repositories and outbound adapters that follow
 those decisions.
 
 Business behavior stays Java: write it inside a `behavior` block or delegate to a
 handwritten class. Read the generated code, test it with ordinary Java tools, and
-use it alongside an existing application. No ORM, reflective domain model or separate
+use it alongside an existing Spring Boot application. No ORM, reflective domain model or separate
 runtime language is required.
+
+The supported application stack is **Spring Boot**: generated application services,
+transaction boundaries, adapters and runtime integration use Spring. Individual domain
+types can be tested without starting a Spring context; this is not a promise of a
+Spring-independent application runtime. See the [platform scope](docs/faq/index.md#does-vernac-support-applications-without-spring-boot).
 
 ## Clean architecture is useful before a project becomes large
 

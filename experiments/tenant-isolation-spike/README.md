@@ -59,7 +59,7 @@ docker compose -f .\experiments\tenant-isolation-spike\compose.yaml down
 `TenantBoundary` uses production TenantContext/TenantId for selection and the Spring
 transaction pin; InvoiceStore uses production TenantOwnership. Its JDBC connection/
 RLS/repository code remains a candidate, not the production storage adapter. The fixture's `tenant_id`
-column is a test convenience; production mapping will use the agreed technical name.
+column is a test convenience; production mapping uses its separately specified technical column names.
 No public API or production-class placement is established by these test helpers.
 
 ## What it does not prove
@@ -67,9 +67,9 @@ No public API or production-class placement is established by these test helpers
 It does not implement or verify production code generation, exported module metadata,
 cursor encryption/binding, complete aggregate graphs/orphan cleanup, full entity
 provenance/factory integration, migrations/schema-check, production event claim/payload routing,
-HTTP/MVC/CSRF behavior, quotas, email, billing or a SaaS Wizard. Those remain separate
-OPEN requirements, even if this experiment is green. There is no broad all/any policy
-engine, immutable actor-context model or production startup-audit implementation here.
+generated HTTP/MVC/CSRF integration, quotas, email, billing or a SaaS Wizard. Those remain separate
+OPEN requirements, even if this experiment is green. There is no production all/any policy engine, actor-context model or startup-audit
+implementation here. The separate authorization-entry candidate below is test-only.
 
 The separate CI workflow runs this project with a disposable service and rejects
 missing/failed/skipped required test cases. See the
@@ -84,12 +84,28 @@ handwritten schema and repository SQL remain experimental. The original suite ex
 
 A second, test-only suite implements the [event routing candidate](../../docs/development/tenant-event-routing-contract.md).
 It uses a handwritten mixed-origin payload graph and control-plane delivery queue,
-not JdbcEventStore/JdbcEventWorker or generated event adapters. Production durable
-tenant emission remains rejected.
+not JdbcEventStore/JdbcEventWorker or generated event adapters. Production durable tenant events are now implemented separately; see the
+[tenant events tutorial](../../docs/tutorials/tenant-events.md). This experiment is not
+the evidence for generated production delivery.
 
 Seven proofs cover the nullable composite-FK gap, origin-qualified children, mixed
 RLS/exact-origin loading, atomic publication/fixed recipients, per-recipient retry
 after pool recreation, stale-token rollback/final-attempt recovery, parallel workers
-and contaminated global sessions. The same Maven command runs both suites (21 tests in total); missing
+and contaminated global sessions. The original two suites contain 21 tests; missing
 PostgreSQL configuration fails rather than skips. The CI gate names every required
 proof. The original limitations above still apply to production event integration.
+
+
+## Authorization entry experiment
+
+Nine additional tests exercise the proposed body guard with Spring REQUIRED/MANDATORY,
+typed resource facts, all/any short-circuit and technical failures, nested actor/tenant
+retention, executor cleanup and real MockMvc/Spring Security filter-chain boundaries.
+The complete Maven command now runs **30 tests**. CSRF remains active, and policies
+read through the restricted-role tenant boundary. No new production authorization
+syntax, startup audit or public runtime API is supplied by these handwritten fixtures.
+
+See the [evidence and remaining production work](../../docs/development/authorization-entry-spike.md).
+Missing database configuration fails the suite; CI also checks the nine required case
+names and rejects skips. To focus locally, add `-Dtest=AuthorizationEntryPostgresTest`
+to the existing Maven command. Run the full suite for PR verification.

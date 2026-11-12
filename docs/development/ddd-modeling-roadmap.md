@@ -74,3 +74,13 @@ that a namespace or Maven module is a bounded context. SaaS-specific capabilitie
 are now part of the coordinated [0.6.0 SaaS objective](saas-0.6.0-plan.md).
 Core/extension packaging remains open; the full outcome is required regardless of
 repository boundaries.
+
+
+## Long-term platform architecture investigation
+
+Vernac currently builds Java/Spring Boot applications. Consider a deliberate split
+between framework-neutral mechanisms and Spring-specific generation/runtime only as
+a distant architecture investigation, after the current language/SaaS priorities.
+It is not 0.6.0 scope or a promise of another backend. Preserve plain domain testing
+without confusing it with Spring-independent application support. See the
+[compiler platform guidance](compiler-architecture.md#supported-platform-and-future-separation).

@@ -2,6 +2,20 @@
 
 This is implementation guidance, not an alternative language contract.
 
+## Supported platform and future separation
+
+Vernac currently targets Java/Spring Boot applications. Spring dependency injection,
+transaction semantics, web adapters and runtime/module/event integration are part of
+the supported implementation, including the developing authorization boundary.
+Separating Maven artifacts and keeping business concepts free of transport concerns
+does not imply a replaceable application framework backend. Plain domain unit tests
+remain useful without starting a Spring context.
+
+A framework-neutral generation/runtime boundary may be investigated as a long-term
+architecture direction. It is not part of 0.6.0 acceptance and must not be advertised
+as currently supported. Such work would need explicit semantics, backend contracts
+and equivalent integration tests before another platform could be promised.
+
 ## Project analysis
 
 The loader discovers .vernac files below a source root, parses namespace declarations

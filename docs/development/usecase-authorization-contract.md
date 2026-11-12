@@ -392,9 +392,11 @@ opacity; and terminal auth handling before existing adapter error customization.
 These choices refine agreed principles but have not been silently approved by the
 previous plan merge. Resolve objections before compiler implementation.
 
-Next PR: a small executable Spring integration spike proving AUTH-03/04/06/07 against
-the actual managed dependency versions. Only after it passes should implementation
-PRs modify the production grammar, generator, metadata, runtime and user references.
+The [authorization-entry experiment](authorization-entry-spike.md) now provides partial
+AUTH-03/04/06/07 evidence against the managed dependency versions. It is handwritten,
+test-only code, not generated enforcement or a complete startup/web-security audit.
+Next PRs implement production runtime/Spring integration, then grammar, generator,
+metadata and tooling, retaining the full acceptance requirements above.
 Reference sources (not proof that the spike has run):
 - [Spring Security method-security design](https://docs.spring.io/spring-security/reference/servlet/authorization/method-security.html)
 - [Spring Security 6.4.2 authorization SPI](https://github.com/spring-projects/spring-security/blob/6.4.2/core/src/main/java/org/springframework/security/authorization/AuthorizationManager.java)
