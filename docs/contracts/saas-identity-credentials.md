@@ -3,13 +3,11 @@ title: SaaS identity credential and browser-flow policy
 ---
 # SaaS identity credential and browser-flow policy
 
-Status: **D14 decision proposal for 0.6.0**, not implemented runtime functionality.
-This PR is the review boundary required by the
-[identity lifecycle plan](../development/identity-membership-0.6.0.md).
-Merging the proposal accepts the policy baseline for subsequent implementation;
-it does not mark registration, authentication or any SaaS acceptance gate complete.
-No configuration keys, Java APIs, HTTP routes or new language keywords are introduced
-by this document. Code names below describe responsibilities, not callable APIs.
+Status: **D14 policy accepted for 0.6.0** through PR #33. Implementation is partial:
+[credential primitives](saas-credential-primitives.md) are available, while public flows,
+persistence, mail, admission/cleanup and session integration remain unfinished.
+This policy introduces no new language keywords or automatic HTTP/Spring configuration.
+Acceptance of policy is not acceptance of registration/authentication or any SaaS gate.
 
 The existing [identity contracts](saas-identity-foundation.md) and
 [optional JDBC directory](saas-identity-jdbc.md) remain the implemented foundations.

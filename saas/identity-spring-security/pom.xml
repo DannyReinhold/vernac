@@ -1,16 +1,50 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <!-- Copyright 2026 Danny Reinhold; SPDX-License-Identifier: Apache-2.0 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <parent><groupId>org.vernac</groupId><artifactId>vernac</artifactId><version>${revision}</version><relativePath>../../pom.xml</relativePath></parent>
+    <parent>
+        <groupId>org.vernac</groupId>
+        <artifactId>vernac</artifactId>
+        <version>${revision}</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
     <artifactId>vernac-saas-identity-spring-security</artifactId>
     <name>Vernac SaaS Identity Spring Security</name>
     <description>Explicit human principal and live enabled-identity adapter for Spring Security</description>
+    <properties>
+        <identity.bouncycastle.version>1.86</identity.bouncycastle.version>
+    </properties>
     <dependencies>
-        <dependency><groupId>org.vernac</groupId><artifactId>vernac-saas-identity</artifactId></dependency>
-        <dependency><groupId>org.vernac</groupId><artifactId>vernac-runtime</artifactId></dependency>
-        <dependency><groupId>org.springframework.security</groupId><artifactId>spring-security-core</artifactId></dependency>
-        <dependency><groupId>org.springframework</groupId><artifactId>spring-tx</artifactId><scope>test</scope></dependency>
-        <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
+        <dependency>
+            <groupId>org.vernac</groupId>
+            <artifactId>vernac-saas-identity</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.vernac</groupId>
+            <artifactId>vernac-runtime</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>${identity.bouncycastle.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

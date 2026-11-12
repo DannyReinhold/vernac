@@ -100,6 +100,11 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>0.6.0 development — Credential primitives</h3>
+<p>The optional Spring identity artifact now includes validated login keys, Unicode-aware
+password rules, explicit offline blocklist loading and real Spring Argon2id operations.
+No automatic login or registration endpoints are added; full SaaS integration is ongoing.</p>
+
 <h3>0.6.0 development — Optional persistent identity directory</h3>
 <p>A separately selected JDBC identity provider adds internal status persistence and
 module-owned migrations. Transactional lookups support the existing live-status actor

@@ -153,6 +153,34 @@ jobs:
               assert not any(case.find(k) is not None for k in ('failure', 'error', 'skipped')), f'Unverified module authorization proof: {name}'
           print(f'{len(module_cases)} module-JAR/Spring/PostgreSQL authorization proofs executed; none skipped.')
           saas_proofs = {
+              'saas/identity-spring-security/target/surefire-reports/TEST-org.vernac.saas.identity.security.credentials.LoginAddressTest.xml': {
+                  'preservesDeliveryAndMakesOnlyTheDeclaredLoginKeyTransformation',
+                  'localeDoesNotChangeLoginIdentity',
+                  'boundsAddressLocalPartAndDnsLabelsPrecisely',
+                  'rejectsUnsupportedAndHeaderLikeInputWithoutEchoingIt',
+                  'representationsDoNotExposeTheAddress',
+              },
+              'saas/identity-spring-security/target/surefire-reports/TEST-org.vernac.saas.identity.security.credentials.PasswordInputTest.xml': {
+                  'countsUnicodeScalarsAndAppliesNfcWithoutTrimmingOrCaseFolding',
+                  'rejectsEveryLengthAndUnicodeBoundaryWithoutEchoOrCause',
+                  'oversizedSequenceIsRejectedBeforeItIsMaterialized',
+                  'loginNormalizationDoesNotApplyCreationMinimumOrCompositionRules',
+              },
+              'saas/identity-spring-security/target/surefire-reports/TEST-org.vernac.saas.identity.security.credentials.OfflinePasswordBlocklistTest.xml': {
+                  'loadsOnlyTheVerifiedVersionedCorpusAndMatchesWholeNormalizedPasswords',
+                  'rejectsEmptyTinyWrongCountAndShortOnlyCorpora',
+                  'rejectsIntegrityMismatchMalformedUtf8AndDuplicateNormalizedEntries',
+                  'boundsResourceSizeAndAlwaysClosesTheInputWithoutRetainingReadErrors',
+                  'rejectsUnsafeOrUnversionedManifestWithoutEchoingMetadata',
+              },
+              'saas/identity-spring-security/target/surefire-reports/TEST-org.vernac.saas.identity.security.credentials.CredentialPasswordsTest.xml': {
+                  'writesVersionedSaltedArgon2idCompatibleWithTheRealSpringEncoder',
+                  'normalizesNfcButPreservesCaseAndWhitespaceInRealHashes',
+                  'enforcesEnrollmentPolicyButDoesNotApplyTheCurrentCorpusAtLogin',
+                  'rejectsMalformedAndExcessiveStoredWorkBeforeInvokingArgon2',
+                  'unknownSubjectWorkloadCannotReturnAnAuthenticationDecision',
+                  'sharedServiceDoesNotMixConcurrentSecrets',
+              },
               'saas/identity/target/failsafe-reports/TEST-org.vernac.saas.identity.IdentityModuleContractIT.xml': {
                   'actualProducerJarExportsOnlyNominalContractsWithoutActivationOrRegeneration',
               },

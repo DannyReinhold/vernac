@@ -96,4 +96,6 @@ across behavior, usecases, services, listeners and adapters.
 
 - [Optional JDBC identity directory](../contracts/saas-identity-jdbc.md): explicit persistent status lookup and module-owned migration; registration remains OPEN.
 
-- [SaaS credential policy proposal](../contracts/saas-identity-credentials.md): D14 review baseline for registration, passwords, one-time actions and browser sessions; not implemented APIs.
+- [SaaS credential policy](../contracts/saas-identity-credentials.md): accepted D14 policy for registration, passwords, one-time actions and browser sessions; delivery remains partial.
+
+- [Credential primitives](../contracts/saas-credential-primitives.md): implemented optional Java parsing, corpus and Spring password operations; not a complete login system.

@@ -30,4 +30,6 @@ Use the specification index for the full feature catalog. In this revision:
 
 - [Optional JDBC identity directory](saas-identity-jdbc.md): explicit persistent status lookup and module-owned migration; registration remains OPEN.
 
-- [SaaS credential policy proposal](saas-identity-credentials.md): D14 review baseline for registration, passwords, one-time actions and browser sessions; not implemented APIs.
+- [SaaS credential policy](saas-identity-credentials.md): accepted D14 policy for registration, passwords, one-time actions and browser sessions; delivery remains partial.
+
+- [Credential primitives](saas-credential-primitives.md): implemented optional Java parsing, corpus and Spring password operations; not a complete login system.

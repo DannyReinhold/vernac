@@ -38,7 +38,9 @@ REQUIRED_TESTS = ("AdapterBindingsTest","PortModuleTest", "PortModuleSymbolsTest
     "DocumentationExamplesTest", "InboundHttpContractTest", "InboundHttpExecutionTest",
     "InboundHttpRuntimeTest", "InboundHttpSymbolsTest", "PaginationTest", "JdbcCursorCodecTest", "PaginationHttpExecutionTest", "JsonPagesTest", "PaginationResultContractTest")
 
-REQUIRED_TESTS += ("IdentityModuleContractIT", "IdentityActorResolverTest", "IdentityPrincipalTest", "IdentityJdbcModuleIT")
+SAAS_IDENTITY_TESTS = ("IdentityModuleContractIT", "IdentityActorResolverTest", "IdentityPrincipalTest", "IdentityJdbcModuleIT",
+                   "LoginAddressTest", "PasswordInputTest", "OfflinePasswordBlocklistTest", "CredentialPasswordsTest")
+REQUIRED_TESTS += SAAS_IDENTITY_TESTS
 
 # 0.4.0 acceptance: module contracts/lifecycle, pagination, vocabulary and diagrams.
 REQUIRED_TESTS += (
