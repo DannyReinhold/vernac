@@ -8,7 +8,7 @@ Maven artifacts, not extra compiler keywords or dependencies of the general runt
 | --- | --- |
 | `org.vernac:vernac-saas-identity` | Nominal UserId, identity status vocabulary and trusted IdentityDirectory port; published Vernac module contracts |
 | `org.vernac:vernac-saas-identity-spring-security` | Explicit principal/live-status ActorResolver and credential parsing/corpus/real encoder primitives |
-| `org.vernac:vernac-saas-identity-jdbc` | Explicit optional persistent status directory; internal repositories, private storage budgets/one-time challenges and separate module migrations |
+| `org.vernac:vernac-saas-identity-jdbc` | Explicit optional persistent status directory; internal repositories, private storage budgets/one-time challenges/global admission and separate module migrations |
 
 The module identity is `vernac.saas.identity`. Import exported definitions under
 `org.vernac.saas.identity`, not the module identifier. Type-only use needs no activation.
@@ -50,3 +50,7 @@ The [private capacity ledger](../docs/contracts/saas-identity-capacity.md) is th
 persistent budget foundation. The [private challenge lifecycle](../docs/contracts/saas-identity-challenges.md) now couples
 actual challenge rows and budget slots atomically. Registration/mail accounting and
 complete lifecycle/admission/cleanup proofs remain required.
+
+The [private global ingress gate](../docs/contracts/saas-identity-ingress.md) now provides
+an independently committed fixed-window deployment cap. No automatic public filter,
+source/identifier gate or complete registration protection is installed.

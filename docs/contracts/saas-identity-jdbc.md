@@ -110,3 +110,7 @@ lifecycle requirements.
 The [private challenge lifecycle](saas-identity-challenges.md) adds the third generated
 module migration and actual-record budget accounting for one-time challenges. No public
 flow or automatic cleanup schedule is enabled by module activation.
+
+The [private global ingress gate](saas-identity-ingress.md) adds the fourth generated
+module migration. Explicit initialization/admission remains separate from module
+activation and must precede business transactions.

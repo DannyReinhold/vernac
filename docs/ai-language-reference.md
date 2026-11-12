@@ -1881,3 +1881,13 @@ releases one charged slot; caught callback failures poison the transaction. Expl
 bounded expiration cleanup is available, with no automatic job or public endpoint.
 Credentials/admission, complete cleanup, protected mail, provisioning and sessions/UI
 remain next. A01/A02 and complete SaaS/final manual acceptance remain OPEN.
+
+
+## Private coarse identity admission
+
+The [global ingress gate](contracts/saas-identity-ingress.md) implements one fixed
+deployment-wide UTC-minute counter using generated storage and Spring transactions.
+It commits admission before business work and preserves attempts on business rollback.
+It is private, requires explicit initialization and must not be called inside a
+transaction. Do not invent public HTTP filters, rate-limit DSL or keyed admission APIs
+from this foundation. Dynamic keyed admission and complete public flows remain OPEN.

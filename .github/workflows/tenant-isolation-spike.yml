@@ -155,6 +155,15 @@ jobs:
               assert not any(case.find(k) is not None for k in ('failure', 'error', 'skipped')), f'Unverified module authorization proof: {name}'
           print(f'{len(module_cases)} module-JAR/Spring/PostgreSQL authorization proofs executed; none skipped.')
           saas_proofs = {
+              'saas/identity-jdbc/target/surefire-reports/TEST-org.vernac.saas.identity.persistence.IdentityIngressModelTest.xml': {
+                  'maximumCounterDoesNotOverflowAndClockRegressionDoesNotReset',
+              },
+              'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityIngressPostgresIT.xml': {
+                  'exactWindowsRollbackRestartAndConfigurationPreserveSpentAttempts',
+                  'twoContextsBootstrapOnceAndCompeteForTheLastAdmission',
+                  'missingCapacityWrongBoundariesAndStorageFailureFailClosed',
+                  'failedBootstrapRollsBackItsKeyReservation',
+              },
               'saas/identity-jdbc/target/surefire-reports/TEST-org.vernac.saas.identity.persistence.IdentityChallengeTokenTest.xml': {
                   'tokensAreCanonicalRandomAndRedacted',
                   'malformedAndNoncanonicalInputsAreRejectedWithoutSecretErrors',

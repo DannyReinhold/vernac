@@ -100,6 +100,10 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>0.6.0 development — Private global identity admission</h3>
+<p>A private deployment-wide fixed-minute gate commits attempts independently of
+business rollback and shares its limit across instances. Public ingress wiring and
+source/identifier protection remain unfinished; no new DSL or automatic filter.</p>
 <h3>0.6.0 development — Private one-time identity challenges</h3>
 <p>Private challenge persistence now couples purpose-bound secret verifiers, atomic
 resend/consumption and bounded explicit expiration cleanup to transactional storage

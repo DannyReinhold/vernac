@@ -1,0 +1,32 @@
+namespace org.vernac.saas.identity.persistence;
+
+id IdentityIngressId;
+value IdentityIngressMinute(long number);
+value IdentityIngressCount(long amount) validates {
+    require(self.amount() >= 0, "Identity ingress count must not be negative");
+};
+term IdentityIngress {
+    description "Private fixed deployment-wide public identity admission window.";
+    note "One stable row, no request-created identifiers. Attempts commit before business work and never roll back with it.";
+}
+global aggregate IdentityIngress[IdentityIngressId](mut IdentityIngressMinute minute, mut IdentityIngressCount used, mut IdentityIngressCount limit)
+validates {
+    require(self.limit().amount() > 0, "Identity ingress limit must be positive");
+} behavior {
+    modify boolean attempt(long currentMinute) {
+        if (currentMinute > self.minute().number()) {
+            self.minute(IdentityIngressMinute.of(currentMinute));
+            self.used(IdentityIngressCount.of(0));
+        }
+        if (self.used().amount() >= self.limit().amount()) return false;
+        self.used(IdentityIngressCount.of(self.used().amount() + 1));
+        return true;
+    }
+    modify void changeLimit(long amount) {
+        if (amount <= 0) throw new org.vernac.runtime.DomainValidationException("Identity ingress limit must be positive");
+        self.limit(IdentityIngressCount.of(amount));
+    }
+};
+repository IdentityIngressRepository for IdentityIngress {
+    find IdentityIngress? existing(IdentityIngressId id) where id = :id;
+}
