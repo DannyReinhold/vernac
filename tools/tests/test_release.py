@@ -112,7 +112,7 @@ class ReleaseTests(unittest.TestCase):
                 release.central("0.2.0", 0, unpublished=True)
 
     def test_saas_release_coordinates_use_their_actual_nested_reactor_paths(self):
-        self.assertEqual(19, len(list(release.central_paths("0.6.0"))))
+        self.assertEqual(21, len(list(release.central_paths("0.6.0"))))
         self.assertIn("vernac-saas-identity-spring-security", release.published_modules("0.6.0"))
         self.assertNotIn("vernac-saas-identity", release.published_modules("0.5.2"))
         for artifact in release.MODULES[1:]:

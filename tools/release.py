@@ -18,9 +18,10 @@ import zipfile
 
 MODULES = ("vernac", "vernac-runtime", "vernac-runtime-json", "vernac-runtime-http",
            "vernac-runtime-jdbc", "vernac-jdbc-spring-boot-starter", "vernac-compiler", "vernac-maven-plugin",
-           "vernac-saas-identity", "vernac-saas-identity-spring-security")
+           "vernac-saas-identity", "vernac-saas-identity-spring-security", "vernac-saas-identity-jdbc")
 MODULE_PATHS = {"vernac-saas-identity": "saas/identity",
-                "vernac-saas-identity-spring-security": "saas/identity-spring-security"}
+                "vernac-saas-identity-spring-security": "saas/identity-spring-security",
+                "vernac-saas-identity-jdbc": "saas/identity-jdbc"}
 
 
 def reactor_modules():
@@ -37,7 +38,7 @@ REQUIRED_TESTS = ("AdapterBindingsTest","PortModuleTest", "PortModuleSymbolsTest
     "DocumentationExamplesTest", "InboundHttpContractTest", "InboundHttpExecutionTest",
     "InboundHttpRuntimeTest", "InboundHttpSymbolsTest", "PaginationTest", "JdbcCursorCodecTest", "PaginationHttpExecutionTest", "JsonPagesTest", "PaginationResultContractTest")
 
-REQUIRED_TESTS += ("IdentityModuleContractIT", "IdentityActorResolverTest", "IdentityPrincipalTest")
+REQUIRED_TESTS += ("IdentityModuleContractIT", "IdentityActorResolverTest", "IdentityPrincipalTest", "IdentityJdbcModuleIT")
 
 # 0.4.0 acceptance: module contracts/lifecycle, pagination, vocabulary and diagrams.
 REQUIRED_TESTS += (

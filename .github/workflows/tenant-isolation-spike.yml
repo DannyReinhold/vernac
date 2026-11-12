@@ -50,9 +50,9 @@ jobs:
       - name: Build production runtime and run its unit tests
         run: mvn -B -ntp -pl vernac-lsp,vernac-runtime-http,vernac-runtime-jdbc -am clean install
       - name: Build the compiler plugin for optional SaaS modules
-        run: mvn -B -ntp -pl vernac-maven-plugin -DskipTests install
+        run: mvn -B -ntp -pl vernac-maven-plugin,vernac-jdbc-spring-boot-starter -am -DskipTests install
       - name: Verify optional identity artifacts and their JAR consumer
-        run: mvn -B -ntp -pl saas/identity,saas/identity-spring-security clean verify
+        run: mvn -B -ntp -pl saas/identity,saas/identity-spring-security,saas/identity-jdbc clean verify
       - name: Check release tooling and documentation links
         run: |
           python3 -m unittest discover -s tools/tests -v -b
@@ -166,6 +166,10 @@ jobs:
                   'eligibilityChangeInsideActiveInvocationAbortsThroughTheExistingContextPin',
                   'storageFailuresAndMalformedResultsAreDistinctAndDoNotRetainSecrets',
                   'miswiredRecursiveDirectoryFailsClearlyAndCleansItsResolutionFrame',
+              },
+              'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityJdbcModuleIT.xml': {
+                  'packagedProviderExportsOnlyAdapterAndConsumerActivatesExplicitly',
+                  'realModuleMigrationTransactionsRevocationAndRestrictedRuntime',
               },
               'saas/identity-spring-security/target/surefire-reports/TEST-org.vernac.saas.identity.security.IdentityPrincipalTest.xml': {
                   'technicalSessionRoundTripPreservesNominalIdentityWithoutSerializingDomainObjects',

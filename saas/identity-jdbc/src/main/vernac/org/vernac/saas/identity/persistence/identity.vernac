@@ -1,0 +1,53 @@
+namespace org.vernac.saas.identity.persistence;
+
+import org.vernac.saas.identity.UserId;
+import org.vernac.saas.identity.IdentityStatus;
+import org.vernac.saas.identity.IdentityDirectory;
+
+term Identity {
+    description "Internal persisted eligibility state of one login identity.";
+    note "This is global access metadata, not a product account or tenant-owned aggregate. Credential and verification workflows are separate.";
+}
+global aggregate Identity[UserId](mut IdentityStatus status) behavior {
+    modify void activate() {
+        if (self.status() != IdentityStatus.PENDING_VERIFICATION) {
+            throw new org.vernac.runtime.DomainValidationException("Identity activation requires pending verification");
+        }
+        self.status(IdentityStatus.ACTIVE);
+    }
+    modify void disable() {
+        if (self.status() != IdentityStatus.ACTIVE) {
+            throw new org.vernac.runtime.DomainValidationException("Identity disabling requires an active identity");
+        }
+        self.status(IdentityStatus.DISABLED);
+    }
+    modify void close() {
+        self.status(IdentityStatus.CLOSED);
+    }
+};
+
+repository IdentityRepository for Identity {
+    find Identity? existing(UserId userId) where id = :userId;
+}
+
+term StoredIdentityDirectory {
+    description "Controlled JDBC status lookup for the human actor resolver.";
+    note "Joins a current transaction or starts a short read transaction. Does not resolve an actor or expose an HTTP user lookup.";
+}
+adapter StoredIdentityDirectory implements IdentityDirectory uses IdentityRepository {
+    behavior {
+        java imports {
+            java.util.Objects;
+            org.springframework.transaction.support.TransactionTemplate;
+        }
+        java uses {
+            org.springframework.transaction.PlatformTransactionManager transactionManager;
+        }
+        public IdentityStatus? status(UserId userId) {
+            var read = new TransactionTemplate(self.transactionManager());
+            read.setReadOnly(true);
+            return Objects.requireNonNull(read.execute(transaction ->
+                self.identityRepository().existing(userId).map(Identity::status)));
+        }
+    }
+}

@@ -1840,6 +1840,11 @@ A compile dependency on org.vernac:vernac-saas-identity exposes ordinary module 
 org.vernac.saas.identity.UserId, IdentityStatus and IdentityDirectory; the logical
 module is vernac.saas.identity. It is a non-activatable type/port library. The separate
 vernac-saas-identity-spring-security artifact supplies an explicitly bound Java actor
-resolver. No user/register/login/role DSL, persistent directory, automatic filter
-chain or complete SaaS starter is provided. Do not invent those APIs. See the
+resolver. Optional vernac-saas-identity-jdbc provides the explicit StoredIdentityDirectory
+adapter from the activatable persistent module vernac.saas.identity.jdbc, with private
+global identity state and separate module migrations. Bind the IdentityDirectory port
+to that adapter in the application definition; no actor-guarded usecase is invoked
+for status lookup. REQUIRED lookup joins the caller transaction or opens a short read
+transaction. No user/register/login/role DSL, automatic filter chain or complete SaaS
+starter is provided. See the [JDBC contract](contracts/saas-identity-jdbc.md). Do not invent those APIs. See the
 [exact foundation contract](contracts/saas-identity-foundation.md).

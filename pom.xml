@@ -58,6 +58,7 @@
         <module>vernac-jdbc-spring-boot-starter</module>
         <module>saas/identity</module>
         <module>saas/identity-spring-security</module>
+        <module>saas/identity-jdbc</module>
     </modules>
 
     <properties>
@@ -112,6 +113,11 @@
 
             <dependency>
                 <groupId>org.vernac</groupId><artifactId>vernac-saas-identity-spring-security</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.vernac</groupId><artifactId>vernac-saas-identity-jdbc</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
