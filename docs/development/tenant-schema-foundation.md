@@ -92,7 +92,6 @@ requires the new named schema proofs as well as the existing runtime/spike proof
 No full IntelliJ or complete SaaS release verification is claimed.
 
 The local tenant modifier, owned graph propagation and generated CRUD/query/count/
-page integration now exist. Reviewed conversions and
-event routing remain OPEN. A19/A20/A21 are not
-VERIFIED. Persistent tenant module activation is implemented. Next complete tenant event routing and reviewed
-conversion paths while retaining unscoped source and history behavior.
+page integration now exist. Reviewed conversions remain OPEN. A19/A20/A21 are not
+VERIFIED. Persistent tenant module activation and durable event routing are implemented.
+Next complete reviewed conversion and whole-SaaS identity/application paths while retaining unscoped source and history behavior.

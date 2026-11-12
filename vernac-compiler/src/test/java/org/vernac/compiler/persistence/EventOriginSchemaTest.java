@@ -98,4 +98,20 @@ class EventOriginSchemaTest {
         assertThrows(IllegalArgumentException.class, () -> new SchemaModel(3, 1, List.of(root, foreignRoot, crossed), Map.of()));
         assertThrows(IllegalArgumentException.class, () -> new SchemaModel(3, 1, List.of(child), Map.of()));
     }
+    @Test void queuedDeliveryOriginCannotBeRemovedEvenWithForce() {
+        var before = new Table("vernac", "@delivery", "@event-delivery", List.of(
+                new Column("id", "UUID", false, "UUID", "@event-delivery")), List.of("id"), List.of());
+        var columns = new ArrayList<>(before.columns());
+        columns.add(new Column("tenantId", "UUID", true, "delivery-tenant-id", "@event-delivery"));
+        var after = new Table(before.namespace(), before.name(), before.origin(), columns, before.primaryKey(), before.constraints());
+        var old = new SchemaModel(1, 1, List.of(before), Map.of()); var current = new SchemaModel(1, 1, List.of(after), Map.of());
+        var planner = new MigrationPlanner(); var upgrade = planner.plan(old, current, MigrationPlanner.Options.safe());
+        assertTrue(upgrade.sql().contains("DELIVERY ORIGIN UPGRADE"));
+        assertTrue(upgrade.sql().contains("Stop older workers"));
+        assertFalse(upgrade.sql().contains("UPDATE "));
+        var error = assertThrows(IllegalArgumentException.class, () -> planner.plan(current, old,
+                new MigrationPlanner.Options(true, Map.of(), Map.of())));
+        assertTrue(error.getMessage().contains("EVENT DELIVERY ORIGIN REMOVAL"));
+    }
+
 }

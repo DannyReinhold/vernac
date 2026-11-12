@@ -906,12 +906,16 @@ discriminators, ambiguous roots and cross-graph owned foreign keys. Format-1 uns
 snapshot serialization/fingerprints MUST remain unchanged. The module contract remains
 module-contracts-10; persistence bundle/snapshot envelopes remain version 1.
 
-Format-3 event origin metadata is now generated with matching GLOBAL storage bindings,
+Format-3 event origin metadata is generated with matching GLOBAL/tenant storage bindings,
 while format-1/2 fingerprints remain stable. Global event modules participate in the
 normal migration/validation/activation order. Old/new adapter/table-layout mismatches
 MUST fail before payload SQL rather than reinterpret persisted data. This does not
-enable tenant publication or tenant worker routing; the emission guard remains.
-See the [event schema and upgrade contract](../development/event-origin-schema.md).
+replace trusted tenant selection or authorization. Current generated version-1 event
+storage supports tenant publication and origin-restoring workers; older adapters remain
+GLOBAL-only and are rejected/blocked with a rebuild diagnostic for tenant work.
+Event payloads also serve GLOBAL applications. Their strict tenant role/policy checks
+run before tenant operations; activation alone does not classify the whole application
+as tenant-bound. See the [event schema and upgrade contract](../development/event-origin-schema.md).
 
 After migration and structural validation of each owner, the coordinator MUST verify
 its tenant tables through the runtime DataSource, before callable module components
@@ -930,5 +934,5 @@ Additive tenant schema upgrades use reviewed independent histories/backfills, in
 consumer-owned flattened copies of external VOs. Migration credentials must intentionally
 authorize all affected rows. Earlier successful histories remain recorded on later
 failure; dependent application startup stops. Existing-table tenant/global conversion
-remains blocked even with force. Durable tenant events, tenant provisioning and full
+remains blocked even with force. Tenant event routing is implemented; tenant provisioning and full
 SaaS integration remain OPEN. See [the tenant module walkthrough](../tutorials/tenant-modules.md).

@@ -74,21 +74,22 @@ PostgreSQL variables fail setup rather than silently skipping the suite.
    context. This does not make global business operations publicly authorized.
 
 The spike does not falsify the selected architecture. It is not a production-ready
-schema/repository implementation to copy blindly: generated storage plans and complete
-entity graphs still need integration. The production coordinator now validates every
-explicitly configured tenant table; exact policy/schema validation is still OPEN.
+schema/repository implementation to copy blindly. Generated storage plans and complete
+entity graphs have separate production integration proofs. The production coordinator now validates every explicitly configured tenant table,
+and generated storage/module paths have separate exact-policy/schema proofs.
 
-## Not yet proved or implemented
+## Limits of this experiment
 
 Production grammar/generation and live IDE projections; immutable trusted actor context;
 all/any and module-exported policies; complete graph provenance/factory handling;
 owned-list/set/orphan cleanup; cursor binding/count-window guarantees; metadata
 compatibility/migration backfills/RLS drift/schema-check; event coordinator/payload
-routing; HTTP/MVC/CSRF behavior; tenant provisioning and the rest of SaaS remain OPEN.
+routing are not proved by this experiment itself; separate production event proofs now
+exist. HTTP/MVC/CSRF integration, tenant provisioning and the rest of SaaS remain OPEN.
 No result here justifies changing A19/A20 or authorization feature rows to VERIFIED.
 No provider/payment/mail implementation, mandatory release gate or SaaS Wizard is added.
 
-A later module/event spike must prove production claim/processing/failure phases and
+The separate production module/event tests prove claim/processing/failure phases and
 routing envelopes rather than equating a REQUIRES_NEW transaction test with a finished
 worker. External effect reconciliation is a separate obligation.
 
@@ -103,10 +104,9 @@ A21 in the [release ledger](release-0.6.0.md), not implemented by this experimen
 ## Next implementation boundary
 
 The general tenant context/provenance foundation now has its own production code and
-tests; the JDBC coordinator now also has production code. Next introduce shared
-storage-plan/schema validation changes in small PRs;
-then integrate production repositories,
-queries, modules/events and compiler/tooling. Retain unscoped regression tests throughout.
+tests; the JDBC coordinator now also has production code. Shared storage/schema validation, generated repositories/queries, module activation
+and durable event routing now have separate production proofs. Continue with trusted
+actor/authorization integration and the remaining SaaS lifecycle. Retain unscoped regression tests throughout.
 Keep the [technical contract](tenant-technical-contract.md) synchronized with executable
 findings, and attach production evidence before marking any whole-SaaS capability complete.
 

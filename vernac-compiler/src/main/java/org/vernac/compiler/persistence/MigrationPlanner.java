@@ -28,6 +28,10 @@ public final class MigrationPlanner {
         Map<String, Table> newTables = index(after.tables(), Table::identity);
         for (Table old : before.tables()) {
             Table next = newTables.get(old.identity());
+            if (next != null && old.namespace().equals("vernac") && old.name().equals("@delivery")
+                    && old.columns().stream().anyMatch(c->c.codec().equals("delivery-tenant-id"))
+                    && next.columns().stream().noneMatch(c->c.name().equals("tenantId") && c.codec().equals("delivery-tenant-id")))
+                throw new IllegalArgumentException("EVENT DELIVERY ORIGIN REMOVAL is not implemented; force cannot discard queued tenant routing metadata.");
             if (next != null && EventSchema.legacyUpgrade(old, next)) {
                 String key = next.identity() + "/" + EventSchema.SCOPE;
                 if (!"'GLOBAL'".equals(options.backfills().getOrDefault(key, "").trim())
@@ -90,6 +94,9 @@ public final class MigrationPlanner {
                     String key = next.identity() + "/" + c.name();
                     String alter = "ALTER TABLE " + next.sqlName() + " ALTER COLUMN " + name(c.name());
                     if (previous == null) {
+                        if(next.namespace().equals("vernac") && next.name().equals("@delivery") && c.codec().equals("delivery-tenant-id"))
+                            sql.add("-- DELIVERY ORIGIN UPGRADE: existing queued jobs remain GLOBAL (NULL tenantId). No tenant attribution is inferred.\n"
+                                    +"-- Stop older workers before enabling tenant publication. Review deployment order and runtime role grants before applying.");
                         sql.add("ALTER TABLE " + next.sqlName() + " ADD COLUMN " + name(c.name()) + " " + c.sqlType() + ";");
                         if (!c.nullable() || options.backfills().containsKey(key)) backfill(sql, next, c, key, options, usedBackfills);
                     } else {

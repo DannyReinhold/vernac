@@ -91,10 +91,10 @@ data and deployment compatibility as always; a generated candidate is not a guar
   Explicit activation migrates format-2 owned graphs and checks runtime RLS/DML access
   before callable module components initialize. Separate migration/runtime connections
   target the same writer database. Neither imports nor activation select a tenant.
-- Synchronous immediate events retain the current context/transaction. Recorded/deferred
-  emission while a tenant is selected fails with TENANT_EVENT_DELIVERY_UNSUPPORTED
-  before storage or dispatch, and the failed event context prevents commit. Durable
-  envelopes, worker routing and module delivery are still OPEN.
+- Synchronous immediate events retain the current context/transaction. Current generated
+  storage supports recorded/deferred tenant publication and origin-restoring workers,
+  with restricted RLS roles and migrated queue metadata. See [tenant events](../tutorials/tenant-events.md).
+  Older storage capabilities remain GLOBAL-only and fail explicitly for tenant work.
 - Authentication, membership validation, immutable actor context, permissions, quotas,
   subscriptions and provisioning are not supplied by TenantContext.openVerified.
   Only trusted infrastructure may establish selection.
@@ -153,6 +153,6 @@ The coordinator checks exact policy/role/access requirements after each owned hi
 and before component startup. Tests use generated application activation, actual
 module JARs, private tenant graphs, cross-module/application rollback, parallel physical
 transactions, restart, shared-VO backfills across both tenants, failed later migrations
-and retries. Policy/role drift blocks startup. A19/A20/A21 remain OPEN: durable tenant
-event routing, identity/authorization, provisioning and the complete SaaS starter are
-not delivered by this persistence increment.
+and retries. Policy/role drift blocks startup. Tenant event routing is now covered by
+the production worker and module/JAR/pool proofs. A19/A20/A21 remain OPEN pending
+identity/authorization, provisioning and the complete integrated SaaS starter.

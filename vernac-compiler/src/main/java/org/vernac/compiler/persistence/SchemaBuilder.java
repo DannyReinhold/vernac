@@ -119,6 +119,7 @@ public final class SchemaBuilder {
             MutableTable t=new MutableTable("vernac","@delivery","@event-delivery",List.of("id"));
             for(String c:List.of("id","eventId")) t.column(c,"UUID",false,"UUID",t.origin);
             for(String c:List.of("eventType","listenerId","status")) t.column(c,"TEXT",false,"String",t.origin);
+            t.column("tenantId","UUID",true,"delivery-tenant-id",t.origin);
             t.column("attempts","INTEGER",false,"int",t.origin);
             for(String c:List.of("createdAt","nextAttemptAt")) t.column(c,"TIMESTAMPTZ(6)",false,"delivery-time",t.origin);
             for(String c:List.of("lastAttemptAt","leaseUntil","completedAt")) t.column(c,"TIMESTAMPTZ(6)",true,"delivery-time",t.origin);

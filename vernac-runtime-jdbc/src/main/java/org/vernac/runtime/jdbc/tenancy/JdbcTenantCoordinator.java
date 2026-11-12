@@ -29,7 +29,8 @@ public final class JdbcTenantCoordinator {
     private final DataSource source;
     private final List<String> tables;
     private final Object resourceKey;
-    private final boolean requireOwnedPolicy;
+    private enum Policy { FLAGS_ONLY, AGGREGATE, EVENT }
+    private final Policy policy;
 
     /** Table names use PostgreSQL regclass syntax, including quotes where required. */
     public JdbcTenantCoordinator(DataSource source, List<String> tenantTables) {
@@ -37,10 +38,17 @@ public final class JdbcTenantCoordinator {
     }
     /** Generated stores require the exact owned policy, not merely active RLS flags. */
     public JdbcTenantCoordinator(DataSource source, List<String> tenantTables, boolean requireOwnedPolicy) {
+        this(source,tenantTables,requireOwnedPolicy?Policy.AGGREGATE:Policy.FLAGS_ONLY);
+    }
+    /** Exact mixed-origin payload policy, sharing transaction binding with aggregate stores. */
+    public static JdbcTenantCoordinator forEventPayloads(DataSource source, List<String> tables) {
+        return new JdbcTenantCoordinator(source,tables,Policy.EVENT);
+    }
+    private JdbcTenantCoordinator(DataSource source, List<String> tenantTables, Policy policy) {
         this.source = Objects.requireNonNull(source, "source");
         this.tables = List.copyOf(tenantTables);
         this.resourceKey = new SourceKey(source);
-        this.requireOwnedPolicy = requireOwnedPolicy;
+        this.policy = policy;
         if (tables.isEmpty() || tables.stream().anyMatch(String::isBlank)) {
             throw new IllegalArgumentException("Tenant tables must be explicitly configured");
         }
@@ -134,7 +142,8 @@ public final class JdbcTenantCoordinator {
     private void verifyTables(Connection connection) throws SQLException {
         for (String table : tables) {
             verifyTableRole(connection, table);
-            if (requireOwnedPolicy) verifyPolicy(connection, table);
+            if (policy == Policy.AGGREGATE) verifyPolicy(connection, table);
+            if (policy == Policy.EVENT) verifyEventPolicy(connection, table);
         }
     }
 
@@ -159,7 +168,7 @@ public final class JdbcTenantCoordinator {
 
     private Set<String> verificationKeys() {
         Set<String> keys=new HashSet<>();
-        tables.forEach(t->keys.add(t+"#owned-policy="+requireOwnedPolicy));return keys;
+        tables.forEach(t->keys.add(t+"#policy="+policy.name()));return keys;
     }
     private static void verifyPolicy(Connection connection,String table) throws SQLException {
         String expected="(\"@tenantId\" = (NULLIF(current_setting('vernac.tenant_id'::text, true), ''::text))::uuid)";
@@ -173,6 +182,28 @@ public final class JdbcTenantCoordinator {
                 if(!result.next() || !result.getString(1).equals("@tenant") || !result.getString(2).equals("*")
                         || !result.getBoolean(3) || !result.getBoolean(4)
                         || !expected.equals(result.getString(5)) || !expected.equals(result.getString(6)) || result.next())
+                    throw new TenancyException(TENANT_RUNTIME_ROLE_INVALID);
+            }
+        }
+    }
+
+    private static void verifyEventPolicy(Connection connection,String table) throws SQLException {
+        String selected="(NULLIF(current_setting('vernac.tenant_id'::text, true), ''::text))::uuid";
+        String read="((\"@tenantId\" IS NULL) OR (\"@tenantId\" = "+selected+"))";
+        String write="(NOT (\"@tenantId\" IS DISTINCT FROM "+selected+"))";
+        try(var statement=connection.prepareStatement("""
+                SELECT p.polname, p.polcmd, p.polpermissive, p.polroles = ARRAY[0::oid],
+                       pg_get_expr(p.polqual,p.polrelid), pg_get_expr(p.polwithcheck,p.polrelid),
+                       has_schema_privilege(current_user,c.relnamespace,'USAGE')
+                        AND has_table_privilege(current_user,c.oid,'SELECT')
+                        AND has_table_privilege(current_user,c.oid,'INSERT')
+                FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid WHERE p.polrelid=?::regclass
+                """)) {
+            statement.setString(1,table);
+            try(var result=statement.executeQuery()) {
+                if(!result.next() || !result.getString(1).equals("@event-origin") || !result.getString(2).equals("*")
+                        || !result.getBoolean(3) || !result.getBoolean(4) || !read.equals(result.getString(5))
+                        || !write.equals(result.getString(6)) || !result.getBoolean(7) || result.next())
                     throw new TenancyException(TENANT_RUNTIME_ROLE_INVALID);
             }
         }

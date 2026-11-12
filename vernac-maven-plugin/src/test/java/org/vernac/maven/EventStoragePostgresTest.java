@@ -94,6 +94,7 @@ class EventStoragePostgresTest {
                     try {
                         sql.execute("GRANT USAGE ON SCHEMA eventdemo,vernac TO "+role);
                         sql.execute("GRANT SELECT,INSERT ON ALL TABLES IN SCHEMA eventdemo,vernac TO "+role);
+                        sql.execute("GRANT UPDATE ON \"vernac\".\"@delivery\" TO "+role);
                         var restricted=new DriverManagerDataSource(SchemaCheckMojo.databaseUrl(url,database),role,"fixture-only");
                         invoke(probe,"restrictedRoundTrip",new Class<?>[]{DataSource.class},restricted);
                     } finally {sql.execute("DROP OWNED BY "+role);sql.execute("DROP ROLE "+role);}

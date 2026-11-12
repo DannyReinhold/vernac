@@ -23,9 +23,9 @@ class EventContextTest {
             tx.executeWithoutResult(status->{try(var events=EventContext.open(()->List.of(handler("sync",observed::add)))){EventContext.emit(new Ping());}});
             assertEquals(1,observed.size());
             var error=assertThrows(org.vernac.runtime.tenancy.TenancyException.class,()->tx.executeWithoutResult(status->{
-                try(var events=EventContext.open(List::of)){EventContext.emit(new RecordedPing(EventId.create(),Instant.now()));}
+                try(var events=EventContext.open(()->List.of(legacyStorage(RecordedPing.class)))){EventContext.emit(new RecordedPing(EventId.create(),Instant.now()));}
             }));
-            assertEquals(org.vernac.runtime.tenancy.TenancyException.Code.TENANT_EVENT_DELIVERY_UNSUPPORTED,error.code());
+            assertEquals(org.vernac.runtime.tenancy.TenancyException.Code.TENANT_EVENT_STORAGE_REBUILD_REQUIRED,error.code());
             var deferred=new EventHandler() {
                 public String listenerId(){return "deferred";}
                 public Class<? extends DomainEvent> eventClass(){return Ping.class;}
@@ -33,11 +33,20 @@ class EventContextTest {
                 public void handle(DomainEvent event){fail("Deferred tenant event must not run through an unscoped path");}
             };
             assertThrows(org.vernac.runtime.tenancy.TenancyException.class,()->tx.executeWithoutResult(status->{
-                try(var events=EventContext.open(()->List.of(deferred))){EventContext.emit(new Ping());}
+                try(var events=EventContext.open(()->List.of(deferred,legacyStorage(Ping.class)))){EventContext.emit(new Ping());}
             }));
         }
     }
 
+    private EventStorage legacyStorage(Class<? extends DomainEvent> type) {
+        return new EventStorage() {
+            public String eventType(){return type.getName();}
+            public String listenerId(){return "@storage:"+type.getSimpleName();}
+            public Class<? extends DomainEvent> eventClass(){return type;}
+            public void persist(DomainEvent event,List<String> recipients){fail("Legacy tenant storage must not be called");}
+            public DomainEvent load(EventId id){throw new UnsupportedOperationException();}
+        };
+    }
     private EventHandler handler(String name, java.util.function.Consumer<DomainEvent> body) {
         return new EventHandler() {
             public String listenerId() { return name; }

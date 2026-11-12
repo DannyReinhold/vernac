@@ -229,7 +229,7 @@ classification to complete local owned schema graphs and generated JDBC CRUD/sea
 count/cursor paths. Verification includes actual generated Java, restricted PostgreSQL
 roles, shared entities/nested collections, global coexistence, concurrent requests and
 optimistic conflicts. This is partial A19 evidence, not A19/A20/A21 completion.
-Durable tenant events, historical classification
+Durable tenant event routing is now implemented. Historical classification
 conversions, identity/authorization and the SaaS starter remain OPEN or fail closed.
 
 ## Tenant module metadata evidence
@@ -260,47 +260,33 @@ parallel requests, rollback across all owners, additive external-VO upgrades/bac
 for both tenants, later migration failure and retry. This is partial A19/A20 evidence;
 A19/A20/A21 remain OPEN pending the rest of the SaaS execution/identity/event lifecycle.
 
-## Durable tenant event feasibility evidence
+## Durable tenant event production evidence
 
-The [routing candidate](tenant-event-routing-contract.md) specifies captured origin,
-mixed payload protection, scope-qualified child links and worker context restoration.
-Seven real PostgreSQL proofs exercise origin isolation, nullable-FK behavior, atomic
-publication, fixed recipients, retry/pool recreation, lease fencing/terminal recovery
-and concurrent workers. This is handwritten experimental evidence, not generated
-production event support. The emission guard remains; schema/migrations/module/runtime
-integration and A19/A20/A21 remain OPEN.
+The [routing contract](tenant-event-routing-contract.md) is now implemented for current
+generated storage and the production worker. Format-3 payload graphs use non-null
+scope-qualified relationships and exact-origin loading. Tenant operations validate the
+restricted runtime role, exact event RLS policy and shared transaction-local binding.
+The queue captures nullable tenantId (NULL is GLOBAL); claims/failures stay unscoped,
+processing restores the claimed origin and ACK is origin/token/lease-fenced.
 
-## Event origin runtime boundary
+Seven PostgreSQL production-worker tests consume generated module classes/resources
+from a real JAR through Boot and restricted Hikari pools. Proofs cover shared REQUIRED
+writes and publication rollback, restart/per-recipient retry, concurrent tenants and
+physical connections, stale-lease rollback/final-attempt recovery, forged tenant/GLOBAL
+routing, weakened policy rejection and pool/context cleanup. Older adapters are rejected
+before publication or BLOCKED before tenant payload loading. Recursive tenant payloads
+are also verified through the generated storage fixture. Failure records contain safe
+classifications instead of arbitrary messages or private values.
 
-Internal publication origin capture and additive GLOBAL-only storage bridges are
-implemented. Direct legacy JDBC event storage rejects tenant selections/stale pins;
-the worker rejects ambient selection and checks its real database connection before
-control-plane/payload work and before commit. Production regressions cover legacy
-adapter dispatch, generated storage bypasses, contaminated sessions and rollback
-when a global callback changes its origin. No schema history or migration changed.
-Durable tenant publication is still blocked. Generated mixed-origin schemas/storage,
-worker restoration, migration replay/module compatibility and A19/A20/A21 remain OPEN.
+Pending GLOBAL jobs survive the reviewed queue migration; unmigrated queues fail before
+claims/payload writes, and routing-metadata removal is blocked even with force. Existing
+payload upgrades retain explicit GLOBAL backfills and prior source history. Global
+module activation/worker regressions and example schema-checks continue to apply.
+The earlier seven-case handwritten experiment remains separate feasibility evidence;
+it is not counted as production acceptance by itself.
 
-## Event origin schema foundation
-
-Schema format 3 represents event origin separately from aggregate tenancy. Non-null
-scope-qualified child FKs protect GLOBAL as well as tenant graphs. Explicit reviewed
-GLOBAL backfills preserve legacy data/positions and existing source history; origin
-removal/ownership changes remain blocked even with force. PostgreSQL fresh/upgrade
-catalog comparisons and restricted-role RLS proofs cover this infrastructure.
-Earlier snapshot/module fingerprints are retained. Normal generation now selects the
-origin layout with matching GLOBAL adapters; global module activation remains supported.
-Tenant worker restoration and complete tenant event acceptance remain OPEN, as do
-A19/A20/A21.
-
-## Generated GLOBAL event origin storage
-
-The compiler now emits format-3 event graphs with explicit matching storage factories,
-origin-aware bridges and exact GLOBAL read predicates at every owned level. Runtime
-layout checks reject old/new adapter/database mismatches before payload SQL. Global
-module activation and the existing worker remain operational; tenant emission stays
-blocked pending delivery-origin routing. Populated legacy upgrades preserve recursive
-values, list order/duplicates, optional VOs, temporal precision and decimal scale.
-Existing example histories receive new reviewed migrations instead of rewritten files.
-The next step is the production worker/envelope integration and complete tenant module
-acceptance. A19/A20/A21 remain OPEN.
+See [tenant event operations](../tutorials/tenant-events.md) for required artifact rebuilds,
+role grants, migration review and stopping old worker versions before tenant traffic.
+External effects are still at-least-once. Authentication, immutable actor/permission
+policy, quotas, provisioning and the complete SaaS UI/Wizard/payment/mail lifecycle are
+not supplied by routing. A19/A20/A21 and the final integrated release audit stay OPEN.
