@@ -129,7 +129,8 @@ not make an existing identity disabled while a stranger requests email. Successf
 password reset invalidates existing sessions; disable/closure also blocks their later
 use. A stale stored principal cannot override current disabled state. Rate limiting
 is required for public credential/challenge operations, distinct from paid usage quotas.
-Concrete lifetimes, resend policy, encoder settings and abuse limits are proposed in
+Concrete lifetimes, resend policy, encoder settings, abuse/storage limits and cleanup
+requirements are proposed in
 [D14](../contracts/saas-identity-credentials.md); runtime delivery remains OPEN.
 
 ## 5. Membership, selection and the existing runtime

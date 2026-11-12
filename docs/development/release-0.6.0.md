@@ -468,3 +468,12 @@ This is documentation/decision preparation only. No credential storage, public e
 password encoder, delivery encryption or session integration is implemented by this PR.
 Merging records acceptance of the D14 policy; all corresponding implementation proofs,
 A01/A02, complete SaaS coverage and final manual acceptance remain OPEN.
+
+
+D14 abuse-storage follow-up: the same policy PR now requires deployment-wide hard caps
+for pending registrations, challenge/mail allocations, protected payload bytes, retained
+terminal metadata and limiter-key cardinality. Atomic reservations, independent spent
+attempt budgets, bounded cleanup with activation-race protection, safe capacity outcomes
+and bounded local-inbox/logging behavior are explicit acceptance prerequisites. A rotating
+source/address attack must not create unbounded business or auxiliary records. This remains
+a contract change; no admission/cleanup implementation or attack-resilience proof is claimed.

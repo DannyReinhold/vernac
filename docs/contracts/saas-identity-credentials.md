@@ -235,6 +235,88 @@ a maximum queue of 16 and a maximum admission wait of 250 ms; overflow is saniti
 unavailability. These deployment limits must be configurable and load-tested, not silently
 lower the hashing cost under load. Local test mode must not remove CSRF or admission rules.
 
+### 5.1 Bounded storage, mail backlog and cleanup
+
+Rate limits bound admission speed, not lifetime storage. Rotating sources and addresses
+can otherwise fill the database despite each request satisfying its individual budget.
+The standard assembly therefore MUST enforce independent deployment-wide storage budgets.
+These are configurable operational safeguards, not subscriptions or tenant quotas.
+
+| Resource | Initial hard budget across all instances | Expiry/cleanup rule |
+| --- | --- | --- |
+| Unverified registrations | 10,000 pending registrations, including reserved admissions | Delete abandoned registrations after 7 days from first creation; resend does not extend this deadline |
+| Unexpired actionable challenges | 20,000 across purposes, including reservations; at most one current challenge per identity/purpose | Token expiry is authoritative even before physical cleanup |
+| Unsent identity mail | 10,000 jobs AND 64 MiB aggregate encrypted payload, including reservations, retries and in-flight jobs | No retry/send beyond challenge validity; stop obsolete jobs |
+| One identity mail payload | 64 KiB maximum including envelope overhead; no attachments | Reject before enqueue; never truncate a security link |
+| Retained terminal challenge/delivery metadata | 20,000 records combined; no secret payload retained | Retain at most 24 hours after becoming terminal, then delete; expire oldest terminal metadata earlier if the cap requires it |
+| Admission-control keys | 50,000 combined identifier/source/locator keys, including reserved allocations | Reuse bounded counters rather than append attempt history; expire after the last applicable window/cooldown ends |
+
+All initial limits must be validated positive finite configuration. A lower configured
+limit must not silently delete active users or live work to reach the new limit; stop
+new allocations, report pressure and drain/clean up safely. Provisioning/recovery must
+not gain an unlimited exception to these budgets. Independent route/resource gates keep
+registration exhaustion from automatically disabling login or consuming existing valid
+verification links; the latter still need their own applicable safety checks.
+
+Apply bounded body/field checks and the global admission gate before identifier lookup,
+new per-identifier limiter allocation, expensive work or business writes. Limiters may
+update their bounded counters, but rejected requests must not create identities,
+challenges, mail jobs, dead letters or one durable audit row per rejected request. If the
+limiter key budget is full, reject new-key traffic through a coarse bounded gate rather
+than evicting a still-active key and thereby resetting an attacker's attempt allowance.
+A new address/source must not create an unbounded new allocation in a secondary mechanism.
+
+Business allocations require atomic capacity reservations coordinated across instances
+in the same storage boundary. A count-then-insert check is insufficient. Pending identity,
+challenge and mail reservations, actual writes and rollback/release must be consistent;
+duplicates and retries do not spend another slot, and failed transactions do not leak
+reservations. Independent abuse-attempt budgets remain spent after business rollback.
+A concurrent worker must not double-release a capacity slot or exclude its claimed job
+from the backlog while it still holds its payload. Include payload bytes, not only job
+counts. Capacity accounting must remain correct after restart and cleanup failure. Persisted
+rows, including expired rows awaiting cleanup, remain charged to the applicable active,
+backlog or terminal budget until deletion or an atomic accounted transition. Time passing
+alone must not free storage capacity while leaving uncounted rows behind.
+
+For a public route that may allocate a resource, perform its shared capacity gate before
+existence-dependent branching and reserve/release unused capacity as necessary. Global
+storage/backlog/key exhaustion returns the same sanitized temporary-unavailability result
+(503 with bounded Retry-After) for existing and unknown addresses on that route. It must
+not become an existence oracle or a false claim that mail was accepted. Ordinary subject-only
+rate throttling keeps the neutral result specified above. Do not disclose occupancy or
+internal limits publicly; the operator receives a safe aggregate pressure reason.
+
+Run indexed, bounded-batch cleanup at least every 5 minutes, coordinated safely across
+instances and restart. It must serialize with verification/resend on the relevant pending
+identity: either verification/provisioning wins and the active identity survives, or cleanup
+wins and the old action is unavailable. Never delete active/disabled/closed identities,
+accounts or memberships as abandoned-registration cleanup. A safely removed pending address
+may register again with a fresh UserId; old tokens cannot target the new identity. Cleanup
+must not delete a pending registration while verification/provisioning commits independently.
+
+Erase the protected mail secret payload after successful delivery or cancellation/expiry;
+retain only bounded safe terminal metadata. Superseded/consumed challenges become terminal,
+not a permanent request history. A local test inbox must also have bounded storage/retention;
+it is not exempt because no real provider is used. Alert on cleanup lag and capacity pressure
+using aggregate bounded-cardinality metrics. Sample/rate-limit rejection logs and configure
+log rotation; an attacker must not turn each rejection into a new persistent audit/log record.
+Physical reclamation and backup retention need normal database operations; deleting rows is
+not a guarantee of immediate disk erasure or a fixed database size including WAL/indexes.
+
+Tests must fill the last available slot concurrently across at least two application contexts,
+prove every cap remains respected after rollback/restart, exercise mail byte/count limits and
+limiter-key saturation, and verify that cleanup racing with activation never deletes an active
+identity. Seed many distinct addresses/sources; prove rejected requests create no business or
+unbounded auxiliary records. Verify the same public capacity outcome for known/unknown
+addresses, continued allowed login/verification paths, and safe failure when cleanup stalls.
+These proofs are mandatory before public registration is accepted as implemented.
+
+These bounds deliberately trade availability of new requests for bounded application growth.
+They do not make the application immune to distributed denial of service or protect network
+bandwidth, connection pools or every database resource by themselves. Deployment-level
+connection/request limits, timeouts, monitoring and appropriate ingress controls are still
+required. Do not advertise unconditional availability or a DDoS-proof starter.
+
 ## 6. Sessions, revocation and the usecase guard
 
 The first browser integration uses Spring Security and Spring Session JDBC, with explicit
@@ -287,7 +369,8 @@ Implement and verify in reviewable slices:
    Prove salt randomness, parameter IDs, safe failure, oversized/Unicode input and upgrades.
 2. Internal credentials/challenges/admission persistence with generated migrations and
    real restricted-role PostgreSQL tests: duplicates, concurrent resend/consume, rollback,
-   expiry and restart. No general credential repository is exported.
+   expiry, storage/backlog/key saturation, cleanup races and restart. No general credential
+   repository is exported.
 3. D10 protected mail transport/local inbox and D05 account/owner provisioning integration.
    Prove durable retry without secrets in events/logs and without duplicate accounts.
 4. Complete public registration/verification, Spring login/session/logout/recovery and
