@@ -1869,3 +1869,15 @@ repository or Java helper into application .vernac code or invent capacity DSL s
 It supplies transactional fixed-resource counters, not a public registration API, paid
 quota accounting, a rate limiter or automatic cleanup. Full real-row accounting remains
 a delivery gate.
+
+
+## Private one-time identity challenge persistence
+
+The [challenge lifecycle](contracts/saas-identity-challenges.md) adds private Vernac
+records and a third generated module migration. Secure random canonical tokens store
+only SHA-256 verifiers. Purpose/status/expiry checks, resend replacement and one-winner
+consumption share the bound writer transaction and capacity lock. Actual deletion
+releases one charged slot; caught callback failures poison the transaction. Explicit
+bounded expiration cleanup is available, with no automatic job or public endpoint.
+Credentials/admission, complete cleanup, protected mail, provisioning and sessions/UI
+remain next. A01/A02 and complete SaaS/final manual acceptance remain OPEN.

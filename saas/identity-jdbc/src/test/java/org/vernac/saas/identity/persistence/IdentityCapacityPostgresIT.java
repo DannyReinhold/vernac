@@ -172,7 +172,7 @@ class IdentityCapacityPostgresIT {
                             assertEquals(Long.MAX_VALUE, ledger.usage(UNSENT_MAIL_BYTES));
                         });
                     });
-                    assertEquals(2, database.migrationCount());
+                    assertEquals(3, database.migrationCount());
                 });
     }
 
@@ -436,7 +436,7 @@ class IdentityCapacityPostgresIT {
                             assertEquals(0, ledger.usage(PENDING_REGISTRATIONS));
                         });
                     });
-                    assertEquals(2, database.migrationCount());
+                    assertEquals(3, database.migrationCount());
                 });
     }
 }

@@ -6,7 +6,9 @@ title: Private identity storage-capacity foundation
 Status: implemented in **0.6.0-SNAPSHOT** inside the optional `vernac-saas-identity-jdbc`
 artifact. This is the first persistent storage-budget primitive required by the
 [D14 anti-abuse/storage policy](saas-identity-credentials.md#51-bounded-storage-mail-backlog-and-cleanup).
-It does not yet create credentials/challenges, count actual registration/mail rows,
+The [private challenge lifecycle](saas-identity-challenges.md) now accounts for actual
+challenge rows through this primitive. The budget helper itself does not create
+credentials/challenges or count actual registration/mail rows,
 run cleanup, implement a rate limiter or expose public registration endpoints.
 
 ## Private model and normal migration lifecycle
