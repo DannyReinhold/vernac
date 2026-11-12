@@ -943,11 +943,11 @@ See the [classification contract](contracts/explicit-tenancy.md),
 [implementation boundaries](development/tenant-persistence-integration.md).
 These additions require 0.6.0 development artifacts, not the released 0.5.x baseline.
 
-Durable tenant event delivery remains unsupported. The 0.6.0 runtime captures an
-internal `EventOrigin` and guards legacy GLOBAL storage/worker paths. The
-[schema foundation](development/event-origin-schema.md) adds format-3 metadata and
-reviewed GLOBAL upgrade infrastructure, but normal event generation is not switched
-and activation rejects the pending capability before migrations. These are internal
-steps, not new Vernac syntax. Do not add tenant parameters to event factories, use
-experimental helpers as application APIs or bypass the emission guard. See the
-[current event contract](contracts/events.md#internal-origin-and-legacy-storage-boundaries-060-development).
+Durable tenant event delivery remains unsupported. The 0.6.0 compiler/runtime now
+use [format-3 origin schemas and matching GLOBAL storage](development/event-origin-schema.md)
+for persisted event graphs. Existing schemas require reviewed migrations with explicit
+`'GLOBAL'` backfills; applied migrations/snapshots are never rewritten. Old/new adapter
+layout mismatches are rejected, and global event modules/workers remain supported.
+Tenant delivery envelopes and worker context restoration are still pending. These
+changes add no Vernac syntax: do not add tenant parameters to event factories or bypass
+the emission guard. See the [current event contract](contracts/events.md#internal-origin-and-legacy-storage-boundaries-060-development).

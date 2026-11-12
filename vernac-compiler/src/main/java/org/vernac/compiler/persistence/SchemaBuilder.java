@@ -28,6 +28,7 @@ public final class SchemaBuilder {
     private final Set<String> expandingEntities = new HashSet<>();
     private MutableTable root;
     private boolean tenantRoot;
+    private boolean eventRoot;
     private final List<StoragePlan> plans = new ArrayList<>();
     private final List<StoragePlan.Relation> relations = new ArrayList<>();
     private final List<EventStoragePlan> eventPlans = new ArrayList<>();
@@ -37,8 +38,10 @@ public final class SchemaBuilder {
         var schema = table.freeze();
         if(tenantRoot) schema=TenantSchema.table(schema,root.origin,table==root,
                 schema.constraints().stream().map(c->table.tenantConstraints.getOrDefault(c.name(),c)).toList());
+        if(eventRoot) schema=EventSchema.table(schema,root.origin,table==root,
+                schema.constraints().stream().map(c->table.eventConstraints.getOrDefault(c.name(),c)).toList());
         tables.add(schema);
-        relations.add(new StoragePlan.Relation(schema, table.predicate, table.depth, List.copyOf(table.properties)));
+        relations.add(new StoragePlan.Relation(schema, eventRoot?scoped(table.predicate):table.predicate, table.depth, List.copyOf(table.properties)));
     }
     public SchemaBuilder(ResolvedProject project, SchemaModel previous) {
         this(project, previous, Map.of());
@@ -86,10 +89,11 @@ public final class SchemaBuilder {
         }
         buildEvents();
         if (!codes.keySet().containsAll(enumOverrides.keySet())) throw new IllegalArgumentException("Enum-code override names an enum not used by persistence.");
-        return new SchemaModel(tables.stream().anyMatch(t->t.tenantIsolation()!=null)?2:1, 1, tables, codes);
+        return new SchemaModel(tables.stream().anyMatch(t->t.eventIsolation()!=null)?3:tables.stream().anyMatch(t->t.tenantIsolation()!=null)?2:1, 1, tables, codes);
     }
     private void buildEvents() {
         tenantRoot=false;
+        eventRoot=true;
         Set<String> deferredEvents = new HashSet<>();
         for(var source:project.project().sources()) if(!source.external()) for(var definition:source.unit().definitions()) {
             if(definition instanceof ListenerNode listener && listener.deferred()) {
@@ -110,6 +114,7 @@ public final class SchemaBuilder {
             publish(t);
             eventPlans.add(new EventStoragePlan(source.unit().namespace(),event,List.copyOf(relations)));
         }
+        eventRoot=false;
         if(!options.module() && (!deferredEvents.isEmpty() || options.applicationDelivery())) {
             MutableTable t=new MutableTable("vernac","@delivery","@event-delivery",List.of("id"));
             for(String c:List.of("id","eventId")) t.column(c,"UUID",false,"UUID",t.origin);
@@ -399,6 +404,8 @@ public final class SchemaBuilder {
                 List.of(new StoragePlan.Property("value", item)), table.freeze().identity(), ownerColumn, ownerKey, list);
     }
     private String scoped(String predicate) {
+        if(eventRoot) return name(EventSchema.SCOPE)+" = :__vernacEventScope AND "+name(EventSchema.TENANT)
+                +" IS NOT DISTINCT FROM CAST(:__vernacEventTenant AS uuid) AND ("+predicate+")";
         return tenantRoot ? name(TenantSchema.COLUMN)+" = :__vernacTenant AND ("+predicate+")" : predicate;
     }
     private static void fail(SourceLocation loc, String message) {
@@ -410,6 +417,7 @@ public final class SchemaBuilder {
         final Map<String, Column> columns = new TreeMap<>();
         final List<Constraint> constraints = new ArrayList<>();
         final Map<String,Constraint> tenantConstraints=new HashMap<>();
+        final Map<String,Constraint> eventConstraints=new HashMap<>();
         final List<StoragePlan.Property> properties = new ArrayList<>();
         String predicate;
         int depth;
@@ -424,6 +432,7 @@ public final class SchemaBuilder {
             constraints.add(new Constraint(name,"FOREIGN KEY ("+sqlNames(from)+") REFERENCES "+table(namespace,target)
                     +" ("+sqlNames(to)+")"+(deferred?" DEFERRABLE INITIALLY DEFERRED":"")));
             tenantConstraints.put(name,TenantSchema.foreignKey(name,from,namespace,target,to,deferred));
+            eventConstraints.put(name,EventSchema.foreignKey(name,from,namespace,target,to,deferred));
         }
         void check(String name, String expression) { constraints.add(new Constraint("@check:" + name, "CHECK (" + expression + ")")); }
         Table freeze() { return new Table(namespace, name, origin, List.copyOf(columns.values()), primaryKey, constraints); }

@@ -115,4 +115,5 @@ mappings, Java-backed Vernac breakpoints and the installed-IDE acceptance walkth
 
 - [Event origin schema and upgrades](event-origin-schema.md): format-3 metadata,
   scope-qualified payload relationships, reviewed historical GLOBAL backfills and
-  real PostgreSQL fresh/upgrade evidence; generated-storage activation still pending.
+  real PostgreSQL fresh/upgrade evidence and generated GLOBAL storage; tenant worker
+  routing remains pending.

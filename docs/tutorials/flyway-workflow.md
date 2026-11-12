@@ -24,7 +24,9 @@ running `schema` or `migration`; this example applies migrations at application 
 
 ## 1. Confirm the initial version
 
-The example includes `V20261009090000000__initial_delivery.sql` and its matching JSON.
+The example retains `V20261009090000000__initial_delivery.sql` and its matching JSON,
+followed by the committed event walkthrough and event-origin upgrades. Treat the whole
+committed chain as the baseline; this exercise adds a new candidate after it.
 Run the application once, then inspect the history using `psql`:
 
 ```sql
@@ -203,8 +205,8 @@ Reverting files is not a database rollback. Before repeating the V2 exercise:
    explicitly disposable demo database. Preserve real/shared data and use a forward
    migration there; never delete applied shared history to repair an experiment.
 4. Restart and inspect `public.flyway_schema_history` in **delivery**, then check
-   the application tables. An empty baseline should apply only the committed initial
-   migration before the runners execute.
+   the application tables. An empty database applies the complete committed baseline
+   history, including event upgrades, before the runners execute.
 
 For a throwaway local demo, inspect `docker compose config --volumes` from the example
 folder before using `docker compose --profile test down --volumes`. This removes the

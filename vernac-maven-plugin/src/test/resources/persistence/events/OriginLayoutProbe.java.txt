@@ -1,0 +1,79 @@
+package eventdemo;
+import eventdemo.domain.*;
+import eventdemo.adapter.outbound.jdbc.event.*;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.*;
+import javax.sql.DataSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.vernac.runtime.*;
+import org.vernac.runtime.events.*;
+import org.vernac.runtime.jdbc.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+/** Test-only view of a legacy generated binding; never an application migration technique. */
+public final class OriginLayoutProbe {
+ private static Changed event() {
+  var labels=Labels.of(List.of(Label.of("same"),Label.of("same")));
+  return Changed.reconstitute(EventId.create(),Instant.parse("2026-10-10T12:00:00.123456789Z"),TaskId.create(),labels,
+      Detail.of(null,Amount.of(new BigDecimal("12.300"))),
+      Batches.of(List.of(Batch.of(labels),Batch.of(Labels.of(List.of())))),Status.OPEN);
+ }
+ private static JdbcEventStore<Changed> legacy(DataSource data) throws Exception {
+  var mapping=JdbcChangedEvents.class.getDeclaredMethod("mapping");mapping.setAccessible(true);
+  var tables=JdbcChangedEvents.class.getDeclaredMethod("tables");tables.setAccessible(true);
+  var domain=(JdbcMapping.Domain)mapping.invoke(null);
+  @SuppressWarnings("unchecked") var generated=(List<JdbcMapping.Table>)tables.invoke(null);
+  String scope="\"@scopeKey\" = :__vernacEventScope AND \"@tenantId\" IS NOT DISTINCT FROM CAST(:__vernacEventTenant AS uuid) AND ";
+  var old=generated.stream().map(t->new JdbcMapping.Table(t.name(),t.predicate().replace(scope,""),t.depth(),
+      t.columns().stream().filter(c->!Set.of("@tenantId","@scopeKey").contains(c.name())).toList(),t.key())).toList();
+  return new JdbcEventStore<>(new NamedParameterJdbcTemplate(data),Changed.class,"eventdemo.Changed",domain,old);
+ }
+ public static void restrictedRoundTrip(DataSource data) {
+  var jdbc=new NamedParameterJdbcTemplate(data);var tx=new TransactionTemplate(new DataSourceTransactionManager(data));
+  assertFalse(jdbc.queryForObject("SELECT pg_has_role(current_user,relowner,'MEMBER') FROM pg_class WHERE oid='\"eventdemo\".\"@event:Archived\"'::regclass",Map.of(),Boolean.class));
+  var store=new JdbcArchivedEvents(jdbc);var event=Archived.create();
+  tx.executeWithoutResult(status->{
+   try(var context=EventContext.open(()->List.of(store))) {EventContext.emit(event);}
+   assertEquals(event.occurredAt(),store.load(event.eventId()).occurredAt());
+  });
+ }
+ public static UUID beforeUpgrade(DataSource data) throws Exception {
+  var tx=new TransactionTemplate(new DataSourceTransactionManager(data));var old=legacy(data);var current=new JdbcChangedEvents(new NamedParameterJdbcTemplate(data));
+  var event=event();
+  tx.executeWithoutResult(s->{
+   old.persist(event,List.of("legacy.receiver"));
+   assertEquals(event.labels(),old.load(event.eventId()).labels());
+   assertTrue(assertThrows(VernacTechnicalException.class,()->current.load(event.eventId())).getMessage().contains("Rebuild"));
+  });
+  return event.eventId().value();
+ }
+ public static void afterUpgrade(DataSource data,UUID id) throws Exception {
+  var jdbc=new NamedParameterJdbcTemplate(data);var tx=new TransactionTemplate(new DataSourceTransactionManager(data));
+  var old=legacy(data);var current=new JdbcChangedEvents(jdbc);
+  tx.executeWithoutResult(s->{
+   var loaded=current.load(EventId.of(id));
+   assertEquals(Instant.parse("2026-10-10T12:00:00.123456789Z"),loaded.occurredAt());
+   assertEquals(List.of(Label.of("same"),Label.of("same")),loaded.labels().asList());
+   assertEquals(new BigDecimal("12.300"),loaded.detail().orElseThrow().amount().orElseThrow().bigDecimal());
+   assertEquals(2,loaded.batches().size());assertTrue(loaded.batches().get(1).labels().isEmpty());
+   current.persist(loaded,List.of("new.receiver"));
+   assertEquals(1,jdbc.queryForObject("SELECT count(*) FROM \"vernac\".\"@delivery\"",Map.of(),Integer.class));
+   assertTrue(assertThrows(VernacTechnicalException.class,()->old.load(EventId.of(id))).getMessage().contains("capability mismatch"));
+   assertThrows(VernacTechnicalException.class,()->old.persist(event(),List.of()));
+  });
+  // A superuser/owner bypasses RLS, so exact-origin predicates must still reject this row.
+  UUID foreign=UUID.randomUUID(),tenant=UUID.randomUUID();
+  var columns=jdbc.queryForList("SELECT attname FROM pg_attribute WHERE attrelid='\"eventdemo\".\"@event:Changed\"'::regclass AND attnum>0 AND NOT attisdropped ORDER BY attnum",Map.of(),String.class);
+  String names=String.join(",",columns.stream().map(c->"\""+c.replace("\"","\"\"")+"\"").toList());
+  String projection=String.join(",",columns.stream().map(c->switch(c){case "@eventId"->"CAST(:foreign AS uuid)";case "@tenantId"->"CAST(:tenant AS uuid)";case "@scopeKey"->":scope";default->"\""+c.replace("\"","\"\"")+"\"";}).toList());
+  jdbc.update("INSERT INTO \"eventdemo\".\"@event:Changed\" ("+names+") SELECT "+projection+" FROM \"eventdemo\".\"@event:Changed\" WHERE \"@eventId\"=:id",
+      Map.of("foreign",foreign,"tenant",tenant,"scope","TENANT:"+tenant,"id",id));
+  tx.executeWithoutResult(s->assertThrows(VernacTechnicalException.class,()->current.load(EventId.of(foreign))));
+  jdbc.getJdbcTemplate().execute("ALTER TABLE \"eventdemo\".\"@event:Changed\" DISABLE ROW LEVEL SECURITY");
+  try {tx.executeWithoutResult(s->assertThrows(VernacTechnicalException.class,()->current.load(EventId.of(id))));}
+  finally {jdbc.getJdbcTemplate().execute("ALTER TABLE \"eventdemo\".\"@event:Changed\" ENABLE ROW LEVEL SECURITY");}
+ }
+}

@@ -13,6 +13,7 @@ spring:
       lifecycle-management: start-only
   flyway:
     enabled: true
+    default-schema: public
     locations: classpath:db/migration
   sql:
     init:

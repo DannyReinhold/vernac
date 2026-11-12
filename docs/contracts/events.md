@@ -305,7 +305,11 @@ scope key, scope-qualified nested foreign keys and mixed-origin RLS. Reviewed le
 upgrades require explicit `'GLOBAL'` backfills; tenant attribution is never inferred.
 Formats 1/2 and their fingerprints remain compatible.
 
-The normal generator still uses the existing event layout. The module coordinator
-rejects the new event classification before migrations until compatible generated
-storage and worker routing are implemented. This metadata support does not remove
-the emission guard. See the [schema and upgrade contract](../development/event-origin-schema.md).
+The normal generator now selects this layout with matching origin-aware storage
+bindings. GLOBAL publication and deferred delivery work after reviewed migrations;
+existing global event modules retain normal dependency-first activation. Storage
+operations reject mismatched old/new table layouts and load GLOBAL rows with exact
+scope/NULL-tenant predicates, including on a connection that bypasses RLS. The old
+Java constructor remains an explicitly legacy GLOBAL path. Durable tenant publication
+is still rejected until delivery envelopes and worker restoration are implemented.
+See the [schema and upgrade contract](../development/event-origin-schema.md).

@@ -127,7 +127,7 @@ public final class JdbcRepositoryGenerator {
                 .returns(ParameterizedTypeName.get(ClassName.get(List.class),M.nestedClass("Table"))).addStatement("return $L",list(tables)).build());
         adapter.addField(ParameterizedTypeName.get(store,event),"store",Modifier.PRIVATE,Modifier.FINAL);
         adapter.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC).addParameter(JDBC,"jdbc")
-                .addStatement("this.store = new $T<>(jdbc, $T.class, $S, mapping(), tables())",store,event,plan.namespace()+"."+plan.event().name()).build());
+                .addStatement("this.store = $T.withOriginSchema(jdbc, $T.class, $S, mapping(), tables())",store,event,plan.namespace()+"."+plan.event().name()).build());
         adapter.addMethod(MethodSpec.methodBuilder("eventType").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(String.class)
                 .addStatement("return $S",plan.namespace()+"."+plan.event().name()).build());
         adapter.addMethod(MethodSpec.methodBuilder("listenerId").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(String.class)
@@ -140,6 +140,12 @@ public final class JdbcRepositoryGenerator {
                 .addStatement("store.persist(($T) event, listenerIds)",event).build());
         adapter.addMethod(MethodSpec.methodBuilder("load").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(event).addParameter(eventId,"id")
                 .addStatement("return store.load(id)").build());
+        var origin=ClassName.get("org.vernac.runtime.events","EventOrigin");
+        adapter.addMethod(MethodSpec.methodBuilder("persist").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
+                .addParameter(org.vernac.runtime.DomainEvent.class,"event").addParameter(ParameterizedTypeName.get(List.class,String.class),"listenerIds")
+                .addParameter(origin,"origin").addStatement("store.persist(($T) event, listenerIds, origin)",event).build());
+        adapter.addMethod(MethodSpec.methodBuilder("load").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
+                .returns(event).addParameter(eventId,"id").addParameter(origin,"origin").addStatement("return store.load(id, origin)").build());
         return JavaFile.builder(plan.namespace()+".adapter.outbound.jdbc.event",adapter.build()).indent("    ").skipJavaLangImports(true).build();
     }
     private void queryMethods(StoragePlan plan, TypeSpec.Builder adapter) {

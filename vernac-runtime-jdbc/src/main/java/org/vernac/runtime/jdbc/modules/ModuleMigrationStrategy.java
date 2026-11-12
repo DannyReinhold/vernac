@@ -42,8 +42,6 @@ public final class ModuleMigrationStrategy implements FlywayMigrationStrategy,Be
         default void verifyRuntime(String owner, SchemaDescription schema) { }
     }
     public static void coordinate(List<Prepared> modules,SchemaDescription application,Set<String> owned,Operations operations) {
-        requireImplementedEventStorage(application);
-        modules.forEach(module -> requireImplementedEventStorage(module.schema()));
         Map<String,String> owners=new TreeMap<>();
         for(var module:modules)for(String table:module.owned())claim(owners,table,module.module());
         for(String table:owned)claim(owners,table,"@application");
@@ -78,12 +76,6 @@ public final class ModuleMigrationStrategy implements FlywayMigrationStrategy,Be
             throw new IllegalStateException("Invalid/missing module migration or application schema resources. "
                     + "Rebuild the application and its dependency artifacts.", failed);
         }
-    }
-
-    private static void requireImplementedEventStorage(SchemaDescription schema) {
-        if (schema.tables().stream().anyMatch(table -> table.eventIsolation() != null))
-            throw new IllegalStateException("Mixed-origin event schema metadata is readable, but generated storage and worker routing "
-                    + "are not yet enabled. Refusing activation before any migration executes.");
     }
 
     private record Application(SchemaDescription schema, Set<String> owned) { }

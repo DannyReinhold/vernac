@@ -23,7 +23,9 @@ class EventSchemaTest {
         assertThat(table.name()).isEqualTo("@event:Ping");
         assertThat(table.primaryKey()).containsExactly("@eventId");
         assertThat(table.columns()).extracting(SchemaModel.Column::name)
-                .containsExactly("@eventId","@nanoRemainder:@occurredAt","@occurredAt");
+                .containsExactly("@eventId","@nanoRemainder:@occurredAt","@occurredAt","@scopeKey","@tenantId");
+        assertThat(model.formatVersion()).isEqualTo(3);
+        assertThat(table.eventIsolation().event()).isEqualTo("demo.Ping");
     }
     @Test void crossNamespaceSubscriberCreatesOneEventGraphAndDeliverySchema() throws Exception {
         Path other=Files.createDirectories(directory.resolve("consumer"));
@@ -37,7 +39,7 @@ class EventSchemaTest {
         assertThat(model.tables()).extracting(SchemaModel.Table::name)
                 .containsExactlyInAnyOrder("@event:Changed","@event:Changed.tags","@delivery");
         var child=model.tables().stream().filter(t->t.name().endsWith(".tags")).findFirst().orElseThrow();
-        assertThat(child.constraints().toString()).contains("REFERENCES \"demo\".\"@event:Changed\" (\"@eventId\")");
+        assertThat(child.constraints().toString()).contains("REFERENCES \"demo\".\"@event:Changed\" (\"@scopeKey\", \"@eventId\")");
         var delivery=model.tables().stream().filter(t->t.name().equals("@delivery")).findFirst().orElseThrow();
         assertThat(delivery.constraints().toString()).contains("UNIQUE (\"eventType\", \"eventId\", \"listenerId\")");
         assertThat(new VernacCompiler().compileProject(directory).generatedFiles().toString()).contains("JdbcChangedEvents");

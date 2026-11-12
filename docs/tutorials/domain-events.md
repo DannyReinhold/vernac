@@ -168,3 +168,13 @@ subscribers, an intentional first-attempt failure, successful retry and publishe
 Its event migration is committed alongside the source schema snapshot. Run it after
 installing the current Maven plugin and JDBC starter; the application keeps running
 until the runner has observed both successful delivery acknowledgements.
+
+## Existing event databases on the 0.6.0 development line
+
+Persisted payloads now use format-3 origin metadata and matching generated storage.
+Existing events remain explicitly GLOBAL through a new reviewed migration; applied
+migrations and source snapshots are retained. The demo includes that candidate and
+its explicit backfill file. Rebuild with matching compiler/runtime artifacts, review
+the upgrade and run schema-check before deployment. See the
+[event schema upgrade guide](../development/event-origin-schema.md) for details.
+This does not yet enable tenant publication or tenant worker context restoration.
