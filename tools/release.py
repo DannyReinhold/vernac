@@ -57,7 +57,7 @@ REQUIRED_TESTS += ("BehaviorSourceMapTest", "BehaviorDebugExecutionTest", "Verna
                    "ValidationSourceMapTest", "ValidationDebugExecutionTest",
                    "ListenerSourceMapTest", "ListenerDebugExecutionTest",
                    "VernacDebuggerHostLexerTest", "VernacExpressionFactoryTest",
-                   "AdapterSourceMapTest", "AdapterDebugExecutionTest", "VernacViewInspectorTest", "VernacTypeReferencesTest", "VernacTypeReferenceTest", "VernacSpringBootTemplateTest", "SpringBootStarterExecutionTest", "InboundMvcContractTest", "InboundMvcExecutionTest", "InboundMvcSymbolsTest", "ImplementationContractsExecutionTest")
+                   "AdapterSourceMapTest", "AdapterDebugExecutionTest", "VernacViewInspectorTest", "VernacDebuggerApiTest", "VernacTypeReferencesTest", "VernacTypeReferenceTest", "VernacSpringBootTemplateTest", "SpringBootStarterExecutionTest", "InboundMvcContractTest", "InboundMvcExecutionTest", "InboundMvcSymbolsTest", "ImplementationContractsExecutionTest")
 
 
 # Live editor APIs are a 0.5.0 release feature, including native Java PSI lookup.

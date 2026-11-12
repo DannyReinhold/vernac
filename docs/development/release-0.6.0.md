@@ -493,3 +493,15 @@ records exact Java boundaries and failures. CI/release inventory requires the ne
 No production corpus, public credential endpoint, registration/provisioning, challenge or
 admission/cleanup persistence, protected delivery, rehash storage or session integration
 is claimed. A01/A02 and all complete-SaaS/manual release gates remain OPEN.
+
+
+## IntelliJ renderer compatibility regression
+
+Restored the published 0.5.2 fix in the 0.6.0 line: the view renderer uses its public
+isApplicable(Type) override without ClassRenderer.setIsApplicableChecker. A compiled
+legacy fixture demonstrates rejection, and the actual packaged ZIP is scanned for
+the known rejected symbol. A focused pull-request workflow and required release
+suite prevent silent loss of this fix. The source change does not publish a plugin
+or claim a complete Plugin Verifier result. Full candidate/IDE verification and
+installed-IDE smoke acceptance remain required before release. SaaS work remains
+at the credential-primitives checkpoint; no identity scope is marked complete here.

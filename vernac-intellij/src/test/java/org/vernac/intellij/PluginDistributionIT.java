@@ -76,6 +76,22 @@ class PluginDistributionIT {
     }
 
     @Test
+    void packagedPluginDoesNotReferenceRejectedInternalRendererApi() throws IOException {
+        Path distribution = Path.of(requiredProperty("vernac.plugin.zip"));
+        String pluginJarName = requiredProperty("vernac.plugin.jar.name");
+        try (ZipFile zip = new ZipFile(distribution.toFile())) {
+            var plugin = readNestedJar(zip, "vernac-intellij/lib/" + pluginJarName);
+            requireContent(plugin, "org/vernac/intellij/debug/VernacViewRenderer.class");
+            for (var entry : plugin.entrySet()) {
+                if (entry.getKey().endsWith(".class")) {
+                    assertFalse(VernacDebuggerApiTest.referencesRejectedRendererApi(entry.getValue()),
+                            "Packaged plugin still contains the rejected renderer API: " + entry.getKey());
+                }
+            }
+        }
+    }
+
+    @Test
     void includesPluginTemplateAndExecutableLanguageServer()
             throws IOException {
         Path distribution = Path.of(requiredProperty("vernac.plugin.zip"));
