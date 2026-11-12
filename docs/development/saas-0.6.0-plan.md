@@ -3,7 +3,7 @@ title: SaaS foundation — 0.6.0 delivery plan
 ---
 # SaaS foundation — 0.6.0 delivery plan
 
-Status: **approved product objective; implementation and detailed contracts pending**.
+Status: **approved product objective; foundation slices implemented, complete SaaS delivery OPEN**.
 Planning baseline: 2026-11-11, `feature/0.6.0`.
 
 This document records the agreed outcome, design direction and unresolved decisions.
@@ -82,11 +82,14 @@ aggregate shared by identity, billing and every product model.
   work does not inherit credentials or gain unrestricted access automatically.
 - Authorization checks do not implicitly consume a quota. Technical policy failures
   must be distinct from a legitimate denial and must never grant access.
-- Public registration/login/recovery flows need explicit treatment. Exact syntax and
-  compatibility defaults for usecases without requirements are still undecided.
+- Public registration/login/recovery flows need explicit treatment. The implemented
+  requires syntax preserves omission for ordinary applications; the SaaS assembly must
+  enable the explicit-access startup check. Identity workflows are not supplied yet.
 
-Surface syntax is still a proposal. Do not add speculative examples to the executable
-language reference or AI reference as supported features.
+The [implemented usecase authorization contract](../contracts/usecase-authorization.md)
+and [explicit-access audit](../contracts/explicit-authorization.md) define current syntax.
+Role catalogs, identity workflows and restriction sketches below remain proposals; do
+not advertise them in executable language/AI examples as implemented features.
 
 ## Dynamic restrictions: two independent dimensions
 
@@ -272,24 +275,30 @@ baking speculative mappings into this planning document.
 
 ## Technical tenancy design slice
 
-The [technical tenant contract](tenant-technical-contract.md) proposes D13 storage,
-transaction binding, RLS/roles, object provenance, migration and worker mechanics.
-It is ready for contract review, not implemented. Its TENANT-01–08 proofs belong in
-the next isolated executable Spring/PostgreSQL PR; production acceptance stays OPEN.
+The [technical tenant contract](tenant-technical-contract.md) now has implemented
+context, generated storage/schema, module and event-worker slices, with PostgreSQL
+proofs recorded in the release ledger. Trusted identity-driven selection, provisioning,
+webhooks and the complete SaaS acceptance remain OPEN. The original design document
+is not by itself implementation evidence.
 
-## Authorization design slice
+## Authorization foundation
 
-The [proposed usecase authorization contract](usecase-authorization-contract.md)
-refines D02/D03 and the authorization ordering part of D04. Its syntax and runtime
-rules are for review, not implemented features. It specifies actor/scope/resource
-identity, all/any, public/default semantics, a generated entry guard and safe failures.
-An executable Spring spike remains required; the acceptance ledger stays OPEN.
+The [usecase authorization contract](../contracts/usecase-authorization.md),
+[module requirements](../contracts/module-authorization.md) and
+[explicit-access startup check](../contracts/explicit-authorization.md) are implemented.
+Generated guards and Spring/PostgreSQL tests cover nested execution and safe failures.
+Actual user/membership/role policies, identity UI, dynamic restrictions and assembled
+SaaS acceptance are still required. The next design slice is the
+[identity/membership proposal](identity-membership-0.6.0.md).
 
 ## Decisions before implementation
 
-All decisions below are **open**. Record an accepted resolution, rationale, PR and
-acceptance IDs in this document or a linked contract. Do not treat a suggestion as
-approval. Unresolved release-affecting decisions block final acceptance.
+The rows below track decision areas, not claims that every earlier foundation is still
+unimplemented. Tenant storage/context, permission requirements, module contracts and
+the explicit-access startup check now have implemented contracts and evidence in the
+release ledger. Identity-specific D02/D05 details and the newly explicit D14 remain
+under review. Unresolved release-affecting choices still block acceptance. A proposal
+is not approval; record accepted resolutions and their PRs.
 
 | ID | Decision |
 | --- | --- |
@@ -305,29 +314,38 @@ approval. Unresolved release-affecting decisions block final acceptance.
 | D10 | Mail provider, delivery ledger/templates, secure links and retry behavior |
 | D11 | Reusable UI delivery/customization, module activation and single-command local start/deployment |
 | D12 | Release inventory and automated acceptance gate; scope agreements across extension repositories |
-| D13 | Agreed opt-in tenant modifier/provisioning baseline; review and prove the technical context/storage/provenance/RLS/module/worker contract (no platform admin) |
+| D13 | Tenant technical foundation implemented; provisioning and whole-SaaS integration remain OPEN (no platform admin) |
+| D14 | Identity credentials, email login-key canonicalization, challenge lifetimes, public-flow abuse protection and session policy — proposed in the identity contract |
 
 These can be resolved incrementally. Identity credentials, tax algorithms and payment
 semantics must not be guessed to avoid asking a genuinely necessary question.
 
 ## PR sequence
 
-1. **Plan and acceptance ledger** (this PR): align roadmaps; no language/runtime change.
+The next implementation sequence starts with real identity/membership ownership before
+restriction accounting; both remain required for 0.6.0. Earlier foundation slices are
+recorded below for context, not as tasks to repeat.
+
+1. **Plan and acceptance ledger** (planning baseline): align roadmaps; no language/runtime change.
 2. **Authorization/tenant contract and Spring spike**: D02/D03/D13, entrypoint-to-usecase example,
    denial taxonomy, chosen enforcement boundary and nested-call proof.
 3. **Tenant foundation and rights/tooling**: resolve D13 with the authorization context;
    implement automatic isolation across schema, repositories, modules and workers. Then
    continue with the shared compiler/analyzer model, generation, runtime/starter,
    LSP/IDE metadata/navigation/completion, executable reference and tutorials together.
-4. **Dynamic restrictions**: limits/capacity/quota facts, atomic accounting and explicit
+4. **Identity/accounts/roles contract and packaging decision**: review the
+   [identity/membership proposal](identity-membership-0.6.0.md), then resolve D01/D14 before
+   publishing extension implementations. Existing permission/tenant foundations do not
+   supply a login system.
+5. **Identity/accounts/roles implementation**: reusable modules, public flows, protected
+   administration and initial end-to-end UI. Resolve packaging before publishing.
+6. **Dynamic restrictions**: limits/capacity/quota facts, atomic accounting and explicit
    APIs; concurrency/failure tests, then functional/external reservation lifecycle.
-5. **Identity/accounts/roles**: reusable modules, public flows, protected administration
-   and initial end-to-end UI. Resolve module packaging before publishing anything.
-6. **Subscriptions/payments/invoices/mail**: deliver complete vertical slices through
+7. **Subscriptions/payments/invoices/mail**: deliver complete vertical slices through
    modules, adapters, migrations and UI; resolve D07–D10 before their implementations.
-7. **Application assembly**: real consuming application, documented deployment, local
+8. **Application assembly**: real consuming application, documented deployment, local
    simulators and provider sandbox checks. Library internals alone do not satisfy this.
-8. **Dedicated completeness audit and release gate**: close the acceptance ledger,
+9. **Dedicated completeness audit and release gate**: close the acceptance ledger,
    fresh artifact consumption, plugin verification and maintainer go/no-go.
 
 Split these into smaller reviewable PRs where useful. Target `feature/0.6.0`, include
