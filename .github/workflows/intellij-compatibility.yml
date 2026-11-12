@@ -1,0 +1,62 @@
+name: IntelliJ debugger API regression
+
+on:
+  pull_request:
+    paths:
+      - 'vernac-intellij/**'
+      - 'vernac-compiler/**'
+      - 'vernac-lsp/**'
+      - 'vernac-runtime/**'
+      - 'pom.xml'
+      - 'tools/release.py'
+      - '.github/workflows/intellij-compatibility.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  renderer-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Build and test compiled renderer and actual plugin ZIP
+        run: >-
+          mvn -B -ntp -pl vernac-intellij -am
+          -Dtest=VernacDebuggerApiTest,VernacViewInspectorTest
+          -Dsurefire.failIfNoSpecifiedTests=false
+          -Dit.test=PluginDistributionIT -Dfailsafe.failIfNoSpecifiedTests=false
+          clean verify
+      - name: Require the regression and distribution proofs without skips
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          proofs = {
+              'surefire-reports/TEST-org.vernac.intellij.VernacDebuggerApiTest.xml': {
+                  'guardDetectsTheHistoricalInternalSetterInCompiledCode',
+                  'currentRendererUsesPublicApplicabilityWithoutTheInternalSetter',
+              },
+              'surefire-reports/TEST-org.vernac.intellij.debug.VernacViewInspectorTest.xml': {
+                  'readsRealStoredValuesWithoutInvokingComputedGettersAndOnlySkipsPureReads',
+              },
+              'failsafe-reports/TEST-org.vernac.intellij.PluginDistributionIT.xml': {
+                  'packagedPluginDoesNotReferenceRejectedInternalRendererApi',
+                  'includesPluginTemplateAndExecutableLanguageServer',
+              },
+          }
+          for report, expected in proofs.items():
+              root = ET.parse(Path('vernac-intellij/target') / report).getroot()
+              cases = {c.attrib['name']: c for c in root.findall('testcase')}
+              assert not (expected - cases.keys()), f'Missing debugger API proofs: {report}'
+              assert all(int(root.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
+              assert all(not any(c.find(k) is not None for k in ('failure', 'error', 'skipped')) for c in cases.values())
+          print('Known internal-API regression and packaged distribution proofs passed; none skipped.')
+          PY

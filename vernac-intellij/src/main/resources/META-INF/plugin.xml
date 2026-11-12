@@ -100,6 +100,11 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>0.6.0 development — Debugger API compatibility</h3>
+<p>Restored the 0.5.2 public-API renderer fix in the development branch. Read/Access
+view applicability uses the public override; a packaged-plugin regression check
+prevents the rejected internal setter from returning.</p>
+
 <h3>0.6.0 development — Credential primitives</h3>
 <p>The optional Spring identity artifact now includes validated login keys, Unicode-aware
 password rules, explicit offline blocklist loading and real Spring Argon2id operations.

@@ -94,6 +94,13 @@ python tools/check-doc-links.py
 python -m unittest discover -s tools/tests -v -b
 ```
 
+The debugger API regression suites must run against both compiled classes and the
+packaged ZIP. Also run the full JetBrains Plugin Verifier against the exact release
+candidate and supported IDE builds; review its API/compatibility report before upload.
+The targeted binary guard is not a full verifier, and a previous Marketplace approval
+does not establish compatibility of the current candidate. See the
+[debugger verification lessons](../development/lessons-learned/debugging-and-verification.md#preserve-marketplace-fixes-in-development-branches).
+
 Review the Git diff and commit intended source only. Keep credentials, target output,
 flattened POMs and tutorial migration experiments out of the commit. Push the branch.
 
