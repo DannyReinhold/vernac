@@ -171,10 +171,41 @@ Built-in equality semantics MUST be preserved:
 
 ## String representation
 
-The class MUST override `toString` and provide a readable representation identifying
-the value object type and its field values. Optional absence MUST be handled safely.
+By default, the class MUST override `toString` and provide a readable representation
+identifying the value object type and its field values. Optional absence MUST be handled safely.
 
-The exact punctuation and formatting are not a compatibility guarantee.
+Since 0.6.0, an ordinary value MAY explicitly replace that default using the existing
+behavior syntax, matching the supported enum override:
+
+```vernac
+value SecretEncoding(String encoded) behavior {
+    public String toString() { return "SecretEncoding[REDACTED]"; }
+};
+```
+
+Only the exact public, zero-parameter, non-optional String-returning `toString()`
+method is a representation override. The compiler MUST emit one behavior delegate
+instead of the default field-rendering method. Private, void, differently typed or
+optional-return declarations MUST be rejected with located diagnostics. Duplicate
+author declarations remain errors; return type/nullability cannot create overloads.
+A null result from an otherwise well-typed body fails with the existing behavior
+contract exception; there is no fallback that prints fields. Parameter overloads
+remain ordinary methods and MUST NOT suppress the default representation.
+
+Fields named `toString` remain getter collisions, even when behavior supplies an
+override. Other generated methods, including equality, hashing and factories, MUST
+NOT become replaceable by this exception. ID/entity/aggregate/collection override
+rules are unchanged. Getter values, equality, hashing, validation and persistence
+mapping MUST NOT change because of a representation override.
+
+A redacted value also renders redacted when a containing generated value, entity,
+aggregate or collection formats that value normally. This is not a secrecy marker:
+getters, read/access views, debugger inspection and explicit serializers still have
+access to the actual value. A custom body may itself disclose fields; authors remain
+responsible for its output. Do not emit credentials in events or public DTOs merely
+because their toString is redacted. No encryption or serialization policy is implied.
+
+The exact punctuation and formatting of the default are not a compatibility guarantee.
 `toString` is not a serialization format or a persistence representation.
 
 ## Compiler, tooling, and verification

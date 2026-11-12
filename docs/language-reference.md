@@ -139,6 +139,11 @@ a Java record. There are no `mut` fields or setters; fieldless VOs are rejected.
 All-optional VOs are allowed and are distinct from absence of the VO itself; they
 have only the full factory, not an additional zero-argument factory.
 
+Since 0.6.0, an explicit `public String toString()` in the existing VO behavior block
+may replace the default field rendering, for example to return a constant redacted
+label. It does not change getters, equality, persistence or serializer access.
+See [representation rules](contracts/value-objects.md#string-representation).
+
 The full factory accepts all fields. If required and optional fields coexist, one required-only overload
 delegates to the full factory; combinations are not enumerated. Null checks precede
 validation. Failed construction returns no object. Ordinary VOs have no redundant

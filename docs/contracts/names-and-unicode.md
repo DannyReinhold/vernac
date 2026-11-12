@@ -191,8 +191,11 @@ This is not a global name blacklist. Apply the API of the generated type being
 checked. For example, an ordinary VO can have a field named `id`; an entity's
 identity already occupies that name. Legitimate overloads remain allowed.
 
-Author-declared methods must not replace generated getters, factories, `toString`,
-`equals` or `hashCode` with the same signature. A conflict must not cause the
+Author-declared methods must not replace generated getters, factories, `equals` or
+`hashCode` with the same signature. The explicit exception is an ordinary value's
+public, non-optional String-returning `toString()` behavior method, permitted since
+0.6.0 as specified by the [value contract](value-objects.md#string-representation).
+A field named `toString` remains invalid. Other conflicts must not cause the
 compiler to omit a promised generated method. Two author-declared methods must
 also have compatible, distinct Java signatures. Compare against the factories
 actually generated, including the required-only `of` overload where applicable.

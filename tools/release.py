@@ -40,7 +40,7 @@ REQUIRED_TESTS = ("AdapterBindingsTest","PortModuleTest", "PortModuleSymbolsTest
 
 SAAS_IDENTITY_TESTS = ("IdentityModuleContractIT", "IdentityActorResolverTest", "IdentityPrincipalTest", "IdentityJdbcModuleIT",
                    "LoginAddressTest", "PasswordInputTest", "OfflinePasswordBlocklistTest", "CredentialPasswordsTest",
-                   "BundledPasswordBlocklistTest", "CredentialCorpusDistributionIT", "IdentityCapacityPostgresIT", "IdentityChallengeTokenTest", "IdentityChallengesPostgresIT", "IdentityIngressModelTest", "IdentityIngressPostgresIT")
+                   "BundledPasswordBlocklistTest", "CredentialCorpusDistributionIT", "IdentityCapacityPostgresIT", "IdentityChallengeTokenTest", "IdentityChallengesPostgresIT", "IdentityIngressModelTest", "IdentityIngressPostgresIT", "IdentityChallengeRepresentationTest")
 REQUIRED_TESTS += SAAS_IDENTITY_TESTS
 
 # 0.4.0 acceptance: module contracts/lifecycle, pagination, vocabulary and diagrams.
@@ -60,6 +60,9 @@ REQUIRED_TESTS += ("BehaviorSourceMapTest", "BehaviorDebugExecutionTest", "Verna
                    "VernacDebuggerHostLexerTest", "VernacExpressionFactoryTest",
                    "AdapterSourceMapTest", "AdapterDebugExecutionTest", "VernacViewInspectorTest", "VernacDebuggerApiTest", "VernacTypeReferencesTest", "VernacTypeReferenceTest", "VernacSpringBootTemplateTest", "SpringBootStarterExecutionTest", "InboundMvcContractTest", "InboundMvcExecutionTest", "InboundMvcSymbolsTest", "ImplementationContractsExecutionTest")
 
+
+# Explicit ordinary-value representation and unsaved LSP diagnostics are required in 0.6.0.
+REQUIRED_TESTS += ("ValueStringRepresentationTest", "VernacProjectDiagnosticsTest")
 
 # Live editor APIs are a 0.5.0 release feature, including native Java PSI lookup.
 REQUIRED_TESTS += ("EditorValueObjectsTest", "BehaviorJavaProjectionTest",

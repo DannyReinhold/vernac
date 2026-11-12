@@ -598,3 +598,28 @@ errors or skips under JDK 25. Tests include failed bootstrap reservation rollbac
 corrupt stored-state failure. Four-migration PostgreSQL replay matches the expected
 owned schema. All 16 Python tooling tests and documentation navigation/link checks pass.
 GitHub CI and final installed-IDE/whole-SaaS acceptance are separate from these local proofs.
+
+
+## Explicit value representations and private verifier redaction
+
+The existing enum capability to supply public String toString() behavior now also
+works for ordinary values. It needs no new keyword, field annotation, crypto or
+serializer framework. The compiler emits one custom delegate instead of its default
+field renderer, enforces public/non-optional String/zero arguments, preserves other
+generated APIs and rejects getter collisions/duplicate methods. Editor APIs share
+the production generator; LSP diagnostics follow unsaved edits.
+
+IdentityChallengeVerifier uses a constant redacted label, including when nested in a
+generated challenge representation. Getters/comparison and all four existing schema
+migrations remain unchanged. This resolves the representation prerequisite identified
+in the preceding ingress slice; credential persistence itself is still next. Redaction
+is only a display rule and does not hide fields from getters, serializers or debugging.
+No public credentials, registration/recovery or session flow is claimed. A01/A02 and
+whole-SaaS/final manual gates remain OPEN.
+
+Local evidence under JDK 25: 530 compiler tests, all 86 LSP tests, all 54 identity/SaaS
+cases including restricted-role PostgreSQL consumers, and 33 targeted Maven module,
+documentation-example and real JVM/JDI behavior/validation proofs pass without
+failures/errors/skips. All 16 Python tooling tests and documentation link checks pass.
+The complete IntelliJ build/installed-IDE acceptance and full release reactor remain
+separate gates; no release publication is performed by this slice.

@@ -59,6 +59,11 @@ final class ValueObjectApiValidator {
                         "public", field.location(), diagnostics);
             }
         }
+        // A modeled getter named toString remains a collision above. Only an explicit behavior
+        // method may replace the ordinary value's generated representation, just as for enums.
+        if (!value.isEnum() && value.methods().stream().anyMatch(
+                org.vernac.compiler.util.JavaMethodSignatures::isToStringSignature))
+            signatures.remove("toString()");
         for (var method : value.methods()) {
             identifier(method.name(), method.location(), diagnostics);
             checkNames(method.parameters(), "parameter", diagnostics);
@@ -66,12 +71,12 @@ final class ValueObjectApiValidator {
             String signature = method.name() + "(" + parameters(method.parameters(), types) + ")";
             add(signature, new Member(method.location(), "Declared method '" + signature + "'"), signatures, diagnostics,
                     "Use a distinct method name or parameter signature; changing only the return type does not resolve the conflict.");
-            if (value.isEnum() && signature.equals("toString()") && types.containsKey(method.returnType())) {
+            if (org.vernac.compiler.util.JavaMethodSignatures.isToStringSignature(method) && types.containsKey(method.returnType())) {
                 boolean stringReturn = types.get(method.returnType()) instanceof ResolvedType.Builtin builtin
                         && builtin.javaType() == String.class && !method.returnType().isOptional();
                 if (!stringReturn || !method.accessModifier().equals("public"))
                     diagnostics.add(CompilerDiagnostic.error(method.location(),
-                            "Method 'toString()' conflicts with the enum API: use public String toString() with a non-null result."));
+                            "Method 'toString()' conflicts with the " + (value.isEnum() ? "enum" : "value object") + " API: use public String toString() with a non-null result."));
             }
             if (!value.isEnum()) checkObjectOverride(method.name(), method.parameters(), types.get(method.returnType()),
                     method.returnType().isOptional(), method.accessModifier(), method.location(), diagnostics);

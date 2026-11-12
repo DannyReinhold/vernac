@@ -69,10 +69,11 @@ public class ValueObjectGenerator {
 
         classBuilder.addMethod(buildEquals(node, className));
         classBuilder.addMethod(buildHashCode(node));
-        classBuilder.addMethod(buildToString(node, className));
+        if (node.methods().stream().noneMatch(org.vernac.compiler.util.JavaMethodSignatures::isToStringSignature))
+            classBuilder.addMethod(buildToString(node, className));
 
         for (MethodNode method : node.methods()) {
-            if (method.accessModifier().equals("public")) classBuilder.addMethod(new BehaviorGenerator().delegate(
+            if (method.accessModifier().equals("public")) classBuilder.addMethod(behaviorMethod(
                     ClassName.get(targetPackage, className), method, project));
         }
 
@@ -80,6 +81,12 @@ public class ValueObjectGenerator {
                 .skipJavaLangImports(true)
                 .indent("    ")
                 .build();
+    }
+
+    private MethodSpec behaviorMethod(ClassName owner, MethodNode method, ResolvedProject project) {
+        var delegate = new BehaviorGenerator().delegate(owner, method, project);
+        return org.vernac.compiler.util.JavaMethodSignatures.isToStringSignature(method)
+                ? delegate.toBuilder().addAnnotation(Override.class).build() : delegate;
     }
 
     private JavaFile generateEnum(ValueObjectNode node, String targetPackage, ResolvedProject project) {
@@ -96,7 +103,7 @@ public class ValueObjectGenerator {
         }
 
         for (MethodNode method : node.methods()) {
-            if (method.accessModifier().equals("public")) enumBuilder.addMethod(new BehaviorGenerator().delegate(
+            if (method.accessModifier().equals("public")) enumBuilder.addMethod(behaviorMethod(
                     ClassName.get(targetPackage, node.name()), method, project));
         }
 

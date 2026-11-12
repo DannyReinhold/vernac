@@ -219,7 +219,8 @@ An ordinary value-object definition generates a Java class, not a record, with:
 
 - A private constructor and an `of` factory.
 - Value-based `equals` and `hashCode` over all fields.
-- A generated `toString`.
+- A generated `toString`, or an explicit public String-returning zero-argument behavior override
+  under the [value contract](../contracts/value-objects.md#string-representation).
 
 The enum form generates a Java enum:
 

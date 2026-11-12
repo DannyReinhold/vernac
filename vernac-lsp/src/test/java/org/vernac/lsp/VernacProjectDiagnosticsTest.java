@@ -65,6 +65,18 @@ class VernacProjectDiagnosticsTest {
         assertTrue(diagnostics(model).isEmpty(), diagnostics(model).toString());
     }
 
+    @Test void valueStringRepresentationDiagnosticsFollowUnsavedEdits() throws Exception {
+        Path model = file("representation", "secret", "value Secret(String encoded) behavior {public String toString(){return \"Secret[REDACTED]\";}};");
+        open(model);
+        assertTrue(diagnostics(model).isEmpty(), diagnostics(model).toString());
+        change(model, "namespace representation; value Secret(String encoded) behavior {private String toString(){return \"x\";}};", 2);
+        assertTrue(diagnostics(model).stream().anyMatch(d -> d.getMessage().contains("public String toString()")));
+        change(model, "namespace representation; value Secret(String encoded) behavior {public String? toString(){return Optional.empty();}};", 3);
+        assertTrue(diagnostics(model).stream().anyMatch(d -> d.getMessage().contains("non-null result")));
+        change(model, "namespace representation; value Secret(String encoded) behavior {public String toString(){return \"Secret[REDACTED]\";}};", 4);
+        assertTrue(diagnostics(model).isEmpty(), diagnostics(model).toString());
+    }
+
     @Test void behaviorImportConflictIsReportedAndCleared() throws Exception {
         Path model = file("names", "name", "value Name(String) behavior { java imports { foreign.String; } };");
         open(model);
