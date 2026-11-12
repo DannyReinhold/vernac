@@ -16,8 +16,15 @@ acceptance boundary even if they have their own versions or repositories.
 [Declarative tenant isolation](tenant-isolation-0.6.0.md) is required for 0.6.0.
 D13 and A19/A20 are OPEN. The [technical tenant proposal](tenant-technical-contract.md)
 now specifies the candidate implementation and TENANT-01–08 feasibility requirements. No policy-only account filter or manually repeated query
-predicate satisfies these requirements. Apply isolation to J01–J08 and the release
+predicate satisfies these requirements. Apply isolation to J01–J09 and the release
 manifest, including extension modules and non-database output paths.
+
+## Required extension and webhook safety follow-up
+
+[Tenant-safe webhooks and handwritten repositories](tenant-webhooks-and-repository-extensions.md)
+are mandatory 0.6.0 acceptance boundaries. Generated persistence/event isolation alone
+is insufficient. A22/A23 remain OPEN until supported extension APIs, provider routing,
+documentation/examples and negative integration tests are implemented and verified.
 
 ## Authorization contract proposal
 
@@ -83,6 +90,8 @@ Evidence is currently **none** for all rows. All statuses are OPEN.
 | A19 | Automatic shared-database tenant isolation | Declarative classification; byId/find/CRUD/graphs/pages/count/cursors; cross-tenant references and object-save rejection; missing context and pooling/concurrency tests under the actual database role | OPEN / none |
 | A20 | Tenant lifecycle and whole-SaaS propagation | Personal/shared membership, provisioning/global data, module metadata/DDL/backfill, event/payment/mail workers, files/caches and fresh/upgrade E2E isolation | OPEN / none |
 | A21 | Separate SaaS sample and New Project Wizard option | Existing non-SaaS examples/templates still build and run unchanged; explicit SaaS selection generates a complete independent app with module activation/UI/local DB and test providers, no API keys; verify packaged plugin | OPEN / none |
+| A22 | Supported handwritten repository extensions | Pre-query runtime binding/RLS; canonical graph hydration/write/version/timestamp semantics; return-shape/tenant/provenance guards; scalar/count paths; compiled guide/examples and negative restricted-role tests | OPEN / none |
+| A23 | Verified webhook tenant routing | Provider proof and scoped resource registry; no claimed-tenant/global fallback; early/unknown/conflicting route; duplicate/out-of-order/concurrent/restart processing; safe logging; real/test-provider journeys | OPEN / none |
 
 ## Required integrated journeys
 
@@ -108,6 +117,9 @@ local providers; add sandbox evidence for the agreed real adapters separately.
 - **J08 Developer adoption:** new independent app → module dependencies/activation →
   provider configuration → usable UI/deployment; no edits to generated files or
   undocumented local source dependencies.
+- **J09 Extension safety:** implement a custom query through the supported Java extension
+  path → hydrate complete tenant graphs → reject foreign/detached/NEW/invalid results →
+  prove stale writes and scalar/count isolation with restricted parallel connections.
 
 Extend J01/J03/J04/J06 with the predefined test-provider scenarios and verify the
 corresponding actionable user/developer outcomes. Capture correlated operational
@@ -122,14 +134,14 @@ Schedule a separate review PR after integration, before calling the release read
 The review may use the same contributor but must be a new, explicit assessment of
 the final implementation, not merely a repetition of prior progress summaries.
 
-- [ ] Reconcile every plan/release promise, D01–D13 decision and A01–A21 row against
+- [ ] Reconcile every plan/release promise, D01–D13 decision and A01–A23 row against
       actual source, tests, public APIs, generated output and consuming application.
 - [ ] Inspect stubs, TODO/FIXME/UnsupportedOperationException paths, empty adapters,
       commented/disabled/skipped tests and happy-path-only simulators. Classify relevant
       findings; zero TODOs globally is not required and a text scan is not sufficient.
 - [ ] Inspect every required module and selected provider, including work in other repos.
       Resolve incompatible defaults, licensing/distribution or migration gaps.
-- [ ] Execute J01–J08 and required module/compiler/runtime/PostgreSQL/tooling suites;
+- [ ] Execute J01–J09 and required module/compiler/runtime/PostgreSQL/tooling suites;
       investigate flaky results, missing reports and unexpected skips rather than retrying
       until green. Record the final passing run and reason for each legitimate exclusion.
 - [ ] Audit security/context/transaction boundaries, cross-account isolation, public
@@ -167,7 +179,7 @@ tooling rather than relying on a maintainer remembering to inspect this Markdown
 
 ## Final go/no-go
 
-GO requires all agreed requirements VERIFIED, J01–J08 evidenced, D01–D13 resolved,
+GO requires all agreed requirements VERIFIED, J01–J09 evidenced, D01–D13 resolved,
 no release-blocking findings, implemented passing automated gate and recorded
 maintainer approval. Optional future work must be identified explicitly, not used
 as a label for unfinished agreed functionality. A scope reduction requires an
@@ -290,3 +302,13 @@ role grants, migration review and stopping old worker versions before tenant tra
 External effects are still at-least-once. Authentication, immutable actor/permission
 policy, quotas, provisioning and the complete SaaS UI/Wizard/payment/mail lifecycle are
 not supplied by routing. A19/A20/A21 and the final integrated release audit stay OPEN.
+
+## Explicit ingress and extension gaps
+
+Webhooks must resolve trusted resource ownership before tenant business access, without
+requiring an already selected tenant or accepting callback claims as authorization.
+Handwritten repository extensions need pre-query binding, canonical hydration/writes
+and return guards, not just tenant predicates or post-hoc metadata. Current repository
+syntax exposes only declarative find methods; the general extension SPI is not yet
+implemented. These are required A22/A23 work, alongside A04/A09/A15/A18/A19/A20, and
+must be reconciled in the final completeness review before release.

@@ -19,6 +19,16 @@ contract or imply that every DDD pattern needs a dedicated language keyword.
 The ordering is a recommendation, not a commitment to implement all items before
 a particular release. Run the [feature checklist](feature-review-checklist.md) for each proposal.
 
+## Mandatory 0.6.0 follow-up: safe custom persistence and webhook ingress
+
+Track [tenant-safe webhooks and handwritten repositories](tenant-webhooks-and-repository-extensions.md)
+as explicit release prerequisites A22/A23. Do not confuse generated persistence safety
+with protection of arbitrary interface replacements. A supported extension path must
+bind before SQL, reuse graph hydration/writes, validate returned provenance/tenant/version
+and ship compiled tutorials plus negative tests. Provider webhook routing must establish
+trusted external-resource ownership before opening business context. These requirements
+are planned; they do not introduce repository behavior or webhook syntax yet.
+
 ## Already supported foundations
 
 IDs and identity-based entities; immutable VOs and enums; explicitly named lists/sets;

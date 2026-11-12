@@ -40,6 +40,16 @@ context. Application authors must not repeat account/organization predicates.
 and open D13 decisions. It supersedes using resource-policy account comparisons as
 the standard isolation mechanism; organization/account identity is not tenant identity.
 
+## Required ingress and custom persistence safety
+
+[The webhook/repository follow-up](tenant-webhooks-and-repository-extensions.md) is part
+of 0.6.0, not optional post-release polish. Provider callbacks require verified technical
+correlation before tenant business access; arbitrary callback tenant claims do not
+establish ownership. Handwritten repository methods require a supported scoped facade,
+canonical hydration/writes, metadata/provenance result guards and executable documentation.
+The implementation must cover negative/restart/concurrency cases under restricted roles.
+A22/A23 in the release ledger track completion; these APIs are not implemented yet.
+
 ## Architecture and ownership
 
 | Responsibility | Proposed owner; final allocation remains open |

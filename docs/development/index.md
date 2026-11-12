@@ -117,3 +117,7 @@ mappings, Java-backed Vernac breakpoints and the installed-IDE acceptance walkth
   real PostgreSQL fresh/upgrade evidence and generated GLOBAL/tenant storage.
 - [Tenant event operations](../tutorials/tenant-events.md): trusted selection, runtime
   roles, queue upgrades, retries and restart/concurrency behavior.
+
+- [Tenant-safe webhooks and handwritten repositories](tenant-webhooks-and-repository-extensions.md):
+  required 0.6.0 ingress/extension design, metadata guards, helpers and negative-test acceptance;
+  planned, not implemented syntax/APIs.
