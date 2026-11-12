@@ -110,7 +110,8 @@ still require the ordinary reviewed migration workflow.
 Read-only contract views reconstruct permission declarations and usecase requirements.
 Vocabulary hover and imported declaration navigation work from metadata without source
 attachments; available source attachments locate exported permission declarations.
-Advanced member/resource completion and installed-IDE acceptance are separate work.
+Permission-member/resource completion and native member references are available;
+installed-IDE acceptance remains a separate release check.
 
 Compiler tests check explicit closure, round trips, transitive references, compatibility
 and malformed metadata. LSP tests check imported vocabulary, read-only navigation and

@@ -215,6 +215,13 @@ jobs:
                   'transitivePublicRequirementClosureIsPreservedWithoutForeignReexports',
                   'malformedOrIncompleteSecurityMetadataAndOldContractAreRejected',
               },
+              'vernac-lsp/target/surefire-reports/TEST-org.vernac.lsp.AuthorizationEditorSymbolsTest.xml': {
+                  'incompleteKeysCompleteVisibleNominalPermissionsInsideNestedGroups',
+                  'resourcesIncludeOnlyRequiredNominalInputsWithImplicitAndExplicitNames',
+                  'navigatesTypeMemberAndResourceAndExplainsTheirDifferentMeaning',
+                  'missingAmbiguousOrWrongKindKeysDoNotAcquireGuessedTargets',
+                  'liveEditsRefreshKeysAndInvalidResourcesHaveNoNavigation',
+              },
               'vernac-lsp/target/surefire-reports/TEST-org.vernac.lsp.AuthorizationSymbolsTest.xml': {
                   'unsavedPermissionMembersUseTheCompilerAndRecoverAfterAnError',
                   'exportedPermissionDocumentationAndDiagnosticsWorkWithoutProducerSources',

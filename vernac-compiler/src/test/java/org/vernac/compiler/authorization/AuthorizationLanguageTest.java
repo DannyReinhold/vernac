@@ -111,7 +111,7 @@ class AuthorizationLanguageTest {
         assertTrue(code("namespace sample; value Label(String permission, String requires, String authenticated, String all, String any) behavior {public String permission(String requires) {return self.all();}}").contains("String permission(String requires)"));
     }
     @Test void nativeAndJavaNavigationLocatePermissionDeclarationsAndMembers() throws Exception {
-        String text = "namespace sample; permission Rights {VIEW;} id InvoiceId; usecase Read(InvoiceId) requires permission Rights.VIEW on invoiceId behavior {execute {}}";
+        String text = "// 😀 Unicode source offsets\nnamespace sample; permission Rights {VIEW;} id InvoiceId; usecase Read(InvoiceId) requires permission Rights.VIEW on invoiceId behavior {execute {}}";
         write("sample/model.vernac", text);
         var project = new VernacCompiler().readProject(root);
         Path source = root.resolve("sample/model.vernac"); var texts = Map.of(source, text);
@@ -123,6 +123,11 @@ class AuthorizationLanguageTest {
         assertEquals("VIEW", text.substring(member.start(), member.end()));
         var references = new org.vernac.compiler.tooling.VernacTypeReferences().build(project, source, texts);
         assertTrue(references.stream().anyMatch(r -> r.identity().equals("sample.Rights") && r.start() == text.lastIndexOf("Rights.VIEW")));
+        var nativeMember=references.stream().filter(r->r.identity().equals("sample.Rights#VIEW")).findFirst().orElseThrow();
+        assertEquals(member,nativeMember.target());
+        var resource=references.stream().filter(r->r.identity().equals("sample.Read#input:invoiceId")).findFirst().orElseThrow();
+        assertEquals(text.lastIndexOf("invoiceId"),resource.start());
+        assertEquals("InvoiceId",text.substring(resource.target().start(),resource.target().end()));
     }
     private void write(String path, String content) throws Exception { Path file=root.resolve(path); Files.createDirectories(file.getParent()); Files.writeString(file,content); }
 }

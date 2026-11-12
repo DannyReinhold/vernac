@@ -153,8 +153,32 @@ You can also publish these contracts in reusable modules. Follow
 [Carry access requirements across module boundaries](module-authorization.md) for
 explicit exports, activation and security-aware upgrades. Module artifacts must use
 module-contracts-11. Local and imported declarations have compiler diagnostics and
-basic navigation; deeper requirement completion remains follow-up work.
+key/resource completion and navigation. The final packaged-plugin acceptance remains
+a release check.
 
 Next read the [exact language contract](../contracts/usecase-authorization.md) and
 [runtime/Spring contract](../contracts/usecase-authorization-runtime.md). Identity,
 roles, plans, quotas and payment modules remain separate 0.6.0 work.
+
+
+## Edit the contract without a generate/build cycle
+
+Inside `requires`, type `permission InvoicePermissions.EX` and invoke completion
+(Ctrl+Space in IntelliJ). The editor offers the declared EXPORT key, including inside
+nested all/any groups. Selecting it replaces the partial reference. A fully qualified
+permission name works too. Simple names require the normal local namespace/import
+visibility; completion does not silently add imports or resolve ambiguous names.
+
+After `on`, completion offers only required nominal usecase inputs. For the introductory
+ExportInvoice signature that is `invoiceId`. Optional values, collections and uses
+dependencies are not authorization resource candidates. Navigate a resource reference
+to its explicit parameter name; an implicit parameter navigates to the type token that
+introduces that input. The hover explains that the resource is policy input, not proof
+of ownership.
+
+Navigate the permission type or its member independently. Permission hover includes
+the type's associated ubiquitous-language description. This also works for exported
+module permissions without source attachments; member navigation uses the read-only
+contract view. Unsaved changes update suggestions and diagnostics. Generation is not
+needed for these source-level operations. The final packaged-plugin acceptance remains
+a release check; automated compiler/LSP coverage does not replace it.

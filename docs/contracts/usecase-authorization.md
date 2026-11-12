@@ -166,8 +166,13 @@ indexing and a permission snippet. Native references locate permission declarati
 names in requires, and Java navigation locates generated permission enums/constants.
 Imported permission declarations support read-only metadata navigation and vocabulary
 hover without a sources attachment; available source attachments improve declaration
-locations. Advanced requirement/member completion, resource-name navigation and full
-installed-IDE acceptance remain follow-up work.
+locations. Permission-key and eligible resource-input completion are supported inside nested
+requirements, including incomplete keys and imported permissions. Native references
+and LSP navigation locate permission members and explicit/implicit resource inputs.
+The editor preserves normal import/ambiguity rules. Key completion excludes ordinary
+domain enums; resource completion excludes optional values, collections and dependencies.
+Full installed-IDE
+acceptance and exposure inspection remain follow-up work.
 
 Compiler tests cover invalid declarations/trees/resources/imports, ordinary Java/domain
 name collisions, explicit module export closure and authorization compatibility. Generated PostgreSQL/Spring tests

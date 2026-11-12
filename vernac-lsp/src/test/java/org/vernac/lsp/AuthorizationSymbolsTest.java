@@ -61,6 +61,10 @@ class AuthorizationSymbolsTest {
         var location=project.definition(uri,at).getFirst();
         assertTrue(location.getUri().contains("vernac-module-contracts"));
         assertTrue(Files.readString(Path.of(java.net.URI.create(location.getUri()))).contains("permission Rights"));
+        var memberAt=new Position(0,text.lastIndexOf("Rights.VIEW")+"Rights.VI".length());
+        assertTrue(project.complete(uri,memberAt).stream().anyMatch(c->c.getLabel().equals("Rights.VIEW")));
+        assertTrue(project.definition(uri,memberAt).getFirst().getUri().contains("vernac-module-contracts"));
+        assertTrue(project.hover(uri,memberAt).contains("Rights provided by the library."));
         project.change(uri,text.replace("Rights.VIEW","Rights.UNKNOWN"),2);
         assertTrue(last(messages,uri).stream().anyMatch(d->d.getMessage().contains("Unknown permission member")));
         assertFalse(Files.exists(root.resolve("target/vernac-module-sources.json")));

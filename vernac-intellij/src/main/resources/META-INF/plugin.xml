@@ -108,7 +108,9 @@ permission declaration navigation and syntax keywords are supported. Module-cont
 retains exported permissions, ordered requirements and security-aware dependency checks;
 rebuild development module artifacts. Imported permissions support read-only navigation
 and vocabulary hover without source attachments;
-advanced requirement completion and the complete SaaS identity system remain in progress.</p>
+permission-key and required-resource completion now works in nested requirements,
+including unsaved/imported definitions. Navigate key members and resource inputs
+without generating Java. The complete SaaS identity system remains in progress.</p>
 
 <h3>0.6.0 development — Durable tenant events</h3>
 <p>Publish ordinary domain events under a verified tenant selection. Current generated
