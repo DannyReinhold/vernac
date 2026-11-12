@@ -128,5 +128,7 @@ publication, restricted database roles, queue upgrades, retries and worker conte
 
 [Put access requirements beside the operation](usecase-authorization.md) introduces
 named permissions, requires, generated guards and Spring actor/policy integration.
-Local application contracts are implemented; module security metadata and the complete
-SaaS identity/role/plan system remain in progress. Use matching development artifacts.
+Local and module contracts are implemented. Continue with
+[Carry access requirements across module boundaries](module-authorization.md) for
+publication, activation and upgrades. The complete SaaS identity/role/plan system remains
+in progress. Use matching development artifacts.

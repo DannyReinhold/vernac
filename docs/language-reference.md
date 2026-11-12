@@ -527,9 +527,12 @@ See the [normative inbound contract](contracts/inbound-http.md#declarative-inbou
 
 A producer declares `vernac-module.vmodule` beside its POM, not below
 src/main/vernac. Its separate grammar is `module qualified.identifier { export
-fully.qualified.Type; ... }`. Explicit exports currently support IDs, VOs, enums
-and named value collections, plus port interfaces. Publicly referenced local types and collection elements
-need their own exports. No wildcard exports or foreign re-exports.
+fully.qualified.Type; ... }`. Explicit exports support IDs, VOs, enums, collections,
+entities, aggregates, repositories, ports, outbound adapters, domain services, usecases
+and events. Current 0.6.0 development tools also export permissions and retain usecase
+requirements. Publicly referenced local types, permission types and collection elements
+need their own exports. Listeners and inbound adapters remain internal runtime components.
+No wildcard exports or foreign re-exports.
 
 A normal compile-scoped Maven dependency makes public contracts available to ordinary
 Vernac imports, including compile-visible transitive dependencies. Type identities do
@@ -559,7 +562,7 @@ in the port's public methods. Consumers import the port and its parameter/result
 values, then write `adapter Name implements ImportedPort { behavior { ... } }` using
 normal port/adapter syntax. The dependency supplies the original compiled interface.
 Adding a port operation requires implementation rebuilds. Contract metadata is now
-`module-contracts-10`; rebuild older development module artifacts. Outbound adapter publication and application bindings are supported as described below;
+`module-contracts-11`; rebuild older development module artifacts. Outbound adapter publication and application bindings are supported as described below;
 Persistent and nonpersistent functional activation are supported; module histories run
 in dependency order before the application history. Module event contracts, recorded payloads and synchronous/deferred
 receivers are supported. Inbound HTTP entrypoints are internal module components, enabled only through activation.
@@ -638,7 +641,7 @@ classes. External VOs in local aggregates still flatten into locally owned table
 
 Persistent publication requires a matching source migration history and automatically
 packages/verifies the isolated bundle. Field mutability, read/modify modes and repository
-query/pagination signatures are part of `module-contracts-10` compatibility metadata.
+query/pagination signatures are part of `module-contracts-11` compatibility metadata.
 Explicit persistent activation coordinates verified module histories in dependency order,
 then application migrations, before dependent beans become callable. It requires the
 application DataSource, transaction manager and Spring Boot Flyway initializer. No SQL is run by import,
@@ -695,7 +698,7 @@ synchronous listener ObserveInvoiceOpened on InvoiceOpened behavior {
 
 The receiving artifact declares `module example.observer {}` if it exports no callable
 API, and the application uses `activate example.observer;`. Metadata is
-`module-contracts-10`; rebuild producer and dependant artifacts together.
+`module-contracts-11`; rebuild producer and dependant artifacts together.
 
 ### Durable event ownership and startup
 
@@ -719,7 +722,7 @@ module and application migrations/validation have completed. It preserves the ex
 lease, at-least-once, per-recipient acknowledgment, retry and blocked-job semantics.
 Receivers must make external effects idempotent; SQL rollback does not undo them.
 
-Record flags and storage capability participate in module-contracts-10 metadata.
+Record flags and storage capability participate in module-contracts-11 metadata.
 Rebuild all producers/dependants. Structural event/VO changes can make pending payloads
 incompatible; migrate deliberately or introduce a new versioned event type. Review
 event evolution independently of an ordinary aggregate upgrade.
@@ -776,7 +779,7 @@ Vernac type hover includes associated text, including imported module types with
 sources JARs. JavaDoc is added to associated generated domain/usecase/outbound classes.
 Maven compilation writes target/vernac-glossary.md and target/vernac-glossary.json.
 Text changes do not alter structural API fingerprints or SQL schemas. Module metadata
-is module-contracts-10; rebuild development producers and consumers. No LLM integration
+is module-contracts-11; rebuild development producers and consumers. No LLM integration
 is implied. See [the term contract](contracts/ubiquitous-language.md) and
 [the tutorial](tutorials/ubiquitous-language.md).
 
@@ -923,7 +926,7 @@ Authentication/membership verification must establish the context through truste
 infrastructure; no default tenant is invented.
 
 Type modules may publish tenant/global aggregate contracts and ownership-aware
-entities using module-contracts-10 metadata. Imports preserve aggregate scope, and
+entities using module-contracts-11 metadata. Imports preserve aggregate scope, and
 local tenant roots may contain imported entities without regenerating dependency
 classes. Type imports do not activate modules or select a tenant. A change from
 TENANT to GLOBAL (or back) is an incompatible module contract change. Rebuild older
@@ -1005,9 +1008,17 @@ retains URL/login/CSRF protection. A missing clause preserves existing behavior.
 adds no rights and uses only an optional Guard provider. Permissions alone grant nothing.
 No automatic exposure audit, user registration, role/plan policy or quota is supplied.
 
-**Current limit:** publishing a module containing any permission/requires definition
-is rejected until security metadata support is implemented. Local application imports
-work; do not claim module exports/requires compatibility is already supported.
+**Reusable modules:** module-contracts-11 preserves permissions and ordered usecase
+requirements, including nominal `on` input bindings. Export each permission type needed
+by an exported usecase explicitly in its owner's `.vmodule`; foreign reexports remain
+forbidden. A permission-only import neither activates a module nor grants access.
+Functional dependencies retain access-header snapshots, including internal usecases;
+changed existing requirements require security review and rebuilding dependent modules.
+Adding permission keys is compatible; removing/renaming keys requires stored-grant
+review. Rebuild older development artifacts; do not edit frozen migrations for this
+metadata upgrade. See the [module contract](contracts/module-authorization.md) and
+[module walkthrough](tutorials/module-authorization.md). Advanced requirement completion
+and the SaaS exposure audit remain future work.
 See the [language contract](contracts/usecase-authorization.md) and
 [tutorial](tutorials/usecase-authorization.md). Complete compilable local example:
 

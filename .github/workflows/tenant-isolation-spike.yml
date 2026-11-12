@@ -132,6 +132,15 @@ jobs:
           for name, case in generated_cases.items():
               assert not any(case.find(k) is not None for k in ('failure', 'error', 'skipped')), f'Unverified generated authorization proof: {name}'
           print(f'{len(generated_cases)} generated authorization/Spring/PostgreSQL proofs executed; none skipped.')
+          module_report = Path('experiments/tenant-isolation-spike/target/surefire-reports/TEST-org.vernac.experiments.tenancy.ModuleAuthorizationPostgresTest.xml')
+          module_root = ET.parse(module_report).getroot()
+          module_required = generated_required | {'consumerAndActivatedModuleShareActorTenantAndTheRequiredTransaction'}
+          module_cases = {c.attrib['name']: c for c in module_root.findall('testcase')}
+          assert not (module_required - module_cases.keys()), 'Missing real module-JAR authorization proofs'
+          assert all(int(module_root.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
+          for name, case in module_cases.items():
+              assert not any(case.find(k) is not None for k in ('failure', 'error', 'skipped')), f'Unverified module authorization proof: {name}'
+          print(f'{len(module_cases)} module-JAR/Spring/PostgreSQL authorization proofs executed; none skipped.')
           runtime_auth = {
               'vernac-runtime/target/surefire-reports/TEST-org.vernac.runtime.authorization.AuthorizationGuardTest.xml': 9,
               'vernac-runtime/target/surefire-reports/TEST-org.vernac.runtime.authorization.SpringAuthorizationTest.xml': 5,
@@ -194,11 +203,21 @@ jobs:
           schema_proofs = {
               'vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.authorization.AuthorizationLanguageTest.xml': {
                   'emitsTechnicalPermissionEnumsAndNominalGuardBeforeValidationAndImplementation',
-                  'modulePublicationFailsRatherThanDroppingAnyAuthorizationContract',
+                  'modulePublicationRetainsPermissionAndPublicAccessContracts',
                   'nativeAndJavaNavigationLocatePermissionDeclarationsAndMembers',
+              },
+              'vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.modules.AuthorizationModuleTest.xml': {
+                  'exportsRequireExplicitPermissionClosureAndRoundTripTheOrderedTree',
+                  'importsRestoreGuardsAndPermissionTypesWithoutRegeneratingProducerCode',
+                  'additiveKeysAndMemberReorderingAreCompatibleButRemovalNeedsGrantReview',
+                  'publicRequirementsIgnoreBodyPrivateHelpersAndAliasNoiseButNotSecurityChanges',
+                  'functionalDependencySnapshotsDetectInternalRequirementChangesButKeyOnlyImportsDoNotActivate',
+                  'transitivePublicRequirementClosureIsPreservedWithoutForeignReexports',
+                  'malformedOrIncompleteSecurityMetadataAndOldContractAreRejected',
               },
               'vernac-lsp/target/surefire-reports/TEST-org.vernac.lsp.AuthorizationSymbolsTest.xml': {
                   'unsavedPermissionMembersUseTheCompilerAndRecoverAfterAnError',
+                  'exportedPermissionDocumentationAndDiagnosticsWorkWithoutProducerSources',
               },
               'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.InboundErrorPolicyExecutionTest.xml': {
                   'generatedPoliciesRunInMvcAndPreserveDefaultsWithoutPublishingExceptionMessages',
@@ -233,6 +252,7 @@ jobs:
               },
               'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.DocumentationExamplesTest.xml': {
                   'tenantModuleTutorialPreservesEntityOwnership',
+                  'authorizationModuleTutorialRetainsRequirementsAcrossPublicationAndActivation',
                   'persistentTenantModuleTutorialCompilesBothProjectsAndGeneratedActivation',
                   'diagramTutorialShowsTheActualGeneratedGraph',
                   'persistentModuleTutorialHasACompleteExportableProducerModel',

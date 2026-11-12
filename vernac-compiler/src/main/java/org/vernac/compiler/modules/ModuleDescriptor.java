@@ -8,7 +8,13 @@ import org.vernac.compiler.ast.*;
 
 /** Versioned data, never executable source or Java serialization. */
 public record ModuleDescriptor(int formatVersion,String contractVersion,String module,String groupId,
-        String artifactId,String version,List<Definition> exports,List<Requirement> externalContracts,List<String> internalTypes,List<Component> components,boolean persistent,List<org.vernac.compiler.vocabulary.Vocabulary.Entry> vocabulary) {
+        String artifactId,String version,List<Definition> exports,List<Requirement> externalContracts,List<String> internalTypes,List<Component> components,boolean persistent,List<org.vernac.compiler.vocabulary.Vocabulary.Entry> vocabulary,List<UseCaseAccess> usecaseAccess) {
+    public ModuleDescriptor(int formatVersion,String contractVersion,String module,String groupId,String artifactId,String version,
+            List<Definition> exports,List<Requirement> externalContracts,List<String> internalTypes,List<Component> components,
+            boolean persistent,List<org.vernac.compiler.vocabulary.Vocabulary.Entry> vocabulary) {
+        this(formatVersion,contractVersion,module,groupId,artifactId,version,exports,externalContracts,internalTypes,components,persistent,vocabulary,
+                ModuleAuthorization.defaultAccess(components,exports));
+    }
     public ModuleDescriptor(int formatVersion,String contractVersion,String module,String groupId,String artifactId,String version,
             List<Definition> exports,List<Requirement> externalContracts,List<String> internalTypes,List<Component> components,boolean persistent) {
         this(formatVersion,contractVersion,module,groupId,artifactId,version,exports,externalContracts,internalTypes,components,persistent,List.of());
@@ -18,7 +24,7 @@ public record ModuleDescriptor(int formatVersion,String contractVersion,String m
     }
     public static final String RESOURCE="META-INF/vernac/module.json";
     public static final ObjectMapper JSON=new ObjectMapper();
-    public static final String CONTRACT="module-contracts-10";
+    public static final String CONTRACT="module-contracts-11";
     public record Type(String name,boolean optional,String pageKind) {
         public Type(String name,boolean optional) {this(name,optional,"NONE");}
         public Type {pageKind=pageKind==null?"NONE":pageKind;TypeNode.PageKind.valueOf(pageKind);}
@@ -33,7 +39,13 @@ public record ModuleDescriptor(int formatVersion,String contractVersion,String m
     }
     public record Definition(String identity,String kind,String javaName,List<Field> fields,List<String> constants,
             String element,String collectionKind,List<Method> methods,Map<String,String> javaMembers,
-            String source,int line,int column,String fingerprint,String aggregateScope,int entityOwnershipVersion) {
+            String source,int line,int column,String fingerprint,String aggregateScope,int entityOwnershipVersion,Authorization authorization) {
+        public Definition(String identity,String kind,String javaName,List<Field> fields,List<String> constants,
+                String element,String collectionKind,List<Method> methods,Map<String,String> javaMembers,
+                String source,int line,int column,String fingerprint,String aggregateScope,int entityOwnershipVersion) {
+            this(identity,kind,javaName,fields,constants,element,collectionKind,methods,javaMembers,source,line,column,
+                    fingerprint,aggregateScope,entityOwnershipVersion,Authorization.omitted());
+        }
         public Definition(String identity,String kind,String javaName,List<Field> fields,List<String> constants,
                 String element,String collectionKind,List<Method> methods,Map<String,String> javaMembers,
                 String source,int line,int column,String fingerprint) {
@@ -49,12 +61,33 @@ public record ModuleDescriptor(int formatVersion,String contractVersion,String m
             if (entityOwnershipVersion < 0 || entityOwnershipVersion > 1
                     || (!kind.equals("ENTITY") && entityOwnershipVersion != 0))
                 throw new IllegalArgumentException("Invalid entity ownership contract: " + identity);
-            fields=List.copyOf(fields);constants=List.copyOf(constants);
+            Objects.requireNonNull(authorization, "Missing usecase authorization metadata; rebuild the module");
+            if (!kind.equals("USE_CASE") && !authorization.mode().equals("OMITTED"))
+                throw new IllegalArgumentException("Authorization metadata belongs only to usecases: " + identity);
+            fields=List.copyOf(fields);constants=kind.equals("PERMISSION")?constants.stream().sorted().toList():List.copyOf(constants);
             methods=methods.stream().sorted(Comparator.comparing(m->m.name()+m.parameters())).toList();
             javaMembers=Collections.unmodifiableMap(new TreeMap<>(javaMembers));
         }
     }
-    public record Requirement(String module,String groupId,String artifactId,String version,List<Definition> definitions) { public Requirement {definitions=List.copyOf(definitions);} }
+    /** Ordered source-independent security tree. No policy implementation or input value is serialized. */
+    public record Authorization(String mode,String permission,String member,String resource,String resourceType,List<Authorization> children) {
+        public Authorization {
+            Objects.requireNonNull(mode); Objects.requireNonNull(permission); Objects.requireNonNull(member);
+            Objects.requireNonNull(resource); Objects.requireNonNull(resourceType); children=List.copyOf(children);
+            ModuleAuthorization.validateShape(mode,permission,member,resource,resourceType,children);
+        }
+        public static Authorization omitted() { return new Authorization("OMITTED","","","","",List.of()); }
+    }
+    /** Includes internal operations for audit/review, without making their types importable. */
+    public record UseCaseAccess(String identity,List<Field> inputs,Authorization requirement) {
+        public UseCaseAccess { Objects.requireNonNull(identity); inputs=List.copyOf(inputs); Objects.requireNonNull(requirement); }
+    }
+    public record Requirement(String module,String groupId,String artifactId,String version,List<Definition> definitions,List<UseCaseAccess> usecaseAccess) {
+        public Requirement(String module,String groupId,String artifactId,String version,List<Definition> definitions) {
+            this(module,groupId,artifactId,version,definitions,ModuleAuthorization.defaultExportAccess(definitions));
+        }
+        public Requirement { definitions=List.copyOf(definitions); usecaseAccess=List.copyOf(usecaseAccess); }
+    }
     public static void write(java.nio.file.Path target,Object value) throws java.io.IOException {
         java.nio.file.Files.createDirectories(target.getParent());
         var temporary=java.nio.file.Files.createTempFile(target.getParent(),"vernac-module-",".tmp");
@@ -75,10 +108,11 @@ public record ModuleDescriptor(int formatVersion,String contractVersion,String m
         this(formatVersion,contractVersion,module,groupId,artifactId,version,exports,externalContracts,internalTypes,components,false);
     }
     public ModuleDescriptor {
+        if(formatVersion!=1 || !CONTRACT.equals(contractVersion))throw new IllegalArgumentException("Unsupported Vernac module format/contract version; expected " + CONTRACT + ". Rebuild producer and consumer artifacts.");
+        usecaseAccess=Objects.requireNonNull(usecaseAccess,"Missing module authorization inventory; rebuild the producer").stream().sorted(Comparator.comparing(UseCaseAccess::identity)).toList();
         vocabulary=vocabulary==null?List.of():List.copyOf(vocabulary);
         components=components==null?List.of():components.stream().sorted(Comparator.comparing(Component::identity)).toList();
         exports=List.copyOf(exports);externalContracts=List.copyOf(externalContracts);internalTypes=internalTypes==null?List.of():List.copyOf(internalTypes);
-        if(formatVersion!=1 || !CONTRACT.equals(contractVersion))throw new IllegalArgumentException("Unsupported Vernac module format/contract version; expected " + CONTRACT + ". Rebuild producer and consumer artifacts.");
         Objects.requireNonNull(module);Objects.requireNonNull(groupId);Objects.requireNonNull(artifactId);Objects.requireNonNull(version);
     }
 }

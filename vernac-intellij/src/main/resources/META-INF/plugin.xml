@@ -104,8 +104,10 @@
 <p>Declare named permissions and usecase requires clauses with ordered all/any groups
 and required typed resources. Matching 0.6.0 compiler/runtime generates Spring guards
 before validation and inline/external implementations. Local source diagnostics,
-permission declaration navigation and syntax keywords are supported. Module publication
-of these contracts is temporarily rejected until security metadata support lands;
+permission declaration navigation and syntax keywords are supported. Module-contracts-11
+retains exported permissions, ordered requirements and security-aware dependency checks;
+rebuild development module artifacts. Imported permissions support read-only navigation
+and vocabulary hover without source attachments;
 advanced requirement completion and the complete SaaS identity system remain in progress.</p>
 
 <h3>0.6.0 development — Durable tenant events</h3>
@@ -131,7 +133,7 @@ the same PostgreSQL writer database before migration writes. Tenant module activ
 <h3>0.6.0 development — Tenant-aware module contracts</h3>
 <p>Dependency contract views preserve tenant/global aggregate scope. Local tenant
 aggregates can persist imported module entities with ownership-aware restoration.
-Metadata is module-contracts-10; rebuild producers and consumers. Persistent tenant module activation and durable event routing have dedicated
+Metadata is module-contracts-11; rebuild producers and consumers. Persistent tenant module activation and durable event routing have dedicated
 PostgreSQL acceptance.</p>
 
 <h3>0.6.0 development — Explicit persistence classification</h3>

@@ -62,10 +62,9 @@ mvn clean install
 **Review, test and approve the migration before deployment. You alone are responsible
 for its suitability, operation ordering and effect on existing data.** Packaging verifies
 the SQL/snapshot chain; it does not approve or apply the candidate. The JAR contains
-compiled code, module-contracts-10 metadata and an isolated migration bundle. Its schema
-contains `@tenantId`, qualified relationships and ENABLE/FORCE RLS policies. Existing
-module-contracts-10 type artifacts remain usable; no metadata-version bump is needed
-for activation itself.
+compiled code, module-contracts-11 metadata and an isolated migration bundle. Its schema
+contains `@tenantId`, qualified relationships and ENABLE/FORCE RLS policies. Rebuild producers and consumers with the current tools. Module-contracts-11 adds
+authorization metadata; activation alone does not change the persistence bundle format.
 
 ## Compose an application
 

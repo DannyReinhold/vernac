@@ -6,7 +6,8 @@ title: Usecase authorization — proposed 0.6.0 contract
 Status: **language design baseline; production Java runtime foundation implemented**.
 Baseline: 2026-11-12. The [runtime/Spring SPI](../contracts/usecase-authorization-runtime.md)
 is available; the [local permission/requires language](../contracts/usecase-authorization.md)
-and generated guards are now implemented. Module metadata and full SaaS integration remain OPEN.
+and generated guards with module metadata/compatibility are now implemented. Full SaaS
+integration and advanced editor support remain OPEN.
 This is the next design slice of the [0.6.0 SaaS plan](saas-0.6.0-plan.md), covering
 D02/D03 and the authorization part of D04. MUST describes the proposed implementation
 requirement, not current compiler behavior. Merging this document accepts a design
@@ -401,7 +402,8 @@ test-only code, not generated enforcement or a complete startup/web-security aud
 The [production runtime/Spring foundation](../contracts/usecase-authorization-runtime.md)
 now supplies actor/policy/guard APIs and terminal HTTP/MVC handling; the same experiment
 uses those APIs. The local compiler now emits guards, with an optional provider for public entry and
-a required Guard for protected entry. Next implement module metadata and deeper tooling,
+a required Guard for protected entry. Module metadata/compatibility is now implemented
+under the [module authorization contract](../contracts/module-authorization.md). Next deepen tooling,
 retaining the full acceptance requirements above.
 Reference sources (not proof that the spike has run):
 - [Spring Security method-security design](https://docs.spring.io/spring-security/reference/servlet/authorization/method-security.html)

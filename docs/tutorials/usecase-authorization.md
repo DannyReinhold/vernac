@@ -149,10 +149,11 @@ With the configured disposable database and installed local artifacts, run:
 mvn -B -ntp -f experiments/tenant-isolation-spike/pom.xml -Dtest=GeneratedAuthorizationPostgresTest test
 ```
 
-Do not publish permission/requires declarations in a reusable module yet: the build
-rejects them until metadata/compatibility support lands. Local imports across namespaces
-work normally. Basic diagnostics/highlighting/navigation are present; deeper requirement
-completion and external permission navigation follow the module work.
+You can also publish these contracts in reusable modules. Follow
+[Carry access requirements across module boundaries](module-authorization.md) for
+explicit exports, activation and security-aware upgrades. Module artifacts must use
+module-contracts-11. Local and imported declarations have compiler diagnostics and
+basic navigation; deeper requirement completion remains follow-up work.
 
 Next read the [exact language contract](../contracts/usecase-authorization.md) and
 [runtime/Spring contract](../contracts/usecase-authorization-runtime.md). Identity,

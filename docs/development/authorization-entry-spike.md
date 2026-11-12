@@ -82,7 +82,8 @@ remaining full-integration limits below still apply:
 
 - Local grammar, semantic diagnostics, generation and reference examples are now
   implemented by the [language slice](../contracts/usecase-authorization.md).
-  Explicit exports, module metadata/compatibility and deeper IDE support remain OPEN.
+  Explicit exports and module metadata/compatibility are now implemented under the
+  [module authorization contract](../contracts/module-authorization.md); deeper IDE support remains OPEN.
   Invalid local trees fail at compile time; module publication is explicitly blocked.
 - The actor mapper is a trusted fixture. Real authentication, disabled/expired accounts,
   tenant membership selection, provider binding, technical-worker grants and their integration with the implemented immutable

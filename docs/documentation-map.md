@@ -37,7 +37,7 @@ Start with [default names](tutorials/default-names.md),
 [domain services](tutorials/domain-services.md).
 
 [Declare usecase access requirements](tutorials/usecase-authorization.md) with the
-0.6.0 local authorization addition; module metadata and full SaaS identity remain OPEN.
+0.6.0 authorization addition and [module requirements](tutorials/module-authorization.md); full SaaS identity remains OPEN.
 
 Keep the vocabulary beside the model with
 [ubiquitous language](tutorials/ubiquitous-language.md), and inspect/export its

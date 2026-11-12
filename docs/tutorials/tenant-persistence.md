@@ -169,7 +169,7 @@ module example.contacts {
 ```
 
 Package and install/deploy this producer normally, then add its Maven dependency to the
-consumer. Both sides must use the current 0.6.0 development compiler and module-contracts-10
+consumer. Both sides must use the current 0.6.0 development compiler and module-contracts-11
 metadata. A local aggregate can now contain those entities:
 
 ```vernac

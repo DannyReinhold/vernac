@@ -64,7 +64,7 @@ No public API or production-class placement is established by these test helpers
 
 ## What it does not prove
 
-It does not implement or verify production code generation, exported module metadata,
+The original TenantIsolationPostgresTest alone does not verify
 cursor encryption/binding, complete aggregate graphs/orphan cleanup, full entity
 provenance/factory integration, migrations/schema-check, production event claim/payload routing,
 generated HTTP/MVC/CSRF integration, quotas, email, billing or a SaaS Wizard. Those remain separate
@@ -101,10 +101,11 @@ proof. The original limitations above still apply to production event integratio
 Nine additional tests exercise the production body guard with Spring REQUIRED/MANDATORY,
 typed resource facts, all/any short-circuit and technical failures, nested actor/tenant
 retention, executor cleanup and real MockMvc/Spring Security filter-chain boundaries.
-The complete Maven command now runs **30 tests**. CSRF remains active, and policies
+The authorization-entry slice adds nine tests. CSRF remains active, and policies
 read through the restricted-role tenant boundary. The [production runtime contract](../../docs/contracts/usecase-authorization-runtime.md)
 defines the implemented Java API. These entrypoints/policies remain handwritten fixtures;
-there is no permission DSL or complete reachable-usecase audit yet.
+the generated language/module proofs below now exercise the permission DSL. A complete
+reachable-usecase audit is still absent.
 
 See the [evidence and remaining production work](../../docs/development/authorization-entry-spike.md).
 Missing database configuration fails the suite; CI also checks the nine required case
@@ -119,6 +120,20 @@ including imported keys and unusual Java-valid constant names. Its six proofs in
 real generated Spring beans: null checks/denials before validates/body, conditional
 inner checks with REQUIRED rollback, inline/external parity, public versus authenticated
 actors, missing-Guard startup and cross-tenant nominal resources. The complete experiment
-now runs 36 tests; CI names all six new cases and rejects missing/skipped proofs.
-Module security metadata is not yet implemented and publication fails explicitly.
+now runs 43 tests including the module proof below; CI names the required cases and
+rejects missing/skipped proofs.
 See the [language tutorial](../../docs/tutorials/usecase-authorization.md).
+
+
+## Real module-JAR authorization proof
+
+ModuleAuthorizationPostgresTest packages a producer JAR with exported permission/access
+contracts, reads module-contracts-11 metadata, compiles a consumer and generates its
+explicit activation. It loads producer classes from the actual JAR, preserving the guard
+and actor/tenant/REQUIRED context. Six inherited generated boundary cases plus the
+cross-module invocation case run against restricted PostgreSQL roles. Private usecase
+access headers remain in compatibility metadata without becoming public exports.
+The full experiment executes **43 tests**, none skipped. Missing database configuration
+fails. Focus with `-Dtest=ModuleAuthorizationPostgresTest`; the normal PR check runs all.
+See the [module tutorial](../../docs/tutorials/module-authorization.md). This is not a
+complete identity/role/plan implementation or SaaS exposure audit.

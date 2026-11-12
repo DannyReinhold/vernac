@@ -75,6 +75,32 @@ class DocumentationExamplesTest {
         assertEquals(0, ToolProvider.getSystemJavaCompiler().run(null, null, null, arguments.toArray(String[]::new)));
     }
 
+    @Test void authorizationModuleTutorialRetainsRequirementsAcrossPublicationAndActivation() throws Exception {
+        String document=Files.readString(Path.of("../docs/tutorials/module-authorization.md"));
+        var models=Pattern.compile("```vernac\\n(.*?)```",Pattern.DOTALL).matcher(document);
+        assertTrue(models.find());Path producer=writeModel("auth-producer",models.group(1));
+        assertTrue(models.find());Path consumer=writeModel("auth-consumer",models.group(1));
+        var manifests=Pattern.compile("```vernac-module\\n(.*?)```",Pattern.DOTALL).matcher(document);
+        assertTrue(manifests.find());Path manifest=producer.resolve("vernac-module.vmodule");
+        var compiler=new VernacCompiler();var resolved=compiler.analyzeProject(producer);
+        var generated=compiler.generate(resolved,org.vernac.compiler.persistence.SchemaModel.empty(),java.util.Map.of());
+        var module=org.vernac.compiler.modules.ModuleContracts.publish(
+                org.vernac.compiler.modules.ModuleDefinition.parse(manifest,manifests.group(1)),resolved,generated.generatedFiles(),"example","invoice-library","1",List.of());
+        assertEquals("ALL",module.usecaseAccess().getFirst().requirement().mode());
+        var appModel=compiler.analyzeProject(consumer,List.of(module));
+        var applications=Pattern.compile("```vernac-application\\n(.*?)```",Pattern.DOTALL).matcher(document);assertTrue(applications.find());
+        var app=org.vernac.compiler.application.ApplicationDefinition.parse(consumer.resolve("vernac-application.vapplication"),applications.group(1));
+        var appFiles=org.vernac.compiler.application.ApplicationBindings.generate(app,appModel,List.of(module),
+                compiler.generate(appModel,org.vernac.compiler.persistence.SchemaModel.empty(),java.util.Map.of()).generatedFiles(),false);
+        assertTrue(appFiles.configuration().isPresent());
+        Path javaRoot=temporary.resolve("authorization-module-java");generated.writeTo(javaRoot);
+        for(var file:appFiles.files())file.writeTo(javaRoot);
+        Path classes=Files.createDirectories(temporary.resolve("authorization-module-classes"));
+        var arguments=new ArrayList<>(List.of("--release","21","-proc:none","-classpath",System.getProperty("java.class.path"),"-d",classes.toString()));
+        try(var paths=Files.walk(javaRoot)){paths.filter(p->p.toString().endsWith(".java")).map(Path::toString).forEach(arguments::add);}
+        assertEquals(0,ToolProvider.getSystemJavaCompiler().run(null,null,null,arguments.toArray(String[]::new)));
+    }
+
     private Path writeModel(String folder, String model) throws Exception {
         var namespace = Pattern.compile("namespace ([\\p{L}\\p{N}_.]+);").matcher(model);
         assertTrue(namespace.find());
