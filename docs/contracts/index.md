@@ -1,6 +1,7 @@
 # Feature contracts
 
-For the **0.4.0 release and explicitly marked 0.5.0 development extensions**, feature contracts are the observable-API and runtime-semantics part of the
+Feature contracts define the observable API and runtime semantics. Development-only
+features are explicitly marked; use matching compiler/runtime versions. They form part of the
 [Vernac specification](../specification/index.md). That index provides the complete
 reading order and authority rules. Use the [language reference](../language-reference.md)
 for syntax and the [tutorials](../tutorials/index.md) for guided use.
@@ -19,4 +20,4 @@ Use the specification index for the full feature catalog. In this revision:
 
 - [Domain diagrams](domain-diagrams.md): resolved namespace graphs and shared Maven/IDE exports.
 
-- [Actor and authorization runtime foundation](usecase-authorization-runtime.md): implemented Java/Spring guard SPI; with the [local permission/requires contract](usecase-authorization.md); module metadata and full SaaS integration still pending.
+- [Actor and authorization runtime foundation](usecase-authorization-runtime.md): implemented Java/Spring guard SPI; with the [permission/requires contract](usecase-authorization.md); [module authorization metadata](module-authorization.md) implemented; full SaaS integration still pending.

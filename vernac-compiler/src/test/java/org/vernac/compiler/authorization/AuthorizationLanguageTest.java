@@ -94,14 +94,17 @@ class AuthorizationLanguageTest {
         String generated = result.generatedFiles().stream().map(Object::toString).reduce("", String::concat);
         assertTrue(generated.contains("security.authorization.InvoicePermissions")); assertTrue(generated.contains("security.InvoicePermissions."));
     }
-    @Test void modulePublicationFailsRatherThanDroppingAnyAuthorizationContract() throws Exception {
+    @Test void modulePublicationRetainsPermissionAndPublicAccessContracts() throws Exception {
         for (String declarations : List.of("permission InvoicePermissions {VIEW;}", "usecase Read() requires public behavior {execute {}}")) {
             write("sample/model.vernac", "namespace sample; " + declarations);
             var compiler = new VernacCompiler(); var resolved = compiler.analyzeProject(root);
             var generated = compiler.compileProject(root);
             var definition = new ModuleDefinition("sample.library", List.of());
-            var error = assertThrows(SemanticValidationException.class, () -> ModuleContracts.publish(definition, resolved, generated.generatedFiles(), "sample", "library", "1.0", List.of()));
-            assertTrue(error.getMessage().contains("module metadata is not implemented"));
+            var descriptor = ModuleContracts.publish(definition, resolved, generated.generatedFiles(), "sample", "library", "1.0", List.of());
+            assertDoesNotThrow(() -> ModuleContracts.checkDependencies(List.of(descriptor)));
+            if (declarations.startsWith("usecase"))
+                assertEquals("PUBLIC", descriptor.usecaseAccess().getFirst().requirement().mode());
+            else assertTrue(descriptor.internalTypes().contains("sample.InvoicePermissions"));
         }
     }
     @Test void newSoftKeywordsRemainUsableAsFieldAndMethodNames() {

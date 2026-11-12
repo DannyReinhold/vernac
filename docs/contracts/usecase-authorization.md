@@ -3,10 +3,10 @@ title: Declarative usecase authorization
 ---
 # Declarative usecase authorization
 
-Status: **local application declarations and generated enforcement implemented in
-0.6.0-SNAPSHOT**. Use matching compiler/runtime/tooling versions. Module publication
-with permission/requires declarations is deliberately rejected until security metadata
-support lands. This is not a complete identity/roles/subscription system or exposure audit.
+Status: **local and reusable-module declarations with generated enforcement implemented
+in 0.6.0-SNAPSHOT**. Use matching compiler/runtime/tooling versions and rebuild module
+artifacts for module-contracts-11. This is not a complete identity/roles/subscription
+system or exposure audit.
 
 ## Declarations and identities
 
@@ -153,21 +153,24 @@ hidden and missing resource facts through public denial details.
 
 ## Modules, IDE and acceptance limits
 
-Until module security metadata/compatibility is implemented, publishing a module
-containing any permission declaration or requires clause MUST fail with an explicit
-source diagnostic, even for internal definitions or requires public. Never silently
-strip a security contract. Existing modules without these declarations remain supported;
-a consuming local application can protect its own wrapper usecases. This restriction
-is temporary follow-up scope, not the intended final module capability.
+Permissions and usecase requirements are preserved in module-contracts-11 metadata.
+An exported usecase's permission types MUST be explicitly exported by their owning
+module. Imports do not activate components or grant rights. Public and internal
+usecase access headers are retained for dependency compatibility checks; changed
+requirements require security review and a dependent rebuild. See the
+[module authorization contract](module-authorization.md) and
+[publication walkthrough](../tutorials/module-authorization.md).
 
 The shared compiler supplies live diagnostics; LSP adds the new keywords, declaration
 indexing and a permission snippet. Native references locate permission declaration
 names in requires, and Java navigation locates generated permission enums/constants.
-Advanced requirement/member completion, resource-name navigation, external module
-permission sources and full installed-IDE acceptance remain follow-up work.
+Imported permission declarations support read-only metadata navigation and vocabulary
+hover without a sources attachment; available source attachments improve declaration
+locations. Advanced requirement/member completion, resource-name navigation and full
+installed-IDE acceptance remain follow-up work.
 
 Compiler tests cover invalid declarations/trees/resources/imports, ordinary Java/domain
-name collisions and module-publication rejection. Generated PostgreSQL/Spring tests
+name collisions, explicit module export closure and authorization compatibility. Generated PostgreSQL/Spring tests
 compile the real enum/guard code and prove null/deny ordering, validates suppression,
 inline/external parity, public/authenticated modes, nominal cross-tenant resource
 reads, missing-Guard startup, conditional nested checks and REQUIRED rollback.

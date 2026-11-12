@@ -18,20 +18,12 @@ public final class ModuleContracts {
     private ModuleContracts() { }
     public static ModuleDescriptor publish(ModuleDefinition module,ResolvedProject project,List<JavaFile> generated,
             String group,String artifact,String version,List<ModuleDescriptor> dependencies) {
-        // Never publish a descriptor that silently drops a security contract.
-        var unsupported = project.project().sources().stream().filter(s -> !s.external())
-                .flatMap(s -> s.unit().definitions().stream())
-                .filter(d -> d instanceof PermissionNode || d instanceof UseCaseNode u && u.authorization().isPresent())
-                .map(d -> CompilerDiagnostic.error(d.location(),
-                        "Permission/requires module metadata is not implemented yet. Publish no module with these declarations until authorization metadata support is available."))
-                .toList();
-        if (!unsupported.isEmpty()) throw new SemanticValidationException(unsupported);
         List<CompilerDiagnostic> errors=new ArrayList<>();List<Definition> definitions=new ArrayList<>();
         Set<String> exports=new TreeSet<>();module.exports().forEach(e->exports.add(e.name()));
         Map<String,TopLevelDefinition> local=new HashMap<>();Map<String,CollectionDeclaration> collections=new HashMap<>();
         Map<String,VernacSourceFile> origins=new HashMap<>();
         for(var source:project.project().sources()) if(!source.external()) for(var top:source.unit().definitions()) {
-            String name=top instanceof IdDeclarationNode id?id.name():top instanceof ValueObjectNode vo?vo.name():top instanceof PortNode port?port.name():top instanceof OutboundAdapterNode adapter?adapter.name():top instanceof DomainServiceNode service?service.name():top instanceof UseCaseNode usecase?usecase.name():top instanceof EntityNode entity?entity.name():top instanceof AggregateNode aggregate?aggregate.name():top instanceof RepositoryNode repository?repository.name():top instanceof EventNode event?event.name():top instanceof ListenerNode listener?listener.name():top instanceof InboundHttpAdapterNode inbound?inbound.name():null;
+            String name=top instanceof IdDeclarationNode id?id.name():top instanceof ValueObjectNode vo?vo.name():top instanceof PortNode port?port.name():top instanceof OutboundAdapterNode adapter?adapter.name():top instanceof DomainServiceNode service?service.name():top instanceof UseCaseNode usecase?usecase.name():top instanceof PermissionNode permission?permission.name():top instanceof EntityNode entity?entity.name():top instanceof AggregateNode aggregate?aggregate.name():top instanceof RepositoryNode repository?repository.name():top instanceof EventNode event?event.name():top instanceof ListenerNode listener?listener.name():top instanceof InboundHttpAdapterNode inbound?inbound.name():null;
             if(name==null)errors.add(CompilerDiagnostic.error(top.location(),"Unsupported module definition."));
             if(name!=null) {String identity=source.unit().namespace()+"."+name;local.put(identity,top);origins.put(identity,source);}
             for(var c:CollectionDeclaration.of(top)) {String identity=source.unit().namespace()+"."+c.name();collections.put(identity,c);origins.put(identity,source);}
@@ -41,7 +33,7 @@ public final class ModuleContracts {
             if(source==null) {errors.add(CompilerDiagnostic.error(export.location(),"Unknown local type-module export: "+identity+". This slice exports reviewed domain, repository, port, adapter and functional contracts; foreign re-exports are forbidden."));continue;}
             if(local.get(identity) instanceof InboundHttpAdapterNode) {errors.add(CompilerDiagnostic.error(export.location(),"Inbound HTTP adapters are internal entrypoints, not exported callable types: "+identity+". Activate the module to register its routes."));continue;}
             if(local.get(identity) instanceof ListenerNode) {errors.add(CompilerDiagnostic.error(export.location(),"Listeners are internal runtime receivers, not exported APIs: "+identity+". Export the event contract and activate the receiving module."));continue;}
-            var symbol=project.project().symbols().find(identity).orElseThrow();String javaName=symbol.identity().namespace()+(symbol.kind()==TypeSymbol.Kind.OUTBOUND_ADAPTER?".adapter.outbound.":symbol.kind()==TypeSymbol.Kind.USE_CASE?".usecase.":".domain.")+symbol.identity().name();
+            var symbol=project.project().symbols().find(identity).orElseThrow();String javaName=JavaTypeNames.canonicalName(new ResolvedType.Declared(symbol));
             var fields=new ArrayList<Field>();var constants=new ArrayList<String>();var methods=new ArrayList<Method>();String element="",kind="";SourceLocation at;
             if(collections.containsKey(identity)) {
                 var c=collections.get(identity);element=symbol.identity().namespace()+"."+c.elementName();kind=c.definition().kind().name();at=c.definition().location();
@@ -79,13 +71,16 @@ public final class ModuleContracts {
                     if(local.containsKey(element)&&!exports.contains(element))errors.add(CompilerDiagnostic.error(export.location(),"Export "+identity+" requires explicit export "+element+" for its implemented port."));
                 }
                 if(top instanceof PortNode port)methods.addAll(methods(port.methods().stream().map(PortMethodNode::method).toList(),project));
+                if(top instanceof PermissionNode permission) permission.members().forEach(m -> constants.add(m.name()));
                 if(top instanceof EventNode event)for(var field:event.fields())fields.add(new Field(field.name(),type(field.type(),project)));
                 if(top instanceof ValueObjectNode vo) {
                     for(var f:vo.fields())fields.add(new Field(f.name(),type(f.type(),project)));
                     vo.enumConstants().forEach(c->constants.add(c.name()));methods.addAll(methods(vo.methods(),project));
                 }
             }
-            Set<String> publicTypes=new TreeSet<>();if(!element.isBlank())publicTypes.add(element);fields.forEach(f->publicTypes.add(f.type().name()));
+            var authorization=local.get(identity) instanceof UseCaseNode u
+                    ?ModuleAuthorization.encode(u.authorization(),project,u):Authorization.omitted();
+            Set<String> publicTypes=new TreeSet<>(ModuleAuthorization.permissionTypes(authorization));if(!element.isBlank())publicTypes.add(element);fields.forEach(f->publicTypes.add(f.type().name()));
             methods.forEach(m->{publicTypes.add(m.returns().name());m.parameters().forEach(f->publicTypes.add(f.type().name()));});
             for(String required:publicTypes) if(local.containsKey(required)||collections.containsKey(required))
                 if(!exports.contains(required))errors.add(CompilerDiagnostic.error(export.location(),"Export "+identity+" requires explicit export "+required+" in its public contract."));
@@ -106,7 +101,7 @@ public final class ModuleContracts {
                 members.put(key,value);
             }
             String path=project.project().sourceRoot().relativize(source.path()).toString().replace('\\','/');
-            var definition=new Definition(identity,symbol.kind().name(),javaName,List.copyOf(fields),List.copyOf(constants),element,kind,List.copyOf(methods),members,"vernac/"+path,at.line(),at.column(),"",ModuleTenancy.aggregateScope(declared),declared instanceof EntityNode?1:0);
+            var definition=new Definition(identity,symbol.kind().name(),javaName,List.copyOf(fields),List.copyOf(constants),element,kind,List.copyOf(methods),members,"vernac/"+path,at.line(),at.column(),"",ModuleTenancy.aggregateScope(declared),declared instanceof EntityNode?1:0,authorization);
             ModuleTenancy.validateDefinition(definition);
             definitions.add(withFingerprint(definition));
         }
@@ -116,6 +111,7 @@ public final class ModuleContracts {
         project.types().forEach((node,t)->{if(localSources.contains(node.location().sourceName()) && t instanceof ResolvedType.Declared d)used.add(d.symbol().identity().qualifiedName());});
         boolean expanded;
         do { expanded=false;for(var dependency:dependencies)for(var d:dependency.exports())if(used.contains(d.identity())) {
+            for(var key:ModuleAuthorization.permissionTypes(d.authorization())) expanded|=used.add(key);
             for(var f:d.fields())expanded|=used.add(f.type().name());
             if(!d.element().isBlank())expanded|=used.add(d.element());
             for(var m:d.methods()){expanded|=used.add(m.returns().name());for(var f:m.parameters())expanded|=used.add(f.type().name());}
@@ -126,7 +122,8 @@ public final class ModuleContracts {
         List<Requirement> requirements=new ArrayList<>();
         for(var dependency:dependencies) {
             List<Definition> required=dependency.exports().stream().filter(d->used.contains(d.identity())).toList();
-            if(!required.isEmpty())requirements.add(new Requirement(dependency.module(),dependency.groupId(),dependency.artifactId(),dependency.version(),required));
+            if(!required.isEmpty())requirements.add(new Requirement(dependency.module(),dependency.groupId(),dependency.artifactId(),dependency.version(),required,
+                    required.stream().anyMatch(d->org.vernac.runtime.application.ActivationPlan.isFunctionalKind(d.kind()))?dependency.usecaseAccess():List.of()));
         }
         definitions.sort(Comparator.comparing(Definition::identity));requirements.sort(Comparator.comparing(Requirement::module));
         Set<String> internal=new TreeSet<>(local.keySet());internal.addAll(collections.keySet());internal.removeAll(exports);
@@ -151,7 +148,7 @@ public final class ModuleContracts {
         if(!errors.isEmpty())throw new SemanticValidationException(errors);
         return new ModuleDescriptor(1,CONTRACT,module.name(),group,artifact,version,definitions,requirements,List.copyOf(internal),components,components.stream().anyMatch(c->Set.of("REPOSITORY","EVENT_STORAGE","DEFERRED_LISTENER").contains(c.kind())),
             org.vernac.compiler.vocabulary.Vocabulary.entries(project.project()).stream()
-                .filter(t->exports.stream().anyMatch(t::describes)).toList());
+                .filter(t->exports.stream().anyMatch(t::describes)).toList(),ModuleAuthorization.collect(project));
     }
     public static void validateExports(ModuleDefinition definition,ResolvedProject project) {
         publish(definition,project,null,"editor","editor","editor",List.of());
@@ -166,11 +163,11 @@ public final class ModuleContracts {
     }
     public static String fingerprint(Definition d) {
         try {
-            Object contract=List.of(CONTRACT,d.identity(),d.kind(),d.javaName(),d.fields(),d.constants(),d.element(),d.collectionKind(),d.methods(),new TreeMap<>(d.javaMembers()),d.aggregateScope(),d.entityOwnershipVersion());
+            Object contract=List.of(CONTRACT,d.identity(),d.kind(),d.javaName(),d.fields(),d.constants(),d.element(),d.collectionKind(),d.methods(),new TreeMap<>(d.javaMembers()),d.aggregateScope(),d.entityOwnershipVersion(),d.authorization());
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(JSON.writeValueAsString(contract).getBytes(StandardCharsets.UTF_8)));
         } catch(Exception e) {throw new IllegalStateException("Could not fingerprint public module contract",e);}
     }
-    private static Definition withFingerprint(Definition d) {return new Definition(d.identity(),d.kind(),d.javaName(),d.fields(),d.constants(),d.element(),d.collectionKind(),d.methods(),d.javaMembers(),d.source(),d.line(),d.column(),fingerprint(d),d.aggregateScope(),d.entityOwnershipVersion());}
+    private static Definition withFingerprint(Definition d) {return new Definition(d.identity(),d.kind(),d.javaName(),d.fields(),d.constants(),d.element(),d.collectionKind(),d.methods(),d.javaMembers(),d.source(),d.line(),d.column(),fingerprint(d),d.aggregateScope(),d.entityOwnershipVersion(),d.authorization());}
     public static Optional<String> difference(Definition expected,Definition actual) {
         if(expected.fingerprint().equals(actual.fingerprint()))return Optional.empty();
         if (!expected.aggregateScope().equals(actual.aggregateScope()))
@@ -178,12 +175,16 @@ public final class ModuleContracts {
         if (expected.entityOwnershipVersion() != actual.entityOwnershipVersion())
             return Optional.of("Changed entity ownership contract");
         if(!expected.kind().equals(actual.kind())||!expected.javaName().equals(actual.javaName()))return Optional.of("Changed type category or Java identity");
+        if(!expected.authorization().equals(actual.authorization()))
+            return Optional.of("Changed usecase authorization; review security requirements and rebuild the consumer: "+expected.identity());
         if(!expected.fields().equals(actual.fields())) {
             for(var f:expected.fields()) {var match=actual.fields().stream().filter(a->a.name().equals(f.name())).findFirst();if(match.isEmpty())return Optional.of("Removed field: "+f.name());if(!match.get().equals(f))return Optional.of("Changed field: "+f.name()+" from "+f.type()+" (mutable="+f.mutable()+") to "+match.get().type()+" (mutable="+match.get().mutable()+")");}
             return Optional.of("Changed field structure/order: "+actual.fields());
         }
         if(Set.of("PORT","REPOSITORY").contains(expected.kind())&&!expected.methods().equals(actual.methods()))return Optional.of("Changed port/repository operations require implementation rebuild: "+expected.identity());
-        if(!expected.constants().equals(actual.constants()))return Optional.of("Changed enum constants");
+        if(expected.kind().equals("PERMISSION")) {
+            if(!actual.constants().containsAll(expected.constants()))return Optional.of("Removed or renamed permission member; review stored grants: "+expected.identity());
+        } else if(!expected.constants().equals(actual.constants()))return Optional.of("Changed enum constants");
         if(!expected.element().equals(actual.element())||!expected.collectionKind().equals(actual.collectionKind()))return Optional.of("Changed identity, aggregate target or collection contract");
         for(var e:expected.javaMembers().entrySet()) if(!Objects.equals(e.getValue(),actual.javaMembers().get(e.getKey())))return Optional.of("Changed or removed Java member: "+e.getKey());
         for(var key:actual.javaMembers().keySet()) if(!expected.javaMembers().containsKey(key)) {
@@ -201,8 +202,8 @@ public final class ModuleContracts {
             for(var d:module.exports()) {
                 ModuleTenancy.validateDefinition(d);
                 int dot=d.identity().lastIndexOf('.');
-                if(dot<1||!org.vernac.language.VernacNames.isNamespace(d.identity())||!d.javaName().equals(d.identity().substring(0,dot)+(d.kind().equals("OUTBOUND_ADAPTER")?".adapter.outbound.":d.kind().equals("USE_CASE")?".usecase.":".domain.")+d.identity().substring(dot+1)))throw new IllegalArgumentException("Invalid exported type/Java identity: "+d.identity());
-                if(!Set.of("ID","VALUE_OBJECT","ENUM","COLLECTION","PORT","OUTBOUND_ADAPTER","DOMAIN_SERVICE","USE_CASE","ENTITY","AGGREGATE","REPOSITORY","EVENT").contains(d.kind()))throw new IllegalArgumentException("Unsupported type-module export kind: "+d.kind());
+                if(dot<1||!org.vernac.language.VernacNames.isNamespace(d.identity())||!d.javaName().equals(d.identity().substring(0,dot)+(d.kind().equals("OUTBOUND_ADAPTER")?".adapter.outbound.":d.kind().equals("USE_CASE")?".usecase.":d.kind().equals("PERMISSION")?".authorization.":".domain.")+d.identity().substring(dot+1)))throw new IllegalArgumentException("Invalid exported type/Java identity: "+d.identity());
+                if(!Set.of("ID","VALUE_OBJECT","ENUM","COLLECTION","PORT","OUTBOUND_ADAPTER","DOMAIN_SERVICE","USE_CASE","ENTITY","AGGREGATE","REPOSITORY","EVENT","PERMISSION").contains(d.kind()))throw new IllegalArgumentException("Unsupported type-module export kind: "+d.kind());
                 if(!identities.add(d.identity()))throw new IllegalArgumentException("Duplicate exported definition: "+d.identity());
                 if(!fingerprint(d).equals(d.fingerprint()))throw new IllegalArgumentException("Invalid contract fingerprint: "+d.identity());
             }
@@ -240,12 +241,14 @@ public final class ModuleContracts {
             for(var d:module.exports())if(Set.of("USE_CASE","DOMAIN_SERVICE","OUTBOUND_ADAPTER","REPOSITORY").contains(d.kind())&&!componentIds.contains(d.identity()))throw new IllegalArgumentException("Missing runtime component: "+d.identity());
             for(String internal:module.internalTypes())if(!identities.add(internal))throw new IllegalArgumentException("Duplicate internal/public dependency definition: "+internal);
         }
+        ModuleAuthorization.validate(modules);
         Set<String> storageIds=modules.stream().flatMap(m->m.components().stream()).filter(c->c.kind().equals("EVENT_STORAGE")).map(Component::identity).collect(java.util.stream.Collectors.toSet());
         for(var module:modules)for(var component:module.components())for(String dependency:component.dependencies())if(dependency.startsWith("@storage:")&&!storageIds.contains(dependency))throw new IllegalArgumentException("Missing producer event storage "+dependency+" for "+component.identity());
         for(var module:modules) for(var requirement:module.externalContracts()) {
             var provider=available.get(requirement.module());
             if(provider==null)throw new IllegalArgumentException("Module "+module.module()+" requires missing module "+requirement.module()+" ("+requirement.groupId()+":"+requirement.artifactId()+")");
             if(!provider.groupId().equals(requirement.groupId())||!provider.artifactId().equals(requirement.artifactId()))throw new IllegalArgumentException("Changed provider artifact for module "+requirement.module());
+            ModuleAuthorization.checkExpected(requirement,provider,module.module());
             for(var expected:requirement.definitions()) {
                 var actual=provider.exports().stream().filter(d->d.identity().equals(expected.identity())).findFirst();
                 var diff=actual.isEmpty()?Optional.of("Missing exported definition"):difference(expected,actual.get());

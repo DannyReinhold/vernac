@@ -246,7 +246,7 @@ conversions, identity/authorization and the SaaS starter remain OPEN or fail clo
 
 ## Tenant module metadata evidence
 
-module-contracts-10 preserves exported aggregate scope and entity ownership/restoration
+module-contracts-11 preserves exported aggregate scope and entity ownership/restoration
 capability. Read-only import views retain scope; scope changes are incompatible. Tests
 compile a producer JAR and persist its entities inside a local tenant graph without
 regenerating dependency classes. This is partial A20 evidence. Persistent tenant module activation now verifies
@@ -337,7 +337,7 @@ generic policies/redisplay. Existing authorization PostgreSQL probes now exercis
 production APIs rather than a parallel handwritten guard. This is partial evidence; local syntax/generated enforcement is recorded below.
 It does not complete module/editor security support, identity or the
 SaaS reachable-usecase audit. A03/A04/A19/A20 and full release acceptance remain OPEN.
-Local compiler/generator integration is now implemented. Next: metadata/editor/activation
+Local compiler/generator and module metadata integration are now implemented. Next: editor/activation
 audit and complete identity/membership/entitlement flows.
 
 
@@ -349,8 +349,24 @@ reject unknown members/types, illegal or optional resources, invalid/duplicate g
 and domain misuse. Generated Spring/PostgreSQL proofs cover null/deny/validates/body
 ordering, external parity, public/authenticated startup and identity behavior, tenant
 resource isolation and conditional nested REQUIRED rollback. Basic local keyword/type
-navigation and unsaved diagnostics are included. Module publication with these new
-contracts fails explicitly until metadata/compatibility support lands; no security
-contract is silently dropped. Advanced completion, module activation audits, actual
+navigation and unsaved diagnostics are included. Module publication now retains these
+contracts with explicit export closure and security-aware dependency snapshots.
+Advanced completion, module activation audits, actual
 identity/role/entitlement policies and complete SaaS E2E remain required. A03/A04/A19/A20
 and full release acceptance stay OPEN.
+
+
+## Module authorization metadata evidence
+
+Module-contracts-11 retains exported permissions and ordered requirements, including
+nominal resource bindings. Functional consumers snapshot public/internal access headers;
+changed existing requirements require explicit review/rebuild. Additive keys remain
+compatible. Type-only imports grant nothing and do not activate runtime components.
+Read-only module views and imported permission vocabulary/navigation are covered.
+The executable JAR/Spring/PostgreSQL proof packages a producer, generates a consumer's
+activation and checks actual actor/tenant/REQUIRED boundaries; CI requires every case
+without skips. The module tutorial is compiled through publication and activation.
+
+This metadata upgrade does not rewrite persistence histories. Advanced requirement
+completion, reachable-usecase audits and identity/membership/role/entitlement policies
+remain required. A03/A04/A15/A19/A20/A21/A22/A23 and full release acceptance stay OPEN.

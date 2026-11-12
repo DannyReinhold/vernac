@@ -61,6 +61,7 @@ public final class ModuleArtifacts {
                     var collections=entry.getValue().stream().filter(c->c.kind().equals("COLLECTION")&&c.element().equals(d.identity())).map(c->new CollectionDefinitionNode(at,CollectionDefinitionNode.Kind.valueOf(c.collectionKind()),Optional.of(simple(c.identity())),methods(c.methods(),at),List.of())).toList();
                     if(d.kind().equals("ID"))definitions.add(new IdDeclarationNode(at,simple(d.identity()),collections));
                     else if(d.kind().equals("VALUE_OBJECT")||d.kind().equals("ENUM"))definitions.add(new ValueObjectNode(at,simple(d.identity()),fields(d.fields(),at),d.constants().stream().map(c->new EnumConstantNode(at,c)).toList(),List.of(),methods(d.methods(),at),collections,List.of()));
+                    else if(d.kind().equals("PERMISSION")) definitions.add(new PermissionNode(at,simple(d.identity()),d.constants().stream().map(c->new EnumConstantNode(at,c)).toList()));
                     else if(d.kind().equals("ENTITY")||d.kind().equals("AGGREGATE")) {
                         var id=new IdReferenceNode(at,new TypeNode(at,d.element()));
                         if(d.kind().equals("ENTITY"))definitions.add(new EntityNode(at,simple(d.identity()),id,fields(d.fields(),at),List.of(),methods(d.methods(),at),collections,List.of()));
@@ -77,7 +78,7 @@ public final class ModuleArtifacts {
                     else if(d.kind().equals("USE_CASE")) {
                         var execute=d.methods().stream().filter(m->m.name().equals("execute")).findFirst().orElseThrow();
                         Optional<TypeNode> returns=execute.returns().name().equals("void")||execute.returns().name().equals("@result")?Optional.empty():Optional.of(type(execute.returns(),at));
-                        definitions.add(new UseCaseNode(at,simple(d.identity()),fields(execute.parameters(),at),List.of(),List.of(),returns,fields(d.fields(),at),List.of(),List.of(),"throw new UnsupportedOperationException();",Optional.empty(),1));
+                        definitions.add(new UseCaseNode(at,simple(d.identity()),fields(execute.parameters(),at),List.of(),List.of(),returns,fields(d.fields(),at),List.of(),List.of(),"throw new UnsupportedOperationException();",Optional.empty(),1,ModuleAuthorization.decode(d.authorization(),at)));
                     }
                     else throw new IllegalArgumentException("Unsupported type-module definition: "+d.identity());
                 }
@@ -125,6 +126,8 @@ public final class ModuleArtifacts {
             if(!c.dependencies().isEmpty())text.append(" requires ").append(String.join(", ",c.dependencies()));
             text.append("\n");
         });
+        for(var access:module.usecaseAccess()) text.append("// Access ").append(access.identity()).append(": ")
+                .append(access.requirement().mode().equals("OMITTED")?"requires omitted": "requires "+ModuleAuthorization.source(access.requirement())).append("\n");
         if(module.persistent())text.append("// Persistent owner: isolated module Flyway history; activation is required.\n");
         return text.toString();
     }
@@ -170,11 +173,17 @@ public final class ModuleArtifacts {
                     .append(method.parameters().stream().map(f->typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(") {throw new UnsupportedOperationException();}\n");
                 text.append("}\n");continue;
             }
+            if(d.kind().equals("PERMISSION")) {
+                text.append("permission ").append(simple(d.identity())).append(" { ")
+                    .append(d.constants().stream().map(c->c+";").collect(java.util.stream.Collectors.joining(" "))).append(" }\n");continue;
+            }
             if(d.kind().equals("USE_CASE")) {
                 var execute=d.methods().stream().filter(m->m.name().equals("execute")).findFirst().orElseThrow();
                 text.append("usecase ").append(simple(d.identity())).append("(").append(execute.parameters().stream().map(f->typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(")");
                 if(!d.fields().isEmpty())text.append(" returns (").append(d.fields().stream().map(f->typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(")");
                 else if(!execute.returns().name().equals("void"))text.append(" returns ").append(typeText(execute.returns()));
+                String authorization=ModuleAuthorization.source(d.authorization());
+                if(!authorization.isEmpty())text.append(" requires ").append(authorization);
                 text.append(" behavior {execute {throw new UnsupportedOperationException();}}\n");continue;
             }
             if(d.kind().equals("OUTBOUND_ADAPTER")) {

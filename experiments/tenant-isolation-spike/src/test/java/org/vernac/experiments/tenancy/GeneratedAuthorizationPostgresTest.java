@@ -39,7 +39,7 @@ class GeneratedAuthorizationPostgresTest {
     Class<?> idType, flagType, probe;
     Object id;
 
-    private static final String MODEL = """
+    static final String MODEL = """
         namespace sample.auth;
         import sample.security.Rights;
         id InvoiceId;
@@ -74,7 +74,7 @@ class GeneratedAuthorizationPostgresTest {
         usecase SignedIn() requires authenticated behavior { execute { fixture.Probe.signedIn(); } }
         usecase PublicEntry() requires public behavior { execute { fixture.Probe.publicCalls++; } }
         """;
-    private static final String PROBE = """
+    static final String PROBE = """
         package fixture;
         public final class Probe {
             public static int validations, bodies, publicCalls;
@@ -90,7 +90,7 @@ class GeneratedAuthorizationPostgresTest {
             }
         }
         """;
-    private static final String EXTERNAL = """
+    static final String EXTERNAL = """
         package fixture;
         public final class External {
             public static sample.auth.domain.Label execute(sample.auth.usecase.access.ExternalInvoiceAccess self,
@@ -130,11 +130,7 @@ class GeneratedAuthorizationPostgresTest {
         context.registerBean(AuthorizationGuard.class, () -> new AuthorizationGuard(new SpringSecurityActorResolver(auth ->
                 Optional.of(new VerifiedActor("fixture", auth.getName(), auth.getName().equals("worker") ? VerifiedActor.Kind.TECHNICAL : VerifiedActor.Kind.HUMAN))), context.getBean(Policy.class)));
         ObjectProvider<EventHandler> events = context.getBeanFactory().getBeanProvider(EventHandler.class);
-        register("exporter", "ExportInvoice", () -> construct("ExportInvoice", events, context.getBean(AuthorizationGuard.class)));
-        register("external", "ExternalInvoice", () -> construct("ExternalInvoice", events, context.getBean(AuthorizationGuard.class)));
-        register("outer", "Outer", () -> construct("Outer", events, context.getBean("exporter"), context.getBeanFactory().getBeanProvider(AuthorizationGuard.class)));
-        register("signed", "SignedIn", () -> construct("SignedIn", events, context.getBean(AuthorizationGuard.class)));
-        register("publicEntry", "PublicEntry", () -> construct("PublicEntry", events, context.getBeanFactory().getBeanProvider(AuthorizationGuard.class)));
+        registerOperations(events);
         context.register(Transactions.class); context.refresh();
         for (String name : List.of("validations", "bodies", "publicCalls")) probe.getField(name).setInt(null, 0);
         probe.getField("exporter").set(null, (Function<UUID,String>) identity -> {
@@ -142,6 +138,14 @@ class GeneratedAuthorizationPostgresTest {
         });
         probe.getField("outer").set(null, (Runnable) () -> { var invoice = store.byId(INVOICE_A); invoice.title = "outer"; store.save(invoice); });
         authenticate("member");
+    }
+    /** Shared proof matrix: local classes and activated module JARs provide different registration. */
+    void registerOperations(ObjectProvider<EventHandler> events) throws Exception {
+        register("exporter", "ExportInvoice", () -> construct("ExportInvoice", events, context.getBean(AuthorizationGuard.class)));
+        register("external", "ExternalInvoice", () -> construct("ExternalInvoice", events, context.getBean(AuthorizationGuard.class)));
+        register("outer", "Outer", () -> construct("Outer", events, context.getBean("exporter"), context.getBeanFactory().getBeanProvider(AuthorizationGuard.class)));
+        register("signed", "SignedIn", () -> construct("SignedIn", events, context.getBean(AuthorizationGuard.class)));
+        register("publicEntry", "PublicEntry", () -> construct("PublicEntry", events, context.getBeanFactory().getBeanProvider(AuthorizationGuard.class)));
     }
     @AfterEach void cleanup() {
         SecurityContextHolder.clearContext(); if (context != null) context.close();
@@ -238,8 +242,8 @@ class GeneratedAuthorizationPostgresTest {
         try { return classes.loadClass("sample.auth.usecase." + name).getConstructors()[0].newInstance(arguments); }
         catch (ReflectiveOperationException invalid) { throw new AssertionError(invalid); }
     }
-    private Object call(String bean, Object... arguments) { return invoke(context.getBean(bean), arguments); }
-    private Object invoke(Object receiver, Object... arguments) {
+    Object call(String bean, Object... arguments) { return invoke(context.getBean(bean), arguments); }
+    Object invoke(Object receiver, Object... arguments) {
         try {
             var execute = Arrays.stream(receiver.getClass().getMethods()).filter(m -> m.getName().equals("execute")).findFirst().orElseThrow();
             return execute.invoke(receiver, arguments);
@@ -250,11 +254,11 @@ class GeneratedAuthorizationPostgresTest {
         } catch (ReflectiveOperationException invalid) { throw new AssertionError(invalid); }
     }
     private Object flag(boolean value) { try { return flagType.getMethod("of", boolean.class).invoke(null, value); } catch (ReflectiveOperationException invalid) { throw new AssertionError(invalid); } }
-    private String text(Object label) { try { return (String) label.getClass().getMethod("string").invoke(label); } catch (ReflectiveOperationException invalid) { throw new AssertionError(invalid); } }
-    private <T> T scoped(Supplier<T> body) { try (var selected = boundary.select(A)) { return body.get(); } }
-    private long version() { return new JdbcTemplate(fixture.adminSource()).queryForObject("SELECT version FROM tenant_spike.invoice WHERE id=?", Long.class, INVOICE_A); }
-    private int count(String name) throws Exception { return probe.getField(name).getInt(null); }
+    String text(Object label) { try { return (String) label.getClass().getMethod("string").invoke(label); } catch (ReflectiveOperationException invalid) { throw new AssertionError(invalid); } }
+    <T> T scoped(Supplier<T> body) { try (var selected = boundary.select(A)) { return body.get(); } }
+    long version() { return new JdbcTemplate(fixture.adminSource()).queryForObject("SELECT version FROM tenant_spike.invoice WHERE id=?", Long.class, INVOICE_A); }
+    int count(String name) throws Exception { return probe.getField(name).getInt(null); }
     private static void authenticate(String actor) { SecurityContextHolder.getContext().setAuthentication(UsernamePasswordAuthenticationToken.authenticated(actor, null, List.of())); }
-    private static void denied(AuthorizationException.Code code, org.junit.jupiter.api.function.Executable action) { assertEquals(code, assertThrows(AuthorizationException.class, action).code()); }
-    private static void write(Path path, String source) throws Exception { Files.createDirectories(path.getParent()); Files.writeString(path, source); }
+    static void denied(AuthorizationException.Code code, org.junit.jupiter.api.function.Executable action) { assertEquals(code, assertThrows(AuthorizationException.class, action).code()); }
+    static void write(Path path, String source) throws Exception { Files.createDirectories(path.getParent()); Files.writeString(path, source); }
 }

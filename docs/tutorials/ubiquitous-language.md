@@ -46,7 +46,7 @@ public metadata. Consumers build against the dependency normally and see that co
 in Vernac type hover, even if no original source attachment is installed. The
 [type-module example](https://github.com/DannyReinhold/vernac/blob/main/examples/type-modules/README.md) includes a documented Money
 value for trying this across separate artifacts. Rebuild both sides with the updated
-SNAPSHOT tools; module-contracts-10 metadata is required.
+SNAPSHOT tools; module-contracts-11 metadata is required.
 
 Descriptions should explain domain meaning, not repeat a field list. Discuss a concrete
 case with a domain expert, adjust the definition and model together, and review both in
