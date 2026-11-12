@@ -38,8 +38,10 @@ For a guide across all documentation, use the [documentation map](../documentati
 
 ## Current priorities
 
-- [Identity, memberships and roles](identity-membership-0.6.0.md): review proposal for
-  reusable SaaS modules; packaging/license and credential defaults remain OPEN.
+- [Identity, memberships and roles](identity-membership-0.6.0.md): lifecycle proposal for
+  reusable SaaS modules. Same-repository/Apache-2.0 packaging is accepted; the
+  [first identity boundary](../contracts/saas-identity-foundation.md) is implemented.
+  Credential defaults and full workflows remain OPEN.
 
 - [Explicit application access](../contracts/explicit-authorization.md): implemented
   startup inventory checks; complete SaaS assembly adoption remains required.

@@ -9,7 +9,7 @@ from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parent.parent
 FILES = [ROOT / 'README.md'] + sorted((ROOT / 'docs').rglob('*.md'))
-for folder in ('examples', 'templates'):
+for folder in ('examples', 'templates', 'saas'):
     FILES += [p for p in (ROOT / folder).rglob('*.md') if 'target' not in p.parts]
 
 

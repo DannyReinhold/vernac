@@ -1,0 +1,21 @@
+namespace org.vernac.saas.identity;
+
+term UserId {
+    description "A stable human login identity, independent of email, account and tenant.";
+    note "Possessing this identifier does not establish authentication or membership.";
+}
+id UserId;
+
+term IdentityStatus {
+    description "The current eligibility state of a human login identity.";
+    note "Only ACTIVE may become the standard human VerifiedActor. This is not a role or subscription.";
+}
+value IdentityStatus = PENDING_VERIFICATION | ACTIVE | DISABLED | CLOSED;
+
+term IdentityDirectory {
+    description "Trusted internal lookup of the current status of a nominal user identity.";
+    note "Implementations must distinguish unavailable storage from an absent identity. This is not a public user lookup endpoint.";
+}
+port IdentityDirectory {
+    IdentityStatus? status(UserId);
+}

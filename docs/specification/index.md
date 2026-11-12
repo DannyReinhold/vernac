@@ -90,3 +90,6 @@ across behavior, usecases, services, listeners and adapters.
 
 - [Explicit usecase access at startup](../contracts/explicit-authorization.md):
   application-owned inspection after component activation (0.6.0 development).
+
+- [SaaS identity foundation](../contracts/saas-identity-foundation.md): optional artifacts,
+  UserId/status/lookup contracts and explicit actor integration (0.6.0 development).

@@ -100,6 +100,12 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>0.6.0 development — Optional SaaS identity boundary</h3>
+<p>Separate Apache-2.0 identity artifacts now publish nominal UserId/status/lookup
+contracts and an explicit live-status Spring actor adapter. Normal module imports
+need no activation. Registration, credentials, memberships and the SaaS Wizard remain
+in progress; the standard non-SaaS project template is unchanged.</p>
+
 <h3>0.6.0 development — Explicit application access</h3>
 <p>Enable authorization explicit in the application definition to detect missing
 requires clauses on registered local and activated-module usecases, including internal

@@ -56,6 +56,8 @@
         <module>vernac-intellij</module>
         <module>vernac-runtime-jdbc</module>
         <module>vernac-jdbc-spring-boot-starter</module>
+        <module>saas/identity</module>
+        <module>saas/identity-spring-security</module>
     </modules>
 
     <properties>
@@ -99,6 +101,17 @@
             <dependency>
                 <groupId>org.vernac</groupId>
                 <artifactId>vernac-runtime-http</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- Optional SaaS modules depend on Vernac, never the reverse. -->
+            <dependency>
+                <groupId>org.vernac</groupId><artifactId>vernac-saas-identity</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.vernac</groupId><artifactId>vernac-saas-identity-spring-security</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
