@@ -3,7 +3,9 @@ title: Vernac specification and contracts
 ---
 # Vernac specification and contracts
 
-This is the normative documentation for the **0.5.0 language baseline**, with\nexplicitly marked **0.6.0 development additions**. It is organized into language\nrules and feature contracts; both parts define the language.
+This is the normative documentation for the **0.5.0 language baseline**, with
+explicitly marked **0.6.0 development additions**. It is organized into language
+rules and feature contracts; both parts define the language.
 MUST/MUST NOT express requirements, SHOULD a recommendation, and MAY a permission.
 Examples illustrate rules; explicitly incomplete fragments require their surrounding
 model. Planned features are not guarantees.
@@ -11,6 +13,15 @@ model. Planned features are not guarantees.
 The [language reference](../language-reference.md) is the usage-oriented overview.
 The grammar describes parsing, not the complete supported language: semantic
 resolution and feature contracts also constrain accepted programs.
+
+## Application platform
+
+The supported application target is Java/Spring Boot. Generated application services,
+transaction boundaries, web adapters and runtime integration follow their documented
+Spring contracts. Standalone compilation or unit testing of individual domain types
+MUST NOT be represented as support for a Spring-independent application runtime.
+Framework separation is a possible future direction, not a current alternative backend.
+See the [platform scope](../faq/index.md#does-vernac-support-applications-without-spring-boot).
 
 ## Language foundations
 

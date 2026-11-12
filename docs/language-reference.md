@@ -14,6 +14,13 @@ Examples without a namespace or referenced type declarations are fragments to in
 into an existing model. [From model to application](tutorials/from-model-to-application.md)
 contains a complete model. For an introduction, follow the [tutorials](tutorials/index.md).
 
+The supported application target is **Java/Spring Boot**. Generated usecases,
+application services, transactions, web adapters and runtime integration use Spring.
+Plain Java tests of individual domain types do not imply a Spring-independent
+application runtime. Framework decoupling is only a possible long-term direction,
+not a current capability. Do not replace the Spring execution model or assume an
+alternative framework backend. See the [platform scope](faq/index.md#does-vernac-support-applications-without-spring-boot).
+
 <details class="on-this-page" markdown="1">
 <summary>On this page</summary>
 

@@ -10,6 +10,13 @@ do not assume a development feature is available in an older published compiler.
 For build commands, migration candidate generation and verification, also provide
 the companion [AI tools reference](ai-tools-reference.md).
 
+The supported application target is **Java/Spring Boot**. Generated usecases,
+application services, transactions, web adapters and runtime integration use Spring.
+Plain Java tests of individual domain types do not imply a Spring-independent
+application runtime. Framework decoupling is only a possible long-term direction,
+not a current capability. Do not replace the Spring execution model or assume an
+alternative framework backend. See the [platform scope](faq/index.md#does-vernac-support-applications-without-spring-boot).
+
 ## 1. Instruction to the code-generating assistant
 
 Generate Vernac, not an approximation of Java, Kotlin, a generic DDD DSL or an older

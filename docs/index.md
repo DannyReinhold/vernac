@@ -6,7 +6,7 @@ title: Architecture, expressed.
 # Architecture, expressed.
 
 **Vernac is a Domain‑Driven Architecture Language.  
-It turns your domain model into a working Java application.**
+It turns your domain model into a working Java/Spring Boot application.**
 
 Modern systems grow fast — and architecture often decays just as fast.  
 Domain logic spreads across layers, persistence leaks into business code, REST DTOs
@@ -16,7 +16,12 @@ Vernac addresses this by making architecture explicit.
 
 It describes IDs, values, aggregates, behavior, usecases, events, ports, adapters,
 repositories, persistence and integration in one language — then generates clean Java
-and Spring infrastructure without hidden framework magic.
+and Spring Boot infrastructure with explicit runtime contracts.
+
+**Spring Boot is the supported application platform.** Generated usecases, transaction
+boundaries, adapters and runtime integration rely on Spring. You can test individual
+domain types without starting a Spring context; that does not make the application
+runtime framework-independent. See the [platform scope](faq/index.md#does-vernac-support-applications-without-spring-boot).
 
 ---
 
@@ -119,7 +124,8 @@ chooses synchronous participation or durable deferred handling.
 ## Designed for AI‑assisted development
 
 Vernac’s language reference is deterministic and self‑contained.  
-It avoids hidden defaults, ambiguous semantics and framework‑specific magic.
+It documents syntax, generated APIs and Spring Boot integration explicitly, so an AI
+can work within the supported stack instead of guessing framework behavior.
 
 See the **AI‑specific language reference**:  
 [ai-language-reference.md](ai-language-reference.md)

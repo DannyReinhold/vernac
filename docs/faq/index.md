@@ -48,6 +48,25 @@ shows what to leave out as well as what to include.
 
 ## Getting started and using Java
 
+### Does Vernac support applications without Spring Boot?
+
+The supported application platform is **Java with Spring Boot**. Generated usecases
+and application services use Spring dependency injection and transaction management;
+web adapters use Spring MVC, and JDBC/event/module integration follows the documented
+Spring runtime contracts. Developing the SaaS authorization integration does not add
+a second, framework-independent execution model.
+
+This does not mean every value object is a Spring bean or every unit test must start
+a container. IDs, values and selected domain behavior can be constructed and tested
+as ordinary Java. The minimal-domain template deliberately demonstrates that smaller
+test boundary. Likewise, separate runtime artifacts let you select infrastructure;
+they do not constitute interchangeable framework backends.
+
+A future separation of framework-neutral mechanisms from Spring-specific integration
+could be investigated, but it is a long-term possibility, not an implemented feature
+or an alternative supported deployment path. Use the [Spring Boot starter](../tutorials/spring-boot-starter.md)
+for a complete application.
+
 ### I already have a Java/Spring application. What would Vernac replace?
 
 Vernac generates the repeated structure around your architectural decisions: typed
@@ -67,7 +86,8 @@ needs neither a running Spring application nor a database. Repositories are
 explicit declarations; declaring an aggregate alone does not request persistence.
 
 The core, JDBC, JSON and HTTP runtimes are separate modules. Add infrastructure as
-you need it. [Start with the database-free example](../tutorials/your-first-domain-model.md).
+you need it within the supported Spring Boot application stack. This example tests
+domain types; it does not replace managed application execution. [Start with the database-free example](../tutorials/your-first-domain-model.md).
 
 ### Can I create a complete application instead of starting with a domain test?
 
