@@ -79,8 +79,20 @@ class TenantSchemaTest {
                 example.resolve("src/main/resources/db/migration"));
         var model = history.read();
         assertFalse(model.tables().isEmpty());
-        assertEquals(1, model.formatVersion());
+        assertEquals(3, model.formatVersion());
         assertTrue(model.tables().stream().allMatch(t -> t.tenantIsolation() == null));
+        assertTrue(model.tables().stream().anyMatch(t -> t.eventIsolation() != null));
+        var published = java.util.Map.of(
+                "V20261009090000000__initial_delivery.json", "3ad6cac985d551da8b7001f112fe4c894996abc1b659f53e257feaa1acc9370c",
+                "V20261011100000000__event_walkthrough.json", "860d8ee0c8c39b02a396df4a0f7b63e4a467d13a17ef47a99874e9bcb3053bbf");
+        for (var entry : published.entrySet()) {
+            var snapshot = SchemaModel.JSON.readValue(java.nio.file.Files.readString(
+                    example.resolve("src/main/vernac-schema/history").resolve(entry.getKey())), SchemaHistory.Snapshot.class);
+            assertEquals(1, snapshot.model().formatVersion());
+            assertEquals(entry.getValue(), snapshot.modelFingerprint());
+            assertEquals(entry.getValue(), snapshot.model().fingerprint());
+            assertTrue(snapshot.model().tables().stream().allMatch(t -> t.eventIsolation() == null));
+        }
     }
 
     @Test void classificationChangesFailClosedEvenWhenForceIsRequested() {
