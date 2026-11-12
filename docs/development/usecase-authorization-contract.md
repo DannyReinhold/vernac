@@ -7,7 +7,7 @@ Status: **language design baseline; production Java runtime foundation implement
 Baseline: 2026-11-12. The [runtime/Spring SPI](../contracts/usecase-authorization-runtime.md)
 is available; the [local permission/requires language](../contracts/usecase-authorization.md)
 and generated guards with module metadata/compatibility are now implemented. Full SaaS
-integration and advanced editor support remain OPEN.
+integration and installed-IDE acceptance remain OPEN.
 This is the next design slice of the [0.6.0 SaaS plan](saas-0.6.0-plan.md), covering
 D02/D03 and the authorization part of D04. MUST describes the proposed implementation
 requirement, not current compiler behavior. Merging this document accepts a design

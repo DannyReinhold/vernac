@@ -194,7 +194,8 @@ checks that even a throwing custom error hook is bypassed for authorization and 
 no loader runs. Generated HTTP policy tests preserve the auth defaults.
 
 Module permission/access metadata and compatibility are implemented; see the
-[module contract](module-authorization.md). Still OPEN: advanced editor support;
+[module contract](module-authorization.md). Key/resource completion and native navigation now supplement the shared diagnostics.
+Still OPEN: installed-IDE acceptance;
 reachable-usecase audits; actual identity/
 membership/role/subscription modules; safe operational correlation; full SaaS end-to-end
 acceptance. An existing operation with no requires clause is not secured merely by upgrading.

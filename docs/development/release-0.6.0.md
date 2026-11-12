@@ -367,6 +367,20 @@ The executable JAR/Spring/PostgreSQL proof packages a producer, generates a cons
 activation and checks actual actor/tenant/REQUIRED boundaries; CI requires every case
 without skips. The module tutorial is compiled through publication and activation.
 
-This metadata upgrade does not rewrite persistence histories. Advanced requirement
-completion, reachable-usecase audits and identity/membership/role/entitlement policies
+This metadata upgrade does not rewrite persistence histories. Installed-IDE acceptance,
+reachable-usecase audits and identity/membership/role/entitlement policies
 remain required. A03/A04/A15/A19/A20/A21/A22/A23 and full release acceptance stay OPEN.
+
+
+## Authorization editor evidence
+
+Key and on-input completion works in nested requirements, with simple/qualified
+permission names, incomplete references and unsaved declarations. Compiler-backed
+visibility rejects ambiguous/unimported/wrong-kind keys; only required ID/VO/enum
+inputs are resource candidates. Native references and LSP distinguish permission
+types, members and resource declarations. Imported vocabulary/member navigation
+works from read-only metadata without producer sources or Java generation.
+
+Automated compiler/LSP tests cover these cases. Final packaged-plugin/manual
+acceptance, reachable-usecase exposure audits, identity/membership/role policies and
+the full SaaS end-to-end review remain OPEN. PR review/merge is not that acceptance.

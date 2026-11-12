@@ -11,7 +11,7 @@ import org.vernac.compiler.symbols.*;
 import java.nio.file.Path;
 import java.util.*;
 
-/** Exact native-editor type references. Visibility and ambiguity remain FileTypeScope decisions. */
+/** Exact native-editor type and authorization-header references. Visibility and ambiguity remain FileTypeScope decisions. */
 public final class VernacTypeReferences {
     public record Reference(
             int start, int end, String identity, VernacTypeNavigation.Target target) {}
@@ -68,6 +68,7 @@ public final class VernacTypeReferences {
                         anchor = name;
                     }
                     if (node instanceof VernacParser.PermissionRequirementContext permission) {
+                        authorizationReferences(project,path,texts,text,scope,permission,result);
                         var parts = permission.key.qualifiedNameSegment();
                         if (parts.size() < 2) return;
                         name = permission.key; anchor = parts.get(parts.size() - 2);
@@ -112,6 +113,40 @@ public final class VernacTypeReferences {
                 .distinct()
                 .sorted(Comparator.comparingInt(Reference::start))
                 .toList();
+    }
+
+    // Member/input identities cannot collide with exported type identities or their source-attachment map.
+    private void authorizationReferences(VernacProject project,Path path,Map<Path,String> texts,String text,
+            FileTypeScope scope,VernacParser.PermissionRequirementContext permission,List<Reference> result) {
+        var parts=permission.key.qualifiedNameSegment();
+        if(parts.size()>1) {
+            String type=parts.subList(0,parts.size()-1).stream().map(ParseTree::getText).collect(java.util.stream.Collectors.joining("."));
+            var resolved=scope.resolve(type,project.sources().stream().filter(s->s.path().equals(path)).findFirst().orElseThrow().unit().location()).type().orElse(null);
+            if(resolved instanceof ResolvedType.Declared d && d.symbol().kind()==TypeSymbol.Kind.PERMISSION) {
+                var member=parts.getLast();String identity=d.symbol().identity().qualifiedName()+"#"+member.getText();
+                new VernacTypeNavigation().findMember(project,texts,JavaTypeNames.canonicalName(d),
+                        new VernacTypeNavigation.Member(member.getText(),List.of(),true))
+                    .ifPresent(target->addReference(result,text,member,identity,target));
+            }
+        }
+        if(permission.resource==null)return;
+        for(var parent=permission.getParent();parent!=null;parent=parent.getParent()) {
+            if(!(parent instanceof VernacParser.UsecaseDefinitionContext operation)||operation.inputs==null)continue;
+            var matches=operation.inputs.parameter().stream().filter(p->
+                (p.name==null?org.vernac.language.VernacNames.defaultMemberName(p.paramType.rawType.getText()):p.name.getText()).equals(permission.resource.getText())).toList();
+            if(matches.size()!=1)return;
+            var parameter=matches.getFirst();if(parameter.paramType.isOptional!=null)return;
+            var source=project.sources().stream().filter(s->s.path().equals(path)).findFirst().orElseThrow();
+            var resolved=scope.resolve(parameter.paramType.rawType.getText(),source.unit().location()).type().orElse(null);
+            if(!(resolved instanceof ResolvedType.Declared d)||!Set.of(TypeSymbol.Kind.ID,TypeSymbol.Kind.VALUE_OBJECT,TypeSymbol.Kind.ENUM).contains(d.symbol().kind()))return;
+            ParserRuleContext anchor=parameter.name==null?parameter.paramType.rawType.qualifiedNameSegment().getLast():parameter.name;
+            var target=new VernacTypeNavigation.Target(path,permission.resource.getText(),text.offsetByCodePoints(0,anchor.getStart().getStartIndex()),text.offsetByCodePoints(0,anchor.getStop().getStopIndex()+1));
+            addReference(result,text,permission.resource,source.unit().namespace()+"."+operation.name.getText()+"#input:"+permission.resource.getText(),target);
+            return;
+        }
+    }
+    private static void addReference(List<Reference> result,String text,ParserRuleContext anchor,String identity,VernacTypeNavigation.Target target) {
+        result.add(new Reference(text.offsetByCodePoints(0,anchor.getStart().getStartIndex()),text.offsetByCodePoints(0,anchor.getStop().getStopIndex()+1),identity,target));
     }
 
     /** Java class references in DSL syntax; raw Java remains owned by Java injection. */

@@ -1017,8 +1017,9 @@ changed existing requirements require security review and rebuilding dependent m
 Adding permission keys is compatible; removing/renaming keys requires stored-grant
 review. Rebuild older development artifacts; do not edit frozen migrations for this
 metadata upgrade. See the [module contract](contracts/module-authorization.md) and
-[module walkthrough](tutorials/module-authorization.md). Advanced requirement completion
-and the SaaS exposure audit remain future work.
+[module walkthrough](tutorials/module-authorization.md). Key/resource completion and navigation honor import visibility, ambiguity and required
+nominal input rules, including exported module keys and unsaved changes. The final
+installed-IDE check and SaaS exposure audit remain future work.
 See the [language contract](contracts/usecase-authorization.md) and
 [tutorial](tutorials/usecase-authorization.md). Complete compilable local example:
 
