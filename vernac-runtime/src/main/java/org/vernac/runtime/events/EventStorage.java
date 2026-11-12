@@ -9,6 +9,10 @@ import org.vernac.runtime.EventId;
 @NullMarked
 public interface EventStorage extends EventHandler {
     String eventType();
+    /** 0 is the legacy GLOBAL-only bridge; 1 includes tenant payload and delivery routing. */
+    default int tenantDeliveryVersion() { return 0; }
+    /** Recheck physical binding after listener code, before acknowledgement commits. */
+    default void verifyOrigin(EventOrigin origin) { origin.requireGlobal(); }
     void persist(DomainEvent event, List<String> listenerIds);
     DomainEvent load(EventId id);
     /** Additive compatibility bridge: old adapters may only process verified GLOBAL origin. */

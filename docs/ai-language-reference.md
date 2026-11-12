@@ -1709,8 +1709,9 @@ usecases across modules and the application share the selected tenant and runtim
 transaction. Activation never creates a tenant selection. Additive migrations and
 reviewed backfills update module tables and consumer-owned flattened VO copies through
 independent histories. Existing-table tenant/global conversion remains blocked.
-See [tenant modules](tutorials/tenant-modules.md). Imported immutable IDs/VOs remain reusable. Recorded/deferred publication while tenant context is selected fails
-clearly until tenant event routing exists; synchronous listeners remain supported.
+See [tenant modules](tutorials/tenant-modules.md). Imported immutable IDs/VOs remain reusable. Recorded/deferred tenant publication is supported with current generated storage,
+a restricted RLS runtime role and the migrated delivery queue; synchronous listeners
+retain the publisher's context.
 Manual tenant reconstitute creates detached state; use repository loading for updates.
 The separate SaaS Wizard/starter, identity/authorization and reviewed conversions are
 not delivered by these persistence APIs.
@@ -1720,11 +1721,13 @@ See the [classification contract](contracts/explicit-tenancy.md),
 [implementation boundaries](development/tenant-persistence-integration.md).
 These additions require 0.6.0 development artifacts, not the released 0.5.x baseline.
 
-Durable tenant event delivery remains unsupported. The 0.6.0 compiler/runtime now
-use [format-3 origin schemas and matching GLOBAL storage](development/event-origin-schema.md)
-for persisted event graphs. Existing schemas require reviewed migrations with explicit
-`'GLOBAL'` backfills; applied migrations/snapshots are never rewritten. Old/new adapter
-layout mismatches are rejected, and global event modules/workers remain supported.
-Tenant delivery envelopes and worker context restoration are still pending. These
-changes add no Vernac syntax: do not add tenant parameters to event factories or bypass
-the emission guard. See the [current event contract](contracts/events.md#internal-origin-and-legacy-storage-boundaries-060-development).
+Durable tenant events use [format-3 origin schemas](development/event-origin-schema.md)
+and the [tenant-aware production worker](tutorials/tenant-events.md). No new event syntax
+is required: under a trusted verified selection, ordinary `self.emit(Event.create(...))`
+captures origin. A nullable internal delivery `tenantId` preserves GLOBAL when absent.
+Worker restoration is routing, not authentication or a captured human permission grant.
+Existing payloads require reviewed `'GLOBAL'` backfills; the queue's nullable-origin
+migration preserves existing GLOBAL jobs. Rebuild matching producer/application/runtime
+artifacts and stop older workers before enabling tenant traffic. Older storage adapters
+remain GLOBAL-only and are explicitly rejected/blocked for tenant work. Never add tenant
+factory arguments or infer a tenant for historical data. See the [event contract](contracts/events.md).

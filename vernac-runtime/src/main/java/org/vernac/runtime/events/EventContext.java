@@ -71,11 +71,11 @@ public final class EventContext implements AutoCloseable {
                 var deferred = listeners.stream().filter(EventHandler::deferred).map(EventHandler::listenerId).sorted().toList();
                 if (event instanceof RecordedEvent || !deferred.isEmpty()) {
                     var origin = EventOrigin.capture();
-                    if (!origin.isGlobal())
-                        throw new org.vernac.runtime.tenancy.TenancyException(
-                                org.vernac.runtime.tenancy.TenancyException.Code.TENANT_EVENT_DELIVERY_UNSUPPORTED);
                     var storage = selected.stream().filter(EventStorage.class::isInstance).map(EventStorage.class::cast).toList();
                     if (storage.size() != 1) throw new IllegalStateException("Exactly one event storage adapter is required for " + event.getClass().getName());
+                    if (!origin.isGlobal() && storage.getFirst().tenantDeliveryVersion() != 1)
+                        throw new org.vernac.runtime.tenancy.TenancyException(
+                                org.vernac.runtime.tenancy.TenancyException.Code.TENANT_EVENT_STORAGE_REBUILD_REQUIRED);
                     storage.getFirst().persist(event, deferred, origin);
                 }
                 for (var handler : listeners) if (!handler.deferred()) handler.handle(event);

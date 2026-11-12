@@ -39,6 +39,23 @@ public final class OriginLayoutProbe {
    try(var context=EventContext.open(()->List.of(store))) {EventContext.emit(event);}
    assertEquals(event.occurredAt(),store.load(event.eventId()).occurredAt());
   });
+  var nested=new JdbcChangedEvents(jdbc);var tenant=org.vernac.runtime.tenancy.TenantId.of(UUID.randomUUID());
+  var payload=event();var calls=new java.util.concurrent.atomic.AtomicInteger();
+  EventHandler receiver=new EventHandler(){
+   public String listenerId(){return "nested.tenant";}public Class<? extends DomainEvent> eventClass(){return Changed.class;}
+   public boolean deferred(){return true;}
+   public void handle(DomainEvent value){
+    assertEquals(tenant,org.vernac.runtime.tenancy.TenantContext.requireTenant());var loaded=(Changed)value;
+    assertEquals(payload.labels(),loaded.labels());assertEquals(payload.batches(),loaded.batches());assertEquals(payload.detail(),loaded.detail());calls.incrementAndGet();
+   }
+  };
+  try(var selected=org.vernac.runtime.tenancy.TenantContext.openVerified(tenant)) {
+   tx.executeWithoutResult(status->{try(var context=EventContext.open(()->List.of(nested,receiver))){EventContext.emit(payload);}});
+  }
+  var worker=new JdbcEventWorker(jdbc,new DataSourceTransactionManager(data),()->List.of(nested,receiver),EventDeliveryOptions.defaults());
+  // A retained GLOBAL job has no registered receiver here; the worker blocks it independently.
+  while(worker.runOnce()){}
+  assertEquals(1,calls.get());assertTrue(org.vernac.runtime.tenancy.TenantContext.currentTenant().isEmpty());
  }
  public static UUID beforeUpgrade(DataSource data) throws Exception {
   var tx=new TransactionTemplate(new DataSourceTransactionManager(data));var old=legacy(data);var current=new JdbcChangedEvents(new NamedParameterJdbcTemplate(data));

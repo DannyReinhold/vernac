@@ -61,9 +61,9 @@ Do not mark private tenant data global to bypass classification or context check
 
 See the [current integration boundaries](../development/tenant-persistence-integration.md).
 Persistent tenant modules are supported with explicit activation and runtime role/RLS
-verification. This is not yet a complete SaaS feature: durable tenant event delivery,
-provisioning/authorization and reviewed historical classification conversions remain
-blocked or OPEN.
+verification. Durable event routing is supported by current generated storage and
+origin-restoring workers. This is not a complete SaaS feature: provisioning/authorization
+and reviewed historical classification conversions remain blocked or OPEN.
 
 Imported definitions retain their published contract. The consuming application's
 rule MUST NOT reinterpret them or require edits to their read-only sources. Aggregate scope and entity ownership metadata are preserved by module-contracts-10.

@@ -3,11 +3,10 @@ title: Durable tenant events — routing contract and feasibility evidence
 ---
 # Durable tenant event routing
 
-Status: **technical candidate with executable PostgreSQL feasibility evidence**.
-This is not a supported language/runtime feature yet. Production EventContext still
-rejects recorded/deferred emission under tenant selection with
-TENANT_EVENT_DELIVERY_UNSUPPORTED. No generated schema, production worker behavior,
-public event constructor or current API is changed by the feasibility PR.
+Status: **implemented for current generated storage and the production worker**.
+The original seven-case experiment remains feasibility evidence; the separate real
+module/JAR/pool tests verify the production paths. This does not complete identity,
+authorization or the integrated SaaS release acceptance gates.
 
 This refines [the tenant execution contract](tenant-technical-contract.md#8-events-callbacks-and-global-runtime-coordination).
 The existing [event contract](../contracts/events.md) remains authoritative for
@@ -50,7 +49,7 @@ contract, not a sandbox against arbitrary privileged Java/SQL or artifact author
 ## Nullable tenant keys need an additional relationship key
 
 Payload storage needs to represent an explicit GLOBAL origin alongside TenantId.
-The proposed relational representation is:
+The implemented relational representation is:
 
 | Technical component | Representation |
 | --- | --- |
@@ -150,8 +149,9 @@ and exception sanitization remain implementation acceptance requirements.
 
 Implementation MUST extend schema generation, mapping metadata, ingestion, generated
 storage capabilities, runtime schema validation, schema-check and module activation
-together. The actual model revision/public Java capability shape is established by
-that implementation PR; the candidate does not declare speculative API support.
+together. Schema format 3 describes payload origin, and current generated adapters advertise
+EventStorage tenantDeliveryVersion 1. The queue carries nullable tenantId; existing
+rows remain GLOBAL. Older storage capabilities are not upgraded by inference.
 
 Old global payloads/deliveries need an explicitly reviewed upgrade that preserves
 their GLOBAL meaning. Do not silently interpret an old adapter or unknown metadata
@@ -183,32 +183,11 @@ handwritten experimental code. It does **not** prove generated adapters, actual 
 worker integration, event evolution/module compatibility, packaged activation,
 migration replay, schema-check or external-effect exactly-once behavior.
 
-Before removing the production guard, those missing paths need generated-code tests,
-actual application/module consumption, global regressions, fresh/upgrade migration
-proofs and the full retry/restart/concurrency cases against the production worker.
-A green spike does not close A19/A20 or complete the SaaS release.
-
-## Implemented first runtime boundary
-
-The subsequent runtime foundation introduces `EventOrigin` and additive origin-aware
-`EventStorage` overloads. Capture validates the synchronized transaction and live
-selection/pin; old adapters remain GLOBAL-only. Direct JDBC storage and every global
-worker phase validate the actual transactional connection and reject stale tenant
-settings. A post-callback check prevents an origin-changing global handler committing
-its local work. See the [implemented event contract](../contracts/events.md#internal-origin-and-legacy-storage-boundaries-060-development).
-
-This establishes no tenant-capable generated adapter, schema revision or migration.
-The next implementation must provide those capabilities and exact-origin routing
-before removing `TENANT_EVENT_DELIVERY_UNSUPPORTED`. The seven experimental proofs
-remain feasibility evidence, separate from the new production boundary regressions.
-
-## Implemented schema foundation
-
-[Schema format 3 and reviewed global upgrades](event-origin-schema.md) now represent
-mixed-origin payload graphs explicitly, with non-null scope-qualified relationships.
-Compiler and module-runtime serialization preserve earlier fingerprints. Real DDL,
-RLS and upgrade/catalog proofs are separate from the handwritten feasibility store.
-Normal event generation now selects format 3 with matching GLOBAL storage. Global
-module activation is supported after reviewed migrations, and payload SQL verifies
-old/new layout compatibility. Tenant delivery envelopes, worker restoration and the
-final tenant/module acceptance remain OPEN.
+Production acceptance now additionally covers generated tenant payloads, module JAR
+consumption, restricted Hikari pools, shared REQUIRED writes, rollback, restart/retry,
+forged routing, weakened policies, concurrent tenants, lease replacement and pending
+GLOBAL queue upgrades. The implementation preserves legacy GLOBAL storage and blocks
+older adapters explicitly for tenant work. The [event contract](../contracts/events.md)
+is authoritative; [tenant event operations](../tutorials/tenant-events.md) explains use
+and deployment. The original experiment alone does not prove any of those paths.
+A19/A20/A21 stay OPEN pending the complete SaaS execution/identity/UI lifecycle.

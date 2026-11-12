@@ -3,11 +3,12 @@ title: Event origin schema and reviewed global upgrades
 ---
 # Event origin schema foundation
 
-Status: **implemented generated GLOBAL event storage on schema format 3**.
+Status: **implemented generated GLOBAL/tenant event storage and durable routing**.
 The normal compiler now emits the origin-aware layout and matching storage bindings
 together. Existing global publication, recorded events and deferred workers remain
-supported after the reviewed migration. Durable tenant publication remains blocked:
-this step does not yet persist a tenant delivery envelope or restore it in the worker.
+supported after the reviewed migration. Tenant publication uses verified execution
+selection and a restricted RLS runtime role; the queue captures tenantId and the worker
+restores it before loading payload. This does not supply authentication/authorization.
 
 See the [routing design](tenant-event-routing-contract.md) and the
 [current runtime boundary](../contracts/events.md#internal-origin-and-legacy-storage-boundaries-060-development).
@@ -49,11 +50,11 @@ The SQL policy permits a selected tenant to read global rows and its own rows, w
 an unscoped reader sees global rows only. Inserts must match the actual transaction
 origin exactly; a selected tenant cannot quietly write a GLOBAL row.
 
-This does **not** replace exact-origin loading. The current store additionally matches GLOBAL scope and a NULL tenant on every
-payload table, including nested-owner subqueries. The future tenant store must also
-match a delivery's claimed tenant origin and event identity. Row visibility alone is not
-permission to deliver any visible event. Runtime-role/policy verification and worker
-origin restoration are still required by the complete routing contract.
+This does **not** replace exact-origin loading. Global loads match GLOBAL scope and
+a NULL tenant on every payload table, including nested-owner subqueries. Tenant loads
+match the claimed tenant origin and event identity. Row visibility alone is not
+permission to deliver any visible event; runtime-role/policy verification and worker
+restoration enforce the complete routing contract.
 
 ## Upgrading an existing global event graph
 
@@ -111,8 +112,9 @@ An old adapter against an upgraded table, or a new adapter against an old table,
 with a safe capability-mismatch/rebuild diagnostic before payload SQL. The explicit
 new layout requires both origin columns with their expected SQL shape and ENABLE/FORCE
 RLS on every payload table. Global loads include exact-origin predicates even on
-owner/superuser connections that bypass RLS. These checks do not constitute completed
-tenant role/policy verification or permission to emit tenant payloads.
+owner/superuser connections that bypass RLS. Tenant operations additionally enforce the restricted runtime role and exact mixed-origin
+policy through the shared JDBC coordinator. Current adapters declare tenant delivery
+SPI version 1; older adapters remain GLOBAL-only.
 
 ## Executable evidence and next step
 
@@ -131,7 +133,9 @@ loads of a tenant-tagged row even for a bypassing owner connection, and verify a
 round trip with a restricted nonowner/NOBYPASSRLS role. Existing global worker retry,
 restart, parallel claim and fencing tests continue to execute on the new layout.
 
-Tenant payload publication and worker context restoration are not enabled yet. Next:
-add durable delivery origin metadata, production worker restoration and the packaged
-module/fresh/upgrade/concurrency acceptance paths before lifting the emission guard.
-A19/A20/A21 remain OPEN.
+The production worker now restores captured tenant routing and verifies origin again
+before ACK. Real module/JAR tests exercise shared REQUIRED writes, independent retries,
+restart, concurrent pool connections, forged routing, weakened policies and fencing.
+A reviewed queue upgrade retains existing GLOBAL jobs and fails closed if missing.
+See the [tenant event tutorial](../tutorials/tenant-events.md). Authentication, actor
+policy, quotas and complete SaaS release acceptance remain separate; A19/A20/A21 stay OPEN.

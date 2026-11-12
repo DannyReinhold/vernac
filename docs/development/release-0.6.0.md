@@ -16,8 +16,15 @@ acceptance boundary even if they have their own versions or repositories.
 [Declarative tenant isolation](tenant-isolation-0.6.0.md) is required for 0.6.0.
 D13 and A19/A20 are OPEN. The [technical tenant proposal](tenant-technical-contract.md)
 now specifies the candidate implementation and TENANT-01–08 feasibility requirements. No policy-only account filter or manually repeated query
-predicate satisfies these requirements. Apply isolation to J01–J08 and the release
+predicate satisfies these requirements. Apply isolation to J01–J09 and the release
 manifest, including extension modules and non-database output paths.
+
+## Required extension and webhook safety follow-up
+
+[Tenant-safe webhooks and handwritten repositories](tenant-webhooks-and-repository-extensions.md)
+are mandatory 0.6.0 acceptance boundaries. Generated persistence/event isolation alone
+is insufficient. A22/A23 remain OPEN until supported extension APIs, provider routing,
+documentation/examples and negative integration tests are implemented and verified.
 
 ## Authorization contract proposal
 
@@ -83,6 +90,8 @@ Evidence is currently **none** for all rows. All statuses are OPEN.
 | A19 | Automatic shared-database tenant isolation | Declarative classification; byId/find/CRUD/graphs/pages/count/cursors; cross-tenant references and object-save rejection; missing context and pooling/concurrency tests under the actual database role | OPEN / none |
 | A20 | Tenant lifecycle and whole-SaaS propagation | Personal/shared membership, provisioning/global data, module metadata/DDL/backfill, event/payment/mail workers, files/caches and fresh/upgrade E2E isolation | OPEN / none |
 | A21 | Separate SaaS sample and New Project Wizard option | Existing non-SaaS examples/templates still build and run unchanged; explicit SaaS selection generates a complete independent app with module activation/UI/local DB and test providers, no API keys; verify packaged plugin | OPEN / none |
+| A22 | Supported handwritten repository extensions | Pre-query runtime binding/RLS; canonical graph hydration/write/version/timestamp semantics; return-shape/tenant/provenance guards; scalar/count paths; compiled guide/examples and negative restricted-role tests | OPEN / none |
+| A23 | Verified webhook tenant routing | Provider proof and scoped resource registry; no claimed-tenant/global fallback; early/unknown/conflicting route; duplicate/out-of-order/concurrent/restart processing; safe logging; real/test-provider journeys | OPEN / none |
 
 ## Required integrated journeys
 
@@ -108,6 +117,9 @@ local providers; add sandbox evidence for the agreed real adapters separately.
 - **J08 Developer adoption:** new independent app → module dependencies/activation →
   provider configuration → usable UI/deployment; no edits to generated files or
   undocumented local source dependencies.
+- **J09 Extension safety:** implement a custom query through the supported Java extension
+  path → hydrate complete tenant graphs → reject foreign/detached/NEW/invalid results →
+  prove stale writes and scalar/count isolation with restricted parallel connections.
 
 Extend J01/J03/J04/J06 with the predefined test-provider scenarios and verify the
 corresponding actionable user/developer outcomes. Capture correlated operational
@@ -122,14 +134,14 @@ Schedule a separate review PR after integration, before calling the release read
 The review may use the same contributor but must be a new, explicit assessment of
 the final implementation, not merely a repetition of prior progress summaries.
 
-- [ ] Reconcile every plan/release promise, D01–D13 decision and A01–A21 row against
+- [ ] Reconcile every plan/release promise, D01–D13 decision and A01–A23 row against
       actual source, tests, public APIs, generated output and consuming application.
 - [ ] Inspect stubs, TODO/FIXME/UnsupportedOperationException paths, empty adapters,
       commented/disabled/skipped tests and happy-path-only simulators. Classify relevant
       findings; zero TODOs globally is not required and a text scan is not sufficient.
 - [ ] Inspect every required module and selected provider, including work in other repos.
       Resolve incompatible defaults, licensing/distribution or migration gaps.
-- [ ] Execute J01–J08 and required module/compiler/runtime/PostgreSQL/tooling suites;
+- [ ] Execute J01–J09 and required module/compiler/runtime/PostgreSQL/tooling suites;
       investigate flaky results, missing reports and unexpected skips rather than retrying
       until green. Record the final passing run and reason for each legitimate exclusion.
 - [ ] Audit security/context/transaction boundaries, cross-account isolation, public
@@ -167,7 +179,7 @@ tooling rather than relying on a maintainer remembering to inspect this Markdown
 
 ## Final go/no-go
 
-GO requires all agreed requirements VERIFIED, J01–J08 evidenced, D01–D13 resolved,
+GO requires all agreed requirements VERIFIED, J01–J09 evidenced, D01–D13 resolved,
 no release-blocking findings, implemented passing automated gate and recorded
 maintainer approval. Optional future work must be identified explicitly, not used
 as a label for unfinished agreed functionality. A scope reduction requires an
@@ -229,7 +241,7 @@ classification to complete local owned schema graphs and generated JDBC CRUD/sea
 count/cursor paths. Verification includes actual generated Java, restricted PostgreSQL
 roles, shared entities/nested collections, global coexistence, concurrent requests and
 optimistic conflicts. This is partial A19 evidence, not A19/A20/A21 completion.
-Durable tenant events, historical classification
+Durable tenant event routing is now implemented. Historical classification
 conversions, identity/authorization and the SaaS starter remain OPEN or fail closed.
 
 ## Tenant module metadata evidence
@@ -260,47 +272,43 @@ parallel requests, rollback across all owners, additive external-VO upgrades/bac
 for both tenants, later migration failure and retry. This is partial A19/A20 evidence;
 A19/A20/A21 remain OPEN pending the rest of the SaaS execution/identity/event lifecycle.
 
-## Durable tenant event feasibility evidence
+## Durable tenant event production evidence
 
-The [routing candidate](tenant-event-routing-contract.md) specifies captured origin,
-mixed payload protection, scope-qualified child links and worker context restoration.
-Seven real PostgreSQL proofs exercise origin isolation, nullable-FK behavior, atomic
-publication, fixed recipients, retry/pool recreation, lease fencing/terminal recovery
-and concurrent workers. This is handwritten experimental evidence, not generated
-production event support. The emission guard remains; schema/migrations/module/runtime
-integration and A19/A20/A21 remain OPEN.
+The [routing contract](tenant-event-routing-contract.md) is now implemented for current
+generated storage and the production worker. Format-3 payload graphs use non-null
+scope-qualified relationships and exact-origin loading. Tenant operations validate the
+restricted runtime role, exact event RLS policy and shared transaction-local binding.
+The queue captures nullable tenantId (NULL is GLOBAL); claims/failures stay unscoped,
+processing restores the claimed origin and ACK is origin/token/lease-fenced.
 
-## Event origin runtime boundary
+Seven PostgreSQL production-worker tests consume generated module classes/resources
+from a real JAR through Boot and restricted Hikari pools. Proofs cover shared REQUIRED
+writes and publication rollback, restart/per-recipient retry, concurrent tenants and
+physical connections, stale-lease rollback/final-attempt recovery, forged tenant/GLOBAL
+routing, weakened policy rejection and pool/context cleanup. Older adapters are rejected
+before publication or BLOCKED before tenant payload loading. Recursive tenant payloads
+are also verified through the generated storage fixture. Failure records contain safe
+classifications instead of arbitrary messages or private values.
 
-Internal publication origin capture and additive GLOBAL-only storage bridges are
-implemented. Direct legacy JDBC event storage rejects tenant selections/stale pins;
-the worker rejects ambient selection and checks its real database connection before
-control-plane/payload work and before commit. Production regressions cover legacy
-adapter dispatch, generated storage bypasses, contaminated sessions and rollback
-when a global callback changes its origin. No schema history or migration changed.
-Durable tenant publication is still blocked. Generated mixed-origin schemas/storage,
-worker restoration, migration replay/module compatibility and A19/A20/A21 remain OPEN.
+Pending GLOBAL jobs survive the reviewed queue migration; unmigrated queues fail before
+claims/payload writes, and routing-metadata removal is blocked even with force. Existing
+payload upgrades retain explicit GLOBAL backfills and prior source history. Global
+module activation/worker regressions and example schema-checks continue to apply.
+The earlier seven-case handwritten experiment remains separate feasibility evidence;
+it is not counted as production acceptance by itself.
 
-## Event origin schema foundation
+See [tenant event operations](../tutorials/tenant-events.md) for required artifact rebuilds,
+role grants, migration review and stopping old worker versions before tenant traffic.
+External effects are still at-least-once. Authentication, immutable actor/permission
+policy, quotas, provisioning and the complete SaaS UI/Wizard/payment/mail lifecycle are
+not supplied by routing. A19/A20/A21 and the final integrated release audit stay OPEN.
 
-Schema format 3 represents event origin separately from aggregate tenancy. Non-null
-scope-qualified child FKs protect GLOBAL as well as tenant graphs. Explicit reviewed
-GLOBAL backfills preserve legacy data/positions and existing source history; origin
-removal/ownership changes remain blocked even with force. PostgreSQL fresh/upgrade
-catalog comparisons and restricted-role RLS proofs cover this infrastructure.
-Earlier snapshot/module fingerprints are retained. Normal generation now selects the
-origin layout with matching GLOBAL adapters; global module activation remains supported.
-Tenant worker restoration and complete tenant event acceptance remain OPEN, as do
-A19/A20/A21.
+## Explicit ingress and extension gaps
 
-## Generated GLOBAL event origin storage
-
-The compiler now emits format-3 event graphs with explicit matching storage factories,
-origin-aware bridges and exact GLOBAL read predicates at every owned level. Runtime
-layout checks reject old/new adapter/database mismatches before payload SQL. Global
-module activation and the existing worker remain operational; tenant emission stays
-blocked pending delivery-origin routing. Populated legacy upgrades preserve recursive
-values, list order/duplicates, optional VOs, temporal precision and decimal scale.
-Existing example histories receive new reviewed migrations instead of rewritten files.
-The next step is the production worker/envelope integration and complete tenant module
-acceptance. A19/A20/A21 remain OPEN.
+Webhooks must resolve trusted resource ownership before tenant business access, without
+requiring an already selected tenant or accepting callback claims as authorization.
+Handwritten repository extensions need pre-query binding, canonical hydration/writes
+and return guards, not just tenant predicates or post-hoc metadata. Current repository
+syntax exposes only declarative find methods; the general extension SPI is not yet
+implemented. These are required A22/A23 work, alongside A04/A09/A15/A18/A19/A20, and
+must be reconciled in the final completeness review before release.

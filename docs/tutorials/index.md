@@ -117,4 +117,8 @@ identifies module, event and SaaS provisioning work that is not complete yet.
 [Run tenant-aware modules together](tenant-modules.md) follows a producer and consumer
 through publication, explicit activation, separated database roles, REQUIRED transactions
 and additive shared-value migrations. Runtime policy drift and failed startup are part
-of the walkthrough; durable tenant events and SaaS provisioning remain future work.
+of the walkthrough. [Deliver events in their publishing tenant](tenant-events.md)
+extends this foundation with durable worker routing; SaaS provisioning remains future work.
+
+[Deliver domain events in the tenant that published them](tenant-events.md) follows
+publication, restricted database roles, queue upgrades, retries and worker context cleanup.

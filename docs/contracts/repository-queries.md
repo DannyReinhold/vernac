@@ -4,8 +4,12 @@
 
 Implemented in the project compiler, JDBC runtime and LSP. PostgreSQL integration
 tests are opt-in and must be run against the supported PostgreSQL deployment.
-Existing `byId`, `save` and `delete` remain available. Custom JDBC searches,
-pagination and query projections remain deferred.
+Existing `byId`, `save` and `delete` remain available. Declarative offset/cursor
+[pagination](pagination.md) is also implemented. General handwritten JDBC extension
+declarations and query projections remain deferred. The repository block currently
+accepts only declarative find methods, not behavior/implemented-by delegates. The
+[required extension follow-up](../development/tenant-webhooks-and-repository-extensions.md)
+defines safety/documentation acceptance before that path is introduced.
 
 ## Declaration and result contract
 
@@ -93,8 +97,8 @@ For optional sort values, absence is always last, for ascending and descending
 order. Direction defaults to ascending. A singleton result does not accept ordering:
 it must diagnose multiple matches rather than hide them by choosing the first.
 
-No pagination API is introduced yet. A later limit must count aggregate roots,
-not joined entity rows, and address ties explicitly.
+The supported [pagination contract](pagination.md) counts aggregate roots rather than
+joined entity rows and requires the appropriate ordering/tie rules.
 
 ## Equality contract
 

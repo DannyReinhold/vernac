@@ -298,6 +298,11 @@ are retained in `src/main/vernac-schema/event-origin-upgrade.json`; the earlier 
 snapshots are unchanged. A normal Flyway startup applies the additional migration.
 Rebuild with matching current development artifacts before starting against this
 layout. The Flyway history schema is explicitly `public`, so changing the database
-username does not change the history location on restart. Tenant event delivery is
-still pending; the example remains a global application.
+username does not change the history location on restart. The example remains a global application; tenant routing is explained separately in
+the [tenant event tutorial](../../docs/tutorials/tenant-events.md).
 As always, you alone review, test and approve migrations before deployment.
+
+The subsequent `V20261112100000000__delivery_origin.sql` migration retains queued jobs
+as GLOBAL while adding the new nullable routing field. Stop older workers before
+admitting tenant publications in a tenant-enabled application; the standard demo keeps
+using GLOBAL and its earlier migration history is unchanged.

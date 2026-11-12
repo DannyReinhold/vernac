@@ -70,7 +70,7 @@ public final class EventProbe {
   try(var selected=org.vernac.runtime.tenancy.TenantContext.openVerified(tenant)) {
    tx.executeWithoutResult(status->{
     var write=assertThrows(org.vernac.runtime.tenancy.TenancyException.class,()->store.persist(event,List.of("must-not-add")));
-    assertEquals(org.vernac.runtime.tenancy.TenancyException.Code.TENANT_EVENT_DELIVERY_UNSUPPORTED,write.code());
+    assertEquals(org.vernac.runtime.tenancy.TenancyException.Code.TENANT_RUNTIME_ROLE_INVALID,write.code());
     assertThrows(org.vernac.runtime.tenancy.TenancyException.class,()->store.load(event.eventId()));
    });
    var worker=new org.vernac.runtime.jdbc.JdbcEventWorker(jdbc,new DataSourceTransactionManager(data),List::of,

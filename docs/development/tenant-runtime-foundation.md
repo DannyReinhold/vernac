@@ -105,12 +105,12 @@ No credentials, SQL values or private tenant data are added to production loggin
 
 ## Still OPEN
 
-Whole-SaaS completion and the remaining module/event/identity integration; module metadata/compatibility/migrations; event routing;
+Whole-SaaS completion and the remaining identity/whole-SaaS integration; module metadata/compatibility/migrations;
 identity/membership integration and immutable actor context; HTTP/MVC behavior;
 subscriptions/limits and SaaS UI/Wizard. A19/A20/A21 are not VERIFIED by this PR.
 Existing unscoped repositories do not start filtering merely because TenantContext exists;
 local tenant-marked repositories now explicitly invoke the coordinator.
 
-Local generated persistence is described in the integration record. Next complete
-tenant event routing, identity integration and reviewed conversions. Existing
+Local generated persistence is described in the integration record. Tenant event routing is implemented; next complete
+identity integration and reviewed conversions. Existing
 simple non-SaaS applications and the separate SaaS starter objective remain distinct.

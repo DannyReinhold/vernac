@@ -20,6 +20,7 @@ public final class TenancyException extends VernacTechnicalException {
         TENANT_CONTEXT_CONTAMINATED,
         TENANT_RUNTIME_ROLE_INVALID,
         TENANT_EVENT_DELIVERY_UNSUPPORTED,
+        TENANT_EVENT_STORAGE_REBUILD_REQUIRED,
         TENANT_STORAGE_FAILURE
     }
 

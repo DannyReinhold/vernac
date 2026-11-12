@@ -225,5 +225,6 @@ from Flyway's state. Never edit a published/applied migration to hide drift or f
 Changing an existing table between tenant/global remains blocked even with force until
 an explicit conversion workflow is implemented. This walkthrough covers fresh tenant
 graphs and ordinary additive upgrades, not that boundary conversion. Recorded/deferred
-events emitted under tenant selection remain unsupported until tenant envelopes and
-worker routing are implemented; synchronous immediate listeners keep the transaction.
+events now retain tenant origin through current generated storage and the production
+worker. Rebuild older producers and apply the reviewed queue upgrade before tenant
+traffic; see [tenant events](tenant-events.md). Synchronous listeners retain the transaction.

@@ -109,11 +109,15 @@ mappings, Java-backed Vernac breakpoints and the installed-IDE acceptance walkth
 
 - [Local tenant persistence integration](tenant-persistence-integration.md): implemented generated graph/query paths, configuration contract and remaining module/event/SaaS boundaries.
 
-- [Durable tenant event routing](tenant-event-routing-contract.md): technical candidate,
-  non-null relationship-scope design and real PostgreSQL routing/lease feasibility proofs;
-  production emission remains guarded.
+- [Durable tenant event routing](tenant-event-routing-contract.md): implemented origin
+  capture, restricted RLS storage, worker restoration and real module/JAR/pool proofs.
 
 - [Event origin schema and upgrades](event-origin-schema.md): format-3 metadata,
   scope-qualified payload relationships, reviewed historical GLOBAL backfills and
-  real PostgreSQL fresh/upgrade evidence and generated GLOBAL storage; tenant worker
-  routing remains pending.
+  real PostgreSQL fresh/upgrade evidence and generated GLOBAL/tenant storage.
+- [Tenant event operations](../tutorials/tenant-events.md): trusted selection, runtime
+  roles, queue upgrades, retries and restart/concurrency behavior.
+
+- [Tenant-safe webhooks and handwritten repositories](tenant-webhooks-and-repository-extensions.md):
+  required 0.6.0 ingress/extension design, metadata guards, helpers and negative-test acceptance;
+  planned, not implemented syntax/APIs.

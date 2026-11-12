@@ -10,8 +10,10 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 public final class ModuleDeferredEventProbe {
     private ModuleDeferredEventProbe() { }
     static final AtomicInteger calls=new AtomicInteger();
+    static volatile Runnable afterWriteObserver=()->{};
     public static void afterWrite() {
         if(!TransactionSynchronizationManager.isActualTransactionActive())throw new IllegalStateException("Deferred receiver needs a processing transaction");
+        afterWriteObserver.run();
         if(calls.getAndIncrement()==0)throw new DomainValidationException("Deliberate first-attempt failure");
     }
 }

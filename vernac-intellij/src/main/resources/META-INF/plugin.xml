@@ -100,30 +100,37 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>0.6.0 development — Durable tenant events</h3>
+<p>Publish ordinary domain events under a verified tenant selection. Current generated
+storage and the production worker retain origin through queued delivery, restart,
+retry and concurrent processing. PostgreSQL tests cover restricted pools, real module
+JARs, forged routing and lease fencing. Rebuild producer/application artifacts and
+review event/queue migrations before enabling tenant traffic. Routing is not identity
+or authorization; the complete SaaS starter remains in progress.</p>
+
 <h3>0.6.0 development — Persistent tenant modules</h3>
 <p>Activate modules with tenant repositories and independent migration histories.
 Generated activation verifies runtime role, owned RLS policy and DML access before
 module functions start. Cross-module/application REQUIRED transactions, upgrades and
-packaged module JARs are covered by PostgreSQL tests. Durable tenant event routing and
-the complete SaaS starter remain in progress.</p>
+packaged module JARs are covered by PostgreSQL tests. Durable tenant event routing is also supported; the complete SaaS starter remains
+in progress.</p>
 
 <h3>0.6.0 development — Separate module migration credentials</h3>
 <p>Module and application histories use Spring Boot's Flyway credentials while
 repositories retain runtime credentials. Distinct connections are checked against
-the same PostgreSQL writer database before migration writes. Tenant module activation
-still awaits its dedicated RLS/startup acceptance.</p>
+the same PostgreSQL writer database before migration writes. Tenant module activation has dedicated RLS/startup acceptance.</p>
 
 <h3>0.6.0 development — Tenant-aware module contracts</h3>
 <p>Dependency contract views preserve tenant/global aggregate scope. Local tenant
 aggregates can persist imported module entities with ownership-aware restoration.
-Metadata is module-contracts-10; rebuild producers and consumers. Persistent tenant
-module activation and durable tenant events remain in progress.</p>
+Metadata is module-contracts-10; rebuild producers and consumers. Persistent tenant module activation and durable event routing have dedicated
+PostgreSQL acceptance.</p>
 
 <h3>0.6.0 development — Explicit persistence classification</h3>
 <p>Recognize global aggregate declarations and report the shared compiler's
 tenancy explicit rule, including unsaved application/module configuration.
 Local tenant aggregates now generate scoped JDBC graph/query persistence.
-Tenant modules, durable tenant event routing and the SaaS starter remain in progress.</p>
+Tenant modules and durable event routing are supported; the SaaS starter remains in progress.</p>
 <h3>Vernac 0.5.0 — Work in the model</h3>
 <p>Debug business behavior where you wrote it, use current model APIs before Java
 is generated, and start with a small working Spring Boot application.</p>

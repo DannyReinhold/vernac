@@ -141,6 +141,10 @@ public final class JdbcRepositoryGenerator {
         adapter.addMethod(MethodSpec.methodBuilder("load").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(event).addParameter(eventId,"id")
                 .addStatement("return store.load(id)").build());
         var origin=ClassName.get("org.vernac.runtime.events","EventOrigin");
+        adapter.addMethod(MethodSpec.methodBuilder("tenantDeliveryVersion").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
+                .returns(int.class).addStatement("return 1").build());
+        adapter.addMethod(MethodSpec.methodBuilder("verifyOrigin").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
+                .addParameter(origin,"origin").addStatement("store.verifyOrigin(origin)").build());
         adapter.addMethod(MethodSpec.methodBuilder("persist").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
                 .addParameter(org.vernac.runtime.DomainEvent.class,"event").addParameter(ParameterizedTypeName.get(List.class,String.class),"listenerIds")
                 .addParameter(origin,"origin").addStatement("store.persist(($T) event, listenerIds, origin)",event).build());
