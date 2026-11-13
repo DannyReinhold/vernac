@@ -226,6 +226,40 @@ jobs:
               for case in cases.values():
                   assert not any(case.find(t) is not None for t in ('skipped', 'failure', 'error'))
           print('Unique aggregate/compiler/schema/JDBC/module/editor proofs executed; none skipped.')
+          mail_proofs = {
+              'saas/mail/target/surefire-reports/TEST-org.vernac.saas.mail.MailContractsTest.xml': {
+                  'boundedValuesKeepClearContentOutOfStringRepresentations',
+                  'standardAddressParserAndHeaderBoundsRejectInjection',
+                  'bodyUtf8SizeAndMalformedUnicodeAreBounded',
+                  'outcomesHaveFiniteRetryHintsAndNoFalseAcceptance',
+              },
+              'saas/mail-local/target/surefire-reports/TEST-org.vernac.saas.mail.local.LocalMailInboxTest.xml': {
+                  'defaultAcceptsWithoutNetworkAndCapacityNeverEvictsLiveMessages',
+                  'expiryAndScriptedFailuresFollowTheSameSubmissionContract',
+              },
+              'saas/mail-brevo/target/surefire-reports/TEST-org.vernac.saas.mail.brevo.BrevoMailTransportTest.xml': {
+                  'standardBrevoRequestHasOneRecipientAndNeverReturnsProviderBody',
+                  'retryHintsPermanentFailuresAndRedirectsStayWithinThePortContract',
+                  'fullCallTimeoutAndParallelAdmissionAreBounded',
+                  'retryAfterZeroDoesNotCauseHiddenHttpResubmission',
+                  'invalidConfigurationAndNonLoopbackTestTargetsAreRejectedWithoutSecrets',
+              },
+              'saas/mail-brevo/target/surefire-reports/TEST-org.vernac.saas.mail.brevo.MailProviderSelectionTest.xml': {
+                  'normalBindingSelectsOnlyNoopWithoutAnyBrevoCredentialsOrStartupNetwork',
+                  'selectedBrevoRequiresConfigurationAndNeverFallsBackToNoop',
+              },
+              'saas/mail-brevo/target/surefire-reports/TEST-org.vernac.saas.mail.brevo.MailModuleConsumerTest.xml': {
+                  'compiledModulesDriveTheOrdinaryConsumerBindingWithoutRegeneratingProviders',
+              },
+          }
+          for path, expected in mail_proofs.items():
+              root = ET.parse(path).getroot()
+              cases = {c.attrib['name']: c for c in root.findall('testcase')}
+              assert not (expected - cases.keys()), f'Missing mail provider proofs: {path}'
+              assert all(int(root.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
+              for case in cases.values():
+                  assert not any(case.find(t) is not None for t in ('skipped', 'failure', 'error'))
+          print('Shared mail provider and compiled consumer proofs executed; none skipped.')
           saas_proofs = {
               'saas/identity-jdbc/target/surefire-reports/TEST-org.vernac.saas.identity.persistence.IdentityDeliveryCryptoTest.xml': {
                   'encryptionBindsContextAndSurvivesReconstruction',

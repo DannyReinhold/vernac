@@ -1,11 +1,11 @@
 ---
-title: Shared mail providers — draft
+title: Shared mail providers
 ---
 # Shared mail providers
 
-Status: draft implementation; CI and Identity worker/assembly integration pending.
-The local build environment became unavailable during implementation. This draft
-preserves the provider work for review; it is not a completed Identity/Auth journey.
+Status: shared provider contracts and adapters implemented; Identity worker and
+application assembly integration remain separate. This is not a completed
+Identity/Auth journey. GitHub Actions executes the provider and consumer proofs.
 
 The ordinary Vernac MailProvider port carries redacted bounded OutboundMail values,
 a LIVE/SIMULATED mode and ACCEPTED/RETRY/REJECTED submissions with finite retry hints.
@@ -27,9 +27,14 @@ No provider response body or credentials are returned/logged. Acceptance means H
 to 30 minutes. Permanent rejection and retry hints must still be bridged into the
 identity worker before this is accepted as integrated delivery.
 
-Pending checks: full provider CI, extra HTTP follow-up behavior (503/Retry-After: 0),
-compiled module consumer proof, worker/template bridge, local preview authorization,
-production simulation guard, all public Auth flows and D05 provisioning. A11 remains OPEN.
+The compiled-module consumer test compiles and boots an ordinary application binding
+without regenerating provider implementations. Fourteen provider tests cover parsing,
+bounds, local expiry/faults, selected-only configuration, HTTP outcomes and call limits.
+A regression test forbids automatic HTTP 408/503 resubmission, including
+Retry-After: 0; the durable worker must own retries.
+
+Remaining: worker/template bridge, local preview authorization, production simulation
+guard, public Auth flows and D05 provisioning. A11 remains OPEN.
 
 Primary API references:
 - [Brevo transactional endpoint](https://developers.brevo.com/reference/send-transac-email).
