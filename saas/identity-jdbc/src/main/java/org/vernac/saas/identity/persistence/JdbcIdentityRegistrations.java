@@ -11,15 +11,21 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.ConnectionHolder;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.vernac.runtime.*;
+import org.vernac.runtime.persistence.UniqueConstraintViolationException;
 import org.vernac.saas.identity.domain.*;
 import org.vernac.saas.identity.persistence.adapter.outbound.jdbc.*;
 import org.vernac.saas.identity.persistence.domain.*;
+import org.vernac.saas.identity.security.credentials.CredentialInputException;
+import org.vernac.saas.identity.security.credentials.LoginAddress;
 
 import java.time.*;
 import java.util.*;
 import java.util.function.*;
 
-/** Private pending-lifetime primitive. No address claim, mail, endpoint or authentication grant. */
+/**
+ * Private address ownership and charged pending lifetime; no public ingress, mail or
+ * authentication.
+ */
 @NullMarked
 final class JdbcIdentityRegistrations {
     enum Code {
@@ -41,6 +47,47 @@ final class JdbcIdentityRegistrations {
         }
     }
 
+    enum Outcome {
+        CREATED,
+        PENDING,
+        UNAVAILABLE
+    }
+
+    /** Trusted handoff only. Public responses must not reveal the outcome or ownership facts. */
+    static final class Request {
+        private final Outcome outcome;
+        private final @Nullable UserId subject;
+        private final @Nullable String deliveryAddress;
+
+        private Request(
+                Outcome outcome, @Nullable UserId subject, @Nullable String deliveryAddress) {
+            this.outcome = outcome;
+            this.subject = subject;
+            this.deliveryAddress = deliveryAddress;
+        }
+
+        Outcome outcome() {
+            return outcome;
+        }
+
+        UserId subject() {
+            if (subject == null)
+                throw new IllegalStateException("Identity registration action unavailable");
+            return subject;
+        }
+
+        String deliveryAddress() {
+            if (deliveryAddress == null)
+                throw new IllegalStateException("Identity registration action unavailable");
+            return deliveryAddress;
+        }
+
+        @Override
+        public String toString() {
+            return "IdentityRegistrationRequest[REDACTED]";
+        }
+    }
+
     /** Cursor is private operational state. A null cursor starts a new primary-key sweep. */
     record Sweep(int inspected, int removed, @Nullable UUID after) {}
 
@@ -51,6 +98,7 @@ final class JdbcIdentityRegistrations {
     private final IdentityPendingRegistrationRepository registrations;
     private final IdentityChallengeRepository challenges;
     private final IdentityCredentialRepository credentials;
+    private final IdentityLoginAddressRepository addresses;
     private final Clock clock;
 
     JdbcIdentityRegistrations(NamedParameterJdbcTemplate jdbc, Clock clock) {
@@ -61,33 +109,73 @@ final class JdbcIdentityRegistrations {
         registrations = new JdbcIdentityPendingRegistrationRepository(jdbc);
         challenges = new JdbcIdentityChallengeRepository(jdbc);
         credentials = new JdbcIdentityCredentialRepository(jdbc);
+        addresses = new JdbcIdentityLoginAddressRepository(jdbc);
     }
 
-    /** Trusted allocation only; a future address owner must compose this with its unique claim. */
-    UserId create() {
+    /**
+     * Reserve before existence lookup; use the original owner's delivery spelling on repeat
+     * requests.
+     */
+    Request request(LoginAddress address) {
+        DomainChecks.requireNonNull(address, "Identity registration address");
         return mutate(
                 () -> {
+                    Instant now = clock.instant();
                     if (!capacity.reserve(Map.of(PENDING_REGISTRATIONS, 1L)))
                         throw new Failure(Code.CAPACITY);
-                    Instant now = clock.instant();
-                    var identity =
-                            Identity.reconstitute(
-                                    UserId.create(),
-                                    IdentityStatus.PENDING_VERIFICATION,
-                                    IdentitySecurityEpoch.of(0),
-                                    now,
-                                    now,
-                                    0);
-                    identities.save(identity);
-                    registrations.save(
-                            IdentityPendingRegistration.reconstitute(
-                                    identity.id(),
-                                    IdentityRegistrationDeadline.of(now.plus(Duration.ofDays(7))),
+                    var key = IdentityLoginKey.of(address.loginKey());
+                    var current = addresses.forKey(key);
+                    if (current.isPresent()) {
+                        capacity.release(Map.of(PENDING_REGISTRATIONS, 1L));
+                        var owned = current.get();
+                        var identity =
+                                lockedIdentity(owned.id())
+                                        .orElseThrow(() -> new Failure(Code.INCONSISTENT_STATE));
+                        if (identity.status() == IdentityStatus.PENDING_VERIFICATION) {
+                            var pending =
+                                    registrations
+                                            .existing(owned.id())
+                                            .orElseThrow(
+                                                    () -> new Failure(Code.INCONSISTENT_STATE));
+                            if (now.isBefore(pending.deadline().instant()))
+                                return new Request(
+                                        Outcome.PENDING,
+                                        owned.id(),
+                                        owned.deliveryAddress().encoded());
+                        }
+                        return new Request(Outcome.UNAVAILABLE, null, null);
+                    }
+                    var subject = createAt(now);
+                    addresses.save(
+                            IdentityLoginAddress.reconstitute(
+                                    subject,
+                                    key,
+                                    IdentityDeliveryAddress.of(address.deliveryAddress()),
                                     now,
                                     now,
                                     0));
-                    return identity.id();
+                    return new Request(Outcome.CREATED, subject, address.deliveryAddress());
                 });
+    }
+
+    private UserId createAt(Instant now) {
+        var identity =
+                Identity.reconstitute(
+                        UserId.create(),
+                        IdentityStatus.PENDING_VERIFICATION,
+                        IdentitySecurityEpoch.of(0),
+                        now,
+                        now,
+                        0);
+        identities.save(identity);
+        registrations.save(
+                IdentityPendingRegistration.reconstitute(
+                        identity.id(),
+                        IdentityRegistrationDeadline.of(now.plus(Duration.ofDays(7))),
+                        now,
+                        now,
+                        0));
+        return identity.id();
     }
 
     /** Eligibility only. Calling this does not renew the immutable first-creation deadline. */
@@ -107,6 +195,8 @@ final class JdbcIdentityRegistrations {
                 () -> {
                     var found = pendingAt(subject, clock.instant());
                     if (found.isEmpty()) return false;
+                    if (addresses.existing(subject).isEmpty())
+                        throw new Failure(Code.INCONSISTENT_STATE);
                     var credential = new JdbcIdentityCredentials(jdbc);
                     if (!credential.enroll(subject, encoded))
                         throw new Failure(Code.INCONSISTENT_STATE);
@@ -150,8 +240,8 @@ final class JdbcIdentityRegistrations {
                         // registration.
                         if (identity.status() != IdentityStatus.PENDING_VERIFICATION)
                             throw new Failure(Code.INCONSISTENT_STATE);
-                        // Delivery envelopes/address claims must be composed before a public flow
-                        // ships.
+                        // Protected delivery envelopes must join this cleanup before public flows
+                        // ship.
                         for (var purpose : IdentityChallengePurpose.values()) {
                             var challenge = challenges.current(subject, purpose);
                             challenge.ifPresent(
@@ -160,6 +250,7 @@ final class JdbcIdentityRegistrations {
                                         capacity.release(Map.of(ACTIONABLE_CHALLENGES, 1L));
                                     });
                         }
+                        addresses.existing(subject).ifPresent(addresses::delete);
                         credentials.existing(subject).ifPresent(credentials::delete);
                         registrations.delete(row);
                         identities.delete(identity);
@@ -202,7 +293,9 @@ final class JdbcIdentityRegistrations {
                                                 jdbc.getJdbcTemplate().getDataSource()))
                                 .setRollbackOnly();
                         if (failure instanceof DataAccessException
-                                || failure instanceof DomainValidationException)
+                                || failure instanceof DomainValidationException
+                                || failure instanceof CredentialInputException
+                                || failure instanceof UniqueConstraintViolationException)
                             throw new Failure(Code.STORAGE_UNAVAILABLE);
                         throw failure;
                     }

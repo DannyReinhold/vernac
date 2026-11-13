@@ -865,3 +865,41 @@ cases; all 90 Identity/SaaS cases remain green. All 16 Python tooling tests and 
 local links across 166 documents pass. Workflow YAML, plugin XML and whitespace checks
 are clean. Native IntelliJ build/installation and the separate final experiment/release
 acceptance were not run locally; CI and manual release evidence remain separate.
+
+## Private canonical login-address ownership
+
+The [private ownership contract](../contracts/saas-identity-login-ownership.md) now
+uses the general unique-field implementation to bind one exact canonical login key
+to a UserId primary key. The stored delivery spelling and canonical key are immutable
+through domain behavior and reuse the existing LoginAddress policy. Repeated requests
+reuse an unexpired pending subject without changing delivery, credential, eligibility
+or deadline; active/disabled/closed and expired-pending owners receive no new registration.
+These are trusted internal outcomes, not public response variants.
+
+The request reserves a potential pending slot before existence lookup, so full storage
+fails uniformly for known and unknown addresses. Unused reservations are refunded
+atomically. Request, completion and bounded cleanup share the writer/budget lock.
+Activation/closure retain ownership; abandoned pending cleanup removes its claim and
+dependencies atomically. A later registration uses a fresh UserId; an old still-live
+verification token cannot retarget it. Cleanup racing with activation or another request
+retains the winning active/fresh owner and never double-releases capacity.
+
+The eighth generated migration adds only the private address table/constraints and
+advances the provider snapshot to format 4; the previous seven histories are unchanged.
+Legacy identity/lifetime rows receive no invented addresses. Unclaimed legacy pending
+rows can clean up but cannot complete standard registration without an owner. The only
+module export remains StoredIdentityDirectory, and module activation installs no endpoint.
+
+Next: protected, durable verification-mail envelopes and bounded delivery lifecycle,
+then D05 account/owner provisioning and public Spring/browser registration/login/session
+flows. Scheduling/durable cursor ownership and final SaaS/manual release acceptance
+remain OPEN. Rough scope orientation: Identity/Auth about 55–60%; complete 0.6.0 about
+25–35%. These are engineering estimates, not acceptance or schedule promises.
+
+Local JDK 25 evidence: all 99 Identity/SaaS cases in 26 required suites pass without
+failures/errors/skips, including eight new restricted-PostgreSQL ownership cases and
+one model invariant/redaction case. Existing pending cleanup/activation proofs now also
+assert address retention. All eight migrations pass live schema-check. All 16 Python
+tooling tests and 1,178 local documentation links across 167 documents pass; XML/YAML and
+whitespace checks are clean. Full core/installed-IDE/final release acceptance was not
+rerun for this optional-library slice; GitHub CI remains separate from local evidence.

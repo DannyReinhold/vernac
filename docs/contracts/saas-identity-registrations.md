@@ -4,7 +4,7 @@ title: Private pending identity registration lifetime
 # Private pending identity registration lifetime
 
 Status: implemented in **0.6.0-SNAPSHOT** as a private optional JDBC primitive.
-This is not a public registration flow, login-address registry, mail queue or
+This is not a public registration flow, mail queue or
 provisioning implementation. The [credential policy](saas-identity-credentials.md)
 remains authoritative; all public journey and final SaaS gates remain OPEN.
 
@@ -14,14 +14,18 @@ remains authoritative; all public journey and final SaaS gates remain OPEN.
 and an injected Clock. It adds no exported Vernac declarations, automatic beans,
 HTTP routes, authentication or tenant scope. `IdentityPendingRegistration` and its
 repository are private generated models in the existing identity provider module.
-The seventh generated migration is additive; the previous six histories are unchanged.
+The seventh migration introduced the lifetime; the eighth adds owned addresses.
+The first seven SQL/snapshot histories remain unchanged.
 
-A trusted `create()` allocates a fresh nominal UserId, a PENDING_VERIFICATION identity
+A trusted `request(LoginAddress)` allocates a fresh nominal UserId, a PENDING_VERIFICATION identity
 with security epoch zero, and one pending-lifetime row in the same writer transaction.
 It first reserves one PENDING_REGISTRATIONS slot under the existing deployment budget
 lock. Capacity denial creates no identity or auxiliary row. Failed work or caller
-rollback removes both rows and restores the slot. Time passing alone never refunds it.
-No password, address, challenge or delivery job is created by this primitive.
+rollback removes the newly allocated rows and restores the slot. Time passing alone never refunds it.
+The private [owned address](saas-identity-login-ownership.md) is now created with it;
+no password, challenge or delivery job is created. Repeated requests reuse an unexpired
+pending owner without overwriting its delivery spelling or deadline. Capacity is reserved
+before key lookup, including when the address is already known.
 
 The immutable deadline is exactly seven days from the injected first-creation instant,
 including nanoseconds. `pending()` checks identity status and `now < deadline` under
@@ -38,7 +42,7 @@ caller must first prove the current purpose-bound challenge using the existing
 [challenge lifecycle](saas-identity-challenges.md). Encode the chosen password through
 the approved bounded Spring password work before opening the writer transaction.
 
-The helper checks pending status/deadline, uses the existing private credential
+The helper checks pending status/deadline and requires an owned address, uses the existing private credential
 persistence to enroll the approved encoding, activates the identity, removes the
 pending row and releases its slot. The local provisioning callback joins this same
 writer transaction. It must not open an independent transaction or perform remote
@@ -70,10 +74,11 @@ private subject/purpose queries and make no new query-index performance guarante
 
 Cleanup and completion share the capacity transaction lock before locking an identity.
 At or after the immutable deadline cleanup deletes the pending identity, its pending
-row, any stored credential and current private challenges, refunding only rows actually
+row, owned address, any stored credential and current private challenges, refunding only rows actually
 deleted in that transaction. Challenge slots remain charged until those deletes commit.
-There are currently only verification/recovery purposes and no protected mail or address
-records. Their cancellation/deletion/accounting must be composed before a public flow ships.
+There are currently only verification/recovery purposes; protected mail records are
+not yet implemented. Their cancellation/deletion/accounting must be composed before
+a public flow ships. Address ownership now joins this same cleanup transaction.
 
 Cleanup never deletes ACTIVE, DISABLED or CLOSED identities. An inconsistent pending row
 attached to such an identity, or an absent identity, produces a sanitized operational
@@ -85,12 +90,10 @@ UserId; this primitive does not reuse subjects or transfer ownership.
 
 ## Boundaries and next work
 
-Login-address delivery spelling, canonical lookup keys and exact database uniqueness
-remain unfinished. General [unique aggregate-field persistence](aggregate-uniqueness.md)
-is now implemented. The next identity slice must adopt its exact database constraint,
-compose canonical ownership with the pending lifetime and prove duplicate/race/cleanup
-behavior. Do not replace the constraint with a Java check, truncated digest ID or
-provider-specific mailbox alias folding.
+[Login-address ownership](saas-identity-login-ownership.md) now composes canonical
+keys, original delivery spelling, exact database uniqueness and pending cleanup.
+Protected delivery, provisioning, periodic cleanup scheduling and public ingress
+remain unfinished. No address is inferred for old private identity/lifetime rows.
 No language syntax is introduced in this slice.
 
 Shared public admission/capacity gates still precede existence-dependent branches. This

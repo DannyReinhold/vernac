@@ -11,7 +11,7 @@ remain unfinished. The [storage-capacity primitive](saas-identity-capacity.md) i
 implemented; real-row accounting and cleanup integration are still required.
 Private [challenge persistence](saas-identity-challenges.md) now couples actual records
 to the budget in the writer transaction; it does not complete any public flow.
-The [private pending registration lifetime](saas-identity-registrations.md) now provides charged seven-day state and transactional completion/cleanup; login-address ownership and public registration remain unfinished.
+The [private pending registration lifetime](saas-identity-registrations.md) now provides charged seven-day state and transactional completion/cleanup; [private login-address ownership](saas-identity-login-ownership.md) now composes canonical keys and cleanup, while public registration remains unfinished.
 This policy introduces no new language keywords or automatic HTTP/Spring configuration.
 Acceptance of policy is not acceptance of registration/authentication or any SaaS gate.
 

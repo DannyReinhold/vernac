@@ -38,7 +38,9 @@ Use the specification index for the full feature catalog. In this revision:
 
 - [Bundled password corpus](saas-password-corpus.md): pinned offline dataset, license/provenance, explicit loading and reproducible maintenance.
 
-- [Private pending registration lifetime](saas-identity-registrations.md): charged seven-day pending state, atomic completion and bounded cleanup; login-address ownership remains OPEN.
+- [Private login-address ownership](saas-identity-login-ownership.md): canonical unique keys, immutable original delivery spelling and atomic pending lifecycle; no public flow.
+
+- [Private pending registration lifetime](saas-identity-registrations.md): charged seven-day pending state, atomic completion and bounded cleanup; protected delivery and public registration remain OPEN.
 
 - [Private keyed identity admission](saas-identity-admission.md): shared source/address/locator budgets, purpose-separated HMAC keys, bounded storage and primary-key cursor cleanup.
 - [Bounded credential work](saas-credential-work.md): shared local worker/queue limits around existing Spring password operations; no automatic ingress wiring.

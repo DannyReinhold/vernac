@@ -1,0 +1,647 @@
+{
+  "formatVersion" : 1,
+  "migration" : "V20261113112251688__identity_login_address_ownership.sql",
+  "previousFingerprint" : "70026e8046d7801d6540bc3d657e6e123f5a00590cac77d4f423fd17dcdee933",
+  "modelFingerprint" : "ee6d32821a68c69dd22135c332ccfa2d3b957af8fa1340885dcc94fbd54038b1",
+  "model" : {
+    "formatVersion" : 4,
+    "mappingVersion" : 1,
+    "tables" : [ {
+      "namespace" : "org.vernac.saas.identity.persistence",
+      "name" : "Identity",
+      "origin" : "org.vernac.saas.identity.persistence.Identity",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.identity.persistence.Identity"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.identity.persistence.Identity"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.identity.persistence.Identity"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.identity.persistence.Identity"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.identity.persistence.Identity"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.identity.persistence.Identity.id"
+      }, {
+        "name" : "securityEpoch",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.identity.persistence.Identity.securityEpoch"
+      }, {
+        "name" : "status",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.identity.IdentityStatus"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:enum:status",
+        "clause" : "CHECK (\"status\" IN ('ACTIVE', 'CLOSED', 'DISABLED', 'PENDING_VERIFICATION'))"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      } ]
+    }, {
+      "namespace" : "org.vernac.saas.identity.persistence",
+      "name" : "IdentityAdmissionConfiguration",
+      "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionConfiguration",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionConfiguration"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionConfiguration"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionConfiguration"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionConfiguration"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionConfiguration"
+      }, {
+        "name" : "cursor",
+        "sqlType" : "UUID",
+        "nullable" : true,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionConfiguration.cursor"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionConfiguration.id"
+      }, {
+        "name" : "keyLabel",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionConfiguration.keyLabel"
+      }, {
+        "name" : "observed",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionConfiguration.observed"
+      }, {
+        "name" : "policyCheck",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionConfiguration.policyCheck"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      } ]
+    }, {
+      "namespace" : "org.vernac.saas.identity.persistence",
+      "name" : "IdentityAdmissionKey",
+      "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionKey",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionKey"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionKey"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionKey"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionKey"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionKey"
+      }, {
+        "name" : "digest",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionKey.digest"
+      }, {
+        "name" : "expires",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionKey.expires"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionKey.id"
+      }, {
+        "name" : "kind",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionKind"
+      }, {
+        "name" : "used",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionKey.used"
+      }, {
+        "name" : "window",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityAdmissionKey.window"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:enum:kind",
+        "clause" : "CHECK (\"kind\" IN ('CHALLENGE_LOCATOR', 'CHALLENGE_SOURCE', 'LOGIN_KEY', 'LOGIN_SOURCE', 'MAIL_KEY', 'MAIL_SOURCE'))"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      } ]
+    }, {
+      "namespace" : "org.vernac.saas.identity.persistence",
+      "name" : "IdentityCapacity",
+      "origin" : "org.vernac.saas.identity.persistence.IdentityCapacity",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityCapacity"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityCapacity"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityCapacity"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityCapacity"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityCapacity"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityCapacity.id"
+      }, {
+        "name" : "limit",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityCapacity.limit"
+      }, {
+        "name" : "used",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityCapacity.used"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      } ]
+    }, {
+      "namespace" : "org.vernac.saas.identity.persistence",
+      "name" : "IdentityChallenge",
+      "origin" : "org.vernac.saas.identity.persistence.IdentityChallenge",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityChallenge"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityChallenge"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityChallenge"
+      }, {
+        "name" : "@nanoRemainder:expiresAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityChallenge.expiresAt"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityChallenge"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityChallenge"
+      }, {
+        "name" : "expiresAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityChallenge.expiresAt"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityChallenge.id"
+      }, {
+        "name" : "purpose",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityChallengePurpose"
+      }, {
+        "name" : "subject",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.identity.UserId"
+      }, {
+        "name" : "verifier",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityChallenge.verifier"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:enum:purpose",
+        "clause" : "CHECK (\"purpose\" IN ('RECOVERY', 'VERIFICATION'))"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:expiresAt",
+        "clause" : "CHECK (\"@nanoRemainder:expiresAt\" BETWEEN 0 AND 999)"
+      } ]
+    }, {
+      "namespace" : "org.vernac.saas.identity.persistence",
+      "name" : "IdentityCredential",
+      "origin" : "org.vernac.saas.identity.persistence.IdentityCredential",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityCredential"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityCredential"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityCredential"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityCredential"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityCredential"
+      }, {
+        "name" : "encoding",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityCredential.encoding"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityCredential.id"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      } ]
+    }, {
+      "namespace" : "org.vernac.saas.identity.persistence",
+      "name" : "IdentityIngress",
+      "origin" : "org.vernac.saas.identity.persistence.IdentityIngress",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityIngress"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityIngress"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityIngress"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityIngress"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityIngress"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityIngress.id"
+      }, {
+        "name" : "limit",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityIngress.limit"
+      }, {
+        "name" : "minute",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityIngress.minute"
+      }, {
+        "name" : "used",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityIngress.used"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      } ]
+    }, {
+      "namespace" : "org.vernac.saas.identity.persistence",
+      "name" : "IdentityLoginAddress",
+      "origin" : "org.vernac.saas.identity.persistence.IdentityLoginAddress",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityLoginAddress"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityLoginAddress"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityLoginAddress"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityLoginAddress"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityLoginAddress"
+      }, {
+        "name" : "deliveryAddress",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityLoginAddress.deliveryAddress"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityLoginAddress.id"
+      }, {
+        "name" : "loginKey",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityLoginAddress.loginKey",
+        "collation" : "C"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@unique:IdentityLoginAddress:loginKey",
+        "clause" : "UNIQUE (\"loginKey\")"
+      } ]
+    }, {
+      "namespace" : "org.vernac.saas.identity.persistence",
+      "name" : "IdentityPendingRegistration",
+      "origin" : "org.vernac.saas.identity.persistence.IdentityPendingRegistration",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityPendingRegistration"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityPendingRegistration"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityPendingRegistration"
+      }, {
+        "name" : "@nanoRemainder:deadline",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityPendingRegistration.deadline"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityPendingRegistration"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityPendingRegistration"
+      }, {
+        "name" : "deadline",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityPendingRegistration.deadline"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.identity.persistence.IdentityPendingRegistration.id"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:deadline",
+        "clause" : "CHECK (\"@nanoRemainder:deadline\" BETWEEN 0 AND 999)"
+      } ]
+    } ],
+    "enumCodes" : {
+      "org.vernac.saas.identity.IdentityStatus" : {
+        "ACTIVE" : "ACTIVE",
+        "CLOSED" : "CLOSED",
+        "DISABLED" : "DISABLED",
+        "PENDING_VERIFICATION" : "PENDING_VERIFICATION"
+      },
+      "org.vernac.saas.identity.persistence.IdentityAdmissionKind" : {
+        "CHALLENGE_LOCATOR" : "CHALLENGE_LOCATOR",
+        "CHALLENGE_SOURCE" : "CHALLENGE_SOURCE",
+        "LOGIN_KEY" : "LOGIN_KEY",
+        "LOGIN_SOURCE" : "LOGIN_SOURCE",
+        "MAIL_KEY" : "MAIL_KEY",
+        "MAIL_SOURCE" : "MAIL_SOURCE"
+      },
+      "org.vernac.saas.identity.persistence.IdentityChallengePurpose" : {
+        "RECOVERY" : "RECOVERY",
+        "VERIFICATION" : "VERIFICATION"
+      }
+    }
+  }
+}

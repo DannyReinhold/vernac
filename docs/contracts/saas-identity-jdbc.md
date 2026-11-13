@@ -12,8 +12,9 @@ is not a login, registration or email-verification implementation. See the
 
 Add `org.vernac:vernac-saas-identity-jdbc` using the same version as the compiler and
 runtime. This separate Apache-2.0 artifact depends on the identity contracts and
-Vernac JDBC Spring Boot starter. It does not pull in the identity Spring Security
-bridge; add that artifact separately when adopting the standard principal/resolver.
+Vernac JDBC Spring Boot starter. It also depends on the identity Spring Security artifact for credential/address
+primitives; this dependency installs no filter chain or login/session configuration.
+Adopt the standard principal/resolver explicitly.
 The compiler and general runtime have no dependency on these SaaS modules.
 
 The logical provider module is `vernac.saas.identity.jdbc`. Its only export is
@@ -126,4 +127,6 @@ module migration and purpose-separated pseudonym counters/configuration. It comp
 the independent coarse gate and indexed bounded cursor cleanup; explicit key material,
 initialization, scheduling and public ingress integration remain application assembly work.
 
-The seventh generated migration adds the [private pending registration lifetime](saas-identity-registrations.md). Explicit allocation/completion and cleanup remain separate from module activation; login-address ownership, mail and public registration remain OPEN.
+The seventh generated migration adds the [private pending registration lifetime](saas-identity-registrations.md). Explicit allocation/completion and cleanup remain separate from module activation; protected mail and public registration remain OPEN.
+
+The eighth generated migration adds [private canonical login-address ownership](saas-identity-login-ownership.md). Request, completion and abandoned-registration cleanup couple the original address and exact unique key to the pending lifetime. There is no public registration/mail flow or automatic cleanup scheduler.

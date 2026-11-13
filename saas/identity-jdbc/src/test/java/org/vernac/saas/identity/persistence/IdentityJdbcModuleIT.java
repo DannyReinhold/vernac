@@ -74,7 +74,7 @@ class IdentityJdbcModuleIT {
                         "IdentityIngress", "IdentityIngressId", "IdentityIngressMinute", "IdentityIngressCount", "IdentityIngressRepository",
                         "IdentitySecurityEpoch", "IdentityPasswordEncoding", "IdentityCredential", "IdentityCredentialRepository", "IdentityAdmissionId", "IdentityAdmissionKind", "IdentityAdmissionDigest",
                         "IdentityAdmissionKeyLabel", "IdentityAdmissionSecond", "IdentityAdmissionWindow", "IdentityAdmissionCount", "IdentityAdmissionCursor",
-                        "IdentityAdmissionConfiguration", "IdentityAdmissionConfigurationRepository", "IdentityAdmissionKey", "IdentityAdmissionKeyRepository", "IdentityRegistrationDeadline", "IdentityPendingRegistration", "IdentityPendingRegistrationRepository")) {
+                        "IdentityAdmissionConfiguration", "IdentityAdmissionConfigurationRepository", "IdentityAdmissionKey", "IdentityAdmissionKeyRepository", "IdentityRegistrationDeadline", "IdentityPendingRegistration", "IdentityPendingRegistrationRepository", "IdentityLoginKey", "IdentityDeliveryAddress", "IdentityLoginAddress", "IdentityLoginAddressRepository")) {
             String type = "org.vernac.saas.identity.persistence." + internal;
             Files.writeString(
                     file, "namespace forbidden; import " + type + "; value Allowed(String);");
@@ -110,7 +110,7 @@ class IdentityJdbcModuleIT {
                                         .status(committed[0])
                                         .orElseThrow());
                     });
-                    assertEquals(7, database.migrationCount());
+                    assertEquals(8, database.migrationCount());
                 });
     }
 
