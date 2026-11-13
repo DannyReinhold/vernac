@@ -908,7 +908,7 @@ rerun for this optional-library slice; GitHub CI remains separate from local evi
 ## D10 identity delivery proposal after PR #48
 
 Canonical login-address ownership is merged. The next [identity delivery design](identity-delivery-0.6.0.md)
-proposes Spring SMTP/crypto reuse, deployment-owned keys, authenticated context, atomic
+proposes shared Brevo/Noop mail providers and Spring crypto reuse, deployment-owned keys, authenticated context, atomic
 count/byte accounting and leased retries with explicit duplicate/late-mail semantics.
 The first implementation gate is a reviewed supported Spring dependency baseline and
 crypto-adapter proof; this proposal changes no dependency, migration or runtime behavior.

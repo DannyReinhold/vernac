@@ -9,16 +9,28 @@ Baseline: 2026-11-13, after canonical login-address ownership (PR #48).
 This is the identity portion of D10, required by the accepted
 [D14 credential policy](../contracts/saas-identity-credentials.md). Merging this
 proposal accepts the direction below; it does not close system-email acceptance A11,
-select a commercial provider or approve an unreviewed dependency upgrade. Invitation
+approve an unreviewed dependency upgrade. Invitation
 and billing mail still need their own domain/template contracts. D05 account/owner
 provisioning remains a separate prerequisite for public registration.
 
 ## Boundaries and existing components
 
-Use Spring's `JavaMailSender` for an SMTP adapter. Applications configure their SMTP
-provider, sender and credentials; Vernac supplies no SMTP implementation. The local
-adapter uses a bounded, disposable inbox behind explicit local-only access. Neither
-adapter writes rendered messages, addresses or links to application logs.
+Use the shared mail-provider port and explicit adapter selection described by the
+[SaaS provider plan](saas-0.6.0-plan.md#ready-to-use-test-providers) and
+[module binding contract](../contracts/modules.md). Brevo is the intended real mail
+provider for this slice. The explicitly selected Noop/test provider performs no external
+send and supplies the planned bounded local inbox, preview and deterministic failure/
+recovery scenarios. A discard-only implementation cannot satisfy local registration E2E.
+These are planned adapters, not existing implemented mail APIs.
+
+Identity depends on the shared port, not on Brevo-specific DTOs or a second identity-only
+transport. Keep provider DTOs behind the adapter boundary. Only the selected adapter is
+instantiated and validated: Noop/test needs no Brevo credentials; selected Brevo requires
+its configuration and must never silently fall back to Noop. The application must run
+its complete local workflow without outbound provider calls. Neither adapter logs
+rendered messages, addresses or links. Provider libraries and Spring integration remain
+implementation choices inside the adapter; SMTP/JavaMailSender is not the required
+transport or an additional 0.6.0 deliverable in this proposal.
 
 A private identity delivery ledger owns challenge mail and its resource accounting.
 It is not a general-purpose event payload and is not exported through the identity
@@ -96,10 +108,10 @@ and a lease longer than the bounded transport attempt. A stale worker cannot ack
 requeue or release a newer claim. Never release charged payload merely because its lease
 expired; the new claimant still owns the same stored bytes.
 
-SMTP acceptance is not recipient delivery. A crash or timeout after remote acceptance
+Provider acceptance is not recipient delivery. A crash or timeout after remote acceptance
 can produce a duplicate on retry; promise at-least-once attempts while eligible, not
-exactly-once email. Reuse a stable Message-ID as an operational aid, without claiming
-provider deduplication. Apply bounded exponential backoff, a finite attempt ceiling and
+exactly-once email. Reuse a stable delivery correlation ID as an operational aid,
+without assuming provider deduplication. Apply bounded exponential backoff, a finite attempt ceiling and
 an absolute cutoff at challenge expiry. Exhausted work is erased/accounted as terminal;
 no unbounded dead-letter queue or durable per-attempt history is permitted.
 
@@ -127,8 +139,8 @@ and safe error categories may be observable; recipient/link/body are restricted 
 
 The local inbox is explicitly enabled, access-controlled and bounded by count, bytes and
 retention. It may display the link to its authorized local operator; it is never ordinary
-logging or an unlimited plaintext second database. Automated tests use a fake/local SMTP
-endpoint, not real customer addresses or production provider credentials.
+logging or an unlimited plaintext second database. Automated tests use the Noop/test provider and simulated Brevo responses, not real
+customer addresses or production provider credentials.
 
 ## Review and implementation sequence
 
@@ -138,7 +150,7 @@ endpoint, not real customer addresses or production provider credentials.
    PostgreSQL proofs: last count/byte slots, rollback, restart, lease fencing, retry,
    supersession, cleanup and exactly-once resource release. Scan all observable outputs
    and generic events for seeded synthetic secrets.
-3. Add bounded worker/cleanup scheduling and SMTP/local adapters. Simulate timeout after
+3. Add bounded worker/cleanup scheduling and Brevo/Noop adapters. Simulate timeout after
    acceptance, crash before acknowledgement, expired leases and unavailable keys. Prove
    that duplicates do not mint or reactivate challenges and obsolete work cannot retry.
 4. Compose registration/recovery only after D05 provisioning and the public browser/
