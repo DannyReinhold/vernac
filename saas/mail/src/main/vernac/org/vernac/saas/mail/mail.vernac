@@ -1,0 +1,25 @@
+namespace org.vernac.saas.mail;
+id MailCorrelationId;
+value MailAddress(String encoded) validates {
+ require(org.vernac.saas.mail.MailValidation.address(self.encoded()), "Use a supported mail address");
+} behavior { public String toString() { return "MailAddress[REDACTED]"; } };
+value MailSubject(String text) validates {
+ require(org.vernac.saas.mail.MailValidation.subject(self.text()), "Invalid mail subject");
+} behavior { public String toString() { return "MailSubject[REDACTED]"; } };
+value MailBody(String text) validates {
+ require(org.vernac.saas.mail.MailValidation.body(self.text()), "Invalid mail content");
+} behavior { public String toString() { return "MailBody[REDACTED]"; } };
+value OutboundMail(MailAddress recipient, MailSubject subject, MailBody text, MailBody html, MailCorrelationId correlation)
+behavior { public String toString() { return "OutboundMail[REDACTED]"; } };
+value MailAcceptance = ACCEPTED | RETRY | REJECTED;
+value MailProviderMode = LIVE | SIMULATED;
+value MailRetryDelay(int seconds) validates {
+ require(self.seconds() >= 0 && self.seconds() <= 1800, "Invalid mail retry delay");
+};
+value MailSubmission(MailAcceptance acceptance, MailRetryDelay retryAfter) validates {
+ require(self.acceptance() == MailAcceptance.RETRY || self.retryAfter().seconds() == 0, "Retry delay requires retry outcome");
+};
+port MailProvider {
+ MailProviderMode mode();
+ MailSubmission submit(OutboundMail mail);
+}

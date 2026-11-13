@@ -1,0 +1,42 @@
+namespace org.vernac.saas.identity.persistence;
+import org.vernac.saas.identity.UserId;
+
+id IdentityMailJobId;
+value IdentityMailEnvelope(String encoded) validates {
+    require(self.encoded().length() <= 65536 && self.encoded().matches("v1\\.[a-z][a-z0-9-]{0,31}\\.[A-Za-z0-9_-]+"), "Invalid protected mail envelope");
+} behavior {
+    public String toString() { return "IdentityMailEnvelope[REDACTED]"; }
+};
+value IdentityMailTime(Instant instant);
+value IdentityMailLeaseToken(UUID value) behavior {
+    public String toString() { return "IdentityMailLeaseToken[REDACTED]"; }
+};
+value IdentityMailState = READY | LEASED | CANCELLED;
+value IdentityMailAttempts(long amount) validates {
+    require(self.amount() >= 0 && self.amount() <= 8, "Invalid mail attempt count");
+};
+
+global aggregate IdentityMailJob[IdentityMailJobId](
+    UserId subject, IdentityChallengePurpose purpose, unique IdentityChallengeId challenge,
+    IdentityChallengeExpiry expiresAt, IdentityMailEnvelope envelope,
+    mut IdentityMailState state, mut IdentityMailAttempts attempts,
+    mut IdentityMailTime due, mut IdentityMailLeaseToken leaseToken, mut IdentityMailTime leaseUntil
+) behavior {
+    modify void claim(UUID token, Instant until) {
+        if (self.state() != IdentityMailState.READY && self.state() != IdentityMailState.LEASED) throw new org.vernac.runtime.DomainValidationException("Mail cannot be claimed");
+        if (self.attempts().amount() >= 8) throw new org.vernac.runtime.DomainValidationException("Mail attempts exhausted");
+        self.state(IdentityMailState.LEASED);
+        self.attempts(IdentityMailAttempts.of(self.attempts().amount() + 1));
+        self.leaseToken(IdentityMailLeaseToken.of(token)); self.leaseUntil(IdentityMailTime.of(until));
+    }
+    modify void cancel() { self.state(IdentityMailState.CANCELLED); }
+    modify void retry(Instant due) {
+        if (self.state() != IdentityMailState.LEASED) throw new org.vernac.runtime.DomainValidationException("Mail is not leased");
+        self.state(IdentityMailState.READY); self.due(IdentityMailTime.of(due));
+        self.leaseToken(IdentityMailLeaseToken.of(new java.util.UUID(0, 0))); self.leaseUntil(IdentityMailTime.of(java.time.Instant.EPOCH));
+    }
+};
+repository IdentityMailJobRepository for IdentityMailJob {
+    find IdentityMailJob? existing(IdentityMailJobId id) where id = :id;
+    find IdentityMailJob? forChallenge(IdentityChallengeId id) where challenge = :id;
+}

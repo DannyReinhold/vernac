@@ -3,7 +3,7 @@ package org.example.tasks;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
+import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
 
 @SpringBootApplication(exclude = UserDetailsServiceAutoConfiguration.class)
 @NullMarked

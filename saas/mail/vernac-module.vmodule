@@ -1,0 +1,12 @@
+module vernac.saas.mail {
+ export org.vernac.saas.mail.MailAddress;
+ export org.vernac.saas.mail.MailSubject;
+ export org.vernac.saas.mail.MailBody;
+ export org.vernac.saas.mail.MailCorrelationId;
+ export org.vernac.saas.mail.OutboundMail;
+ export org.vernac.saas.mail.MailAcceptance;
+ export org.vernac.saas.mail.MailRetryDelay;
+ export org.vernac.saas.mail.MailSubmission;
+ export org.vernac.saas.mail.MailProviderMode;
+ export org.vernac.saas.mail.MailProvider;
+}
