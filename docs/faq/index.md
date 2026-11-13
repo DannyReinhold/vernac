@@ -213,6 +213,8 @@ Declare a singleton repository query with `find Tour? ...` when absence is expec
 It returns Optional, but multiple matches still raise `NonUniqueQueryResultException`.
 That declaration does not add a database uniqueness constraint or choose the first row.
 [Read the query contract](../contracts/repository-queries.md).
+A [aggregate field uniqueness proposal](../development/aggregate-uniqueness-0.6.0.md) is under
+review for 0.6.0; it is not current source syntax.
 
 ### `save()` returned successfully. Is my change already committed?
 

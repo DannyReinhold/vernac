@@ -47,7 +47,9 @@ version is not a query field in this increment.
   more than one gives a technical `NonUniqueQueryResultException` .
   Include repository and method in the diagnostic; do not expose parameter values.
 - This cardinality expectation is not a uniqueness constraint and cannot prevent
-  concurrent inserts. Unique modelling and schema constraints are a separate feature.
+  concurrent inserts. Unique modelling and schema constraints are a separate feature. The
+  [0.6.0 uniqueness proposal](../development/aggregate-uniqueness-0.6.0.md) is under
+  review; its syntax is not implemented.
 - `byId` retains its existing missing-aggregate exception contract.
 - No non-optional singleton custom query in the initial increment.
 - Collections must already be declared for the searched aggregate. Do not generate

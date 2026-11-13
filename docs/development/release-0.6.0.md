@@ -767,3 +767,29 @@ cases. All seven migrations pass live owned-schema replay/check. All 16 Python t
 tests pass; documentation links, workflow YAML, plugin XML and diff checks are clean.
 The full core/installed-IDE/release reactor was not rerun for this optional-library
 slice. GitHub CI and final integrated release acceptance remain separate.
+
+## Aggregate field uniqueness design baseline
+
+The [uniqueness review proposal](aggregate-uniqueness-0.6.0.md) now isolates the
+required persistence decision before new grammar/runtime code. It proposes `unique`
+on a required aggregate field, with automatically derived technical constraint names,
+global or automatically tenant scoped,
+with exact deterministic text mapping, normal PostgreSQL enforcement and sanitized
+Spring/JDBC conflict handling. Schema ownership, versioned collation metadata, migration
+review, editor behavior and multi-context PostgreSQL proofs are required together.
+
+This is documentation only. No syntax, constraint, runtime exception or identity
+address claim is implemented by this slice; no prior migration or working example
+is changed. Plugin What's New intentionally remains about shipped implementation,
+and no example project advertises planned syntax. The implementation PR must update
+the specification, contracts, example and plugin notes with executable evidence.
+
+Rough scope estimates remain Identity/Auth 50–55% and complete 0.6.0 25–35%. Design
+acceptance alone does not increase implementation progress or close a release gate.
+Next: implement the reviewed constraint vertically through compiler/schema/JDBC/editor,
+then adopt it for canonical login-address ownership; protected mail, provisioning and
+public Spring/browser flows follow.
+
+Design-PR validation: 1,157 local links across 165 documents and all 16 Python
+tooling tests pass; whitespace checks are clean. Java/PostgreSQL/IDE tests were
+not rerun for this documentation-only change, and no new implementation proof is claimed.

@@ -262,6 +262,10 @@ against every direct Java reference. Candidate-state rollback is not implemented
 
 ## Repositories and queries
 
+Business-key uniqueness has a separate [review proposal](development/aggregate-uniqueness-0.6.0.md).
+Its syntax is planned, not implemented; the working declarations below use current grammar.
+
+
 ```vernac
 repository TourRepository for Tour {
     find Tours withStatus(TourStatus status)
