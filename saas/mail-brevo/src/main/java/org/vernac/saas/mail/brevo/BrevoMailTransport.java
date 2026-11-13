@@ -27,7 +27,16 @@ public final class BrevoMailTransport implements AutoCloseable {
    this.sender=MailAddress.of(sender);this.apiKey=apiKey;this.endpoint=endpoint;this.clock=Objects.requireNonNull(clock);
    client=new OkHttpClient.Builder().callTimeout(timeout.toMillis(),TimeUnit.MILLISECONDS)
     .connectTimeout(3,TimeUnit.SECONDS).readTimeout(5,TimeUnit.SECONDS).writeTimeout(5,TimeUnit.SECONDS)
-    .retryOnConnectionFailure(false).followRedirects(false).followSslRedirects(false).build();
+    .retryOnConnectionFailure(false).followRedirects(false).followSslRedirects(false)
+    .addNetworkInterceptor(chain -> {
+     var response=chain.proceed(chain.request());
+     String retry=response.header("Retry-After");
+     // OkHttp follows 503/zero independently of connection-retry configuration.
+     // Floor zero to one second; only the durable caller may initiate another call.
+     if(response.code()==503 && retry!=null && retry.matches("0+"))
+      return response.newBuilder().header("Retry-After","1").build();
+     return response;
+    }).build();
   } catch(RuntimeException invalid){throw new IllegalStateException("BREVO_MAIL_CONFIGURATION_INVALID");}
  }
  public MailSubmission submit(OutboundMail mail) {
