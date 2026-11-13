@@ -1,0 +1,28 @@
+namespace org.vernac.saas.identity.persistence;
+
+import org.vernac.saas.identity.UserId;
+
+value IdentityLoginKey(String encoded) validates {
+    require(org.vernac.saas.identity.security.credentials.LoginAddress.parse(self.encoded()).loginKey().equals(self.encoded()),
+            "Identity login key must be canonical");
+} behavior {
+    public String toString() { return "IdentityLoginKey[REDACTED]"; }
+};
+value IdentityDeliveryAddress(String encoded) validates {
+    require(org.vernac.saas.identity.security.credentials.LoginAddress.parse(self.encoded()).deliveryAddress().equals(self.encoded()),
+            "Identity delivery address must retain its parsed spelling");
+} behavior {
+    public String toString() { return "IdentityDeliveryAddress[REDACTED]"; }
+};
+term IdentityLoginAddress {
+    description "Private immutable ownership of one exact canonical login key by a nominal user identity.";
+    note "The primary key permits one address per identity; unique loginKey prevents multiple owners. Activation, disabling and closure retain the address. Only abandoned pending-registration cleanup releases it.";
+}
+global aggregate IdentityLoginAddress[UserId](unique IdentityLoginKey loginKey, IdentityDeliveryAddress deliveryAddress) validates {
+    require(org.vernac.saas.identity.security.credentials.LoginAddress.parse(self.deliveryAddress().encoded()).loginKey().equals(self.loginKey().encoded()),
+            "Identity delivery address and login key must match");
+};
+repository IdentityLoginAddressRepository for IdentityLoginAddress {
+    find IdentityLoginAddress? existing(UserId subject) where id = :subject;
+    find IdentityLoginAddress? forKey(IdentityLoginKey key) where loginKey = :key;
+}

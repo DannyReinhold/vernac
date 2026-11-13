@@ -55,6 +55,13 @@ class IdentityRegistrationsPostgresIT {
             return new JdbcIdentityRegistrations(jdbc, Clock.fixed(now, ZoneOffset.UTC));
         }
 
+        UserId allocate(Instant now) {
+            return registrations(now)
+                    .request(
+                            LoginAddress.parse("pending-" + UUID.randomUUID() + "@example.invalid"))
+                    .subject();
+        }
+
         JdbcIdentityChallenges challenges(Instant now) {
             return new JdbcIdentityChallenges(jdbc, Clock.fixed(now, ZoneOffset.UTC));
         }
@@ -93,7 +100,7 @@ class IdentityRegistrationsPostgresIT {
                                     c -> {
                                         var f = new Fixture(c);
                                         f.setup(2);
-                                        subject.set(f.write(() -> f.registrations(NOW).create()));
+                                        subject.set(f.write(() -> f.allocate(NOW)));
                                         assertTrue(
                                                 f.write(
                                                         () ->
@@ -128,16 +135,12 @@ class IdentityRegistrationsPostgresIT {
                                         assertEquals(0, f.count("IdentityChallenge"));
                                         assertThrows(
                                                 IllegalTransactionStateException.class,
-                                                () -> f.registrations(NOW).create());
+                                                () -> f.allocate(NOW));
                                         var read = new TransactionTemplate(f.manager);
                                         read.setReadOnly(true);
                                         assertThrows(
                                                 IllegalTransactionStateException.class,
-                                                () ->
-                                                        read.execute(
-                                                                s ->
-                                                                        f.registrations(NOW)
-                                                                                .create()));
+                                                () -> read.execute(s -> f.allocate(NOW)));
                                     });
                             db.boot.run(
                                     c -> {
@@ -160,7 +163,7 @@ class IdentityRegistrationsPostgresIT {
                                                                                                 "expired"
                                                                                                     + " provisioning"))));
                                         assertEquals(1, f.used(PENDING_REGISTRATIONS));
-                                        assertEquals(7, uncheckedMigrations(db));
+                                        assertEquals(8, uncheckedMigrations(db));
                                     });
                         });
     }
@@ -228,9 +231,7 @@ class IdentityRegistrationsPostgresIT {
                                                             new TransactionTemplate(first.manager)
                                                                     .executeWithoutResult(
                                                                             s -> {
-                                                                                first.registrations(
-                                                                                                NOW)
-                                                                                        .create();
+                                                                                first.allocate(NOW);
                                                                                 s.setRollbackOnly();
                                                                             });
                                                             assertEquals(
@@ -251,7 +252,7 @@ class IdentityRegistrationsPostgresIT {
                                         c -> {
                                             var f = new Fixture(c);
                                             f.setup(2);
-                                            var id = f.write(() -> f.registrations(NOW).create());
+                                            var id = f.write(() -> f.allocate(NOW));
                                             var issue =
                                                     f.write(
                                                             () ->
@@ -368,18 +369,9 @@ class IdentityRegistrationsPostgresIT {
                                             f.setup(10);
                                             var ids = new ArrayList<UserId>();
                                             for (int i = 0; i < 5; i++)
-                                                ids.add(
-                                                        f.write(
-                                                                () ->
-                                                                        f.registrations(NOW)
-                                                                                .create()));
+                                                ids.add(f.write(() -> f.allocate(NOW)));
                                             var live =
-                                                    f.write(
-                                                            () ->
-                                                                    f.registrations(
-                                                                                    NOW.plusSeconds(
-                                                                                            60))
-                                                                            .create());
+                                                    f.write(() -> f.allocate(NOW.plusSeconds(60)));
                                             for (var id : ids)
                                                 f.write(
                                                         () ->
@@ -457,9 +449,9 @@ class IdentityRegistrationsPostgresIT {
                                                                 var id =
                                                                         first.write(
                                                                                 () ->
-                                                                                        first.registrations(
-                                                                                                        NOW)
-                                                                                                .create());
+                                                                                        first
+                                                                                                .allocate(
+                                                                                                        NOW));
                                                                 var start = new CountDownLatch(1);
                                                                 try (var pool =
                                                                         Executors
@@ -519,6 +511,23 @@ class IdentityRegistrationsPostgresIT {
                                                                                                             .existing(
                                                                                                                     id))
                                                                                     .isPresent());
+                                                                    assertEquals(
+                                                                            active,
+                                                                            first.write(
+                                                                                            () ->
+                                                                                                    new org
+                                                                                                                    .vernac
+                                                                                                                    .saas
+                                                                                                                    .identity
+                                                                                                                    .persistence
+                                                                                                                    .adapter
+                                                                                                                    .outbound
+                                                                                                                    .jdbc
+                                                                                                                    .JdbcIdentityLoginAddressRepository(
+                                                                                                                    first.jdbc)
+                                                                                                            .existing(
+                                                                                                                    id))
+                                                                                    .isPresent());
                                                                     if (active)
                                                                         assertEquals(
                                                                                 IdentityStatus
@@ -550,7 +559,7 @@ class IdentityRegistrationsPostgresIT {
                                         c -> {
                                             var f = new Fixture(c);
                                             f.setup(2);
-                                            var id = f.write(() -> f.registrations(NOW).create());
+                                            var id = f.write(() -> f.allocate(NOW));
                                             f.write(
                                                     () ->
                                                             f.challenges(NOW)
@@ -644,9 +653,8 @@ class IdentityRegistrationsPostgresIT {
                                                             var id =
                                                                     first.write(
                                                                             () ->
-                                                                                    first.registrations(
-                                                                                                    NOW)
-                                                                                            .create());
+                                                                                    first.allocate(
+                                                                                            NOW));
                                                             assertThrows(
                                                                     JdbcIdentityCredentials.Failure
                                                                             .class,
@@ -728,9 +736,8 @@ class IdentityRegistrationsPostgresIT {
                                                             var fresh =
                                                                     first.write(
                                                                             () ->
-                                                                                    first.registrations(
-                                                                                                    DEADLINE)
-                                                                                            .create());
+                                                                                    first.allocate(
+                                                                                            DEADLINE));
                                                             assertNotEquals(id, fresh);
                                                             assertFalse(
                                                                     first.write(
@@ -744,7 +751,7 @@ class IdentityRegistrationsPostgresIT {
 
     static boolean allocate(Fixture f) {
         try {
-            f.write(() -> f.registrations(NOW).create());
+            f.write(() -> f.allocate(NOW));
             return true;
         } catch (JdbcIdentityRegistrations.Failure failure) {
             assertEquals(JdbcIdentityRegistrations.Code.CAPACITY, failure.code());

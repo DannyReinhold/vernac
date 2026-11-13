@@ -73,4 +73,6 @@ cleanup. It uses JCA HMAC-SHA-256 with explicit stable installation key material
 address/IP storage or automatic key generation. Scheduled cleanup and HTTP/trusted-source
 wiring are still required before the public identity flows ship.
 
-[Private pending registration lifetime](../docs/contracts/saas-identity-registrations.md) now adds charged seven-day pending state, atomic completion and bounded cleanup. Exact login-address database uniqueness, protected delivery and complete browser journeys remain OPEN.
+[Private pending registration lifetime](../docs/contracts/saas-identity-registrations.md) now adds charged seven-day pending state, atomic completion and bounded cleanup. Protected delivery and complete browser journeys remain OPEN; address ownership is now composed as described below.
+
+[Private login-address ownership](../docs/contracts/saas-identity-login-ownership.md) now binds one exact canonical key to one UserId, preserves original delivery spelling and composes pending cleanup/retention. Protected mail, provisioning and public registration/login remain unfinished.
