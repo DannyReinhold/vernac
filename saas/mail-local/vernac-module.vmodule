@@ -1,0 +1,3 @@
+module vernac.saas.mail.local {
+ export org.vernac.saas.mail.local.NoopMailProvider;
+}
