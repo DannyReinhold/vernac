@@ -58,6 +58,9 @@
         <module>vernac-jdbc-spring-boot-starter</module>
         <module>saas/identity</module>
         <module>saas/identity-spring-security</module>
+        <module>saas/mail</module>
+        <module>saas/mail-local</module>
+        <module>saas/mail-brevo</module>
         <module>saas/identity-jdbc</module>
     </modules>
 

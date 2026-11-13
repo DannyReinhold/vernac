@@ -55,6 +55,8 @@ jobs:
         run: mvn -B -ntp -pl vernac-lsp,vernac-runtime-http,vernac-runtime-jdbc -am clean install
       - name: Build the compiler plugin for optional SaaS modules
         run: mvn -B -ntp -pl vernac-maven-plugin,vernac-jdbc-spring-boot-starter -am -DskipTests install
+      - name: Verify shared mail and selected local/Brevo providers
+        run: mvn -B -ntp -pl saas/mail,saas/mail-local,saas/mail-brevo clean install
       - name: Verify optional identity artifacts and their JAR consumer
         run: mvn -B -ntp -pl saas/identity,saas/identity-spring-security,saas/identity-jdbc clean verify
       - name: Verify Boot module startup and actual HTTP JSON converter selection
