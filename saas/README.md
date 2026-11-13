@@ -72,3 +72,5 @@ shared source/login-key/locator windows, bounded key allocation and primary-key 
 cleanup. It uses JCA HMAC-SHA-256 with explicit stable installation key material, no raw
 address/IP storage or automatic key generation. Scheduled cleanup and HTTP/trusted-source
 wiring are still required before the public identity flows ship.
+
+[Private pending registration lifetime](../docs/contracts/saas-identity-registrations.md) now adds charged seven-day pending state, atomic completion and bounded cleanup. Exact login-address database uniqueness, protected delivery and complete browser journeys remain OPEN.

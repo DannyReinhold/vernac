@@ -739,3 +739,31 @@ expected owned schema; the earlier five migrations remain unchanged. All 16 Pyth
 tests and 1,136 documentation links pass; workflow XML/YAML/diff checks are clean. Full
 core/installed-IDE/release-reactor acceptance was not rerun for this optional SaaS slice;
 GitHub CI and final integrated release acceptance remain separate from these local proofs.
+
+## Charged pending registration lifetime
+
+The [private pending lifetime](../contracts/saas-identity-registrations.md) now couples
+actual pending identities to the deployment capacity ledger. Its immutable seven-day
+first-creation deadline survives restart. Trusted challenge completion, credential
+enrollment, activation, pending-slot release and local provisioning callbacks share one
+writer transaction. Failed callbacks poison the transaction even when caught. Bounded
+primary-key cleanup serializes with completion and only refunds deleted dependent rows;
+it never deletes active/disabled/closed users. Periodic scheduler/cursor persistence,
+protected delivery and complete provisioning are still not installed.
+
+This slice deliberately does not claim login-address ownership: the required exact
+login-key database uniqueness needs a reviewed persistence/language contract. A Java
+check or a truncated digest ID is not an adequate substitute. The next PR should establish
+that contract and its migration/constraint proofs before composing canonical address
+ownership. Thereafter: protected mail delivery, D05 provisioning and public Spring/browser
+flows. No public journey or final SaaS gate is closed by this private primitive.
+
+Rough scope orientation: Identity/authentication about 50–55%; complete 0.6.0 about
+25–35%. These remain estimates for orientation, not measured acceptance or a schedule.
+
+Local JDK 25 evidence: 90 identity/SaaS cases in 24 required suites pass with no
+failures/errors/skips, including seven new restricted-PostgreSQL pending-lifetime
+cases. All seven migrations pass live owned-schema replay/check. All 16 Python tooling
+tests pass; documentation links, workflow YAML, plugin XML and diff checks are clean.
+The full core/installed-IDE/release reactor was not rerun for this optional-library
+slice. GitHub CI and final integrated release acceptance remain separate.
