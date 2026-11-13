@@ -1,0 +1,13 @@
+namespace org.vernac.saas.identity.persistence;
+
+import org.vernac.saas.identity.UserId;
+
+value IdentityRegistrationDeadline(Instant instant);
+term IdentityPendingRegistration {
+    description "Private charged lifetime of a not-yet-verified identity.";
+    note "The immutable deadline is seven days from first creation. Only the controlled writer may complete or delete it; this is not a public registration flow or login-address claim.";
+}
+global aggregate IdentityPendingRegistration[UserId](IdentityRegistrationDeadline deadline);
+repository IdentityPendingRegistrationRepository for IdentityPendingRegistration {
+    find IdentityPendingRegistration? existing(UserId subject) where id = :subject;
+}

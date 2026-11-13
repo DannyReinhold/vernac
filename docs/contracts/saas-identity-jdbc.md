@@ -125,3 +125,5 @@ The [private keyed admission helper](saas-identity-admission.md) adds the sixth 
 module migration and purpose-separated pseudonym counters/configuration. It composes
 the independent coarse gate and indexed bounded cursor cleanup; explicit key material,
 initialization, scheduling and public ingress integration remain application assembly work.
+
+The seventh generated migration adds the [private pending registration lifetime](saas-identity-registrations.md). Explicit allocation/completion and cleanup remain separate from module activation; login-address ownership, mail and public registration remain OPEN.

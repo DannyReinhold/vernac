@@ -1950,3 +1950,7 @@ of at most 500, persists progress and deletes only expired rows. Time passing al
 does not refund physical rows. Public source resolution, pipeline wiring and scheduled
 complete sweeps remain OPEN. No limiter DSL, public management API or automatic beans
 are introduced. Do not expose internal outcome/digest/row representations to clients.
+
+## Private pending registration lifetime
+
+The optional JDBC provider now includes [private charged pending state](contracts/saas-identity-registrations.md). Allocation, the immutable seven-day deadline, trusted completion and bounded primary-key cleanup share the existing writer/capacity boundary. Use challenge consumption before completion; a false completion must roll back that composition. No public registration, login-address ownership, provisioning or scheduler is installed. Exact login-key database uniqueness remains required; do not replace it with Java checks or truncated digest IDs.

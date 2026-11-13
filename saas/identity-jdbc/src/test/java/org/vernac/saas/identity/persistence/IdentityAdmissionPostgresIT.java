@@ -314,7 +314,7 @@ class IdentityAdmissionPostgresIT {
                                                         .mail(ip(1), address(1))
                                                         .outcome());
                                     });
-                            assertEquals(6, db.migrationCount());
+                            assertEquals(7, db.migrationCount());
                         });
     }
 

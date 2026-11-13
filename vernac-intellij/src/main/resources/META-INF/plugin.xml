@@ -100,6 +100,11 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>0.6.0 development — Pending registration lifetime</h3>
+<p>The optional SaaS library now supplies private charged seven-day pending state,
+transactional completion and bounded cleanup. Login-address ownership, protected mail,
+public registration and periodic cleanup scheduling remain in development.</p>
+
 <h3>0.6.0 development — Keyed identity admission</h3>
 <p>Private shared source/address/locator counters now compose the coarse ingress gate,
 with JCA HMAC pseudonyms, bounded storage and primary-key cursor cleanup. Public HTTP,
