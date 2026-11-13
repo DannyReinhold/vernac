@@ -3,7 +3,7 @@ title: Private identity delivery envelope
 ---
 # Private identity delivery envelope
 
-Status: **private envelope and durable admission implemented; ledger, configuration and
+Status: **private envelope and durable admission implemented; configuration and
 sending integration OPEN**. Depends on the [Boot 4 baseline](../development/spring-boot-4-baseline.md)
 and the accepted [D10 direction](../development/identity-delivery-0.6.0.md).
 
@@ -84,3 +84,5 @@ The full identity-jdbc suite also runs with its restricted PostgreSQL integratio
 Next: compose protected job persistence and atomic challenge issuance, followed by leased
 workers and Brevo/Noop adapters. A11, public registration, D05 provisioning and final SaaS
 release acceptance remain OPEN.
+
+Protected registration/recovery jobs are now composed by the [atomic request helper](saas-identity-mail-requests.md). Provider dispatch and public journeys remain OPEN.

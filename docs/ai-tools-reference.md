@@ -30,6 +30,10 @@ The [private delivery envelope](contracts/saas-identity-delivery-envelope.md) is
 infrastructure. Use its [durable key registry](contracts/saas-identity-encryption-admission.md):
 prepare a one-use permit outside business transactions; do not use an allow-all/local counter.
 
+The [private atomic mail helper](contracts/saas-identity-mail-requests.md) composes
+registration/challenge/job accounting. It installs no sender or public endpoint and
+does not replace ingress admission, D05 provisioning or Spring Session.
+
 ## Locate the project and respect its configuration
 
 Run commands from the directory containing the application's POM. A standalone

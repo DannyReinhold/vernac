@@ -992,3 +992,20 @@ errors/skips. Four new restricted PostgreSQL cases cover restart, rollback/aband
 ambient rejection, final-slot concurrency, drift/aliasing and bounded/damaged history.
 The nine-migration live schema check passes. Public issuance/mail/session integration is
 still OPEN. Next: protected mail job accounting and atomic challenge/job persistence.
+
+
+## Atomic protected identity mail requests
+
+The [private request composition](../contracts/saas-identity-mail-requests.md) reserves
+challenge/job/maximum bytes before identifier lookup and atomically writes/reuses the
+owner, verifier and encrypted job. Exact stored bytes are reconciled; cooldown/ineligible
+requests refund unused business reservations, while prepared encryption attempts remain
+spent. Supersession/consumption cancel queued work atomically and retain leased payload
+capacity until settlement. No sender, public route or authentication is installed.
+
+The tenth generated migration adds only the job table and constraints; previous histories
+are unchanged. Existing suites and seven new real PostgreSQL cases pass, including two
+separate Spring contexts racing for the last job slot, restart, rollback and protected-only
+storage. Worker/provider/scheduler and D05/public/session integration remain OPEN. Rough
+orientation: Identity/Auth about 60–65%, complete 0.6.0 still about 30%; full journeys are
+not accepted by these private primitives.

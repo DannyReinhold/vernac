@@ -57,6 +57,7 @@ and a full 64-key registry. Unit coverage also proves one-use/instance-bound per
 CI requires every named proof. The schema checker replays all nine migrations against a
 fresh expected schema; no existing application database is used.
 
-Next: atomically charge and persist protected jobs together with challenge issuance,
+The [atomic request helper](saas-identity-mail-requests.md) now charges and persists
+protected jobs together with challenge issuance. Next:
 then leases/retries/cleanup and shared Brevo/Noop provider integration. Public endpoints,
 D05 account provisioning and Spring Session workflows remain separate; A11 is OPEN.
