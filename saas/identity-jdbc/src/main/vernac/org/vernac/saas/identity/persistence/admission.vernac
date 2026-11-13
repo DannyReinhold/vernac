@@ -1,0 +1,56 @@
+namespace org.vernac.saas.identity.persistence;
+
+id IdentityAdmissionId;
+value IdentityAdmissionKind = LOGIN_SOURCE | LOGIN_KEY | MAIL_SOURCE | MAIL_KEY | CHALLENGE_SOURCE | CHALLENGE_LOCATOR;
+value IdentityAdmissionDigest(String encoded) validates {
+    require(self.encoded().matches("[0-9a-f]{64}"), "Invalid identity admission digest");
+} behavior {
+    public String toString() { return "IdentityAdmissionDigest[REDACTED]"; }
+};
+value IdentityAdmissionKeyLabel(String label) validates {
+    require(self.label().matches("[A-Za-z0-9_-]{1,32}"), "Invalid identity admission key label");
+};
+value IdentityAdmissionSecond(long number);
+value IdentityAdmissionWindow(long number);
+value IdentityAdmissionCount(long amount) validates {
+    require(self.amount() >= 0, "Identity admission count must not be negative");
+};
+value IdentityAdmissionCursor(UUID? after);
+
+term IdentityAdmissionConfiguration {
+    description "Fixed private keyed-admission configuration and bounded cleanup cursor.";
+    note "Never reset active attempts on key/policy drift. The time high-water mark prevents clock regression from refunding a cleaned-up window.";
+}
+global aggregate IdentityAdmissionConfiguration[IdentityAdmissionId](IdentityAdmissionKeyLabel keyLabel, IdentityAdmissionDigest policyCheck,
+    mut IdentityAdmissionSecond observed, mut IdentityAdmissionCursor cursor) behavior {
+    modify long observe(long second) {
+        if (second > self.observed().number()) self.observed(IdentityAdmissionSecond.of(second));
+        return self.observed().number();
+    }
+    modify void advanceCursor(IdentityAdmissionCursor cursor) { self.cursor(cursor); }
+};
+repository IdentityAdmissionConfigurationRepository for IdentityAdmissionConfiguration {
+    find IdentityAdmissionConfiguration? existing(IdentityAdmissionId id) where id = :id;
+}
+
+term IdentityAdmissionKey {
+    description "Private fixed-window attempts for a purpose-separated keyed pseudonym, never raw user input.";
+    note "Only controlled admission/cleanup may mutate these records under the budget lock. Do not log generated rows or derived IDs.";
+}
+global aggregate IdentityAdmissionKey[IdentityAdmissionId](IdentityAdmissionKind kind, IdentityAdmissionDigest digest,
+    mut IdentityAdmissionWindow window, mut IdentityAdmissionCount used, mut IdentityAdmissionSecond expires) behavior {
+    modify boolean attempt(long currentWindow, long expires, long limit) {
+        if (limit <= 0) throw new org.vernac.runtime.DomainValidationException("Invalid identity admission limit");
+        if (currentWindow > self.window().number()) {
+            self.window(IdentityAdmissionWindow.of(currentWindow));
+            self.expires(IdentityAdmissionSecond.of(expires));
+            self.used(IdentityAdmissionCount.of(0));
+        }
+        if (self.used().amount() >= limit) return false;
+        self.used(IdentityAdmissionCount.of(self.used().amount() + 1));
+        return true;
+    }
+};
+repository IdentityAdmissionKeyRepository for IdentityAdmissionKey {
+    find IdentityAdmissionKey? existing(IdentityAdmissionId id) where id = :id;
+}

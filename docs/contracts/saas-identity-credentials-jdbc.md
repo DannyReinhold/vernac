@@ -108,8 +108,8 @@ failure after the epoch write rolls back both records even when caught. Original
 upgrade tests prove existing active identity data survives with epoch 0, and private-import
 proofs reject the new definitions. CI/release gates require the new named proofs without skips.
 
-Public registration/verification/recovery, login-key ownership/uniqueness, keyed admission,
-protected durable mail, D05 provisioning, complete cleanup, authentication/session integration
+Public registration/verification/recovery, login-key ownership/uniqueness, keyed admission
+pipeline/scheduler integration, protected durable mail, D05 provisioning, complete cleanup, authentication/session integration
 and the SaaS UI/example remain unfinished. A01/A02, complete anti-abuse, whole-SaaS and final
 manual acceptance gates stay OPEN. Next are those trusted identity/admission/delivery flows;
 no public endpoint should wrap these primitives alone.

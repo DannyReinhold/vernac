@@ -120,3 +120,8 @@ The [private credential lifecycle](saas-identity-credentials-jdbc.md) adds the f
 generated migration, private encoding/credential models and an initial security epoch.
 The JDBC artifact now depends on the optional identity security artifact at runtime;
 module exports and the existing explicit directory binding are unchanged.
+
+The [private keyed admission helper](saas-identity-admission.md) adds the sixth generated
+module migration and purpose-separated pseudonym counters/configuration. It composes
+the independent coarse gate and indexed bounded cursor cleanup; explicit key material,
+initialization, scheduling and public ingress integration remain application assembly work.
