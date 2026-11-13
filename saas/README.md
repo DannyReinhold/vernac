@@ -7,7 +7,7 @@ Maven artifacts, not extra compiler keywords or dependencies of the general runt
 | Implemented artifact | Current scope |
 | --- | --- |
 | `org.vernac:vernac-saas-identity` | Nominal UserId, identity status vocabulary and trusted IdentityDirectory port; published Vernac module contracts |
-| `org.vernac:vernac-saas-identity-spring-security` | Explicit principal/live-status ActorResolver and credential parsing/corpus/real encoder primitives |
+| `org.vernac:vernac-saas-identity-spring-security` | Explicit principal/live-status ActorResolver, credential parsing/corpus/real encoder primitives and bounded password-work owner |
 | `org.vernac:vernac-saas-identity-jdbc` | Explicit optional persistent status directory; internal repositories, private storage budgets/challenges/admission/credential persistence and separate module migrations |
 
 The module identity is `vernac.saas.identity`. Import exported definitions under
@@ -60,3 +60,9 @@ source/identifier gate or complete registration protection is installed.
 The JDBC artifact now includes the existing identity security artifact as a runtime
 dependency for the shared encoding-format invariant. Vernac registers no authentication/filter
 configuration here; review host Boot auto-configuration with the changed runtime classpath. Epoch-based session validation remains OPEN.
+
+The [bounded credential work owner](../docs/contracts/saas-credential-work.md) is
+explicitly shared per application instance (initial 4 workers/16 queued/250 ms start
+wait) and closed on shutdown. It is not an automatic filter; raw low-level encoding
+remains available. The security artifact now requires spring-tx at runtime for its
+no-writer/no-resource-scope guard.

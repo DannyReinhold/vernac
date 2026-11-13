@@ -143,3 +143,11 @@ password comparison, entropy/strength attestation or authentication grant. Unsup
 missing, plaintext/no-op or corrupt formats return false. Private persisted encoding
 invariants use this common parser rather than duplicating a PHC grammar. See the
 [JDBC credential lifecycle](saas-identity-credentials-jdbc.md).
+
+
+## Bounded expensive work
+
+[BoundedCredentialPasswords](saas-credential-work.md) now supplies an explicit shared
+application owner for encode/matches/dummy operations. It delegates to these existing
+primitives and requires calls outside writer/resource scopes. The low-level API here
+remains unbounded and does not install the standard SaaS admission pipeline by itself.

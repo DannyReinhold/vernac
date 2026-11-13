@@ -784,4 +784,63 @@ class IdentityCredentialsPostgresIT {
                                                             }
                                                         })));
     }
+
+    @Test
+    void boundedSpringVerificationRunsOutsideTheWriterAndStillConfirmsCurrentState()
+            throws Exception {
+        try (var work = new BoundedCredentialPasswords(PASSWORDS)) {
+            String encoded = work.encode(FIRST);
+            new IdentityJdbcTestEnvironment(root)
+                    .withDatabase(
+                            db ->
+                                    db.boot.run(
+                                            c -> {
+                                                var f = new Fixture(c);
+                                                var id = f.pending();
+                                                f.write(() -> f.credentials.enroll(id, encoded));
+                                                f.activate(id);
+                                                var snapshot = f.snapshot(id);
+                                                var denied =
+                                                        assertThrows(
+                                                                CredentialConfigurationException
+                                                                        .class,
+                                                                () ->
+                                                                        f.write(
+                                                                                () ->
+                                                                                        work
+                                                                                                .matches(
+                                                                                                        FIRST,
+                                                                                                        snapshot
+                                                                                                                .encoded())));
+                                                assertEquals(
+                                                        CredentialConfigurationException.Code
+                                                                .WORK_CONTEXT_INVALID,
+                                                        denied.code());
+                                                assertTrue(work.matches(FIRST, snapshot.encoded()));
+                                                assertEquals(
+                                                        Boolean.TRUE,
+                                                        f.write(
+                                                                () ->
+                                                                        f.credentials.confirm(
+                                                                                snapshot)));
+                                                String changed = work.encode(SECOND);
+                                                assertEquals(
+                                                        Boolean.TRUE,
+                                                        f.write(
+                                                                () ->
+                                                                        f.credentials.replace(
+                                                                                snapshot,
+                                                                                changed)));
+                                                assertEquals(
+                                                        Boolean.FALSE,
+                                                        f.write(
+                                                                () ->
+                                                                        f.credentials.confirm(
+                                                                                snapshot)));
+                                                assertTrue(
+                                                        work.matches(
+                                                                SECOND, f.snapshot(id).encoded()));
+                                            }));
+        }
+    }
 }
