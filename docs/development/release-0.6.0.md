@@ -915,3 +915,97 @@ crypto-adapter proof; this proposal changes no dependency, migration or runtime 
 A11 and public registration remain OPEN. Next: review D10, then library/key proof and
 private ledger, followed by worker/adapters and D05/public-flow composition. Rough progress
 remains Identity/Auth 55–60%, complete 0.6.0 25–35%; design review is not delivered behavior.
+
+
+## Isolated D10 crypto compatibility proof
+
+The [test-only experiment](../../experiments/identity-mail-crypto/README.md) imports
+Boot 4.1.2 as a complete candidate BOM and exercises Spring Security Crypto 7.1.2's
+replacement AES-GCM API. Five cases cover raw AES-256 keys, reconstruction, randomized
+ciphertext, tampering/truncation, rotation-read behavior and invalid key rejection.
+This is library compatibility evidence, not a production envelope or a platform upgrade.
+Root dependencies, provider selection and migrations remain unchanged. Next: review and
+prove the coordinated Boot platform migration, then private key/envelope and delivery
+ledger implementation. A11 remains OPEN. Rough progress is unchanged: Identity/Auth
+55–60%, complete 0.6.0 25–35%; prerequisites do not count as a completed mail journey.
+
+Local validation: standalone `clean verify` passes on JDK 21 and JDK 25, each with
+5 tests and zero failures/errors/skips. The dedicated CI matrix requires all five named
+cases and rejects missing or skipped reports. All 1,187 local documentation links in
+168 documents and whitespace/XML/YAML checks pass. The production reactor and installed
+IDE were not rerun: this experiment changes neither production sources nor dependencies.
+
+
+## Coordinated Spring Boot 4 platform baseline
+
+The [platform migration](spring-boot-4-baseline.md) aligns reactor dependencies and
+bundled application parents on Boot 4.1.2/Security 7.1.2. Flyway/JDBC/transaction and
+default-user/servlet bindings use Boot 4 packages and explicit modules. Generated DTOs
+retain their Jackson 2 codecs: bundled web configurations explicitly select the
+Jackson 2 HTTP converter, and strict null-omission/input/pagination assertions remain.
+Java output remains 21. Migration SQL/history is unchanged. This is a breaking Spring
+integration baseline for 0.6.0; published 0.5.x remains unaffected. Mail/key persistence
+and Brevo/Noop adapters are not supplied by the platform upgrade.
+
+Validation for the platform slice: 1,026 reactor test cases outside IntelliJ pass in
+current reports with zero failures/errors/skips (full verify followed by resume after
+fixing the migration failures). The standalone module application passes its real
+Boot/Tomcat/PostgreSQL/HTTP journey, including explicit assertions that request and
+response DTOs select Jackson 2. All 43 tenant/authorization/event spike cases pass.
+All 16 Python tooling tests, 1,193 local documentation links and XML/YAML/whitespace
+checks pass. Installed IntelliJ and standalone examples other than persistent-modules
+were not rerun. No migration history or user data is modified by this change.
+
+
+## Private protected identity delivery envelope
+
+The [internal envelope primitive](../contracts/saas-identity-delivery-envelope.md) uses
+Spring GCM with a bounded deployment-supplied key set, authenticated job/subject/purpose/
+locator/expiry context and a bounded versioned payload. It rejects substitution, expired
+context, malformed data and key problems with a cause-free safe error. No provider,
+Spring bean, export, endpoint, schema migration or durable secret write is added.
+
+Every encryption requires an explicit key-attempt admission callback. Its durable
+registry/usage limit is not implemented yet; a process-local test double is not a
+production gate. Next: private generated admission state and real PostgreSQL concurrency/
+restart/rollback/key-identity proofs, then bounded job persistence and Brevo/Noop workers.
+A11 remains OPEN. Rough scope remains Identity/Auth 55–60%, complete 0.6.0 25–35%.
+
+Validation: identity-jdbc clean verify passes all 17 unit and 44 PostgreSQL/JAR integration
+cases with no failures/errors/skips, including eight new envelope tests. CI requires every
+named envelope proof. All 1,199 local documentation links, XML/YAML and whitespace checks
+pass. The broader platform suite is recorded in the preceding slice; it was not repeated
+for this package-private addition. Installed IDE/final release acceptance remain separate.
+
+
+## Durable identity encryption-attempt admission
+
+The [private key registry](../contracts/saas-identity-encryption-admission.md) binds names
+and fingerprints, charges up to 1,048,576 attempts per key and retains at most 64 lifetime
+identities. Independently committed admission precedes business locks; one-use permits
+carry admission into later encryption without nested transactions or rollback refunds.
+The ninth generated migration adds only two private tables/constraints. Previous histories
+are unchanged. Private startup installs no endpoint/provider and stores no encryption key.
+
+Local identity-jdbc verification passes 18 unit and 48 integration cases without failures/
+errors/skips. Four new restricted PostgreSQL cases cover restart, rollback/abandonment,
+ambient rejection, final-slot concurrency, drift/aliasing and bounded/damaged history.
+The nine-migration live schema check passes. Public issuance/mail/session integration is
+still OPEN. Next: protected mail job accounting and atomic challenge/job persistence.
+
+
+## Atomic protected identity mail requests
+
+The [private request composition](../contracts/saas-identity-mail-requests.md) reserves
+challenge/job/maximum bytes before identifier lookup and atomically writes/reuses the
+owner, verifier and encrypted job. Exact stored bytes are reconciled; cooldown/ineligible
+requests refund unused business reservations, while prepared encryption attempts remain
+spent. Supersession/consumption cancel queued work atomically and retain leased payload
+capacity until settlement. No sender, public route or authentication is installed.
+
+The tenth generated migration adds only the job table and constraints; previous histories
+are unchanged. Existing suites and seven new real PostgreSQL cases pass, including two
+separate Spring contexts racing for the last job slot, restart, rollback and protected-only
+storage. Worker/provider/scheduler and D05/public/session integration remain OPEN. Rough
+orientation: Identity/Auth about 60–65%, complete 0.6.0 still about 30%; full journeys are
+not accepted by these private primitives.

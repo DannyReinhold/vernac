@@ -169,7 +169,7 @@ class IdentityCredentialsPostgresIT {
                                                 f.write(() -> f.credentials.confirm(snapshot)));
                                         assertEquals(0, f.epoch(id.get()));
                                     });
-                            assertEquals(8, db.migrationCount());
+                            assertEquals(10, db.migrationCount());
                         });
     }
 

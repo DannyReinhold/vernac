@@ -1,0 +1,43 @@
+name: Identity mail crypto compatibility
+on:
+  pull_request:
+    paths:
+      - 'experiments/identity-mail-crypto/**'
+      - '.github/workflows/identity-mail-crypto.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  crypto-proof:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: ['21', '25']
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - name: Verify isolated Boot BOM and Spring GCM API
+        run: mvn -B -ntp -f experiments/identity-mail-crypto/pom.xml clean verify
+      - name: Require every crypto proof
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          report = Path('experiments/identity-mail-crypto/target/surefire-reports/TEST-org.vernac.experiments.mail.SpringMailCryptoTest.xml')
+          root = ET.parse(report).getroot()
+          expected = {
+              'deploymentKeySurvivesNewEncryptorInstanceWithoutPasswordDerivation',
+              'libraryGeneratesDifferentCiphertextsForRepeatedPayload',
+              'alteredOrTruncatedCiphertextDoesNotReturnPlaintext',
+              'rotatedWriterCannotReadOldJobsButRetainedReadKeyCan',
+              'libraryRejectsInvalidAesKeyMaterial',
+          }
+          assert {case.attrib['name'] for case in root.findall('testcase')} == expected
+          assert all(root.attrib.get(name, '0') == '0' for name in ('failures', 'errors', 'skipped'))
+          PY
