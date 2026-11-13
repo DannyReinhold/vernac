@@ -1,7 +1,7 @@
 ---
-title: Repository uniqueness — proposed 0.6.0 persistence contract
+title: Aggregate field uniqueness — proposed 0.6.0 contract
 ---
-# Repository uniqueness — proposed 0.6.0 persistence contract
+# Aggregate field uniqueness — proposed 0.6.0 contract
 
 Status: **review proposal; not implemented syntax or runtime functionality**.
 Merging this proposal accepts the design baseline for a subsequent implementation
@@ -24,52 +24,78 @@ for exact equality, or an existence query as the correctness mechanism. Existing
 Spring transaction management and exception translation remain the technical foundation.
 No SaaS dependency or email-specific keyword belongs in the compiler/runtime.
 
-Uniqueness is a cross-aggregate storage invariant. The declaration belongs in the
-repository, which already opts a root into persistence. A VO's `validates` cannot
-prove uniqueness, and `find` result cardinality must remain a separate promise.
+Uniqueness is a domain requirement across instances of an aggregate type. Declare
+it on the aggregate field, where the model expresses that meaning. The repository
+remains the explicit adoption of persistence; its generated database constraint
+provides atomic enforcement. A VO's `validates` or one aggregate instance cannot
+prove the cross-instance requirement, and `find` cardinality remains independent.
+A constraint name is technical infrastructure, not a mandatory domain concept.
 
 ## Proposed declaration
 
-The following code is **planned**, not valid in the current parser:
+The following complete model is **planned**, not valid in the current parser:
 
 ```text
 namespace example.identity;
 
 id LoginClaimId;
-value CanonicalLoginKey(String encoded);
+id UserId;
+value LoginKey(String encoded);
 value DeliveryAddress(String encoded);
 
-global aggregate LoginClaim[LoginClaimId](CanonicalLoginKey loginKey,
-                                         DeliveryAddress deliveryAddress);
+global aggregate LoginClaim[LoginClaimId](
+    UserId owner,
+    unique LoginKey loginKey,
+    DeliveryAddress deliveryAddress
+);
+
 repository LoginClaimRepository for LoginClaim {
-    unique LoginKey(loginKey);
-    find LoginClaim? forKey(CanonicalLoginKey key) where loginKey = :key;
+    find LoginClaim? forKey(LoginKey key) where loginKey = :key;
 }
 ```
 
-The planned repository grammar adds a member alongside existing find declarations:
+`unique` is a modifier on the root domain field. It means that two persisted
+LoginClaim instances cannot have the same loginKey within the aggregate's scope.
+The declaration does not select the field's VO globally: another field of LoginKey
+or another aggregate using LoginKey is unaffected. It does not make owner or
+deliveryAddress unique. To require a second field to be independently unique, mark
+that field separately. Two marked fields mean two independent constraints, never
+one composite key.
+
+The planned aggregate-field shape is:
 
 ```text
-repositoryMember := repositoryFindMethod | repositoryUniqueConstraint
-repositoryUniqueConstraint := 'unique' constraintName '(' rootFieldName ')' ';'
+aggregateField := fieldModifiers type explicitOrDerivedFieldName
+fieldModifiers := ('unique' | 'mut')*   // each modifier occurs at most once
 ```
 
-`constraintName` and `rootFieldName` are simple Vernac identifiers using the existing
-identifier rules. `unique` is a contextual repository-member keyword; existing model,
-field and method names spelled `unique` remain legal wherever identifiers were legal.
-Do not introduce named Java classes, repository methods or callable validation APIs
-for the constraint name. Member order has no semantic effect.
+This is a grammar sketch of the added modifier, not a replacement for the existing
+field/type/name rules. Existing effective-name derivation remains authoritative.
+Both `unique mut LoginKey loginKey` and `mut unique LoginKey loginKey` express the
+same mutable unique field; the canonical documented spelling is `unique mut`.
+Uniqueness does not imply immutability. A modify operation can change a marked field,
+but persistence must reject a value already owned by another aggregate.
+`unique` remains contextual: existing model, field and method identifiers spelled
+`unique` remain legal wherever identifiers were legal. Duplicate modifiers are errors.
 
-The constraint's logical identity is the persisted aggregate identity plus its explicit
-constraint name. Renaming a repository, moving its source file, reordering members or
-changing a query must not rename the database constraint. Reusing a name within one
-repository is an error. Two names for the same effective field/scope are also an error,
-rather than two redundant indexes. Existing one-persistence-repository-per-root rules
-remain in force. A constraint is not a new public type/module export.
+There is no repository-member syntax, user-supplied constraint name or naming override
+in this first slice. Do not generate Java constraint classes, extra accessors, repository
+methods or callable uniqueness validators. Ordinary factories/reconstitution remain
+local object operations; constructing two equal keys in memory must not claim database
+enforcement. A model without an adopted persistence provider retains the declarative
+requirement, but no process-local enforcement is installed or promised. Any other future
+provider must enforce the declared requirement or reject adoption explicitly.
+
+The logical constraint identity is the aggregate identity plus the effective field
+name. Renaming a repository, moving a source file, reordering fields or changing a
+query must not rename the database constraint. Existing duplicate-effective-field
+and one-persistence-repository-per-root rules remain in force. The uniqueness marker
+must survive aggregate module publication/import as field-contract metadata, even
+when the provider repository is private; it is not a separate named public type.
 
 ## Small first supported slice
 
-Each declaration names exactly one required root domain field. Resolve it through the
+Each modifier applies to one required aggregate-root domain field. Resolve it through the
 shared typed model and authoritative storage plan, never by assuming the source name
 is a physical column name. Accept:
 
@@ -78,11 +104,12 @@ is a physical column name. Accept:
 - an ordinary VO directly wrapping one required scalar of type String, UUID, boolean,
   byte, short, int or long, including the corresponding supported boxed forms.
 
-Reject optional roots or optional wrapped scalars, metadata/id aliases, unknown fields,
-entities, collections, nested wrappers, multivalue VOs, nested paths, composite fields,
-expressions, raw SQL and other scalar types. These exclusions are compiler diagnostics,
-not ignored declarations or generated Java errors. The root's built-in `id` already has
-a primary key; a redundant unique declaration for it is rejected.
+Reject marked optional fields or optional wrapped scalars, entities, collections,
+nested wrappers, multivalue VOs and other unsupported scalar types. The modifier is
+not allowed on an entity, VO, event, parameter or metadata member; expressions, raw
+SQL, nested paths and composite uniqueness declarations are not supported. These
+exclusions are compiler diagnostics, not ignored declarations or generated Java errors. The root's built-in `id` already has
+a primary key; adding a unique modifier to its identity slot is rejected.
 
 This initial scope avoids inventing NULL semantics, flattening equivalence, decimal-scale,
 floating signed-zero or temporal-component rules. Wider support requires an explicit
@@ -126,7 +153,7 @@ the raw key must not appear in diagnostics, logs or generated constraint names.
 The ordinary generated schema, module-owned snapshots, initial DDL, incremental planner
 and schema-check must all describe the same constraint and column collation. Use the
 shared quoted physical-name mapping with a logical name of the form
-`@unique:<AggregateName>:<ConstraintName>`; validate collisions with existing constraints
+`@unique:<AggregateName>:<EffectiveFieldName>`; validate collisions with existing constraints
 and indexes after physical-name mapping. Do not embed values or source paths in names.
 
 Represent column collation explicitly in the schema model. Read existing snapshot
@@ -140,8 +167,15 @@ Adding the declaration produces an additive constraint candidate plus any explic
 column-collation alteration. Existing duplicate data makes application fail atomically;
 never delete rows, choose an owner, merge identities or backfill synthetic keys to make
 it succeed. Operators need a separate authorized data-resolution step before retry.
-Changing the selected field, constraint name or tenant classification is an explicit
-schema change, not a Java-only refactor. Dropping the declaration drops its owned
+Renaming a marked effective field or aggregate changes its derived technical identity
+and is an explicit schema change, not a Java-only refactor. The planner must surface
+the relevant column/constraint changes for review. Do not infer a rename from matching
+VO types, silently drop protection, or rewrite published history. Existing tooling
+cannot infer renames; a data-preserving rename requires explicitly reviewed migration
+SQL and the matching target schema. No new automatic rename support is implied.
+A field-type change must also
+revalidate storage equality and scope. Changing tenant classification remains an
+explicit persistence-boundary change. Dropping the declaration drops its owned
 constraint and restores the current ordinary field mapping through reviewed migration.
 Reuse existing foreign-key/UNIQUE ordering and data-change safeguards in the planner.
 Constraint creation/collation changes can scan data and acquire blocking locks; no
@@ -163,8 +197,9 @@ Use Spring's existing JDBC exception translation to identify integrity failures 
 structured PostgreSQL constraint metadata to recognize a declared unique constraint.
 Do not parse localized error text or inspect PostgreSQL's DETAIL value. Recognized
 business-key conflicts become a narrow sanitized runtime exception carrying only the
-allowlisted logical aggregate/constraint identities. It must contain no parameter,
-raw login key, conflicting row/tenant, SQL, nested driver cause or suppressed raw error.
+allowlisted logical aggregate/field identities. Map the generated physical constraint
+name back to those identities; no user-supplied constraint name is required. The
+exception must contain no parameter, raw login key, conflicting row/tenant, SQL, nested driver cause or suppressed raw error.
 There is no automatic public HTTP status mapping.
 
 Only the matching declared constraint gets that classification. Primary-key, optimistic
@@ -182,14 +217,16 @@ transfer claims or expose whether a public login address exists.
 
 Implement resolution/validation once in shared compiler analysis and consume its result
 from schema planning, code generation, LSP and IntelliJ. Required located diagnostics
-cover unknown/unsupported/optional fields, wrong target kind, repeated constraint names,
-redundant field constraints, unsupported member forms and mapped physical-name collisions.
-Diagnostics identify declarations and fields, never runtime values.
+cover unsupported/optional field types, wrong declaration kind, duplicate modifiers,
+unsupported composite/naming forms and mapped physical-name collisions. Existing
+field-name diagnostics remain authoritative. Diagnostics identify declarations and
+fields, never runtime values.
 
-Native editing must recognize the contextual keyword, recover an incomplete member,
-complete valid root fields, navigate the field reference to the root declaration and
-explain scope in hover. Constraint names have their own declaration identity, not a
-fabricated reference to a same-spelled VO. Unsaved LSP/compiler analysis must agree with
+Native editing must recognize the contextual field modifier, recover incomplete
+aggregate fields, offer unique/mut modifiers in valid positions and preserve normal
+field/type completion and type navigation. Hover on a marked field explains its
+global/tenant scope and database enforcement boundary. There is no separate constraint
+name or selector reference to resolve. Unsaved LSP/compiler analysis must agree with
 the build. Changes must preserve existing files that use `unique` as an identifier.
 Packaged IntelliJ acceptance remains separate from headless tests.
 
@@ -197,8 +234,8 @@ Packaged IntelliJ acceptance remains separate from headless tests.
 
 | Slice | Required proof |
 | --- | --- |
-| Compiler/editor model | Positive global/tenant declarations; mixed member order; every rejection above; shared located diagnostics; legacy keyword identifiers; unsaved completion/navigation; no generated public constraint methods |
-| Mapping and history | Stable names/fingerprints; explicit collation; old snapshot reading; deterministic regenerated schema; tenant qualification; enum codes; module ownership; unchanged unrelated histories |
+| Compiler/editor model | Positive global/tenant fields; both modifier orders and mutability; effective-name derivation; independently marked fields; every rejection above; shared located diagnostics; legacy keyword identifiers; unsaved completion/navigation; no fabricated constraint APIs |
+| Mapping and history | Stable names/fingerprints; explicit collation; old snapshot reading; deterministic regenerated schema; tenant qualification; enum codes; exported aggregate field metadata and module ownership; unchanged unrelated histories |
 | Migration/runtime | Live initial/add/drop/change replay and schema-check including collation; duplicate-data failure without owner changes; shared Spring translation and rollback-only sanitized conflict |
 | Concurrent PostgreSQL | Restricted runtime role and two contexts: insert/insert, conflicting update, rollback retry, unchanged same-root save, different-tenant coexistence and same-tenant conflict |
 | Equality/privacy | Exact text/case/accent behavior under a database with a different default collation; oversized value failure; no secret values in exception graphs; nonmatching failures retain categories |

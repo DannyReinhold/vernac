@@ -88,7 +88,7 @@ UserId; this primitive does not reuse subjects or transfer ownership.
 Login-address delivery spelling, canonical lookup keys and exact database uniqueness
 remain unfinished. The current language does not expose a reviewed general unique-field
 constraint. Do not replace the policy's required exact database constraint with a Java
-check, a truncated digest ID or provider-specific mailbox alias folding. The [repository uniqueness proposal](../development/repository-uniqueness-0.6.0.md)
+check, a truncated digest ID or provider-specific mailbox alias folding. The [aggregate field uniqueness proposal](../development/aggregate-uniqueness-0.6.0.md)
 now records that planned persistence contract; it is not implemented. Establish and
 verify the constraint before composing login-address ownership with this lifetime helper.
 No language syntax is introduced in this slice.

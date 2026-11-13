@@ -16,7 +16,7 @@ PowerShell terminal, quote complete dotted arguments, for example
 of IntelliJ's Maven command field.
 
 Source-declared business-key constraints are currently a
-[review proposal](../development/repository-uniqueness-0.6.0.md), not an executable
+[review proposal](../development/aggregate-uniqueness-0.6.0.md), not an executable
 part of this tutorial. Keep existing schema histories unchanged; do not add the
 planned syntax or manually alter snapshots to simulate its implementation.
 

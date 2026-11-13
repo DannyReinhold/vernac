@@ -211,7 +211,7 @@ one surrounding usecase transaction. Failed writes do not restore in-memory stat
 ## Structural constraints and migrations
 
 Source-declared business-key uniqueness is not implemented. The
-[0.6.0 review proposal](../development/repository-uniqueness-0.6.0.md) describes a
+[0.6.0 review proposal](../development/aggregate-uniqueness-0.6.0.md) describes a
 planned feature; existing structural UNIQUE constraints do not imply that syntax.
 
 

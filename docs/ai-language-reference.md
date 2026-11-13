@@ -1955,6 +1955,6 @@ are introduced. Do not expose internal outcome/digest/row representations to cli
 
 The optional JDBC provider now includes [private charged pending state](contracts/saas-identity-registrations.md). Allocation, the immutable seven-day deadline, trusted completion and bounded primary-key cleanup share the existing writer/capacity boundary. Use challenge consumption before completion; a false completion must roll back that composition. No public registration, login-address ownership, provisioning or scheduler is installed. Exact login-key database uniqueness remains required; do not replace it with Java checks or truncated digest IDs.
 
-## Planned repository uniqueness — not implemented
+## Planned aggregate field uniqueness — not implemented
 
-The [0.6.0 review proposal](development/repository-uniqueness-0.6.0.md) specifies named repository constraints, automatic tenant scope, exact text equality and required compiler/schema/runtime/editor proofs. It is a design baseline for a later implementation PR. Do not emit its `unique` member syntax in working models, infer uniqueness from singleton find results, or hand-edit schema snapshots to bypass the current grammar.
+The [0.6.0 review proposal](development/aggregate-uniqueness-0.6.0.md) specifies a `unique` aggregate-field modifier, automatically derived technical constraint names, tenant scope, exact text equality and required compiler/schema/runtime/editor proofs. It is a design baseline for a later implementation PR. Do not emit its `unique` field-modifier syntax in working models, infer uniqueness from singleton find results, or hand-edit schema snapshots to bypass the current grammar.

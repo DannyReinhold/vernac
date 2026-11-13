@@ -768,11 +768,12 @@ tests pass; documentation links, workflow YAML, plugin XML and diff checks are c
 The full core/installed-IDE/release reactor was not rerun for this optional-library
 slice. GitHub CI and final integrated release acceptance remain separate.
 
-## Repository uniqueness design baseline
+## Aggregate field uniqueness design baseline
 
-The [uniqueness review proposal](repository-uniqueness-0.6.0.md) now isolates the
-required persistence decision before new grammar/runtime code. It proposes named
-single-required-field repository constraints, global or automatically tenant scoped,
+The [uniqueness review proposal](aggregate-uniqueness-0.6.0.md) now isolates the
+required persistence decision before new grammar/runtime code. It proposes `unique`
+on a required aggregate field, with automatically derived technical constraint names,
+global or automatically tenant scoped,
 with exact deterministic text mapping, normal PostgreSQL enforcement and sanitized
 Spring/JDBC conflict handling. Schema ownership, versioned collation metadata, migration
 review, editor behavior and multi-context PostgreSQL proofs are required together.
