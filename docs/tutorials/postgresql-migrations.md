@@ -15,10 +15,10 @@ PowerShell terminal, quote complete dotted arguments, for example
 `mvn vernac:migration "-Dvernac.migrationDescription=initial"`. Keep the quotes out
 of IntelliJ's Maven command field.
 
-Source-declared business-key constraints are currently a
-[review proposal](../development/aggregate-uniqueness-0.6.0.md), not an executable
-part of this tutorial. Keep existing schema histories unchanged; do not add the
-planned syntax or manually alter snapshots to simulate its implementation.
+The [`unique` aggregate-field marker](../contracts/aggregate-uniqueness.md) has a
+language-model foundation, but database constraint generation is not yet implemented.
+A marked persistent aggregate explicitly fails generation in this slice. Keep existing
+schema histories unchanged; do not manually alter snapshots to simulate enforcement.
 
 ## Start with the example
 

@@ -25,7 +25,7 @@ For a guide across all documentation, use the [documentation map](../documentati
 
 ## Implementation and decisions
 
-- [Aggregate field uniqueness proposal](aggregate-uniqueness-0.6.0.md): planned `unique` field modifier, derived database constraints and tenant scope and implementation acceptance; not implemented syntax.
+- [Aggregate field uniqueness design](aggregate-uniqueness-0.6.0.md): accepted baseline; syntax/model/module foundation implemented, database enforcement and persistence adoption still pending.
 
 - [Compiler architecture](compiler-architecture.md): shared resolution, names and generation.
 - [Feature review checklist](feature-review-checklist.md): purpose, quality, diagnostics and tooling.

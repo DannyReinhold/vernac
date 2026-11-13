@@ -86,10 +86,11 @@ UserId; this primitive does not reuse subjects or transfer ownership.
 ## Boundaries and next work
 
 Login-address delivery spelling, canonical lookup keys and exact database uniqueness
-remain unfinished. The current language does not expose a reviewed general unique-field
-constraint. Do not replace the policy's required exact database constraint with a Java
-check, a truncated digest ID or provider-specific mailbox alias folding. The [aggregate field uniqueness proposal](../development/aggregate-uniqueness-0.6.0.md)
-now records that planned persistence contract; it is not implemented. Establish and
+remain unfinished. The language now parses a unique aggregate-field requirement,
+but its database enforcement is not implemented. Do not replace the policy's required exact database constraint with a Java
+check, a truncated digest ID or provider-specific mailbox alias folding. The [aggregate field uniqueness design](../development/aggregate-uniqueness-0.6.0.md)
+records the remaining persistence contract; the [model foundation](aggregate-uniqueness.md)
+is implemented, while constraint generation is deliberately blocked. Establish and
 verify the constraint before composing login-address ownership with this lifetime helper.
 No language syntax is introduced in this slice.
 

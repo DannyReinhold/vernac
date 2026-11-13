@@ -7,7 +7,7 @@ A reusable library should carry its access contract with it. Calling an invoice
 operation through another application must not erase the checks written by its author.
 This walkthrough builds on [local usecase authorization](usecase-authorization.md) and
 [type modules](type-modules.md). It requires matching **0.6.0-SNAPSHOT** artifacts using
-module-contracts-11; it is not available in the published 0.5.x release.
+module-contracts-12; it is not available in the published 0.5.x release.
 
 ## Put the requirement in the producer
 

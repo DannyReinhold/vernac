@@ -1,14 +1,14 @@
 ---
-title: Aggregate field uniqueness — proposed 0.6.0 contract
+title: Aggregate field uniqueness — 0.6.0 design baseline
 ---
-# Aggregate field uniqueness — proposed 0.6.0 contract
+# Aggregate field uniqueness — 0.6.0 design baseline
 
-Status: **review proposal; not implemented syntax or runtime functionality**.
-Merging this proposal accepts the design baseline for a subsequent implementation
-PR. It does not make the examples compile, install a constraint or close an identity
-or release gate. The current [query contract](../contracts/repository-queries.md)
-and [PostgreSQL mapping](../contracts/postgresql-persistence.md) remain authoritative
-for implemented behavior.
+Status: **accepted design baseline; partially implemented**. The
+[language-model foundation](../contracts/aggregate-uniqueness.md) implements syntax,
+effective names, semantic checks and module/editor metadata. The full example below
+includes a repository and therefore cannot yet generate persistence: database
+constraint/collation/migration/JDBC enforcement remains pending. Schema generation
+rejects adoption instead of emitting an unenforced table. No identity/release gate is closed.
 
 ## Problem and boundary
 
@@ -33,7 +33,8 @@ A constraint name is technical infrastructure, not a mandatory domain concept.
 
 ## Proposed declaration
 
-The following complete model is **planned**, not valid in the current parser:
+The following complete model parses, but its repository adoption remains **blocked**
+until database enforcement is implemented:
 
 ```text
 namespace example.identity;
@@ -241,14 +242,16 @@ Packaged IntelliJ acceptance remains separate from headless tests.
 | Equality/privacy | Exact text/case/accent behavior under a database with a different default collation; oversized value failure; no secret values in exception graphs; nonmatching failures retain categories |
 | Identity adoption | Canonical address ownership only after the above proofs; race/restart/cleanup/closure rules; no public-flow acceptance until protected delivery and provisioning exist |
 
-No new implementation tests are claimed by this design PR. Executable schema/runtime/IDE
-proofs belong to the implementation PR and must reject skipped database cases in CI/release
+The model foundation now has compiler/module/headless editor tests. Executable
+schema/runtime and packaged IDE proofs still belong to the enforcement follow-up and must reject skipped database cases in CI/release
 checks. Update the implemented contracts, specification, language/AI references, guided
-example, FAQ and plugin What's New when the feature actually ships. Until then all working
-examples keep using the current grammar; planned syntax is clearly isolated here.
+example, FAQ and plugin What's New when the feature actually ships. Working persistence examples must not adopt the marker until its backend enforcement
+is available. The standalone domain example in the model contract compiles without a repository.
 
-The next PR should implement the first vertical slice through compiler, shared schema,
-JDBC and editor analysis with the required PostgreSQL proofs. Canonical identity address
+The compiler/module language-model foundation is now implemented separately, with an
+explicit persistence guard. The next PR must implement shared schema mapping,
+collation/migrations, JDBC enforcement and the remaining editor behavior with the
+required PostgreSQL proofs before persistence adoption is enabled. Canonical identity address
 ownership follows it; protected mail, account/owner provisioning and public browser flows
 remain subsequent work. No completion percentage increases merely because this design is
 written or merged.

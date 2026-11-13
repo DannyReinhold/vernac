@@ -246,7 +246,7 @@ conversions, identity/authorization and the SaaS starter remain OPEN or fail clo
 
 ## Tenant module metadata evidence
 
-module-contracts-11 preserves exported aggregate scope and entity ownership/restoration
+module-contracts-12 preserves exported aggregate scope and entity ownership/restoration
 capability. Read-only import views retain scope; scope changes are incompatible. Tests
 compile a producer JAR and persist its entities inside a local tenant graph without
 regenerating dependency classes. This is partial A20 evidence. Persistent tenant module activation now verifies
@@ -793,3 +793,36 @@ public Spring/browser flows follow.
 Design-PR validation: 1,157 local links across 165 documents and all 16 Python
 tooling tests pass; whitespace checks are clean. Java/PostgreSQL/IDE tests were
 not rerun for this documentation-only change, and no new implementation proof is claimed.
+
+## Unique aggregate field language-model foundation
+
+The [unique field model contract](../contracts/aggregate-uniqueness.md) now implements
+`unique LoginKey` with ordinary effective-name derivation (`loginKey`), explicit/qualified
+spellings, both unique/mut modifier orders and shared located validation. The first
+accepted type slice is checked in project/editor analysis. Ordinary generated domain
+objects compile without a cross-instance Java registry or new constraint methods.
+
+The requirement is retained in module-contracts-12 field metadata, source views, JSON
+round trips, imported ASTs and compatibility fingerprints. Rebuild development producers
+and consumers together; older contract versions fail explicitly. Existing persistence
+snapshot formats and migrations are unchanged. LSP/native type references and incomplete
+type completion work after the marker; scope hover makes the partial status explicit.
+
+This is the first code slice, not database uniqueness acceptance. Marked persistent
+roots fail schema/JDBC generation rather than producing an unenforced table. The next
+PR must add derived constraints, versioned collation metadata/catalog checks, migration
+planning, safe JDBC conflict handling and multi-context PostgreSQL proofs before enabling
+adoption. Dedicated modifier completion and packaged IDE acceptance remain unfinished.
+Canonical login-address ownership follows backend enforcement; then protected mail,
+provisioning and public browser flows. Identity/Auth remains roughly 50–55% and overall
+0.6.0 25–35%; no release gate is closed by the language-model foundation.
+
+Local JDK 25 evidence: the complete reactor excluding vernac-intellij passes clean
+verify with 1,011 cases in 216 suites, zero failures/errors/skips. This includes 13
+new unique-model/module/LSP cases and all 90 Identity/SaaS cases in 24 required suites,
+plus existing restricted PostgreSQL/Maven schema/module proofs. The seven identity
+migration histories are unchanged. All 16 Python tooling tests and 1,165 local links
+across 166 documents pass; workflow YAML, plugin XML and whitespace checks are clean.
+The full reactor attempt stalled resolving uncached IntelliJ platform dependencies
+and was interrupted at that module. Native plugin build/installation and the separate
+experiment/release gates were not completed locally; CI remains separate evidence.

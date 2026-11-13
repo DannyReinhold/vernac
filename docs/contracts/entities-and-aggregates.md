@@ -50,6 +50,10 @@ Aggregates cannot be contained, directly or through collections. Reference anoth
 aggregate through its id, or an id collection. Collections of aggregates may still be
 declared and used outside domain containment, for example as query results.
 
+Aggregate fields may additionally declare [`unique`](aggregate-uniqueness.md), including
+an omitted field name. This is currently a language-model requirement only; persistence
+adoption is explicitly blocked until database enforcement is implemented.
+
 `mut` permits replacing the field value/reference. It does not make the field optional.
 A field without `mut` cannot be replaced, but a contained entity can still change through
 its public behavior. Immutable collection membership does not imply immutable elements.

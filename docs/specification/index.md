@@ -38,6 +38,7 @@ See the [platform scope](../faq/index.md#does-vernac-support-applications-withou
 - [Named collections](../contracts/collections.md)
 - [Behavior](../contracts/behavior.md)
 - [Entities and aggregates](../contracts/entities-and-aggregates.md)
+- [Aggregate field uniqueness](../contracts/aggregate-uniqueness.md): syntax/model foundation only; persistence adoption is explicitly blocked until enforcement exists.
 - [Usecases](../contracts/usecases.md)
 - [Domain services](../contracts/domain-services.md)
 - [Versioned modules](../contracts/modules.md): exports, compiled reuse, activation and independent histories.

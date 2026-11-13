@@ -7,7 +7,7 @@ Persistent and nonpersistent functions support explicit runtime activation with
 coordinated histories. Module events, recorded payloads and synchronous/deferred receivers are supported.
 Internal inbound HTTP adapters support explicit module activation. Current 0.6.0
 development tools add permission exports and preserved usecase access requirements;
-these require module-contracts-11.
+these require module-contracts-12.
 
 ## Purpose and boundaries
 
@@ -114,7 +114,7 @@ business validations; those execute in the module's compiled factories and behav
 Sources SHOULD be supplied in the matching Maven sources artifact. Source attachment
 availability MUST NOT affect compilation or type identity. Metadata and source paths
 MUST NOT contain absolute paths from the publisher's machine. The initial descriptor is `META-INF/vernac/module.json`, formatVersion 1 and
-contractVersion `module-contracts-11`. Source attachments use `vernac/<namespace path>/<file>`.
+contractVersion `module-contracts-12`. Source attachments use `vernac/<namespace path>/<file>`.
 Generated companion Java signatures are recorded with explicit field/method contracts.
 Descriptors include an independent runtime component/dependency plan. They contain no module migration instructions yet.
 
@@ -173,7 +173,7 @@ Stored expected contracts, not only hashes, are required for compatibility diagn
 A deterministic fingerprint describes each public contract. Equal fingerprints are
 an efficient unchanged-contract check. Different fingerprints MUST trigger a
 structured expected-versus-resolved comparison, not an unconditional rejection.
-The module-contracts-11 fingerprint is SHA-256 over a canonical JSON tuple containing
+The module-contracts-12 fingerprint is SHA-256 over a canonical JSON tuple containing
 identity, kind, Java name, ordered fields/constants, collection element/kind, sorted
 public behaviors, sorted generated Java-member contracts and ordered usecase authorization
 requirements. Permission key members are sorted; domain enum order remains significant.
@@ -507,7 +507,7 @@ contract-only publication does not activate beans, adapters or migrations.
 Adding an abstract port operation is not treated like adding a uniquely named class
 behavior: existing implementors must be rebuilt/adapted. Public signature changes,
 including optionality, are structural changes. The current contract metadata version
-is `module-contracts-11`; earlier development descriptors must be rebuilt.
+is `module-contracts-12`; earlier development descriptors must be rebuilt.
 
 Adapter publication, configured selection, service/usecase activation and coordinated
 persistent histories are supported. Exporting PaymentProvider does not
@@ -517,7 +517,7 @@ make its producer an activated billing implementation.
 
 A producer MAY export outbound adapters. Their Java identity is
 `<namespace>.adapter.outbound.<Name>`; their implemented port and public operation
-contracts are included in `module-contracts-11` metadata. Required configuration keys
+contracts are included in `module-contracts-12` metadata. Required configuration keys
 are contract metadata, never property values. Local public types/ports require explicit
 exports; foreign contracts are recorded as dependency requirements, not re-exported.
 
@@ -583,7 +583,7 @@ The descriptor's `components` list is a separate wiring plan, not part of a publ
 definition fingerprint. Private helper changes and technical DI constructor changes
 therefore do not change the public API fingerprint. Public operation signatures and
 inline result fields remain compatibility inputs. Rebuild module artifacts to emit
-`module-contracts-11` metadata before consuming them with this compiler.
+`module-contracts-12` metadata before consuming them with this compiler.
 
 ## Module persistence bundle preparation (current)
 
@@ -619,7 +619,7 @@ All Maven schema/migration/check/compile goals use the module SQL source default
 For persistence packaging, module SQL MUST reside outside ordinary Maven resource
 roots; otherwise the same scripts could leak into the application's Flyway scan.
 
-The descriptor format is version 1, separate from `module-contracts-11`. It includes
+The descriptor format is version 1, separate from `module-contracts-12`. It includes
 canonical identities, ordered filenames, SHA-256 hashes of the exact SQL and snapshot
 bytes, the complete expected schema and its semantic fingerprint. Packaging MUST
 require that the reviewed source snapshot chain reaches the current compiler schema.
@@ -668,7 +668,7 @@ implementation rebuilds, just as adding abstract port operations does.
 The metadata's `element` field identifies a collection element, entity/aggregate ID,
 repository aggregate or implemented port according to definition kind. Field records
 include `mutable`; method records include `mode`. The producer emits
-`module-contracts-11`; earlier development module artifacts must be rebuilt.
+`module-contracts-12`; earlier development module artifacts must be rebuilt.
 
 Modules with repositories or a recorded migration history carry `persistent=true`.
 Publishing them MUST package and verify the current schema against their source
@@ -759,7 +759,7 @@ event contract; this support makes no persistence or retry guarantee.
 Deferred module receivers MUST require the producer's EVENT_STORAGE component.
 Producer payload tables MUST be isolated from application-owned shared delivery tables.
 The application worker MUST start only after all required migrations and validation.
-Metadata contract version is module-contracts-11; prior development modules MUST be rebuilt.
+Metadata contract version is module-contracts-12; prior development modules MUST be rebuilt.
 
 ## Durable module event storage and delivery (current)
 
@@ -832,7 +832,7 @@ persistent modules, those modules' migrations finish before the entrypoint beans
 created. A non-web application may activate a module containing entrypoints if its
 classpath provides the transport dependencies; routes are available only in a servlet
 web application. Controller/advice component contracts require metadata version
-`module-contracts-11`; rebuild earlier development artifacts.
+`module-contracts-12`; rebuild earlier development artifacts.
 
 
 ## Dependency navigation and refresh
@@ -866,7 +866,7 @@ table ownership and does not enable automatic baselining of an existing schema.
 
 ## Tenant contracts and ownership-aware type imports (0.6.0 development)
 
-The metadata contract is `module-contracts-11`. Earlier descriptors MUST be rebuilt;
+The metadata contract is `module-contracts-12`. Earlier descriptors MUST be rebuilt;
 the compiler MUST NOT assume that an older entity binary implements ownership-aware
 restoration. This is a development compiler contract change, not a silent upgrade
 of released module artifacts. The JSON container format remains version 1.
@@ -910,7 +910,7 @@ and MUST NOT escape validation merely because they are not exported APIs.
 Runtime schema data MUST preserve format-2 tenant classification and reject incomplete
 discriminators, ambiguous roots and cross-graph owned foreign keys. Format-1 unscoped
 snapshot serialization/fingerprints MUST remain unchanged. The module contract remains
-module-contracts-11; persistence bundle/snapshot envelopes remain version 1.
+module-contracts-12; persistence bundle/snapshot envelopes remain version 1.
 
 Format-3 event origin metadata is generated with matching GLOBAL/tenant storage bindings,
 while format-1/2 fingerprints remain stable. Global event modules participate in the

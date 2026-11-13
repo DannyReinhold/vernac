@@ -5,7 +5,7 @@ title: Declarative usecase authorization
 
 Status: **local and reusable-module declarations with generated enforcement implemented
 in 0.6.0-SNAPSHOT**. Use matching compiler/runtime/tooling versions and rebuild module
-artifacts for module-contracts-11. This is not a complete identity/roles/subscription
+artifacts for module-contracts-12. This is not a complete identity/roles/subscription
 system. The optional [explicit-access startup audit](explicit-authorization.md) checks
 registered generated usecases; it is not a whole-program security proof.
 
@@ -154,7 +154,7 @@ hidden and missing resource facts through public denial details.
 
 ## Modules, IDE and acceptance limits
 
-Permissions and usecase requirements are preserved in module-contracts-11 metadata.
+Permissions and usecase requirements are preserved in module-contracts-12 metadata.
 An exported usecase's permission types MUST be explicitly exported by their owning
 module. Imports do not activate components or grant rights. Public and internal
 usecase access headers are retained for dependency compatibility checks; changed

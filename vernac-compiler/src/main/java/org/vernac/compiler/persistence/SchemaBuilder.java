@@ -70,6 +70,9 @@ public final class SchemaBuilder {
                 String key = type.symbol().identity().qualifiedName();
                 if (!roots.add(key)) fail(repo.location(), "Only one persistence repository per aggregate is supported: " + key);
                 AggregateNode a = (AggregateNode) definitions.get(key);
+                a.fields().stream().filter(FieldNode::isUnique).findFirst().ifPresent(field ->
+                        fail(field.location(), "Persistence enforcement of unique aggregate fields is not implemented yet; "
+                                + "no schema or JDBC repository may be generated without its required constraint."));
                 MutableTable t = new MutableTable(type.symbol().identity().namespace(), a.name(), key, List.of("id"));
                 root = t;
                 tenantRoot = a.tenant();

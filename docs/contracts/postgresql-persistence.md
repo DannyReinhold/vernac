@@ -210,10 +210,10 @@ one surrounding usecase transaction. Failed writes do not restore in-memory stat
 
 ## Structural constraints and migrations
 
-Source-declared business-key uniqueness is not implemented. The
-[0.6.0 review proposal](../development/aggregate-uniqueness-0.6.0.md) describes a
-planned feature; existing structural UNIQUE constraints do not imply that syntax.
-
+The [`unique` aggregate-field marker](aggregate-uniqueness.md) is parsed and validated,
+but database enforcement is not implemented. Schema/JDBC generation for a marked
+persistent aggregate fails explicitly. The [accepted design](../development/aggregate-uniqueness-0.6.0.md)
+specifies the remaining mapping/migration/runtime work.
 
 Constraints enforce a reconstructable representation, not arbitrary `validates`
 expressions from the domain. Required top-level columns rely on NOT NULL. Optional

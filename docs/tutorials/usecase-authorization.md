@@ -152,7 +152,7 @@ mvn -B -ntp -f experiments/tenant-isolation-spike/pom.xml -Dtest=GeneratedAuthor
 You can also publish these contracts in reusable modules. Follow
 [Carry access requirements across module boundaries](module-authorization.md) for
 explicit exports, activation and security-aware upgrades. Module artifacts must use
-module-contracts-11. Local and imported declarations have compiler diagnostics and
+module-contracts-12. Local and imported declarations have compiler diagnostics and
 key/resource completion and navigation. The final packaged-plugin acceptance remains
 a release check.
 

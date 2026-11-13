@@ -29,7 +29,7 @@ public record ModuleDescriptor(int formatVersion,String contractVersion,String m
     }
     public static final String RESOURCE="META-INF/vernac/module.json";
     public static final ObjectMapper JSON=new ObjectMapper();
-    public static final String CONTRACT="module-contracts-11";
+    public static final String CONTRACT="module-contracts-12";
     public record Type(String name,boolean optional,String pageKind) {
         public Type(String name,boolean optional) {this(name,optional,"NONE");}
         public Type {pageKind=pageKind==null?"NONE":pageKind;TypeNode.PageKind.valueOf(pageKind);}
@@ -37,7 +37,10 @@ public record ModuleDescriptor(int formatVersion,String contractVersion,String m
     public record Component(String identity,String kind,String javaName,List<String> dependencies) {
         public Component {dependencies=List.copyOf(dependencies);}
     }
-    public record Field(String name,Type type,boolean mutable) {public Field(String name,Type type){this(name,type,false);}}
+    public record Field(String name,Type type,boolean mutable,boolean unique) {
+        public Field(String name,Type type){this(name,type,false,false);}
+        public Field(String name,Type type,boolean mutable){this(name,type,mutable,false);}
+    }
     public record Method(String name,Type returns,List<Field> parameters,String mode) {
         public Method(String name,Type returns,List<Field> parameters){this(name,returns,parameters,"DEFAULT");}
         public Method {parameters=List.copyOf(parameters);if(!Set.of("DEFAULT","READ","MODIFY","OFFSET_QUERY","COUNTED_OFFSET_QUERY","CURSOR_QUERY").contains(mode))throw new IllegalArgumentException("Invalid public method mode: "+mode);}
@@ -69,6 +72,10 @@ public record ModuleDescriptor(int formatVersion,String contractVersion,String m
             Objects.requireNonNull(authorization, "Missing usecase authorization metadata; rebuild the module");
             if (!kind.equals("USE_CASE") && !authorization.mode().equals("OMITTED"))
                 throw new IllegalArgumentException("Authorization metadata belongs only to usecases: " + identity);
+            if (!kind.equals("AGGREGATE") && fields.stream().anyMatch(Field::unique))
+                throw new IllegalArgumentException("Unique fields belong only to aggregate contracts: " + identity);
+            if (methods.stream().flatMap(m -> m.parameters().stream()).anyMatch(Field::unique))
+                throw new IllegalArgumentException("Unique fields cannot be operation parameters: " + identity);
             fields=List.copyOf(fields);constants=kind.equals("PERMISSION")?constants.stream().sorted().toList():List.copyOf(constants);
             methods=methods.stream().sorted(Comparator.comparing(m->m.name()+m.parameters())).toList();
             javaMembers=Collections.unmodifiableMap(new TreeMap<>(javaMembers));

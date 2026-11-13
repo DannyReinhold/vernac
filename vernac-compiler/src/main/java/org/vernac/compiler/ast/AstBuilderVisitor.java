@@ -377,7 +377,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     }
     private FieldNode adapterParameter(VernacParser.ParameterContext p) {
         var type = toTypeNode(p.type());
-        return new FieldNode(toLocation(p),type,p.name == null ? org.vernac.language.VernacNames.defaultMemberName(type.name()) : p.name.getText(),p.isMut != null,p.name != null);
+        return new FieldNode(toLocation(p),type,p.name == null ? org.vernac.language.VernacNames.defaultMemberName(type.name()) : p.name.getText(),p.isMut != null,p.name != null, unique(p));
     }
 
     @Override
@@ -429,6 +429,25 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         return fullBlock;
     }
 
+    /** Structural modifier checks are shared by build and tolerant editor AST construction. */
+    private boolean unique(VernacParser.ParameterContext parameter) {
+        for (String modifier : List.of("unique", "mut")) {
+            long count = parameter.children.stream()
+                    .filter(org.antlr.v4.runtime.tree.TerminalNode.class::isInstance)
+                    .filter(child -> child.getText().equals(modifier)).count();
+            if (count > 1) throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(
+                    org.vernac.compiler.analyzer.CompilerDiagnostic.error(toLocation(parameter),
+                            "Duplicate field modifier '" + modifier + "'.")));
+        }
+        if (parameter.isUnique == null) return false;
+        if (!(parameter.getParent() instanceof VernacParser.ParameterListContext list)
+                || !(list.getParent() instanceof VernacParser.AggregateDefinitionContext))
+            throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(
+                    org.vernac.compiler.analyzer.CompilerDiagnostic.error(toLocation(parameter),
+                            "unique belongs only to aggregate root fields.")));
+        return true;
+    }
+
     private List<FieldNode> extractParameters(VernacParser.ParameterListContext ctx) {
         List<VernacParser.ParameterContext> params = ctx.parameter();
 
@@ -444,7 +463,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                         fieldName = org.vernac.language.VernacNames.defaultMemberName(type.name());
                     }
 
-                    return new FieldNode(toLocation(p), type, fieldName, isMut, p.name != null);
+                    return new FieldNode(toLocation(p), type, fieldName, isMut, p.name != null, unique(p));
                 })
                 .toList();
     }
@@ -498,7 +517,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         List<FieldNode> dependencies=ctx.dependencies.stream().map(p -> {
             TypeNode t=toTypeNode(p.type());
             String name=p.name==null?org.vernac.language.VernacNames.defaultMemberName(t.name()):p.name.getText();
-            return new FieldNode(toLocation(p),t,name,p.getText().startsWith("mut"),p.name!=null);
+            return new FieldNode(toLocation(p),t,name,p.isMut != null,p.name!=null, unique(p));
         }).toList();
         List<ValidationRuleNode> rules=ctx.validationBlock()==null?List.of():ctx.validationBlock().validationStatement().stream()
                 .map(v -> new ValidationRuleNode(toLocation(v),extractRawSource(v.condition),v.message==null?"":unquote(v.message.getText()))).toList();
@@ -543,7 +562,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         var dependencies = ctx.dependencies.stream().map(p -> {
             var type = toTypeNode(p.type());
             var name = p.name == null ? org.vernac.language.VernacNames.defaultMemberName(type.name()) : p.name.getText();
-            return new FieldNode(toLocation(p), type, name, p.isMut != null, p.name != null);
+            return new FieldNode(toLocation(p), type, name, p.isMut != null, p.name != null, unique(p));
         }).toList();
         var imports = ctx.javaImports() == null ? List.<JavaImportNode>of() : ctx.javaImports().qualifiedName().stream()
                 .map(n -> new JavaImportNode(toLocation(n), n.getText())).toList();
@@ -562,7 +581,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         var eventType = toTypeNode(ctx.eventType);
         var dependencies = ctx.dependencies.stream().map(p -> {
             var type = toTypeNode(p.type());
-            return new FieldNode(toLocation(p), type, p.name == null ? org.vernac.language.VernacNames.defaultMemberName(type.name()) : p.name.getText(), p.isMut != null, p.name != null);
+            return new FieldNode(toLocation(p), type, p.name == null ? org.vernac.language.VernacNames.defaultMemberName(type.name()) : p.name.getText(), p.isMut != null, p.name != null, unique(p));
         }).toList();
         var imports = ctx.javaImports() == null ? List.<JavaImportNode>of() : ctx.javaImports().qualifiedName().stream().map(n -> new JavaImportNode(toLocation(n), n.getText())).toList();
         List<MethodNode> helpers = new ArrayList<>(); String body = ""; Optional<String> implementation = Optional.empty(); int count = 0;

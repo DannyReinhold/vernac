@@ -100,6 +100,13 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>0.6.0 development — Unique aggregate field model</h3>
+<p>Aggregate fields accept unique with normal field-name omission, including
+unique LoginKey. Shared analysis, module-contracts-12 metadata, type navigation and
+LSP scope hover retain the requirement. Database enforcement is still in development:
+schema/JDBC generation for a marked persistent aggregate is rejected explicitly.
+Rebuild development module producers and consumers together.</p>
+
 <h3>0.6.0 development — Pending registration lifetime</h3>
 <p>The optional SaaS library now supplies private charged seven-day pending state,
 transactional completion and bounded cleanup. Login-address ownership, protected mail,
@@ -202,7 +209,7 @@ the same PostgreSQL writer database before migration writes. Tenant module activ
 <h3>0.6.0 development — Tenant-aware module contracts</h3>
 <p>Dependency contract views preserve tenant/global aggregate scope. Local tenant
 aggregates can persist imported module entities with ownership-aware restoration.
-Metadata is module-contracts-11; rebuild producers and consumers. Persistent tenant module activation and durable event routing have dedicated
+Metadata is module-contracts-12; rebuild producers and consumers. Persistent tenant module activation and durable event routing have dedicated
 PostgreSQL acceptance.</p>
 
 <h3>0.6.0 development — Explicit persistence classification</h3>

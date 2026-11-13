@@ -29,7 +29,7 @@ the separate SaaS Wizard/starter remains future work and is not supplied by this
 ## Inventory and registered reachability
 
 The compiler generates a Spring BeanFactoryPostProcessor and an inventory of local
-usecases plus public/internal dependency usecases from module-contracts-11 metadata.
+usecases plus public/internal dependency usecases from module-contracts-12 metadata.
 Each inventory entry contains only the nominal operation identity, compiled class and
 access mode. No actor, input, token, grant, secret or policy implementation is serialized.
 The generated configuration is included through the existing application imports resource,
