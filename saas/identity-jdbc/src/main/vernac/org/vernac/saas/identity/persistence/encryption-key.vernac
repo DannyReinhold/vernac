@@ -1,0 +1,47 @@
+namespace org.vernac.saas.identity.persistence;
+
+id IdentityEncryptionKeyId;
+id IdentityEncryptionRegistryId;
+value IdentityEncryptionKeyName(String encoded) validates {
+    require(self.encoded().matches("[a-z][a-z0-9-]{0,31}"), "Invalid delivery key ID");
+} behavior {
+    public String toString() { return "IdentityEncryptionKeyName[REDACTED]"; }
+};
+value IdentityEncryptionFingerprint(String encoded) validates {
+    require(self.encoded().matches("[0-9a-f]{64}"), "Invalid delivery key fingerprint");
+} behavior {
+    public String toString() { return "IdentityEncryptionFingerprint[REDACTED]"; }
+};
+value IdentityEncryptionAttempts(long amount) validates {
+    require(self.amount() >= 0 && self.amount() <= 1048576, "Invalid encryption attempt count");
+};
+value IdentityEncryptionKeyCount(long amount) validates {
+    require(self.amount() >= 0 && self.amount() <= 64, "Invalid delivery key registry size");
+};
+
+global aggregate IdentityEncryptionKey[IdentityEncryptionKeyId](
+    unique IdentityEncryptionKeyName keyName,
+    unique IdentityEncryptionFingerprint fingerprint,
+    mut IdentityEncryptionAttempts attempts
+) behavior {
+    modify boolean reserve() {
+        if (self.attempts().amount() >= 1048576) return false;
+        self.attempts(IdentityEncryptionAttempts.of(self.attempts().amount() + 1));
+        return true;
+    }
+};
+repository IdentityEncryptionKeyRepository for IdentityEncryptionKey {
+    find IdentityEncryptionKey? named(IdentityEncryptionKeyName name) where keyName = :name;
+    find IdentityEncryptionKey? matching(IdentityEncryptionFingerprint fingerprint) where fingerprint = :fingerprint;
+}
+
+global aggregate IdentityEncryptionRegistry[IdentityEncryptionRegistryId](mut IdentityEncryptionKeyCount used) behavior {
+    modify boolean register() {
+        if (self.used().amount() >= 64) return false;
+        self.used(IdentityEncryptionKeyCount.of(self.used().amount() + 1));
+        return true;
+    }
+};
+repository IdentityEncryptionRegistryRepository for IdentityEncryptionRegistry {
+    find IdentityEncryptionRegistry? existing(IdentityEncryptionRegistryId id) where id = :id;
+}

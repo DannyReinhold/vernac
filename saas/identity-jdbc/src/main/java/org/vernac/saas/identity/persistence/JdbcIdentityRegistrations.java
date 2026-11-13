@@ -240,12 +240,12 @@ final class JdbcIdentityRegistrations {
                         // registration.
                         if (identity.status() != IdentityStatus.PENDING_VERIFICATION)
                             throw new Failure(Code.INCONSISTENT_STATE);
-                        // Protected delivery envelopes must join this cleanup before public flows
-                        // ship.
+                        // Cancel queued mail atomically; leased payloads retain their charge.
                         for (var purpose : IdentityChallengePurpose.values()) {
                             var challenge = challenges.current(subject, purpose);
                             challenge.ifPresent(
                                     value -> {
+                                        new JdbcIdentityMailLedger(jdbc).cancel(value.id());
                                         challenges.delete(value);
                                         capacity.release(Map.of(ACTIONABLE_CHALLENGES, 1L));
                                     });
