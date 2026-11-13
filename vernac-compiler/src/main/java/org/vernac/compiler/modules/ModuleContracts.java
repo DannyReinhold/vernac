@@ -44,7 +44,7 @@ public final class ModuleContracts {
                 var domain=MutableDomain.of(top);
                 if(domain.isPresent()) {
                     element=type(domain.get().id().type(),project).name();
-                    for(var f:domain.get().fields())fields.add(new Field(f.name(),type(f.type(),project),f.isMutable()));
+                    for(var f:domain.get().fields())fields.add(new Field(f.name(),type(f.type(),project),f.isMutable(),f.isUnique()));
                     methods.addAll(methods(domain.get().methods(),project));
                 }
                 if(top instanceof RepositoryNode repository) {
@@ -178,7 +178,7 @@ public final class ModuleContracts {
         if(!expected.authorization().equals(actual.authorization()))
             return Optional.of("Changed usecase authorization; review security requirements and rebuild the consumer: "+expected.identity());
         if(!expected.fields().equals(actual.fields())) {
-            for(var f:expected.fields()) {var match=actual.fields().stream().filter(a->a.name().equals(f.name())).findFirst();if(match.isEmpty())return Optional.of("Removed field: "+f.name());if(!match.get().equals(f))return Optional.of("Changed field: "+f.name()+" from "+f.type()+" (mutable="+f.mutable()+") to "+match.get().type()+" (mutable="+match.get().mutable()+")");}
+            for(var f:expected.fields()) {var match=actual.fields().stream().filter(a->a.name().equals(f.name())).findFirst();if(match.isEmpty())return Optional.of("Removed field: "+f.name());if(!match.get().equals(f))return Optional.of("Changed field: "+f.name()+" from "+f.type()+" (mutable="+f.mutable()+", unique="+f.unique()+") to "+match.get().type()+" (mutable="+match.get().mutable()+", unique="+match.get().unique()+")");}
             return Optional.of("Changed field structure/order: "+actual.fields());
         }
         if(Set.of("PORT","REPOSITORY").contains(expected.kind())&&!expected.methods().equals(actual.methods()))return Optional.of("Changed port/repository operations require implementation rebuild: "+expected.identity());

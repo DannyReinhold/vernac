@@ -128,7 +128,7 @@ See the [language tutorial](../../docs/tutorials/usecase-authorization.md).
 ## Real module-JAR authorization proof
 
 ModuleAuthorizationPostgresTest packages a producer JAR with exported permission/access
-contracts, reads module-contracts-11 metadata, compiles a consumer and generates its
+contracts, reads module-contracts-12 metadata, compiles a consumer and generates its
 explicit activation. It loads producer classes from the actual JAR, preserving the guard
 and actor/tenant/REQUIRED context. Six inherited generated boundary cases plus the
 cross-module invocation case run against restricted PostgreSQL roles. Private usecase

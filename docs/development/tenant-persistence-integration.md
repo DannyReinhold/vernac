@@ -22,7 +22,7 @@ version to zero does not make the object NEW.
 Generated entities retain technical ownership outside Read/Write/Access views and
 toString/equality. New entities wait for root adoption; JDBC restoration preserves the
 tenant or unscoped boundary. Manual entity reconstruction stays unscoped for existing
-global use and cannot be imported into tenant storage. Current module-contracts-11
+global use and cannot be imported into tenant storage. Current module-contracts-12
 entity imports preserve ownership through their technical restoration factories.
 Older dependency metadata must be rebuilt; it cannot silently acquire that capability.
 
@@ -87,7 +87,7 @@ data and deployment compatibility as always; a generated candidate is not a guar
 
 ## Explicit remaining boundaries
 
-- Tenant type imports and persistent tenant modules use module-contracts-11 metadata.
+- Tenant type imports and persistent tenant modules use module-contracts-12 metadata.
   Explicit activation migrates format-2 owned graphs and checks runtime RLS/DML access
   before callable module components initialize. Separate migration/runtime connections
   target the same writer database. Neither imports nor activation select a tenant.

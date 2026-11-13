@@ -173,6 +173,35 @@ jobs:
               for case in cases.values():
                   assert not any(case.find(t) is not None for t in ('skipped', 'failure', 'error'))
           print('Value representation and unsaved LSP proofs executed; none skipped.')
+          uniqueness_proofs = {
+              'vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.pipeline.UniqueAggregateFieldsTest.xml': {
+                  'omittedExplicitAndQualifiedNamesUseTheNormalEffectiveName',
+                  'independentModifiersAndSupportedNominalTypesRetainDomainMeaning',
+                  'rejectsUnsupportedEqualityAndPresenceBeforeJavaGeneration',
+                  'rejectsWrongDeclarationKindsAndRepeatedModifiersAtTheirSource',
+                  'contextualUniqueIdentifiersAndDerivedNameCollisionsKeepTheirContracts',
+                  'generatedObjectsCompileWithoutInventingAnInMemoryUniquenessRegistry',
+                  'persistenceAdoptionFailsExplicitlyUntilItsConstraintCanBeEnforced',
+                  'unsavedAnalysisAndNativeTypeReferencesRetainTheDerivedField',
+              },
+              'vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.modules.UniqueFieldModuleTest.xml': {
+                  'publicationRoundTripAndContractViewsPreserveTheFieldRequirement',
+                  'uniquenessAndMutabilityParticipateInCompatibilityFingerprints',
+                  'oldContractVersionsAreRejectedInsteadOfDroppingUniqueMetadata',
+              },
+              'vernac-lsp/target/surefire-reports/TEST-org.vernac.lsp.UniqueFieldSymbolsTest.xml': {
+                  'omittedFieldNamesPreserveTypeNavigationAndIncompleteTypeCompletion',
+                  'hoverExplainsScopeWithoutClaimingDatabaseEnforcement',
+              },
+          }
+          for path, expected in uniqueness_proofs.items():
+              root = ET.parse(path).getroot()
+              cases = {c.attrib['name']: c for c in root.findall('testcase')}
+              assert not (expected - cases.keys()), f'Missing unique field model proofs: {path}'
+              assert all(int(root.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
+              for case in cases.values():
+                  assert not any(case.find(t) is not None for t in ('skipped', 'failure', 'error'))
+          print('Unique aggregate field model/module/editor proofs executed; persistence remains blocked.')
           saas_proofs = {
               'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityRegistrationsPostgresIT.xml': {
                   'deadlineIsImmutableExactAndSurvivesRestart',

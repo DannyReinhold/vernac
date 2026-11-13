@@ -457,6 +457,24 @@ final class VernacProjectSymbols {
         var direct=termAt(path,at);
         if(direct!=null)return org.vernac.compiler.vocabulary.Vocabulary.markdown(direct.entry());
         var current=files.get(path);
+        if (current != null) {
+            int point = current.text().codePointCount(0, offset(current.text(), at));
+            for (var top : current.tree().topLevelDeclaration()) {
+                var aggregate = top.aggregateDefinition();
+                if (aggregate == null || aggregate.parameterList() == null) continue;
+                for (var field : aggregate.parameterList().parameter()) {
+                    if (field.isUnique == null) continue;
+                    boolean onModifier = point >= field.isUnique.getStartIndex() && point <= field.isUnique.getStopIndex();
+                    if (onModifier || (field.name != null && contains(field.name, point))) {
+                        String scope = aggregate.classification != null && aggregate.classification.getText().equals("tenant")
+                                ? "within each tenant" : "across instances of this aggregate";
+                        return "**Unique aggregate field** `" + parameterName(field) + "`\n\n"
+                                + "Domain requirement: unique " + scope + ". No in-memory cross-instance validation. "
+                                + "Persistence enforcement is not implemented yet; schema/JDBC generation rejects this requirement.";
+                    }
+                }
+            }
+        }
         if (current!=null) {
             int point=current.text().codePointCount(0,offset(current.text(),at));
             List<VernacParser.InboundErrorRuleContext> rules=new ArrayList<>();

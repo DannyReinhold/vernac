@@ -157,6 +157,7 @@ public final class ProjectTypeResolver {
         }
         diagnostics.addAll(org.vernac.compiler.tenancy.TenancyContracts.validate(project, scopes, configurationSnapshots));
         diagnostics.addAll(new ContainmentValidator().validate(project, fieldTypes));
+        diagnostics.addAll(new UniqueFields().validate(project, fieldTypes));
         var queries = new org.vernac.compiler.query.QueryResolver(project, fieldTypes, diagnostics).resolve(project, scopes);
         Set<String> invalidSources=diagnostics.stream().filter(d -> d.severity()==CompilerDiagnostic.Severity.ERROR)
             .map(d -> d.location().sourceName()).collect(java.util.stream.Collectors.toSet());

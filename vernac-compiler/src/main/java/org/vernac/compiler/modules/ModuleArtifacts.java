@@ -95,7 +95,7 @@ public final class ModuleArtifacts {
         }
         return new VernacProject(merged.sourceRoot(),merged.sources(),merged.symbols().withHiddenTypes(hidden));
     }
-    private static List<FieldNode> fields(List<Field> source,SourceLocation at) {return source.stream().map(f->new FieldNode(at,type(f.type(),at),f.name(),f.mutable())).toList();}
+    private static List<FieldNode> fields(List<Field> source,SourceLocation at) {return source.stream().map(f->new FieldNode(at,type(f.type(),at),f.name(),f.mutable(),true,f.unique())).toList();}
     private static TypeNode type(Type source,SourceLocation at) {return new TypeNode(at,source.name(),List.of(),source.optional(),TypeNode.PageKind.valueOf(source.pageKind()));}
     private static List<MethodNode> methods(List<Method> source,SourceLocation at) {return source.stream().map(m->new MethodNode(at,"public",type(m.returns(),at),m.name(),fields(m.parameters(),at),"throw new UnsupportedOperationException();",Optional.empty(),MethodNode.Mode.valueOf(m.mode()))).toList();}
     private static String namespace(String name) {return name.substring(0,name.lastIndexOf('.'));}
@@ -155,7 +155,7 @@ public final class ModuleArtifacts {
             if(d.kind().equals("ENTITY")||d.kind().equals("AGGREGATE")) {
                 if (d.kind().equals("AGGREGATE")) text.append(d.aggregateScope().toLowerCase(Locale.ROOT)).append(" ");
                 text.append(d.kind().toLowerCase(Locale.ROOT)).append(" ").append(simple(d.identity())).append("[").append(d.element()).append("](")
-                    .append(d.fields().stream().map(f->(f.mutable()?"mut ":"")+typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(")");
+                    .append(d.fields().stream().map(f->(f.unique()?"unique ":"")+(f.mutable()?"mut ":"")+typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(")");
                 if(!d.methods().isEmpty()) {
                     text.append(" behavior {\n");for(var m:d.methods())text.append("    ").append(m.mode().toLowerCase(Locale.ROOT)).append(" ").append(typeText(m.returns())).append(" ").append(m.name()).append("(").append(m.parameters().stream().map(f->typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(") { throw new UnsupportedOperationException(); }\n");text.append("}");
                 }

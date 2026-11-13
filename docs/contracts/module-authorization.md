@@ -3,7 +3,7 @@ title: Module authorization contracts
 ---
 # Module authorization contracts
 
-Status: implemented in **0.6.0-SNAPSHOT**, metadata contract **module-contracts-11**.
+Status: implemented in **0.6.0-SNAPSHOT**, metadata contract **module-contracts-12**.
 This chapter supplements [modules](modules.md), [usecase requirements](usecase-authorization.md)
 and the [actor/policy runtime](usecase-authorization-runtime.md). MUST, MUST NOT and
 SHOULD are normative. The [walkthrough](../tutorials/module-authorization.md) shows the workflow.
@@ -28,7 +28,7 @@ module visibility is an API boundary, not source secrecy or a Java sandbox.
 
 ## Data representation
 
-The format envelope remains version 1; its contractVersion is module-contracts-11.
+The format envelope remains version 1; its contractVersion is module-contracts-12.
 Each exported Definition contains an authorization object. Non-usecase definitions use
 OMITTED. A usecase preserves one of:
 
@@ -103,7 +103,7 @@ and CSRF. Importing a module installs neither an allow-all policy nor a filter c
 
 Producers and dependent consumers MUST be rebuilt with matching tools after upgrading
 from earlier development metadata. Do not rewrite frozen SQL, Flyway history or schema
-snapshots merely for module-contracts-11: the persistence bundle format remains version 1
+snapshots merely for module-contracts-12: the persistence bundle format remains version 1
 and this security metadata change alone creates no database column.
 Retaining a module migration history after its last current table is removed MUST
 retain vocabulary and public/internal access inventories too. Model/storage changes

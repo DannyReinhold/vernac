@@ -27,7 +27,7 @@ are installed by adding these dependencies. A normal Vernac application remains 
 
 The logical module is `vernac.saas.identity`. It explicitly exports UserId,
 IdentityStatus and IdentityDirectory under the namespace `org.vernac.saas.identity`.
-Current module-contracts-11 tools consume the standard META-INF/vernac/module.json;
+Current module-contracts-12 tools consume the standard META-INF/vernac/module.json;
 no new metadata format is required. Vocabulary accompanies the exported types.
 
 A complete consuming model, compiled against the actual producer JAR in the module test:

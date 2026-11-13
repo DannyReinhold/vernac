@@ -97,7 +97,7 @@ attachments are optional. Hover on an imported type therefore includes its modul
 associated documentation even without a sources JAR. Build after dependency changes;
 the existing index refresh behavior also refreshes documentation.
 
-Module metadata uses `module-contracts-11`; rebuild development producers and consumers.
+Module metadata uses `module-contracts-12`; rebuild development producers and consumers.
 Documentation lives outside executable Definition fingerprints and required structural
 contracts. A prose-only change MUST NOT change Java signatures, type compatibility,
 SQL mappings, migrations or activation. Generated JavaDoc and glossary output may change.
