@@ -915,3 +915,22 @@ crypto-adapter proof; this proposal changes no dependency, migration or runtime 
 A11 and public registration remain OPEN. Next: review D10, then library/key proof and
 private ledger, followed by worker/adapters and D05/public-flow composition. Rough progress
 remains Identity/Auth 55–60%, complete 0.6.0 25–35%; design review is not delivered behavior.
+
+
+## Isolated D10 crypto compatibility proof
+
+The [test-only experiment](../../experiments/identity-mail-crypto/README.md) imports
+Boot 4.1.2 as a complete candidate BOM and exercises Spring Security Crypto 7.1.2's
+replacement AES-GCM API. Five cases cover raw AES-256 keys, reconstruction, randomized
+ciphertext, tampering/truncation, rotation-read behavior and invalid key rejection.
+This is library compatibility evidence, not a production envelope or a platform upgrade.
+Root dependencies, provider selection and migrations remain unchanged. Next: review and
+prove the coordinated Boot platform migration, then private key/envelope and delivery
+ledger implementation. A11 remains OPEN. Rough progress is unchanged: Identity/Auth
+55–60%, complete 0.6.0 25–35%; prerequisites do not count as a completed mail journey.
+
+Local validation: standalone `clean verify` passes on JDK 21 and JDK 25, each with
+5 tests and zero failures/errors/skips. The dedicated CI matrix requires all five named
+cases and rejects missing or skipped reports. All 1,187 local documentation links in
+168 documents and whitespace/XML/YAML checks pass. The production reactor and installed
+IDE were not rerun: this experiment changes neither production sources nor dependencies.

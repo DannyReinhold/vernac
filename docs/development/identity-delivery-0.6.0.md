@@ -3,12 +3,12 @@ title: Identity mail delivery — D10 design proposal
 ---
 # Identity mail delivery — D10 design proposal
 
-Status: **PROPOSED for review; no delivery implementation or public route**.
+Status: **identity design direction accepted through PR #49; delivery implementation OPEN**.
 Baseline: 2026-11-13, after canonical login-address ownership (PR #48).
 
 This is the identity portion of D10, required by the accepted
-[D14 credential policy](../contracts/saas-identity-credentials.md). Merging this
-proposal accepts the direction below; it does not close system-email acceptance A11,
+[D14 credential policy](../contracts/saas-identity-credentials.md). The accepted
+direction below does not close system-email acceptance A11,
 approve an unreviewed dependency upgrade. Invitation
 and billing mail still need their own domain/template contracts. D05 account/owner
 provisioning remains a separate prerequisite for public registration.
@@ -160,3 +160,12 @@ customer addresses or production provider credentials.
 No endpoint, dependency, migration, key or provider setting changes in this proposal.
 The next implementation PR should begin at item 1, not bypass the dependency gate with
 handwritten cryptography or mark the whole mail feature delivered.
+
+
+## Isolated dependency evidence
+
+The [crypto compatibility experiment](../../experiments/identity-mail-crypto/README.md)
+checks the replacement Spring GCM API under a standalone Boot 4.1.2 BOM on Java 21/25.
+It does not migrate the existing reactor or close the dependency gate for production.
+Next is a reviewed platform migration with actual Spring/JDBC/Flyway application proofs,
+then the key/envelope adapter. No durable identity secrets may use the experiment directly.

@@ -40,7 +40,7 @@ For a guide across all documentation, use the [documentation map](../documentati
 
 ## Current priorities
 
-- [Identity mail delivery](identity-delivery-0.6.0.md): proposed D10 envelope, Brevo/Noop providers, key rotation and bounded retry design; implementation remains OPEN.
+- [Identity mail delivery](identity-delivery-0.6.0.md): accepted D10 direction for Brevo/Noop providers, protected envelopes and bounded retries; isolated crypto proof exists, production implementation remains OPEN.
 
 - [Identity, memberships and roles](identity-membership-0.6.0.md): lifecycle proposal for
   reusable SaaS modules. Same-repository/Apache-2.0 packaging is accepted; the
