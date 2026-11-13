@@ -311,7 +311,7 @@ is not approval; record accepted resolutions and their PRs.
 | D07 | Plan/price definitions, effective dates, renewal/change/cancellation and existing subscribers |
 | D08 | Payment providers, recurring-payment mechanism, webhook verification, refunds and reconciliation |
 | D09 | Supported invoice/tax scope, issuer, numbering, documents/corrections and required review |
-| D10 | Mail provider, delivery ledger/templates, secure links and retry behavior |
+| D10 | Mail provider, delivery ledger/templates, secure links and retry behavior — [identity delivery proposal](identity-delivery-0.6.0.md); review and implementation OPEN |
 | D11 | Reusable UI delivery/customization, module activation and single-command local start/deployment |
 | D12 | Release inventory and automated acceptance gate; scope agreements across extension repositories |
 | D13 | Tenant technical foundation implemented; provisioning and whole-SaaS integration remain OPEN (no platform admin) |

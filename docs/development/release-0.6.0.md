@@ -903,3 +903,15 @@ assert address retention. All eight migrations pass live schema-check. All 16 Py
 tooling tests and 1,178 local documentation links across 167 documents pass; XML/YAML and
 whitespace checks are clean. Full core/installed-IDE/final release acceptance was not
 rerun for this optional-library slice; GitHub CI remains separate from local evidence.
+
+
+## D10 identity delivery proposal after PR #48
+
+Canonical login-address ownership is merged. The next [identity delivery design](identity-delivery-0.6.0.md)
+proposes Spring SMTP/crypto reuse, deployment-owned keys, authenticated context, atomic
+count/byte accounting and leased retries with explicit duplicate/late-mail semantics.
+The first implementation gate is a reviewed supported Spring dependency baseline and
+crypto-adapter proof; this proposal changes no dependency, migration or runtime behavior.
+A11 and public registration remain OPEN. Next: review D10, then library/key proof and
+private ledger, followed by worker/adapters and D05/public-flow composition. Rough progress
+remains Identity/Auth 55–60%, complete 0.6.0 25–35%; design review is not delivered behavior.
