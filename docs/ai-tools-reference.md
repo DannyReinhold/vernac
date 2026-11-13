@@ -18,6 +18,10 @@ running a plain Java test does not verify a framework-independent application pa
 Do not replace Spring Boot with another framework based on the separation of Maven
 artifacts. See the [platform scope](faq/index.md#does-vernac-support-applications-without-spring-boot).
 
+The [D10 identity-mail proposal](development/identity-delivery-0.6.0.md) is a design
+review, not implemented mail APIs. Its dependency/crypto proof must precede durable
+secret writes; do not invent encryption primitives or silently upgrade Spring.
+
 ## Locate the project and respect its configuration
 
 Run commands from the directory containing the application's POM. A standalone
