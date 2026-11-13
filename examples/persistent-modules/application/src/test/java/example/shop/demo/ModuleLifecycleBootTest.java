@@ -44,7 +44,14 @@ class ModuleLifecycleBootTest {
      assertEquals(2L,jdbc.queryForObject("SELECT count(*) FROM \"vernac\".\"@delivery\" WHERE status='SUCCEEDED'",Long.class));
      assertEquals(1L,jdbc.queryForObject("SELECT count(*) FROM \"example.receipts\".\"Notification\"",Long.class));
      assertEquals(3L,jdbc.queryForObject("SELECT count(*) FROM information_schema.tables WHERE table_name='flyway_schema_history'",Long.class));
-     int port=((org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext)context).getWebServer().getPort();
+     int port=((org.springframework.boot.web.server.servlet.context.ServletWebServerApplicationContext)context).getWebServer().getPort();
+     var converters=context.getBean(org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.class).getMessageConverters();
+     var dto=example.api.adapter.inbound.http.dto.PurchaseApiDtos.PurchaseRequest.class;
+     var json=org.springframework.http.MediaType.APPLICATION_JSON;
+     org.junit.jupiter.api.Assertions.assertInstanceOf(org.springframework.http.converter.json.MappingJackson2HttpMessageConverter.class,
+         converters.stream().filter(c->c.canRead(dto,json)).findFirst().orElseThrow());
+     org.junit.jupiter.api.Assertions.assertInstanceOf(org.springframework.http.converter.json.MappingJackson2HttpMessageConverter.class,
+         converters.stream().filter(c->c.canWrite(dto,json)).findFirst().orElseThrow());
      var client=java.net.http.HttpClient.newHttpClient();
      var endpoint=java.net.URI.create("http://localhost:"+port+"/api/module-purchases");
      for(String body:java.util.List.of("{\"text\":\"HTTP module customer\"}","{}","{\"text\":\"\"}")) {

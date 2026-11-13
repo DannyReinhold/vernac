@@ -70,7 +70,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <antlr.version>4.13.2</antlr.version>
         <javapoet.version>0.20.0</javapoet.version>
-        <junit.version>5.11.4</junit.version>
+        <junit.version>6.0.3</junit.version>
         <assertj.version>3.27.7</assertj.version>
     </properties>
 
@@ -149,11 +149,11 @@
                 <scope>test</scope>
             </dependency>
 
-            <!-- Spring Boot Dependencies BOM (passend zu Plugin 3.4.2) -->
+            <!-- Spring Boot 4.1.2 aligned platform BOM -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
-                <version>3.4.2</version>
+                <version>4.1.2</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -183,7 +183,7 @@
                 <plugin>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>
-                    <version>3.4.2</version>
+                    <version>4.1.2</version>
                 </plugin>
                 <!-- Failsafe für Integrationstests (oft von Spring Boot getriggert) -->
                 <plugin>
