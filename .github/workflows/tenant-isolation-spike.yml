@@ -5,6 +5,8 @@ on:
     paths:
       - 'experiments/tenant-isolation-spike/**'
       - 'saas/**'
+      - 'templates/**'
+      - 'examples/persistent-modules/**'
       - 'tools/release.py'
       - 'tools/identity_password_corpus.py'
       - '.gitattributes'
@@ -55,6 +57,8 @@ jobs:
         run: mvn -B -ntp -pl vernac-maven-plugin,vernac-jdbc-spring-boot-starter -am -DskipTests install
       - name: Verify optional identity artifacts and their JAR consumer
         run: mvn -B -ntp -pl saas/identity,saas/identity-spring-security,saas/identity-jdbc clean verify
+      - name: Verify Boot module startup and actual HTTP JSON converter selection
+        run: mvn -B -ntp -f examples/persistent-modules/pom.xml clean verify
       - name: Check release tooling and documentation links
         run: |
           python3 -m unittest discover -s tools/tests -v -b
@@ -221,8 +225,25 @@ jobs:
                   assert not any(case.find(t) is not None for t in ('skipped', 'failure', 'error'))
           print('Unique aggregate/compiler/schema/JDBC/module/editor proofs executed; none skipped.')
           saas_proofs = {
+              'saas/identity-jdbc/target/surefire-reports/TEST-org.vernac.saas.identity.persistence.IdentityDeliveryCryptoTest.xml': {
+                  'encryptionBindsContextAndSurvivesReconstruction',
+                  'everyTrustedContextFieldRejectsCiphertextSubstitution',
+                  'rotatedKeyRingReadsOldJobsAndRejectsRemovalOrRekeying',
+                  'malformedTamperedAndOversizedInputsNeverExposeLibraryExceptions',
+                  'boundsAndExpiryRejectEncryptionButPreparedAttemptsRemainSpent',
+                  'missingInvalidOrExcessKeysFailClosedAndCallerMutationCannotChangeKeys',
+                  'refusedAdmissionCannotEncryptAndItsExceptionIsSanitized',
+                  'concurrentCallersCannotBypassTheirSharedAdmissionBoundary',
+                  'preparedPermitIsSingleUseAndBoundToItsEncryptor',
+              },
               'saas/identity-jdbc/target/surefire-reports/TEST-org.vernac.saas.identity.persistence.IdentityLoginAddressModelTest.xml': {
                   'canonicalAndDeliveryValuesReuseTheExistingAddressPolicyAndRedactRepresentations',
+              },
+              'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityEncryptionAdmissionPostgresIT.xml': {
+                  'attemptsSurviveUnusedPermitsBusinessRollbackAndRestart',
+                  'twoInstancesCompeteForTheLastAttemptWithoutResettingTheCap',
+                  'keyIdentityAliasesAndBoundedHistoryFailClosedAcrossRestart',
+                  'damagedRegistryCannotSilentlyRestartFromZero',
               },
               'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityLoginOwnershipPostgresIT.xml': {
                   'canonicalRepeatsPreserveOriginalSpellingDeadlineAndOneOwnerWithoutAliasFolding',

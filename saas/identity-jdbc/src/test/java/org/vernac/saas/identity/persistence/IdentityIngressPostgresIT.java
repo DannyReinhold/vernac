@@ -126,7 +126,7 @@ class IdentityIngressPostgresIT {
                                         assertEquals(60, denied.retryAfterSeconds());
                                         assertEquals(1, keys(c));
                                     });
-                            assertEquals(8, db.migrationCount());
+                            assertEquals(9, db.migrationCount());
                         });
     }
 
