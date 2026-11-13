@@ -4,7 +4,7 @@ title: Private atomic identity mail requests
 # Private atomic identity mail requests
 
 Status: private registration/recovery issuance and protected job persistence implemented;
-provider workers, cleanup scheduling and public HTTP/Spring integration OPEN. This is not
+provider wiring and public HTTP/Spring integration OPEN. This is not
 a complete mail journey or an authentication grant. Module exports remain unchanged.
 
 ## One business transaction
@@ -78,3 +78,5 @@ The live schema checker replays all ten migrations against the expected schema.
 
 Next: bounded, fenced dispatch/retry/cleanup and shared Brevo/Noop providers, then browser
 flows with D05 provisioning and Spring Session. A11 and public registration remain OPEN.
+
+The [fenced worker](saas-identity-mail-worker.md) now supplies controlled dispatch/maintenance and an explicitly constructed polling lifecycle. Shared provider/Auth wiring remains OPEN.

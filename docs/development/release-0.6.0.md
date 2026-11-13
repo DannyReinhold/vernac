@@ -1009,3 +1009,22 @@ separate Spring contexts racing for the last job slot, restart, rollback and pro
 storage. Worker/provider/scheduler and D05/public/session integration remain OPEN. Rough
 orientation: Identity/Auth about 60–65%, complete 0.6.0 still about 30%; full journeys are
 not accepted by these private primitives.
+
+
+## Fenced identity mail worker and durable cleanup cursors
+
+The [private worker](../contracts/saas-identity-mail-worker.md) claims under short
+transactions, submits outside the writer and fences settlement with a lease UUID.
+Backoff/attempts/expiry are bounded; missing read keys pause claims, and stale acknowledgements
+cannot refund newer work. Four fixed durable PK cursors cover dispatch, mail/challenge
+expiry and abandoned registrations. Explicit polling keeps maintenance separate from
+provider waits and waits for in-flight work during graceful shutdown. It is not an
+automatically installed sender. Shared Brevo/Noop/Auth configuration and final monitoring
+remain OPEN; bounded transport must still be proved by real adapters.
+
+All 18 unit and 63 identity-jdbc integration cases pass without failures/errors/skips.
+Eight new worker proofs include two actual application contexts, crash/retry/key/expiry
+cases, contaminated context rejection and graceful stop. All eleven migrations pass live
+schema-check. Installed IDE/final SaaS acceptance remain separate. Next: common mail
+provider modules and explicit identity assembly; Identity/Auth roughly 60–65%, complete
+0.6.0 still about 30%. No public journey is marked complete by this slice.

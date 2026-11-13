@@ -110,7 +110,7 @@ class IdentityJdbcModuleIT {
                                         .status(committed[0])
                                         .orElseThrow());
                     });
-                    assertEquals(10, database.migrationCount());
+                    assertEquals(11, database.migrationCount());
                 });
     }
 

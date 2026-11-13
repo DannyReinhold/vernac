@@ -34,6 +34,10 @@ The [private atomic mail helper](contracts/saas-identity-mail-requests.md) compo
 registration/challenge/job accounting. It installs no sender or public endpoint and
 does not replace ingress admission, D05 provisioning or Spring Session.
 
+The [private mail worker](contracts/saas-identity-mail-worker.md) rejects ambient actor/tenant/
+transaction context and assumes a bounded sender. Do not wire an arbitrary unbounded callback
+or treat its constructible lifecycle as automatic provider/Auth activation.
+
 ## Locate the project and respect its configuration
 
 Run commands from the directory containing the application's POM. A standalone

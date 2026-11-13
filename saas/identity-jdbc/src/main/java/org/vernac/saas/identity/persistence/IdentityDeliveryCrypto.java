@@ -153,6 +153,12 @@ final class IdentityDeliveryCrypto {
         }
     }
 
+    boolean canRead(String envelope) {
+        if (envelope == null || envelope.length() > MAX_ENVELOPE_BYTES) return false;
+        String[] parts = envelope.split("\\.", 4);
+        return parts.length == 3 && parts[0].equals("v1") && keys.containsKey(parts[1]);
+    }
+
     byte[] open(Context expected, String envelope) {
         byte[] clear = null;
         try {

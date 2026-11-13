@@ -239,6 +239,16 @@ jobs:
               'saas/identity-jdbc/target/surefire-reports/TEST-org.vernac.saas.identity.persistence.IdentityLoginAddressModelTest.xml': {
                   'canonicalAndDeliveryValuesReuseTheExistingAddressPolicyAndRedactRepresentations',
               },
+              'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityMailWorkerPostgresIT.xml': {
+                  'submissionRunsOutsideTransactionsAndAcceptedPayloadIsErasedOnce',
+                  'retriesKeepOneChargedEnvelopeAndRespectBackoffWithoutReencryption',
+                  'crashedClaimsAreFencedAndExhaustionReclaimsOnlyAfterLeaseExpiry',
+                  'missingReadKeysPauseClaimsAndExpiryStillCleansChargedRows',
+                  'consumedLeasedWorkStaysChargedUntilItsOwnerSettles',
+                  'twoApplicationContextsCannotSubmitOneLiveLeaseTwice',
+                  'contaminatedContextsCannotClaimAndPollingWaitsForOutstandingDeliveryOnStop',
+                  'corruptEnvelopesAndClosedOwnersNeverReachTheProvider',
+              },
               'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityMailRequestsPostgresIT.xml': {
                   'registrationPersistsOnlyProtectedMailAndCooldownReusesOriginalOwner',
                   'restartAndChallengeConsumptionKeepSecretErasureAndRefundAtomic',
