@@ -25,6 +25,8 @@ For a guide across all documentation, use the [documentation map](../documentati
 
 ## Implementation and decisions
 
+- [Repository uniqueness proposal](repository-uniqueness-0.6.0.md): planned named database constraints, tenant scope and implementation acceptance; not implemented syntax.
+
 - [Compiler architecture](compiler-architecture.md): shared resolution, names and generation.
 - [Feature review checklist](feature-review-checklist.md): purpose, quality, diagnostics and tooling.
 - [Generated output ownership](generated-output.md): reconciliation and failure boundaries.

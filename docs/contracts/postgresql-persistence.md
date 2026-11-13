@@ -210,6 +210,11 @@ one surrounding usecase transaction. Failed writes do not restore in-memory stat
 
 ## Structural constraints and migrations
 
+Source-declared business-key uniqueness is not implemented. The
+[0.6.0 review proposal](../development/repository-uniqueness-0.6.0.md) describes a
+planned feature; existing structural UNIQUE constraints do not imply that syntax.
+
+
 Constraints enforce a reconstructable representation, not arbitrary `validates`
 expressions from the domain. Required top-level columns rely on NOT NULL. Optional
 multi-column scalars enforce all-present/all-absent. Optional VOs retain absence
