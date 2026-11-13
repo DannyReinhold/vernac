@@ -74,6 +74,19 @@ class BrevoMailTransportTest {
    release.countDown();
   } finally{release.countDown();}
  }
+ @Test void retryAfterZeroDoesNotCauseHiddenHttpResubmission() throws Exception {
+  for(int status:List.of(408,503)) {
+   AtomicInteger requests=new AtomicInteger();
+   try(var server=new Server(exchange->{
+    exchange.getRequestBody().readAllBytes();int count=requests.incrementAndGet();
+    exchange.getResponseHeaders().add("Retry-After","0");
+    exchange.sendResponseHeaders(count==1?status:201,-1);exchange.close();
+   });var provider=new BrevoMailTransport("synthetic-key-not-real","sender@example.test",server.uri(),CLOCK,Duration.ofSeconds(2))) {
+    assertEquals(MailAcceptance.RETRY,provider.submit(message()).acceptance());
+    assertEquals(1,requests.get());
+   }
+  }
+ }
  @Test void invalidConfigurationAndNonLoopbackTestTargetsAreRejectedWithoutSecrets() {
   for(String key:List.of("","synthetic-key\r\nInjected: true")) {
    var error=assertThrows(IllegalStateException.class,()->new BrevoMailTransport(key,"sender@example.test"));
