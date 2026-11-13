@@ -1,5 +1,11 @@
 # Adapter DTO and JSON contract
 
+For 0.6.0 source builds, Spring integration uses Boot 4.1.2. Generated codecs remain
+Jackson 2: Boot applications must select `spring.http.converters.preferred-json-mapper=jackson2`
+and include Boot's Jackson 2 support; standalone MVC must select the Jackson 2 converter.
+See the [platform migration](../development/spring-boot-4-baseline.md). Jackson 3 support
+for these generated codecs is not implied by the Boot upgrade.
+
 Status: implemented. This contract covers transport schemas, not REST invocation
 or declarative domain mappings. See [ports and ACL](ports-adapters-and-acl.md)
 for the larger design and its implementation status.
