@@ -659,3 +659,46 @@ exhaustion, original-schema epoch-0 upgrade and module privacy. All five migrati
 to the expected owned schema. All 16 Python tooling tests and documentation links pass.
 The prerequisite compiler/plugin/runtime artifacts were rebuilt for the new local cache;
 full compiler/IDE/release-reactor acceptance was not rerun for this optional SaaS slice.
+
+
+## Bounded local credential work
+
+The [credential work owner](../contracts/saas-credential-work.md) adds the local
+resource portion of D14: initial 4 real workers/16 queued jobs/250 ms start admission
+wait. It uses the existing Spring password operations and a fixed bounded JDK executor,
+not new crypto or a general-purpose task framework. It implements Spring PasswordEncoder
+directly, with no automatic rehash policy. Expired/cancelled queued work is
+removed, real running work retains capacity after caller interruption, and shutdown
+cancels queued work without promising forced crypto termination. Request contexts are
+not inherited; transaction/resource scopes and nested submissions are rejected.
+
+The optional security artifact now has spring-tx at runtime for that guard. No schemas,
+public endpoints, automatic beans/filters or default application security chains are
+installed. The raw primitive is still unbounded; the standard assembly must explicitly
+share one owner across all password/dummy routes and wire independent admission first.
+A real PostgreSQL consumer verifies snapshot/matching/confirmation boundaries and
+rejects work inside a writer. No complete A01/A02/public abuse/browser flow is claimed.
+
+### Rough scope orientation after this slice (2026-11-13)
+
+These are broad engineering estimates for orientation, not accepted release gates,
+measured velocity or a schedule promise. Test/PR counts are not completion percentages.
+
+| Scope | Rough implementation progress | What remains next |
+| --- | --- | --- |
+| Identity/authentication | About 40–50% | Source/address/locator admission and bounded keys, login-key ownership/pending lifecycle, protected delivery/provisioning, Spring browser flows |
+| Complete 0.6.0 scope | About 25–35% | Accounts/roles, dynamic accounting/quotas, subscriptions/payments/invoicing/mail, complete UI/sample/Wizard and integrated release acceptance |
+
+Tenant/module/authorization foundations account for much of the implemented work.
+Identity library internals are advanced, while its public end-to-end user journeys
+are still missing. Next PR target: keyed admission for source/login-key/locator inputs
+with bounded persistent allocation and retention, preserving independent attempt commits.
+
+Local JDK 25 evidence: all 73 identity/SaaS cases across 20 required suites pass with
+zero failures/errors/skips. Nine bounded-work cases cover limits, deadlines, real slot
+retention/cancellation, safe failures, inherited context, transaction/nested guards and
+actual Spring PasswordEncoder compatibility. The real PostgreSQL handoff/guard case
+passes alongside existing lifecycle/upgrade proofs. All 16 Python tooling tests and
+1,122 local documentation links pass; XML/YAML and diff checks are clean. All five
+migration histories remain unchanged. Full core/IDE/release-reactor acceptance was not
+rerun for this optional-library slice; GitHub CI remains separate from local evidence.

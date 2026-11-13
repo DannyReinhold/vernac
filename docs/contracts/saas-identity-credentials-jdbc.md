@@ -113,3 +113,7 @@ protected durable mail, D05 provisioning, complete cleanup, authentication/sessi
 and the SaaS UI/example remain unfinished. A01/A02, complete anti-abuse, whole-SaaS and final
 manual acceptance gates stay OPEN. Next are those trusted identity/admission/delivery flows;
 no public endpoint should wrap these primitives alone.
+
+The [bounded Spring credential owner](saas-credential-work.md) is now available for
+the expensive verification/encoding step outside these writer transactions. Real
+PostgreSQL tests reject work in the writer and preserve the snapshot/confirm boundary.

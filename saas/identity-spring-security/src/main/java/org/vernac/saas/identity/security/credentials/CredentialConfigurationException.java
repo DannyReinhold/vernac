@@ -9,7 +9,12 @@ public final class CredentialConfigurationException extends IllegalStateExceptio
     public enum Code {
         BLOCKLIST_INVALID,
         STORED_CREDENTIAL_INVALID,
-        ENCODER_UNAVAILABLE
+        ENCODER_UNAVAILABLE,
+        WORK_CAPACITY,
+        WORK_CLOSED,
+        WORK_INTERRUPTED,
+        WORK_CONTEXT_INVALID,
+        WORK_FAILED
     }
 
     private final Code code;

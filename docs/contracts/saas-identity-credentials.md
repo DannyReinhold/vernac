@@ -238,7 +238,9 @@ accounts use a comparable dummy encoder verification after admission; do not cla
 constant-time network behavior. Start with at most 4 concurrent password hashes per instance,
 a maximum queue of 16 and a maximum admission wait of 250 ms; overflow is sanitized capacity
 unavailability. These deployment limits must be configurable and load-tested, not silently
-lower the hashing cost under load. Local test mode must not remove CSRF or admission rules.
+lower the hashing cost under load. The [bounded work owner](saas-credential-work.md)
+now implements the local worker/queue/admission-wait primitive; public pipeline wiring
+and deployment throughput validation remain required. Local test mode must not remove CSRF or admission rules.
 
 ### 5.1 Bounded storage, mail backlog and cleanup
 

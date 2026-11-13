@@ -1920,3 +1920,16 @@ outside writer locks, not authentication grants. A password change advances epoc
 does not. Stale resets/rehashes cannot overwrite a changed or disabled subject. Future session
 revocation must validate trusted epochs: the existing directory/actor resolver is still only
 the status foundation. Do not invent completed login/registration/session APIs from this slice.
+
+
+## Bounded Spring credential work
+
+The optional identity security artifact supplies explicit BoundedCredentialPasswords
+implementing Spring PasswordEncoder (no automatic rehash policy), with configurable Limits: initial 4 workers, 16 queued jobs and 250 ms start admission
+wait. Use one application-scoped owner for encode/matches/dummy and close on shutdown.
+It uses the existing CredentialPasswords/Spring encoder; do not invent a second KDF
+or treat this as public authentication or distributed/keyed admission. Hashing inside
+transactions, bound resource scopes or another credential job is rejected. Expired
+queued jobs never run; interrupted running hashes retain their actual worker until
+completion. No automatic beans or filters. The security artifact now depends on
+spring-tx at runtime. See [work contract](contracts/saas-credential-work.md).
