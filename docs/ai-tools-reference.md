@@ -22,6 +22,10 @@ The [D10 identity-mail proposal](development/identity-delivery-0.6.0.md) records
 direction, not implemented mail APIs. Its dependency/crypto proof must precede durable
 secret writes; do not invent encryption primitives or silently upgrade Spring.
 
+For 0.6.0 source builds, follow the [Boot 4 migration requirements](development/spring-boot-4-baseline.md),
+including explicit Jackson 2 converter selection for generated DTOs. Do not mix Security
+7 with a Boot 3 application or silently use Jackson 3 for Jackson 2 codecs.
+
 ## Locate the project and respect its configuration
 
 Run commands from the directory containing the application's POM. A standalone

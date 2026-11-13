@@ -3,7 +3,8 @@
 Isolated prerequisite for the [D10 identity-delivery design](../../docs/development/identity-delivery-0.6.0.md).
 This is a test-only experiment, not a published module or a production key/envelope API.
 It imports the complete Spring Boot 4.1.2 dependency BOM; no isolated Security override
-is added to Vernac's existing Boot 3.4.2 runtime. The candidate resolves Spring Security
+is added to Vernac's runtime. The [coordinated migration](../../docs/development/spring-boot-4-baseline.md)
+now aligns 0.6.0 source builds; this isolated proof remains independently executable. The candidate resolves Spring Security
 Crypto 7.1.2 and JUnit 6.0.3. Generated/application Java remains Java 21; CI exercises
 JDK 21 and the repository's JDK 25 build baseline.
 

@@ -934,3 +934,24 @@ Local validation: standalone `clean verify` passes on JDK 21 and JDK 25, each wi
 cases and rejects missing or skipped reports. All 1,187 local documentation links in
 168 documents and whitespace/XML/YAML checks pass. The production reactor and installed
 IDE were not rerun: this experiment changes neither production sources nor dependencies.
+
+
+## Coordinated Spring Boot 4 platform baseline
+
+The [platform migration](spring-boot-4-baseline.md) aligns reactor dependencies and
+bundled application parents on Boot 4.1.2/Security 7.1.2. Flyway/JDBC/transaction and
+default-user/servlet bindings use Boot 4 packages and explicit modules. Generated DTOs
+retain their Jackson 2 codecs: bundled web configurations explicitly select the
+Jackson 2 HTTP converter, and strict null-omission/input/pagination assertions remain.
+Java output remains 21. Migration SQL/history is unchanged. This is a breaking Spring
+integration baseline for 0.6.0; published 0.5.x remains unaffected. Mail/key persistence
+and Brevo/Noop adapters are not supplied by the platform upgrade.
+
+Validation for the platform slice: 1,026 reactor test cases outside IntelliJ pass in
+current reports with zero failures/errors/skips (full verify followed by resume after
+fixing the migration failures). The standalone module application passes its real
+Boot/Tomcat/PostgreSQL/HTTP journey, including explicit assertions that request and
+response DTOs select Jackson 2. All 43 tenant/authorization/event spike cases pass.
+All 16 Python tooling tests, 1,193 local documentation links and XML/YAML/whitespace
+checks pass. Installed IntelliJ and standalone examples other than persistent-modules
+were not rerun. No migration history or user data is modified by this change.
