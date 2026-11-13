@@ -6,7 +6,7 @@ title: SaaS identity credential and browser-flow policy
 Status: **D14 policy accepted for 0.6.0** through PR #33. Implementation is partial:
 [credential primitives](saas-credential-primitives.md) and
 [private credential persistence](saas-identity-credentials-jdbc.md) are available, while
-public flows, mail, keyed admission/complete cleanup and authentication/session integration
+public flows, mail, complete cleanup/ingress wiring and authentication/session integration
 remain unfinished. The [storage-capacity primitive](saas-identity-capacity.md) is
 implemented; real-row accounting and cleanup integration are still required.
 Private [challenge persistence](saas-identity-challenges.md) now couples actual records
@@ -212,7 +212,9 @@ must not select different public messages. Authorized operational tooling may us
 allowlisted reason codes, without logging secrets or exposing them in public responses.
 
 The [private global ingress gate](saas-identity-ingress.md) implements the coarse
-deployment cap below; public ingress wiring and keyed admission are still unfinished.
+deployment cap below. [Keyed admission](saas-identity-admission.md) now provides
+source/address/locator counters and bounded cursor cleanup; public pipeline/scheduler
+wiring and complete lifecycle cleanup remain unfinished.
 Before expensive password work, apply independent atomic limits shared across instances.
 These are security admission controls, **not paid quotas or tenant capacity**. Start with:
 

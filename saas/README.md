@@ -66,3 +66,9 @@ explicitly shared per application instance (initial 4 workers/16 queued/250 ms s
 wait) and closed on shutdown. It is not an automatic filter; raw low-level encoding
 remains available. The security artifact now requires spring-tx at runtime for its
 no-writer/no-resource-scope guard.
+
+[Private keyed admission](../docs/contracts/saas-identity-admission.md) now supplies
+shared source/login-key/locator windows, bounded key allocation and primary-key cursor
+cleanup. It uses JCA HMAC-SHA-256 with explicit stable installation key material, no raw
+address/IP storage or automatic key generation. Scheduled cleanup and HTTP/trusted-source
+wiring are still required before the public identity flows ship.

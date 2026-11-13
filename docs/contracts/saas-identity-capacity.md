@@ -123,3 +123,8 @@ CI/release gates require all proofs without skips.
 Next are private credential/challenge records, real-row budget coupling, admission and
 bounded cleanup, protected delivery, account provisioning and sessions/UI. No A01/A02,
 full-SaaS or final manual acceptance gate is closed by this foundation alone.
+
+[Keyed identity admission](saas-identity-admission.md) now reserves/releases actual
+limiter rows under this budget. Both the coarse singleton and keyed configuration
+remain charged; dynamic rows are bounded and never evicted while active to free slots.
+The full public ingress/mail/pending-registration assembly remains incomplete.

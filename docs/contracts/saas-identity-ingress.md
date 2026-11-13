@@ -28,8 +28,10 @@ Concurrent initializers create one row/charge once. Restart preserves attempts. 
 drift fails rather than resetting or silently widening the limit. Explicit changeLimit
 preserves usage, including usage above a lowered limit. The fixed row is reused forever;
 requests never allocate new keys and no expiration job is needed for this singleton.
-It remains charged until a future reviewed lifecycle removes it. Dynamic identifier/source
-key storage, expiry, digest/key ownership and its remaining 49,999 slots are separate work.
+It remains charged until a future reviewed lifecycle removes it. The separate [keyed helper](saas-identity-admission.md) now owns another fixed
+configuration slot and dynamic key storage/expiry. With both initialized, the default
+dynamic capacity is 49,998 rows; its conservative admission gate also needs two spare
+transient slots before key-dependent branching.
 
 Call tryAcquire **before** subject lookup, new keyed allocations, expensive hashing,
 challenge processing and business transactions. It owns and commits a short Spring
@@ -73,7 +75,13 @@ configuration drift/lowering, key-capacity saturation, wrong transaction boundar
 permission failure/recovery and bounded singleton storage. Model tests cover maximum
 counter arithmetic and backward time. CI/release gates require these proofs without skips.
 
-Identifier/locator/source admission, trusted-proxy resolution, bounded password-work
-concurrency, public ingress wiring and complete identity/mail cleanup remain mandatory.
+[Keyed admission](saas-identity-admission.md) and [bounded password work](saas-credential-work.md)
+now provide those private primitives. Trusted-proxy resolution, public pipeline/scheduler
+wiring and complete identity/mail cleanup remain mandatory.
 This coarse shared cap alone is not sufficient public registration protection.
 A01/A02 and whole-SaaS/final manual acceptance stay OPEN.
+
+The [keyed admission helper](saas-identity-admission.md) now composes this coarse gate
+with source/login-key/locator attempts in a separate committed writer. It shares the
+key-storage budget and adds explicit primary-key cursor cleanup. No public filter,
+trusted-proxy resolver or automatic cleanup schedule is installed by either helper.

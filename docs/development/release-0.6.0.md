@@ -702,3 +702,40 @@ passes alongside existing lifecycle/upgrade proofs. All 16 Python tooling tests 
 1,122 local documentation links pass; XML/YAML and diff checks are clean. All five
 migration histories remain unchanged. Full core/IDE/release-reactor acceptance was not
 rerun for this optional-library slice; GitHub CI remains separate from local evidence.
+
+
+## Keyed identity admission and bounded cursor cleanup
+
+The [keyed admission foundation](../contracts/saas-identity-admission.md) now implements
+the initial shared source/login-key/locator windows, composing the existing independently
+committed coarse gate. JCA HMAC-SHA-256 provides purpose-separated pseudonyms with explicit
+stable installation key input; there is no custom crypto or implicit key generation.
+Configuration/key drift fails closed rather than resetting a new counter namespace.
+A technical UUID index locator is always checked against its full digest and kind.
+
+The sixth generated migration adds private configuration/counter models. Two fixed key
+slots (coarse/configuration) and actual dynamic rows share the persistent capacity ledger.
+Two potential dynamic slots are reserved before key-existence branches, unused reservations
+are released atomically, and active keys are never evicted to admit new traffic. Source
+allowance is spent even on subject denial. Later business rollback cannot refund counters.
+
+Primary-key seek cleanup persists a shared cursor, scans at most 500 rows per batch and
+releases only successful expired-row deletes. Admission and cleanup share monotonic observed
+time and lock order; concurrent renewal survives cleanup, and cleanup never double-releases.
+Full periodic sweep scheduling/throughput, trusted-source/HTTP wiring and complete lifecycle
+cleanup remain mandatory; no A01/A02/full-SaaS/final manual gate is closed.
+
+Rough implementation orientation after this slice: Identity/authentication about 45–55%,
+complete 0.6.0 about 25–35%. These are mental scope estimates, not release acceptance or
+a schedule. Next: login-key/pending registration ownership, then protected delivery, D05
+provisioning and the real Spring/browser flows. Accounts/roles, accounting/quotas, commercial
+SaaS modules and the complete UI/sample/Wizard still make up much of the remaining release.
+
+Local JDK 25 evidence: all 83 identity/SaaS cases across 23 required suites pass without
+failures/errors/skips. They include standard JCA key behavior, overflow/high-water rules,
+restricted-role PostgreSQL policy/capacity/privacy tests and two-context initialization,
+last-attempt, renewal/cleanup and double-cleanup races. All six migrations replay to the
+expected owned schema; the earlier five migrations remain unchanged. All 16 Python tooling
+tests and 1,136 documentation links pass; workflow XML/YAML/diff checks are clean. Full
+core/installed-IDE/release-reactor acceptance was not rerun for this optional SaaS slice;
+GitHub CI and final integrated release acceptance remain separate from these local proofs.

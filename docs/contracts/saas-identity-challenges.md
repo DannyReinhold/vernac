@@ -5,8 +5,8 @@ title: Private one-time identity challenges
 
 The optional identity JDBC artifact contains a private one-time challenge lifecycle.
 It implements a persistence slice of the [D14 policy](saas-identity-credentials.md),
-not registration, recovery, authentication or mail delivery. Credentials, admission,
-protected durable mail, provisioning, sessions and public UI remain unfinished.
+not registration, recovery, authentication or mail delivery. Complete credential/authentication
+flows, ingress integration, protected durable mail, provisioning, sessions and public UI remain unfinished.
 
 ## Ownership and transaction boundary
 

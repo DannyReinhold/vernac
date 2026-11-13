@@ -1933,3 +1933,20 @@ transactions, bound resource scopes or another credential job is rejected. Expir
 queued jobs never run; interrupted running hashes retain their actual worker until
 completion. No automatic beans or filters. The security artifact now depends on
 spring-tx at runtime. See [work contract](contracts/saas-credential-work.md).
+
+
+## Private keyed identity admission
+
+The optional JDBC identity artifact now adds private source/login-key/locator counters,
+a configuration row and a sixth generated migration. It uses JCA HMAC-SHA-256 with
+explicit stable 32-byte installation key material, purpose-separated inputs and full
+digest checks behind a technical primary-key UUID locator. Key/policy drift fails
+without resetting attempts. Coarse and keyed admission commit before business work;
+source attempts remain spent on subject denial. Dynamic rows consume the persistent
+key budget, with two conservative pre-branch reservations and atomic release.
+
+[Cursor cleanup](contracts/saas-identity-admission.md) uses primary-key seek batches
+of at most 500, persists progress and deletes only expired rows. Time passing alone
+does not refund physical rows. Public source resolution, pipeline wiring and scheduled
+complete sweeps remain OPEN. No limiter DSL, public management API or automatic beans
+are introduced. Do not expose internal outcome/digest/row representations to clients.
