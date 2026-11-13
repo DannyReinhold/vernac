@@ -3,7 +3,7 @@ title: Private identity delivery envelope
 ---
 # Private identity delivery envelope
 
-Status: **private primitive implemented; durable admission, ledger, configuration and
+Status: **private envelope and durable admission implemented; ledger, configuration and
 sending integration OPEN**. Depends on the [Boot 4 baseline](../development/spring-boot-4-baseline.md)
 and the accepted [D10 direction](../development/identity-delivery-0.6.0.md).
 
@@ -29,25 +29,22 @@ while its matching read key is configured. Duplicate material under two IDs in t
 key set is rejected. Historical ID/material stability and cross-instance alias rejection
 require the durable admission registry below; the in-memory key set cannot prove them.
 
-## Attempt admission is a mandatory, unfinished integration gate
+## Durable attempt admission and permits
 
-Every encryption calls the explicitly supplied `EncryptionAdmission` with a nonsecret
-key ID and SHA-256 material fingerprint before invoking the library. The future durable
-implementation must independently commit a nonrefundable attempt, bind ID/material and
-reject material reuse under another ID across configuration changes and restarts. Enforce
-at most 1,048,576 encryption attempts per key deployment-wide, including attempts whose
-encryption or later business transaction fails. Retrying delivery decrypts an existing
-job rather than minting another ciphertext. Unused/failed attempts are conservatively
-spent; business rollback must not refund them.
+The [durable key registry](saas-identity-encryption-admission.md) independently commits
+a nonrefundable attempt with the active key ID/material fingerprint. Call `prepare()`
+outside all business transactions/resources. It returns an instance-bound, single-use
+permit. Pass that permit to `seal(context, payload, permit)` inside the later business
+transaction: sealing performs no nested admission transaction. Invalid/unused permits,
+failed encryption and later business rollback never refund prepared attempts. Retrying
+delivery decrypts the existing job rather than creating another ciphertext.
 
-There is no production admission implementation, process-local counter or default allow
-in this slice. Therefore this primitive must not yet be wired to durable issuance. The
-next PostgreSQL proof must cover last-slot concurrency, restart, failed encryption,
-business rollback, key-ID drift/aliasing and bounded registry storage. Its independently
-committed key-attempt lock must not acquire subject/business-capacity locks; prove the
-lock ordering and transaction propagation before composition. A callback alone is not
-evidence of a deployment-wide cryptographic usage bound. The concurrent unit test uses
-an explicitly identified test double and makes no persistence claim.
+The private PostgreSQL gate enforces at most 1,048,576 attempts per key and 64 lifetime
+key identities, retaining drift/alias checks across restart. Its fixed lock is distinct
+from business-capacity/subject locks. No process-local production counter or default
+allow exists. The envelope unit test still uses an explicitly identified admission test
+double; real registry properties are established by its PostgreSQL integration cases.
+Durable challenge/job composition and public issuance remain OPEN.
 
 ## Framing and context binding
 
@@ -84,7 +81,6 @@ bounds, configuration copying/rejection, redaction, sanitized admission failures
 concurrent callers sharing a test admission boundary. CI requires every named case.
 The full identity-jdbc suite also runs with its restricted PostgreSQL integration cases.
 
-Next: generated private key-admission state and a bounded durable attempt registry with
-real two-instance/restart/rollback proofs. Then compose protected job persistence and
-atomic challenge issuance, followed by leased workers and Brevo/Noop adapters. A11,
-public registration, D05 provisioning and final SaaS release acceptance remain OPEN.
+Next: compose protected job persistence and atomic challenge issuance, followed by leased
+workers and Brevo/Noop adapters. A11, public registration, D05 provisioning and final SaaS
+release acceptance remain OPEN.

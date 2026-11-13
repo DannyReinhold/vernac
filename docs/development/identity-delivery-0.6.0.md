@@ -176,5 +176,6 @@ then the key/envelope adapter. No durable identity secrets may use the experimen
 
 The [private envelope contract](../contracts/saas-identity-delivery-envelope.md) now
 implements Spring GCM framing, context comparison, bounded keys/payloads and safe failures.
-A mandatory admission callback has no production implementation yet: durable usage/key
-identity accounting is the next gate, before protected job writes or public flows.
+The [durable key registry](../contracts/saas-identity-encryption-admission.md) now accounts
+for attempts through one-use permits before business locks. Protected job writes and
+public flows remain OPEN.

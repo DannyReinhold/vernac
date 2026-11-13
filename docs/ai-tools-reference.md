@@ -27,8 +27,8 @@ including explicit Jackson 2 converter selection for generated DTOs. Do not mix 
 7 with a Boot 3 application or silently use Jackson 3 for Jackson 2 codecs.
 
 The [private delivery envelope](contracts/saas-identity-delivery-envelope.md) is internal
-infrastructure. Its mandatory durable admission has no production implementation yet;
-do not wire an allow-all/local counter into durable identity issuance.
+infrastructure. Use its [durable key registry](contracts/saas-identity-encryption-admission.md):
+prepare a one-use permit outside business transactions; do not use an allow-all/local counter.
 
 ## Locate the project and respect its configuration
 

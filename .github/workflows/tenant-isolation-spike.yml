@@ -230,13 +230,20 @@ jobs:
                   'everyTrustedContextFieldRejectsCiphertextSubstitution',
                   'rotatedKeyRingReadsOldJobsAndRejectsRemovalOrRekeying',
                   'malformedTamperedAndOversizedInputsNeverExposeLibraryExceptions',
-                  'boundsAndExpiryAreCheckedBeforeSpendingAnAttempt',
+                  'boundsAndExpiryRejectEncryptionButPreparedAttemptsRemainSpent',
                   'missingInvalidOrExcessKeysFailClosedAndCallerMutationCannotChangeKeys',
                   'refusedAdmissionCannotEncryptAndItsExceptionIsSanitized',
                   'concurrentCallersCannotBypassTheirSharedAdmissionBoundary',
+                  'preparedPermitIsSingleUseAndBoundToItsEncryptor',
               },
               'saas/identity-jdbc/target/surefire-reports/TEST-org.vernac.saas.identity.persistence.IdentityLoginAddressModelTest.xml': {
                   'canonicalAndDeliveryValuesReuseTheExistingAddressPolicyAndRedactRepresentations',
+              },
+              'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityEncryptionAdmissionPostgresIT.xml': {
+                  'attemptsSurviveUnusedPermitsBusinessRollbackAndRestart',
+                  'twoInstancesCompeteForTheLastAttemptWithoutResettingTheCap',
+                  'keyIdentityAliasesAndBoundedHistoryFailClosedAcrossRestart',
+                  'damagedRegistryCannotSilentlyRestartFromZero',
               },
               'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityLoginOwnershipPostgresIT.xml': {
                   'canonicalRepeatsPreserveOriginalSpellingDeadlineAndOneOwnerWithoutAliasFolding',

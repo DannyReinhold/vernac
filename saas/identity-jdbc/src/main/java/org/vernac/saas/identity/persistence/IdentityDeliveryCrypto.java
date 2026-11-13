@@ -9,6 +9,7 @@ import java.io.*;
 import java.security.*;
 import java.time.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.crypto.spec.SecretKeySpec;
 
@@ -100,7 +101,29 @@ final class IdentityDeliveryCrypto {
         }
     }
 
-    String seal(Context context, byte[] payload) {
+    final class Permit {
+        private final IdentityDeliveryCrypto owner = IdentityDeliveryCrypto.this;
+        private final AtomicBoolean used = new AtomicBoolean();
+
+        private Permit() {}
+
+        @Override
+        public String toString() {
+            return "EncryptionPermit[REDACTED]";
+        }
+    }
+
+    Permit prepare() {
+        try {
+            Key key = keys.get(active);
+            admission.reserve(active, key.fingerprint());
+            return new Permit();
+        } catch (RuntimeException failure) {
+            throw unavailable();
+        }
+    }
+
+    String seal(Context context, byte[] payload, Permit permit) {
         byte[] clear = null;
         try {
             requireLive(context);
@@ -111,8 +134,9 @@ final class IdentityDeliveryCrypto {
             System.arraycopy(prefix, 0, clear, 0, prefix.length);
             System.arraycopy(payload, 0, clear, prefix.length, payload.length);
             Key key = keys.get(active);
-            // Attempts remain charged if encryption or a later business transaction fails.
-            admission.reserve(active, key.fingerprint());
+            if (permit == null || permit.owner != this || !permit.used.compareAndSet(false, true))
+                throw unavailable();
+            // Durable attempt was committed before entering business/subject locks.
             String envelope =
                     "v1."
                             + active

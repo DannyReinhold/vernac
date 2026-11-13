@@ -976,3 +976,19 @@ cases with no failures/errors/skips, including eight new envelope tests. CI requ
 named envelope proof. All 1,199 local documentation links, XML/YAML and whitespace checks
 pass. The broader platform suite is recorded in the preceding slice; it was not repeated
 for this package-private addition. Installed IDE/final release acceptance remain separate.
+
+
+## Durable identity encryption-attempt admission
+
+The [private key registry](../contracts/saas-identity-encryption-admission.md) binds names
+and fingerprints, charges up to 1,048,576 attempts per key and retains at most 64 lifetime
+identities. Independently committed admission precedes business locks; one-use permits
+carry admission into later encryption without nested transactions or rollback refunds.
+The ninth generated migration adds only two private tables/constraints. Previous histories
+are unchanged. Private startup installs no endpoint/provider and stores no encryption key.
+
+Local identity-jdbc verification passes 18 unit and 48 integration cases without failures/
+errors/skips. Four new restricted PostgreSQL cases cover restart, rollback/abandonment,
+ambient rejection, final-slot concurrency, drift/aliasing and bounded/damaged history.
+The nine-migration live schema check passes. Public issuance/mail/session integration is
+still OPEN. Next: protected mail job accounting and atomic challenge/job persistence.

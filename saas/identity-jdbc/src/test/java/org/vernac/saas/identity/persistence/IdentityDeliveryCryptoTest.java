@@ -29,8 +29,8 @@ class IdentityDeliveryCryptoTest {
     void encryptionBindsContextAndSurvivesReconstruction() {
         AtomicInteger reserved = new AtomicInteger();
         var one = crypto("old", Map.of("old", key(1)), reserved);
-        String envelope = one.seal(CONTEXT, SECRET);
-        String second = one.seal(CONTEXT, SECRET);
+        String envelope = seal(one, CONTEXT, SECRET);
+        String second = seal(one, CONTEXT, SECRET);
         assertNotEquals(envelope, second);
         assertFalse(envelope.contains("synthetic"));
         assertArrayEquals(
@@ -43,7 +43,7 @@ class IdentityDeliveryCryptoTest {
     @Test
     void everyTrustedContextFieldRejectsCiphertextSubstitution() {
         var crypto = crypto("old", Map.of("old", key(1)), new AtomicInteger());
-        String envelope = crypto.seal(CONTEXT, SECRET);
+        String envelope = seal(crypto, CONTEXT, SECRET);
         for (var changed :
                 List.of(
                         new IdentityDeliveryCrypto.Context(
@@ -83,10 +83,10 @@ class IdentityDeliveryCryptoTest {
     @Test
     void rotatedKeyRingReadsOldJobsAndRejectsRemovalOrRekeying() {
         var old = crypto("old", Map.of("old", key(1)), new AtomicInteger());
-        String envelope = old.seal(CONTEXT, SECRET);
+        String envelope = seal(old, CONTEXT, SECRET);
         var rotated = crypto("new", Map.of("old", key(1), "new", key(2)), new AtomicInteger());
         assertArrayEquals(SECRET, rotated.open(CONTEXT, envelope));
-        String next = rotated.seal(CONTEXT, SECRET);
+        String next = seal(rotated, CONTEXT, SECRET);
         safe(() -> old.open(CONTEXT, next));
         safe(
                 () ->
@@ -103,7 +103,7 @@ class IdentityDeliveryCryptoTest {
     @Test
     void malformedTamperedAndOversizedInputsNeverExposeLibraryExceptions() {
         var crypto = crypto("old", Map.of("old", key(1)), new AtomicInteger());
-        String envelope = crypto.seal(CONTEXT, SECRET);
+        String envelope = seal(crypto, CONTEXT, SECRET);
         String[] parts = envelope.split("\\.");
         byte[] tampered = Base64.getUrlDecoder().decode(parts[2]);
         tampered[tampered.length / 2] ^= 1;
@@ -122,12 +122,12 @@ class IdentityDeliveryCryptoTest {
     }
 
     @Test
-    void boundsAndExpiryAreCheckedBeforeSpendingAnAttempt() {
+    void boundsAndExpiryRejectEncryptionButPreparedAttemptsRemainSpent() {
         AtomicInteger spent = new AtomicInteger();
         var crypto = crypto("old", Map.of("old", key(1)), spent);
-        safe(() -> crypto.seal(CONTEXT, new byte[48_001]));
-        safe(() -> crypto.seal(CONTEXT, new byte[0]));
-        safe(() -> crypto.seal(CONTEXT, null));
+        safe(() -> seal(crypto, CONTEXT, new byte[48_001]));
+        safe(() -> seal(crypto, CONTEXT, new byte[0]));
+        safe(() -> seal(crypto, CONTEXT, null));
         var expired =
                 new IdentityDeliveryCrypto.Context(
                         CONTEXT.jobId(),
@@ -135,11 +135,11 @@ class IdentityDeliveryCryptoTest {
                         CONTEXT.purpose(),
                         CONTEXT.locator(),
                         NOW);
-        safe(() -> crypto.seal(expired, SECRET));
-        assertEquals(0, spent.get());
+        safe(() -> seal(crypto, expired, SECRET));
+        assertEquals(4, spent.get());
         byte[] largest = new byte[48_000];
         Arrays.fill(largest, (byte) 42);
-        String envelope = crypto.seal(CONTEXT, largest);
+        String envelope = seal(crypto, CONTEXT, largest);
         assertTrue(envelope.getBytes(StandardCharsets.UTF_8).length <= 65_536);
         assertArrayEquals(largest, crypto.open(CONTEXT, envelope));
         var later =
@@ -149,7 +149,7 @@ class IdentityDeliveryCryptoTest {
                         Clock.fixed(CONTEXT.expiresAt(), ZoneOffset.UTC),
                         (id, hash) -> fail());
         safe(() -> later.open(CONTEXT, envelope));
-        assertEquals(1, spent.get());
+        assertEquals(5, spent.get());
     }
 
     @Test
@@ -168,7 +168,7 @@ class IdentityDeliveryCryptoTest {
         assertArrayEquals(
                 SECRET,
                 crypto("old", Map.of("old", key(1)), new AtomicInteger())
-                        .open(CONTEXT, crypto.seal(CONTEXT, SECRET)));
+                        .open(CONTEXT, seal(crypto, CONTEXT, SECRET)));
     }
 
     @Test
@@ -183,7 +183,7 @@ class IdentityDeliveryCryptoTest {
                             assertTrue(hash.matches("[0-9a-f]{64}"));
                             throw new IllegalArgumentException("synthetic-secret");
                         });
-        safe(() -> crypto.seal(CONTEXT, SECRET));
+        safe(() -> seal(crypto, CONTEXT, SECRET));
     }
 
     @Test
@@ -206,7 +206,7 @@ class IdentityDeliveryCryptoTest {
                         pool.submit(
                                 () -> {
                                     try {
-                                        chosen.seal(CONTEXT, SECRET);
+                                        seal(chosen, CONTEXT, SECRET);
                                         accepted.incrementAndGet();
                                     } catch (IllegalStateException denied) {
                                         assertEquals(
@@ -219,6 +219,23 @@ class IdentityDeliveryCryptoTest {
         }
         assertEquals(32, spent.get());
         assertEquals(3, accepted.get());
+    }
+
+    private static String seal(
+            IdentityDeliveryCrypto crypto, IdentityDeliveryCrypto.Context context, byte[] payload) {
+        return crypto.seal(context, payload, crypto.prepare());
+    }
+
+    @Test
+    void preparedPermitIsSingleUseAndBoundToItsEncryptor() {
+        var crypto = crypto("old", Map.of("old", key(1)), new AtomicInteger());
+        var other = crypto("old", Map.of("old", key(1)), new AtomicInteger());
+        var permit = crypto.prepare();
+        safe(() -> other.seal(CONTEXT, SECRET, permit));
+        crypto.seal(CONTEXT, SECRET, permit);
+        safe(() -> crypto.seal(CONTEXT, SECRET, permit));
+        safe(() -> crypto.seal(CONTEXT, SECRET, null));
+        assertEquals("EncryptionPermit[REDACTED]", permit.toString());
     }
 
     private static IdentityDeliveryCrypto crypto(
