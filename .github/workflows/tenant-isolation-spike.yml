@@ -225,6 +225,16 @@ jobs:
                   assert not any(case.find(t) is not None for t in ('skipped', 'failure', 'error'))
           print('Unique aggregate/compiler/schema/JDBC/module/editor proofs executed; none skipped.')
           saas_proofs = {
+              'saas/identity-jdbc/target/surefire-reports/TEST-org.vernac.saas.identity.persistence.IdentityDeliveryCryptoTest.xml': {
+                  'encryptionBindsContextAndSurvivesReconstruction',
+                  'everyTrustedContextFieldRejectsCiphertextSubstitution',
+                  'rotatedKeyRingReadsOldJobsAndRejectsRemovalOrRekeying',
+                  'malformedTamperedAndOversizedInputsNeverExposeLibraryExceptions',
+                  'boundsAndExpiryAreCheckedBeforeSpendingAnAttempt',
+                  'missingInvalidOrExcessKeysFailClosedAndCallerMutationCannotChangeKeys',
+                  'refusedAdmissionCannotEncryptAndItsExceptionIsSanitized',
+                  'concurrentCallersCannotBypassTheirSharedAdmissionBoundary',
+              },
               'saas/identity-jdbc/target/surefire-reports/TEST-org.vernac.saas.identity.persistence.IdentityLoginAddressModelTest.xml': {
                   'canonicalAndDeliveryValuesReuseTheExistingAddressPolicyAndRedactRepresentations',
               },

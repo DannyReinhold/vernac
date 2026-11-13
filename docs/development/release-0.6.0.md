@@ -955,3 +955,24 @@ response DTOs select Jackson 2. All 43 tenant/authorization/event spike cases pa
 All 16 Python tooling tests, 1,193 local documentation links and XML/YAML/whitespace
 checks pass. Installed IntelliJ and standalone examples other than persistent-modules
 were not rerun. No migration history or user data is modified by this change.
+
+
+## Private protected identity delivery envelope
+
+The [internal envelope primitive](../contracts/saas-identity-delivery-envelope.md) uses
+Spring GCM with a bounded deployment-supplied key set, authenticated job/subject/purpose/
+locator/expiry context and a bounded versioned payload. It rejects substitution, expired
+context, malformed data and key problems with a cause-free safe error. No provider,
+Spring bean, export, endpoint, schema migration or durable secret write is added.
+
+Every encryption requires an explicit key-attempt admission callback. Its durable
+registry/usage limit is not implemented yet; a process-local test double is not a
+production gate. Next: private generated admission state and real PostgreSQL concurrency/
+restart/rollback/key-identity proofs, then bounded job persistence and Brevo/Noop workers.
+A11 remains OPEN. Rough scope remains Identity/Auth 55–60%, complete 0.6.0 25–35%.
+
+Validation: identity-jdbc clean verify passes all 17 unit and 44 PostgreSQL/JAR integration
+cases with no failures/errors/skips, including eight new envelope tests. CI requires every
+named envelope proof. All 1,199 local documentation links, XML/YAML and whitespace checks
+pass. The broader platform suite is recorded in the preceding slice; it was not repeated
+for this package-private addition. Installed IDE/final release acceptance remain separate.

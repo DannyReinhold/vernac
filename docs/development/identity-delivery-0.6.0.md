@@ -48,8 +48,9 @@ key derivation. Do not use password-based encryptors, CBC defaults, deterministi
 or an encryption key derived from a login address, challenge verifier or admission key.
 
 The implementation must first establish a reviewed, supported dependency baseline and
-prove the selected API on that baseline. The currently managed 6.4.2 dependency must
-not be treated as a recommendation for new deployments. Spring's
+prove the selected API on that baseline. The former 6.4.2 dependency baseline must
+not be treated as a recommendation for new deployments; the coordinated
+[Boot 4 migration](spring-boot-4-baseline.md) now aligns source builds. Spring's
 [2026 AES advisory](https://spring.io/security/cve-2026-47842/) describes unsafe CBC
 constructor defaults and replacement APIs. Its explicit SecretKey/GCM migration path
 informs this proposal; it does not justify silently upgrading just one transitive jar
@@ -169,3 +170,11 @@ checks the replacement Spring GCM API under a standalone Boot 4.1.2 BOM on Java 
 It does not migrate the existing reactor or close the dependency gate for production.
 Next is a reviewed platform migration with actual Spring/JDBC/Flyway application proofs,
 then the key/envelope adapter. No durable identity secrets may use the experiment directly.
+
+
+## Private envelope primitive
+
+The [private envelope contract](../contracts/saas-identity-delivery-envelope.md) now
+implements Spring GCM framing, context comparison, bounded keys/payloads and safe failures.
+A mandatory admission callback has no production implementation yet: durable usage/key
+identity accounting is the next gate, before protected job writes or public flows.
