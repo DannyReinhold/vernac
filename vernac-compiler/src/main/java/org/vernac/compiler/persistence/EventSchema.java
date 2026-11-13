@@ -71,7 +71,7 @@ public final class EventSchema {
     }
     static void validateGraph(List<Table> tables) {
         if (tables.stream().noneMatch(t -> t.eventIsolation() != null)) return;
-        new SchemaDescription(3, 1, tables.stream().map(t -> runtime(new TableParts(t.namespace(), t.name(), t.origin(),
+        new SchemaDescription(tables.stream().flatMap(t -> t.columns().stream()).anyMatch(c -> c.collation() != null) ? 4 : 3, 1, tables.stream().map(t -> runtime(new TableParts(t.namespace(), t.name(), t.origin(),
                 t.columns(), t.primaryKey(), t.constraints(), t.eventIsolation()), t.tenantIsolation())).toList(), Map.of());
     }
     private record TableParts(String namespace, String name, String origin, List<Column> columns,
@@ -79,7 +79,7 @@ public final class EventSchema {
     private static SchemaDescription.Table runtime(TableParts table) { return runtime(table, null); }
     private static SchemaDescription.Table runtime(TableParts t, TenantIsolation tenant) {
         return new SchemaDescription.Table(t.namespace(), t.name(), t.origin(), t.columns().stream()
-                .map(c -> new SchemaDescription.Column(c.name(), c.sqlType(), c.nullable(), c.codec(), c.origin())).toList(),
+                .map(c -> new SchemaDescription.Column(c.name(), c.sqlType(), c.nullable(), c.codec(), c.origin(), c.collation())).toList(),
                 t.key(), t.constraints().stream().map(c -> new SchemaDescription.Constraint(c.name(), c.clause())).toList(),
                 tenant == null ? null : new SchemaDescription.TenantIsolation(tenant.aggregate(), tenant.root()),
                 t.isolation() == null ? null : new SchemaDescription.EventIsolation(t.isolation().event(), t.isolation().root()));

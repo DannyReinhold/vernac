@@ -17,7 +17,7 @@ import org.vernac.runtime.persistence.*;
 
 /** One coordinator: verify all inputs, migrate dependencies first, then the application. */
 public final class ModuleMigrationStrategy implements FlywayMigrationStrategy,BeanClassLoaderAware {
-    private static final ObjectMapper JSON=new ObjectMapper().addMixIn(SchemaDescription.Table.class, TenantTableJson.class).enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+    private static final ObjectMapper JSON=new ObjectMapper().addMixIn(SchemaDescription.Table.class, TenantTableJson.class).addMixIn(SchemaDescription.Column.class, ColumnJson.class).enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
         .enable(SerializationFeature.INDENT_OUTPUT).setDefaultPrettyPrinter(new DefaultPrettyPrinter().withObjectIndenter(new DefaultIndenter("  ","\n")));
     /** Keep version-1 snapshot bytes unchanged without adding JSON dependencies to core runtime data. */
     private abstract static class TenantTableJson {
@@ -25,6 +25,10 @@ public final class ModuleMigrationStrategy implements FlywayMigrationStrategy,Be
         abstract SchemaDescription.TenantIsolation tenantIsolation();
         @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
         abstract SchemaDescription.EventIsolation eventIsolation();
+    }
+    private abstract static class ColumnJson {
+        @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+        abstract String collation();
     }
     private final AdapterBindings bindings;
     private final String applicationSchema;

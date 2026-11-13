@@ -33,9 +33,15 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
     private final Map<String,Table> tables=new LinkedHashMap<>();
     private final List<Table> order;
     private final boolean tenant;
+    private final JdbcUniqueConstraints unique;
     private final @Nullable JdbcTenantCoordinator coordinator;
 
     public JdbcAggregateStore(NamedParameterJdbcTemplate jdbc,Class<A> type,Domain root,List<Domain> entities,List<Table> tables) {
+        this(jdbc,type,root,entities,tables,List.of());
+    }
+    public JdbcAggregateStore(NamedParameterJdbcTemplate jdbc,Class<A> type,Domain root,List<Domain> entities,List<Table> tables,
+                              List<UniqueConstraint> constraints) {
+        unique = new JdbcUniqueConstraints(jdbc, constraints);
         this.jdbc=Objects.requireNonNull(jdbc); this.type=type; this.root=root;
         domains.put(root.table(),root); entities.forEach(d->domains.put(d.table(),d));
         tables.forEach(t->this.tables.put(t.name(),t));
@@ -219,7 +225,7 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
     }
     public A save(A aggregate) {return execute(()->saveImpl(aggregate));}
     private A saveImpl(A aggregate) {
-        requireTransaction(); Objects.requireNonNull(aggregate);
+        requireTransaction(); unique.requireWriter(); Objects.requireNonNull(aggregate);
         UUID id=root.id().apply(aggregate);
         long version=aggregate.persistenceState().version();
         if(tenant && version==0 && aggregate.persistenceState().ownership().origin()!=TenantOwnership.Origin.NEW)
@@ -266,7 +272,7 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
 
     public void delete(A aggregate) {execute(()->{deleteImpl(aggregate);return true;});}
     private void deleteImpl(A aggregate) {
-        requireTransaction(); checkOwnership(aggregate); UUID id=root.id().apply(aggregate);
+        requireTransaction(); unique.requireWriter(); checkOwnership(aggregate); UUID id=root.id().apply(aggregate);
         long version=aggregate.persistenceState().version();
         if(version==0) throw conflict(id);
         int locked=jdbc.update("UPDATE "+root.table()+" SET "+q("@version")+"="+q("@version")
@@ -310,6 +316,7 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
     private <T> T execute(java.util.function.Supplier<T> action) {
         try {return action.get();}
         catch(org.springframework.dao.DataAccessException failure) {
+            unique.rethrowRecognized(failure);
             if(!tenant) throw failure;
             if(failure instanceof org.springframework.dao.DuplicateKeyException
                     || failure instanceof OptimisticLockingFailureException)
@@ -340,6 +347,7 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
         if(tenant) ownership.claimForTenant(TenantContext.requireTenant()); else ownership.claimUnscoped();
     }
     private void requireTransaction() {
+        unique.requireBound();
         if(coordinator!=null) {coordinator.requireBound();return;}
         if(!TransactionSynchronizationManager.isActualTransactionActive()) throw new IllegalTransactionStateException("Vernac repositories require an active usecase transaction");
     }

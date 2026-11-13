@@ -25,7 +25,7 @@ For a guide across all documentation, use the [documentation map](../documentati
 
 ## Implementation and decisions
 
-- [Aggregate field uniqueness design](aggregate-uniqueness-0.6.0.md): accepted baseline; syntax/model/module foundation implemented, database enforcement and persistence adoption still pending.
+- [Aggregate field uniqueness design](aggregate-uniqueness-0.6.0.md): implemented compiler/schema/JDBC/headless editor contract; installed IDE and final release acceptance remain separate.
 
 - [Compiler architecture](compiler-architecture.md): shared resolution, names and generation.
 - [Feature review checklist](feature-review-checklist.md): purpose, quality, diagnostics and tooling.

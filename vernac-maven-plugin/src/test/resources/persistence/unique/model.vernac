@@ -1,0 +1,17 @@
+namespace uniquedemo;
+id ClaimId;
+id ScopedClaimId;
+value Key(String encoded);
+value Note(String encoded);
+global aggregate Claim[ClaimId](unique mut Key, Note) behavior {
+    modify void changeKey(Key key) { self.key(key); }
+} list Claims;
+repository ClaimRepository for Claim {
+    find Claim? forKey(Key key) where key = :key;
+    find Claims all() order by key;
+}
+tenant aggregate ScopedClaim[ScopedClaimId](unique Key, Note) list ScopedClaims;
+repository ScopedClaimRepository for ScopedClaim {
+    find ScopedClaim? forKey(Key key) where key = :key;
+    find ScopedClaims all() order by key;
+}

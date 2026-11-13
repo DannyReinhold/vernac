@@ -181,7 +181,7 @@ jobs:
                   'rejectsWrongDeclarationKindsAndRepeatedModifiersAtTheirSource',
                   'contextualUniqueIdentifiersAndDerivedNameCollisionsKeepTheirContracts',
                   'generatedObjectsCompileWithoutInventingAnInMemoryUniquenessRegistry',
-                  'persistenceAdoptionFailsExplicitlyUntilItsConstraintCanBeEnforced',
+                  'persistenceAdoptionCarriesTheDerivedConstraintIntoSchemaAndRepository',
                   'unsavedAnalysisAndNativeTypeReferencesRetainTheDerivedField',
               },
               'vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.modules.UniqueFieldModuleTest.xml': {
@@ -189,19 +189,37 @@ jobs:
                   'uniquenessAndMutabilityParticipateInCompatibilityFingerprints',
                   'oldContractVersionsAreRejectedInsteadOfDroppingUniqueMetadata',
               },
+              'vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.persistence.UniquePersistenceSchemaTest.xml': {
+                  'stableDerivedNamesAndScopeUseResolvedStorageColumns',
+                  'explicitCollationRoundTripsWithoutChangingLegacySnapshotBytes',
+                  'migrationAddRemoveAndFieldChangeKeepConstraintAndCollationTogether',
+              },
               'vernac-lsp/target/surefire-reports/TEST-org.vernac.lsp.UniqueFieldSymbolsTest.xml': {
                   'omittedFieldNamesPreserveTypeNavigationAndIncompleteTypeCompletion',
-                  'hoverExplainsScopeWithoutClaimingDatabaseEnforcement',
+                  'hoverExplainsScopeAndDatabaseEnforcement',
+                  'modifierCompletionIsAggregateLocalAndDoesNotRepeatExistingMarkers',
+              },
+              'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.UniquePersistencePostgresTest.xml': {
+                  'sharedDatabaseRejectsConflictingInsertUpdateAndKeepsRollbackRestartSemantics',
+                  'caughtConflictPoisonsItsWriterAndWrongOrReadOnlyBoundariesFailBeforeWrites',
+                  'tenantKeysAreScopedAndExactTextSpellingsRemainDistinct',
+                  'independentContextsHaveOneWinnerForInsertAndUpdateRaces',
+                  'nonmatchingErrorsStayTechnicalAndOversizedIndexInputsAreSanitized',
+                  'migrationReplayCatalogAndCollationDriftMatchTheSharedModel',
+                  'schemaCheckGoalReplaysFormatFourHistoryAndDetectsCollationOnlyDrift',
+              },
+              'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.UniqueModulePostgresTest.xml': {
+                  'packagedModuleReplaysFormatFourAndRejectsConflictAndCollationDriftOnRestart',
               },
           }
           for path, expected in uniqueness_proofs.items():
               root = ET.parse(path).getroot()
               cases = {c.attrib['name']: c for c in root.findall('testcase')}
-              assert not (expected - cases.keys()), f'Missing unique field model proofs: {path}'
+              assert not (expected - cases.keys()), f'Missing unique field enforcement proofs: {path}'
               assert all(int(root.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
               for case in cases.values():
                   assert not any(case.find(t) is not None for t in ('skipped', 'failure', 'error'))
-          print('Unique aggregate field model/module/editor proofs executed; persistence remains blocked.')
+          print('Unique aggregate/compiler/schema/JDBC/module/editor proofs executed; none skipped.')
           saas_proofs = {
               'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityRegistrationsPostgresIT.xml': {
                   'deadlineIsImmutableExactAndSurvivesRestart',

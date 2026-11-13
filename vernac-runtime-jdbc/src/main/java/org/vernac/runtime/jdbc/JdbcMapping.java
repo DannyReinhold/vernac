@@ -14,6 +14,13 @@ import org.springframework.dao.DataRetrievalFailureException;
 public final class JdbcMapping {
     private JdbcMapping() { }
     public record Column(String name, String sqlType) { }
+    /** Exact generated metadata, never reconstructed from PostgreSQL error text. */
+    public record UniqueConstraint(String schema, String table, String name, String aggregate, String field) {
+        public UniqueConstraint {
+            Objects.requireNonNull(schema); Objects.requireNonNull(table); Objects.requireNonNull(name);
+            Objects.requireNonNull(aggregate); Objects.requireNonNull(field);
+        }
+    }
     public record Table(String name, String predicate, int depth, List<Column> columns, List<String> key, boolean tenant) {
         public Table(String name, String predicate, int depth, List<Column> columns, List<String> key) {
             this(name,predicate,depth,columns,key,false);

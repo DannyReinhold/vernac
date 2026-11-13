@@ -3,12 +3,11 @@ title: Aggregate field uniqueness — 0.6.0 design baseline
 ---
 # Aggregate field uniqueness — 0.6.0 design baseline
 
-Status: **accepted design baseline; partially implemented**. The
-[language-model foundation](../contracts/aggregate-uniqueness.md) implements syntax,
-effective names, semantic checks and module/editor metadata. The full example below
-includes a repository and therefore cannot yet generate persistence: database
-constraint/collation/migration/JDBC enforcement remains pending. Schema generation
-rejects adoption instead of emitting an unenforced table. No identity/release gate is closed.
+Status: **implemented core contract in 0.6.0-SNAPSHOT**, with installed IDE/manual
+release acceptance still pending. The [feature contract](../contracts/aggregate-uniqueness.md)
+is authoritative for delivered syntax, mapping, migrations and JDBC failures. This
+baseline records design decisions and the proof plan; it is not identity address
+ownership or public-registration acceptance.
 
 ## Problem and boundary
 
@@ -33,8 +32,7 @@ A constraint name is technical infrastructure, not a mandatory domain concept.
 
 ## Proposed declaration
 
-The following complete model parses, but its repository adoption remains **blocked**
-until database enforcement is implemented:
+The following complete model is supported by compiler and PostgreSQL persistence:
 
 ```text
 namespace example.identity;
@@ -63,7 +61,7 @@ deliveryAddress unique. To require a second field to be independently unique, ma
 that field separately. Two marked fields mean two independent constraints, never
 one composite key.
 
-The planned aggregate-field shape is:
+The aggregate-field shape is:
 
 ```text
 aggregateField := fieldModifiers type explicitOrDerivedFieldName
@@ -242,16 +240,14 @@ Packaged IntelliJ acceptance remains separate from headless tests.
 | Equality/privacy | Exact text/case/accent behavior under a database with a different default collation; oversized value failure; no secret values in exception graphs; nonmatching failures retain categories |
 | Identity adoption | Canonical address ownership only after the above proofs; race/restart/cleanup/closure rules; no public-flow acceptance until protected delivery and provisioning exist |
 
-The model foundation now has compiler/module/headless editor tests. Executable
-schema/runtime and packaged IDE proofs still belong to the enforcement follow-up and must reject skipped database cases in CI/release
+Compiler/module, schema/runtime and headless editor proofs now exist. Packaged IDE
+installation and final integrated release proofs remain separate and must reject skipped database cases in CI/release
 checks. Update the implemented contracts, specification, language/AI references, guided
-example, FAQ and plugin What's New when the feature actually ships. Working persistence examples must not adopt the marker until its backend enforcement
-is available. The standalone domain example in the model contract compiles without a repository.
+example, FAQ and plugin What's New when the feature actually ships. The feature contract now includes an executable repository-backed example.
 
-The compiler/module language-model foundation is now implemented separately, with an
-explicit persistence guard. The next PR must implement shared schema mapping,
-collation/migrations, JDBC enforcement and the remaining editor behavior with the
-required PostgreSQL proofs before persistence adoption is enabled. Canonical identity address
-ownership follows it; protected mail, account/owner provisioning and public browser flows
-remain subsequent work. No completion percentage increases merely because this design is
-written or merged.
+Compiler/module metadata, schema/migration mapping, JDBC enforcement and headless
+editor support are implemented. Real restricted-role PostgreSQL proofs cover independent
+contexts, conflicts, rollback, module startup and exact text/collation behavior. Installed
+IDE and final integrated release proofs remain separate. Next: canonical identity address
+ownership, then protected mail, account/owner provisioning and public browser flows.
+No identity/public journey gate closes merely because the general constraint exists.

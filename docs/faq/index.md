@@ -213,9 +213,9 @@ Declare a singleton repository query with `find Tour? ...` when absence is expec
 It returns Optional, but multiple matches still raise `NonUniqueQueryResultException`.
 That declaration does not add a database uniqueness constraint or choose the first row.
 [Read the query contract](../contracts/repository-queries.md).
-The [`unique` aggregate-field marker](../contracts/aggregate-uniqueness.md) has a
-language-model foundation, but schema/JDBC generation remains blocked until its
-database enforcement is implemented.
+The [`unique` aggregate-field marker](../contracts/aggregate-uniqueness.md) expresses a
+separate domain requirement and generates PostgreSQL enforcement with the appropriate
+global/tenant scope. It does not normalize input or query the database at construction.
 
 ### `save()` returned successfully. Is my change already committed?
 

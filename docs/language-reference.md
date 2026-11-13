@@ -263,9 +263,8 @@ against every direct Java reference. Candidate-state rollback is not implemented
 ## Repositories and queries
 
 The [`unique` aggregate-field modifier](contracts/aggregate-uniqueness.md) accepts
-omitted field names, for example `unique LoginKey`. Its language model is implemented;
-schema/JDBC generation for a marked persistent aggregate is blocked until database
-enforcement is available. The repository declarations below do not themselves add uniqueness.
+omitted field names, for example `unique LoginKey`. PostgreSQL enforcement, tenant scope, schema/migrations and safe JDBC conflict handling
+are implemented. The repository declarations below do not themselves add uniqueness.
 
 
 ```vernac

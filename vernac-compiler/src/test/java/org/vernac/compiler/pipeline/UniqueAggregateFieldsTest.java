@@ -168,21 +168,15 @@ class UniqueAggregateFieldsTest {
     }
 
     @Test
-    void persistenceAdoptionFailsExplicitlyUntilItsConstraintCanBeEnforced() throws Exception {
+    void persistenceAdoptionCarriesTheDerivedConstraintIntoSchemaAndRepository() throws Exception {
         for (String scope : List.of("global", "tenant")) {
-            var p =
-                    project(
-                            scope
-                                    + " aggregate Claim[ClaimId](unique LoginKey); repository"
-                                    + " Claims for Claim {}");
-            var failure =
-                    assertThrows(
-                            SemanticValidationException.class,
-                            () -> new SchemaBuilder(p, SchemaModel.empty()).build());
-            assertTrue(failure.getMessage().contains("Persistence enforcement of unique"));
-            assertThrows(
-                    SemanticValidationException.class,
-                    () -> new VernacCompiler().generate(p, SchemaModel.empty(), Map.of()));
+            var p = project(scope + " aggregate Claim[ClaimId](unique LoginKey); repository Claims for Claim {}");
+            var schema = new SchemaBuilder(p, SchemaModel.empty()).build();
+            var table = schema.tables().getFirst();
+            var constraint = table.constraints().stream().filter(c -> c.name().equals("@unique:Claim:loginKey")).findFirst().orElseThrow();
+            assertEquals(scope.equals("global") ? "UNIQUE (\"loginKey\")" : "UNIQUE (\"@tenantId\", \"loginKey\")", constraint.clause());
+            var generated = new VernacCompiler().generate(p, SchemaModel.empty(), Map.of());
+            assertTrue(generated.generatedFiles().stream().anyMatch(f -> f.toString().contains("new JdbcMapping.UniqueConstraint")));
         }
     }
 

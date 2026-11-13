@@ -16,9 +16,10 @@ PowerShell terminal, quote complete dotted arguments, for example
 of IntelliJ's Maven command field.
 
 The [`unique` aggregate-field marker](../contracts/aggregate-uniqueness.md) has a
-language-model foundation, but database constraint generation is not yet implemented.
-A marked persistent aggregate explicitly fails generation in this slice. Keep existing
-schema histories unchanged; do not manually alter snapshots to simulate enforcement.
+PostgreSQL mapping with explicit C collation for selected TEXT fields and schema format 4.
+Adding/removing the marker generates a reviewed constraint/collation candidate; existing
+duplicates make application fail. Keep old histories unchanged and resolve ownership
+separately; never delete duplicate rows merely to make a migration pass.
 
 ## Start with the example
 

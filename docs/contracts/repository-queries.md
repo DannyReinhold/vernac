@@ -48,8 +48,7 @@ version is not a query field in this increment.
   Include repository and method in the diagnostic; do not expose parameter values.
 - This cardinality expectation is not a uniqueness constraint and cannot prevent
   concurrent inserts. The [`unique` aggregate-field marker](aggregate-uniqueness.md) is a separate
-  language-model feature; schema/JDBC generation rejects its persistence adoption
-  until database enforcement is implemented.
+  domain/persistence feature that generates atomic database enforcement.
 - `byId` retains its existing missing-aggregate exception contract.
 - No non-optional singleton custom query in the initial increment.
 - Collections must already be declared for the searched aggregate. Do not generate
@@ -286,3 +285,8 @@ including under `not`. Only true matches are returned. To include absent referen
 write `reference is absent or not (reference = :value)`. `not (reference is absent)`
 is equivalent to `reference is present`. Grouping changes neither result cardinality
 nor sorting rules. Values remain bound parameters. No schema migration is needed.
+
+For a text field marked unique, comparisons and ordering inherit the explicit C
+column collation from the [uniqueness mapping](aggregate-uniqueness.md). Other text
+fields keep their ordinary column collation; do not infer Java String ordering for
+every Unicode spelling.

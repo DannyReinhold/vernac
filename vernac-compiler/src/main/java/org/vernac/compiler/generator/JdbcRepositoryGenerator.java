@@ -46,6 +46,11 @@ public final class JdbcRepositoryGenerator {
             adapter.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC).addParameter(JDBC,"jdbc")
                     .addParameter(int.class,"maximumPageSize").addStatement("this(jdbc, maximumPageSize, $S)", "").build());
         }
+        List<CodeBlock> uniqueBindings = plan.aggregate().fields().stream().filter(FieldNode::isUnique)
+                .map(field -> CodeBlock.of("new $T.UniqueConstraint($S, $S, $S, $S, $S)", M,
+                        SqlNames.physical(plan.aggregateNamespace()), SqlNames.physical(plan.aggregate().name()),
+                        SqlNames.physical(SchemaBuilder.uniqueName(plan.aggregate().name(),field.name())),
+                        plan.aggregateNamespace()+"."+plan.aggregate().name(), field.name())).toList();
         var constructor=MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC)
                 .addAnnotation(ClassName.get("org.springframework.beans.factory.annotation", "Autowired"))
                 .addParameter(JDBC,"jdbc")
@@ -59,7 +64,7 @@ public final class JdbcRepositoryGenerator {
         adapter.addMethod(constructor
                 .addStatement("$T.of(1).checkMaximum(maximumPageSize)", ClassName.get("org.vernac.runtime.pagination", "PageSize"))
                 .addStatement("this.maximumPageSize = maximumPageSize")
-                .addStatement("this.store = new $T<>(jdbc, $T.class, rootMapping(), entityMappings(), tables())",STORE,aggregate).build());
+                .addStatement("this.store = new $T<>(jdbc, $T.class, rootMapping(), entityMappings(), tables(), $L)",STORE,aggregate,list(uniqueBindings)).build());
         adapter.addMethod(MethodSpec.methodBuilder("byId").addAnnotation(Override.class).addModifiers(Modifier.PUBLIC).returns(aggregate).addParameter(id,"id")
                 .addStatement("return store.byId(id.value())").build());
         adapter.addMethod(MethodSpec.methodBuilder("save").addAnnotation(Override.class).addModifiers(Modifier.PUBLIC).returns(aggregate).addParameter(aggregate,"aggregate")

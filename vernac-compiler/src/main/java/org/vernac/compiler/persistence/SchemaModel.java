@@ -20,7 +20,7 @@ public record SchemaModel(int formatVersion, int mappingVersion, List<Table> tab
             .setDefaultPrettyPrinter(new DefaultPrettyPrinter()
                     .withObjectIndenter(new DefaultIndenter("  ", "\n")));
     public SchemaModel {
-        if ((formatVersion != 1 && formatVersion != 2 && formatVersion != 3) || mappingVersion != 1) throw new IllegalArgumentException("Unsupported schema/mapping version");
+        if ((formatVersion != 1 && formatVersion != 2 && formatVersion != 3 && formatVersion != 4) || mappingVersion != 1) throw new IllegalArgumentException("Unsupported schema/mapping version");
         tables = tables.stream().sorted(Comparator.comparing(Table::identity)).toList();
         Map<String, Map<String, String>> copy = new TreeMap<>();
         enumCodes.forEach((k,v) -> copy.put(k, Collections.unmodifiableMap(new TreeMap<>(v))));
@@ -29,6 +29,8 @@ public record SchemaModel(int formatVersion, int mappingVersion, List<Table> tab
         Map<String, String> schemas = new HashMap<>();
         Set<String> relations = new HashSet<>();
         for (Table table : tables) {
+            if (formatVersion < 4 && table.columns().stream().anyMatch(c -> c.collation() != null))
+                throw new IllegalArgumentException("Column collation requires schema format 4");
             if (formatVersion == 1 && table.tenantIsolation() != null)
                 throw new IllegalArgumentException("Tenant classification requires schema format 2");
             if (formatVersion < 3 && table.eventIsolation() != null)
@@ -68,7 +70,16 @@ public record SchemaModel(int formatVersion, int mappingVersion, List<Table> tab
     }
     public static SchemaModel parse(String json) throws IOException { return JSON.readValue(json, SchemaModel.class); }
     public String fingerprint() { return SqlNames.hash(json()); }
-    public record Column(String name, String sqlType, boolean nullable, String codec, String origin) { }
+    public record Column(String name, String sqlType, boolean nullable, String codec, String origin,
+                         @JsonInclude(JsonInclude.Include.NON_NULL) String collation) {
+        public Column(String name, String sqlType, boolean nullable, String codec, String origin) {
+            this(name, sqlType, nullable, codec, origin, null);
+        }
+        public Column {
+            if (collation != null && (!collation.equals("C") || !sqlType.equals("TEXT")))
+                throw new IllegalArgumentException("Only explicit C collation on TEXT is supported");
+        }
+    }
     public record Constraint(String name, String clause) { }
     public record TenantIsolation(String aggregate, boolean root) {
         public TenantIsolation {

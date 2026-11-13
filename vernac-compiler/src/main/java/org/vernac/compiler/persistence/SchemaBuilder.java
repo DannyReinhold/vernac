@@ -70,9 +70,6 @@ public final class SchemaBuilder {
                 String key = type.symbol().identity().qualifiedName();
                 if (!roots.add(key)) fail(repo.location(), "Only one persistence repository per aggregate is supported: " + key);
                 AggregateNode a = (AggregateNode) definitions.get(key);
-                a.fields().stream().filter(FieldNode::isUnique).findFirst().ifPresent(field ->
-                        fail(field.location(), "Persistence enforcement of unique aggregate fields is not implemented yet; "
-                                + "no schema or JDBC repository may be generated without its required constraint."));
                 MutableTable t = new MutableTable(type.symbol().identity().namespace(), a.name(), key, List.of("id"));
                 root = t;
                 tenantRoot = a.tenant();
@@ -86,13 +83,34 @@ public final class SchemaBuilder {
                 scalar(t, "@createdAt", "Instant", "TRUE", false, key);
                 scalar(t, "@updatedAt", "Instant", "TRUE", false, key);
                 for (var f : a.fields()) t.properties.add(new StoragePlan.Property(f.name(), field(t, f.name(), project.typeOf(f.type()), f.type().isOptional(), "TRUE", f.location())));
+                for (var property : t.properties) {
+                    var field = a.fields().stream().filter(f -> f.name().equals(property.name())).findFirst().orElseThrow();
+                    if (!field.isUnique()) continue;
+                    List<String> columns = uniqueColumns(property.value());
+                    if (columns.size() != 1 || t.columns.get(columns.getFirst()).nullable())
+                        fail(field.location(), "Unique field requires exactly one required storage column");
+                    String column = columns.getFirst();
+                    var stored = t.columns.get(column);
+                    if (stored.sqlType().equals("TEXT")) t.columns.put(column,
+                            new Column(stored.name(), stored.sqlType(), stored.nullable(), stored.codec(), stored.origin(), "C"));
+                    String constraint = uniqueName(a.name(), field.name());
+                    t.constraints.add(new Constraint(constraint, "UNIQUE (" + sqlNames(columns) + ")"));
+                    if (tenantRoot) t.tenantConstraints.put(constraint, new Constraint(constraint,
+                            "UNIQUE (" + name(TenantSchema.COLUMN) + ", " + sqlNames(columns) + ")"));
+                }
                 publish(t);
                 plans.add(new StoragePlan(repo, source.unit().namespace(), a, type.symbol().identity().namespace(), List.copyOf(relations)));
             } else fail(repo.location(), "Repository requires a resolved aggregate: " + repo.aggregateName());
         }
         buildEvents();
         if (!codes.keySet().containsAll(enumOverrides.keySet())) throw new IllegalArgumentException("Enum-code override names an enum not used by persistence.");
-        return new SchemaModel(tables.stream().anyMatch(t->t.eventIsolation()!=null)?3:tables.stream().anyMatch(t->t.tenantIsolation()!=null)?2:1, 1, tables, codes);
+        return new SchemaModel(previous.formatVersion() == 4 || plans.stream().anyMatch(p -> p.aggregate().fields().stream().anyMatch(FieldNode::isUnique)) ? 4 : tables.stream().anyMatch(t->t.eventIsolation()!=null)?3:tables.stream().anyMatch(t->t.tenantIsolation()!=null)?2:1, 1, tables, codes);
+    }
+    public static String uniqueName(String aggregate, String field) { return "@unique:" + aggregate + ":" + field; }
+    private static List<String> uniqueColumns(StoragePlan.Value value) {
+        var result = new ArrayList<>(value.columns());
+        for (var child : value.children()) result.addAll(uniqueColumns(child.value()));
+        return result;
     }
     private void buildEvents() {
         tenantRoot=false;
