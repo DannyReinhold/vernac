@@ -15,6 +15,10 @@
         <identity.bouncycastle.version>1.86</identity.bouncycastle.version>
     </properties>
     <dependencies>
+        <dependency><groupId>org.springframework.security</groupId><artifactId>spring-security-web</artifactId></dependency>
+        <dependency><groupId>org.springframework</groupId><artifactId>spring-web</artifactId></dependency>
+        <dependency><groupId>jakarta.servlet</groupId><artifactId>jakarta.servlet-api</artifactId><scope>provided</scope></dependency>
+        <dependency><groupId>org.springframework</groupId><artifactId>spring-test</artifactId><scope>test</scope></dependency>
         <dependency>
             <groupId>org.vernac</groupId>
             <artifactId>vernac-saas-identity</artifactId>
