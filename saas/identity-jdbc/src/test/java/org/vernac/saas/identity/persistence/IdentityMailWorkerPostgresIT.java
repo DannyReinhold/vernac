@@ -547,4 +547,33 @@ class IdentityMailWorkerPostgresIT {
                                             assertEquals(0, sent.get());
                                         }));
     }
+
+    @Test void providerRetryHintAndPermanentRejectionSettleOneEncryptedJobWithoutAnotherSend() throws Exception {
+        new IdentityJdbcTestEnvironment(root).withDatabase(db -> db.boot.run(c -> {
+            initialize(c); new Flow(c, NOW).registration("provider@example.test");
+            Time clock = new Time(); AtomicInteger calls = new AtomicInteger();
+            var provider = new org.vernac.saas.mail.domain.MailProvider() {
+                public org.vernac.saas.mail.domain.MailProviderMode mode() { return org.vernac.saas.mail.domain.MailProviderMode.LIVE; }
+                public org.vernac.saas.mail.domain.MailSubmission submit(org.vernac.saas.mail.domain.OutboundMail mail) {
+                    assertFalse(TransactionSynchronizationManager.isActualTransactionActive());
+                    assertTrue(TransactionSynchronizationManager.getResourceMap().isEmpty());
+                    int attempt = calls.incrementAndGet();
+                    assertEquals("provider@example.test", mail.recipient().encoded());
+                    return org.vernac.saas.mail.domain.MailSubmission.of(
+                        attempt == 1 ? org.vernac.saas.mail.domain.MailAcceptance.RETRY : org.vernac.saas.mail.domain.MailAcceptance.REJECTED,
+                        org.vernac.saas.mail.domain.MailRetryDelay.of(attempt == 1 ? 1200 : 0));
+                }
+            };
+            var sender = new IdentityProviderMailSender(provider, java.net.URI.create("https://identity.example.test"), false);
+            var worker = worker(c, clock, sender);
+            var envelope = job(c, subject(c, "provider@example.test"), IdentityChallengePurpose.VERIFICATION).envelope();
+            assertEquals(JdbcIdentityMailWorker.Result.RETRY, pump(worker));
+            var row = job(c, subject(c, "provider@example.test"), IdentityChallengePurpose.VERIFICATION);
+            assertEquals(NOW.plusSeconds(1200), row.due().instant()); assertEquals(envelope, row.envelope());
+            clock.advance(1199); assertEquals(JdbcIdentityMailWorker.Result.EMPTY, pump(worker)); assertEquals(1, calls.get());
+            clock.advance(1); assertEquals(JdbcIdentityMailWorker.Result.REJECTED, pump(worker));
+            assertEquals(0, used(c, UNSENT_MAIL_JOBS)); assertEquals(0, used(c, UNSENT_MAIL_BYTES));
+            clock.advance(1800); assertEquals(JdbcIdentityMailWorker.Result.EMPTY, pump(worker)); assertEquals(2, calls.get());
+        }));
+    }
 }

@@ -5,6 +5,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.*;
 import org.springframework.transaction.support.*;
 import org.vernac.saas.identity.domain.*;
+import org.vernac.saas.mail.domain.*;
 import org.vernac.saas.identity.persistence.adapter.outbound.jdbc.*;
 import org.vernac.saas.identity.persistence.domain.*;
 
@@ -29,12 +30,16 @@ final class JdbcIdentityMailWorker {
         EMPTY,
         ACCEPTED,
         RETRY,
+        REJECTED,
         OBSOLETE
     }
 
     /** Must bound transport attempts to <=30 seconds; no hidden retries or business writes. */
     interface Sender {
         boolean submit(IdentityMailContent content, IdentityDeliveryCrypto.Context context);
+        default MailSubmission submission(IdentityMailContent content, IdentityDeliveryCrypto.Context context) {
+            return MailSubmission.of(submit(content, context) ? MailAcceptance.ACCEPTED : MailAcceptance.RETRY, MailRetryDelay.of(0));
+        }
     }
 
     static final class Claim {
@@ -120,7 +125,7 @@ final class JdbcIdentityMailWorker {
                             return now.isBefore(row.leaseUntil().instant());
                         });
         if (!send) return Result.OBSOLETE;
-        boolean accepted = false;
+        MailSubmission outcome = MailSubmission.of(MailAcceptance.RETRY, MailRetryDelay.of(0));
         byte[] clear = null;
         try {
             clear = crypto.open(context(claim.job), claim.job.envelope().encoded());
@@ -144,14 +149,18 @@ final class JdbcIdentityMailWorker {
                                         && IdentityChallengeToken.parse(content.deliveryToken())
                                                 .matches(challenge.get().verifier().encoded());
                             });
-            if (valid) accepted = sender.submit(content, context(claim.job));
+            if (valid) outcome = Objects.requireNonNull(sender.submission(content, context(claim.job)));
         } catch (RuntimeException sanitized) {
-            accepted = false;
+            outcome = MailSubmission.of(MailAcceptance.RETRY, MailRetryDelay.of(0));
         } finally {
             if (clear != null) Arrays.fill(clear, (byte) 0);
         }
-        settle(claim, accepted);
-        return accepted ? Result.ACCEPTED : Result.RETRY;
+        settle(claim, outcome);
+        return switch(outcome.acceptance()) {
+            case ACCEPTED -> Result.ACCEPTED;
+            case REJECTED -> Result.REJECTED;
+            case RETRY -> Result.RETRY;
+        };
     }
 
     Claim claim(int batch) {
@@ -192,19 +201,24 @@ final class JdbcIdentityMailWorker {
     }
 
     void settle(Claim claim, boolean accepted) {
+        settle(claim, MailSubmission.of(accepted ? MailAcceptance.ACCEPTED : MailAcceptance.RETRY, MailRetryDelay.of(0)));
+    }
+
+    void settle(Claim claim, MailSubmission outcome) {
+        Objects.requireNonNull(outcome);
         write(
                 () -> {
                     var row = owned(claim);
                     if (row == null) return false;
                     Instant now = clock.instant();
-                    if (accepted
+                    if (outcome.acceptance() != MailAcceptance.RETRY
                             || row.state() == IdentityMailState.CANCELLED
                             || !live(row, now)
                             || row.attempts().amount() >= 8) {
                         ledger.remove(row);
                         return true;
                     }
-                    long seconds = Math.min(1800, 60L << (row.attempts().amount() - 1));
+                    long seconds = Math.max(outcome.retryAfter().seconds(), Math.min(1800, 60L << (row.attempts().amount() - 1)));
                     row.retry(now.plusSeconds(seconds));
                     jobs.save(row);
                     return true;
