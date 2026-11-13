@@ -210,10 +210,11 @@ one surrounding usecase transaction. Failed writes do not restore in-memory stat
 
 ## Structural constraints and migrations
 
-The [`unique` aggregate-field marker](aggregate-uniqueness.md) is parsed and validated,
-but database enforcement is not implemented. Schema/JDBC generation for a marked
-persistent aggregate fails explicitly. The [accepted design](../development/aggregate-uniqueness-0.6.0.md)
-specifies the remaining mapping/migration/runtime work.
+The [`unique` aggregate-field marker](aggregate-uniqueness.md) generates an owned
+UNIQUE constraint, tenant-qualified where applicable. Selected TEXT columns explicitly
+use pg_catalog.C collation. Schema format 4 records collation without changing old
+snapshot bytes; schema-check and module activation validate it. See the feature contract
+for supported scalar representations, migration review and sanitized JDBC conflict handling.
 
 Constraints enforce a reconstructable representation, not arbitrary `validates`
 expressions from the domain. Required top-level columns rely on NOT NULL. Optional

@@ -952,3 +952,8 @@ closure, internal access-header inventories, functional dependency snapshots and
 security-review boundaries. These are data contracts, not grants or automatic
 activation. Rebuild older development artifacts with matching tools. Existing frozen
 SQL migrations and persistence snapshots MUST NOT be rewritten for this metadata change.
+
+Unique aggregate fields additionally use [schema format 4](aggregate-uniqueness.md)
+for explicit selected-column collation. Module history, fingerprints and activation
+validation retain the constraint/collation across restart; unchanged old snapshots
+retain their existing representation. The source metadata contract remains module-contracts-12.

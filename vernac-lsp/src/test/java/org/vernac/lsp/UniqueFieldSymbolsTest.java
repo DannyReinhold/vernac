@@ -37,17 +37,38 @@ class UniqueFieldSymbolsTest {
     }
 
     @Test
-    void hoverExplainsScopeWithoutClaimingDatabaseEnforcement() {
+    void hoverExplainsScopeAndDatabaseEnforcement() {
         for (String scope : List.of("global", "tenant")) {
             String text = base + scope + " aggregate Claim[ClaimId](unique LoginKey loginKey);";
             String hover = symbols(text).hover(file, at(text, "uniqu"));
             assertTrue(hover.contains("loginKey"), hover);
-            assertTrue(hover.contains("not implemented yet"), hover);
+            assertTrue(hover.contains("database unique constraint"), hover);
             assertTrue(
                     hover.contains(
                             scope.equals("tenant") ? "within each tenant" : "across instances"),
                     hover);
             assertEquals(hover, symbols(text).hover(file, at(text, "loginKe")));
         }
+    }
+
+    @Test
+    void modifierCompletionIsAggregateLocalAndDoesNotRepeatExistingMarkers() {
+        String start = base + "global aggregate Claim[ClaimId](uni);";
+        assertTrue(
+                symbols(start).complete(file, at(start, "(uni")).stream()
+                        .anyMatch(
+                                item ->
+                                        item.getLabel().equals("unique")
+                                                && item.getKind()
+                                                        == org.eclipse.lsp4j.CompletionItemKind
+                                                                .Keyword));
+        String marked = base + "global aggregate Claim[ClaimId](unique mu);";
+        var choices = symbols(marked).complete(file, at(marked, "unique mu"));
+        assertTrue(choices.stream().anyMatch(item -> item.getLabel().equals("mut")));
+        assertTrue(choices.stream().noneMatch(item -> item.getLabel().equals("unique")));
+        String value = base + "value Other(uni);";
+        assertTrue(
+                symbols(value).complete(file, at(value, "(uni")).stream()
+                        .noneMatch(item -> item.getLabel().equals("unique")));
     }
 }

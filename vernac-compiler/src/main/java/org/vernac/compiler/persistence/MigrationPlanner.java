@@ -97,18 +97,19 @@ public final class MigrationPlanner {
                         if(next.namespace().equals("vernac") && next.name().equals("@delivery") && c.codec().equals("delivery-tenant-id"))
                             sql.add("-- DELIVERY ORIGIN UPGRADE: existing queued jobs remain GLOBAL (NULL tenantId). No tenant attribution is inferred.\n"
                                     +"-- Stop older workers before enabling tenant publication. Review deployment order and runtime role grants before applying.");
-                        sql.add("ALTER TABLE " + next.sqlName() + " ADD COLUMN " + name(c.name()) + " " + c.sqlType() + ";");
+                        sql.add("ALTER TABLE " + next.sqlName() + " ADD COLUMN " + name(c.name()) + " " + declaredType(c) + ";");
                         if (!c.nullable() || options.backfills().containsKey(key)) backfill(sql, next, c, key, options, usedBackfills);
                     } else {
-                        if (!previous.sqlType().equals(c.sqlType()) || !previous.codec().equals(c.codec())) {
+                        if (!previous.sqlType().equals(c.sqlType()) || !previous.codec().equals(c.codec()) || !Objects.equals(previous.collation(), c.collation())) {
                             String expression = options.conversions().get(key);
-                            if (expression == null && losslessWidening(previous, c)) {
-                                if (!previous.sqlType().equals(c.sqlType())) sql.add(alter + " TYPE " + c.sqlType() + ";");
+                            if (expression == null && (losslessWidening(previous, c)
+                                    || previous.sqlType().equals(c.sqlType()) && previous.codec().equals(c.codec()))) {
+                                if (!previous.sqlType().equals(c.sqlType()) || !Objects.equals(previous.collation(), c.collation())) sql.add(alter + " TYPE " + storageType(c) + ";");
                             } else {
                                 if (expression == null || expression.isBlank()) throw new IllegalArgumentException("Explicit SQL conversion required for " + key + "; force cannot invent it.");
                                 usedConversions.add(key);
                                 risks.add("Conversion of " + key + " may lose data.");
-                                sql.add(alter + " TYPE " + c.sqlType() + " USING (" + expression + ");");
+                                sql.add(alter + " TYPE " + storageType(c) + " USING (" + expression + ");");
                             }
                         }
                         if ((previous.nullable() && !c.nullable()) || options.backfills().containsKey(key)) backfill(sql, next, c, key, options, usedBackfills);
@@ -157,7 +158,7 @@ public final class MigrationPlanner {
             Map<String, Column> columns = index(next.columns(), Column::name);
             for (Column old : previous.columns()) {
                 Column current = columns.get(old.name());
-                if ((current == null || !old.sqlType().equals(current.sqlType()) || !old.codec().equals(current.codec()))
+                if ((current == null || !old.sqlType().equals(current.sqlType()) || !old.codec().equals(current.codec()) || !Objects.equals(old.collation(), current.collation()))
                         && constraint.clause().contains(name(old.name()))) return true;
             }
         }
@@ -177,7 +178,14 @@ public final class MigrationPlanner {
         if (from != null && to != null && to > from) return true;
         return Set.of("float:", "Float:").contains(old.codec()) && Set.of("double:", "Double:").contains(next.codec());
     }
-    private static String column(Column c) { return name(c.name()) + " " + c.sqlType() + (c.nullable() ? "" : " NOT NULL"); }
+    private static String declaredType(Column c) {
+        return c.collation() == null ? c.sqlType() : storageType(c);
+    }
+    private static String storageType(Column c) {
+        return c.sqlType() + (c.sqlType().equals("TEXT")
+                ? " COLLATE \"pg_catalog\".\"" + (c.collation() == null ? "default" : c.collation()) + "\"" : "");
+    }
+    private static String column(Column c) { return name(c.name()) + " " + declaredType(c) + (c.nullable() ? "" : " NOT NULL"); }
     private static String names(List<String> names) { return names.stream().map(SqlNames::name).collect(Collectors.joining(", ")); }
     private static <T> Map<String,T> index(List<T> values, Function<T,String> key) { return values.stream().collect(Collectors.toMap(key, Function.identity(), (a,b) -> { throw new IllegalArgumentException("Duplicate identity"); }, TreeMap::new)); }
 }

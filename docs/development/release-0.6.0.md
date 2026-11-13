@@ -826,3 +826,42 @@ across 166 documents pass; workflow YAML, plugin XML and whitespace checks are c
 The full reactor attempt stalled resolving uncached IntelliJ platform dependencies
 and was interrupted at that module. Native plugin build/installation and the separate
 experiment/release gates were not completed locally; CI remains separate evidence.
+
+## Unique aggregate field PostgreSQL enforcement
+
+The [unique field contract](../contracts/aggregate-uniqueness.md) now includes derived
+PostgreSQL UNIQUE constraints, automatic tenant qualification and explicit selected-text
+C collation. Schema format 4 carries the collation through compiler/runtime metadata,
+module history/fingerprints, migration planning, live schema-check and activation
+validation. Old unchanged schema bytes/fingerprints remain stable; the seven identity
+migration histories are unchanged. Module source metadata remains module-contracts-12.
+
+Generated JDBC uses Spring classification plus exact structured PostgreSQL schema/table/
+constraint metadata. Declared conflicts expose logical aggregate/field identities only,
+never raw keys/driver details, and poison the writer even if caught. Same-root saves,
+rollback/retry, failed key updates and two-context races have PostgreSQL proofs. Read-only
+reads remain valid; writes require the repository's own bound writer. Index-size limits
+fail technically and safely instead of truncating keys. Headless modifier completion
+and scope hover now reflect the implemented enforcement.
+
+Real restricted-role/independent-context tests cover insert/update winners, caught-error
+rollback, tenant separation, exact case/accent/combining spellings against ICU controls,
+oversized inputs, restart and nonmatching failure categories. Initial/add/remove histories
+and duplicate-data rollback are tested. The actual schema-check goal detects collation-only
+drift; a packaged module with format-4 history replays and restarts, rejects duplicate
+keys, and fails startup after collation drift. ICU is required by these equality test
+fixtures, not by the generated C-collated production constraint itself.
+
+Next: adopt this general feature for canonical login-address ownership and compose it
+with the charged pending-registration lifecycle. Protected mail, D05 account/owner
+provisioning and public Spring/browser journeys follow. Installed IDE/manual acceptance
+and final integrated SaaS/release gates remain OPEN. Identity/Auth stays roughly
+50–55%; complete 0.6.0 roughly 25–35%.
+
+Local JDK 25 evidence: clean verify for the complete reactor excluding vernac-intellij
+passes 1,023 cases across 219 suites with zero failures/errors/skips. The six required
+uniqueness proof suites execute 25 cases, including eight live PostgreSQL/module/goal
+cases; all 90 Identity/SaaS cases remain green. All 16 Python tooling tests and 1,166
+local links across 166 documents pass. Workflow YAML, plugin XML and whitespace checks
+are clean. Native IntelliJ build/installation and the separate final experiment/release
+acceptance were not run locally; CI and manual release evidence remain separate.

@@ -103,8 +103,9 @@
 <h3>0.6.0 development — Unique aggregate field model</h3>
 <p>Aggregate fields accept unique with normal field-name omission, including
 unique LoginKey. Shared analysis, module-contracts-12 metadata, type navigation and
-LSP scope hover retain the requirement. Database enforcement is still in development:
-schema/JDBC generation for a marked persistent aggregate is rejected explicitly.
+LSP scope hover retain the requirement. PostgreSQL now enforces derived constraints
+with tenant scope, explicit text collation, reviewed migrations and safe JDBC conflicts.
+Headless checks cover modifier completion; installed IDE acceptance remains separate.
 Rebuild development module producers and consumers together.</p>
 
 <h3>0.6.0 development — Pending registration lifetime</h3>

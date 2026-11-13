@@ -63,7 +63,8 @@ REQUIRED_TESTS += ("BehaviorSourceMapTest", "BehaviorDebugExecutionTest", "Verna
 
 # Explicit ordinary-value representation and unsaved LSP diagnostics are required in 0.6.0.
 REQUIRED_TESTS += ("ValueStringRepresentationTest", "VernacProjectDiagnosticsTest",
-                   "UniqueAggregateFieldsTest", "UniqueFieldModuleTest", "UniqueFieldSymbolsTest")
+                   "UniqueAggregateFieldsTest", "UniqueFieldModuleTest", "UniqueFieldSymbolsTest",
+                   "UniquePersistenceSchemaTest", "UniquePersistencePostgresTest", "UniqueModulePostgresTest")
 
 # Live editor APIs are a 0.5.0 release feature, including native Java PSI lookup.
 REQUIRED_TESTS += ("EditorValueObjectsTest", "BehaviorJavaProjectionTest",

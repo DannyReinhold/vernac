@@ -385,12 +385,19 @@ final class VernacProjectSymbols {
             choices.remove("EventId");choices.put("list","Technical collection");
             localSchemas(context).forEach(d->{if(d.name!=null)choices.put(d.name.getText(),"Adapter-local DTO");});
         }
+        if (!importing && context.getParent().getParent() instanceof VernacParser.ParameterContext field
+                && field.getParent() instanceof VernacParser.ParameterListContext parameters
+                && parameters.getParent() instanceof VernacParser.AggregateDefinitionContext) {
+            if (field.isUnique == null) choices.putIfAbsent("unique", "Aggregate field modifier");
+            if (field.isMut == null) choices.putIfAbsent("mut", "Aggregate field modifier");
+        }
         Range range = new Range(position(file.text(), start), position(file.text(), end));
         List<CompletionItem> result = new ArrayList<>();
         choices.forEach((name, detail) -> {
             if (name.startsWith(prefix)) {
                 var item = new CompletionItem(name);
-                item.setKind(name.endsWith(".*") ? CompletionItemKind.Module : CompletionItemKind.Class);
+                item.setKind(detail.equals("Aggregate field modifier") ? CompletionItemKind.Keyword
+                        : name.endsWith(".*") ? CompletionItemKind.Module : CompletionItemKind.Class);
                 item.setDetail(detail);
                 item.setTextEdit(Either.forLeft(new TextEdit(range, name)));
                 result.add(item);
@@ -470,7 +477,7 @@ final class VernacProjectSymbols {
                                 ? "within each tenant" : "across instances of this aggregate";
                         return "**Unique aggregate field** `" + parameterName(field) + "`\n\n"
                                 + "Domain requirement: unique " + scope + ". No in-memory cross-instance validation. "
-                                + "Persistence enforcement is not implemented yet; schema/JDBC generation rejects this requirement.";
+                                + "Persistence generates a database unique constraint; conflicts roll back the writer transaction.";
                     }
                 }
             }

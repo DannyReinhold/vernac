@@ -33,12 +33,14 @@ abstract class ModuleMigrationFixture {
     @Configuration(proxyBeanMethods=false) @EnableTransactionManagement public static class Transactions { }
     protected final List<Path> javaSources=new ArrayList<>();protected final List<ModuleDescriptor> descriptors=new ArrayList<>();
     protected Path resources;
-    protected boolean upgraded,durable,tenant,parallel;
+    protected boolean upgraded,durable,tenant,parallel,unique;
     protected Published publish(String folder,String text,String exports) throws Exception {
         Path sourceRoot=root.resolve(folder+"/src/main/vernac"),source=sourceRoot.resolve("db/"+folder+"/model.vernac");Files.createDirectories(source.getParent());Files.writeString(source,text);
         if(durable && folder.equals("required"))text=text.replace("event Started(RootId);","recorded event Started(RootId);\ndeferred listener AuditStarted on Started uses RootRepository behavior {execute {self.rootRepository().byId(event.rootId());}} ");
         if(durable && folder.equals("dependent"))text=text.replace("namespace db.dependent;","namespace db.dependent; import db.required.Started;")+"\ndeferred listener DeliverStarted on Started uses ReceiptRepository behavior {java imports {org.vernac.maven.ModuleDeferredEventProbe;} execute {self.receiptRepository().save(Receipt.create(Name.of(\"delivered\")));ModuleDeferredEventProbe.afterWrite();}}";
         if (upgraded) text=text.replace("value Name(String text, String? alias);", "value Name(String text, String? alias, String origin);");
+        if (unique) text = text.replace("value Name(String text, String? alias);", "value Name(String text);")
+                .replace("aggregate Root[RootId](Name,", "aggregate Root[RootId](unique Name,");
         if (tenant) text = text.replace("aggregate ", "tenant aggregate ");
         if (parallel && folder.equals("required")) text = text.replace("self.rootRepository().save(root);",
                 "self.rootRepository().save(root);org.vernac.maven.TenantModuleTransactionProbe.reached();");
