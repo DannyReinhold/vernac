@@ -83,7 +83,7 @@ class IdentityCapacityPostgresIT {
                                                     throw new DomainValidationException(
                                                             "Safe fixture rejection");
                                                 })));
-                        var pending = Identity.create(IdentityStatus.PENDING_VERIFICATION);
+                        var pending = Identity.create(IdentityStatus.PENDING_VERIFICATION, IdentitySecurityEpoch.of(0));
                         tx.executeWithoutResult(status -> {
                             assertEquals(0, ledger.usage(PENDING_REGISTRATIONS));
                             assertEquals(0, ledger.usage(ACTIONABLE_CHALLENGES));
@@ -172,7 +172,7 @@ class IdentityCapacityPostgresIT {
                             assertEquals(Long.MAX_VALUE, ledger.usage(UNSENT_MAIL_BYTES));
                         });
                     });
-                    assertEquals(4, database.migrationCount());
+                    assertEquals(5, database.migrationCount());
                 });
     }
 
@@ -432,11 +432,12 @@ class IdentityCapacityPostgresIT {
                         var tx = transactions(context);
                         var ledger = capacity(context);
                         tx.executeWithoutResult(status -> {
+                            assertEquals(0, context.getBean(IdentityRepository.class).byId(userId).securityEpoch().number());
                             ledger.initialize(JdbcIdentityCapacity.defaults());
                             assertEquals(0, ledger.usage(PENDING_REGISTRATIONS));
                         });
                     });
-                    assertEquals(4, database.migrationCount());
+                    assertEquals(5, database.migrationCount());
                 });
     }
 }

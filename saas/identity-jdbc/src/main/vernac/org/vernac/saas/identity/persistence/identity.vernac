@@ -4,11 +4,15 @@ import org.vernac.saas.identity.UserId;
 import org.vernac.saas.identity.IdentityStatus;
 import org.vernac.saas.identity.IdentityDirectory;
 
+value IdentitySecurityEpoch(long number) validates {
+    require(self.number() >= 0, "Identity security epoch must not be negative");
+};
+
 term Identity {
     description "Internal persisted eligibility state of one login identity.";
     note "This is global access metadata, not a product account or tenant-owned aggregate. Credential and verification workflows are separate.";
 }
-global aggregate Identity[UserId](mut IdentityStatus status) behavior {
+global aggregate Identity[UserId](mut IdentityStatus status, mut IdentitySecurityEpoch securityEpoch) behavior {
     modify void activate() {
         if (self.status() != IdentityStatus.PENDING_VERIFICATION) {
             throw new org.vernac.runtime.DomainValidationException("Identity activation requires pending verification");
@@ -19,10 +23,21 @@ global aggregate Identity[UserId](mut IdentityStatus status) behavior {
         if (self.status() != IdentityStatus.ACTIVE) {
             throw new org.vernac.runtime.DomainValidationException("Identity disabling requires an active identity");
         }
+        if (self.securityEpoch().number() == Long.MAX_VALUE) throw new org.vernac.runtime.DomainValidationException("Identity security epoch exhausted");
+        self.securityEpoch(IdentitySecurityEpoch.of(self.securityEpoch().number() + 1));
         self.status(IdentityStatus.DISABLED);
     }
+    modify void credentialChanged() {
+        if (self.status() != IdentityStatus.ACTIVE) throw new org.vernac.runtime.DomainValidationException("Credential changes require an active identity");
+        if (self.securityEpoch().number() == Long.MAX_VALUE) throw new org.vernac.runtime.DomainValidationException("Identity security epoch exhausted");
+        self.securityEpoch(IdentitySecurityEpoch.of(self.securityEpoch().number() + 1));
+    }
     modify void close() {
-        self.status(IdentityStatus.CLOSED);
+        if (self.status() != IdentityStatus.CLOSED) {
+            if (self.securityEpoch().number() == Long.MAX_VALUE) throw new org.vernac.runtime.DomainValidationException("Identity security epoch exhausted");
+            self.securityEpoch(IdentitySecurityEpoch.of(self.securityEpoch().number() + 1));
+            self.status(IdentityStatus.CLOSED);
+        }
     }
 };
 

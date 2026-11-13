@@ -133,3 +133,13 @@ atomic storage budgets/cleanup, protected mail/local inbox, account provisioning
 public registration, login/session/logout/recovery and complete UI/SaaS assembly.
 D14 policy acceptance is not implementation acceptance. A01/A02 and final manual/full-SaaS
 release gates remain OPEN.
+
+
+## Private persistence format validation
+
+CredentialPasswords.supportsEncoding delegates to the same bounded stored-PHC validation
+used before Spring verification. It is a cheap format/work-policy predicate: no hashing,
+password comparison, entropy/strength attestation or authentication grant. Unsupported,
+missing, plaintext/no-op or corrupt formats return false. Private persisted encoding
+invariants use this common parser rather than duplicating a PHC grammar. See the
+[JDBC credential lifecycle](saas-identity-credentials-jdbc.md).

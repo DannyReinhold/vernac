@@ -1903,3 +1903,20 @@ suppress the default. Use an explicit constant redacted representation for inter
 secret encodings. This changes display only: never infer encrypted storage, serializer
 redaction, hidden getters, or permission to export credentials. See the
 [value contract](contracts/value-objects.md#string-representation). No new keyword.
+
+
+## Private credential persistence and security epochs
+
+The optional JDBC identity artifact now has private IdentityCredential/IdentityPasswordEncoding
+and IdentitySecurityEpoch models, a fifth generated migration and the
+[credential persistence helper](contracts/saas-identity-credentials-jdbc.md). No public
+credentials repository, HTTP operation or credential DSL is exported. It reuses the
+existing security artifact's stored-encoding parser and redacted value behavior. The
+JDBC artifact now depends on that optional security artifact at runtime, not only in tests.
+
+Enrollment requires an existing pending identity; later verification/activation/provisioning
+must commit together. Snapshot/confirm are private optimistic handoffs for Spring verification
+outside writer locks, not authentication grants. A password change advances epoch; rehash
+does not. Stale resets/rehashes cannot overwrite a changed or disabled subject. Future session
+revocation must validate trusted epochs: the existing directory/actor resolver is still only
+the status foundation. Do not invent completed login/registration/session APIs from this slice.

@@ -100,6 +100,10 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>0.6.0 development — Private credential persistence</h3>
+<p>Optional identity JDBC now persists redacted Spring password encodings and security
+epochs with guarded enrollment, replacement and rehash updates. Hashing/comparison
+remain in Spring Security. Public login/recovery/session integration remains unfinished.</p>
 <h3>0.6.0 development — Explicit value string representation</h3>
 <p>Ordinary values may define public String toString() using existing behavior syntax,
 matching enum behavior. Internal challenge verifiers now render a redacted label.

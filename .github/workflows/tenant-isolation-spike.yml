@@ -174,6 +174,21 @@ jobs:
                   assert not any(case.find(t) is not None for t in ('skipped', 'failure', 'error'))
           print('Value representation and unsaved LSP proofs executed; none skipped.')
           saas_proofs = {
+              'saas/identity-spring-security/target/surefire-reports/TEST-org.vernac.saas.identity.security.credentials.StoredEncodingPolicyTest.xml': {
+                  'persistenceChecksReuseTheApprovedEncodingFormatAndWorkBounds',
+              },
+              'saas/identity-jdbc/target/surefire-reports/TEST-org.vernac.saas.identity.persistence.IdentitySecurityEpochTest.xml': {
+                  'revocationEpochIsMonotonicAndCannotOverflowOrWrap',
+              },
+              'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityCredentialsPostgresIT.xml': {
+                  'enrollmentIsPrivateUniqueAndRedactedAndSurvivesRestart',
+                  'changesAdvanceEpochRehashDoesNotAndStaleSnapshotsCannotOverwrite',
+                  'challengeConsumptionCredentialsActivationAndEpochShareRollback',
+                  'twoContextsAllowOnlyOneChangeAndRejectRehashAfterDisable',
+                  'corruptStorageAndEpochExhaustionFailWithoutOverwritingCredentials',
+                  'credentialWriteFailureRollsBackAnAlreadyWrittenEpochEvenWhenCaught',
+                  'concurrentEnrollmentCreatesOneCredentialWithoutReplacingTheWinner',
+              },
               'saas/identity-jdbc/target/surefire-reports/TEST-org.vernac.saas.identity.persistence.IdentityChallengeRepresentationTest.xml': {
                   'generatedVerifierAndContainingChallengeDoNotRenderTheStoredHash',
               },

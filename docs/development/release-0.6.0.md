@@ -623,3 +623,39 @@ documentation-example and real JVM/JDI behavior/validation proofs pass without
 failures/errors/skips. All 16 Python tooling tests and documentation link checks pass.
 The complete IntelliJ build/installed-IDE acceptance and full release reactor remain
 separate gates; no release publication is performed by this slice.
+
+
+## Private credential persistence and security epoch
+
+The [private credential lifecycle](../contracts/saas-identity-credentials-jdbc.md) now
+persists bounded approved Spring password encodings in redacted private Vernac values.
+Existing security-library format validation is reused; no crypto or password matcher
+is implemented in JDBC. The optional JDBC artifact now has the existing optional security
+artifact as a runtime dependency. Public module exports/automatic configuration stay unchanged.
+
+Guarded pending enrollment, active snapshot/confirmation, version-checked replacement and
+rehash share the canonical writer/budget-before-record lock order. Credential changes
+advance an identity epoch; rehashes preserve it. Disable/first closure also advance epoch,
+and exhaustion fails without wrapping. Snapshot versions protect the verification handoff;
+future browser revocation must use epoch rather than logging out users on every rehash.
+Caught writer failures poison the transaction, including failure after an epoch write.
+
+The fifth generated migration adds the credential table and backfills existing identity
+metadata to initial epoch 0 using the tracked migration-specific transformation. This
+is the starting counter generation, not a fabricated history or an authentication grant.
+Existing IDs/statuses and all four earlier migrations are preserved.
+
+This slice is not complete authentication or epoch-checked sessions. The existing
+IdentityDirectory/IdentityActorResolver still supplies its earlier status foundation;
+trusted authentication stamps and D02 checks remain required. Login-key reservation,
+keyed admission/complete cleanup, protected D10 delivery, D05 provisioning, public
+registration/recovery/login and the example/UI remain OPEN. No A01/A02/full-SaaS/final
+manual acceptance is closed.
+
+Local validation under JDK 25: all 63 identity/SaaS cases across 19 required suites pass
+without failures/errors/skips. These include two-context enrollment/change/disable races,
+Spring matching, caught credential-write/provisioning rollback, corrupt formats, epoch
+exhaustion, original-schema epoch-0 upgrade and module privacy. All five migrations replay
+to the expected owned schema. All 16 Python tooling tests and documentation links pass.
+The prerequisite compiler/plugin/runtime artifacts were rebuilt for the new local cache;
+full compiler/IDE/release-reactor acceptance was not rerun for this optional SaaS slice.

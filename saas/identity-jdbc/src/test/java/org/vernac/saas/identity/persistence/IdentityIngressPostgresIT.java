@@ -76,8 +76,7 @@ class IdentityIngressPostgresIT {
                                         assertEquals(1, keys(c));
                                         assertTrue(gate.tryAcquire().admitted());
                                         var pending =
-                                                Identity.create(
-                                                        IdentityStatus.PENDING_VERIFICATION);
+                                                Identity.create(IdentityStatus.PENDING_VERIFICATION, IdentitySecurityEpoch.of(0));
                                         tx(c).executeWithoutResult(
                                                         s -> {
                                                             c.getBean(IdentityRepository.class)
@@ -127,7 +126,7 @@ class IdentityIngressPostgresIT {
                                         assertEquals(60, denied.retryAfterSeconds());
                                         assertEquals(1, keys(c));
                                     });
-                            assertEquals(4, db.migrationCount());
+                            assertEquals(5, db.migrationCount());
                         });
     }
 

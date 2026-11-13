@@ -71,7 +71,8 @@ class IdentityJdbcModuleIT {
                         "IdentityChallengeVerifier",
                         "IdentityChallengeExpiry",
                         "IdentityChallengeRepository",
-                        "IdentityIngress", "IdentityIngressId", "IdentityIngressMinute", "IdentityIngressCount", "IdentityIngressRepository")) {
+                        "IdentityIngress", "IdentityIngressId", "IdentityIngressMinute", "IdentityIngressCount", "IdentityIngressRepository",
+                        "IdentitySecurityEpoch", "IdentityPasswordEncoding", "IdentityCredential", "IdentityCredentialRepository")) {
             String type = "org.vernac.saas.identity.persistence." + internal;
             Files.writeString(
                     file, "namespace forbidden; import " + type + "; value Allowed(String);");
@@ -107,7 +108,7 @@ class IdentityJdbcModuleIT {
                                         .status(committed[0])
                                         .orElseThrow());
                     });
-                    assertEquals(4, database.migrationCount());
+                    assertEquals(5, database.migrationCount());
                 });
     }
 
@@ -137,7 +138,7 @@ class IdentityJdbcModuleIT {
             });
         }
         assertTrue(TenantContext.currentTenant().isEmpty());
-        var rolledBack = Identity.create(IdentityStatus.PENDING_VERIFICATION);
+        var rolledBack = Identity.create(IdentityStatus.PENDING_VERIFICATION, IdentitySecurityEpoch.of(0));
         tx.executeWithoutResult(status -> {
             repository.save(rolledBack);
             assertEquals(
@@ -146,7 +147,7 @@ class IdentityJdbcModuleIT {
             status.setRollbackOnly();
         });
         assertTrue(directory.status(rolledBack.id()).isEmpty());
-        var identity = Identity.create(IdentityStatus.PENDING_VERIFICATION);
+        var identity = Identity.create(IdentityStatus.PENDING_VERIFICATION, IdentitySecurityEpoch.of(0));
         tx.executeWithoutResult(status -> repository.save(identity));
         var resolver = new IdentityActorResolver(directory);
         SecurityContextHolder.getContext()

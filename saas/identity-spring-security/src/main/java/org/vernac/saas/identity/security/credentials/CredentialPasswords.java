@@ -85,6 +85,19 @@ public final class CredentialPasswords {
         matches(password, dummy);
     }
 
+    /**
+     * Cheap format/work-bound validation for private persistence invariants. Does not hash,
+     * verify a password, certify its creation policy or grant authentication.
+     */
+    public static boolean supportsEncoding(@Nullable String stored) {
+        try {
+            validateStored(stored);
+            return true;
+        } catch (CredentialConfigurationException unsupported) {
+            return false;
+        }
+    }
+
     private static void validateStored(@Nullable String stored) {
         if (stored == null || stored.length() > 256) throw invalidStored();
         var match = STORED.matcher(stored);
