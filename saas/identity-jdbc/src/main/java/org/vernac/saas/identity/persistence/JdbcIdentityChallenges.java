@@ -65,19 +65,41 @@ final class JdbcIdentityChallenges {
     }
 
     Issue issue(UserId subject, IdentityChallengePurpose purpose) {
+        return issue(subject, purpose, false);
+    }
+
+    /** Caller already charged a potential slot before identifier existence lookup. */
+    Issue issueReserved(UserId subject, IdentityChallengePurpose purpose) {
+        return issue(subject, purpose, true);
+    }
+
+    private Issue issue(UserId subject, IdentityChallengePurpose purpose, boolean reserved) {
         DomainChecks.requireNonNull(subject, "Identity challenge subject");
         DomainChecks.requireNonNull(purpose, "Identity challenge purpose");
         return mutate(
                 () -> {
                     Instant now = clock.instant();
-                    if (!eligible(subject, purpose)) return new Issue(Outcome.UNAVAILABLE, null);
+                    if (!eligible(subject, purpose)) {
+                        if (reserved) capacity.release(Map.of(ACTIONABLE_CHALLENGES, 1L));
+                        return new Issue(Outcome.UNAVAILABLE, null);
+                    }
                     var old = repository.current(subject, purpose);
-                    if (old.isPresent() && now.isBefore(old.get().createdAt().plusSeconds(60)))
+                    if (old.isPresent() && now.isBefore(old.get().createdAt().plusSeconds(60))) {
+                        if (reserved) capacity.release(Map.of(ACTIONABLE_CHALLENGES, 1L));
                         return new Issue(Outcome.COOLDOWN, null);
+                    }
                     // A replacement reuses its existing charged slot, even at full capacity.
-                    if (old.isEmpty() && !capacity.reserve(Map.of(ACTIONABLE_CHALLENGES, 1L)))
+                    if (old.isEmpty()
+                            && !reserved
+                            && !capacity.reserve(Map.of(ACTIONABLE_CHALLENGES, 1L)))
                         return new Issue(Outcome.CAPACITY, null);
-                    old.ifPresent(repository::delete);
+                    if (old.isPresent() && reserved)
+                        capacity.release(Map.of(ACTIONABLE_CHALLENGES, 1L));
+                    old.ifPresent(
+                            previous -> {
+                                new JdbcIdentityMailLedger(jdbc).cancel(previous.id());
+                                repository.delete(previous);
+                            });
                     var token = IdentityChallengeToken.create();
                     var lifetime =
                             purpose == IdentityChallengePurpose.VERIFICATION
@@ -113,6 +135,7 @@ final class JdbcIdentityChallenges {
                             || !now.isBefore(row.expiresAt().instant())
                             || !token.matches(row.verifier().encoded())
                             || !eligible(row.subject(), purpose)) return false;
+                    new JdbcIdentityMailLedger(jdbc).cancel(row.id());
                     repository.delete(row);
                     capacity.release(Map.of(ACTIONABLE_CHALLENGES, 1L));
                     action.accept(row.subject());
@@ -144,7 +167,10 @@ final class JdbcIdentityChallenges {
                                             "limit",
                                             batchSize),
                                     (rs, n) -> IdentityChallengeId.of(rs.getObject(1, UUID.class)));
-                    for (var id : ids) repository.delete(repository.byId(id));
+                    for (var id : ids) {
+                        new JdbcIdentityMailLedger(jdbc).cancel(id);
+                        repository.delete(repository.byId(id));
+                    }
                     if (!ids.isEmpty())
                         capacity.release(Map.of(ACTIONABLE_CHALLENGES, (long) ids.size()));
                     return ids.size();
