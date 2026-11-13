@@ -11,7 +11,7 @@ import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.core.util.*;
 import org.flywaydb.core.Flyway;
 import org.springframework.beans.factory.BeanClassLoaderAware;
-import org.springframework.boot.autoconfigure.flyway.FlywayMigrationStrategy;
+import org.springframework.boot.flyway.autoconfigure.FlywayMigrationStrategy;
 import org.vernac.runtime.application.AdapterBindings;
 import org.vernac.runtime.persistence.*;
 

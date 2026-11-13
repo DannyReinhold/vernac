@@ -113,8 +113,7 @@ final class AuthorizationEntryProbe {
         int genericErrorHooks;
     }
     /** The real Spring SPI, with MANDATORY tenant reads before returning a decision. */
-    // Spring Security 6.4 retains check as the abstract SPI; authorize delegates to it.
-    @SuppressWarnings("deprecation")
+    // Spring Security 7 uses authorize as the abstract policy SPI.
     public static class Policy implements AuthorizationManager<Call> {
         final InvoiceStore store;
         final Trace trace;
@@ -123,7 +122,7 @@ final class AuthorizationEntryProbe {
         boolean unavailable;
         Policy(InvoiceStore store, Trace trace) { this.store = store; this.trace = trace; }
         @Override @Transactional(propagation = Propagation.MANDATORY)
-        public AuthorizationDecision check(Supplier<Authentication> authentication, Call call) {
+        public AuthorizationDecision authorize(Supplier<? extends Authentication> authentication, Call call) {
             trace.events.add("policy:" + call.permission()); trace.calls.add(call);
             if (call.permission() == broken) {
                 if (unavailable) throw new Failure(Code.AUTHORIZATION_UNAVAILABLE);

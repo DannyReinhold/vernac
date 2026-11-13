@@ -13,5 +13,5 @@
         <dependency><groupId>org.vernac</groupId><artifactId>vernac-runtime-jdbc</artifactId></dependency>
         <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
     </dependencies>
-    <build><plugins><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId><version>3.4.2</version></plugin><plugin><groupId>org.vernac</groupId><artifactId>vernac-maven-plugin</artifactId><version>${revision}</version><executions><execution><goals><goal>compile</goal></goals></execution></executions></plugin></plugins></build>
+    <build><plugins><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId><version>4.1.2</version></plugin><plugin><groupId>org.vernac</groupId><artifactId>vernac-maven-plugin</artifactId><version>${revision}</version><executions><execution><goals><goal>compile</goal></goals></execution></executions></plugin></plugins></build>
 </project>

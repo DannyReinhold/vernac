@@ -6,7 +6,7 @@ import java.util.Currency;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.*;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import example.shared.domain.*;
 

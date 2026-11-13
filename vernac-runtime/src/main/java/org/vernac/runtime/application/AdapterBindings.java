@@ -70,7 +70,7 @@ public final class AdapterBindings implements BeanDefinitionRegistryPostProcesso
             if(registry.containsBeanDefinition(node.identity()))throw new IllegalStateException("Module '"+node.module()+"': duplicate bean identity "+node.identity());
             if(node.kind().equals("INBOUND_HTTP_ADAPTER"))try {
                 Class.forName("org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping",false,classLoader);
-            }catch(ClassNotFoundException|LinkageError error){throw new IllegalStateException("Module HTTP entrypoint '"+node.identity()+"' requires vernac-runtime-http and Spring MVC (spring-boot-starter-web).",error);}
+            }catch(ClassNotFoundException|LinkageError error){throw new IllegalStateException("Module HTTP entrypoint '"+node.identity()+"' requires vernac-runtime-http and Spring MVC (spring-boot-starter-webmvc).",error);}
             Class<?> type=functions.get(node.identity());
             if(type==null)throw new IllegalStateException("Module '"+node.module()+"': unavailable compiled component "+node.identity());
             for(String name:registry.getBeanDefinitionNames())if(type.getName().equals(registry.getBeanDefinition(name).getBeanClassName()))throw new IllegalStateException("Module component already registered: "+node.identity()+". Avoid component scanning dependency modules.");
@@ -88,7 +88,7 @@ public final class AdapterBindings implements BeanDefinitionRegistryPostProcesso
     }
     @Override public void postProcessBeanFactory(ConfigurableListableBeanFactory factory) throws BeansException {
         if(persistentActive)try {
-            var type=Class.forName("org.springframework.boot.autoconfigure.flyway.FlywayMigrationStrategy",false,classLoader);
+            var type=Class.forName("org.springframework.boot.flyway.autoconfigure.FlywayMigrationStrategy",false,classLoader);
             var names=factory.getBeanNamesForType(type,true,false);
             if(names.length!=1||!names[0].equals(STRATEGY))throw new IllegalStateException("Persistent module activation supplies the Flyway migration strategy. Remove competing strategies; do not bypass module migration ordering.");
         }catch(ClassNotFoundException e){throw new IllegalStateException("Persistent modules require Spring Boot Flyway initialization",e);}
