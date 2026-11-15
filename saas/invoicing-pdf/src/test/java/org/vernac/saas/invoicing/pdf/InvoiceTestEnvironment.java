@@ -89,6 +89,7 @@ final class InvoiceTestEnvironment {
                         Path.of(System.getProperty("payments.local.jar")),
                         Path.of(System.getProperty("payments.jdbc.jar")),
                         Path.of(System.getProperty("mail.jar")),
+                        Path.of(System.getProperty("mail.local.jar")),
                         Path.of(System.getProperty("invoicing.jar")),
                         Path.of(System.getProperty("invoicing.pdf.jar"))));
     }
@@ -100,8 +101,8 @@ final class InvoiceTestEnvironment {
         Files.writeString(
                 source.resolve("consumer/invoicing/model.vernac"),
                 "namespace consumer.invoicing; import org.vernac.saas.identity.UserId; import"
-                    + " org.vernac.saas.invoicing.InvoiceId; value Owner(UserId); value"
-                    + " Preview(InvoiceId);");
+                        + " org.vernac.saas.invoicing.InvoiceId; value Owner(UserId); value"
+                        + " Preview(InvoiceId);");
         var compiler = new VernacCompiler();
         var resolved = compiler.analyzeProject(source, modules);
         var generated = compiler.generate(resolved, SchemaModel.empty(), Map.of());
@@ -212,6 +213,8 @@ final class InvoiceTestEnvironment {
                                             AutoConfigurations.of(
                                                     LocalPaymentsAutoConfiguration.class,
                                                     InvoicePdfAutoConfiguration.class,
+                                                    org.vernac.saas.mail.local
+                                                            .LocalMailAutoConfiguration.class,
                                                     DataSourceAutoConfiguration.class,
                                                     DataSourceTransactionManagerAutoConfiguration
                                                             .class,

@@ -1,6 +1,9 @@
 module vernac.saas.invoicing {
     tenancy explicit;
     export org.vernac.saas.invoicing.InvoiceId;
+    export org.vernac.saas.invoicing.InvoiceSeries;
+    export org.vernac.saas.invoicing.InvoiceNoticeStatus;
+    export org.vernac.saas.invoicing.InvoiceNoticeReason;
     export org.vernac.saas.invoicing.InvoiceNumber;
     export org.vernac.saas.invoicing.InvoiceContent;
     export org.vernac.saas.invoicing.InvoiceEnvironment;

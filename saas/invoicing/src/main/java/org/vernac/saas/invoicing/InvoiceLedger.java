@@ -46,6 +46,7 @@ public final class InvoiceLedger {
     private final InvoiceSequenceRepository sequences;
     private final BillingProfileRepository profiles;
     private final IssuedInvoiceDocumentRepository documents;
+    private final InvoiceNoticeRepository notices;
     private final PaymentFlow payments;
     private final InvoiceSeller seller;
     private final InvoiceSeries series;
@@ -84,6 +85,7 @@ public final class InvoiceLedger {
         sequences = new JdbcInvoiceSequenceRepository(jdbc);
         profiles = new JdbcBillingProfileRepository(jdbc);
         documents = new JdbcIssuedInvoiceDocumentRepository(jdbc);
+        notices = new JdbcInvoiceNoticeRepository(jdbc);
     }
 
     public void billingProfile(AccountId account, InvoiceBuyer buyer) {
@@ -333,6 +335,15 @@ public final class InvoiceLedger {
                     else {
                         documents.save(IssuedInvoiceDocument.create(row.id(), rendered));
                         row.ready();
+                        notices.save(
+                                InvoiceNotice.create(
+                                        row.id(),
+                                        org.vernac.saas.mail.domain.MailCorrelationId.create(),
+                                        InvoiceNoticeStatus.PENDING,
+                                        InvoiceNoticeReason.NONE,
+                                        InvoiceNoticeCount.of(0),
+                                        due(now()),
+                                        null));
                     }
                     invoices.save(row);
                     return Boolean.TRUE;

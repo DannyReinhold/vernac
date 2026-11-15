@@ -40,7 +40,7 @@ jobs:
       - name: Install matching compiler and runtime
         run: mvn -B -ntp -pl vernac-maven-plugin,vernac-jdbc-spring-boot-starter -am -DskipTests install
       - name: Install nominal contracts and payment processing
-        run: mvn -B -ntp -pl saas/identity,saas/mail,saas/subscriptions,saas/payments,saas/payments-http,saas/payments-local,saas/payments-jdbc -DskipTests install
+        run: mvn -B -ntp -pl saas/identity,saas/mail,saas/mail-local,saas/subscriptions,saas/payments,saas/payments-http,saas/payments-local,saas/payments-jdbc -DskipTests install
       - name: Verify fiscal calculations PDF-A EN16931 and packaged database consumption
         run: mvn -B -ntp -pl saas/invoicing,saas/invoicing-pdf clean install
       - name: Replay invoice migrations and compare generated schema
@@ -56,7 +56,7 @@ jobs:
           suites = {
               'saas/invoicing/target/surefire-reports/TEST-org.vernac.saas.invoicing.DomesticTaxTest.xml': 3,
               'saas/invoicing-pdf/target/surefire-reports/TEST-org.vernac.saas.invoicing.pdf.ZugferdDocumentsTest.xml': 4,
-              'saas/invoicing-pdf/target/failsafe-reports/TEST-org.vernac.saas.invoicing.pdf.InvoiceFlowPostgresIT.xml': 3,
+              'saas/invoicing-pdf/target/failsafe-reports/TEST-org.vernac.saas.invoicing.pdf.InvoiceFlowPostgresIT.xml': 6,
           }
           for path, count in suites.items():
               root = ET.parse(path).getroot()

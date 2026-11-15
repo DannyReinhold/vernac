@@ -1,6 +1,7 @@
 namespace org.vernac.saas.invoicing;
 import org.vernac.saas.identity.AccountId;
 import org.vernac.saas.mail.MailAddress;
+import org.vernac.saas.mail.MailCorrelationId;
 import org.vernac.saas.subscriptions.OfferTerms;
 import org.vernac.saas.subscriptions.MinorUnits;
 import org.vernac.saas.subscriptions.SubscriptionPeriod;
@@ -91,4 +92,27 @@ id IssuedInvoiceDocumentId;
 global aggregate IssuedInvoiceDocument[IssuedInvoiceDocumentId](unique InvoiceId invoice references Invoice, RenderedInvoice document);
 repository IssuedInvoiceDocumentRepository for IssuedInvoiceDocument {
     find IssuedInvoiceDocument? forInvoice(InvoiceId invoice) where invoice = :invoice;
+}
+
+value InvoiceNoticeStatus = PENDING | ACCEPTED | SIMULATED | REVIEW;
+value InvoiceNoticeReason = NONE | CONFIGURATION | PROVIDER_REJECTED | OUTCOME_UNKNOWN;
+value InvoiceNoticeCount(int value) validates { require(self.value() >= 0 && self.value() <= 5, "Invoice notice attempts are bounded"); };
+id InvoiceNoticeId;
+global aggregate InvoiceNotice[InvoiceNoticeId](unique InvoiceId invoice references Invoice, MailCorrelationId correlation,
+    mut InvoiceNoticeStatus status, mut InvoiceNoticeReason reason, mut InvoiceNoticeCount calls,
+    mut InvoiceWorkDue due, mut InvoiceWorkLease? lease) behavior {
+    modify void claim(InvoiceWorkLease lease) { self.lease(lease); self.calls(InvoiceNoticeCount.of(self.calls().value() + 1)); }
+    modify void accept(boolean simulated) {
+        self.status(simulated ? InvoiceNoticeStatus.SIMULATED : InvoiceNoticeStatus.ACCEPTED);
+        self.reason(InvoiceNoticeReason.NONE); self.lease(null);
+    }
+    modify void defer(InvoiceWorkDue due) { self.due(due); self.reason(InvoiceNoticeReason.OUTCOME_UNKNOWN); self.lease(null); }
+    modify void review(InvoiceNoticeReason reason) { self.status(InvoiceNoticeStatus.REVIEW); self.reason(reason); self.lease(null); }
+    modify void retry(InvoiceWorkDue due) {
+        org.vernac.saas.invoicing.InvoiceRules.requireRetry(self.status() == InvoiceNoticeStatus.REVIEW);
+        self.status(InvoiceNoticeStatus.PENDING); self.reason(InvoiceNoticeReason.NONE); self.calls(InvoiceNoticeCount.of(0)); self.due(due); self.lease(null);
+    }
+};
+repository InvoiceNoticeRepository for InvoiceNotice {
+    find InvoiceNotice? forInvoice(InvoiceId invoice) where invoice = :invoice;
 }

@@ -15,6 +15,8 @@ application consumer.invoicing {
     activate vernac.saas.invoicing;
     bind org.vernac.saas.payments.PaymentProvider
         to org.vernac.saas.payments.local.LocalPaymentProvider;
+    bind org.vernac.saas.mail.MailProvider
+        to org.vernac.saas.mail.local.NoopMailProvider;
     bind org.vernac.saas.invoicing.InvoiceRenderer
         to org.vernac.saas.invoicing.pdf.ZugferdInvoiceRenderer;
 }
@@ -89,5 +91,20 @@ PDF/XML download. Account ownership is checked again when locating the document.
 History uses a keyset cursor with at most 100 results. No public controller or open
 filesystem URL is installed by this module.
 
-Still open: shared-mail delivery, complete packaged database/concurrency acceptance,
-full fresh Identity/HTTP self-service and final fiscal/archival acceptance.
+## Shared-mail notification
+
+The READY acknowledgement also inserts one durable InvoiceNotice in the same transaction.
+InvoiceMail consumes the existing shared MailProvider with the chosen Brevo/Noop binding;
+it does not add a separate mail sender. The notification links to an authenticated HTTPS
+account download and retains one correlation across retries/restarts. It sends no public
+secret URL or invoice attachment. Provider acceptance is not mailbox delivery; a local
+capture is explicitly SIMULATED. A simulated sender cannot acknowledge a LIVE invoice.
+
+The mailbox POST and local acknowledgement cannot commit atomically. Unknown results
+retain the same correlation and may produce duplicate notification mail; they never
+produce another invoice, refund or charge. Five failed/unknown attempts require explicit
+authorized recovery. Bad link/provider configuration and definitive rejection remain
+review work. Failure to send never removes an issued PDF or alters payment truth.
+
+Still open: complete fresh Identity/HTTP self-service, additional operator edge cases
+and final fiscal/archival acceptance.
