@@ -37,6 +37,7 @@ public final class PaymentFlow {
     private final ProviderRegistrationRepository registrations;
     private final BillingAgreementRepository agreements;
     private final PaymentRefundRepository refunds;
+    private final RegisteredRefundResourceRepository refundResources;
     private final RegisteredPaymentResourceRepository resources;
     private final Map<PaymentProfileKey, PaymentProvider> providers;
     private final PlanCatalog catalog;
@@ -55,6 +56,7 @@ public final class PaymentFlow {
         writer = new TransactionTemplate(manager); writer.setTimeout(5); writer.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
         orders = new JdbcPaymentOrderRepository(jdbc); attempts = new JdbcPaymentAttemptRepository(jdbc);
         resources = new JdbcRegisteredPaymentResourceRepository(jdbc);
+        refundResources = new JdbcRegisteredRefundResourceRepository(jdbc);
         registrations = new JdbcProviderRegistrationRepository(jdbc); agreements = new JdbcBillingAgreementRepository(jdbc); refunds = new JdbcPaymentRefundRepository(jdbc);
         write(() -> {
             jdbc.queryForList("SELECT pg_advisory_xact_lock(hashtextextended('vernac.payments/profiles',0))", Map.of());
@@ -105,6 +107,101 @@ public final class PaymentFlow {
             var attempt = firstAttempt(row, previous.profile(), PaymentAttemptKind.FIRST, null, null); return view(orders.byId(row.id()), attempt);
         });
     }
+    public record RefundView(PaymentRefundId id, MinorUnits amount, RefundState state, PaymentReason reason) {
+        @Override public String toString() { return "RefundView[REDACTED]"; }
+    }
+    private record RefundClaim(PaymentRefundId id, UUID token) {}
+    private record RefundWork(PaymentRefund refund, PaymentAttempt attempt, PaymentOrder order) {}
+
+    /** Reserves the refund amount before any external effect. Unknown outcomes retain their reservation. */
+    public RefundView refund(AccountId account, PaymentOrderId orderId, PaymentOperationId operation, MinorUnits amount) {
+        administrator(account);
+        if (amount.value() <= 0) throw fail(PaymentProcessingFailure.Code.INVALID_STATE);
+        return write(() -> {
+            lock(account); var order = owned(account, orderId); var recorded = refunds.forOperation(operation);
+            if (recorded.isPresent()) {
+                var existing = recorded.get(); var attempt = attempts.byId(existing.attempt());
+                if (!existing.account().equals(account) || !attempt.order().equals(orderId) || !existing.amount().equals(amount)) throw fail(PaymentProcessingFailure.Code.CONFLICT);
+                return refundView(existing);
+            }
+            var attempt = order.paidAttempt().map(attempts::byId).orElseThrow(() -> fail(PaymentProcessingFailure.Code.INVALID_STATE));
+            long reserved = jdbc.queryForObject("SELECT coalesce(sum(\"amount\"),0) FROM " + S + "\"PaymentRefund\" WHERE \"attempt\"=:attempt AND \"state\"<>'FAILED'", Map.of("attempt", attempt.id().value()), Long.class);
+            long confirmed = jdbc.queryForObject("SELECT coalesce(sum(\"amount\"),0) FROM " + S + "\"PaymentRefund\" WHERE \"attempt\"=:attempt AND \"state\"='REFUNDED'", Map.of("attempt", attempt.id().value()), Long.class);
+            // Account for refunds performed outside this process without double-counting our confirmed receipts.
+            long unavailable = reserved + Math.max(0, attempt.refunded().value() - confirmed);
+            if (unavailable > order.terms().price().value() || amount.value() > order.terms().price().value() - unavailable) throw fail(PaymentProcessingFailure.Code.CONFLICT);
+            var row = refunds.save(PaymentRefund.create(attempt.id(), account, operation, amount, null, RefundState.PENDING, due(now()), null, null, PaymentCounter.of(0), PaymentReason.NONE));
+            return refundView(row);
+        });
+    }
+    public RefundView refund(AccountId account, PaymentRefundId id) {
+        administrator(account); return write(() -> {
+            var row = refunds.byId(id); if (!row.account().equals(account)) throw fail(PaymentProcessingFailure.Code.ACCESS_DENIED);
+            return refundView(row);
+        });
+    }
+    /** One durable refund step. No timeout is interpreted as proof of a failed financial operation. */
+    public boolean processRefundOne() {
+        unscoped(); var claim = claimRefund(); if (claim == null) return false;
+        var work = write(() -> { var row = refunds.byId(claim.id()); var attempt = attempts.byId(row.attempt()); return new RefundWork(row, attempt, orders.byId(attempt.order())); });
+        var row = work.refund(); var attempt = work.attempt(); var provider = provider(attempt.profile());
+        try {
+            if (row.state() != RefundState.REFUNDED) {
+                var remote = attempt.remote().orElseThrow(() -> fail(PaymentProcessingFailure.Code.INVALID_STATE));
+                var proof = row.remote().isPresent() ? provider.inspectRefund(remote, row.remote().get())
+                        : provider.refund(RefundRequest.of(row.operation(), remote, row.amount(), work.order().terms().currency()));
+                if (!remote.equals(proof.payment()) || !row.amount().equals(proof.amount()) || work.order().terms().currency() != proof.currency()
+                        || row.remote().filter(id -> !id.equals(proof.id())).isPresent()) throw fail(PaymentProcessingFailure.Code.UNVERIFIED_RESOURCE);
+                acknowledgeRefund(claim, current -> {
+                    var route = PaymentRouteKey.of(attempt.profile().value() + "/" + proof.id().encoded()); var bound = refundResources.forRoute(route);
+                    if (bound.filter(other -> !other.refund().equals(current.id())).isPresent()) throw fail(PaymentProcessingFailure.Code.UNVERIFIED_RESOURCE);
+                    if (bound.isEmpty()) refundResources.save(RegisteredRefundResource.create(route, current.id()));
+                    current.observe(proof.id(), proof.state(), due(now().plusSeconds(30)));
+                    if (proof.state() == RefundState.REFUNDED) current.defer(due(now()), PaymentReason.OUTCOME_UNKNOWN);
+                });
+            } else {
+                // Refresh total financial truth before queuing entitlement reversal. This step survives a crash
+                // after provider confirmation because the confirmed receipt remains reconciliation work.
+                var proof = provider.inspect(attempt.remote().orElseThrow());
+                acknowledgeRefund(claim, current -> {
+                    long confirmed = jdbc.queryForObject("SELECT coalesce(sum(\"amount\"),0) FROM " + S + "\"PaymentRefund\" WHERE \"attempt\"=:attempt AND \"state\"='REFUNDED'", Map.of("attempt", attempt.id().value()), Long.class);
+                    if (proof.refunded().value() < confirmed) throw fail(PaymentProcessingFailure.Code.UNAVAILABLE);
+                    var fresh = attempts.byId(attempt.id()); observe(fresh, proof); attempts.save(fresh);
+                    current.observe(current.remote().orElseThrow(), RefundState.REFUNDED, due(now()));
+                });
+            }
+        } catch (PaymentFailure failure) {
+            acknowledgeRefund(claim, current -> {
+                if (failure.code() == PaymentFailure.Code.REJECTED || failure.code() == PaymentFailure.Code.INVALID_PROVIDER_RESPONSE || failure.code() == PaymentFailure.Code.OPERATION_CONFLICT) current.review();
+                else current.defer(due(now().plusSeconds(30)), PaymentReason.OUTCOME_UNKNOWN);
+            });
+        } catch (PaymentProcessingFailure failure) {
+            acknowledgeRefund(claim, current -> {
+                if (failure.code() == PaymentProcessingFailure.Code.UNAVAILABLE) current.defer(due(now().plusSeconds(30)), PaymentReason.OUTCOME_UNKNOWN);
+                else current.review();
+            });
+        }
+        return true;
+    }
+    private RefundClaim claimRefund() {
+        return write(() -> {
+            var time = now(); var ids = jdbc.queryForList("SELECT \"id\" FROM " + S + "\"PaymentRefund\" WHERE (\"state\" IN ('PENDING','UNKNOWN') OR (\"state\"='REFUNDED' AND \"reason\"='OUTCOME_UNKNOWN')) AND \"reason\"<>'REFUND_UNCERTAIN' AND \"due\"<=:now AND (\"lease.token\" IS NULL OR \"lease.until\"<=:now) ORDER BY \"due\",\"id\" LIMIT 1 FOR UPDATE SKIP LOCKED", Map.of("now", java.sql.Timestamp.from(time)), UUID.class);
+            if (ids.isEmpty()) return null;
+            var row = refunds.byId(PaymentRefundId.of(ids.getFirst()));
+            if (row.remote().isEmpty() && (row.calls().value() >= 5 || row.financialStarted().filter(start -> !time.isBefore(start.value().plus(Duration.ofMinutes(30)))).isPresent())) {
+                row.review(); refunds.save(row); return null;
+            }
+            var token = UUID.randomUUID(); row.claim(PaymentLease.of(token, time.plusSeconds(120)), PaymentStartedAt.of(time)); refunds.save(row); return new RefundClaim(row.id(), token);
+        });
+    }
+    private void acknowledgeRefund(RefundClaim claim, Consumer<PaymentRefund> action) {
+        write(() -> {
+            var first = refunds.byId(claim.id()); lock(first.account()); var row = refunds.byId(claim.id());
+            if (row.lease().filter(lease -> lease.token().equals(claim.token()) && now().isBefore(lease.until())).isEmpty()) return Boolean.FALSE;
+            action.accept(row); refunds.save(row); return Boolean.TRUE;
+        });
+    }
+    private static RefundView refundView(PaymentRefund row) { return new RefundView(row.id(), row.amount(), row.state(), row.reason()); }
     /** Public ingress adapter must pass the raw bounded notice and its configured profile, never a tenant claim. */
     public void webhook(PaymentProfileKey profile, PaymentNoticeBody body, PaymentSignature signature) {
         unscoped(); admission.admit(profile); var provider = provider(profile);

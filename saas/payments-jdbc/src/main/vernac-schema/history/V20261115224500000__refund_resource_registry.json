@@ -1,0 +1,971 @@
+{
+  "formatVersion" : 1,
+  "migration" : "V20261115224500000__refund_resource_registry.sql",
+  "previousFingerprint" : "5f7d1cc7a9769e2200e629dd31330db1ceee609dab3e8b4b00b66d70784bc448",
+  "modelFingerprint" : "defc6212fe3cbc89043728999bb13cea3334136489ece6d44c9f1ae14c81784d",
+  "model" : {
+    "formatVersion" : 4,
+    "mappingVersion" : 1,
+    "tables" : [ {
+      "namespace" : "org.vernac.saas.payments.persistence",
+      "name" : "BillingAgreement",
+      "origin" : "org.vernac.saas.payments.persistence.BillingAgreement",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.BillingAgreement"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.BillingAgreement"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.BillingAgreement"
+      }, {
+        "name" : "@nanoRemainder:nextBillingAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.BillingAgreement.nextBillingAt"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.BillingAgreement"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.payments.persistence.BillingAgreement"
+      }, {
+        "name" : "account",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.identity.AccountId"
+      }, {
+        "name" : "customer",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.BillingAgreement.customer"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.payments.persistence.BillingAgreement.id"
+      }, {
+        "name" : "mandate",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.BillingAgreement.mandate"
+      }, {
+        "name" : "nextBillingAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.BillingAgreement.nextBillingAt"
+      }, {
+        "name" : "profile",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.BillingAgreement.profile"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:nextBillingAt",
+        "clause" : "CHECK (\"@nanoRemainder:nextBillingAt\" BETWEEN 0 AND 999)"
+      } ]
+    }, {
+      "namespace" : "org.vernac.saas.payments.persistence",
+      "name" : "PaymentAttempt",
+      "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt"
+      }, {
+        "name" : "@nanoRemainder:due",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt.due"
+      }, {
+        "name" : "@nanoRemainder:financialStarted",
+        "sqlType" : "SMALLINT",
+        "nullable" : true,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt.financialStarted"
+      }, {
+        "name" : "@nanoRemainder:lease.until",
+        "sqlType" : "SMALLINT",
+        "nullable" : true,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt.lease.until"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt"
+      }, {
+        "name" : "account",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.identity.AccountId"
+      }, {
+        "name" : "calls",
+        "sqlType" : "INTEGER",
+        "nullable" : false,
+        "codec" : "int:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt.calls"
+      }, {
+        "name" : "checkout",
+        "sqlType" : "TEXT",
+        "nullable" : true,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt.checkout"
+      }, {
+        "name" : "customer",
+        "sqlType" : "TEXT",
+        "nullable" : true,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt.customer"
+      }, {
+        "name" : "customerOperation",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.payments.PaymentOperationId"
+      }, {
+        "name" : "due",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt.due"
+      }, {
+        "name" : "financialStarted",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : true,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt.financialStarted"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt.id"
+      }, {
+        "name" : "key",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt.key",
+        "collation" : "C"
+      }, {
+        "name" : "kind",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttemptKind"
+      }, {
+        "name" : "lease.token",
+        "sqlType" : "UUID",
+        "nullable" : true,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt.lease.token"
+      }, {
+        "name" : "lease.until",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : true,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt.lease.until"
+      }, {
+        "name" : "mandate",
+        "sqlType" : "TEXT",
+        "nullable" : true,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt.mandate"
+      }, {
+        "name" : "operation",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.payments.PaymentOperationId"
+      }, {
+        "name" : "order",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentOrderId"
+      }, {
+        "name" : "profile",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt.profile"
+      }, {
+        "name" : "reason",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentReason"
+      }, {
+        "name" : "refunded",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt.refunded"
+      }, {
+        "name" : "remote",
+        "sqlType" : "TEXT",
+        "nullable" : true,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttempt.remote"
+      }, {
+        "name" : "stage",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttemptStage"
+      }, {
+        "name" : "state",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.PaymentState"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:absent:financialStarted:org.vernac.saas.payments.persistence.PaymentStartedAt",
+        "clause" : "CHECK ((\"financialStarted\" IS NOT NULL) OR (\"@nanoRemainder:financialStarted\" IS NULL AND \"financialStarted\" IS NULL))"
+      }, {
+        "name" : "@check:absent:lease:org.vernac.saas.payments.persistence.PaymentLease",
+        "clause" : "CHECK ((\"lease.token\" IS NOT NULL) OR (\"@nanoRemainder:lease.until\" IS NULL AND \"lease.token\" IS NULL AND \"lease.until\" IS NULL))"
+      }, {
+        "name" : "@check:enum:kind",
+        "clause" : "CHECK (\"kind\" IN ('FIRST', 'RECURRING'))"
+      }, {
+        "name" : "@check:enum:reason",
+        "clause" : "CHECK (\"reason\" IN ('DUPLICATE_PAID', 'INVALID_PROVIDER_FACTS', 'MANDATE_UNAVAILABLE', 'NONE', 'OUTCOME_UNKNOWN', 'PROVIDER_UNAVAILABLE', 'REFUND_UNCERTAIN', 'SETTLEMENT_CONFLICT'))"
+      }, {
+        "name" : "@check:enum:stage",
+        "clause" : "CHECK (\"stage\" IN ('APPLY', 'CUSTOMER_READY', 'DONE', 'NEW', 'PREPARING', 'REVIEW', 'REVOKE', 'WAITING'))"
+      }, {
+        "name" : "@check:enum:state",
+        "clause" : "CHECK (\"state\" IN ('CANCELLED', 'EXPIRED', 'FAILED', 'OPEN', 'PAID', 'PENDING', 'REFUNDED', 'UNKNOWN'))"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:due",
+        "clause" : "CHECK (\"@nanoRemainder:due\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:financialStarted",
+        "clause" : "CHECK (\"@nanoRemainder:financialStarted\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:lease.until",
+        "clause" : "CHECK (\"@nanoRemainder:lease.until\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:shape:financialStarted",
+        "clause" : "CHECK (((\"financialStarted\" IS NOT NULL) AND (\"financialStarted\" IS NOT NULL AND \"@nanoRemainder:financialStarted\" IS NOT NULL)) OR ((NOT (\"financialStarted\" IS NOT NULL)) AND (\"financialStarted\" IS NULL AND \"@nanoRemainder:financialStarted\" IS NULL)))"
+      }, {
+        "name" : "@check:shape:lease.until",
+        "clause" : "CHECK (((\"lease.token\" IS NOT NULL) AND (\"lease.until\" IS NOT NULL AND \"@nanoRemainder:lease.until\" IS NOT NULL)) OR ((NOT (\"lease.token\" IS NOT NULL)) AND (\"lease.until\" IS NULL AND \"@nanoRemainder:lease.until\" IS NULL)))"
+      }, {
+        "name" : "@fk:reference:order",
+        "clause" : "FOREIGN KEY (\"order\") REFERENCES \"org.vernac.saas.payments.persistence\".\"PaymentOrder\" (\"id\")"
+      }, {
+        "name" : "@unique:PaymentAttempt:key",
+        "clause" : "UNIQUE (\"key\")"
+      }, {
+        "name" : "@unique:PaymentAttempt:operation",
+        "clause" : "UNIQUE (\"operation\")"
+      } ]
+    }, {
+      "namespace" : "org.vernac.saas.payments.persistence",
+      "name" : "PaymentOrder",
+      "origin" : "org.vernac.saas.payments.persistence.PaymentOrder",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentOrder"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentOrder"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentOrder"
+      }, {
+        "name" : "@nanoRemainder:period.end",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentOrder.period.end"
+      }, {
+        "name" : "@nanoRemainder:period.start",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentOrder.period.start"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentOrder"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentOrder"
+      }, {
+        "name" : "account",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.identity.AccountId"
+      }, {
+        "name" : "attempts",
+        "sqlType" : "INTEGER",
+        "nullable" : false,
+        "codec" : "int:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentOrder.attempts"
+      }, {
+        "name" : "cycle",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentOrder.cycle"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentOrder.id"
+      }, {
+        "name" : "paidAttempt",
+        "sqlType" : "UUID",
+        "nullable" : true,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttemptId"
+      }, {
+        "name" : "period.end",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentOrder.period.end"
+      }, {
+        "name" : "period.start",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentOrder.period.start"
+      }, {
+        "name" : "reason",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentReason"
+      }, {
+        "name" : "request",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentOrder.request",
+        "collation" : "C"
+      }, {
+        "name" : "status",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentOrderStatus"
+      }, {
+        "name" : "subscription",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.subscriptions.SubscriptionId"
+      }, {
+        "name" : "terms.benefits",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentOrder.terms.benefits"
+      }, {
+        "name" : "terms.currency",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.BillingCurrency"
+      }, {
+        "name" : "terms.interval",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.BillingInterval"
+      }, {
+        "name" : "terms.plan",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentOrder.terms.plan"
+      }, {
+        "name" : "terms.price",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentOrder.terms.price"
+      }, {
+        "name" : "terms.revision",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentOrder.terms.revision"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:enum:reason",
+        "clause" : "CHECK (\"reason\" IN ('DUPLICATE_PAID', 'INVALID_PROVIDER_FACTS', 'MANDATE_UNAVAILABLE', 'NONE', 'OUTCOME_UNKNOWN', 'PROVIDER_UNAVAILABLE', 'REFUND_UNCERTAIN', 'SETTLEMENT_CONFLICT'))"
+      }, {
+        "name" : "@check:enum:status",
+        "clause" : "CHECK (\"status\" IN ('APPLIED', 'CLOSED', 'OPEN', 'PAID', 'REVIEW'))"
+      }, {
+        "name" : "@check:enum:terms.currency",
+        "clause" : "CHECK (\"terms.currency\" IN ('EUR'))"
+      }, {
+        "name" : "@check:enum:terms.interval",
+        "clause" : "CHECK (\"terms.interval\" IN ('MONTHLY', 'YEARLY'))"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:period.end",
+        "clause" : "CHECK (\"@nanoRemainder:period.end\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:period.start",
+        "clause" : "CHECK (\"@nanoRemainder:period.start\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@unique:PaymentOrder:request",
+        "clause" : "UNIQUE (\"request\")"
+      } ]
+    }, {
+      "namespace" : "org.vernac.saas.payments.persistence",
+      "name" : "PaymentRefund",
+      "origin" : "org.vernac.saas.payments.persistence.PaymentRefund",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentRefund"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentRefund"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentRefund"
+      }, {
+        "name" : "@nanoRemainder:due",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentRefund.due"
+      }, {
+        "name" : "@nanoRemainder:financialStarted",
+        "sqlType" : "SMALLINT",
+        "nullable" : true,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentRefund.financialStarted"
+      }, {
+        "name" : "@nanoRemainder:lease.until",
+        "sqlType" : "SMALLINT",
+        "nullable" : true,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentRefund.lease.until"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentRefund"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentRefund"
+      }, {
+        "name" : "account",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.identity.AccountId"
+      }, {
+        "name" : "amount",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentRefund.amount"
+      }, {
+        "name" : "attempt",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttemptId"
+      }, {
+        "name" : "calls",
+        "sqlType" : "INTEGER",
+        "nullable" : false,
+        "codec" : "int:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentRefund.calls"
+      }, {
+        "name" : "due",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentRefund.due"
+      }, {
+        "name" : "financialStarted",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : true,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentRefund.financialStarted"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentRefund.id"
+      }, {
+        "name" : "lease.token",
+        "sqlType" : "UUID",
+        "nullable" : true,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentRefund.lease.token"
+      }, {
+        "name" : "lease.until",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : true,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentRefund.lease.until"
+      }, {
+        "name" : "operation",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.payments.PaymentOperationId"
+      }, {
+        "name" : "reason",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentReason"
+      }, {
+        "name" : "remote",
+        "sqlType" : "TEXT",
+        "nullable" : true,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentRefund.remote"
+      }, {
+        "name" : "state",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.RefundState"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:absent:financialStarted:org.vernac.saas.payments.persistence.PaymentStartedAt",
+        "clause" : "CHECK ((\"financialStarted\" IS NOT NULL) OR (\"@nanoRemainder:financialStarted\" IS NULL AND \"financialStarted\" IS NULL))"
+      }, {
+        "name" : "@check:absent:lease:org.vernac.saas.payments.persistence.PaymentLease",
+        "clause" : "CHECK ((\"lease.token\" IS NOT NULL) OR (\"@nanoRemainder:lease.until\" IS NULL AND \"lease.token\" IS NULL AND \"lease.until\" IS NULL))"
+      }, {
+        "name" : "@check:enum:reason",
+        "clause" : "CHECK (\"reason\" IN ('DUPLICATE_PAID', 'INVALID_PROVIDER_FACTS', 'MANDATE_UNAVAILABLE', 'NONE', 'OUTCOME_UNKNOWN', 'PROVIDER_UNAVAILABLE', 'REFUND_UNCERTAIN', 'SETTLEMENT_CONFLICT'))"
+      }, {
+        "name" : "@check:enum:state",
+        "clause" : "CHECK (\"state\" IN ('FAILED', 'PENDING', 'REFUNDED', 'UNKNOWN'))"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:due",
+        "clause" : "CHECK (\"@nanoRemainder:due\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:financialStarted",
+        "clause" : "CHECK (\"@nanoRemainder:financialStarted\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:lease.until",
+        "clause" : "CHECK (\"@nanoRemainder:lease.until\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:shape:financialStarted",
+        "clause" : "CHECK (((\"financialStarted\" IS NOT NULL) AND (\"financialStarted\" IS NOT NULL AND \"@nanoRemainder:financialStarted\" IS NOT NULL)) OR ((NOT (\"financialStarted\" IS NOT NULL)) AND (\"financialStarted\" IS NULL AND \"@nanoRemainder:financialStarted\" IS NULL)))"
+      }, {
+        "name" : "@check:shape:lease.until",
+        "clause" : "CHECK (((\"lease.token\" IS NOT NULL) AND (\"lease.until\" IS NOT NULL AND \"@nanoRemainder:lease.until\" IS NOT NULL)) OR ((NOT (\"lease.token\" IS NOT NULL)) AND (\"lease.until\" IS NULL AND \"@nanoRemainder:lease.until\" IS NULL)))"
+      }, {
+        "name" : "@fk:reference:attempt",
+        "clause" : "FOREIGN KEY (\"attempt\") REFERENCES \"org.vernac.saas.payments.persistence\".\"PaymentAttempt\" (\"id\")"
+      }, {
+        "name" : "@unique:PaymentRefund:operation",
+        "clause" : "UNIQUE (\"operation\")"
+      } ]
+    }, {
+      "namespace" : "org.vernac.saas.payments.persistence",
+      "name" : "ProviderRegistration",
+      "origin" : "org.vernac.saas.payments.persistence.ProviderRegistration",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.ProviderRegistration"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.ProviderRegistration"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.ProviderRegistration"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.ProviderRegistration"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.payments.persistence.ProviderRegistration"
+      }, {
+        "name" : "environment",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.PaymentProviderEnvironment"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.payments.persistence.ProviderRegistration.id"
+      }, {
+        "name" : "key",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.ProviderRegistration.key",
+        "collation" : "C"
+      }, {
+        "name" : "kind",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.PaymentProviderKind"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:enum:environment",
+        "clause" : "CHECK (\"environment\" IN ('PRODUCTION', 'SIMULATED', 'TEST'))"
+      }, {
+        "name" : "@check:enum:kind",
+        "clause" : "CHECK (\"kind\" IN ('LOCAL', 'MOLLIE', 'STRIPE'))"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@unique:ProviderRegistration:key",
+        "clause" : "UNIQUE (\"key\")"
+      } ]
+    }, {
+      "namespace" : "org.vernac.saas.payments.persistence",
+      "name" : "RegisteredPaymentResource",
+      "origin" : "org.vernac.saas.payments.persistence.RegisteredPaymentResource",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.RegisteredPaymentResource"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.RegisteredPaymentResource"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.RegisteredPaymentResource"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.RegisteredPaymentResource"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.payments.persistence.RegisteredPaymentResource"
+      }, {
+        "name" : "attempt",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentAttemptId"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.payments.persistence.RegisteredPaymentResource.id"
+      }, {
+        "name" : "profile",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.RegisteredPaymentResource.profile"
+      }, {
+        "name" : "remote",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.RegisteredPaymentResource.remote"
+      }, {
+        "name" : "route",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.RegisteredPaymentResource.route",
+        "collation" : "C"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@fk:reference:attempt",
+        "clause" : "FOREIGN KEY (\"attempt\") REFERENCES \"org.vernac.saas.payments.persistence\".\"PaymentAttempt\" (\"id\")"
+      }, {
+        "name" : "@unique:RegisteredPaymentResource:route",
+        "clause" : "UNIQUE (\"route\")"
+      } ]
+    }, {
+      "namespace" : "org.vernac.saas.payments.persistence",
+      "name" : "RegisteredRefundResource",
+      "origin" : "org.vernac.saas.payments.persistence.RegisteredRefundResource",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.RegisteredRefundResource"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.RegisteredRefundResource"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.payments.persistence.RegisteredRefundResource"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.payments.persistence.RegisteredRefundResource"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.payments.persistence.RegisteredRefundResource"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.payments.persistence.RegisteredRefundResource.id"
+      }, {
+        "name" : "refund",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentRefundId"
+      }, {
+        "name" : "route",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.payments.persistence.RegisteredRefundResource.route",
+        "collation" : "C"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@fk:reference:refund",
+        "clause" : "FOREIGN KEY (\"refund\") REFERENCES \"org.vernac.saas.payments.persistence\".\"PaymentRefund\" (\"id\")"
+      }, {
+        "name" : "@unique:RegisteredRefundResource:route",
+        "clause" : "UNIQUE (\"route\")"
+      } ]
+    } ],
+    "enumCodes" : {
+      "org.vernac.saas.payments.PaymentProviderEnvironment" : {
+        "PRODUCTION" : "PRODUCTION",
+        "SIMULATED" : "SIMULATED",
+        "TEST" : "TEST"
+      },
+      "org.vernac.saas.payments.PaymentProviderKind" : {
+        "LOCAL" : "LOCAL",
+        "MOLLIE" : "MOLLIE",
+        "STRIPE" : "STRIPE"
+      },
+      "org.vernac.saas.payments.PaymentState" : {
+        "CANCELLED" : "CANCELLED",
+        "EXPIRED" : "EXPIRED",
+        "FAILED" : "FAILED",
+        "OPEN" : "OPEN",
+        "PAID" : "PAID",
+        "PENDING" : "PENDING",
+        "REFUNDED" : "REFUNDED",
+        "UNKNOWN" : "UNKNOWN"
+      },
+      "org.vernac.saas.payments.RefundState" : {
+        "FAILED" : "FAILED",
+        "PENDING" : "PENDING",
+        "REFUNDED" : "REFUNDED",
+        "UNKNOWN" : "UNKNOWN"
+      },
+      "org.vernac.saas.payments.persistence.PaymentAttemptKind" : {
+        "FIRST" : "FIRST",
+        "RECURRING" : "RECURRING"
+      },
+      "org.vernac.saas.payments.persistence.PaymentAttemptStage" : {
+        "APPLY" : "APPLY",
+        "CUSTOMER_READY" : "CUSTOMER_READY",
+        "DONE" : "DONE",
+        "NEW" : "NEW",
+        "PREPARING" : "PREPARING",
+        "REVIEW" : "REVIEW",
+        "REVOKE" : "REVOKE",
+        "WAITING" : "WAITING"
+      },
+      "org.vernac.saas.payments.persistence.PaymentOrderStatus" : {
+        "APPLIED" : "APPLIED",
+        "CLOSED" : "CLOSED",
+        "OPEN" : "OPEN",
+        "PAID" : "PAID",
+        "REVIEW" : "REVIEW"
+      },
+      "org.vernac.saas.payments.persistence.PaymentReason" : {
+        "DUPLICATE_PAID" : "DUPLICATE_PAID",
+        "INVALID_PROVIDER_FACTS" : "INVALID_PROVIDER_FACTS",
+        "MANDATE_UNAVAILABLE" : "MANDATE_UNAVAILABLE",
+        "NONE" : "NONE",
+        "OUTCOME_UNKNOWN" : "OUTCOME_UNKNOWN",
+        "PROVIDER_UNAVAILABLE" : "PROVIDER_UNAVAILABLE",
+        "REFUND_UNCERTAIN" : "REFUND_UNCERTAIN",
+        "SETTLEMENT_CONFLICT" : "SETTLEMENT_CONFLICT"
+      },
+      "org.vernac.saas.subscriptions.BillingCurrency" : {
+        "EUR" : "EUR"
+      },
+      "org.vernac.saas.subscriptions.BillingInterval" : {
+        "MONTHLY" : "MONTHLY",
+        "YEARLY" : "YEARLY"
+      }
+    }
+  }
+}

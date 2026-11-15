@@ -107,7 +107,7 @@ global aggregate PaymentRefund[PaymentRefundId](PaymentAttemptId attempt referen
         self.remote(remote); self.state(state); self.due(due); self.lease(null); self.reason(PaymentReason.NONE);
     }
     modify void defer(PaymentDueAt due, PaymentReason reason) { self.due(due); self.reason(reason); self.lease(null); }
-    modify void review() { self.state(RefundState.UNKNOWN); self.reason(PaymentReason.REFUND_UNCERTAIN); self.lease(null); }
+    modify void review() { if (self.state() != RefundState.REFUNDED) self.state(RefundState.UNKNOWN); self.reason(PaymentReason.REFUND_UNCERTAIN); self.lease(null); }
 };
 repository PaymentRefundRepository for PaymentRefund {
     find PaymentRefund? forOperation(PaymentOperationId operation) where operation = :operation;
@@ -118,4 +118,10 @@ global aggregate RegisteredPaymentResource[PaymentResourceId](unique PaymentRout
     PaymentProfileKey profile, RemotePaymentId remote);
 repository RegisteredPaymentResourceRepository for RegisteredPaymentResource {
     find RegisteredPaymentResource? forRoute(PaymentRouteKey route) where route = :route;
+}
+
+id RefundResourceId;
+global aggregate RegisteredRefundResource[RefundResourceId](unique PaymentRouteKey route, PaymentRefundId refund references PaymentRefund);
+repository RegisteredRefundResourceRepository for RegisteredRefundResource {
+    find RegisteredRefundResource? forRoute(PaymentRouteKey route) where route = :route;
 }

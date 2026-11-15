@@ -71,3 +71,20 @@ back-billing of missed periods. Pending/refused/unknown provider states never gr
 paid benefits. Payment conflicts remain actionable review work, not a fabricated payer
 refusal. Complete refund, renewal, reconciliation and UI acceptance is still required
 within this topic before it can be called finished.
+
+## Refund requests
+
+An authorized administrator requests a positive refund against the winning paid order,
+using a persisted operation UUID. Repeating the same request returns its existing
+receipt; changing its order or amount conflicts. Account-serialized reservations include
+all pending/unknown refunds and externally observed refunds, so concurrent requests
+cannot allocate the same remaining balance. Provider POSTs use the stored operation;
+unknown outcomes retain their reserved amount and stop after the finite retry horizon.
+Registered remote refund IDs are unique within a profile and cannot be reassigned.
+
+`processRefundOne()` explicitly performs one claimed step. After confirmed provider
+refund, a separate durable reconciliation step retrieves total payment truth. It waits
+for that total to include all confirmed local receipts before completing. Partial
+refunds preserve purchased benefits. A full refund queues the ordinary reversal stage;
+crashes between provider confirmation, reconciliation and reversal remain retryable.
+Failed provider facts remain review work, never an invented successful refund.

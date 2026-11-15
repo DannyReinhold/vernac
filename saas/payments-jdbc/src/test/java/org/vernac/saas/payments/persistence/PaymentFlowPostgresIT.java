@@ -132,4 +132,37 @@ class PaymentFlowPostgresIT {
         });
     }
 
+    @Test void durableRefundReservationsBoundPartialAndFullRefundsAcrossRestart() throws Exception {
+        var account = AccountId.create(); var time = new Time(); var order = new AtomicReference<PaymentOrderId>();
+        var partial = new AtomicReference<PaymentRefundId>(); var operation = PaymentOperationId.create();
+        new PaymentFlowTestEnvironment(root).withDatabase(db -> {
+            db.boot.run(context -> {
+                var f = fixture(context, time, account);
+                order.set(f.flow.checkout(account, PaymentOperationId.create(), LOCAL, PlanCatalog.id(PAID)).id()); settle(f, time);
+                partial.set(f.flow.refund(account, order.get(), operation, MinorUnits.of(200)).id());
+                assertEquals(partial.get(), f.flow.refund(account, order.get(), operation, MinorUnits.of(200)).id());
+                assertEquals(PaymentProcessingFailure.Code.CONFLICT, assertThrows(PaymentProcessingFailure.class,
+                        () -> f.flow.refund(account, order.get(), operation, MinorUnits.of(300))).code());
+                assertEquals(PaymentProcessingFailure.Code.CONFLICT, assertThrows(PaymentProcessingFailure.class,
+                        () -> f.flow.refund(account, order.get(), PaymentOperationId.create(), MinorUnits.of(1001))).code());
+                assertTrue(f.flow.processRefundOne()); // Provider has refunded; reconciliation remains durable work.
+            });
+            db.boot.run(context -> {
+                var f = fixture(context, time, account);
+                assertTrue(f.flow.processRefundOne());
+                assertEquals(RefundState.REFUNDED, f.flow.refund(account, partial.get()).state());
+                assertEquals(PAID.benefits(), f.subscriptions.benefits(account));
+                assertEquals(200, f.flow.order(account, order.get()).refunded().value());
+                var full = f.flow.refund(account, order.get(), PaymentOperationId.create(), MinorUnits.of(1000));
+                assertTrue(f.flow.processRefundOne()); assertTrue(f.flow.processRefundOne());
+                assertTrue(f.flow.processOne(URL, URL));
+                assertEquals(RefundState.REFUNDED, f.flow.refund(account, full.id()).state());
+                assertEquals(PaymentOrderStatus.CLOSED, f.flow.order(account, order.get()).status());
+                assertNotEquals(PAID.benefits(), f.subscriptions.benefits(account));
+                assertFalse(f.flow.processRefundOne());
+                assertEquals(2L, f.jdbc.queryForObject("SELECT count(*) FROM \"org.vernac.saas.payments.local\".\"LocalRefund\"", Map.of(), Long.class));
+            });
+        });
+    }
+
 }
