@@ -59,6 +59,21 @@ jobs:
         run: mvn -B -ntp -pl saas/mail,saas/mail-local,saas/mail-brevo clean install
       - name: Verify optional identity artifacts and their JAR consumer
         run: mvn -B -ntp -pl saas/identity,saas/identity-spring-security,saas/identity-jdbc clean verify
+      - name: Require integrated identity browser proofs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          path = Path('saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityBrowserPostgresIT.xml')
+          suite = ET.parse(path).getroot()
+          expected = {'registrationLoginSelectionAndRecoveryUseRealMetadataMailAndSharedSessionsAcrossRestart', 'invitationAcceptanceRoleChangesLastOwnerAndMembershipRevocationCrossTheActualBrowserBoundary'}
+          cases = {case.attrib['name']: case for case in suite.findall('testcase')}
+          assert expected <= cases.keys()
+          assert all(int(suite.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
+          for case in cases.values():
+              assert not any(case.find(tag) is not None for tag in ('failure', 'error', 'skipped'))
+          print('Integrated identity browser/PostgreSQL proofs executed; none skipped.')
+          PY
       - name: Verify Boot module startup and actual HTTP JSON converter selection
         run: mvn -B -ntp -f examples/persistent-modules/pom.xml clean verify
       - name: Check release tooling and documentation links
