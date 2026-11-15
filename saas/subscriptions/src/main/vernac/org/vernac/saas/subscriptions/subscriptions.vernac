@@ -89,6 +89,14 @@ global aggregate Subscription[SubscriptionId](unique AccountId account, mut Offe
         self.renewalTerms(paidTerms);
         self.status(SubscriptionStatus.ACTIVE);
     }
+    modify void activateScheduledFree(Instant now) {
+        org.vernac.saas.subscriptions.SubscriptionRules.require((self.status() == SubscriptionStatus.ACTIVE || self.status() == SubscriptionStatus.SUSPENDED)
+            && !self.cancelAtEnd() && self.renewalTerms().price().value() == 0 && !now.isBefore(self.period().end()),
+            org.vernac.saas.subscriptions.SubscriptionFailure.Code.INVALID_TRANSITION);
+        self.terms(self.renewalTerms());
+        self.period(SubscriptionPeriod.of(self.period().end(), org.vernac.saas.subscriptions.BillingCalendar.freeEnd()));
+        self.status(SubscriptionStatus.ACTIVE);
+    }
     modify void settleResumption(OfferTerms paidTerms, Instant periodFrom, Instant until) {
         org.vernac.saas.subscriptions.SubscriptionRules.require((self.status() == SubscriptionStatus.ACTIVE || self.status() == SubscriptionStatus.SUSPENDED)
             && !self.cancelAtEnd() && periodFrom.isAfter(self.period().end()) && paidTerms.equals(self.renewalTerms())

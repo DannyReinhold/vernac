@@ -97,4 +97,15 @@ class SubscriptionDomainTest {
         assertThrows(SubscriptionFailure.class, () -> catalog.requireCompatible(offer("free", "v1", 0, 5)));
         assertThrows(UnsupportedOperationException.class, () -> catalog.offerIds().clear());
     }
+    @Test void explicitlyScheduledFreeStartsAtPaidBoundaryAndNeedsNoMonthlyRenewal() {
+        var paid = offer("pro", "v1", 1200, 100); var free = offer("free", "v1", 0, 3);
+        var early = awaiting(paid); early.settleInitial(paid, START, END); early.scheduleChange(free);
+        assertThrows(SubscriptionFailure.class, () -> early.activateScheduledFree(END.minusSeconds(1)));
+        var sub = awaiting(paid); sub.settleInitial(paid, START, END); sub.scheduleChange(free); sub.activateScheduledFree(END);
+        assertEquals(free, sub.terms()); assertEquals(END, sub.period().start()); assertEquals(BillingCalendar.freeEnd(), sub.period().end());
+        assertEquals(free.benefits(), sub.benefitsAt(END.plusSeconds(366L * 86400)));
+        var cancelled = awaiting(paid); cancelled.settleInitial(paid, START, END); cancelled.scheduleChange(free); cancelled.cancelRenewal();
+        assertThrows(SubscriptionFailure.class, () -> cancelled.activateScheduledFree(END));
+    }
+
 }

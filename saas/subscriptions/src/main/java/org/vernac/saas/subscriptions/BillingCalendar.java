@@ -8,6 +8,7 @@ import org.vernac.saas.subscriptions.domain.BillingInterval;
 /** Explicit UTC calendar policy. A period begins at the previous end; no fixed 30-day months. */
 public final class BillingCalendar {
     private BillingCalendar() {}
+    public static Instant freeEnd() { return Instant.parse("9999-01-01T00:00:00Z"); }
     public static Instant end(Instant start, BillingInterval interval) {
         Objects.requireNonNull(start); Objects.requireNonNull(interval);
         try {

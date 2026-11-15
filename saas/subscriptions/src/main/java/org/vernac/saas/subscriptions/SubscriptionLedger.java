@@ -59,7 +59,7 @@ public final class SubscriptionLedger {
         return transact(verifiedAccount, existing -> {
             if (existing.isPresent()) return view(existing.get());
             var terms = catalog.initialFreeOffer();
-            var period = SubscriptionPeriod.of(clock.instant(), Instant.parse("9999-01-01T00:00:00Z"));
+            var period = SubscriptionPeriod.of(clock.instant(), BillingCalendar.freeEnd());
             var created = Subscription.create(verifiedAccount, terms, SubscriptionStatus.AWAITING_PAYMENT, period, RenewalStatus.ENABLED, terms);
             created.activateFree(); return view(subscriptions.save(created));
         });
@@ -79,13 +79,21 @@ public final class SubscriptionLedger {
         OfferTerms next = catalog.offer(offer);
         return mutate(verifiedAccount, subscription -> subscription.scheduleChange(next));
     }
+    /** Applies only an explicitly scheduled Free offer at its boundary; no payment or ongoing billing job is needed. */
+    public View activateScheduledFree(AccountId verifiedAccount) {
+        return transact(verifiedAccount, existing -> {
+            var subscription = required(existing);
+            if (subscription.status() == SubscriptionStatus.ACTIVE && subscription.terms().price().value() == 0 && subscription.period().end().equals(BillingCalendar.freeEnd())) return view(subscription);
+            subscription.activateScheduledFree(clock.instant()); return view(subscriptions.save(subscription));
+        });
+    }
     public View cancel(AccountId verifiedAccount) { return mutate(verifiedAccount, Subscription::cancelRenewal); }
     public View resume(AccountId verifiedAccount) { return mutate(verifiedAccount, subscription -> subscription.resumeRenewal(clock.instant())); }
     public View expire(AccountId verifiedAccount) { return mutate(verifiedAccount, subscription -> subscription.lapse(clock.instant())); }
     /** Explicit new agreement after cancellation; never an automatic downgrade or reopening of an account. */
     public View reopenFree(AccountId verifiedAccount) {
         return mutate(verifiedAccount, subscription -> subscription.restartFree(catalog.initialFreeOffer(),
-                SubscriptionPeriod.of(clock.instant(), Instant.parse("9999-01-01T00:00:00Z"))));
+                SubscriptionPeriod.of(clock.instant(), BillingCalendar.freeEnd())));
     }
     public View close(AccountId verifiedAccount) { return mutate(verifiedAccount, Subscription::end); }
 
