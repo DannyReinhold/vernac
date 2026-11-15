@@ -15,16 +15,16 @@ import org.vernac.saas.identity.domain.*;
 import org.vernac.saas.identity.authorization.AccountPermissions;
 import org.vernac.saas.identity.roles.*;
 import org.vernac.saas.identity.security.*;
+import org.vernac.saas.identity.security.IdentityAccountActions.*;
 import org.vernac.saas.identity.persistence.domain.*;
 import org.vernac.saas.identity.persistence.adapter.outbound.jdbc.*;
-import static org.vernac.saas.identity.persistence.AccountAccessException.Code.*;
+import static org.vernac.saas.identity.security.IdentityAccountException.Code.*;
 
 /** Explicit trusted global metadata boundary. Product tenant scope and object policy remain distinct. */
-public final class IdentityAccounts implements PermissionEvaluator {
+public final class IdentityAccounts implements PermissionEvaluator,IdentityAccountActions {
     public static final int MAX_ACCOUNTS_PER_USER=100, MAX_MEMBERS_PER_ACCOUNT=1000;
     private static final String S="\"org.vernac.saas.identity.persistence\".";
     private static final Set<String> OWNER_KEYS=Arrays.stream(AccountPermissions.values()).map(PermissionKey::qualifiedName).collect(java.util.stream.Collectors.toUnmodifiableSet());
-    public record AccountView(AccountId account,AccountKind kind,boolean owner) {}
     private final NamedParameterJdbcTemplate jdbc;private final TransactionTemplate writer,read;
     private final JdbcIdentityCapacity budget;private final AccountRepository accounts;private final AccountMembershipRepository members;
     private final AccountInvitationRepository invitations;
@@ -112,7 +112,7 @@ public final class IdentityAccounts implements PermissionEvaluator {
     public AccountId createOrganization() {return mutate(()->{var user=currentUser();room(user);return newAccount(user,AccountKind.ORGANIZATION).id();});}
     public List<AccountView> accounts() {
         unscoped();try{return Objects.requireNonNull(read.execute(status->{var user=currentUser();
-            return jdbc.query("SELECT a.\"id\",a.\"kind\",m.\"owner\" FROM "+S+"\"AccountMembership\" m JOIN "+S+"\"Account\" a ON a.\"id\"=m.\"account\" WHERE m.\"subject\"=:user AND m.\"status\"='ACTIVE' AND a.\"status\"='ACTIVE' ORDER BY a.\"id\" LIMIT :limit",Map.of("user",user.value(),"limit",MAX_ACCOUNTS_PER_USER),(rs,n)->new AccountView(AccountId.of(rs.getObject(1,UUID.class)),AccountKind.valueOf(rs.getString(2)),rs.getBoolean(3)));}));}
+            return jdbc.query("SELECT a.\"id\",a.\"kind\",m.\"owner\" FROM "+S+"\"AccountMembership\" m JOIN "+S+"\"Account\" a ON a.\"id\"=m.\"account\" WHERE m.\"subject\"=:user AND m.\"status\"='ACTIVE' AND a.\"status\"='ACTIVE' ORDER BY a.\"id\" LIMIT :limit",Map.of("user",user.value(),"limit",MAX_ACCOUNTS_PER_USER),(rs,n)->new AccountView(AccountId.of(rs.getObject(1,UUID.class)),rs.getString(2),rs.getBoolean(3)));}));}
         catch(AccountAccessException safe){throw safe;}catch(RuntimeException unavailable){throw fail(UNAVAILABLE);}
     }
     /** Validate the account/membership first; callers must close this scope and later permissions recheck membership. */
@@ -145,20 +145,12 @@ public final class IdentityAccounts implements PermissionEvaluator {
             for(UUID account:owned){var id=AccountId.of(account);locked(id);if(owners(id)<=1)throw fail(LAST_OWNER);}
             var row=identities.byId(user);if(close)row.close();else row.disable();identities.save(row);return true;});
     }
-    public record MemberView(UserId subject,boolean owner,boolean active,Set<String> roles) {
-        public MemberView {roles=Set.copyOf(roles);}
-        @Override public String toString(){return "MemberView[REDACTED]";}
-    }
-    public record InvitationView(InvitationId invitation,String recipient,Instant expires,Set<String> roles) {
-        public InvitationView {roles=Set.copyOf(roles);}
-        @Override public String toString(){return "InvitationView[REDACTED]";}
-    }
     public List<String> availableRoles() {unscoped();currentUser();return catalog.roleKeys().stream().sorted().toList();}
     public List<MemberView> members(AccountId id) {
         unscoped();try{return Objects.requireNonNull(read.execute(status->{var user=currentUser();var account=accounts.existing(id).orElseThrow(()->fail(ACCESS_DENIED));
             if(account.status()!=AccountStatus.ACTIVE)throw fail(ACCESS_DENIED);owner(id,user);
-            return jdbc.query("SELECT \"subject\",\"owner\",\"status\",\"roles\" FROM "+S+"\"AccountMembership\" WHERE \"account\"=:account ORDER BY \"subject\" LIMIT :limit",Map.of("account",id.value(),"limit",MAX_MEMBERS_PER_ACCOUNT),
-                (rs,n)->new MemberView(UserId.of(rs.getObject(1,UUID.class)),rs.getBoolean(2),rs.getString(3).equals("ACTIVE"),Set.copyOf(catalog.assignments(RoleAssignments.decode(rs.getString(4))))));}));}
+            return jdbc.query("SELECT m.\"subject\",m.\"owner\",m.\"status\",m.\"roles\",COALESCE(l.\"deliveryAddress\",'') FROM "+S+"\"AccountMembership\" m LEFT JOIN "+S+"\"IdentityLoginAddress\" l ON l.\"id\"=m.\"subject\" WHERE m.\"account\"=:account ORDER BY m.\"subject\" LIMIT :limit",Map.of("account",id.value(),"limit",MAX_MEMBERS_PER_ACCOUNT),
+                (rs,n)->new MemberView(UserId.of(rs.getObject(1,UUID.class)),rs.getBoolean(2),rs.getString(3).equals("ACTIVE"),Set.copyOf(catalog.assignments(RoleAssignments.decode(rs.getString(4)))),rs.getString(5)));}));}
         catch(AccountAccessException safe){throw safe;}catch(RuntimeException unavailable){throw fail(UNAVAILABLE);}
     }
     public List<InvitationView> invitations(AccountId id) {

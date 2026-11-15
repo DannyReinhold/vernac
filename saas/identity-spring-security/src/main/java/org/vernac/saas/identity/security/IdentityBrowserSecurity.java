@@ -22,14 +22,18 @@ public final class IdentityBrowserSecurity {
 
     public static SecurityFilterChain build(HttpSecurity http, AuthenticationManager manager,
             IdentitySessionTrust trust, IdentityLocalReturnTarget returns, IdentityRequestAdmission admission) throws Exception {
-        return assemble(http,manager,trust,returns,admission,null);
+        return assemble(http,manager,trust,returns,admission,null,null);
     }
     public static SecurityFilterChain build(HttpSecurity http,AuthenticationManager manager,IdentitySessionTrust trust,
             IdentityLocalReturnTarget returns,IdentityRequestAdmission admission,IdentityBrowserActions actions) throws Exception {
-        return assemble(http,manager,trust,returns,admission,Objects.requireNonNull(actions));
+        return assemble(http,manager,trust,returns,admission,Objects.requireNonNull(actions),null);
+    }
+    public static SecurityFilterChain build(HttpSecurity http,AuthenticationManager manager,IdentitySessionTrust trust,
+            IdentityLocalReturnTarget returns,IdentityRequestAdmission admission,IdentityInvitationActions actions,IdentityAccountActions accounts) throws Exception {
+        return assemble(http,manager,trust,returns,admission,Objects.requireNonNull(actions),Objects.requireNonNull(accounts));
     }
     private static SecurityFilterChain assemble(HttpSecurity http,AuthenticationManager manager,IdentitySessionTrust trust,
-            IdentityLocalReturnTarget returns,IdentityRequestAdmission admission,IdentityBrowserActions actions) throws Exception {
+            IdentityLocalReturnTarget returns,IdentityRequestAdmission admission,IdentityBrowserActions actions,IdentityAccountActions accounts) throws Exception {
         Objects.requireNonNull(http);Objects.requireNonNull(manager);Objects.requireNonNull(trust);Objects.requireNonNull(returns);Objects.requireNonNull(admission);
         var contexts = new HttpSessionSecurityContextRepository();
         contexts.setDisableUrlRewriting(true);
@@ -65,6 +69,11 @@ public final class IdentityBrowserSecurity {
         http.addFilterAfter(new IdentitySessionValidationFilter(trust), SecurityContextHolderFilter.class);
         var forms=new HashSet<>(Set.of("/identity/login","/identity/logout"));
         if(actions!=null){forms.addAll(IdentityJourneyFilter.FORMS);http.addFilterAfter(new IdentityJourneyFilter(actions),org.springframework.security.web.access.intercept.AuthorizationFilter.class);}
+        if(accounts!=null){
+            forms.addAll(IdentityAccountFilter.FORMS);
+            http.addFilterAfter(new IdentityAccountSelectionFilter(accounts),org.springframework.security.web.access.intercept.AuthorizationFilter.class);
+            http.addFilterAfter(new IdentityAccountFilter(accounts,(IdentityInvitationActions)actions,returns),IdentityAccountSelectionFilter.class);
+        }
         http.addFilterBefore(new IdentityFormFilter(forms), CsrfFilter.class);
         http.addFilterAfter(new IdentityLoginPageFilter(returns,actions!=null), CsrfFilter.class);
         http.addFilterAt(new IdentityLoginFilter("/identity/login",manager,contexts,sessions,returns), UsernamePasswordAuthenticationFilter.class);

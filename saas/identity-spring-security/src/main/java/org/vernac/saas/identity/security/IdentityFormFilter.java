@@ -20,7 +20,7 @@ public final class IdentityFormFilter extends OncePerRequestFilter {
     static boolean parsed(HttpServletRequest request) { return request.getAttribute(PARSED) == PARSED_MARKER; }
 
     public IdentityFormFilter(Set<String> paths) {
-        if (paths == null || paths.isEmpty() || paths.size() > 16) throw new IllegalArgumentException("Invalid identity form paths");
+        if (paths == null || paths.isEmpty() || paths.size() > 32) throw new IllegalArgumentException("Invalid identity form paths");
         for (String path : paths) {
             if (path == null || !path.matches("/[a-zA-Z0-9/_-]+")) throw new IllegalArgumentException("Invalid identity form path");
         }
@@ -72,7 +72,7 @@ public final class IdentityFormFilter extends OncePerRequestFilter {
             if (equal <= 0) throw new IllegalArgumentException();
             String name = decode(field.substring(0, equal));
             String value = decode(field.substring(equal + 1));
-            if (!name.matches("[a-zA-Z_][a-zA-Z0-9_]{0,63}") || value.length() > 4096
+            if (!name.matches("[a-zA-Z_][a-zA-Z0-9_]{0,63}") || value.length() > (name.equals("roles")?org.vernac.saas.identity.roles.RoleCatalog.MAX_ASSIGNMENTS*257:4096)
                     || result.putIfAbsent(name, new String[]{value}) != null) throw new IllegalArgumentException();
         }
         return result;
