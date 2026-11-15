@@ -53,6 +53,25 @@ class SubscriptionPostgresIT {
             assertEquals(1, db.migrationCount());
         });
     }
+    @Test void earlyRenewalPreservesCurrentAccessAndExplicitReopenKeepsOldReceipts() throws Exception {
+        var account = AccountId.create();
+        new SubscriptionTestEnvironment(root).withDatabase(db -> db.boot.run(context -> {
+            var service = ledger(context); service.ensureFree(account); service.schedule(account, PlanCatalog.id(PAID));
+            service.confirm(account, SettlementKey.of("initial"), PAID, PERIOD);
+            var future = SubscriptionPeriod.of(PERIOD.end(), BillingCalendar.end(PERIOD.end(), BillingInterval.MONTHLY));
+            assertEquals(SubscriptionFailure.Code.NOT_DUE, assertThrows(SubscriptionFailure.class,
+                    () -> service.confirm(account, SettlementKey.of("future"), PAID, future)).code());
+            assertEquals(PERIOD, service.current(account).period()); assertEquals(PAID.benefits(), service.benefits(account));
+            var tx = new TransactionTemplate(context.getBean(PlatformTransactionManager.class));
+            tx.executeWithoutResult(status -> assertEquals(PAID.benefits(), service.benefits(account)));
+            service.close(account); service.reopenFree(account); assertEquals(FREE.benefits(), service.benefits(account));
+            service.confirm(account, SettlementKey.of("initial"), PAID, PERIOD); // Old receipt cannot reapply after explicit reopen.
+            assertEquals(FREE, service.current(account).terms());
+            var alteredPaid = SubscriptionDomainTest.offer("pro", "v1", 1300, 100);
+            assertThrows(SubscriptionFailure.class, () -> new SubscriptionLedger(context.getBean(NamedParameterJdbcTemplate.class),
+                    context.getBean(PlatformTransactionManager.class), new PlanCatalog(List.of(FREE, alteredPaid), PlanCatalog.id(FREE)), Clock.systemUTC()));
+        }));
+    }
     @Test void independentInstancesSerializeFirstProvisioningAndCompetingSettlements() throws Exception {
         var account = AccountId.create();
         new SubscriptionTestEnvironment(root).withDatabase(db -> db.boot.run(first -> db.boot.run(second -> {

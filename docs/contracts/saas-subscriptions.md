@@ -3,9 +3,9 @@ title: Plan catalog and subscriptions
 ---
 # Plan catalog and subscriptions
 
-Status: domain implementation in progress in the subscriptions topic PR. This contract
-is the D07 implementation baseline; persistent application assembly, authorization,
-payment settlement integration, renewal scheduling and A08 acceptance are still OPEN.
+Status: domain and persistent writer implemented in the subscriptions topic PR. This
+contract is the D07 implementation baseline; complete application authorization/UI,
+payment settlement integration, renewal scheduling and full A08 acceptance are still OPEN.
 
 ## Developer model
 
@@ -52,9 +52,11 @@ restrictions reject further allocations, while deletion/reduction remains possib
 
 Renewal must start exactly at the previous end, use the scheduled/current terms and
 advance the end. Duplicate/old/mismatched settlements cannot extend twice. External
-payment idempotency is additionally required in the payment ledger. The application
-calculates calendar period boundaries with its explicit billing clock/zone policy;
-the domain does not divide months into fixed seconds.
+payment idempotency is additionally required in the payment ledger. BillingCalendar uses UTC calendar months/years, clamping month-end to the last valid
+day. Each renewal starts at the previous end. It does not divide months into fixed
+seconds. Early verified renewal confirmation returns NOT_DUE without changing the
+current period or benefits; the payment workflow must retain and retry that durable
+settlement at its effective boundary. No callback/provider call is retried implicitly.
 
 ## Boundary and verification
 
@@ -88,9 +90,21 @@ superuser or bypass-RLS privileges; migration uses the separate standard module 
 SubscriptionLedger is an explicitly constructed internal writer. Applications must
 perform current account authorization before administration and verified payment
 routing before confirm; do not bind it directly to public HTTP request data. It
-rejects inherited business actor/tenant/transaction scopes. Account-scoped transaction
+rejects inherited business actor/tenant/transaction scopes for writes. Its read-only
+benefit facts may join the ordinary authorized product transaction and never allocate
+or provision anything. Account-scoped transaction
 locks serialize creation and mutations, including independent instances. Generated
 repositories preserve normal version, hydration and timestamp semantics. Settlement
 receipt and subscription changes share one physical transaction. Reusing an operation
 key with different terms/account/period fails; replay cannot renew a second time.
 These facts are not a replacement for provider checkout idempotency and reconciliation.
+
+## Evidence checkpoint
+
+Source 171533112e3d8ce004a5a26c5aef0ecd604e773c passed the dedicated CI job with
+8 domain and 4 actual restricted-role PostgreSQL tests, packaged module activation,
+restart/concurrency/rollback and live migration replay/schema-check. Subsequent changes
+add historical receipt compatibility, a product-transaction read path, explicit reopen
+and early-renewal protection; their exact-head checks must pass before review completion.
+No real payment was requested and no invoice was issued. This topic remains a draft
+until the remaining integration/acceptance obligations are met.

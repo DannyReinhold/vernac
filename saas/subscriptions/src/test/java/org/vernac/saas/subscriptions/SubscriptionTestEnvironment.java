@@ -92,8 +92,7 @@ final class SubscriptionTestEnvironment {
         Files.createDirectories(source.resolve("consumer/subscriptions"));
         Files.writeString(
                 source.resolve("consumer/subscriptions/model.vernac"),
-                "namespace consumer.subscriptions; import org.vernac.saas.identity.UserId; value"
-                        + " Owner(UserId);");
+                "namespace consumer.subscriptions; import org.vernac.saas.identity.UserId; import org.vernac.saas.subscriptions.SubscriptionId; import org.vernac.saas.subscriptions.OfferTerms; value Owner(UserId); value Preview(SubscriptionId, OfferTerms);");
         var compiler = new VernacCompiler();
         var resolved = compiler.analyzeProject(source, modules);
         var generated = compiler.generate(resolved, SchemaModel.empty(), Map.of());

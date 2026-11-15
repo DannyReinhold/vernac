@@ -25,7 +25,7 @@ public final class SubscriptionLedger {
         @Override public String toString() { return "SubscriptionView[REDACTED]"; }
     }
     private final NamedParameterJdbcTemplate jdbc;
-    private final TransactionTemplate writer;
+    private final TransactionTemplate writer, reader;
     private final SubscriptionRepository subscriptions;
     private final SubscriptionSettlementRepository settlements;
     private final PlanCatalog catalog;
@@ -38,6 +38,7 @@ public final class SubscriptionLedger {
         if (!(manager instanceof DataSourceTransactionManager tx) || tx.getDataSource() != jdbc.getJdbcTemplate().getDataSource()) throw fail(SubscriptionFailure.Code.CONFIGURATION);
         writer = new TransactionTemplate(manager); writer.setTimeout(5);
         writer.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+        reader = new TransactionTemplate(manager); reader.setReadOnly(true); reader.setTimeout(5);
         subscriptions = new JdbcSubscriptionRepository(jdbc);
         settlements = new JdbcSubscriptionSettlementRepository(jdbc);
         try {
@@ -47,11 +48,10 @@ public final class SubscriptionLedger {
             // Validate every retained revision in SQL with bounded aggregate output; never load all customers.
             for (var id : catalog.offerIds()) {
                 var terms = catalog.offer(id);
-                Long drift = jdbc.queryForObject("SELECT count(*) FROM " + SCHEMA + ".\"Subscription\" WHERE "
-                        + "(\"terms.plan\"=:plan AND \"terms.revision\"=:revision AND (\"terms.price\"<>:price OR \"terms.currency\"<>:currency OR \"terms.interval\"<>:interval OR \"terms.benefits\"<>:benefits)) OR "
-                        + "(\"renewalTerms.plan\"=:plan AND \"renewalTerms.revision\"=:revision AND (\"renewalTerms.price\"<>:price OR \"renewalTerms.currency\"<>:currency OR \"renewalTerms.interval\"<>:interval OR \"renewalTerms.benefits\"<>:benefits))",
-                        Map.of("plan", terms.plan().value(), "revision", terms.revision().value(), "price", terms.price().value(), "currency", terms.currency().name(), "interval", terms.interval().name(), "benefits", terms.benefits().encoded()), Long.class);
-                if (drift == null || drift != 0) throw fail(SubscriptionFailure.Code.CONFIGURATION);
+                String current = mismatch("terms"), renewal = mismatch("renewalTerms");
+                Boolean drift = jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM " + SCHEMA + ".\"Subscription\" WHERE " + current + " OR " + renewal + ") OR EXISTS (SELECT 1 FROM " + SCHEMA + ".\"SubscriptionSettlement\" WHERE " + current + ")",
+                        Map.of("plan", terms.plan().value(), "revision", terms.revision().value(), "price", terms.price().value(), "currency", terms.currency().name(), "interval", terms.interval().name(), "benefits", terms.benefits().encoded()), Boolean.class);
+                if (!Boolean.FALSE.equals(drift)) throw fail(SubscriptionFailure.Code.CONFIGURATION);
             }
         } catch (RuntimeException invalid) { throw fail(SubscriptionFailure.Code.CONFIGURATION); }
     }
@@ -67,8 +67,13 @@ public final class SubscriptionLedger {
     public View current(AccountId verifiedAccount) {
         return transact(verifiedAccount, existing -> view(required(existing)));
     }
+    /** Read-only facts may join a product transaction. The caller supplies its already verified account. */
     public BenefitSnapshot benefits(AccountId verifiedAccount) {
-        return transact(verifiedAccount, existing -> existing.map(s -> s.benefitsAt(clock.instant())).orElseGet(() -> BenefitSnapshot.of("")));
+        Objects.requireNonNull(verifiedAccount);
+        try {
+            return Objects.requireNonNull(reader.execute(status -> subscriptions.forAccount(verifiedAccount)
+                    .map(s -> s.benefitsAt(clock.instant())).orElseGet(() -> BenefitSnapshot.of(""))));
+        } catch (RuntimeException unavailable) { throw fail(SubscriptionFailure.Code.UNAVAILABLE); }
     }
     public View schedule(AccountId verifiedAccount, PlanCatalog.OfferId offer) {
         OfferTerms next = catalog.offer(offer);
@@ -77,6 +82,11 @@ public final class SubscriptionLedger {
     public View cancel(AccountId verifiedAccount) { return mutate(verifiedAccount, Subscription::cancelRenewal); }
     public View resume(AccountId verifiedAccount) { return mutate(verifiedAccount, subscription -> subscription.resumeRenewal(clock.instant())); }
     public View expire(AccountId verifiedAccount) { return mutate(verifiedAccount, subscription -> subscription.lapse(clock.instant())); }
+    /** Explicit new agreement after cancellation; never an automatic downgrade or reopening of an account. */
+    public View reopenFree(AccountId verifiedAccount) {
+        return mutate(verifiedAccount, subscription -> subscription.restartFree(catalog.initialFreeOffer(),
+                SubscriptionPeriod.of(clock.instant(), Instant.parse("9999-01-01T00:00:00Z"))));
+    }
     public View close(AccountId verifiedAccount) { return mutate(verifiedAccount, Subscription::end); }
 
     /** Same logical operation must retain exactly the same subscription, terms and period across retries. */
@@ -91,6 +101,7 @@ public final class SubscriptionLedger {
                     throw fail(SubscriptionFailure.Code.SETTLEMENT_CONFLICT);
                 return view(subscription);
             }
+            if (paidPeriod.start().isAfter(clock.instant())) throw fail(SubscriptionFailure.Code.NOT_DUE);
             if (subscription.status() == SubscriptionStatus.AWAITING_PAYMENT)
                 subscription.settleInitial(verifiedTerms, paidPeriod.start(), paidPeriod.end());
             else if (subscription.terms().price().value() == 0 && verifiedTerms.price().value() > 0)
@@ -114,6 +125,9 @@ public final class SubscriptionLedger {
             }));
         } catch (SubscriptionFailure safe) { throw safe; }
         catch (RuntimeException unavailable) { throw fail(SubscriptionFailure.Code.UNAVAILABLE); }
+    }
+    private static String mismatch(String prefix) {
+        return "(\"" + prefix + ".plan\"=:plan AND \"" + prefix + ".revision\"=:revision AND (\"" + prefix + ".price\"<>:price OR \"" + prefix + ".currency\"<>:currency OR \"" + prefix + ".interval\"<>:interval OR \"" + prefix + ".benefits\"<>:benefits))";
     }
     private static Subscription required(Optional<Subscription> subscription) {
         return subscription.orElseThrow(() -> fail(SubscriptionFailure.Code.NOT_FOUND));

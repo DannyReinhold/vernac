@@ -104,6 +104,15 @@ global aggregate Subscription[SubscriptionId](unique AccountId account, mut Offe
             org.vernac.saas.subscriptions.SubscriptionFailure.Code.INVALID_TRANSITION);
         self.status(self.cancelAtEnd() ? SubscriptionStatus.ENDED : SubscriptionStatus.SUSPENDED);
     }
+    modify void restartFree(OfferTerms freeTerms, SubscriptionPeriod nextPeriod) {
+        org.vernac.saas.subscriptions.SubscriptionRules.require(self.status() == SubscriptionStatus.ENDED && freeTerms.price().value() == 0,
+            org.vernac.saas.subscriptions.SubscriptionFailure.Code.INVALID_TRANSITION);
+        self.terms(freeTerms);
+        self.period(nextPeriod);
+        self.renewalTerms(freeTerms);
+        self.renewal(RenewalStatus.ENABLED);
+        self.status(SubscriptionStatus.ACTIVE);
+    }
     modify void end() {
         self.status(SubscriptionStatus.ENDED);
         self.renewal(RenewalStatus.CANCELLED);

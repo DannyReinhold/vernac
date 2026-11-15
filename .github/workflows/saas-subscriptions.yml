@@ -55,6 +55,7 @@ jobs:
           assert int(root.attrib['tests']) >= 8
           assert all(int(root.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
           integration = ET.parse('saas/subscriptions/target/failsafe-reports/TEST-org.vernac.saas.subscriptions.SubscriptionPostgresIT.xml').getroot()
-          assert int(integration.attrib['tests']) >= 4
+          expected = {'packagedModuleRetainsTermsSettlementAndAccountIsolationAcrossRestart', 'independentInstancesSerializeFirstProvisioningAndCompetingSettlements', 'failedReceiptInsertRollsBackEntitlementsAndCanRetryAfterRestart', 'catalogDriftAndAmbientTransactionsFailClosedWithoutChangingCustomerTerms', 'earlyRenewalPreservesCurrentAccessAndExplicitReopenKeepsOldReceipts'}
+          assert expected <= {case.attrib['name'] for case in integration.findall('testcase')}
           assert all(int(integration.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
           PY
