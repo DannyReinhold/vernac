@@ -26,8 +26,13 @@ class IdentityBrowserSecurityTest {
         context.register(Application.class);context.refresh();chain=context.getBean("springSecurityFilterChain",Filter.class);
     }
     @AfterEach void stop() { context.close();SecurityContextHolder.clearContext(); }
+    static class Gate implements IdentityRequestAdmission {
+        Decision decision=new Decision(true,0);
+        @Override public Decision tryAcquire() { return decision; }
+    }
     @Configuration(proxyBeanMethods=false) @EnableWebSecurity
     static class Application {
+        @Bean Gate gate() { return new Gate(); }
         @Bean AtomicLong epoch() { return new AtomicLong(); }
         @Bean AtomicInteger calls() { return new AtomicInteger(); }
         @Bean AuthenticationManager manager(AtomicInteger calls) {
@@ -43,8 +48,8 @@ class IdentityBrowserSecurityTest {
                 return epoch.get()<0?OptionalLong.empty():OptionalLong.of(epoch.get());},
                 Clock.fixed(Instant.parse("2026-11-15T12:00:00Z"),ZoneOffset.UTC));
         }
-        @Bean SecurityFilterChain security(HttpSecurity http,AuthenticationManager manager,IdentitySessionTrust trust) throws Exception {
-            return IdentityBrowserSecurity.build(http,manager,trust,new IdentityLocalReturnTarget("/workspace"));
+        @Bean SecurityFilterChain security(HttpSecurity http,AuthenticationManager manager,IdentitySessionTrust trust,Gate gate) throws Exception {
+            return IdentityBrowserSecurity.build(http,manager,trust,new IdentityLocalReturnTarget("/workspace"),gate);
         }
     }
     private static String csrfToken(MockHttpServletResponse response) throws Exception {
@@ -107,6 +112,13 @@ class IdentityBrowserSecurityTest {
         var response=dispatch(insecure);assertEquals(400,response.getStatus());assertNull(response.getHeader("Location"));assertNull(insecure.getSession(false));
         var protectedRequest=request("GET","/workspace",null);response=dispatch(protectedRequest);
         assertEquals(401,response.getStatus());assertNull(protectedRequest.getSession(false));
+    }
+
+    @Test void ingressDenialPrecedesLoginPageSessionCreation() throws Exception {
+        context.getBean(Gate.class).decision=new IdentityRequestAdmission.Decision(false,17);
+        var request=request("GET","/identity/login",null);var response=dispatch(request);
+        assertEquals(429,response.getStatus());assertEquals("17",response.getHeader("Retry-After"));
+        assertNull(request.getSession(false));assertEquals(0,context.getBean(AtomicInteger.class).get());
     }
 
     @Test void csrfAndBodyLimitsPrecedeLoginAndNoDefaultSpringLoginIsEnabled() throws Exception {

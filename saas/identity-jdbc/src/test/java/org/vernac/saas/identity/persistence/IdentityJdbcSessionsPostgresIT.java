@@ -50,7 +50,7 @@ class IdentityJdbcSessionsPostgresIT {
         }
         @Bean SecurityFilterChain security(HttpSecurity http,AuthenticationManager authentication) throws Exception {
             return IdentityBrowserSecurity.build(http,authentication,
-                    new IdentitySessionTrust(id->OptionalLong.of(0),Clock.systemUTC()),new IdentityLocalReturnTarget("/workspace"));
+                    new IdentitySessionTrust(id->OptionalLong.of(0),Clock.systemUTC()),new IdentityLocalReturnTarget("/workspace"),()->new IdentityRequestAdmission.Decision(true,0));
         }
     }
     private AnnotationConfigWebApplicationContext application(IdentityJdbcTestEnvironment.Database db) {

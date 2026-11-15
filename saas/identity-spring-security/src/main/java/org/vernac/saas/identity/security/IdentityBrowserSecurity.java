@@ -21,8 +21,8 @@ public final class IdentityBrowserSecurity {
     private IdentityBrowserSecurity() {}
 
     public static SecurityFilterChain build(HttpSecurity http, AuthenticationManager manager,
-            IdentitySessionTrust trust, IdentityLocalReturnTarget returns) throws Exception {
-        Objects.requireNonNull(http);Objects.requireNonNull(manager);Objects.requireNonNull(trust);Objects.requireNonNull(returns);
+            IdentitySessionTrust trust, IdentityLocalReturnTarget returns, IdentityRequestAdmission admission) throws Exception {
+        Objects.requireNonNull(http);Objects.requireNonNull(manager);Objects.requireNonNull(trust);Objects.requireNonNull(returns);Objects.requireNonNull(admission);
         var contexts = new HttpSessionSecurityContextRepository();
         contexts.setDisableUrlRewriting(true);
         var csrf = new HttpSessionCsrfTokenRepository();
@@ -53,6 +53,7 @@ public final class IdentityBrowserSecurity {
                                     && value.getPrincipal() instanceof IdentityPrincipal);
                         }));
         http.addFilterBefore(new IdentitySecureTransportFilter(), SecurityContextHolderFilter.class);
+        http.addFilterAfter(new IdentityRequestAdmissionFilter(admission), IdentitySecureTransportFilter.class);
         http.addFilterAfter(new IdentitySessionValidationFilter(trust), SecurityContextHolderFilter.class);
         http.addFilterBefore(new IdentityFormFilter(Set.of("/identity/login", "/identity/logout")), CsrfFilter.class);
         http.addFilterAfter(new IdentityLoginPageFilter(returns), CsrfFilter.class);

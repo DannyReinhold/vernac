@@ -28,8 +28,9 @@ Pass its authenticationManager/sessionTrust to the opt-in browser-chain builder.
 Spring Session separately using its explicit DataSource/manager qualifiers. No generated
 application/profile provider is silently selected by constructing this assembly. The
 ordinary application configuration must explicitly supply these beans and transport,
-request-line/header/time/concurrency limits. Full pre-session public ingress and cleanup
-assembly remain open; provider admission alone does not bound arbitrary page traffic.
+request-line/header/time/concurrency limits. The browser chain also requires its [pre-session ingress gate](saas-identity-request-admission.md);
+schedule the bounded admission-maintenance entry point explicitly. Mail-worker and
+remaining public-journey assembly remain open.
 
 Two mandatory real PostgreSQL tests exercise the public entry point with actual bounded
 Spring password work, canonical login ownership, persisted admission across restart,

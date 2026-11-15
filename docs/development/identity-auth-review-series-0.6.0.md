@@ -32,9 +32,12 @@ primitive PR is not acceptance of an unimplemented public browser journey.
 | 15 | [#64](https://github.com/DannyReinhold/vernac/pull/64) | Opt-in HTTPS browser chain, CSRF renewal and POST logout |
 | 16 | [#65](https://github.com/DannyReinhold/vernac/pull/65) | Shared JDBC sessions and restricted framework schema |
 | 17 | [#66](https://github.com/DannyReinhold/vernac/pull/66) | Minimal CSRF-protected login page |
+| 18 | [#67](https://github.com/DannyReinhold/vernac/pull/67) | Explicit actual JDBC authentication assembly |
 
 ## Delivered slices
 
+- [Mandatory pre-session browser admission](../contracts/saas-identity-request-admission.md),
+  plus a bounded public admission-maintenance entry point.
 - [Explicit JDBC authentication assembly](../contracts/saas-identity-authentication-assembly.md),
   with default-policy startup and actual password/provider PostgreSQL proofs.
 - [Minimal CSRF-protected login page](../contracts/saas-identity-login-page.md),

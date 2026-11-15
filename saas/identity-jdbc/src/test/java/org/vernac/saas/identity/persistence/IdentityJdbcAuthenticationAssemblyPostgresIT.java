@@ -43,14 +43,16 @@ class IdentityJdbcAuthenticationAssemblyPostgresIT {
                     var result=assembly.authenticationManager().authenticate(input);authenticated.set(result);
                     assertNull(input.getCredentials());assertNull(result.getCredentials());assertTrue(assembly.sessionTrust().current(result));
                     assertEquals(new IdentityPrincipal(subject.get()),result.getPrincipal());
-                    assertEquals(1,new IdentityAdmissionPostgresIT.Fixture(context).globalUsed());
+                    assertTrue(assembly.requestAdmission().tryAcquire().admitted());
+                    assembly.maintainAdmission();
+                    assertEquals(2,new IdentityAdmissionPostgresIT.Fixture(context).globalUsed());
                 });
                 db.boot.run(context->{
                     assertNull(context.getStartupFailure());
                     var jdbc=context.getBean(NamedParameterJdbcTemplate.class);var transactions=context.getBean(PlatformTransactionManager.class);
                     var assembly=IdentityJdbcAuthentication.initializeDefaultPolicy(jdbc,transactions,CLOCK,"deployment-v1",IdentityAdmissionPostgresIT.key(7),work);
                     assertTrue(assembly.sessionTrust().current(authenticated.get()));
-                    assertEquals(1,new IdentityAdmissionPostgresIT.Fixture(context).globalUsed());
+                    assertEquals(2,new IdentityAdmissionPostgresIT.Fixture(context).globalUsed());
                     var fixture=new IdentityCredentialsPostgresIT.Fixture(context);
                     fixture.write(()->{var identity=fixture.identities().byId(subject.get());identity.credentialChanged();return fixture.identities().save(identity);});
                     assertFalse(assembly.sessionTrust().current(authenticated.get()));
