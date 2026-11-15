@@ -55,9 +55,9 @@ public final class RestrictionLedger {
     }
     /** Exactly one invocation; quota and local business writes join the same physical transaction. */
     public <T> T local(QuotaScope scope, Units amount, Supplier<T> action) {
-        Objects.requireNonNull(amount); Objects.requireNonNull(action); currentWindow(scope.window());
+        Objects.requireNonNull(amount); Objects.requireNonNull(action);
         return inWriter(scope.account(), () -> {
-            var budget = budget(scope); budget.consume(amount, allowance(scope.account(), scope.benefit())); budgets.save(budget);
+            currentWindow(scope.window()); var budget = budget(scope); budget.consume(amount, allowance(scope.account(), scope.benefit())); budgets.save(budget);
             return callback(action);
         });
     }
@@ -99,6 +99,42 @@ public final class RestrictionLedger {
             return view(reservations.save(QuotaReservation.create(key, budget.id(), scope.account(), scope.benefit(), scope.window(), amount, ReservationStatus.RESERVED)), true);
         });
     }
+    /** Absolute adjustment is allowed only before any durable dispatch authorization. */
+    public Reservation resizeBeforeDispatch(AccountId account, UsageOperationKey operation, Units amount) {
+        independent(); Objects.requireNonNull(amount);
+        return inWriter(account, () -> {
+            var row = reservations.forKey(MeteringKeys.reservation(account, operation)).orElseThrow(() -> fail(RestrictionFailure.Code.OPERATION_CONFLICT));
+            if (row.status() != ReservationStatus.RESERVED) throw fail(RestrictionFailure.Code.INVALID_TRANSITION);
+            currentWindow(row.window());
+            var budget = budgets.byId(row.budget());
+            long before = row.amount().value(), after = amount.value();
+            if (after > before) budget.reserve(Units.of(after - before), allowance(account, row.benefit()));
+            else budget.release(Units.of(before - after));
+            row.resize(amount); budgets.save(budget); return view(reservations.save(row), false);
+        });
+    }
+    /** A true return grants the one dispatch attempt; a crash afterwards requires reconciliation. */
+    public boolean beginDispatch(AccountId account, UsageOperationKey operation) {
+        independent();
+        return inWriter(account, () -> {
+            var row = reservations.forKey(MeteringKeys.reservation(account, operation)).orElseThrow(() -> fail(RestrictionFailure.Code.OPERATION_CONFLICT));
+            if (row.status() != ReservationStatus.RESERVED) return false;
+            currentWindow(row.window());
+            row.dispatch(); reservations.save(row); return true;
+        });
+    }
+    /** Bounded internal reconciliation inventory. Caller must authorize the account/operator surface. */
+    public List<Reservation> pending(AccountId account, Optional<ReservationId> after, int limit) {
+        independent(); Objects.requireNonNull(after);
+        if (limit < 1 || limit > 100) throw fail(RestrictionFailure.Code.CONFIGURATION);
+        return inWriter(account, () -> {
+            var parameters = new HashMap<String, Object>(); parameters.put("account", account.value()); parameters.put("limit", limit);
+            after.ifPresent(id -> parameters.put("after", id.value()));
+            String cursor = after.isPresent() ? " AND \"id\">:after" : "";
+            return jdbc.queryForList("SELECT \"id\" FROM \"org.vernac.saas.restrictions\".\"QuotaReservation\" WHERE \"account\"=:account AND \"status\" IN ('RESERVED','IN_DOUBT')" + cursor + " ORDER BY \"id\" LIMIT :limit", parameters, UUID.class)
+                    .stream().map(id -> view(reservations.byId(ReservationId.of(id)), false)).toList();
+        });
+    }
     public Reservation confirm(AccountId account, UsageOperationKey operation) { return resolve(account, operation, true); }
     /** Call only with authoritative evidence that no external effect occurred; a timeout/expiry is not evidence. */
     public Reservation releaseKnownUnused(AccountId account, UsageOperationKey operation) { return resolve(account, operation, false); }
@@ -108,7 +144,7 @@ public final class RestrictionLedger {
             var row = reservations.forKey(MeteringKeys.reservation(account, operation)).orElseThrow(() -> fail(RestrictionFailure.Code.OPERATION_CONFLICT));
             ReservationStatus desired = confirm ? ReservationStatus.CONFIRMED : ReservationStatus.RELEASED;
             if (row.status() == desired) return view(row, false);
-            if (row.status() != ReservationStatus.RESERVED) throw fail(RestrictionFailure.Code.INVALID_TRANSITION);
+            if (row.status() != ReservationStatus.RESERVED && row.status() != ReservationStatus.IN_DOUBT) throw fail(RestrictionFailure.Code.INVALID_TRANSITION);
             var budget = budgets.byId(row.budget());
             if (confirm) { budget.confirm(row.amount()); row.confirm(); }
             else { budget.release(row.amount()); row.release(); }
@@ -120,6 +156,9 @@ public final class RestrictionLedger {
         Objects.requireNonNull(action);
         Reservation reservation = reserve(scope, operation, amount);
         if (!reservation.created()) return new ExternalResult<>(ExternalState.ALREADY_RECORDED, reservation.id(), Optional.empty());
+        try {
+            if (!beginDispatch(scope.account(), operation)) return new ExternalResult<>(ExternalState.ALREADY_RECORDED, reservation.id(), Optional.empty());
+        } catch (RestrictionFailure uncertainDispatch) { return new ExternalResult<>(ExternalState.IN_DOUBT, reservation.id(), Optional.empty()); }
         T result;
         try { result = action.get(); }
         catch (RuntimeException unknown) { return new ExternalResult<>(ExternalState.IN_DOUBT, reservation.id(), Optional.empty()); }

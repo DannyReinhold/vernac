@@ -98,6 +98,25 @@ class RestrictionPostgresIT {
             });
         });
     }
+    @Test void boundedReconciliationAndPreDispatchResizeNeverRepeatOrUnderchargeAnAttempt() throws Exception {
+        var account = AccountId.create(); var key = UsageOperationKey.of("adjust");
+        new RestrictionTestEnvironment(root).withDatabase(db -> db.boot.run(context -> {
+            var service = ledger(context, 3, NOW);
+            service.reserve(scope(account), key, Units.of(1));
+            assertEquals(2, service.resizeBeforeDispatch(account, key, Units.of(2)).amount().value());
+            service.local(scope(account), Units.of(1), () -> "local");
+            assertEquals(RestrictionFailure.Code.EXHAUSTED, assertThrows(RestrictionFailure.class,
+                    () -> service.resizeBeforeDispatch(account, key, Units.of(3))).code());
+            var page = service.pending(account, Optional.empty(), 1); assertEquals(1, page.size()); assertEquals(2, page.getFirst().amount().value());
+            assertTrue(service.pending(account, Optional.of(page.getFirst().id()), 1).isEmpty());
+            assertTrue(service.pending(AccountId.create(), Optional.empty(), 1).isEmpty());
+            assertTrue(service.beginDispatch(account, key)); assertFalse(service.beginDispatch(account, key));
+            assertEquals(ReservationStatus.IN_DOUBT, service.pending(account, Optional.empty(), 1).getFirst().status());
+            assertThrows(RestrictionFailure.class, () -> service.resizeBeforeDispatch(account, key, Units.of(1)));
+            service.confirm(account, key); assertTrue(service.pending(account, Optional.empty(), 10).isEmpty());
+            assertThrows(RestrictionFailure.class, () -> service.local(scope(account), Units.of(1), () -> "exhausted"));
+        }));
+    }
     @Test void knownUnusedReleaseAndNestedAccountPinPreserveAtomicBudgets() throws Exception {
         var account = AccountId.create(); var other = AccountId.create();
         new RestrictionTestEnvironment(root).withDatabase(db -> db.boot.run(context -> {

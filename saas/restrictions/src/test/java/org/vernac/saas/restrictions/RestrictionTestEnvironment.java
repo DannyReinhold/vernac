@@ -24,7 +24,7 @@ import javax.tools.ToolProvider;
 
 /** Actual producer-JAR consumer, explicit module activation and restricted PostgreSQL runtime. */
 final class RestrictionTestEnvironment {
-    static final int EXPECTED_MIGRATIONS = 1;
+    static final int EXPECTED_MIGRATIONS = 2;
     static final String SCHEMA = "org.vernac.saas.restrictions";
     private final Path root;
 

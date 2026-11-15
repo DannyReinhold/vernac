@@ -40,16 +40,24 @@ value UsageOperationKey(String encoded) validates {
 value ReservationKey(String encoded) validates {
     require(org.vernac.saas.restrictions.MeteringRules.validReservationKey(self.encoded()), "Invalid reservation key");
 } behavior { public String toString() { return "ReservationKey[REDACTED]"; } };
-value ReservationStatus = RESERVED | CONFIRMED | RELEASED;
+value ReservationStatus = RESERVED | IN_DOUBT | CONFIRMED | RELEASED;
 id ReservationId;
 global aggregate QuotaReservation[ReservationId](unique ReservationKey key, BudgetId budget references QuotaBudget,
-    AccountId account, BenefitKey benefit, UsageWindow window, Units amount, mut ReservationStatus status) behavior {
-    modify void confirm() {
+    AccountId account, BenefitKey benefit, UsageWindow window, mut Units amount, mut ReservationStatus status) behavior {
+    modify void resize(Units next) {
         org.vernac.saas.restrictions.MeteringRules.requirePending(self.status() == ReservationStatus.RESERVED);
+        self.amount(next);
+    }
+    modify void dispatch() {
+        org.vernac.saas.restrictions.MeteringRules.requirePending(self.status() == ReservationStatus.RESERVED);
+        self.status(ReservationStatus.IN_DOUBT);
+    }
+    modify void confirm() {
+        org.vernac.saas.restrictions.MeteringRules.requirePending(self.status() == ReservationStatus.RESERVED || self.status() == ReservationStatus.IN_DOUBT);
         self.status(ReservationStatus.CONFIRMED);
     }
     modify void release() {
-        org.vernac.saas.restrictions.MeteringRules.requirePending(self.status() == ReservationStatus.RESERVED);
+        org.vernac.saas.restrictions.MeteringRules.requirePending(self.status() == ReservationStatus.RESERVED || self.status() == ReservationStatus.IN_DOUBT);
         self.status(ReservationStatus.RELEASED);
     }
 };

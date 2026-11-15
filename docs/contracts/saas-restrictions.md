@@ -47,9 +47,12 @@ and fact definition; the API is not a sandbox around arbitrary trusted Java/SQL 
 reserve commits independently before external work and rejects an inherited transaction.
 The operation key is account-wide across benefits and periods: moving a retry into a new
 period cannot charge again. A duplicate must retain exact benefit/window/amount or fails
-OPERATION_CONFLICT. Only the creator receives created=true. external invokes its callback
-only for that creator, outside the writer. A crash, exception, or failed confirmation
-leaves a durable RESERVED amount, explicitly in doubt. Retry does not execute it again.
+OPERATION_CONFLICT. Only the creator receives created=true. A separate durable beginDispatch transition
+changes RESERVED to IN_DOUBT and grants exactly one dispatch attempt. It requires the
+original window still to be current. external invokes its callback only for its creator
+after this transition, outside the writer. A crash, exception, or failed confirmation
+leaves a durable IN_DOUBT amount. A crash before dispatch leaves RESERVED, for which an
+explicit recovery may obtain the one dispatch authorization while its window is current. Retry does not execute it again.
 
 confirm is idempotent and moves the original reservation to consumed in its original
 period, even after rollover or downgrade. releaseKnownUnused is idempotent only for an
@@ -62,9 +65,13 @@ Reconciliation uses the authoritative external operation/ledger, not response re
 Zero is finite zero; -1 explicitly means unlimited, still subject to integer overflow
 protection. Usage windows are half-open and explicit. Local consumption and new
 reservations require the current window; resolution always targets the original one.
-No implicit UTC/month boundaries are guessed from a benefit name. Known amount adjustment
-and durable bounded operator enumeration/recovery remain required follow-up work in this
-same topic before calling reservation acceptance complete.
+No implicit UTC/month boundaries are guessed from a benefit name. resizeBeforeDispatch changes a RESERVED amount absolutely and atomically, charging or
+refunding only the difference. It is forbidden after dispatch or outside the original
+window; a dispatched uncertain effect must never be reduced speculatively. Retrying
+reserve after adjustment must use its current amount. pending provides an account-scoped
+UUID cursor with at most 100 records for an authorized operator to reconcile explicitly;
+there is no public endpoint or implicit release of IN_DOUBT work. Full integrated
+provider/operator acceptance remains required in this same topic.
 
 ## Developer and tooling boundaries
 
