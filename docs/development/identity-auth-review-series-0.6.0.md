@@ -21,12 +21,6 @@ diffs retain only their own slice. No PR in this series was automatically merged
 | 10 | [#59](https://github.com/DannyReinhold/vernac/pull/59) | Two-phase Spring credential authentication |
 | 11 | [#60](https://github.com/DannyReinhold/vernac/pull/60) | D05 role/provisioning decision proposal |
 | 12 | [#61](https://github.com/DannyReinhold/vernac/pull/61) | Request-time stale-session invalidation |
-
-GitHub checks and draft status on each exact head are authoritative. The local
-execution environment became unavailable during provider work; subsequent changes
-are preserved in GitHub and validated by the repository's normal CI. A green
-primitive PR is not acceptance of an unimplemented public browser journey.
-
 | 13 | [#62](https://github.com/DannyReinhold/vernac/pull/62) | Bounded Identity forms and validated local return paths |
 | 14 | [#63](https://github.com/DannyReinhold/vernac/pull/63) | Explicit Spring login HTTP adapter |
 | 15 | [#64](https://github.com/DannyReinhold/vernac/pull/64) | Opt-in HTTPS browser chain, CSRF renewal and POST logout |
@@ -34,6 +28,12 @@ primitive PR is not acceptance of an unimplemented public browser journey.
 | 17 | [#66](https://github.com/DannyReinhold/vernac/pull/66) | Minimal CSRF-protected login page |
 | 18 | [#67](https://github.com/DannyReinhold/vernac/pull/67) | Explicit actual JDBC authentication assembly |
 | 19 | [#68](https://github.com/DannyReinhold/vernac/pull/68) | Mandatory pre-session ingress and bounded admission maintenance |
+
+GitHub checks and draft status on each exact head are authoritative. The 13 November
+provider continuation used repository CI after its local environment became unavailable.
+The 15 November continuation also has local production/test compilation and targeted
+unit evidence. A green primitive or filter/session PR does not establish acceptance of
+an unimplemented public registration/recovery journey.
 
 ## Delivered slices
 
