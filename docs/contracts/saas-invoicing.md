@@ -13,13 +13,15 @@ application consumer.invoicing {
     activate vernac.saas.payments.local;
     activate vernac.saas.payments.jdbc;
     activate vernac.saas.invoicing;
-    activate vernac.saas.invoicing.pdf;
     bind org.vernac.saas.payments.PaymentProvider
         to org.vernac.saas.payments.local.LocalPaymentProvider;
     bind org.vernac.saas.invoicing.InvoiceRenderer
         to org.vernac.saas.invoicing.pdf.ZugferdInvoiceRenderer;
 }
 ```
+
+The renderer-only module is selected by its port binding; it has no independent
+activatable functions and needs no `activate` statement.
 
 ## Selected scope
 
