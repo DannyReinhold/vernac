@@ -261,6 +261,17 @@ jobs:
                   assert not any(case.find(t) is not None for t in ('skipped', 'failure', 'error'))
           print('Shared mail provider and compiled consumer proofs executed; none skipped.')
           saas_proofs = {
+              'saas/identity-spring-security/target/surefire-reports/TEST-org.vernac.saas.identity.security.IdentityFormFilterTest.xml': {
+                  'parsesBoundedUtf8WithoutInvokingContainerParameterParsing',
+                  'rejectsOversizedKnownAndChunkedBodiesBeforeParametersAreRead',
+                  'rejectsAmbiguousMalformedAndUnboundedFields',
+                  'rejectsMultipartAndForeignCharsetsButLeavesUnrelatedRoutesAlone',
+              },
+              'saas/identity-spring-security/target/surefire-reports/TEST-org.vernac.saas.identity.security.IdentityLocalReturnTargetTest.xml': {
+                  'preservesOrdinaryApplicationPaths',
+                  'rejectsBrowserAndProxyRedirectAmbiguities',
+                  'rejectsInvalidFallbackAtStartup',
+              },
               'saas/identity-spring-security/target/surefire-reports/TEST-org.vernac.saas.identity.security.IdentitySessionValidationFilterTest.xml': {
                   'validAuthenticationContinuesWithoutCreatingOrReplacingASession',
                   'staleOrAbsolutelyExpiredSessionIsInvalidatedBeforeDownstreamRuns',

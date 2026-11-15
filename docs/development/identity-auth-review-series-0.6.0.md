@@ -42,7 +42,9 @@ application roles, accounts or tenants. No real provider email is sent by tests.
 
 ## Remaining implementation sequence
 
-1. Explicit application assembly using the ordinary binding, trusted origin and
+1. [Bounded form and local-return primitives](../contracts/saas-identity-http-input.md)
+   supply pre-parameter byte/field caps and conservative redirect validation. Full
+   application assembly remains open. Explicit application assembly using the ordinary binding, trusted origin and
    source policy, writer transaction manager and bounded workers. Full request limits
    must apply before form parsing. Fail startup on incomplete production configuration.
 2. Spring Session JDBC with separately reviewed framework-table migration ownership,
