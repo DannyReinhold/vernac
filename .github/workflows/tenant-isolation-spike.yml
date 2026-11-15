@@ -75,18 +75,6 @@ jobs:
               assert not any(case.find(tag) is not None for tag in ('failure', 'error', 'skipped'))
           print('Integrated identity browser/PostgreSQL proofs executed; none skipped.')
           PY
-      - uses: actions/setup-node@v5
-        with:
-          node-version: '22'
-      - name: Package the ordinary Identity/Auth sample
-        run: mvn -B -ntp -f examples/identity-auth/pom.xml clean package
-      - name: Install the isolated Chromium acceptance runner
-        working-directory: examples/identity-auth/browser
-        run: |
-          npm install --ignore-scripts --no-audit --no-fund
-          npx playwright install --with-deps chromium
-      - name: Verify real HTTPS and Chromium Identity/Auth journeys
-        run: python3 examples/identity-auth/verify.py
       - name: Verify Boot module startup and actual HTTP JSON converter selection
         run: mvn -B -ntp -f examples/persistent-modules/pom.xml clean verify
       - name: Check release tooling and documentation links
@@ -882,3 +870,47 @@ jobs:
                   assert not any(case.find(t) is not None for t in ('skipped', 'failure', 'error')), f'Unverified schema proof: {name}'
           print('All tenant schema and Maven/PostgreSQL proofs executed; none skipped.')
           PY
+
+  identity-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_USER: vernac
+          POSTGRES_PASSWORD: ephemeral-browser-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vernac -d postgres"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      VERNAC_PG_TEST_URL: jdbc:postgresql://localhost:5432/postgres
+      VERNAC_PG_TEST_USER: vernac
+      VERNAC_PG_TEST_PASSWORD: ephemeral-browser-only
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Install matching compiler and runtime artifacts
+        run: mvn -B -ntp -pl vernac-maven-plugin,vernac-jdbc-spring-boot-starter,vernac-runtime-http -am -DskipTests install
+      - name: Install matching shared mail and identity artifacts
+        run: mvn -B -ntp -pl saas/mail,saas/mail-local,saas/mail-brevo,saas/identity,saas/identity-spring-security,saas/identity-jdbc -DskipTests install
+      - name: Package the ordinary Identity/Auth sample
+        run: mvn -B -ntp -f examples/identity-auth/pom.xml clean package
+      - name: Install the isolated Chromium acceptance runner
+        working-directory: examples/identity-auth/browser
+        run: |
+          npm install --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Verify real HTTPS and Chromium Identity/Auth journeys
+        run: python3 examples/identity-auth/verify.py
