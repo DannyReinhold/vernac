@@ -27,7 +27,8 @@ public final class IdentityJourneys implements IdentityInvitationActions {
     private final IdentityAccounts accounts;private final BoundedCredentialPasswords passwords;
     private final IdentityDeliveryCrypto crypto;private final JdbcIdentityMailRequests mail;
     private final JdbcIdentityChallenges challenges;private final JdbcIdentityRegistrations registrations;
-    private final JdbcIdentityCredentials credentials;private final SmartLifecycle lifecycle;
+    private final JdbcIdentityCredentials credentials;private final IdentityMailPolling lifecycle;
+    private final IdentityOperations operations;
 
     public IdentityJourneys(NamedParameterJdbcTemplate jdbc,PlatformTransactionManager manager,Clock clock,
             IdentityJdbcAuthentication authentication,IdentityAccounts accounts,BoundedCredentialPasswords passwords,
@@ -44,10 +45,13 @@ public final class IdentityJourneys implements IdentityInvitationActions {
             mail=new JdbcIdentityMailRequests(jdbc,clock,crypto);challenges=new JdbcIdentityChallenges(jdbc,clock);
             registrations=new JdbcIdentityRegistrations(jdbc,clock);credentials=new JdbcIdentityCredentials(jdbc);
             lifecycle=new IdentityMailPolling(new JdbcIdentityMailWorker(jdbc,manager,clock,crypto,sender),authentication::maintainAdmission);
+            operations=new IdentityOperations(jdbc,manager,clock,lifecycle::status);
         }catch(RuntimeException invalid){throw failure(UNAVAILABLE);}
     }
     /** Register this exact object as an explicit Spring lifecycle bean; no worker starts in the constructor. */
     public SmartLifecycle mailLifecycle(){return lifecycle;}
+    /** Bind only to a deliberate internal-operator metrics surface; no public route is installed. */
+    public IdentityOperations operations(){return operations;}
     static void boundary() {
         if(TransactionSynchronizationManager.isActualTransactionActive() || TransactionSynchronizationManager.isSynchronizationActive()
                 || !TransactionSynchronizationManager.getResourceMap().isEmpty() || TenantContext.currentTenant().isPresent() || AuthorizationGuard.currentActor().isPresent())throw failure(UNAVAILABLE);

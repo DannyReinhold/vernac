@@ -74,6 +74,10 @@ jobs:
           for case in cases.values():
               assert not any(case.find(tag) is not None for tag in ('failure', 'error', 'skipped'))
           print('Integrated identity browser/PostgreSQL proofs executed; none skipped.')
+          ops = ET.parse('saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityOperationsPostgresIT.xml').getroot()
+          assert all(int(ops.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
+          assert any(case.attrib['name'] == 'aggregateMonitoringDistinguishesRealBacklogWorkerFailureAndRecoveryWithoutSensitiveLabels' for case in ops.findall('testcase'))
+          print('Aggregate monitoring/backend recovery proof executed; none skipped.')
           PY
       - uses: actions/setup-node@v5
         with:

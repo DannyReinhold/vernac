@@ -12,6 +12,8 @@ final class IdentityMailPolling implements SmartLifecycle {
     private final JdbcIdentityMailWorker worker;
     private final Runnable admissionCleanup;
     private final AtomicLong nextWarning = new AtomicLong();
+    private final java.util.concurrent.atomic.AtomicLongArray completed = new java.util.concurrent.atomic.AtomicLongArray(IdentityOperations.Stage.values().length);
+    private final java.util.concurrent.atomic.AtomicLongArray unavailable = new java.util.concurrent.atomic.AtomicLongArray(IdentityOperations.Stage.values().length);
     private volatile boolean running;
     private ScheduledExecutorService executor;
 
@@ -34,25 +36,27 @@ final class IdentityMailPolling implements SmartLifecycle {
                         });
         running = true;
         executor.scheduleWithFixedDelay(
-                () -> safe(() -> worker.runOnce(50)), 0, 1, TimeUnit.SECONDS);
+                () -> safe(IdentityOperations.Stage.DELIVERY, () -> worker.runOnce(50)), 0, 1, TimeUnit.SECONDS);
         executor.scheduleWithFixedDelay(
                 () -> {
-                    safe(() -> worker.sweep(500));
-                    safe(() -> worker.expireChallenges(500));
-                    safe(() -> worker.expireInvitations(500));
-                    safe(() -> worker.expireRegistrations(500));
-                    safe(admissionCleanup);
+                    safe(IdentityOperations.Stage.DELIVERY_SWEEP, () -> worker.sweep(500));
+                    safe(IdentityOperations.Stage.CHALLENGES, () -> worker.expireChallenges(500));
+                    safe(IdentityOperations.Stage.INVITATIONS, () -> worker.expireInvitations(500));
+                    safe(IdentityOperations.Stage.REGISTRATIONS, () -> worker.expireRegistrations(500));
+                    safe(IdentityOperations.Stage.ADMISSION, admissionCleanup);
                 },
                 0,
                 1,
                 TimeUnit.SECONDS);
     }
 
-    private void safe(Runnable action) {
+    private void safe(IdentityOperations.Stage stage, Runnable action) {
         if (!running) return;
         try {
             action.run();
-        } catch (RuntimeException unavailable) {
+            completed.updateAndGet(stage.ordinal(), value -> value==Long.MAX_VALUE?value:value+1);
+        } catch (RuntimeException failure) {
+            unavailable.updateAndGet(stage.ordinal(), value -> value==Long.MAX_VALUE?value:value+1);
             long now = System.nanoTime(), next = nextWarning.get();
             if ((next == 0 || now - next >= 0)
                     && nextWarning.compareAndSet(next, now + TimeUnit.MINUTES.toNanos(1)))
@@ -61,6 +65,12 @@ final class IdentityMailPolling implements SmartLifecycle {
                                 System.Logger.Level.ERROR,
                                 "Identity background processing unavailable");
         }
+    }
+
+    IdentityOperations.WorkerStatus status() {
+        var passes=new java.util.EnumMap<IdentityOperations.Stage,IdentityOperations.Passes>(IdentityOperations.Stage.class);
+        for(var stage:IdentityOperations.Stage.values())passes.put(stage,new IdentityOperations.Passes(completed.get(stage.ordinal()),unavailable.get(stage.ordinal())));
+        return new IdentityOperations.WorkerStatus(running,passes);
     }
 
     @Override

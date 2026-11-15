@@ -40,6 +40,16 @@ the documented retry semantics, not an exactly-once remote-send claim. Shutdown 
 for outstanding work through Spring's lifecycle callback; set deployment grace periods
 accordingly. Lost leases cannot authorize stale database completion.
 
+IdentityJourneys.operations() exposes an explicit internal-operator SPI: snapshot() reads
+fixed aggregate READY/LEASED/CANCELLED mail counts, oldest READY age, pending registration,
+challenge and invitation counts in a two-second read-only transaction. workerStatus()
+reports process-local completed/unavailable pass counters for six fixed stages and
+scheduler liveness, independently of database availability. No IDs or payloads are
+returned. It installs no endpoint; authenticate and authorize any operator surface in
+the application, and poll at an appropriate low frequency. Unavailable aggregate reads
+throw the safe UNAVAILABLE reason rather than returning plausible zero counts. A pass
+counter means the stage returned, not that remote delivery succeeded.
+
 Monitor process readiness, worker liveness, fixed safe failure counters, bounded queue/
 capacity utilization, oldest pending age, retry/terminal counts and shared-session
 database availability. Do not attach address, subject/account/tenant IDs, session IDs,
