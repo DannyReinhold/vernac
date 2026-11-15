@@ -12,6 +12,9 @@
     <name>Vernac SaaS Identity JDBC</name>
     <description>Optional internal identity state and transactional directory provider</description>
     <dependencies>
+        <dependency><groupId>jakarta.servlet</groupId><artifactId>jakarta.servlet-api</artifactId><scope>provided</scope></dependency>
+        <dependency><groupId>org.springframework.session</groupId><artifactId>spring-session-jdbc</artifactId></dependency>
+        <dependency><groupId>org.springframework</groupId><artifactId>spring-test</artifactId><scope>test</scope></dependency>
         <dependency><groupId>org.vernac</groupId><artifactId>vernac-saas-mail</artifactId><version>${project.version}</version></dependency>
         <dependency>
             <groupId>org.springframework.security</groupId>

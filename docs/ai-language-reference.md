@@ -1264,7 +1264,7 @@ in the port's public methods. Consumers import the port and its parameter/result
 values, then write `adapter Name implements ImportedPort { behavior { ... } }` using
 normal port/adapter syntax. The dependency supplies the original compiled interface.
 Adding a port operation requires implementation rebuilds. Contract metadata is now
-`module-contracts-12`; rebuild older development module artifacts. Outbound adapter publication and application bindings are supported as described below;
+`module-contracts-13`; rebuild older development module artifacts. Outbound adapter publication and application bindings are supported as described below;
 Persistent and nonpersistent functional activation are supported; module histories run
 in dependency order before the application history. Module event contracts, recorded payloads and synchronous/deferred
 receivers are supported. Inbound HTTP entrypoints are internal module components, enabled only through activation.
@@ -1343,7 +1343,7 @@ classes. External VOs in local aggregates still flatten into locally owned table
 
 Persistent publication requires a matching source migration history and automatically
 packages/verifies the isolated bundle. Field mutability, read/modify modes and repository
-query/pagination signatures are part of `module-contracts-12` compatibility metadata.
+query/pagination signatures are part of `module-contracts-13` compatibility metadata.
 Explicit persistent activation coordinates verified module histories in dependency order,
 then application migrations, before dependent beans become callable. It requires the
 application DataSource, transaction manager and Spring Boot Flyway initializer. No SQL is run by import,
@@ -1400,7 +1400,7 @@ synchronous listener ObserveInvoiceOpened on InvoiceOpened behavior {
 
 The receiving artifact declares `module example.observer {}` if it exports no callable
 API, and the application uses `activate example.observer;`. Metadata is
-`module-contracts-12`; rebuild producer and dependant artifacts together.
+`module-contracts-13`; rebuild producer and dependant artifacts together.
 
 ### Durable event ownership and startup
 
@@ -1424,7 +1424,7 @@ module and application migrations/validation have completed. It preserves the ex
 lease, at-least-once, per-recipient acknowledgment, retry and blocked-job semantics.
 Receivers must make external effects idempotent; SQL rollback does not undo them.
 
-Record flags and storage capability participate in module-contracts-12 metadata.
+Record flags and storage capability participate in module-contracts-13 metadata.
 Rebuild all producers/dependants. Structural event/VO changes can make pending payloads
 incompatible; migrate deliberately or introduce a new versioned event type. Review
 event evolution independently of an ordinary aggregate upgrade.
@@ -1481,7 +1481,7 @@ Vernac type hover includes associated text, including imported module types with
 sources JARs. JavaDoc is added to associated generated domain/usecase/outbound classes.
 Maven compilation writes target/vernac-glossary.md and target/vernac-glossary.json.
 Text changes do not alter structural API fingerprints or SQL schemas. Module metadata
-is module-contracts-12; rebuild development producers and consumers. No LLM integration
+is module-contracts-13; rebuild development producers and consumers. No LLM integration
 is implied. See [the term contract](contracts/ubiquitous-language.md) and
 [the tutorial](tutorials/ubiquitous-language.md).
 
@@ -1703,7 +1703,7 @@ Authentication/membership verification must establish the context through truste
 infrastructure; no default tenant is invented.
 
 Type modules may publish tenant/global aggregate contracts and ownership-aware
-entities using module-contracts-12 metadata. Imports preserve aggregate scope, and
+entities using module-contracts-13 metadata. Imports preserve aggregate scope, and
 local tenant roots may contain imported entities without regenerating dependency
 classes. Type imports do not activate modules or select a tenant. A change from
 TENANT to GLOBAL (or back) is an incompatible module contract change. Rebuild older
@@ -1785,7 +1785,7 @@ retains URL/login/CSRF protection. A missing clause preserves existing behavior.
 adds no rights and uses only an optional Guard provider. Permissions alone grant nothing.
 No automatic exposure audit, user registration, role/plan policy or quota is supplied.
 
-**Reusable modules:** module-contracts-12 preserves permissions and ordered usecase
+**Reusable modules:** module-contracts-13 preserves permissions and ordered usecase
 requirements, including nominal `on` input bindings. Export each permission type needed
 by an exported usecase explicitly in its owner's `.vmodule`; foreign reexports remain
 forbidden. A permission-only import neither activates a module nor grants access.
@@ -1957,7 +1957,7 @@ The optional JDBC provider now includes [private charged pending state](contract
 
 ## Unique aggregate fields and PostgreSQL enforcement
 
-The [`unique` aggregate-field modifier](contracts/aggregate-uniqueness.md) accepts an omitted name: `unique LoginKey` derives `loginKey`. `unique mut` and `mut unique` are equivalent. Required IDs/enums and directly wrapped supported scalar values are checked through shared analysis; optional/nested/multivalue and other equality mappings fail early. The marker survives module-contracts-12 publication/import/fingerprints. There is no in-memory registry or mandatory constraint name.
+The [`unique` aggregate-field modifier](contracts/aggregate-uniqueness.md) accepts an omitted name: `unique LoginKey` derives `loginKey`. `unique mut` and `mut unique` are equivalent. Required IDs/enums and directly wrapped supported scalar values are checked through shared analysis; optional/nested/multivalue and other equality mappings fail early. The marker survives module-contracts-13 publication/import/fingerprints. There is no in-memory registry or mandatory constraint name.
 
 A repository generates a standard PostgreSQL UNIQUE constraint derived from aggregate/field names, automatically tenant-qualified for tenant roots. Selected TEXT columns use explicit pg_catalog.C collation, represented in schema format 4; unchanged old snapshot bytes remain compatible. Migrations, schema-check and module startup validate the constraint/collation. Never rewrite old history or silently resolve duplicate owners to apply a constraint.
 
@@ -1966,3 +1966,5 @@ Spring JDBC plus structured PostgreSQL metadata classify exact declared-field co
 ## Private login-address ownership
 
 The [private JDBC ownership lifecycle](contracts/saas-identity-login-ownership.md) now uses unique canonical keys and a UserId primary key. request(LoginAddress) reserves one potential pending slot before key lookup, reuses a live pending owner without overwriting delivery/deadline, and refuses a new registration for active/disabled/closed or expired-pending owners. Activation/closure retain claims; accounted abandoned cleanup releases them atomically. Old live tokens do not retarget a fresh UserId. Internal outcomes/subjects/addresses are not public DTOs. The eighth additive migration invents no legacy addresses; protected delivery and public flows remain OPEN.
+
+Global metadata may use [explicit immutable ID references](contracts/global-id-references.md); never infer cross-aggregate foreign keys from nominal ID use alone.

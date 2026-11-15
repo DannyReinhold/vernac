@@ -93,7 +93,7 @@ class IdentityEncryptionAdmissionPostgresIT {
                                         gate.reserve("first", fingerprint(1));
                                         assertEquals(2, stored(c, "first").attempts().amount());
                                     });
-                            assertEquals(11, db.migrationCount());
+                            assertEquals(IdentityJdbcTestEnvironment.EXPECTED_MIGRATIONS, db.migrationCount());
                         });
     }
 

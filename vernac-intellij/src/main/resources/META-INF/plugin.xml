@@ -112,7 +112,7 @@ Protected mail, public registration and browser login remain in development.</p>
 
 <h3>0.6.0 development — Unique aggregate field model</h3>
 <p>Aggregate fields accept unique with normal field-name omission, including
-unique LoginKey. Shared analysis, module-contracts-12 metadata, type navigation and
+unique LoginKey. Shared analysis, module-contracts-13 metadata, type navigation and
 LSP scope hover retain the requirement. PostgreSQL now enforces derived constraints
 with tenant scope, explicit text collation, reviewed migrations and safe JDBC conflicts.
 Headless checks cover modifier completion; installed IDE acceptance remains separate.
@@ -220,7 +220,7 @@ the same PostgreSQL writer database before migration writes. Tenant module activ
 <h3>0.6.0 development — Tenant-aware module contracts</h3>
 <p>Dependency contract views preserve tenant/global aggregate scope. Local tenant
 aggregates can persist imported module entities with ownership-aware restoration.
-Metadata is module-contracts-12; rebuild producers and consumers. Persistent tenant module activation and durable event routing have dedicated
+Metadata is module-contracts-13; rebuild producers and consumers. Persistent tenant module activation and durable event routing have dedicated
 PostgreSQL acceptance.</p>
 
 <h3>0.6.0 development — Explicit persistence classification</h3>

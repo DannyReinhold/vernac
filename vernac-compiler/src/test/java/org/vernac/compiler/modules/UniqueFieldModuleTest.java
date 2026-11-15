@@ -54,7 +54,7 @@ class UniqueFieldModuleTest {
         var restored =
                 ModuleDescriptor.JSON.readValue(
                         ModuleDescriptor.JSON.writeValueAsString(d), ModuleDescriptor.class);
-        assertEquals("module-contracts-12", restored.contractVersion());
+        assertEquals("module-contracts-13", restored.contractVersion());
         assertTrue(claim(restored).fields().getFirst().unique());
         assertEquals("loginKey", claim(restored).fields().getFirst().name());
         String view = ModuleArtifacts.view(restored, "lib.claims");
@@ -99,7 +99,7 @@ class UniqueFieldModuleTest {
         String old =
                 ModuleDescriptor.JSON
                         .writeValueAsString(d)
-                        .replace("module-contracts-12", "module-contracts-11");
+                        .replace("module-contracts-13", "module-contracts-11");
         assertThrows(
                 Exception.class,
                 () -> ModuleDescriptor.JSON.readValue(old, ModuleDescriptor.class));

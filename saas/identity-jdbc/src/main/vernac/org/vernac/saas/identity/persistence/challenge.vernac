@@ -4,7 +4,7 @@ import org.vernac.saas.identity.UserId;
 
 id IdentityChallengeId;
 value IdentityChallengeExpiry(Instant instant);
-value IdentityChallengePurpose = VERIFICATION | RECOVERY;
+value IdentityChallengePurpose = VERIFICATION | RECOVERY | INVITATION;
 value IdentityChallengeVerifier(String encoded) validates {
     require(self.encoded().matches("[0-9a-f]{64}"), "Invalid identity challenge verifier");
 } behavior {

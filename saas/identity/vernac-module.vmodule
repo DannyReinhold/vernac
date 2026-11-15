@@ -1,5 +1,9 @@
 module vernac.saas.identity {
     export org.vernac.saas.identity.UserId;
+    export org.vernac.saas.identity.AccountId;
+    export org.vernac.saas.identity.MembershipId;
+    export org.vernac.saas.identity.InvitationId;
+    export org.vernac.saas.identity.AccountPermissions;
     export org.vernac.saas.identity.IdentityStatus;
     export org.vernac.saas.identity.IdentityDirectory;
 }

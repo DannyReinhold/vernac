@@ -29,7 +29,7 @@ public record ModuleDescriptor(int formatVersion,String contractVersion,String m
     }
     public static final String RESOURCE="META-INF/vernac/module.json";
     public static final ObjectMapper JSON=new ObjectMapper();
-    public static final String CONTRACT="module-contracts-12";
+    public static final String CONTRACT="module-contracts-13";
     public record Type(String name,boolean optional,String pageKind) {
         public Type(String name,boolean optional) {this(name,optional,"NONE");}
         public Type {pageKind=pageKind==null?"NONE":pageKind;TypeNode.PageKind.valueOf(pageKind);}
@@ -37,7 +37,8 @@ public record ModuleDescriptor(int formatVersion,String contractVersion,String m
     public record Component(String identity,String kind,String javaName,List<String> dependencies) {
         public Component {dependencies=List.copyOf(dependencies);}
     }
-    public record Field(String name,Type type,boolean mutable,boolean unique) {
+    public record Field(String name,Type type,boolean mutable,boolean unique,String referenceTarget) {
+        public Field(String name,Type type,boolean mutable,boolean unique){this(name,type,mutable,unique,null);}
         public Field(String name,Type type){this(name,type,false,false);}
         public Field(String name,Type type,boolean mutable){this(name,type,mutable,false);}
     }
@@ -72,9 +73,9 @@ public record ModuleDescriptor(int formatVersion,String contractVersion,String m
             Objects.requireNonNull(authorization, "Missing usecase authorization metadata; rebuild the module");
             if (!kind.equals("USE_CASE") && !authorization.mode().equals("OMITTED"))
                 throw new IllegalArgumentException("Authorization metadata belongs only to usecases: " + identity);
-            if (!kind.equals("AGGREGATE") && fields.stream().anyMatch(Field::unique))
+            if (!kind.equals("AGGREGATE") && fields.stream().anyMatch(f->f.unique() || f.referenceTarget()!=null))
                 throw new IllegalArgumentException("Unique fields belong only to aggregate contracts: " + identity);
-            if (methods.stream().flatMap(m -> m.parameters().stream()).anyMatch(Field::unique))
+            if (methods.stream().flatMap(m -> m.parameters().stream()).anyMatch(f->f.unique() || f.referenceTarget()!=null))
                 throw new IllegalArgumentException("Unique fields cannot be operation parameters: " + identity);
             fields=List.copyOf(fields);constants=kind.equals("PERMISSION")?constants.stream().sorted().toList():List.copyOf(constants);
             methods=methods.stream().sorted(Comparator.comparing(m->m.name()+m.parameters())).toList();

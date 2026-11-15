@@ -26,8 +26,11 @@ class BoundedCredentialPasswordsTest {
 
     static void await(BooleanSupplier condition) throws Exception {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-        while (!condition.getAsBoolean() && System.nanoTime() - deadline < 0) Thread.sleep(1);
-        assertTrue(condition.getAsBoolean(), "bounded fixture condition");
+        while (System.nanoTime() - deadline < 0) {
+            if (condition.getAsBoolean()) return;
+            Thread.sleep(1);
+        }
+        fail("bounded fixture condition");
     }
 
     static CredentialConfigurationException.Code code(Future<?> future) throws Exception {

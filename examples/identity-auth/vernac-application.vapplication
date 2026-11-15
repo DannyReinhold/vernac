@@ -1,0 +1,8 @@
+application example.identityapp {
+ tenancy explicit;
+ authorization explicit;
+ activate vernac.saas.identity.jdbc;
+ bind org.vernac.saas.identity.IdentityDirectory
+  to org.vernac.saas.identity.persistence.StoredIdentityDirectory;
+ bind org.vernac.saas.mail.MailProvider from configuration "vernac.mail.provider";
+}

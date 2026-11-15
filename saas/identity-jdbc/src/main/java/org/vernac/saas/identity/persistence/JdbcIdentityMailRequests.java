@@ -91,6 +91,16 @@ final class JdbcIdentityMailRequests {
             return;
         }
         var challenge = challengeRows.byId(IdentityChallengeId.of(issued.token().locator()));
+        store(subject,purpose,challenge.id(),challenge.expiresAt(),recipient,issued.token(),permit);
+    }
+    void invitation(AccountInvitation row,IdentityChallengeToken token,IdentityDeliveryCrypto.Permit permit) {
+        mutate(()->{
+            if(!capacity.reserve(Map.of(UNSENT_MAIL_JOBS,1L,UNSENT_MAIL_BYTES,65_536L)))throw unavailable();
+            store(row.issuer(),IdentityChallengePurpose.INVITATION,IdentityChallengeId.of(row.id().value()),row.expiresAt(),row.delivery().encoded(),token,permit);return true;
+        });
+    }
+    private void store(UserId subject,IdentityChallengePurpose purpose,IdentityChallengeId locator,IdentityChallengeExpiry expiry,
+            String recipient,IdentityChallengeToken token,IdentityDeliveryCrypto.Permit permit) {
         Instant now = clock.instant();
         var id = IdentityMailJobId.create();
         var context =
@@ -98,9 +108,9 @@ final class JdbcIdentityMailRequests {
                         id.value(),
                         subject.value(),
                         purpose,
-                        challenge.id().value(),
-                        challenge.expiresAt().instant());
-        byte[] payload = new IdentityMailContent(recipient, issued.token()).encode();
+                        locator.value(),
+                        expiry.instant());
+        byte[] payload = new IdentityMailContent(recipient, token).encode();
         String envelope;
         try {
             envelope = crypto.seal(context, payload, permit);
@@ -112,8 +122,8 @@ final class JdbcIdentityMailRequests {
                         id,
                         subject,
                         purpose,
-                        challenge.id(),
-                        challenge.expiresAt(),
+                        locator,
+                        expiry,
                         IdentityMailEnvelope.of(envelope),
                         IdentityMailState.READY,
                         IdentityMailAttempts.of(0),

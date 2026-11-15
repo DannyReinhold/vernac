@@ -1,0 +1,8 @@
+namespace example.identityapp;
+permission WorkspacePermissions { VIEW; }
+value WorkspaceMessage(String text);
+usecase ViewWorkspace() returns WorkspaceMessage
+ requires permission WorkspacePermissions.VIEW
+behavior {
+ execute { return WorkspaceMessage.of("Your verified workspace is open."); }
+}

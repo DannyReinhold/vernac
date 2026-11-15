@@ -112,7 +112,7 @@ class ReleaseTests(unittest.TestCase):
                 release.central("0.2.0", 0, unpublished=True)
 
     def test_saas_release_coordinates_use_their_actual_nested_reactor_paths(self):
-        self.assertEqual(21, len(list(release.central_paths("0.6.0"))))
+        self.assertEqual(27, len(list(release.central_paths("0.6.0"))))
         self.assertIn("vernac-saas-identity-spring-security", release.published_modules("0.6.0"))
         self.assertNotIn("vernac-saas-identity", release.published_modules("0.5.2"))
         for artifact in release.MODULES[1:]:
@@ -122,6 +122,8 @@ class ReleaseTests(unittest.TestCase):
                                      for d in root.findall(".//m:dependency", release.NS)))
         self.assertIn("saas/identity", release.reactor_modules())
         self.assertIn("saas/identity-spring-security", release.reactor_modules())
+        for module in ("saas/mail", "saas/mail-local", "saas/mail-brevo"):
+            self.assertIn(module, release.reactor_modules())
         for artifact, relative in release.MODULE_PATHS.items():
             root = ET.parse(self.cwd / relative / "pom.xml").getroot()
             self.assertEqual(artifact, root.findtext("m:artifactId", namespaces=release.NS))
@@ -145,6 +147,23 @@ class ReleaseTests(unittest.TestCase):
         (nested / "TEST-skipped.xml").write_text('<testsuite name="Extra" tests="1" skipped="1"/>')
         with self.assertRaisesRegex(ValueError, "skipped"):
             release.audit_tests()
+
+    def test_final_identity_boundaries_cannot_disappear_from_release_reports(self):
+        folder = self.root / "saas/identity-jdbc/target/failsafe-reports"
+        folder.mkdir(parents=True)
+        for name in release.REQUIRED_TESTS:
+            (folder / f"TEST-{name}.xml").write_text(f'<testsuite name="org.vernac.{name}" tests="1" failures="0" errors="0" skipped="0"/>')
+        for name in ("IdentityBrowserPostgresIT", "IdentityOperationsPostgresIT", "AccountInvitationsPostgresIT", "RoleCatalogTest", "GlobalIdReferencePostgresTest", "MailProviderSelectionTest"):
+            path = folder / f"TEST-{name}.xml"
+            original = path.read_text()
+            path.unlink()
+            with self.assertRaisesRegex(ValueError, "Missing required"):
+                release.audit_tests()
+            path.write_text(original.replace('skipped="0"', 'skipped="1"'))
+            with self.assertRaisesRegex(ValueError, "skipped"):
+                release.audit_tests()
+            path.write_text(original)
+        release.audit_tests()
 
     def test_consumer_uses_packaged_template_and_matches_all_runtime_versions(self):
         self.make_candidate()
