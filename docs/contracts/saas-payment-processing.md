@@ -115,3 +115,13 @@ The local provider persists its simulated posting time on first successful inspe
 Legacy simulated successes lacking that field receive a simulated observation timestamp
 when inspected; this is not reconstructed real financial history. Existing real attempts
 remain nullable until an authenticated proof supplies their original ledger timestamp.
+
+## Account history and recovery
+
+Account administrators can page their own order history with an exclusive ID cursor
+and a maximum of 100 rows. `reconcilePayment` retrieves a known provider resource
+without a new financial POST. The resource must match an already started operation
+of the specified account/order/profile; it cannot choose an account through metadata.
+When a primary resource is already bound, recovery re-inspects that primary instead
+of replacing it with a supplied alias. Public HTTP adapters must keep the same fresh
+Identity administration check; the example's complete HTTP acceptance remains open.

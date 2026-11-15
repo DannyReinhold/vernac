@@ -99,6 +99,27 @@ public final class PaymentFlow {
     public OrderView order(AccountId account, PaymentOrderId order) {
         administrator(account); return write(() -> { var row = owned(account, order); return view(row, visible(row)); });
     }
+    /** Bounded keyset history, always scoped by fresh account administration. */
+    public List<OrderView> orders(AccountId account, Optional<PaymentOrderId> after, int limit) {
+        administrator(account); Objects.requireNonNull(after);
+        if (limit < 1 || limit > 100) throw fail(PaymentProcessingFailure.Code.INVALID_STATE);
+        return write(() -> {
+            var parameters = new HashMap<String, Object>(); parameters.put("account", account.value()); parameters.put("limit", limit);
+            after.ifPresent(id -> parameters.put("after", id.value()));
+            var ids = jdbc.queryForList("SELECT \"id\" FROM " + S + "\"PaymentOrder\" WHERE \"account\"=:account" + (after.isPresent() ? " AND \"id\">:after" : "") + " ORDER BY \"id\" LIMIT :limit", parameters, UUID.class);
+            return ids.stream().map(id -> { var row = orders.byId(PaymentOrderId.of(id)); return view(row, visible(row)); }).toList();
+        });
+    }
+    /** Read-only recovery: retrieves a provider resource; it never retries an uncertain financial POST. */
+    public void reconcilePayment(AccountId account, PaymentOrderId orderId, RemotePaymentId candidate) {
+        administrator(account);
+        var registered = write(() -> latest(owned(account, orderId))); var provider = provider(registered.profile());
+        var proof = provider.inspect(candidate);
+        var located = write(() -> attempts.forOperation(proof.operation()).orElseThrow(() -> fail(PaymentProcessingFailure.Code.UNVERIFIED_RESOURCE)));
+        if (!located.order().equals(orderId) || !located.account().equals(account) || !located.profile().equals(registered.profile()) || located.financialStarted().isEmpty()) throw fail(PaymentProcessingFailure.Code.UNVERIFIED_RESOURCE);
+        var verified = located.remote().filter(id -> !id.equals(proof.id())).map(provider::inspect).orElse(proof);
+        write(() -> { lock(account); var row = attempts.byId(located.id()); observe(row, verified); attempts.save(row); return Boolean.TRUE; });
+    }
     public OrderView retry(AccountId account, PaymentOrderId order) {
         administrator(account);
         return write(() -> {
@@ -126,9 +147,8 @@ public final class PaymentFlow {
         var terms = current.renewalTerms();
         // A scheduled Free change is a nonfinancial subscription transition, never a zero-value charge.
         if (terms.price().value() == 0) {
-            var period = SubscriptionPeriod.of(current.period().end(), BillingCalendar.end(current.period().end(), terms.interval()));
-            subscriptions.confirm(agreement.account(), SettlementKey.of("free-renewal/" + current.id().asString() + "/" + current.period().end().getEpochSecond()), terms, period);
-            postponeAgreement(agreement, period.end()); return true;
+            var free = subscriptions.activateScheduledFree(agreement.account());
+            postponeAgreement(agreement, free.period().end()); return true;
         }
         var period = SubscriptionPeriod.of(current.period().end(), BillingCalendar.end(current.period().end(), terms.interval()));
         write(() -> {

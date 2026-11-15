@@ -28,7 +28,7 @@ class LocalPaymentsPostgresIT {
                 assertEquals(payment.get(), provider.checkout(request(operation, customer.get())));
                 assertThrows(PaymentFailure.class, () -> provider.charge(RecurringChargeRequest.of(PaymentOperationId.create(), customer.get(), RemoteMandateId.of("localm_wrong"), MinorUnits.of(1200), BillingCurrency.EUR, URL)));
                 var hint = provider.notification(PaymentNoticeBody.of("id=" + payment.get().id().encoded()), PaymentSignature.of(""));
-                payment.set(provider.inspect(hint)); assertEquals(PaymentState.PAID, payment.get().state()); assertTrue(payment.get().mandate().isPresent());
+                payment.set(provider.inspect(hint)); assertEquals(PaymentState.PAID, payment.get().state()); assertTrue(payment.get().mandate().isPresent()); assertTrue(payment.get().postedAt().isPresent());
             });
             db.boot.run(context -> {
                 assertNull(context.getStartupFailure()); var provider = context.getBean(PaymentProvider.class);
@@ -38,10 +38,12 @@ class LocalPaymentsPostgresIT {
                 var refund = RefundRequest.of(PaymentOperationId.create(), payment.get().id(), MinorUnits.of(200), BillingCurrency.EUR);
                 assertEquals(provider.refund(refund), provider.refund(refund));
                 assertEquals(200, provider.inspect(payment.get().id()).refunded().value());
+                assertEquals(payment.get().postedAt(), provider.inspect(payment.get().id()).postedAt());
                 assertThrows(PaymentFailure.class, () -> provider.refund(RefundRequest.of(PaymentOperationId.create(), payment.get().id(), MinorUnits.of(1200), BillingCurrency.EUR)));
                 assertEquals(200, provider.inspect(payment.get().id()).refunded().value());
+                assertEquals(payment.get().postedAt(), provider.inspect(payment.get().id()).postedAt());
             });
-            assertEquals(1, db.migrationCount());
+            assertEquals(2, db.migrationCount());
         });
     }
     @Test void paidResponseLossSurvivesRestartWithoutCreatingAnotherPayment() throws Exception {

@@ -56,6 +56,9 @@ class PaymentFlowPostgresIT {
                 var f = fixture(context, time, account); var pending = f.flow.checkout(account, request, LOCAL, PlanCatalog.id(PAID)); order.set(pending.id());
                 assertEquals(FREE, f.subscriptions.current(account).renewalTerms());
                 assertEquals(order.get(), f.flow.checkout(account, request, LOCAL, PlanCatalog.id(PAID)).id());
+                assertEquals(List.of(order.get()), f.flow.orders(account, Optional.empty(), 10).stream().map(PaymentFlow.OrderView::id).toList());
+                assertTrue(f.flow.orders(account, Optional.of(order.get()), 10).isEmpty());
+                assertThrows(PaymentProcessingFailure.class, () -> f.flow.orders(account, Optional.empty(), 101));
                 settle(f, time); assertEquals(PaymentOrderStatus.APPLIED, f.flow.order(account, order.get()).status());
                 assertEquals(PAID.benefits(), f.subscriptions.benefits(account));
                 remote.set(f.jdbc.queryForObject("SELECT \"remote\" FROM \"org.vernac.saas.payments.persistence\".\"PaymentAttempt\" WHERE \"order\"=:order", Map.of("order", order.get().value()), String.class));
@@ -81,7 +84,12 @@ class PaymentFlowPostgresIT {
             assertEquals(PaymentProcessingFailure.Code.UNVERIFIED_RESOURCE, assertThrows(PaymentProcessingFailure.class,
                     () -> f.flow.webhook(LOCAL, PaymentNoticeBody.of("id=" + unregistered.id().encoded()), PaymentSignature.of(""))).code());
             assertThrows(PaymentFailure.class, () -> f.flow.webhook(LOCAL, PaymentNoticeBody.of("id=" + unregistered.id().encoded() + "&tenant=" + foreign.asString()), PaymentSignature.of("")));
-            assertEquals(0L, f.jdbc.queryForObject("SELECT count(*) FROM \"org.vernac.saas.payments.persistence\".\"PaymentOrder\"", Map.of(), Long.class));
+            var own = f.flow.checkout(account, PaymentOperationId.create(), LOCAL, PlanCatalog.id(PAID));
+            assertEquals(PaymentProcessingFailure.Code.UNVERIFIED_RESOURCE, assertThrows(PaymentProcessingFailure.class,
+                    () -> f.flow.reconcilePayment(account, own.id(), unregistered.id())).code());
+            assertEquals(PaymentProcessingFailure.Code.ACCESS_DENIED, assertThrows(PaymentProcessingFailure.class,
+                    () -> f.flow.orders(foreign, Optional.empty(), 10)).code());
+            assertEquals(1L, f.jdbc.queryForObject("SELECT count(*) FROM \"org.vernac.saas.payments.persistence\".\"PaymentOrder\"", Map.of(), Long.class));
         }));
     }
     @Test void aDifferentSubmittedFormCannotCreateAParallelChargeAndUnsentCloseDoesNotChangeRenewalTerms() throws Exception {
@@ -196,6 +204,62 @@ class PaymentFlowPostgresIT {
             assertEquals(1L, f.jdbc.queryForObject("SELECT count(*) FROM \"org.vernac.saas.payments.local\".\"LocalPayment\"", Map.of(), Long.class));
             assertNotEquals(PAID.benefits(), f.subscriptions.benefits(account));
         }));
+    }
+
+    @Test void scheduledFreeBoundaryUsesNoZeroValuePaymentAndNeedsNoFurtherBillingJobs() throws Exception {
+        var account = AccountId.create(); var time = new Time();
+        new PaymentFlowTestEnvironment(root).withDatabase(db -> db.boot.run(context -> {
+            var f = fixture(context, time, account);
+            f.flow.checkout(account, PaymentOperationId.create(), LOCAL, PlanCatalog.id(PAID)); settle(f, time);
+            f.subscriptions.schedule(account, PlanCatalog.id(FREE));
+            time.value.set(Instant.parse("2026-02-01T00:00:00Z")); assertTrue(f.flow.scheduleRenewalOne());
+            assertEquals(FREE.benefits(), f.subscriptions.benefits(account)); assertEquals(BillingCalendar.freeEnd(), f.subscriptions.current(account).period().end());
+            time.value.set(Instant.parse("2027-02-01T00:00:00Z")); assertFalse(f.flow.scheduleRenewalOne());
+            assertEquals(FREE.benefits(), f.subscriptions.benefits(account));
+            assertEquals(1L, f.jdbc.queryForObject("SELECT count(*) FROM \"org.vernac.saas.payments.local\".\"LocalPayment\"", Map.of(), Long.class));
+        }));
+    }
+
+    static final class LostRefundResponse implements PaymentProvider {
+        final PaymentProvider delegate; final AtomicBoolean lose = new AtomicBoolean(true);
+        LostRefundResponse(PaymentProvider delegate) { this.delegate = delegate; }
+        public PaymentProviderMode mode() { return delegate.mode(); }
+        public PaymentProviderKind kind() { return delegate.kind(); }
+        public PaymentProviderEnvironment environment() { return delegate.environment(); }
+        public RemoteCustomerId createCustomer(PaymentOperationId id) { return delegate.createCustomer(id); }
+        public ProviderCustomer inspectCustomer(RemoteCustomerId id) { return delegate.inspectCustomer(id); }
+        public ProviderPayment checkout(CheckoutRequest request) { return delegate.checkout(request); }
+        public ProviderPayment charge(RecurringChargeRequest request) { return delegate.charge(request); }
+        public ProviderPayment inspect(RemotePaymentId id) { return delegate.inspect(id); }
+        public ProviderRefund inspectRefund(RemotePaymentId payment, RemoteRefundId id) { return delegate.inspectRefund(payment, id); }
+        public RemotePaymentId notification(PaymentNoticeBody body, PaymentSignature signature) { return delegate.notification(body, signature); }
+        public ProviderRefund refund(RefundRequest request) {
+            var result = delegate.refund(request);
+            if (lose.getAndSet(false)) throw new PaymentFailure(PaymentFailure.Code.OUTCOME_UNKNOWN);
+            return result;
+        }
+    }
+    @Test void lostRefundResponseRetainsReservationAndReusesOneFinancialOperationAfterRestart() throws Exception {
+        var account = AccountId.create(); var time = new Time(); var refund = new AtomicReference<PaymentRefundId>();
+        new PaymentFlowTestEnvironment(root).withDatabase(db -> {
+            db.boot.run(context -> {
+                var f = fixture(context, time, account); var order = f.flow.checkout(account, PaymentOperationId.create(), LOCAL, PlanCatalog.id(PAID)); settle(f, time);
+                var wrapped = new PaymentFlow(f.jdbc, context.getBean(PlatformTransactionManager.class), Map.of(LOCAL, new LostRefundResponse(f.provider)), catalog(), f.subscriptions,
+                        checked -> { if (!checked.equals(account)) throw new IllegalArgumentException(); }, profile -> {}, time);
+                refund.set(wrapped.refund(account, order.id(), PaymentOperationId.create(), PAID.price()).id());
+                assertTrue(wrapped.processRefundOne());
+                assertEquals(PaymentReason.OUTCOME_UNKNOWN, wrapped.refund(account, refund.get()).reason());
+                assertThrows(PaymentProcessingFailure.class, () -> wrapped.refund(account, order.id(), PaymentOperationId.create(), MinorUnits.of(1)));
+                assertEquals(PAID.benefits(), f.subscriptions.benefits(account));
+            });
+            db.boot.run(context -> {
+                var f = fixture(context, time, account); time.advance(30);
+                assertTrue(f.flow.processRefundOne()); assertTrue(f.flow.processRefundOne()); assertTrue(f.flow.processOne(URL, URL));
+                assertEquals(RefundState.REFUNDED, f.flow.refund(account, refund.get()).state());
+                assertNotEquals(PAID.benefits(), f.subscriptions.benefits(account));
+                assertEquals(1L, f.jdbc.queryForObject("SELECT count(*) FROM \"org.vernac.saas.payments.local\".\"LocalRefund\"", Map.of(), Long.class));
+            });
+        });
     }
 
 }
