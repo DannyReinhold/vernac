@@ -172,4 +172,24 @@ class SubscriptionPostgresIT {
             assertThrows(RuntimeException.class, () -> jdbc.getJdbcTemplate().execute("CREATE TABLE \"org.vernac.saas.subscriptions\".forbidden(id integer)"));
         }));
     }
+    @Test void scheduledFreeActivatesOnlyAtBoundaryAndRemainsEffectiveAfterRestartWithoutRenewalJobs() throws Exception {
+        var account = AccountId.create();
+        new SubscriptionTestEnvironment(root).withDatabase(db -> {
+            db.boot.run(context -> {
+                var service = ledger(context); service.ensureFree(account); service.confirmAuthorizedPurchase(account, SettlementKey.of("paid-before-free"), PAID, PERIOD);
+                service.schedule(account, PlanCatalog.id(FREE));
+                assertThrows(SubscriptionFailure.class, () -> service.activateScheduledFree(account));
+                assertEquals(PAID, service.current(account).terms());
+                var boundary = new SubscriptionLedger(context.getBean(NamedParameterJdbcTemplate.class), context.getBean(PlatformTransactionManager.class), catalog(), Clock.fixed(PERIOD.end(), ZoneOffset.UTC));
+                var active = boundary.activateScheduledFree(account); assertEquals(FREE, active.terms()); assertEquals(BillingCalendar.freeEnd(), active.period().end());
+                assertEquals(active, boundary.activateScheduledFree(account));
+            });
+            db.boot.run(context -> {
+                var later = new SubscriptionLedger(context.getBean(NamedParameterJdbcTemplate.class), context.getBean(PlatformTransactionManager.class), catalog(), Clock.fixed(PERIOD.end().plusSeconds(366L * 86400), ZoneOffset.UTC));
+                assertEquals(FREE.benefits(), later.benefits(account));
+                assertEquals(BillingCalendar.freeEnd(), later.current(account).period().end());
+            });
+        });
+    }
+
 }
