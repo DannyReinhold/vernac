@@ -64,7 +64,7 @@ global aggregate Subscription[SubscriptionId](unique AccountId account, mut Offe
         self.status(SubscriptionStatus.ACTIVE);
     }
     modify void scheduleChange(OfferTerms next) {
-        org.vernac.saas.subscriptions.SubscriptionRules.require(self.status() == SubscriptionStatus.ACTIVE && !self.cancelAtEnd(),
+        org.vernac.saas.subscriptions.SubscriptionRules.require((self.status() == SubscriptionStatus.ACTIVE || self.status() == SubscriptionStatus.SUSPENDED) && !self.cancelAtEnd(),
             org.vernac.saas.subscriptions.SubscriptionFailure.Code.INVALID_TRANSITION);
         self.renewalTerms(next);
     }
@@ -88,6 +88,13 @@ global aggregate Subscription[SubscriptionId](unique AccountId account, mut Offe
         self.period(SubscriptionPeriod.of(periodFrom, until));
         self.renewalTerms(paidTerms);
         self.status(SubscriptionStatus.ACTIVE);
+    }
+    modify void settleResumption(OfferTerms paidTerms, Instant periodFrom, Instant until) {
+        org.vernac.saas.subscriptions.SubscriptionRules.require((self.status() == SubscriptionStatus.ACTIVE || self.status() == SubscriptionStatus.SUSPENDED)
+            && !self.cancelAtEnd() && periodFrom.isAfter(self.period().end()) && paidTerms.equals(self.renewalTerms())
+            && until.equals(org.vernac.saas.subscriptions.BillingCalendar.end(periodFrom, paidTerms.interval())),
+            org.vernac.saas.subscriptions.SubscriptionFailure.Code.SETTLEMENT_MISMATCH);
+        self.terms(paidTerms); self.period(SubscriptionPeriod.of(periodFrom, until)); self.renewalTerms(paidTerms); self.status(SubscriptionStatus.ACTIVE);
     }
     modify void settleUpgrade(OfferTerms paidTerms, Instant periodFrom, Instant until) {
         org.vernac.saas.subscriptions.SubscriptionRules.require(self.status() == SubscriptionStatus.ACTIVE && self.terms().price().value() == 0
@@ -126,9 +133,12 @@ repository SubscriptionRepository for Subscription {
 value SettlementKey(String encoded) validates {
     require(self.encoded().matches("[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,127}"), "Invalid settlement key");
 } behavior { public String toString() { return "SettlementKey[REDACTED]"; } };
+value SettlementStatus = SETTLED | REVOKED;
 id SubscriptionSettlementId;
 global aggregate SubscriptionSettlement[SubscriptionSettlementId](SubscriptionId subscription references Subscription,
-    unique SettlementKey operation, OfferTerms terms, SubscriptionPeriod period);
+    unique SettlementKey operation, OfferTerms terms, SubscriptionPeriod period, mut SettlementStatus status) behavior {
+    modify void revoke() { self.status(SettlementStatus.REVOKED); }
+};
 repository SubscriptionSettlementRepository for SubscriptionSettlement {
     find SubscriptionSettlement? forOperation(SettlementKey operation) where operation = :operation;
 }

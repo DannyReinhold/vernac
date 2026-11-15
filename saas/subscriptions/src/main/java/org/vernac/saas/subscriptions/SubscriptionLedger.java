@@ -97,6 +97,7 @@ public final class SubscriptionLedger {
             var seen = settlements.forOperation(operation);
             if (seen.isPresent()) {
                 var receipt = seen.get();
+                if (receipt.status() == SettlementStatus.REVOKED) throw fail(SubscriptionFailure.Code.INVALID_TRANSITION);
                 if (!receipt.subscription().equals(subscription.id()) || !receipt.terms().equals(verifiedTerms) || !receipt.period().equals(paidPeriod))
                     throw fail(SubscriptionFailure.Code.SETTLEMENT_CONFLICT);
                 return view(subscription);
@@ -106,10 +107,28 @@ public final class SubscriptionLedger {
                 subscription.settleInitial(verifiedTerms, paidPeriod.start(), paidPeriod.end());
             else if (subscription.terms().price().value() == 0 && verifiedTerms.price().value() > 0)
                 subscription.settleUpgrade(verifiedTerms, paidPeriod.start(), paidPeriod.end());
+            else if (paidPeriod.start().isAfter(subscription.period().end())) subscription.settleResumption(verifiedTerms, paidPeriod.start(), paidPeriod.end());
             else subscription.settleRenewal(verifiedTerms, paidPeriod.start(), paidPeriod.end());
             var saved = subscriptions.save(subscription);
-            settlements.save(SubscriptionSettlement.create(saved.id(), operation, verifiedTerms, paidPeriod));
+            settlements.save(SubscriptionSettlement.create(saved.id(), operation, verifiedTerms, paidPeriod, SettlementStatus.SETTLED));
             return view(saved);
+        });
+    }
+    /** Authoritative full reversal. The durable tombstone also fences a delayed first confirmation. */
+    public View revokeVerifiedSettlement(AccountId verifiedAccount, SettlementKey operation, OfferTerms verifiedTerms, SubscriptionPeriod paidPeriod) {
+        Objects.requireNonNull(operation); Objects.requireNonNull(verifiedTerms); Objects.requireNonNull(paidPeriod);
+        return transact(verifiedAccount, existing -> {
+            var subscription = required(existing); var seen = settlements.forOperation(operation);
+            if (seen.isPresent()) {
+                var receipt = seen.get();
+                if (!receipt.subscription().equals(subscription.id()) || !receipt.terms().equals(verifiedTerms) || !receipt.period().equals(paidPeriod))
+                    throw fail(SubscriptionFailure.Code.SETTLEMENT_CONFLICT);
+                receipt.revoke(); settlements.save(receipt);
+            } else settlements.save(SubscriptionSettlement.create(subscription.id(), operation, verifiedTerms, paidPeriod, SettlementStatus.REVOKED));
+            if (subscription.period().equals(paidPeriod) && subscription.terms().equals(verifiedTerms)) {
+                subscription.end(); subscription = subscriptions.save(subscription);
+            }
+            return view(subscription);
         });
     }
     private View mutate(AccountId account, java.util.function.Consumer<Subscription> operation) {
