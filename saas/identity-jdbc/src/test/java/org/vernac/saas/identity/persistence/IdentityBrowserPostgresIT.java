@@ -36,7 +36,7 @@ class IdentityBrowserPostgresIT {
     static final String COOKIE="__Host-VERNACSESSION";
     @Configuration(proxyBeanMethods=false) @EnableWebSecurity @Import(IdentityJdbcSessions.class)
     static class Web {
-        @Bean @SpringSessionDataSource DataSource sessions(IdentityJourneysPostgresIT.Fixture f) {
+        @Bean(destroyMethod="") @SpringSessionDataSource DataSource sessions(IdentityJourneysPostgresIT.Fixture f) {
             return f.jdbc.getJdbcTemplate().getDataSource();
         }
         @Bean @SpringSessionTransactionManager PlatformTransactionManager sessionsWriter(IdentityJourneysPostgresIT.Fixture f) {return f.manager;}
