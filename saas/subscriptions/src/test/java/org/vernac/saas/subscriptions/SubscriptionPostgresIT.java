@@ -72,6 +72,19 @@ class SubscriptionPostgresIT {
                     context.getBean(PlatformTransactionManager.class), new PlanCatalog(List.of(FREE, alteredPaid), PlanCatalog.id(FREE)), Clock.systemUTC()));
         }));
     }
+    @Test void registeredExplicitPurchaseInstallsItsTermsOnlyAtAtomicVerifiedSettlement() throws Exception {
+        var account = AccountId.create();
+        new SubscriptionTestEnvironment(root).withDatabase(db -> db.boot.run(context -> {
+            var service = ledger(context); service.ensureFree(account);
+            assertEquals(FREE, service.current(account).renewalTerms());
+            service.confirmAuthorizedPurchase(account, SettlementKey.of("explicit-purchase"), PAID, PERIOD);
+            assertEquals(PAID, service.current(account).terms());
+            var laterPeriod = SubscriptionPeriod.of(PERIOD.end(), BillingCalendar.end(PERIOD.end(), BillingInterval.MONTHLY));
+            assertEquals(SubscriptionFailure.Code.NOT_DUE, assertThrows(SubscriptionFailure.class,
+                    () -> service.confirmAuthorizedPurchase(account, SettlementKey.of("future-plan"), FREE, laterPeriod)).code());
+            assertEquals(PAID, service.current(account).renewalTerms());
+        }));
+    }
     @Test void authoritativeReversalFencesLateConfirmationAcrossIndependentInstances() throws Exception {
         var account = AccountId.create(); var key = SettlementKey.of("refunded-order");
         new SubscriptionTestEnvironment(root).withDatabase(db -> db.boot.run(first -> db.boot.run(second -> {
