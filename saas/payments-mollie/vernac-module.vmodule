@@ -1,0 +1,3 @@
+module vernac.saas.payments.mollie {
+    export org.vernac.saas.payments.mollie.MolliePaymentProvider;
+}

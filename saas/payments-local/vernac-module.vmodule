@@ -1,0 +1,4 @@
+module vernac.saas.payments.local {
+    tenancy explicit;
+    export org.vernac.saas.payments.local.LocalPaymentProvider;
+}

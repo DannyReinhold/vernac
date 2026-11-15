@@ -1,0 +1,25 @@
+namespace org.vernac.saas.payments.local;
+import org.vernac.saas.payments.PaymentProvider;
+import org.vernac.saas.payments.PaymentProviderMode;
+import org.vernac.saas.payments.PaymentOperationId;
+import org.vernac.saas.payments.RemoteCustomerId;
+import org.vernac.saas.payments.ProviderPayment;
+import org.vernac.saas.payments.CheckoutRequest;
+import org.vernac.saas.payments.RecurringChargeRequest;
+import org.vernac.saas.payments.RemotePaymentId;
+import org.vernac.saas.payments.ProviderRefund;
+import org.vernac.saas.payments.RefundRequest;
+import org.vernac.saas.payments.PaymentNoticeBody;
+import org.vernac.saas.payments.PaymentSignature;
+adapter LocalPaymentProvider implements PaymentProvider {
+    behavior {
+        java uses { org.vernac.saas.payments.local.LocalPayments transport; }
+        public PaymentProviderMode mode() { return PaymentProviderMode.SIMULATED; }
+        public RemoteCustomerId createCustomer(PaymentOperationId operation) { return self.transport().createCustomer(operation); }
+        public ProviderPayment checkout(CheckoutRequest request) { return self.transport().checkout(request); }
+        public ProviderPayment charge(RecurringChargeRequest request) { return self.transport().charge(request); }
+        public ProviderPayment inspect(RemotePaymentId payment) { return self.transport().inspect(payment); }
+        public ProviderRefund refund(RefundRequest request) { return self.transport().refund(request); }
+        public RemotePaymentId notification(PaymentNoticeBody body, PaymentSignature signature) { return self.transport().notification(body, signature); }
+    }
+}
