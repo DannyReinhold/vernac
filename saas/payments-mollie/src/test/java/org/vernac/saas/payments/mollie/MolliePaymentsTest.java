@@ -18,7 +18,7 @@ class MolliePaymentsTest {
         server.createContext("/payments", exchange -> {
             assertEquals("Bearer test_key", exchange.getRequestHeaders().getFirst("Authorization"));
             if (exchange.getRequestMethod().equals("POST")) { assertEquals(operation.asString(), exchange.getRequestHeaders().getFirst("Idempotency-Key")); requestBody.set(new String(exchange.getRequestBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)); }
-            var json = "{\"id\":\"tr_one\",\"mode\":\"" + responseMode.get() + "\",\"customerId\":\"cst_one\",\"status\":\"paid\",\"amount\":{\"currency\":\"EUR\",\"value\":\"12.00\"},\"amountRefunded\":{\"currency\":\"EUR\",\"value\":\"0.00\"},\"metadata\":{\"vernac_operation\":\"" + operation.asString() + "\"},\"mandateId\":\"mdt_one\"}";
+            var json = "{\"id\":\"tr_one\",\"mode\":\"" + responseMode.get() + "\",\"customerId\":\"cst_one\",\"status\":\"paid\",\"paidAt\":\"2026-01-02T12:00:00Z\",\"amount\":{\"currency\":\"EUR\",\"value\":\"12.00\"},\"amountRefunded\":{\"currency\":\"EUR\",\"value\":\"0.00\"},\"metadata\":{\"vernac_operation\":\"" + operation.asString() + "\"},\"mandateId\":\"mdt_one\"}";
             byte[] bytes = json.getBytes(java.nio.charset.StandardCharsets.UTF_8); exchange.sendResponseHeaders(200, bytes.length); exchange.getResponseBody().write(bytes); exchange.close();
         }); server.start();
         var http = PaymentHttp.loopbackForTests(PaymentHttp.Provider.MOLLIE, "test_key", URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/"), Duration.ofSeconds(1));

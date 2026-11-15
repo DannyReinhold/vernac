@@ -97,10 +97,10 @@ public final class StripePayments implements AutoCloseable {
             if (paid.equals("paid")) {
                 var proof = intent(get("payment_intents/" + requiredText(json, "payment_intent")));
                 if (!proof.operation().equals(operation) || !proof.customer().equals(customer) || !proof.amount().equals(amount) || !(proof.state() == PaymentState.PAID || proof.state() == PaymentState.REFUNDED)) throw fail();
-                return ProviderPayment.of(RemotePaymentId.of(id), operation, customer, amount, BillingCurrency.EUR, proof.state(), proof.refunded(), checkout, proof.mandate().orElse(null));
+                return ProviderPayment.of(RemotePaymentId.of(id), operation, customer, amount, BillingCurrency.EUR, proof.state(), proof.refunded(), checkout, proof.mandate().orElse(null), proof.postedAt().orElseThrow());
             }
             var state = status.equals("expired") ? PaymentState.EXPIRED : status.equals("open") ? PaymentState.OPEN : PaymentState.PENDING;
-            return ProviderPayment.of(RemotePaymentId.of(id), operation, customer, amount, BillingCurrency.EUR, state, MinorUnits.of(0), checkout, null);
+            return ProviderPayment.of(RemotePaymentId.of(id), operation, customer, amount, BillingCurrency.EUR, state, MinorUnits.of(0), checkout, null, null);
         } catch (PaymentFailure safe) { throw safe; } catch (RuntimeException invalid) { throw fail(); }
     }
     private ProviderPayment intent(JsonNode json) {
@@ -108,18 +108,22 @@ public final class StripePayments implements AutoCloseable {
             environment(json); String id = requiredText(json, "id"); if (!id.matches("pi_[a-zA-Z0-9]{1,190}")) throw fail();
             var operation = operation(json); var customer = customer(requiredText(json, "customer")); var amount = MinorUnits.of(requiredLong(json, "amount")); currency(json);
             var state = switch (requiredText(json, "status")) { case "succeeded" -> PaymentState.PAID; case "processing", "requires_action", "requires_confirmation", "requires_capture" -> PaymentState.PENDING; case "canceled" -> PaymentState.CANCELLED; case "requires_payment_method" -> json.hasNonNull("last_payment_error") ? PaymentState.FAILED : PaymentState.OPEN; default -> PaymentState.UNKNOWN; };
-            var refunded = MinorUnits.of(0);
+            var refunded = MinorUnits.of(0); PaymentPostedAt postedAt = null;
             if (state == PaymentState.PAID) {
                 if (requiredLong(json, "amount_received") != amount.value()) throw fail();
                 String chargeId = requiredText(json, "latest_charge"); if (!chargeId.matches("ch_[a-zA-Z0-9]{1,190}")) throw fail();
                 var charge = get("charges/" + chargeId); environment(charge); currency(charge);
                 if (!id.equals(requiredText(charge, "payment_intent")) || requiredLong(charge, "amount") != amount.value()) throw fail();
+                String transactionId = requiredText(charge, "balance_transaction"); if (!transactionId.matches("txn_[a-zA-Z0-9]{1,190}")) throw fail();
+                var transaction = get("balance_transactions/" + transactionId); currency(transaction);
+                if (!transactionId.equals(requiredText(transaction, "id")) || !chargeId.equals(requiredText(transaction, "source")) || requiredLong(transaction, "amount") != amount.value()) throw fail();
+                postedAt = PaymentPostedAt.of(java.time.Instant.ofEpochSecond(requiredLong(transaction, "created")));
                 refunded = MinorUnits.of(requiredLong(charge, "amount_refunded"));
                 if (refunded.value() > amount.value()) throw fail(); if (refunded.value() == amount.value()) state = PaymentState.REFUNDED;
             }
             RemoteMandateId mandate = null;
             if (json.hasNonNull("payment_method")) { String method = requiredText(json, "payment_method"); if (!method.matches("pm_[a-zA-Z0-9]{1,190}")) throw fail(); mandate = RemoteMandateId.of(method); }
-            return ProviderPayment.of(RemotePaymentId.of(id), operation, customer, amount, BillingCurrency.EUR, state, refunded, null, mandate);
+            return ProviderPayment.of(RemotePaymentId.of(id), operation, customer, amount, BillingCurrency.EUR, state, refunded, null, mandate, postedAt);
         } catch (PaymentFailure safe) { throw safe; } catch (RuntimeException invalid) { throw fail(); }
     }
     private String intentId(RemotePaymentId id) {

@@ -101,3 +101,17 @@ Cancellation expires the agreement at its paid boundary without a renewal charge
 An explicitly scheduled Free offer is a nonfinancial transition. A completely missed
 paid period creates review work; the scheduler never accumulates retrospective charges.
 The application installs its own scheduler and exposes review work to its operator.
+
+## Provider ledger time
+
+Successful provider facts include an original `PaymentPostedAt` which is retained on
+the registered attempt and must not change in later proofs. Mollie supplies `paidAt`;
+Stripe uses the authenticated charge's balance transaction, matching source, amount
+and EUR currency before taking its `created` timestamp. This is provider ledger time,
+not a bank payout date, callback arrival or invoice issue date. Stripe inspection may
+require four bounded API calls; worker leases allow 120 seconds for acknowledgement.
+
+The local provider persists its simulated posting time on first successful inspection.
+Legacy simulated successes lacking that field receive a simulated observation timestamp
+when inspected; this is not reconstructed real financial history. Existing real attempts
+remain nullable until an authenticated proof supplies their original ledger timestamp.

@@ -381,6 +381,7 @@ public final class PaymentFlow {
     private void observe(PaymentAttempt attempt, ProviderPayment proof) {
         var order = orders.byId(attempt.order());
         if (!attempt.operation().equals(proof.operation()) || !attempt.customer().filter(proof.customer()::equals).isPresent()
+                || attempt.postedAt().filter(time -> !proof.postedAt().filter(time::equals).isPresent()).isPresent()
                 || !order.terms().price().equals(proof.amount()) || order.terms().currency() != proof.currency()
                 || attempt.remote().filter(remote -> !remote.equals(proof.id())).isPresent() || proof.refunded().value() < attempt.refunded().value()) throw fail(PaymentProcessingFailure.Code.UNVERIFIED_RESOURCE);
         var route = PaymentKeys.route(attempt.profile(), proof.id()); var existing = resources.forRoute(route);
@@ -399,12 +400,12 @@ public final class PaymentFlow {
             else { next = PaymentAttemptStage.REVIEW; reason = PaymentReason.DUPLICATE_PAID; order.review(reason); orders.save(order); }
         } else if (Set.of(PaymentState.FAILED, PaymentState.CANCELLED, PaymentState.EXPIRED, PaymentState.REFUNDED).contains(proof.state())) next = PaymentAttemptStage.DONE;
         else if (attempt.state() == PaymentState.PAID || attempt.state() == PaymentState.REFUNDED) return; // Stale nonpaid reads cannot remove a proven settlement.
-        attempt.observed(proof.id(), proof.checkout().orElse(null), proof.mandate().orElse(null), proof.state(), proof.refunded(), next, due((next == PaymentAttemptStage.APPLY || next == PaymentAttemptStage.REVOKE) ? now() : now().plusSeconds(30)), reason);
+        attempt.observed(proof.id(), proof.checkout().orElse(null), proof.mandate().orElse(null), proof.state(), proof.refunded(), proof.postedAt().orElse(null), next, due((next == PaymentAttemptStage.APPLY || next == PaymentAttemptStage.REVOKE) ? now() : now().plusSeconds(30)), reason);
     }
     private PaymentAttempt firstAttempt(PaymentOrder order, PaymentProfileKey profile, PaymentAttemptKind kind, RemoteCustomerId customer, RemoteMandateId mandate) {
         order.attempted(); orders.save(order);
         return attempts.save(PaymentAttempt.create(order.id(), order.account(), profile, kind, PaymentKeys.attempt(order.id(), order.attempts().value()), PaymentOperationId.create(), PaymentOperationId.create(),
-                customer, null, null, mandate, PaymentState.OPEN, MinorUnits.of(0), PaymentAttemptStage.PREPARING, due(now()), null, null, PaymentCounter.of(0), PaymentReason.NONE));
+                customer, null, null, mandate, PaymentState.OPEN, MinorUnits.of(0), PaymentAttemptStage.PREPARING, due(now()), null, null, PaymentCounter.of(0), PaymentReason.NONE, null));
     }
     private void validSchedule(PaymentOrder order, PaymentAttemptKind kind) {
         var current = subscriptions.current(order.account());

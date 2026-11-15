@@ -8,6 +8,7 @@ import org.vernac.saas.payments.PaymentOperationId;
 import org.vernac.saas.payments.PaymentProviderKind;
 import org.vernac.saas.payments.PaymentProviderEnvironment;
 import org.vernac.saas.payments.PaymentState;
+import org.vernac.saas.payments.PaymentPostedAt;
 import org.vernac.saas.payments.RemoteCustomerId;
 import org.vernac.saas.payments.RemotePaymentId;
 import org.vernac.saas.payments.RemoteRefundId;
@@ -62,7 +63,7 @@ global aggregate PaymentAttempt[PaymentAttemptId](PaymentOrderId order reference
     mut RemoteCustomerId? customer, mut RemotePaymentId? remote,
     mut PaymentUri? checkout, mut RemoteMandateId? mandate, mut PaymentState state, mut MinorUnits refunded,
     mut PaymentAttemptStage stage, mut PaymentDueAt due, mut PaymentLease? lease, mut PaymentStartedAt? financialStarted,
-    mut PaymentCounter calls, mut PaymentReason reason) behavior {
+    mut PaymentCounter calls, mut PaymentReason reason, mut PaymentPostedAt? postedAt) behavior {
     modify void prepared(PaymentDueAt due) {
         self.stage(self.customer().isPresent() ? PaymentAttemptStage.CUSTOMER_READY : PaymentAttemptStage.NEW);
         self.due(due); self.lease(null);
@@ -76,7 +77,8 @@ global aggregate PaymentAttempt[PaymentAttemptId](PaymentOrderId order reference
         self.customer(customer); self.stage(PaymentAttemptStage.CUSTOMER_READY); self.due(due); self.lease(null); self.reason(PaymentReason.NONE);
     }
     modify void observed(RemotePaymentId remote, PaymentUri? checkout, RemoteMandateId? mandate,
-        PaymentState state, MinorUnits refunded, PaymentAttemptStage stage, PaymentDueAt due, PaymentReason reason) {
+        PaymentState state, MinorUnits refunded, PaymentPostedAt? postedAt, PaymentAttemptStage stage, PaymentDueAt due, PaymentReason reason) {
+        if (self.postedAt().isEmpty()) self.postedAt(postedAt);
         self.remote(remote); self.checkout(checkout); self.mandate(mandate); self.state(state); self.refunded(refunded);
         self.stage(stage); self.due(due); self.reason(reason); self.lease(null);
     }

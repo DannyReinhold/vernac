@@ -91,7 +91,7 @@ public final class MolliePayments implements AutoCloseable {
             }
             RemoteMandateId mandate = null;
             if (json.hasNonNull("mandateId")) { String raw = requiredText(json, "mandateId"); if (!raw.startsWith("mdt_")) throw fail(); mandate = RemoteMandateId.of(raw); }
-            return ProviderPayment.of(id, operation, customer, value, BillingCurrency.EUR, state, refunded, checkout, mandate);
+            return ProviderPayment.of(id, operation, customer, value, BillingCurrency.EUR, state, refunded, checkout, mandate, state == PaymentState.PAID || state == PaymentState.REFUNDED ? PaymentPostedAt.of(java.time.Instant.parse(requiredText(json, "paidAt"))) : null);
         } catch (PaymentFailure safe) { throw safe; } catch (RuntimeException invalid) { throw fail(); }
     }
     private static Map<String, String> metadata(PaymentOperationId operation) { return Map.of("vernac_operation", operation.asString()); }

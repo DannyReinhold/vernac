@@ -2,6 +2,7 @@
 package org.vernac.saas.payments.local;
 import java.time.Clock;
 import java.util.List;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.*;
@@ -12,8 +13,8 @@ import org.vernac.saas.payments.PaymentFailure;
 @AutoConfiguration
 public class LocalPaymentsAutoConfiguration {
     @Bean @Lazy @ConditionalOnMissingBean
-    public LocalPayments vernacLocalPayments(NamedParameterJdbcTemplate jdbc, PlatformTransactionManager manager, Environment environment) {
+    public LocalPayments vernacLocalPayments(NamedParameterJdbcTemplate jdbc, PlatformTransactionManager manager, Environment environment, ObjectProvider<Clock> clocks) {
         if (!Boolean.TRUE.equals(environment.getProperty("vernac.payments.local.allowed", Boolean.class, false))) throw new PaymentFailure(PaymentFailure.Code.CONFIGURATION);
-        return new LocalPayments(jdbc, manager, List.of(LocalPayments.Step.PAID), Clock.systemUTC());
+        return new LocalPayments(jdbc, manager, List.of(LocalPayments.Step.PAID), clocks.getIfAvailable(Clock::systemUTC));
     }
 }

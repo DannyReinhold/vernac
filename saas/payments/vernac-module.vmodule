@@ -15,6 +15,7 @@ module vernac.saas.payments {
     export org.vernac.saas.payments.PaymentSignature;
     export org.vernac.saas.payments.CheckoutRequest;
     export org.vernac.saas.payments.RecurringChargeRequest;
+    export org.vernac.saas.payments.PaymentPostedAt;
     export org.vernac.saas.payments.ProviderPayment;
     export org.vernac.saas.payments.RefundRequest;
     export org.vernac.saas.payments.ProviderRefund;

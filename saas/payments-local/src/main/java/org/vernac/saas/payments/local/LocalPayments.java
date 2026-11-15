@@ -65,7 +65,7 @@ public final class LocalPayments {
             LocalPayment row;
             try { row = payments.byId(operation); }
             catch (org.vernac.runtime.AggregateNotFoundException absent) {
-                var now = clock.instant(); row = LocalPayment.reconstitute(operation, customerOperation, customer, kind, amount, checkout, mandate, PaymentState.OPEN, MinorUnits.of(0), LocalCursor.of(0), now, now, 0);
+                var now = clock.instant(); row = LocalPayment.reconstitute(operation, customerOperation, customer, kind, amount, checkout, mandate, PaymentState.OPEN, MinorUnits.of(0), LocalCursor.of(0), null, now, now, 0);
                 row = payments.save(row);
             }
             if (!row.customer().equals(customer) || row.kind() != kind || !row.amount().equals(amount) || !row.checkout().equals(Optional.ofNullable(checkout))) throw fail(PaymentFailure.Code.OPERATION_CONFLICT);
@@ -79,6 +79,9 @@ public final class LocalPayments {
             // Inspect the immutable customer locator before locking in the same order as create/charge.
             var original = payments.byId(operation); lock("customer/" + original.customerOperation().asString()); lock("payment/" + operation.asString());
             var row = payments.byId(operation);
+            if ((row.status() == PaymentState.PAID || row.status() == PaymentState.REFUNDED) && row.postedAt().isEmpty()) {
+                row.advance(row.status(), row.cursor(), row.mandate().orElse(null), PaymentPostedAt.of(clock.instant())); row = payments.save(row);
+            }
             if (Set.of(PaymentState.PAID, PaymentState.FAILED, PaymentState.CANCELLED, PaymentState.EXPIRED, PaymentState.REFUNDED).contains(row.status())) return new Inspection(view(row), null);
             Step step = scenario.get(Math.min(row.cursor().value(), scenario.size() - 1));
             PaymentState state = switch (step) { case PAID, TIMEOUT_PAID -> PaymentState.PAID; case PENDING -> PaymentState.PENDING; case FAILED -> PaymentState.FAILED; case CANCELLED -> PaymentState.CANCELLED; case EXPIRED -> PaymentState.EXPIRED; case UNAVAILABLE -> row.status(); };
@@ -86,7 +89,7 @@ public final class LocalPayments {
             if (state == PaymentState.PAID) {
                 var customer = customers.byId(row.customerOperation()); customer.grantMandate(); customers.save(customer); mandate = mandate(row.customerOperation());
             }
-            row.advance(state, LocalCursor.of(Math.min(scenario.size(), row.cursor().value() + 1)), mandate); row = payments.save(row);
+            row.advance(state, LocalCursor.of(Math.min(scenario.size(), row.cursor().value() + 1)), mandate, state == PaymentState.PAID ? PaymentPostedAt.of(clock.instant()) : null); row = payments.save(row);
             return new Inspection(view(row), step == Step.UNAVAILABLE || step == Step.TIMEOUT_PAID ? step : null);
         });
         if (result.simulatedFailure() != null) throw fail(result.simulatedFailure() == Step.TIMEOUT_PAID ? PaymentFailure.Code.OUTCOME_UNKNOWN : PaymentFailure.Code.UNAVAILABLE);
@@ -114,7 +117,7 @@ public final class LocalPayments {
         var id = RemotePaymentId.of(body.encoded().substring(3)); parse(id.encoded(), "localp_"); return id;
     }
     private ProviderPayment view(LocalPayment row) {
-        return ProviderPayment.of(RemotePaymentId.of("localp_" + compact(row.id())), row.id(), row.customer(), row.amount(), BillingCurrency.EUR, row.status(), row.refunded(), row.checkout().orElse(null), row.mandate().orElse(null));
+        return ProviderPayment.of(RemotePaymentId.of("localp_" + compact(row.id())), row.id(), row.customer(), row.amount(), BillingCurrency.EUR, row.status(), row.refunded(), row.checkout().orElse(null), row.mandate().orElse(null), row.postedAt().orElse(null));
     }
     private <T> T transaction(Supplier<T> action) {
         if (TransactionSynchronizationManager.isActualTransactionActive() || TransactionSynchronizationManager.isSynchronizationActive()) throw fail(PaymentFailure.Code.CONFIGURATION);
