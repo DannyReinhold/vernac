@@ -55,6 +55,7 @@ public final class IdentityBrowserSecurity {
         http.addFilterBefore(new IdentitySecureTransportFilter(), SecurityContextHolderFilter.class);
         http.addFilterAfter(new IdentitySessionValidationFilter(trust), SecurityContextHolderFilter.class);
         http.addFilterBefore(new IdentityFormFilter(Set.of("/identity/login", "/identity/logout")), CsrfFilter.class);
+        http.addFilterAfter(new IdentityLoginPageFilter(returns), CsrfFilter.class);
         http.addFilterAt(new IdentityLoginFilter("/identity/login",manager,contexts,sessions,returns), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

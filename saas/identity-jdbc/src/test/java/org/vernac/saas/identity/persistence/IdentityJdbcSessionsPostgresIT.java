@@ -67,6 +67,10 @@ class IdentityJdbcSessionsPostgresIT {
             sql.execute("GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA identity_sessions TO "+db.role);
         }
     }
+    private static String csrfToken(MockHttpServletResponse response) throws Exception {
+        var matcher=java.util.regex.Pattern.compile("name=\"_csrf\" value=\"([^\"]+)\"").matcher(response.getContentAsString());
+        assertTrue(matcher.find(),"Missing CSRF form token");return matcher.group(1);
+    }
     private MockHttpServletRequest request(String method,String path,Cookie cookie) {
         var request=new MockHttpServletRequest(method,path);request.setServletPath(path);request.setSecure(true);
         request.setScheme("https");request.setServerPort(443);request.setRemoteAddr("192.0.2.5");
@@ -89,7 +93,7 @@ class IdentityJdbcSessionsPostgresIT {
         var page=dispatch(context,request("GET","/identity/login",null));Cookie anonymous=page.getCookie("__Host-VERNACSESSION");
         assertNotNull(anonymous);assertTrue(anonymous.getSecure());assertTrue(anonymous.isHttpOnly());
         assertEquals("/",anonymous.getPath());assertNull(anonymous.getDomain());assertEquals("Lax",anonymous.getAttribute("SameSite"));
-        var login=request("POST","/identity/login",anonymous);form(login,"address=a%40example.test&password=secret&_csrf="+page.getContentAsString());
+        var login=request("POST","/identity/login",anonymous);form(login,"address=a%40example.test&password=secret&_csrf="+csrfToken(page));
         var response=dispatch(context,login);assertEquals(303,response.getStatus());Cookie authenticated=response.getCookie("__Host-VERNACSESSION");
         assertNotNull(authenticated);assertNotEquals(anonymous.getValue(),authenticated.getValue());return authenticated;
     }
@@ -119,7 +123,7 @@ class IdentityJdbcSessionsPostgresIT {
             try(var first=application(db);var second=application(db)) {
                 Cookie cookie=login(first);
                 var page=dispatch(second,request("GET","/identity/login",cookie));
-                var logout=request("POST","/identity/logout",cookie);form(logout,"_csrf="+page.getContentAsString());
+                var logout=request("POST","/identity/logout",cookie);form(logout,"_csrf="+csrfToken(page));
                 assertEquals(204,dispatch(second,logout).getStatus());
                 assertEquals(0,new JdbcTemplate(first.getBean(DataSource.class)).queryForObject("SELECT count(*) FROM identity_sessions.spring_session",Integer.class));
                 assertEquals(401,dispatch(first,request("GET","/workspace",cookie)).getStatus());

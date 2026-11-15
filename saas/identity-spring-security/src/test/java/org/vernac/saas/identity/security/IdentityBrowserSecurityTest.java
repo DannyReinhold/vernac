@@ -47,6 +47,10 @@ class IdentityBrowserSecurityTest {
             return IdentityBrowserSecurity.build(http,manager,trust,new IdentityLocalReturnTarget("/workspace"));
         }
     }
+    private static String csrfToken(MockHttpServletResponse response) throws Exception {
+        var matcher=java.util.regex.Pattern.compile("name=\"_csrf\" value=\"([^\"]+)\"").matcher(response.getContentAsString());
+        assertTrue(matcher.find(),"Missing CSRF form token");return matcher.group(1);
+    }
     private MockHttpServletRequest request(String method,String path,MockHttpSession session) {
         var request=new MockHttpServletRequest(method,path);request.setServletPath(path);request.setSecure(true);
         request.setScheme("https");request.setServerPort(443);request.setRemoteAddr("192.0.2.5");
@@ -66,7 +70,7 @@ class IdentityBrowserSecurityTest {
     }
     private record Login(MockHttpSession session,String oldCsrf) {}
     private Login login() throws Exception {
-        var page=request("GET","/identity/login",null);String token=dispatch(page).getContentAsString();
+        var page=request("GET","/identity/login",null);String token=csrfToken(dispatch(page));
         var session=(MockHttpSession)page.getSession(false);String before=session.getId();
         var post=request("POST","/identity/login",session);body(post,"address=a%40example.test&password=secret&_csrf="+token);
         var response=dispatch(post);assertEquals(303,response.getStatus());assertEquals("/workspace",response.getHeader("Location"));
@@ -84,7 +88,7 @@ class IdentityBrowserSecurityTest {
     @Test void onlyCsrfProtectedPostLogsOutAndInvalidatesTheSession() throws Exception {
         var logged=login();
         assertEquals(200,dispatch(request("GET","/identity/logout",logged.session())).getStatus());assertFalse(logged.session().isInvalid());
-        var page=request("GET","/identity/login",logged.session());String token=dispatch(page).getContentAsString();
+        var page=request("GET","/identity/login",logged.session());String token=csrfToken(dispatch(page));
         var logout=request("POST","/identity/logout",logged.session());body(logout,"_csrf="+token);
         var response=dispatch(logout);assertEquals(204,response.getStatus());assertTrue(logged.session().isInvalid());
         assertEquals(401,dispatch(request("GET","/workspace",null)).getStatus());

@@ -18,8 +18,8 @@ URL session rewriting and saved-request caching.
 The two public paths are GET/POST `/identity/login`. All other requests require a nominal
 authenticated IdentityPrincipal; the fresh session filter invalidates ineligible/stale
 identities. Technical principals do not gain browser access. Authentication does not
-supply product roles. The consuming application still supplies its login page and
-handlers. This builder claims one chain; applications combining multiple chains must
+supply product roles. The chain supplies a [minimal login page](saas-identity-login-page.md); the consuming
+application supplies its product handlers. This builder claims one chain; applications combining multiple chains must
 review matcher/order coverage instead of assuming this chain covers another chain.
 
 Successful login applies Spring's session-ID change and CSRF authentication strategies,

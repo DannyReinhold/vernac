@@ -30,9 +30,12 @@ primitive PR is not acceptance of an unimplemented public browser journey.
 | 13 | [#62](https://github.com/DannyReinhold/vernac/pull/62) | Bounded Identity forms and validated local return paths |
 | 14 | [#63](https://github.com/DannyReinhold/vernac/pull/63) | Explicit Spring login HTTP adapter |
 | 15 | [#64](https://github.com/DannyReinhold/vernac/pull/64) | Opt-in HTTPS browser chain, CSRF renewal and POST logout |
+| 16 | [#65](https://github.com/DannyReinhold/vernac/pull/65) | Shared JDBC sessions and restricted framework schema |
 
 ## Delivered slices
 
+- [Minimal CSRF-protected login page](../contracts/saas-identity-login-page.md),
+  with actual form submission in chain/session tests.
 - [Explicit shared JDBC sessions](../contracts/saas-identity-jdbc-sessions.md), with
   separate framework schema ownership and secure host-only cookies.
 - [Opt-in HTTPS browser chain](../contracts/saas-identity-browser-chain.md), including
