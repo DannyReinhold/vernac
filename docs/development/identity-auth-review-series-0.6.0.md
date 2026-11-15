@@ -3,9 +3,33 @@ title: Identity/Auth review series for 0.6.0
 ---
 # Identity/Auth review series
 
-Checkpoint: 15 November 2026. All listed branches are cumulative and target
-feature/0.6.0. Merge the earlier PRs first using ordinary merge commits so later
-diffs retain only their own slice. No PR in this series was automatically merged.
+Checkpoint: 15 November 2026. The original 31 slices are consolidated into three
+review PRs. Their source commits are preserved; no PR was merged automatically.
+
+## Active review and merge order
+
+| Order | PR | Included original slices | Review scope | Current base |
+| --- | --- | --- | --- | --- |
+| 1 | [#58](https://github.com/DannyReinhold/vernac/pull/58) | #50–#58 | Boot 4 baseline, encrypted durable mail, providers and session trust primitives | feature/0.6.0 |
+| 2 | [#68](https://github.com/DannyReinhold/vernac/pull/68) | #59–#68 | Bounded login, HTTPS/CSRF/logout, shared JDBC sessions and ingress admission | feature/identity-mail-provider-bridge |
+| 3 | [#80](https://github.com/DannyReinhold/vernac/pull/80) | #69–#80 | Accounts/roles, public journeys, invitations, browser sample, operations and acceptance | feature/identity-browser-request-admission |
+
+Review and merge **#58 → #68 → #80**, using ordinary merge commits. After merging
+#58, change #68's base to feature/0.6.0 before merging it. After merging #68, change
+#80's base to feature/0.6.0 before merging it. Do not merge a successor into its
+current predecessor branch. Avoid squash/rebase merges to preserve ancestry and
+keep subsequent diffs focused. Keep predecessor branches until successors are retargeted.
+
+The other original PRs are superseded and closed; their branches and test evidence
+remain available. Ancestry was checked for every superseded head. #75's final test
+correction and #78's sample fixes were cherry-picked into later branches: the affected
+source files match exactly, while the final CI workflow adds the operations proof.
+Only review metadata and this guide changed during consolidation; runtime/test source
+and migration history were preserved. Re-run normal target-branch checks after integration.
+
+## Historical implementation slices
+
+The following table is an evidence index, not an additional merge queue.
 
 | Order | PR | Review scope |
 | --- | --- | --- |
@@ -57,7 +81,7 @@ only fixed-cardinality aggregate state and safe stage counters; it installs no p
 metrics endpoint. See the [current roadmap](identity-membership-0.6.0.md) and
 [operational contract](../contracts/saas-identity-operations.md).
 
-Maintainer review/merging remains separate. Use ordinary merge commits in numerical
-order; squash-merging cumulative predecessors causes later PRs to repeat earlier changes.
+Maintainer review/merging remains separate. Follow the three-PR order above;
+squash-merging cumulative predecessors causes later PRs to repeat earlier changes.
 The complete 0.6.0 release, payment/invoicing/quotas and full SaaS Wizard/installed-plugin
 acceptance remain OPEN. No completion percentage is inferred from the PR count.
