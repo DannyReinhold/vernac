@@ -261,6 +261,13 @@ jobs:
                   assert not any(case.find(t) is not None for t in ('skipped', 'failure', 'error'))
           print('Shared mail provider and compiled consumer proofs executed; none skipped.')
           saas_proofs = {
+              'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityJourneysPostgresIT.xml': {
+                  'verificationCommitsCredentialsActivationAccountAndFirstOwnerAtomicallyAndDoesNotLogIn',
+                  'failedProvisioningRollsBackTokenPasswordActivationAndWorkspaceAndCanRetryAfterRestart',
+                  'concurrentVerificationAcrossContextsHasOneWinnerAndOnePersonalAccount',
+                  'recoveryAndAuthenticatedChangeAdvanceEpochRequireReauthenticationAndNeverCreateAccountsOrSessions',
+                  'weakPasswordsExpiredLinksAndNeutralUnknownRecoveryDoNotConsumeAValidChallengeOrCreateIdentity',
+              },
               'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.AccountPolicyPostgresIT.xml': {
                   'twoContextsCannotBothRemoveTheLastSurvivingActiveOwner',
                   'freshRoleUnionSelectionAndObjectPolicyNeverInferOwnerOrSpringAuthorityProductRights',

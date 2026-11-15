@@ -47,6 +47,9 @@ public final class IdentityAccounts implements PermissionEvaluator {
             if(!jdbc.queryForList("SELECT 1 FROM "+S+"\"AccountMembership\" WHERE "+unknown+" LIMIT 1",Map.of("known",catalog.roleKeys()),Integer.class).isEmpty())throw fail(CONFIGURATION);
         } catch(RuntimeException unavailable) {throw fail(CONFIGURATION);}
     }
+    boolean uses(NamedParameterJdbcTemplate template,PlatformTransactionManager manager) {
+        return template.getJdbcTemplate().getDataSource()==jdbc.getJdbcTemplate().getDataSource() && writer.getTransactionManager()==manager;
+    }
     static AccountMemberKey key(AccountId account,UserId user) {return AccountMemberKey.of(account.asString()+"/"+user.asString());}
     private static AccountAccessException fail(AccountAccessException.Code code) {return new AccountAccessException(code);}
     private static void unscoped() {
