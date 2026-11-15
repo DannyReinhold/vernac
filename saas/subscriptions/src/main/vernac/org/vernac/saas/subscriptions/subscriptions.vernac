@@ -20,7 +20,7 @@ value BenefitKey(String value) validates {
 };
 term Allowance { description "Zero denies allocation, positive values are finite, minus one explicitly means unlimited."; }
 value Allowance(long maximum) validates {
-    require(self.maximum() >= -1, "Invalid allowance");
+    require(org.vernac.saas.subscriptions.SubscriptionRules.validAllowance(self.maximum()), "Invalid allowance");
 };
 value BenefitSnapshot(String encoded) validates {
     require(org.vernac.saas.subscriptions.Benefits.valid(self.encoded()), "Invalid benefit snapshot");

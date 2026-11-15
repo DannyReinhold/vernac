@@ -4,6 +4,7 @@ package org.vernac.saas.subscriptions;
 /** Shared assertion for generated domain behavior, without transport/persistence dependencies. */
 public final class SubscriptionRules {
     private SubscriptionRules() {}
+    public static boolean validAllowance(long amount) { return amount >= -1; }
     public static boolean validPrice(long amount) { return amount >= 0 && amount <= 9_000_000_000_000_000L; }
     public static void require(boolean condition, SubscriptionFailure.Code code) {
         if (!condition) throw new SubscriptionFailure(code);
