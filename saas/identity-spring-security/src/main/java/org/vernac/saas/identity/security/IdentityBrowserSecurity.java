@@ -22,6 +22,14 @@ public final class IdentityBrowserSecurity {
 
     public static SecurityFilterChain build(HttpSecurity http, AuthenticationManager manager,
             IdentitySessionTrust trust, IdentityLocalReturnTarget returns, IdentityRequestAdmission admission) throws Exception {
+        return assemble(http,manager,trust,returns,admission,null);
+    }
+    public static SecurityFilterChain build(HttpSecurity http,AuthenticationManager manager,IdentitySessionTrust trust,
+            IdentityLocalReturnTarget returns,IdentityRequestAdmission admission,IdentityBrowserActions actions) throws Exception {
+        return assemble(http,manager,trust,returns,admission,Objects.requireNonNull(actions));
+    }
+    private static SecurityFilterChain assemble(HttpSecurity http,AuthenticationManager manager,IdentitySessionTrust trust,
+            IdentityLocalReturnTarget returns,IdentityRequestAdmission admission,IdentityBrowserActions actions) throws Exception {
         Objects.requireNonNull(http);Objects.requireNonNull(manager);Objects.requireNonNull(trust);Objects.requireNonNull(returns);Objects.requireNonNull(admission);
         var contexts = new HttpSessionSecurityContextRepository();
         contexts.setDisableUrlRewriting(true);
@@ -46,7 +54,7 @@ public final class IdentityBrowserSecurity {
                 }).accessDeniedHandler((request,response,failure) -> {
                     response.setHeader("Cache-Control", "no-store");response.setStatus(403);
                 }))
-                .authorizeHttpRequests(c -> c.requestMatchers(path("GET", "/identity/login"),path("POST", "/identity/login")).permitAll()
+                .authorizeHttpRequests(c -> c.requestMatchers(path("GET", "/identity/login"),path("POST", "/identity/login"),request -> actions!=null && IdentityJourneyFilter.PUBLIC.contains(request.getServletPath()) && Set.of("GET","POST").contains(request.getMethod())).permitAll()
                         .anyRequest().access((authentication, context) -> {
                             var value=authentication.get();
                             return new AuthorizationDecision(value != null && value.isAuthenticated()
@@ -55,8 +63,10 @@ public final class IdentityBrowserSecurity {
         http.addFilterBefore(new IdentitySecureTransportFilter(), SecurityContextHolderFilter.class);
         http.addFilterAfter(new IdentityRequestAdmissionFilter(admission), IdentitySecureTransportFilter.class);
         http.addFilterAfter(new IdentitySessionValidationFilter(trust), SecurityContextHolderFilter.class);
-        http.addFilterBefore(new IdentityFormFilter(Set.of("/identity/login", "/identity/logout")), CsrfFilter.class);
-        http.addFilterAfter(new IdentityLoginPageFilter(returns), CsrfFilter.class);
+        var forms=new HashSet<>(Set.of("/identity/login","/identity/logout"));
+        if(actions!=null){forms.addAll(IdentityJourneyFilter.FORMS);http.addFilterAfter(new IdentityJourneyFilter(actions),org.springframework.security.web.access.intercept.AuthorizationFilter.class);}
+        http.addFilterBefore(new IdentityFormFilter(forms), CsrfFilter.class);
+        http.addFilterAfter(new IdentityLoginPageFilter(returns,actions!=null), CsrfFilter.class);
         http.addFilterAt(new IdentityLoginFilter("/identity/login",manager,contexts,sessions,returns), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
