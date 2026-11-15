@@ -91,6 +91,13 @@ public final class SubscriptionLedger {
 
     /** Same logical operation must retain exactly the same subscription, terms and period across retries. */
     public View confirm(AccountId verifiedAccount, SettlementKey operation, OfferTerms verifiedTerms, SubscriptionPeriod paidPeriod) {
+        return settle(verifiedAccount, operation, verifiedTerms, paidPeriod, false);
+    }
+    /** Trusted explicit purchase: its registered, verified terms are installed atomically with settlement. */
+    public View confirmAuthorizedPurchase(AccountId verifiedAccount, SettlementKey operation, OfferTerms verifiedTerms, SubscriptionPeriod paidPeriod) {
+        return settle(verifiedAccount, operation, verifiedTerms, paidPeriod, true);
+    }
+    private View settle(AccountId verifiedAccount, SettlementKey operation, OfferTerms verifiedTerms, SubscriptionPeriod paidPeriod, boolean explicitPurchase) {
         Objects.requireNonNull(operation); Objects.requireNonNull(verifiedTerms); Objects.requireNonNull(paidPeriod);
         return transact(verifiedAccount, existing -> {
             var subscription = required(existing);
@@ -103,6 +110,7 @@ public final class SubscriptionLedger {
                 return view(subscription);
             }
             if (paidPeriod.start().isAfter(clock.instant())) throw fail(SubscriptionFailure.Code.NOT_DUE);
+            if (explicitPurchase && subscription.status() != SubscriptionStatus.AWAITING_PAYMENT) subscription.scheduleChange(verifiedTerms);
             if (subscription.status() == SubscriptionStatus.AWAITING_PAYMENT)
                 subscription.settleInitial(verifiedTerms, paidPeriod.start(), paidPeriod.end());
             else if (subscription.terms().price().value() == 0 && verifiedTerms.price().value() > 0)
