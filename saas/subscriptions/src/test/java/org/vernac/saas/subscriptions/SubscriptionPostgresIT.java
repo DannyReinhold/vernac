@@ -94,10 +94,17 @@ class SubscriptionPostgresIT {
                 var confirm = pool.submit(() -> { barrier.await(); try { a.confirm(account, key, PAID, PERIOD); } catch (SubscriptionFailure reversed) { assertEquals(SubscriptionFailure.Code.INVALID_TRANSITION, reversed.code()); } return true; });
                 var reverse = pool.submit(() -> { barrier.await(); b.revokeVerifiedSettlement(account, key, PAID, PERIOD); return true; });
                 assertTrue(confirm.get(10, TimeUnit.SECONDS)); assertTrue(reverse.get(10, TimeUnit.SECONDS));
-                assertEquals(0, Benefits.allowance(a.benefits(account), BenefitKey.of("exports")).maximum());
+                assertTrue(Benefits.allowance(a.benefits(account), BenefitKey.of("exports")).maximum() <= 3, "A reversal must prevent paid benefits while preserving an already-active free agreement if reversal wins first");
                 assertEquals(SubscriptionFailure.Code.INVALID_TRANSITION, assertThrows(SubscriptionFailure.class, () -> a.confirm(account, key, PAID, PERIOD)).code());
                 b.revokeVerifiedSettlement(account, key, PAID, PERIOD);
-                assertEquals(1L, jdbc(first).queryForObject("SELECT count(*) FROM \"org.vernac.saas.subscriptions\".\"SubscriptionSettlement\" WHERE \"status\"='REVOKED'", Map.of(), Long.class));
+                var before = AccountId.create(); var beforeKey = SettlementKey.of("reverse-before-explicit");
+                a.ensureFree(before); b.revokeVerifiedSettlement(before, beforeKey, PAID, PERIOD);
+                assertEquals(FREE.benefits(), a.benefits(before));
+                assertThrows(SubscriptionFailure.class, () -> a.confirmAuthorizedPurchase(before, beforeKey, PAID, PERIOD));
+                var after = AccountId.create(); var afterKey = SettlementKey.of("reverse-after-explicit");
+                a.ensureFree(after); a.confirmAuthorizedPurchase(after, afterKey, PAID, PERIOD); b.revokeVerifiedSettlement(after, afterKey, PAID, PERIOD);
+                assertEquals(0, Benefits.allowance(a.benefits(after), BenefitKey.of("exports")).maximum());
+                assertEquals(3L, jdbc(first).queryForObject("SELECT count(*) FROM \"org.vernac.saas.subscriptions\".\"SubscriptionSettlement\" WHERE \"status\"='REVOKED'", Map.of(), Long.class));
             } catch (Exception failure) { throw new AssertionError(failure); } finally { pool.shutdownNow(); }
         })));
     }
