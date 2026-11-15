@@ -6,6 +6,7 @@
  <properties><java.version>21</java.version><vernac.version>0.6.0-SNAPSHOT</vernac.version></properties>
  <dependencies>
   <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-webmvc</artifactId></dependency>
+  <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-security</artifactId></dependency>
   <dependency><groupId>org.vernac</groupId><artifactId>vernac-runtime-http</artifactId><version>${vernac.version}</version></dependency>
   <dependency><groupId>org.vernac</groupId><artifactId>vernac-saas-identity-jdbc</artifactId><version>${vernac.version}</version></dependency>
   <dependency><groupId>org.vernac</groupId><artifactId>vernac-saas-mail-local</artifactId><version>${vernac.version}</version></dependency>
