@@ -28,9 +28,12 @@ are preserved in GitHub and validated by the repository's normal CI. A green
 primitive PR is not acceptance of an unimplemented public browser journey.
 
 | 13 | [#62](https://github.com/DannyReinhold/vernac/pull/62) | Bounded Identity forms and validated local return paths |
+| 14 | [#63](https://github.com/DannyReinhold/vernac/pull/63) | Explicit Spring login HTTP adapter |
 
 ## Delivered slices
 
+- [Opt-in HTTPS browser chain](../contracts/saas-identity-browser-chain.md), including
+  current-session checks, CSRF renewal, POST logout and no saved-request URLs.
 - [Explicit login HTTP adapter](../contracts/saas-identity-login-http.md), with
   Spring filter-chain/CSRF/fixation/context persistence tests.
 - [Shared mail providers](../contracts/saas-mail-providers.md) and
