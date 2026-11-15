@@ -125,3 +125,11 @@ A verified explicit new payment may resume a suspended agreement with a new peri
 starting after the old end. Missed periods are not charged implicitly. The payment
 application must distinguish an explicit resumed purchase from an automatic renewal;
 automatic catch-up charges after a long outage are not authorized by this domain API.
+
+
+A registered explicit purchase may use confirmAuthorizedPurchase after its verified
+payment: the requested terms and settlement are written in the same subscription
+transaction. It is a trusted application integration API, not an HTTP DTO action.
+Creating or cancelling an unpaid checkout must not pre-emptively change renewal terms.
+An early future payment still returns NOT_DUE without altering current/pending terms;
+the durable payment order retains its paid snapshot until the effective boundary.
