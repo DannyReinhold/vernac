@@ -111,6 +111,8 @@ CI. There are no uncommitted local deliverables required to reproduce this serie
 - Full release A03–A23/J01–J09, financial/product entitlements, complete SaaS UI/Wizard,
   installed IDE, publication/Marketplace and maintainer GO remain separate gates.
 
-Review and merge [the complete sequence](identity-auth-review-series-0.6.0.md) in
-numerical order using ordinary merge commits. Re-run normal merged-branch checks
+Review and merge [the consolidated three-PR sequence](identity-auth-review-series-0.6.0.md)
+#58 → #68 → #80 using ordinary merge commits. Retarget each successor to
+feature/0.6.0 after merging its predecessor; the earlier per-slice links above remain
+historical test evidence, not a separate merge queue. Re-run normal merged-branch checks
 before eventual release preparation; this record authorizes no automatic merge.
