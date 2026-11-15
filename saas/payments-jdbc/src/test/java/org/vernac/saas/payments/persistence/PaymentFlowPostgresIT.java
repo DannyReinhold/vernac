@@ -61,6 +61,8 @@ class PaymentFlowPostgresIT {
                 assertThrows(PaymentProcessingFailure.class, () -> f.flow.orders(account, Optional.empty(), 101));
                 settle(f, time); assertEquals(PaymentOrderStatus.APPLIED, f.flow.order(account, order.get()).status());
                 assertEquals(PAID.benefits(), f.subscriptions.benefits(account));
+                assertEquals(account, f.flow.verifiedPayment(order.get()).account());
+                assertEquals(List.of(order.get()), f.flow.verifiedPayments(Optional.empty(), 100).stream().map(PaymentFlow.VerifiedPayment::order).toList());
                 remote.set(f.jdbc.queryForObject("SELECT \"remote\" FROM \"org.vernac.saas.payments.persistence\".\"PaymentAttempt\" WHERE \"order\"=:order", Map.of("order", order.get().value()), String.class));
             });
             db.boot.run(context -> {

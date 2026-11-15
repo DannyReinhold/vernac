@@ -27,6 +27,28 @@ public final class PaymentFlow {
             PaymentState payment, MinorUnits refunded, Optional<PaymentUri> checkout, PaymentReason reason) {
         @Override public String toString() { return "PaymentOrderView[REDACTED]"; }
     }
+    /** Trusted worker read model for invoicing, never a public controller response. */
+    public record VerifiedPayment(PaymentOrderId order, AccountId account, OfferTerms terms, SubscriptionPeriod period,
+            PaymentPostedAt postedAt, MinorUnits refunded, PaymentProfileKey profile, PaymentProviderEnvironment environment) {
+        @Override public String toString() { return "VerifiedPayment[REDACTED]"; }
+    }
+    public VerifiedPayment verifiedPayment(PaymentOrderId id) {
+        unscoped(); return write(() -> verified(orders.byId(id)));
+    }
+    /** Poll in bounded passes, returning to the beginning at end so later refunds are revisited. */
+    public List<VerifiedPayment> verifiedPayments(Optional<PaymentOrderId> after, int limit) {
+        unscoped(); Objects.requireNonNull(after); if (limit < 1 || limit > 100) throw fail(PaymentProcessingFailure.Code.INVALID_STATE);
+        return write(() -> {
+            var parameters = new HashMap<String, Object>(); parameters.put("limit", limit); after.ifPresent(id -> parameters.put("after", id.value()));
+            var ids = jdbc.queryForList("SELECT o.\"id\" FROM " + S + "\"PaymentOrder\" o JOIN " + S + "\"PaymentAttempt\" a ON o.\"paidAttempt\"=a.\"id\" WHERE a.\"postedAt\" IS NOT NULL" + (after.isPresent() ? " AND o.\"id\">:after" : "") + " ORDER BY o.\"id\" LIMIT :limit", parameters, UUID.class);
+            return ids.stream().map(id -> verified(orders.byId(PaymentOrderId.of(id)))).toList();
+        });
+    }
+    private VerifiedPayment verified(PaymentOrder order) {
+        var attempt = order.paidAttempt().map(attempts::byId).orElseThrow(() -> fail(PaymentProcessingFailure.Code.INVALID_STATE));
+        if (attempt.state() != PaymentState.PAID && attempt.state() != PaymentState.REFUNDED) throw fail(PaymentProcessingFailure.Code.INVALID_STATE);
+        return new VerifiedPayment(order.id(), order.account(), order.terms(), order.period(), attempt.postedAt().orElseThrow(() -> fail(PaymentProcessingFailure.Code.INVALID_STATE)), attempt.refunded(), attempt.profile(), provider(attempt.profile()).environment());
+    }
     private record Claim(PaymentAttemptId attempt, UUID lease) {}
     private record Work(PaymentAttempt attempt, PaymentOrder order) {}
     private static final String S = "\"org.vernac.saas.payments.persistence\".";
