@@ -165,4 +165,37 @@ class PaymentFlowPostgresIT {
         });
     }
 
+    @Test void recurringWorkUsesVerifiedMandateAndOneCurrentPeriodWithoutChargingCancelledRenewal() throws Exception {
+        var account = AccountId.create(); var time = new Time();
+        new PaymentFlowTestEnvironment(root).withDatabase(db -> db.boot.run(context -> {
+            var f = fixture(context, time, account);
+            f.flow.checkout(account, PaymentOperationId.create(), LOCAL, PlanCatalog.id(PAID)); settle(f, time);
+            assertFalse(f.flow.scheduleRenewalOne());
+            time.value.set(Instant.parse("2026-02-01T00:00:00Z"));
+            assertTrue(f.flow.scheduleRenewalOne()); assertFalse(f.flow.scheduleRenewalOne());
+            assertTrue(f.flow.processOne(URL, URL)); assertTrue(f.flow.processOne(URL, URL));
+            time.advance(30); assertTrue(f.flow.processOne(URL, URL)); assertTrue(f.flow.processOne(URL, URL));
+            assertEquals(Instant.parse("2026-03-01T00:00:00Z"), f.subscriptions.current(account).period().end());
+            assertEquals(2L, f.jdbc.queryForObject("SELECT count(*) FROM \"org.vernac.saas.payments.local\".\"LocalPayment\"", Map.of(), Long.class));
+            f.subscriptions.cancel(account);
+            time.value.set(Instant.parse("2026-03-01T00:00:00Z"));
+            assertTrue(f.flow.scheduleRenewalOne()); assertFalse(f.flow.scheduleRenewalOne());
+            assertEquals(SubscriptionStatus.ENDED, f.subscriptions.current(account).status());
+            assertFalse(f.flow.processOne(URL, URL));
+            assertEquals(2L, f.jdbc.queryForObject("SELECT count(*) FROM \"org.vernac.saas.payments.local\".\"LocalPayment\"", Map.of(), Long.class));
+        }));
+    }
+    @Test void missedEntireBillingPeriodCreatesReviewWorkWithoutBackBilling() throws Exception {
+        var account = AccountId.create(); var time = new Time();
+        new PaymentFlowTestEnvironment(root).withDatabase(db -> db.boot.run(context -> {
+            var f = fixture(context, time, account);
+            f.flow.checkout(account, PaymentOperationId.create(), LOCAL, PlanCatalog.id(PAID)); settle(f, time);
+            time.value.set(Instant.parse("2026-04-01T00:00:00Z"));
+            assertTrue(f.flow.scheduleRenewalOne()); assertFalse(f.flow.processOne(URL, URL));
+            assertEquals(1L, f.jdbc.queryForObject("SELECT count(*) FROM \"org.vernac.saas.payments.persistence\".\"PaymentOrder\" WHERE \"status\"='REVIEW'", Map.of(), Long.class));
+            assertEquals(1L, f.jdbc.queryForObject("SELECT count(*) FROM \"org.vernac.saas.payments.local\".\"LocalPayment\"", Map.of(), Long.class));
+            assertNotEquals(PAID.benefits(), f.subscriptions.benefits(account));
+        }));
+    }
+
 }

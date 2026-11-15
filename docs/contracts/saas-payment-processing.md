@@ -88,3 +88,16 @@ for that total to include all confirmed local receipts before completing. Partia
 refunds preserve purchased benefits. A full refund queues the ordinary reversal stage;
 crashes between provider confirmation, reconciliation and reversal remain retryable.
 Failed provider facts remain review work, never an invented successful refund.
+
+## Renewal scheduling
+
+`scheduleRenewalOne()` selects at most one due persisted billing agreement. It reloads
+current subscription state and records a renewal only for the next calendar period,
+using the previously verified customer and mandate. Preparation and dispatch recheck
+renewal terms and cancellation. A changed quote is never silently charged using stale
+terms. Existing pending work and previously recorded cycles prevent parallel charges.
+
+Cancellation expires the agreement at its paid boundary without a renewal charge.
+An explicitly scheduled Free offer is a nonfinancial transition. A completely missed
+paid period creates review work; the scheduler never accumulates retrospective charges.
+The application installs its own scheduler and exposes review work to its operator.

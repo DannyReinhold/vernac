@@ -104,7 +104,54 @@ public final class PaymentFlow {
         return write(() -> {
             lock(account); var row = owned(account, order); var previous = latest(row);
             if (row.paidAttempt().isPresent() || row.status() == PaymentOrderStatus.CLOSED || !Set.of(PaymentState.FAILED, PaymentState.CANCELLED, PaymentState.EXPIRED).contains(previous.state()) || row.attempts().value() >= 5) throw fail(PaymentProcessingFailure.Code.INVALID_STATE);
-            var attempt = firstAttempt(row, previous.profile(), PaymentAttemptKind.FIRST, null, null); return view(orders.byId(row.id()), attempt);
+            var attempt = firstAttempt(row, previous.profile(), previous.kind(), previous.kind() == PaymentAttemptKind.RECURRING ? previous.customer().orElseThrow() : null, previous.kind() == PaymentAttemptKind.RECURRING ? previous.mandate().orElseThrow() : null); return view(orders.byId(row.id()), attempt);
+        });
+    }
+    /** Registers at most one due renewal from a previously verified mandate; it never catches up old charges. */
+    public boolean scheduleRenewalOne() {
+        unscoped();
+        var selected = write(() -> {
+            var ids = jdbc.queryForList("SELECT \"id\" FROM " + S + "\"BillingAgreement\" WHERE \"nextBillingAt\"<=:now ORDER BY \"nextBillingAt\",\"id\" LIMIT 1 FOR UPDATE SKIP LOCKED", Map.of("now", java.sql.Timestamp.from(now())), UUID.class);
+            if (ids.isEmpty()) return Optional.<BillingAgreement>empty();
+            var row = agreements.byId(SubscriptionId.of(ids.getFirst())); row.next(due(now().plusSeconds(30))); agreements.save(row); return Optional.of(row);
+        });
+        if (selected.isEmpty()) return false;
+        var agreement = selected.get(); var current = subscriptions.current(agreement.account());
+        if (!current.id().equals(agreement.id())) throw fail(PaymentProcessingFailure.Code.INVALID_STATE);
+        if (current.status() == SubscriptionStatus.ENDED || current.renewal() == RenewalStatus.CANCELLED) {
+            if (current.status() != SubscriptionStatus.ENDED && !now().isBefore(current.period().end())) subscriptions.expire(agreement.account());
+            postponeAgreement(agreement, now().isBefore(current.period().end()) && current.status() != SubscriptionStatus.ENDED ? current.period().end() : Instant.parse("9999-01-01T00:00:00Z")); return true;
+        }
+        if (now().isBefore(current.period().end())) { postponeAgreement(agreement, current.period().end()); return true; }
+        var terms = current.renewalTerms();
+        // A scheduled Free change is a nonfinancial subscription transition, never a zero-value charge.
+        if (terms.price().value() == 0) {
+            var period = SubscriptionPeriod.of(current.period().end(), BillingCalendar.end(current.period().end(), terms.interval()));
+            subscriptions.confirm(agreement.account(), SettlementKey.of("free-renewal/" + current.id().asString() + "/" + current.period().end().getEpochSecond()), terms, period);
+            postponeAgreement(agreement, period.end()); return true;
+        }
+        var period = SubscriptionPeriod.of(current.period().end(), BillingCalendar.end(current.period().end(), terms.interval()));
+        write(() -> {
+            lock(agreement.account());
+            if (!jdbc.queryForList("SELECT 1 FROM " + S + "\"PaymentOrder\" WHERE \"account\"=:account AND (\"status\" IN ('OPEN','PAID','REVIEW') OR \"reason\"<>'NONE') LIMIT 1", Map.of("account", agreement.account().value()), Integer.class).isEmpty()) return Boolean.FALSE;
+            var cycle = PaymentKeys.cycle(agreement.account(), current.id(), period);
+            if (!jdbc.queryForList("SELECT 1 FROM " + S + "\"PaymentOrder\" WHERE \"cycle\"=:cycle AND \"status\"<>'CLOSED' LIMIT 1", Map.of("cycle", cycle.encoded()), Integer.class).isEmpty()) return Boolean.FALSE;
+            var order = orders.save(PaymentOrder.create(cycle, PaymentKeys.request(agreement.account(), PaymentOperationId.create()), agreement.account(), current.id(), terms, period, PaymentOrderStatus.OPEN, null, PaymentCounter.of(0), PaymentReason.NONE));
+            var attempt = firstAttempt(order, agreement.profile(), PaymentAttemptKind.RECURRING, agreement.customer(), agreement.mandate());
+            if (!now().isBefore(period.end())) {
+                attempt.review(PaymentReason.SETTLEMENT_CONFLICT); attempts.save(attempt); order = orders.byId(order.id()); order.review(PaymentReason.SETTLEMENT_CONFLICT); orders.save(order);
+            }
+            return Boolean.TRUE;
+        });
+        return true;
+    }
+    private void postponeAgreement(BillingAgreement agreement, Instant until) {
+        write(() -> { lock(agreement.account()); var current = agreements.byId(agreement.id());
+            // A concurrent new paid agreement owns its own next boundary.
+            if (current.profile().equals(agreement.profile()) && current.customer().equals(agreement.customer()) && current.mandate().equals(agreement.mandate()) && current.nextBillingAt().equals(agreement.nextBillingAt())) {
+                current.next(due(until)); agreements.save(current);
+            }
+            return Boolean.TRUE;
         });
     }
     public record RefundView(PaymentRefundId id, MinorUnits amount, RefundState state, PaymentReason reason) {
@@ -366,7 +413,7 @@ public final class PaymentFlow {
                 : order.period().start().equals(current.period().end()) || kind == PaymentAttemptKind.FIRST && order.period().start().isAfter(current.period().end()) && !order.period().start().isAfter(now());
         boolean status = current.status() == SubscriptionStatus.ACTIVE || current.status() == SubscriptionStatus.SUSPENDED && current.terms().price().value() > 0;
         if (kind == PaymentAttemptKind.RECURRING && !now().isBefore(order.period().end())) throw fail(PaymentProcessingFailure.Code.INVALID_STATE);
-        if (!current.id().equals(order.subscription()) || !status || current.renewal() == RenewalStatus.CANCELLED || !period) throw fail(PaymentProcessingFailure.Code.INVALID_STATE);
+        if (!current.id().equals(order.subscription()) || !status || current.renewal() == RenewalStatus.CANCELLED || !period || kind == PaymentAttemptKind.RECURRING && !current.renewalTerms().equals(order.terms())) throw fail(PaymentProcessingFailure.Code.INVALID_STATE);
     }
     public void closeUnpaid(AccountId account, PaymentOrderId id) {
         administrator(account);
