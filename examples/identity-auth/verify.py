@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Copyright 2026 Danny Reinhold; SPDX-License-Identifier: Apache-2.0
 """Disposable PostgreSQL + HTTPS + Chromium acceptance; no external delivery."""
-import base64, json, os, pathlib, secrets, subprocess, tempfile, time, urllib.request, ssl
+import base64, json, os, pathlib, re, secrets, subprocess, tempfile, time, urllib.request, ssl
 ROOT=pathlib.Path(__file__).resolve().parent
 admin=os.environ["VERNAC_PG_TEST_URL"].removeprefix("jdbc:")
 db="browser_identity_"+secrets.token_hex(8)
@@ -43,6 +43,15 @@ try:
                         if response.status==200:ready=True;break
                 except Exception:time.sleep(.25)
             if not ready:
+                # Emit only exception classes, registered bean identities and missing property names.
+                # Arbitrary exception messages and driver payloads never enter CI output.
+                startup=(tmp/"application.log").read_text()
+                classes=sorted(set(re.findall(r"(?:org|java|jakarta|example|com)\.[\w.$]+(?:Exception|Error)",startup)))
+                beans=sorted(set(re.findall(r"Error creating bean with name '([A-Za-z0-9_.$]+)'",startup)))
+                missing=sorted(set(re.findall(r"(?:Required key|placeholder) ['\"]([A-Za-z0-9_.-]+)['\"]",startup)))
+                print("Startup exception classes:",classes)
+                print("Startup beans:",beans)
+                print("Missing property names:",missing)
                 raise RuntimeError("Sample HTTPS startup failed")
             result=subprocess.run(["node","verify.mjs"],cwd=ROOT/"browser",env=env)
             if result.returncode:raise RuntimeError("Chromium acceptance failed")
