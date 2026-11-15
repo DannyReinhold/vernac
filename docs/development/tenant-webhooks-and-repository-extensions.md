@@ -3,7 +3,11 @@ title: Tenant-safe webhooks and handwritten repository extensions
 ---
 # Tenant-safe ingress and persistence extensions
 
-Status: **required 0.6.0 follow-up; not implemented extension APIs or syntax**.
+Status: **0.6.0 acceptance requirements; implementation and evidence are tracked separately**.
+The explicit Java repository capability is now implemented; see the
+[developer contract](../contracts/repository-extensions.md) and its executable fixture.
+No new repository delegate syntax is introduced. The remaining text records the safety
+requirements, not a blanket claim that every release gate has passed.
 This records two acceptance gaps alongside the existing tenant/event foundations.
 It does not claim completed webhook routing, repository delegates, return guards or
 an arbitrary-SQL verification system. See the [release ledger](release-0.6.0.md),
@@ -91,7 +95,8 @@ is committed by this document.
 The repository grammar currently accepts declarative `find` methods. There is no
 supported repository `behavior` / `implemented by` extension declaration yet.
 Java can implement/wrap an interface, but this is not automatically a verified Vernac
-repository extension. The generated JDBC adapter keeps its store/bindings private;
+repository extension. The generated JDBC adapter now exposes `JdbcRepositoryExtensionSource.jdbcExtensions()`
+with canonical hydration and guarded results, while keeping its store/bindings private;
 subclassing/editing generated files is not the intended extension mechanism.
 
 The canonical `JdbcAggregateStore` already performs scoped CRUD and complete graph
@@ -110,7 +115,8 @@ claim a NEW/DETACHED object for the current tenant or reset its version to make 
 
 ### Required supported path
 
-Design one explicit, consistent delegate/extension boundary before adding syntax.
+The supported Java boundary is documented in the [extension contract](../contracts/repository-extensions.md).
+Retain one explicit, consistent boundary before considering additional syntax.
 Prefer the existing generated-wrapper/access-context style. It should provide:
 
 - A runtime-only scoped read facility that checks MANDATORY transaction, actual runtime
@@ -172,4 +178,4 @@ Some failures are runtime invariants; tests must exercise those paths before rel
 
 This is required by A15/A18/A19/A20 and the explicit A22 release gate. Exact delegate
 syntax, facade names, advanced SQL/write scope and diagnosable registrations remain
-open design decisions. This document does not declare those APIs implemented.
+open design decisions. The linked contract identifies the implemented Java API; this requirements document alone does not attest release readiness.

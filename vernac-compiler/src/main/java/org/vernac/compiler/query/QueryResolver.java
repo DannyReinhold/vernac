@@ -44,7 +44,7 @@ public final class QueryResolver {
                 error(repo.location(),"Cannot create a local repository for a module-owned aggregate: "+target.symbol().identity().qualifiedName()+". Import its exported repository instead.");continue;
             }
             AggregateNode aggregate=(AggregateNode)definitions.get(target.symbol().identity().qualifiedName());
-            Set<String> names=new HashSet<>(Set.of("byId","save","delete","getClass","hashCode","equals","toString","wait","notify","notifyAll","finalize","clone","rootMapping","entityMappings","tables"));
+            Set<String> names=new HashSet<>(Set.of("byId","save","delete","jdbcExtensions","getClass","hashCode","equals","toString","wait","notify","notifyAll","finalize","clone","rootMapping","entityMappings","tables"));
             for(var method:repo.methods()) {
                 int before=diagnostics.size();
                 if(method.name().matches("valueMapping[0-9]+") || !SourceVersion.isIdentifier(method.name()) || SourceVersion.isKeyword(method.name()) || !names.add(method.name()))

@@ -72,6 +72,14 @@ public final class JdbcRepositoryGenerator {
                 .addStatement("return aggregate").build());
         adapter.addMethod(MethodSpec.methodBuilder("delete").addAnnotation(Override.class).addModifiers(Modifier.PUBLIC).addParameter(aggregate,"aggregate")
                 .addStatement("store.delete(aggregate)").build());
+        ClassName extensionSource=ClassName.get("org.vernac.runtime.jdbc","JdbcRepositoryExtensionSource");
+        ClassName extensionAccess=ClassName.get("org.vernac.runtime.jdbc","JdbcRepositoryAccess");
+        adapter.addSuperinterface(ParameterizedTypeName.get(extensionSource,aggregate,id));
+        adapter.addMethod(MethodSpec.methodBuilder("jdbcExtensions").addAnnotation(Override.class).addModifiers(Modifier.PUBLIC)
+                .addAnnotation(AnnotationSpec.builder(ClassName.get("org.springframework.transaction.annotation","Transactional"))
+                        .addMember("propagation","$T.SUPPORTS",ClassName.get("org.springframework.transaction.annotation","Propagation")).build())
+                .returns(ParameterizedTypeName.get(extensionAccess,aggregate,id))
+                .addStatement("return store.extensions(($T id) -> id.value(), maximumPageSize, $S)",id,schema.fingerprint()).build());
         queryMethods(plan, adapter);
         List<CodeBlock> entities=new ArrayList<>(),tables=new ArrayList<>();
         for(var relation:plan.relations()) {

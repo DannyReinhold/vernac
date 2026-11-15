@@ -5,11 +5,10 @@
 Implemented in the project compiler, JDBC runtime and LSP. PostgreSQL integration
 tests are opt-in and must be run against the supported PostgreSQL deployment.
 Existing `byId`, `save` and `delete` remain available. Declarative offset/cursor
-[pagination](pagination.md) is also implemented. General handwritten JDBC extension
-declarations and query projections remain deferred. The repository block currently
-accepts only declarative find methods, not behavior/implemented-by delegates. The
-[required extension follow-up](../development/tenant-webhooks-and-repository-extensions.md)
-defines safety/documentation acceptance before that path is introduced.
+[pagination](pagination.md) is also implemented. Handwritten Java helpers can use the
+explicit [generated JDBC extension capability](repository-extensions.md), which retains
+canonical hydration, scope and return guards. General query projections and repository
+behavior/implemented-by declarations remain deferred; no new DSL syntax is required.
 
 ## Declaration and result contract
 
