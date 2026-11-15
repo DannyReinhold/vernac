@@ -19,7 +19,7 @@ import org.vernac.saas.mail.local.LocalMailInbox;
 /** Only the explicit local profile exposes this capability-protected bounded in-memory inbox. */
 @Configuration(proxyBeanMethods=false) @Profile("local")
 class LocalPreview {
- @Bean @Order(0) SecurityFilterChain localPreview(HttpSecurity http,Environment env)throws Exception {
+ @Bean @Order(0) SecurityFilterChain localPreviewChain(HttpSecurity http,Environment env)throws Exception {
   String capability=env.getRequiredProperty("identity.preview-capability");
   if(!capability.matches("[A-Za-z0-9_-]{43}") || !env.getRequiredProperty("server.address").equals("127.0.0.1")
    || !env.getProperty("identity.allow-loopback-simulation",Boolean.class,false)
