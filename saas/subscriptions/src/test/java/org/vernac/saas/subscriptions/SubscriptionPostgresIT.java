@@ -50,7 +50,7 @@ class SubscriptionPostgresIT {
                         () -> service.confirm(other, key, PAID, PERIOD)).code());
                 assertEquals(1L, context.getBean(NamedParameterJdbcTemplate.class).queryForObject("SELECT count(*) FROM \"org.vernac.saas.subscriptions\".\"SubscriptionSettlement\"", Map.of(), Long.class));
             });
-            assertEquals(1, db.migrationCount());
+            assertEquals(2, db.migrationCount());
         });
     }
     @Test void earlyRenewalPreservesCurrentAccessAndExplicitReopenKeepsOldReceipts() throws Exception {
@@ -70,6 +70,35 @@ class SubscriptionPostgresIT {
             var alteredPaid = SubscriptionDomainTest.offer("pro", "v1", 1300, 100);
             assertThrows(SubscriptionFailure.class, () -> new SubscriptionLedger(context.getBean(NamedParameterJdbcTemplate.class),
                     context.getBean(PlatformTransactionManager.class), new PlanCatalog(List.of(FREE, alteredPaid), PlanCatalog.id(FREE)), Clock.systemUTC()));
+        }));
+    }
+    @Test void authoritativeReversalFencesLateConfirmationAcrossIndependentInstances() throws Exception {
+        var account = AccountId.create(); var key = SettlementKey.of("refunded-order");
+        new SubscriptionTestEnvironment(root).withDatabase(db -> db.boot.run(first -> db.boot.run(second -> {
+            var a = ledger(first); var b = ledger(second); a.ensureFree(account); a.schedule(account, PlanCatalog.id(PAID));
+            var pool = Executors.newFixedThreadPool(2); var barrier = new CyclicBarrier(2);
+            try {
+                var confirm = pool.submit(() -> { barrier.await(); try { a.confirm(account, key, PAID, PERIOD); } catch (SubscriptionFailure reversed) { assertEquals(SubscriptionFailure.Code.INVALID_TRANSITION, reversed.code()); } return true; });
+                var reverse = pool.submit(() -> { barrier.await(); b.revokeVerifiedSettlement(account, key, PAID, PERIOD); return true; });
+                assertTrue(confirm.get(10, TimeUnit.SECONDS)); assertTrue(reverse.get(10, TimeUnit.SECONDS));
+                assertEquals(0, Benefits.allowance(a.benefits(account), BenefitKey.of("exports")).maximum());
+                assertEquals(SubscriptionFailure.Code.INVALID_TRANSITION, assertThrows(SubscriptionFailure.class, () -> a.confirm(account, key, PAID, PERIOD)).code());
+                b.revokeVerifiedSettlement(account, key, PAID, PERIOD);
+                assertEquals(1L, jdbc(first).queryForObject("SELECT count(*) FROM \"org.vernac.saas.subscriptions\".\"SubscriptionSettlement\" WHERE \"status\"='REVOKED'", Map.of(), Long.class));
+            } catch (Exception failure) { throw new AssertionError(failure); } finally { pool.shutdownNow(); }
+        })));
+    }
+    private static NamedParameterJdbcTemplate jdbc(AssertableApplicationContext context) { return context.getBean(NamedParameterJdbcTemplate.class); }
+    @Test void explicitPaidResumptionStartsAtTheNewConfirmedWindowWithoutBackbilling() throws Exception {
+        var account = AccountId.create(); var key = SettlementKey.of("resumed");
+        new SubscriptionTestEnvironment(root).withDatabase(db -> db.boot.run(context -> {
+            var service = ledger(context); service.ensureFree(account); service.schedule(account, PlanCatalog.id(PAID)); service.confirm(account, SettlementKey.of("initial"), PAID, PERIOD);
+            Instant resume = PERIOD.end().plusSeconds(20 * 86400);
+            var later = new SubscriptionLedger(jdbc(context), context.getBean(PlatformTransactionManager.class), catalog(), Clock.fixed(resume, ZoneOffset.UTC));
+            later.expire(account); var paid = SubscriptionPeriod.of(resume, BillingCalendar.end(resume, BillingInterval.MONTHLY));
+            assertEquals(paid, later.confirm(account, key, PAID, paid).period());
+            later.revokeVerifiedSettlement(account, SettlementKey.of("initial"), PAID, PERIOD);
+            assertEquals(PAID.benefits(), later.benefits(account)); // Refunding an older period cannot revoke a newer one.
         }));
     }
     @Test void independentInstancesSerializeFirstProvisioningAndCompetingSettlements() throws Exception {

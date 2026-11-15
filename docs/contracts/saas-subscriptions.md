@@ -108,3 +108,20 @@ add historical receipt compatibility, a product-transaction read path, explicit 
 and early-renewal protection; their exact-head checks must pass before review completion.
 No real payment was requested and no invoice was issued. This topic remains a draft
 until the remaining integration/acceptance obligations are met.
+
+
+## Reversal and resumption
+
+revokeVerifiedSettlement is an internal full-reversal operation for an authoritative
+payment/refund workflow. It writes a durable REVOKED receipt even when activation has
+not yet occurred. Confirmation and reversal serialize on the same account lock: a
+late callback can never activate a reversed payment. Repeated reversal is idempotent;
+conflicting receipt terms/account/period fail. Reversing an older period does not close
+a newer paid agreement. The status migration backfills old receipts as SETTLED because
+the preceding implementation could create receipts only after successful settlement;
+there was no previous reversal state. Review this additive migration before deployment.
+
+A verified explicit new payment may resume a suspended agreement with a new period
+starting after the old end. Missed periods are not charged implicitly. The payment
+application must distinguish an explicit resumed purchase from an automatic renewal;
+automatic catch-up charges after a long outage are not authorized by this domain API.
