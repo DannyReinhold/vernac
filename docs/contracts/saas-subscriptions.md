@@ -133,3 +133,5 @@ transaction. It is a trusted application integration API, not an HTTP DTO action
 Creating or cancelling an unpaid checkout must not pre-emptively change renewal terms.
 An early future payment still returns NOT_DUE without altering current/pending terms;
 the durable payment order retains its paid snapshot until the effective boundary.
+
+An explicitly scheduled Free offer activates at the paid boundary through `activateScheduledFree`. Its free period has the same nonexpiring horizon as initial Free; no monthly billing worker is needed to preserve free benefits. Cancellation never invokes this transition implicitly.

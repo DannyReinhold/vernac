@@ -52,10 +52,10 @@ jobs:
           python3 - <<'PY'
           import xml.etree.ElementTree as ET
           root = ET.parse('saas/subscriptions/target/surefire-reports/TEST-org.vernac.saas.subscriptions.SubscriptionDomainTest.xml').getroot()
-          assert int(root.attrib['tests']) >= 8
+          assert int(root.attrib['tests']) >= 9
           assert all(int(root.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
           integration = ET.parse('saas/subscriptions/target/failsafe-reports/TEST-org.vernac.saas.subscriptions.SubscriptionPostgresIT.xml').getroot()
-          expected = {'packagedModuleRetainsTermsSettlementAndAccountIsolationAcrossRestart', 'independentInstancesSerializeFirstProvisioningAndCompetingSettlements', 'failedReceiptInsertRollsBackEntitlementsAndCanRetryAfterRestart', 'catalogDriftAndAmbientTransactionsFailClosedWithoutChangingCustomerTerms', 'earlyRenewalPreservesCurrentAccessAndExplicitReopenKeepsOldReceipts', 'authoritativeReversalFencesLateConfirmationAcrossIndependentInstances', 'explicitPaidResumptionStartsAtTheNewConfirmedWindowWithoutBackbilling', 'registeredExplicitPurchaseInstallsItsTermsOnlyAtAtomicVerifiedSettlement'}
+          expected = {'scheduledFreeActivatesOnlyAtBoundaryAndRemainsEffectiveAfterRestartWithoutRenewalJobs', 'packagedModuleRetainsTermsSettlementAndAccountIsolationAcrossRestart', 'independentInstancesSerializeFirstProvisioningAndCompetingSettlements', 'failedReceiptInsertRollsBackEntitlementsAndCanRetryAfterRestart', 'catalogDriftAndAmbientTransactionsFailClosedWithoutChangingCustomerTerms', 'earlyRenewalPreservesCurrentAccessAndExplicitReopenKeepsOldReceipts', 'authoritativeReversalFencesLateConfirmationAcrossIndependentInstances', 'explicitPaidResumptionStartsAtTheNewConfirmedWindowWithoutBackbilling', 'registeredExplicitPurchaseInstallsItsTermsOnlyAtAtomicVerifiedSettlement'}
           assert expected <= {case.attrib['name'] for case in integration.findall('testcase')}
           assert all(int(integration.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
           PY
