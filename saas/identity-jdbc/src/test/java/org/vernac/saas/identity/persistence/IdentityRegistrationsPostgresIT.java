@@ -163,7 +163,7 @@ class IdentityRegistrationsPostgresIT {
                                                                                                 "expired"
                                                                                                     + " provisioning"))));
                                         assertEquals(1, f.used(PENDING_REGISTRATIONS));
-                                        assertEquals(11, uncheckedMigrations(db));
+                                        assertEquals(IdentityJdbcTestEnvironment.EXPECTED_MIGRATIONS, uncheckedMigrations(db));
                                     });
                         });
     }

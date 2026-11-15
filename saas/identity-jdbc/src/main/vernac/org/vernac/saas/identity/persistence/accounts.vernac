@@ -1,0 +1,52 @@
+namespace org.vernac.saas.identity.persistence;
+import org.vernac.saas.identity.UserId;
+import org.vernac.saas.identity.AccountId;
+import org.vernac.saas.identity.MembershipId;
+
+value AccountTenantKey(UUID value);
+value AccountKind = PERSONAL | ORGANIZATION;
+value AccountStatus = ACTIVE | CLOSED;
+value AccountMemberStatus = ACTIVE | REMOVED;
+value AccountOwner(boolean enabled);
+value AccountMemberKey(String encoded) validates {
+    require(self.encoded().matches("[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}"), "Invalid account membership key");
+} behavior { public String toString() { return "AccountMemberKey[REDACTED]"; } };
+value AccountRoleKeys(String encoded) validates {
+    require(org.vernac.saas.identity.roles.RoleAssignments.decode(self.encoded()) != null, "Invalid account role assignments");
+};
+term Account {
+    description "Controlled global workspace metadata with one immutable unique technical tenant mapping.";
+    note "The row serializes owner mutations. It neither establishes a product TenantContext nor grants rights by itself.";
+}
+global aggregate Account[AccountId](unique AccountTenantKey tenant, AccountKind kind, mut AccountStatus status) behavior {
+    modify void closeAccount() { self.status(AccountStatus.CLOSED); }
+};
+repository AccountRepository for Account {
+    find Account? existing(AccountId accountId) where id = :accountId;
+    find Account? forTenant(AccountTenantKey tenant) where tenant = :tenant;
+}
+term AccountMembership {
+    description "One current account/user membership and its explicit owner fact and bounded product-role set.";
+    note "All owner/removal/assignment writes go through the protected account writer; invitations never set owner.";
+}
+global aggregate AccountMembership[MembershipId](AccountId account references Account, UserId subject references Identity,
+    unique AccountMemberKey memberKey, mut AccountOwner owner, mut AccountMemberStatus status, mut AccountRoleKeys roles) validates {
+    require(self.memberKey().encoded().equals(self.account().asString() + "/" + self.subject().asString()), "Account membership key must match its nominal fields");
+} behavior {
+    modify void assign(AccountRoleKeys roles) { self.roles(roles); }
+    modify void ownership(AccountOwner owner) { self.owner(owner); }
+    modify void remove() { self.owner(AccountOwner.of(false)); self.status(AccountMemberStatus.REMOVED); self.roles(AccountRoleKeys.of("")); }
+    modify void restore(AccountRoleKeys roles) { self.owner(AccountOwner.of(false)); self.status(AccountMemberStatus.ACTIVE); self.roles(roles); }
+};
+repository AccountMembershipRepository for AccountMembership {
+    find AccountMembership? forKey(AccountMemberKey memberKey) where memberKey = :memberKey;
+    find AccountMembership? existing(MembershipId membershipId) where id = :membershipId;
+}
+term PersonalAccount {
+    description "Immutable one-personal-workspace assignment keyed by UserId with a unique AccountId.";
+    note "The atomic verification writer always reconstitutes this record with id equal to subject; repeated verification cannot create a second workspace.";
+}
+global aggregate PersonalAccount[UserId](UserId subject references Identity, unique AccountId account references Account);
+repository PersonalAccountRepository for PersonalAccount {
+    find PersonalAccount? existing(UserId subject) where id = :subject;
+}

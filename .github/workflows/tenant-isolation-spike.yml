@@ -261,6 +261,14 @@ jobs:
                   assert not any(case.find(t) is not None for t in ('skipped', 'failure', 'error'))
           print('Shared mail provider and compiled consumer proofs executed; none skipped.')
           saas_proofs = {
+              'saas/identity/target/surefire-reports/TEST-org.vernac.saas.identity.roles.RoleAssignmentsTest.xml': {
+                  'representationIsFiniteCanonicalAndRoundTripsEmptyAndMultipleRoles',
+                  'duplicatesUnknownGrammarNoncanonicalAndExcessiveInputAreRejected',
+              },
+              'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.AccountMetadataPostgresIT.xml': {
+                  'nominalMetadataPersistsAndDatabaseEnforcesTenantMembershipAndPersonalUniqueness',
+                  'generatedForeignKeysRejectOrphanMetadataAndRuntimeCannotDropConstraints',
+              },
               'vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.persistence.GlobalIdReferenceTest.xml': {
                   'nominalGlobalReferencesGenerateTrackedNoCascadeForeignKeysAndSchemaDeltas',
                   'wrongNominalTypesMutabilityMissingRepositoriesAndTenantBoundariesFailBeforeGeneration',

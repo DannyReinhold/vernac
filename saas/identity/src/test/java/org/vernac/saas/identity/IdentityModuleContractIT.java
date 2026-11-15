@@ -19,7 +19,7 @@ class IdentityModuleContractIT {
         var module=ModuleArtifacts.read(List.of(jar)).getFirst();ModuleContracts.checkDependencies(List.of(module));
         assertEquals("vernac.saas.identity",module.module());assertFalse(module.activatable());assertFalse(module.persistent());
         assertTrue(module.components().isEmpty());assertTrue(module.usecaseAccess().isEmpty());
-        assertEquals(Set.of("org.vernac.saas.identity.UserId","org.vernac.saas.identity.IdentityStatus","org.vernac.saas.identity.IdentityDirectory"),module.exports().stream().map(ModuleDescriptor.Definition::identity).collect(java.util.stream.Collectors.toSet()));
+        assertEquals(Set.of("org.vernac.saas.identity.AccountId","org.vernac.saas.identity.MembershipId","org.vernac.saas.identity.InvitationId","org.vernac.saas.identity.AccountPermissions","org.vernac.saas.identity.UserId","org.vernac.saas.identity.IdentityStatus","org.vernac.saas.identity.IdentityDirectory"),module.exports().stream().map(ModuleDescriptor.Definition::identity).collect(java.util.stream.Collectors.toSet()));
         assertTrue(module.vocabulary().stream().anyMatch(t->t.name().equals("UserId")&&t.description().contains("stable human")));
         Path sources=root.resolve("consumer"),file=sources.resolve("consumer/model.vernac");Files.createDirectories(file.getParent());
         String document=Files.readString(Path.of("../../docs/contracts/saas-identity-foundation.md"));
