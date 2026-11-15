@@ -24,6 +24,18 @@ public final class StripePayments implements AutoCloseable {
         if (signingSecret == null || !signingSecret.matches("whsec_[a-zA-Z0-9]{1,4000}")) throw new PaymentFailure(PaymentFailure.Code.CONFIGURATION);
         this.http = Objects.requireNonNull(http); this.signingSecret = signingSecret; this.live = live;
     }
+    public PaymentProviderEnvironment environment() { return live ? PaymentProviderEnvironment.PRODUCTION : PaymentProviderEnvironment.TEST; }
+    public ProviderCustomer inspectCustomer(RemoteCustomerId customer) {
+        var json = get("customers/" + customer(customer.encoded()).encoded());
+        try {
+            environment(json); var id = customer(requiredText(json, "id")); if (!id.equals(customer)) throw fail();
+            return ProviderCustomer.of(id, operation(json));
+        } catch (PaymentFailure safe) { throw safe; } catch (RuntimeException invalid) { throw fail(); }
+    }
+    public ProviderRefund inspectRefund(RemotePaymentId payment, RemoteRefundId refund) {
+        if (!refund.encoded().matches("re_[a-zA-Z0-9]{1,190}")) throw fail();
+        return refundResult(get("refunds/" + refund.encoded()), payment, intentId(payment));
+    }
     public RemoteCustomerId createCustomer(PaymentOperationId operation) {
         return customer(requiredText(post("customers", operation, Map.of("description", "Vernac billing customer", "metadata[vernac_operation]", operation.asString())), "id"));
     }
@@ -52,13 +64,19 @@ public final class StripePayments implements AutoCloseable {
     public ProviderRefund refund(RefundRequest request) {
         String paymentIntent = intentId(request.payment());
         var json = post("refunds", request.operation(), Map.of("payment_intent", paymentIntent, "amount", Long.toString(request.amount().value()), "metadata[vernac_operation]", request.operation().asString()));
+        var result = refundResult(json, request.payment(), paymentIntent);
+        if (!result.amount().equals(request.amount())) throw fail();
+        return result;
+    }
+    private ProviderRefund refundResult(JsonNode json, RemotePaymentId payment, String paymentIntent) {
         try {
-            if (!paymentIntent.equals(requiredText(json, "payment_intent")) || !"eur".equals(requiredText(json, "currency")) || requiredLong(json, "amount") != request.amount().value()) throw fail();
+            if (!paymentIntent.equals(requiredText(json, "payment_intent")) || !"eur".equals(requiredText(json, "currency"))) throw fail();
             String id = requiredText(json, "id"); if (!id.matches("re_[a-zA-Z0-9]{1,190}")) throw fail();
             var state = switch (requiredText(json, "status")) { case "succeeded" -> RefundState.REFUNDED; case "failed", "canceled" -> RefundState.FAILED; case "pending", "requires_action" -> RefundState.PENDING; default -> RefundState.UNKNOWN; };
-            return ProviderRefund.of(RemoteRefundId.of(id), request.payment(), request.amount(), BillingCurrency.EUR, state);
+            return ProviderRefund.of(RemoteRefundId.of(id), payment, MinorUnits.of(requiredLong(json, "amount")), BillingCurrency.EUR, state);
         } catch (PaymentFailure safe) { throw safe; } catch (RuntimeException invalid) { throw fail(); }
     }
+
     public RemotePaymentId notification(PaymentNoticeBody body, PaymentSignature signature) {
         try {
             var event = Webhook.constructEvent(body.encoded(), signature.encoded(), signingSecret);

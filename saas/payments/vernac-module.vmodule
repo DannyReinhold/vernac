@@ -1,6 +1,9 @@
 module vernac.saas.payments {
     export org.vernac.saas.payments.PaymentOperationId;
     export org.vernac.saas.payments.PaymentProviderMode;
+    export org.vernac.saas.payments.PaymentProviderKind;
+    export org.vernac.saas.payments.PaymentProviderEnvironment;
+    export org.vernac.saas.payments.ProviderCustomer;
     export org.vernac.saas.payments.PaymentState;
     export org.vernac.saas.payments.RefundState;
     export org.vernac.saas.payments.RemotePaymentId;

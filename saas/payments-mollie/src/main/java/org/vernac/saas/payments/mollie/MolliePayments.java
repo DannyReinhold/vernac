@@ -17,6 +17,19 @@ public final class MolliePayments implements AutoCloseable {
     private final String expectedMode;
     public MolliePayments(String apiKey) { this(new PaymentHttp(PaymentHttp.Provider.MOLLIE, checked(apiKey)), apiKey.startsWith("test_") ? "test" : "live"); }
     MolliePayments(PaymentHttp http, String expectedMode) { this.http = Objects.requireNonNull(http); if (!Set.of("test", "live").contains(expectedMode)) throw fail(); this.expectedMode = expectedMode; }
+    public PaymentProviderEnvironment environment() { return expectedMode.equals("test") ? PaymentProviderEnvironment.TEST : PaymentProviderEnvironment.PRODUCTION; }
+    public ProviderCustomer inspectCustomer(RemoteCustomerId customer) {
+        var json = http.get("customers/" + customer(customer.encoded()).encoded());
+        try {
+            var id = customer(requiredText(json, "id"));
+            if (!id.equals(customer)) throw fail();
+            return ProviderCustomer.of(id, PaymentOperationId.of(UUID.fromString(requiredText(json.path("metadata"), "vernac_operation"))));
+        } catch (PaymentFailure safe) { throw safe; } catch (RuntimeException invalid) { throw fail(); }
+    }
+    public ProviderRefund inspectRefund(RemotePaymentId payment, RemoteRefundId refund) {
+        String id = refund.encoded(); if (!id.matches("re_[a-zA-Z0-9]{1,190}")) throw fail();
+        return refundResult(http.get("payments/" + paymentId(payment.encoded()).encoded() + "/refunds/" + id), payment);
+    }
     public RemoteCustomerId createCustomer(PaymentOperationId operation) {
         return customer(requiredText(http.post("customers", operation.value(), Map.of("name", "Vernac billing customer", "metadata", metadata(operation))), "id"));
     }
@@ -34,15 +47,20 @@ public final class MolliePayments implements AutoCloseable {
     public ProviderRefund refund(RefundRequest request) {
         var json = http.post("payments/" + paymentId(request.payment().encoded()).encoded() + "/refunds", request.operation().value(),
                 Map.of("amount", amount(request.amount(), request.currency()), "description", "Vernac customer refund"));
+        var result = refundResult(json, request.payment());
+        if (!result.amount().equals(request.amount())) throw fail();
+        return result;
+    }
+    private ProviderRefund refundResult(JsonNode json, RemotePaymentId payment) {
         try {
-            var original = paymentId(requiredText(json, "paymentId"));
-            var value = money(json.get("amount"));
-            if (!original.equals(request.payment()) || !value.equals(request.amount())) throw fail();
+            var original = paymentId(requiredText(json, "paymentId")); var value = money(json.get("amount"));
+            if (!original.equals(payment)) throw fail();
             var state = switch (requiredText(json, "status")) { case "refunded" -> RefundState.REFUNDED; case "failed", "canceled" -> RefundState.FAILED; case "queued", "pending", "processing" -> RefundState.PENDING; default -> RefundState.UNKNOWN; };
-            String id = requiredText(json, "id"); if (!id.startsWith("re_")) throw fail();
+            String id = requiredText(json, "id"); if (!id.matches("re_[a-zA-Z0-9]{1,190}")) throw fail();
             return ProviderRefund.of(RemoteRefundId.of(id), original, value, BillingCurrency.EUR, state);
         } catch (PaymentFailure safe) { throw safe; } catch (RuntimeException invalid) { throw fail(); }
     }
+
     public RemotePaymentId notification(PaymentNoticeBody body, PaymentSignature ignored) {
         // Classic Payments API posts one ASCII form field. It is never a payment proof.
         if (!body.encoded().matches("id=tr_[a-zA-Z0-9]{1,190}")) throw new PaymentFailure(PaymentFailure.Code.INVALID_NOTIFICATION);

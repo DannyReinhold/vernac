@@ -1,0 +1,9 @@
+module vernac.saas.payments.jdbc {
+    tenancy explicit;
+    export org.vernac.saas.payments.persistence.PaymentProfileKey;
+    export org.vernac.saas.payments.persistence.PaymentOrderId;
+    export org.vernac.saas.payments.persistence.PaymentAttemptId;
+    export org.vernac.saas.payments.persistence.PaymentRefundId;
+    export org.vernac.saas.payments.persistence.PaymentOrderStatus;
+    export org.vernac.saas.payments.persistence.PaymentReason;
+}

@@ -40,13 +40,19 @@ jobs:
       - name: Install nominal identity and subscription contracts
         run: mvn -B -ntp -pl saas/identity,saas/subscriptions -DskipTests install
       - name: Verify shared payment port local provider Mollie and Stripe
-        run: mvn -B -ntp -pl saas/payments,saas/payments-http,saas/payments-local,saas/payments-mollie,saas/payments-stripe clean install
+        run: mvn -B -ntp -pl saas/payments,saas/payments-http,saas/payments-local,saas/payments-mollie,saas/payments-stripe,saas/payments-jdbc clean install
       - name: Replay local provider schema and compare generated model
         env:
           VERNAC_CHECK_URL: jdbc:postgresql://localhost:5432/postgres
           VERNAC_CHECK_USER: vernac
           VERNAC_CHECK_PASSWORD: ephemeral-payment-only
         run: mvn -B -ntp -pl saas/payments-local org.vernac:vernac-maven-plugin:0.6.0-SNAPSHOT:schema-check
+      - name: Replay payment processing schema and routing constraints
+        env:
+          VERNAC_CHECK_URL: jdbc:postgresql://localhost:5432/postgres
+          VERNAC_CHECK_USER: vernac
+          VERNAC_CHECK_PASSWORD: ephemeral-payment-only
+        run: mvn -B -ntp -pl saas/payments-jdbc org.vernac:vernac-maven-plugin:0.6.0-SNAPSHOT:schema-check
       - name: Require protocol and actual persistent local-provider proofs without skips
         run: |
           python3 - <<'PY'
@@ -56,6 +62,7 @@ jobs:
               'saas/payments-http/target/surefire-reports/TEST-org.vernac.saas.payments.http.PaymentHttpTest.xml': 3,
               'saas/payments-mollie/target/surefire-reports/TEST-org.vernac.saas.payments.mollie.MolliePaymentsTest.xml': 2,
               'saas/payments-stripe/target/surefire-reports/TEST-org.vernac.saas.payments.stripe.StripePaymentsTest.xml': 2,
+              'saas/payments-jdbc/target/failsafe-reports/TEST-org.vernac.saas.payments.persistence.PaymentFlowPostgresIT.xml': 3,
               'saas/payments-local/target/failsafe-reports/TEST-org.vernac.saas.payments.local.LocalPaymentsPostgresIT.xml': 3,
           }
           for path, count in suites.items():

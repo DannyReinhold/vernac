@@ -1,5 +1,9 @@
 namespace org.vernac.saas.payments.local;
 import org.vernac.saas.payments.PaymentProvider;
+import org.vernac.saas.payments.PaymentProviderKind;
+import org.vernac.saas.payments.PaymentProviderEnvironment;
+import org.vernac.saas.payments.ProviderCustomer;
+import org.vernac.saas.payments.RemoteRefundId;
 import org.vernac.saas.payments.PaymentProviderMode;
 import org.vernac.saas.payments.PaymentOperationId;
 import org.vernac.saas.payments.RemoteCustomerId;
@@ -15,6 +19,10 @@ adapter LocalPaymentProvider implements PaymentProvider {
     behavior {
         java uses { org.vernac.saas.payments.local.LocalPayments transport; }
         public PaymentProviderMode mode() { return PaymentProviderMode.SIMULATED; }
+        public PaymentProviderKind kind() { return PaymentProviderKind.LOCAL; }
+        public PaymentProviderEnvironment environment() { return self.transport().environment(); }
+        public ProviderCustomer inspectCustomer(RemoteCustomerId customer) { return self.transport().inspectCustomer(customer); }
+        public ProviderRefund inspectRefund(RemotePaymentId payment, RemoteRefundId refund) { return self.transport().inspectRefund(payment, refund); }
         public RemoteCustomerId createCustomer(PaymentOperationId operation) { return self.transport().createCustomer(operation); }
         public ProviderPayment checkout(CheckoutRequest request) { return self.transport().checkout(request); }
         public ProviderPayment charge(RecurringChargeRequest request) { return self.transport().charge(request); }

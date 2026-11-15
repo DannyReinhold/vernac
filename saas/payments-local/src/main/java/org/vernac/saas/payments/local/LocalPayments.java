@@ -30,6 +30,17 @@ public final class LocalPayments {
         writer = new TransactionTemplate(manager); writer.setTimeout(5); writer.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
         customers = new JdbcLocalCustomerRepository(jdbc); payments = new JdbcLocalPaymentRepository(jdbc); refunds = new JdbcLocalRefundRepository(jdbc);
     }
+    public PaymentProviderEnvironment environment() { return PaymentProviderEnvironment.SIMULATED; }
+    public ProviderCustomer inspectCustomer(RemoteCustomerId customer) {
+        return transaction(() -> { var operation = parse(customer.encoded(), "localc_"); customers.byId(operation); return ProviderCustomer.of(customer, operation); });
+    }
+    public ProviderRefund inspectRefund(RemotePaymentId payment, RemoteRefundId refund) {
+        return transaction(() -> {
+            var row = refunds.byId(parse(refund.encoded(), "localr_"));
+            if (!row.paymentOperation().equals(parse(payment.encoded(), "localp_"))) throw fail(PaymentFailure.Code.INVALID_PROVIDER_RESPONSE);
+            return ProviderRefund.of(refund, payment, row.amount(), BillingCurrency.EUR, RefundState.REFUNDED);
+        });
+    }
     public RemoteCustomerId createCustomer(PaymentOperationId operation) {
         return transaction(() -> {
             lock("customer/" + operation.asString());

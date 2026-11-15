@@ -4,6 +4,8 @@ import org.vernac.saas.subscriptions.BillingCurrency;
 
 id PaymentOperationId;
 value PaymentProviderMode = LIVE | SIMULATED;
+value PaymentProviderKind = LOCAL | MOLLIE | STRIPE;
+value PaymentProviderEnvironment = TEST | PRODUCTION | SIMULATED;
 value PaymentState = OPEN | PENDING | PAID | FAILED | CANCELLED | EXPIRED | REFUNDED | UNKNOWN;
 value RefundState = PENDING | REFUNDED | FAILED | UNKNOWN;
 value RemotePaymentId(String encoded) validates {
@@ -44,14 +46,19 @@ behavior { public String toString() { return "ProviderPayment[REDACTED]"; } };
 value RefundRequest(PaymentOperationId operation, RemotePaymentId payment, MinorUnits amount, BillingCurrency currency) validates {
     require(self.amount().value() > 0, "A refund requires a positive amount");
 };
+value ProviderCustomer(RemoteCustomerId id, PaymentOperationId operation) behavior { public String toString() { return "ProviderCustomer[REDACTED]"; } };
 value ProviderRefund(RemoteRefundId id, RemotePaymentId payment, MinorUnits amount, BillingCurrency currency, RefundState state)
 behavior { public String toString() { return "ProviderRefund[REDACTED]"; } };
 port PaymentProvider {
     PaymentProviderMode mode();
+    PaymentProviderKind kind();
+    PaymentProviderEnvironment environment();
     RemoteCustomerId createCustomer(PaymentOperationId operation);
+    ProviderCustomer inspectCustomer(RemoteCustomerId customer);
     ProviderPayment checkout(CheckoutRequest request);
     ProviderPayment charge(RecurringChargeRequest request);
     ProviderPayment inspect(RemotePaymentId payment);
     ProviderRefund refund(RefundRequest request);
+    ProviderRefund inspectRefund(RemotePaymentId payment, RemoteRefundId refund);
     RemotePaymentId notification(PaymentNoticeBody body, PaymentSignature signature);
 }

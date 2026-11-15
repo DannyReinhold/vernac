@@ -69,6 +69,7 @@
         <module>saas/payments-local</module>
         <module>saas/payments-mollie</module>
         <module>saas/payments-stripe</module>
+        <module>saas/payments-jdbc</module>
     </modules>
 
     <properties>
