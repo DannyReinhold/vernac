@@ -27,8 +27,12 @@ execution environment became unavailable during provider work; subsequent change
 are preserved in GitHub and validated by the repository's normal CI. A green
 primitive PR is not acceptance of an unimplemented public browser journey.
 
+| 13 | [#62](https://github.com/DannyReinhold/vernac/pull/62) | Bounded Identity forms and validated local return paths |
+
 ## Delivered slices
 
+- [Explicit login HTTP adapter](../contracts/saas-identity-login-http.md), with
+  Spring filter-chain/CSRF/fixation/context persistence tests.
 - [Shared mail providers](../contracts/saas-mail-providers.md) and
   [the Identity bridge](../contracts/saas-identity-mail-provider-bridge.md).
 - [Session metadata validation](../contracts/saas-identity-session-trust.md),

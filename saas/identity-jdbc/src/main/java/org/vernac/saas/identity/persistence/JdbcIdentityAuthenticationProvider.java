@@ -13,10 +13,8 @@ import org.vernac.saas.identity.persistence.adapter.outbound.jdbc.JdbcIdentityLo
 import org.vernac.saas.identity.persistence.domain.IdentityLoginKey;
 /** Explicit standard Spring provider, no endpoint/session creation/tenant selection or automatic registration. */
 final class JdbcIdentityAuthenticationProvider implements AuthenticationProvider {
- static final class Throttled extends AuthenticationException {
-  private final int retryAfterSeconds;
-  Throttled(int seconds){super("Identity authentication temporarily throttled");retryAfterSeconds=Math.max(1,Math.min(86400,seconds));}
-  int retryAfterSeconds(){return retryAfterSeconds;}
+ static final class Throttled extends IdentityAuthenticationThrottledException {
+  Throttled(int seconds){super(seconds);}
  }
  private final JdbcIdentityAdmission admission; private final BoundedCredentialPasswords passwords;
  private final JdbcIdentityCredentials credentials;private final JdbcIdentityLoginAddressRepository addresses;

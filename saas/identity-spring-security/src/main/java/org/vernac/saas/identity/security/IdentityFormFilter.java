@@ -14,7 +14,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 /** Explicitly install before CSRF and all parameter-reading filters on exact Identity POST paths. */
 public final class IdentityFormFilter extends OncePerRequestFilter {
     public static final int MAX_BODY_BYTES = 16_384;
+    private static final String PARSED = IdentityFormFilter.class.getName() + ".parsed";
+    private static final Object PARSED_MARKER = new Object();
     private final Set<String> paths;
+
+    static boolean parsed(HttpServletRequest request) { return request.getAttribute(PARSED) == PARSED_MARKER; }
 
     public IdentityFormFilter(Set<String> paths) {
         if (paths == null || paths.isEmpty() || paths.size() > 16) throw new IllegalArgumentException("Invalid identity form paths");
@@ -52,7 +56,9 @@ public final class IdentityFormFilter extends OncePerRequestFilter {
         final Map<String, String[]> parameters;
         try { parameters = parse(body); }
         catch (IllegalArgumentException | CharacterCodingException invalid) { reject(response, 400); return; }
-        chain.doFilter(new FormRequest(request, parameters), response);
+        request.setAttribute(PARSED, PARSED_MARKER);
+        try { chain.doFilter(new FormRequest(request, parameters), response); }
+        finally { request.removeAttribute(PARSED); }
     }
 
     private static Map<String, String[]> parse(byte[] body) throws CharacterCodingException {
