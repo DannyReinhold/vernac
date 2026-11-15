@@ -3,10 +3,12 @@ title: D05 proposal — account roles and atomic personal-account provisioning
 ---
 # D05 review proposal
 
-Status: PROPOSED for review, not accepted configuration or implemented workflows.
+Status: ACCEPTED design on 15 November 2026 by the project owner (Option 1).
+Acceptance authorizes implementation of this complete contract, not a claim that
+its runtime, schema and public workflows are already implemented.
 The [Identity roadmap](../development/identity-membership-0.6.0.md) explicitly keeps
 catalog ownership and protected role-assignment operations behind D05 approval.
-This PR supplies the concrete decision for review. Existing D14 credential/session
+The project owner accepted the complete decision proposed in PR #60. Existing D14 credential/session
 policy is unchanged; independent authentication work can proceed.
 
 ## Catalog ownership
@@ -122,5 +124,5 @@ bypass the existing actor/tenant pin.
 
 Review decision: accept catalog ownership/format, the finite owner model and assignment
 rules, the scalar membership-key representation, and atomic personal-account provisioning.
-After acceptance, implement these as focused model, policy and public-flow PRs. This
+Implement the accepted decision as focused model, policy and public-flow PRs. This
 proposal alone does not close registration, membership, invitations or D05.

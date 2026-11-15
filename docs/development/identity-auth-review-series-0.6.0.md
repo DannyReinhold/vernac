@@ -74,8 +74,7 @@ application roles, accounts or tenants. No real provider email is sent by tests.
    after recovery. The login HTML/POST, CSRF renewal, POST logout, stale-session checks,
    shared JDBC storage and idle-expiry slices are implemented and have separate proofs;
    their completion does not close these remaining journeys.
-3. Review [the concrete D05 proposal](../contracts/saas-account-roles-d05-proposal.md),
-   then implement the catalog, account/owner/membership model, protected assignment and
+3. Implement the owner-accepted [D05 design](../contracts/saas-account-roles-d05-proposal.md): the catalog, account/owner/membership model, protected assignment and
    invitation policies, and atomic personal provisioning. Public verification/registration
    cannot close before provisioning rollback, replay/restart, owner and generated schema
    proofs pass. No role policy was silently accepted or invented during the login work.
@@ -85,8 +84,8 @@ application roles, accounts or tenants. No real provider email is sent by tests.
 5. Finish controlled local inbox-preview authorization, deployment/operations documentation,
    framework-schema migration tracking and remaining delivery monitoring acceptance.
 
-D05 is a review proposal, not an accepted role policy merely because its documentation
-PR passes CI. Independent login/session work does not imply account or product grants.
+The project owner accepted the D05 design (Option 1) on 15 November 2026.
+Implementation must still satisfy its complete policy/schema/journey proofs. Independent login/session work does not imply account or product grants.
 
 ## Acceptance status
 
