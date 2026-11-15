@@ -63,7 +63,7 @@ jobs:
               'saas/payments-mollie/target/surefire-reports/TEST-org.vernac.saas.payments.mollie.MolliePaymentsTest.xml': 2,
               'saas/payments-stripe/target/surefire-reports/TEST-org.vernac.saas.payments.stripe.StripePaymentsTest.xml': 3,
               'saas/payments-jdbc/target/failsafe-reports/TEST-org.vernac.saas.payments.persistence.PaymentFlowPostgresIT.xml': 10,
-              'saas/payments-local/target/failsafe-reports/TEST-org.vernac.saas.payments.local.LocalPaymentsPostgresIT.xml': 3,
+              'saas/payments-local/target/failsafe-reports/TEST-org.vernac.saas.payments.local.LocalPaymentsPostgresIT.xml': 4,
           }
           for path, count in suites.items():
               root = ET.parse(path).getroot()
