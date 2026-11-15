@@ -125,3 +125,5 @@ of the specified account/order/profile; it cannot choose an account through meta
 When a primary resource is already bound, recovery re-inspects that primary instead
 of replacing it with a supplied alias. Public HTTP adapters must keep the same fresh
 Identity administration check; the example's complete HTTP acceptance remains open.
+
+The opt-in local provider accepts `vernac.payments.local.scenario=PENDING,PAID` (default `PAID`), with at most 16 named steps. Supported steps are PAID, PENDING, FAILED, CANCELLED, EXPIRED, UNAVAILABLE and TIMEOUT_PAID. The persisted payment cursor resumes the configured scenario after restart; changing a scenario is an explicit development configuration change. Invalid names/length fail configuration and never select success silently.

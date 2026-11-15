@@ -151,6 +151,15 @@ class InvoiceFlowPostgresIT {
                                         assertEquals(id.get(), f.invoices.synchronize(order));
                                         assertTrue(f.invoices.renderOne());
                                         bytes.set(f.invoices.download(account, id.get()));
+                                        assertEquals(bytes.get(), f.invoices.download(id.get()));
+                                        assertEquals(
+                                                InvoiceFailure.Code.ACCESS_DENIED,
+                                                assertThrows(
+                                                                InvoiceFailure.class,
+                                                                () ->
+                                                                        f.invoices.download(
+                                                                                InvoiceId.create()))
+                                                        .code());
                                         assertEquals(
                                                 InvoiceWorkStatus.READY,
                                                 f.invoices.invoice(account, id.get()).status());
@@ -621,7 +630,7 @@ class InvoiceFlowPostgresIT {
                                                             content -> {
                                                                 throw new IllegalStateException(
                                                                         "Synthetic renderer"
-                                                                            + " failure");
+                                                                                + " failure");
                                                             },
                                                             checked -> {
                                                                 if (!checked.equals(account))

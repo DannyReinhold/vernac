@@ -225,6 +225,33 @@ public final class InvoiceLedger {
                 });
     }
 
+    /**
+     * Resolves the stored account before fresh authority; suitable for a query-free authenticated
+     * download URL.
+     */
+    public View invoice(InvoiceId id) {
+        return invoice(administrativeAccount(id), id);
+    }
+
+    public RenderedInvoice download(InvoiceId id) {
+        return download(administrativeAccount(id), id);
+    }
+
+    private AccountId administrativeAccount(InvoiceId id) {
+        unscoped();
+        var account =
+                write(
+                        () -> {
+                            try {
+                                return invoices.byId(id).account();
+                            } catch (org.vernac.runtime.AggregateNotFoundException absent) {
+                                throw fail(InvoiceFailure.Code.ACCESS_DENIED);
+                            }
+                        });
+        administrator(account);
+        return account;
+    }
+
     public View invoice(AccountId account, InvoiceId id) {
         administrator(account);
         return write(() -> view(owned(account, id)));
