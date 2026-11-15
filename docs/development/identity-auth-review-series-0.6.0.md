@@ -3,7 +3,7 @@ title: Identity/Auth review series for 0.6.0
 ---
 # Identity/Auth review series
 
-Checkpoint: 13 November 2026. All listed branches are cumulative and target
+Checkpoint: 15 November 2026. All listed branches are cumulative and target
 feature/0.6.0. Merge the earlier PRs first using ordinary merge commits so later
 diffs retain only their own slice. No PR in this series was automatically merged.
 
@@ -31,9 +31,12 @@ primitive PR is not acceptance of an unimplemented public browser journey.
 | 14 | [#63](https://github.com/DannyReinhold/vernac/pull/63) | Explicit Spring login HTTP adapter |
 | 15 | [#64](https://github.com/DannyReinhold/vernac/pull/64) | Opt-in HTTPS browser chain, CSRF renewal and POST logout |
 | 16 | [#65](https://github.com/DannyReinhold/vernac/pull/65) | Shared JDBC sessions and restricted framework schema |
+| 17 | [#66](https://github.com/DannyReinhold/vernac/pull/66) | Minimal CSRF-protected login page |
 
 ## Delivered slices
 
+- [Explicit JDBC authentication assembly](../contracts/saas-identity-authentication-assembly.md),
+  with default-policy startup and actual password/provider PostgreSQL proofs.
 - [Minimal CSRF-protected login page](../contracts/saas-identity-login-page.md),
   with actual form submission in chain/session tests.
 - [Explicit shared JDBC sessions](../contracts/saas-identity-jdbc-sessions.md), with
