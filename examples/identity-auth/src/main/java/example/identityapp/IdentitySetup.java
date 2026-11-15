@@ -26,6 +26,7 @@ import org.vernac.saas.mail.domain.MailProvider;
 import example.identityapp.authorization.WorkspacePermissions;
 
 @Configuration(proxyBeanMethods=false)
+@org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 @Import({IdentityJdbcSessions.class,VernacAuthorizationConfiguration.class})
 public class IdentitySetup {
  @Bean @Primary DataSource dataSource(Environment e){
