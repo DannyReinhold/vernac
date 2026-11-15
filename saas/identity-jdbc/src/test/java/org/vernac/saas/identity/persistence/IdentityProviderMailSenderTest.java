@@ -26,7 +26,7 @@ class IdentityProviderMailSenderTest {
    assertEquals(context.jobId(),mail.correlation().value());
    String link=mail.text().text().lines().filter(x->x.startsWith("https://")).findFirst().orElseThrow();
    var uri=URI.create(link);assertNull(uri.getQuery());assertEquals(token.deliveryValue(),uri.getFragment());
-   assertEquals(purpose==IdentityChallengePurpose.VERIFICATION?"/auth/verify":"/auth/recover",uri.getPath());
+   assertEquals(switch(purpose) { case VERIFICATION -> "/auth/verify"; case RECOVERY -> "/auth/recover"; case INVITATION -> "/auth/invitation"; },uri.getPath());
    assertFalse(mail.toString().contains(token.deliveryValue()));assertFalse(sender.toString().contains(token.deliveryValue()));
   }
  }

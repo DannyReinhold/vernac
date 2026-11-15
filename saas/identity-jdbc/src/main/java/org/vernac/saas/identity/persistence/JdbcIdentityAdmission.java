@@ -146,6 +146,11 @@ final class JdbcIdentityAdmission {
         transaction.setTimeout(5);
     }
 
+    boolean uses(NamedParameterJdbcTemplate template,PlatformTransactionManager manager) {
+        return template.getJdbcTemplate().getDataSource()==jdbc.getJdbcTemplate().getDataSource()
+            && transaction.getTransactionManager()==manager;
+    }
+
     void initialize() {
         independently(
                 () -> {

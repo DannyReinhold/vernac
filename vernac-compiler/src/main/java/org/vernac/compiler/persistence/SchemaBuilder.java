@@ -98,6 +98,11 @@ public final class SchemaBuilder {
                     if (tenantRoot) t.tenantConstraints.put(constraint, new Constraint(constraint,
                             "UNIQUE (" + name(TenantSchema.COLUMN) + ", " + sqlNames(columns) + ")"));
                 }
+                for(var field:a.fields())if(field.referenceTarget()!=null) {
+                    var reference=(ResolvedType.Declared)project.scopes().get(source.path()).resolve(field.referenceTarget(),field.location()).type().orElseThrow();
+                    var target=(AggregateNode)definitions.get(reference.symbol().identity().qualifiedName());
+                    t.foreignKey("@fk:reference:"+field.name(),List.of(field.name()),reference.symbol().identity().namespace(),target.name(),List.of("id"),false);
+                }
                 publish(t);
                 plans.add(new StoragePlan(repo, source.unit().namespace(), a, type.symbol().identity().namespace(), List.copyOf(relations)));
             } else fail(repo.location(), "Repository requires a resolved aggregate: " + repo.aggregateName());

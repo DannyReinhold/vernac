@@ -11,7 +11,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 /** Minimal accessible login form, rendered after Spring CSRF has supplied its masked token. */
 public final class IdentityLoginPageFilter extends OncePerRequestFilter {
     private final IdentityLocalReturnTarget returns;
-    public IdentityLoginPageFilter(IdentityLocalReturnTarget returns) { this.returns=Objects.requireNonNull(returns); }
+    private final boolean journeys;
+    public IdentityLoginPageFilter(IdentityLocalReturnTarget returns) {this(returns,false);}
+    public IdentityLoginPageFilter(IdentityLocalReturnTarget returns,boolean journeys) { this.returns=Objects.requireNonNull(returns);this.journeys=journeys; }
     @Override protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response,FilterChain chain)
             throws ServletException,IOException {
         if(!"GET".equals(request.getMethod()) || !"/identity/login".equals(request.getServletPath())) {
@@ -36,9 +38,9 @@ public final class IdentityLoginPageFilter extends OncePerRequestFilter {
                 <input type="hidden" name="returnTo" value="%s">
                 <p><label for="address">Email address</label><br><input id="address" name="address" type="email" autocomplete="username" maxlength="320" required></p>
                 <p><label for="password">Password</label><br><input id="password" name="password" type="password" autocomplete="current-password" maxlength="2048" required></p>
-                <button type="submit">Sign in</button></form></main></body></html>
+                <button type="submit">Sign in</button></form>%s</main></body></html>
                 """.formatted(escape(action),escape(csrf.getParameterName()),escape(csrf.getToken()),
-                        escape(returns.resolve(request.getParameter("returnTo")))));
+                        escape(returns.resolve(request.getParameter("returnTo"))),journeys?"<p><a href=\""+escape(request.getContextPath()+"/auth/register")+"\">Create an account</a> · <a href=\""+escape(request.getContextPath()+"/auth/recovery-request")+"\">Recover your password</a></p>":""));
     }
     private static String escape(String text) {
         return text.replace("&","&amp;").replace("\"","&quot;").replace("'","&#39;").replace("<","&lt;").replace(">","&gt;");

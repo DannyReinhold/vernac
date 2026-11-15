@@ -10,6 +10,7 @@
     <name>Vernac SaaS Identity</name>
     <description>Optional nominal Vernac identity contracts</description>
     <dependencies>
+        <dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId></dependency>
         <dependency><groupId>org.vernac</groupId><artifactId>vernac-runtime</artifactId></dependency>
         <dependency><groupId>org.vernac</groupId><artifactId>vernac-compiler</artifactId><version>${project.version}</version><scope>test</scope></dependency>
         <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>

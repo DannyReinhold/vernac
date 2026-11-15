@@ -59,7 +59,7 @@ public final class IdentityLoginFilter extends AbstractAuthenticationProcessingF
         } finally { token.eraseCredentials(); }
     }
 
-    private static InetAddress transportPeer(String value) {
+    static InetAddress transportPeer(String value) {
         try {
             // Only numeric transport metadata; no DNS lookups or forwarded-header trust.
             if (value != null && value.contains(":") && value.matches("[0-9a-fA-F:.]{2,45}")) return InetAddress.getByName(value);

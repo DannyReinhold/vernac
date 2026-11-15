@@ -24,6 +24,7 @@ final class JdbcIdentityMailWorker {
             IdentityMailSweepId.of(UUID.fromString("6d61696c-7377-4565-8000-000000000003"));
     static final IdentityMailSweepId REGISTRATIONS =
             IdentityMailSweepId.of(UUID.fromString("6d61696c-7377-4565-8000-000000000004"));
+    static final IdentityMailSweepId INVITATIONS=IdentityMailSweepId.of(UUID.fromString("6d61696c-7377-4565-8000-000000000005"));
     private static final UUID START = new UUID(0, 0);
 
     enum Result {
@@ -98,7 +99,7 @@ final class JdbcIdentityMailWorker {
     void initialize() {
         write(
                 () -> {
-                    for (var id : List.of(DISPATCH, CLEANUP, CHALLENGES, REGISTRATIONS))
+                    for (var id : List.of(DISPATCH, CLEANUP, CHALLENGES, REGISTRATIONS, INVITATIONS))
                         if (cursors.existing(id).isEmpty()) {
                             Instant now = clock.instant();
                             cursors.save(
@@ -138,6 +139,11 @@ final class JdbcIdentityMailWorker {
                                         || row.state() != IdentityMailState.LEASED
                                         || !clock.instant().isBefore(row.leaseUntil().instant())
                                         || !live(row, clock.instant())) return false;
+                                if(row.purpose()==IdentityChallengePurpose.INVITATION) {
+                                    var invitation=new JdbcAccountInvitationRepository(jdbc).existing(InvitationId.of(row.challenge().value()));
+                                    return invitation.isPresent() && invitation.get().delivery().encoded().equals(content.recipient())
+                                        && IdentityChallengeToken.parse(content.deliveryToken()).matches(invitation.get().verifier().encoded());
+                                }
                                 var address = addresses.existing(row.subject());
                                 var challenge = challenges.existing(row.challenge());
                                 return address.isPresent()
@@ -302,7 +308,7 @@ final class JdbcIdentityMailWorker {
     private List<UUID> scanIds(String table, IdentityMailSweep cursor, int batch) {
         if (batch < 1
                 || batch > 500
-                || !(table.equals("IdentityMailJob") || table.equals("IdentityChallenge")))
+                || !(table.equals("IdentityMailJob") || table.equals("IdentityChallenge") || table.equals("AccountInvitation")))
             throw unavailable();
         return jdbc.query(
                 "SELECT \"id\" FROM \"org.vernac.saas.identity.persistence\".\""
@@ -323,6 +329,10 @@ final class JdbcIdentityMailWorker {
 
     private boolean live(IdentityMailJob row, Instant now) {
         if (!now.isBefore(row.expiresAt().instant())) return false;
+        if(row.purpose()==IdentityChallengePurpose.INVITATION) {
+            var invitation=new JdbcAccountInvitationRepository(jdbc).existing(InvitationId.of(row.challenge().value()));
+            return invitation.isPresent() && invitation.get().issuer().equals(row.subject()) && invitation.get().expiresAt().equals(row.expiresAt()) && invitationActive(invitation.get(),now);
+        }
         var challenge = challenges.existing(row.challenge());
         var identity = identities.existing(row.subject());
         if (challenge.isEmpty()
@@ -335,6 +345,23 @@ final class JdbcIdentityMailWorker {
         if (identity.get().status() != IdentityStatus.PENDING_VERIFICATION) return false;
         var pending = registrations.existing(row.subject());
         return pending.isPresent() && now.isBefore(pending.get().deadline().instant());
+    }
+
+    private boolean invitationActive(AccountInvitation invitation,Instant now) {
+        if(!now.isBefore(invitation.expiresAt().instant()))return false;
+        var account=new JdbcAccountRepository(jdbc).existing(invitation.account());var identity=identities.existing(invitation.issuer());
+        var member=new JdbcAccountMembershipRepository(jdbc).forKey(IdentityAccounts.key(invitation.account(),invitation.issuer()));
+        return account.isPresent() && account.get().status()==AccountStatus.ACTIVE && identity.isPresent() && identity.get().status()==IdentityStatus.ACTIVE
+            && member.isPresent() && member.get().status()==AccountMemberStatus.ACTIVE && member.get().owner().enabled();
+    }
+    int expireInvitations(int batch) {
+        return write(()->{
+            var cursor=cursor(INVITATIONS);var ids=scanIds("AccountInvitation",cursor,batch);int removed=0;var repository=new JdbcAccountInvitationRepository(jdbc);
+            for(var id:ids){var invitation=repository.byId(InvitationId.of(id));cursor.advance(id);
+                if(!invitationActive(invitation,clock.instant())){ledger.cancel(IdentityChallengeId.of(id));repository.delete(invitation);
+                    capacity.release(Map.of(JdbcIdentityCapacity.Resource.ACTIONABLE_CHALLENGES,1L));removed++;}}
+            if(ids.isEmpty())cursor.advance(START);cursors.save(cursor);return removed;
+        });
     }
 
     private IdentityMailSweep cursor(IdentityMailSweepId id) {

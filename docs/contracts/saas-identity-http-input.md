@@ -9,7 +9,9 @@ filter that reads request parameters. Do not register it a second time as a cont
 filter. No public route, authentication provider or application chain is installed.
 
 Identity POSTs accept only UTF-8 `application/x-www-form-urlencoded`, no query string,
-at most 16,384 raw body bytes, 16 uniquely named fields and 4,096 UTF-16 units per value.
+at most 16,384 raw body bytes, 16 uniquely named fields and 4,096 UTF-16 units per ordinary value. The explicit
+roles CSV field has its separate 8,224-unit finite assignment bound; the same total
+body cap still applies. At most 32 exact form paths may be configured.
 The bounded stream read also covers unknown Content-Length/chunked bodies. It does not
 call container parameter parsing. The wrapped request supplies defensive parameter
 copies to CSRF and downstream handlers. Duplicate fields, malformed escapes/UTF-8

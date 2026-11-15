@@ -44,7 +44,7 @@ public final class ModuleContracts {
                 var domain=MutableDomain.of(top);
                 if(domain.isPresent()) {
                     element=type(domain.get().id().type(),project).name();
-                    for(var f:domain.get().fields())fields.add(new Field(f.name(),type(f.type(),project),f.isMutable(),f.isUnique()));
+                    for(var f:domain.get().fields())fields.add(new Field(f.name(),type(f.type(),project),f.isMutable(),f.isUnique(),f.referenceTarget()==null?null:((ResolvedType.Declared)project.scopes().get(source.path()).resolve(f.referenceTarget(),f.location()).type().orElseThrow()).symbol().identity().qualifiedName()));
                     methods.addAll(methods(domain.get().methods(),project));
                 }
                 if(top instanceof RepositoryNode repository) {
@@ -80,7 +80,7 @@ public final class ModuleContracts {
             }
             var authorization=local.get(identity) instanceof UseCaseNode u
                     ?ModuleAuthorization.encode(u.authorization(),project,u):Authorization.omitted();
-            Set<String> publicTypes=new TreeSet<>(ModuleAuthorization.permissionTypes(authorization));if(!element.isBlank())publicTypes.add(element);fields.forEach(f->publicTypes.add(f.type().name()));
+            Set<String> publicTypes=new TreeSet<>(ModuleAuthorization.permissionTypes(authorization));if(!element.isBlank())publicTypes.add(element);fields.forEach(f->{publicTypes.add(f.type().name());if(f.referenceTarget()!=null)publicTypes.add(f.referenceTarget());});
             methods.forEach(m->{publicTypes.add(m.returns().name());m.parameters().forEach(f->publicTypes.add(f.type().name()));});
             for(String required:publicTypes) if(local.containsKey(required)||collections.containsKey(required))
                 if(!exports.contains(required))errors.add(CompilerDiagnostic.error(export.location(),"Export "+identity+" requires explicit export "+required+" in its public contract."));
@@ -112,7 +112,7 @@ public final class ModuleContracts {
         boolean expanded;
         do { expanded=false;for(var dependency:dependencies)for(var d:dependency.exports())if(used.contains(d.identity())) {
             for(var key:ModuleAuthorization.permissionTypes(d.authorization())) expanded|=used.add(key);
-            for(var f:d.fields())expanded|=used.add(f.type().name());
+            for(var f:d.fields()){expanded|=used.add(f.type().name());if(f.referenceTarget()!=null)expanded|=used.add(f.referenceTarget());}
             if(!d.element().isBlank())expanded|=used.add(d.element());
             for(var m:d.methods()){expanded|=used.add(m.returns().name());for(var f:m.parameters())expanded|=used.add(f.type().name());}
         }}while(expanded);

@@ -3,13 +3,24 @@ title: 0.6.0 completeness and release acceptance
 ---
 # 0.6.0 completeness and release acceptance
 
-Status: **NOT READY — planning only**. Baseline: 2026-11-11.
+Status: **NOT READY — implementation in progress**. Planning baseline: 2026-11-11;
+Identity/Auth acceptance updated 2026-11-15.
 Owner of final go/no-go: maintainer. Release implementation/evidence owner: each PR
 contributor, with a dedicated review pass before release preparation.
 
 The [SaaS plan](saas-0.6.0-plan.md) defines the outcome. No row below is complete
 because this planning document exists. Required extension artifacts are part of the
 acceptance boundary even if they have their own versions or repositories.
+
+## Identity/Auth scope update — 15 November 2026
+
+The [final Identity/Auth record](identity-auth-acceptance-0.6.0.md) supplies accepted
+D05/D14 implementation and exact-source automated evidence for A01/A02 in the open
+review branches. Their maintainer review/merging is still pending. It also contributes
+identity portions of mail/UI/sample/operations; the broader rows below remain open
+where billing, full product, provider or Wizard/installed-plugin evidence is missing.
+Earlier planning-only or future-tense identity notes below are historical milestones,
+not a statement that the now-delivered identity code is absent.
 
 ## Mandatory tenant isolation scope
 
@@ -65,12 +76,13 @@ credentials, personal data or provider payloads in evidence.
 
 ## Acceptance ledger
 
-Evidence is currently **none** for all rows. All statuses are OPEN.
+A01/A02 have scoped technical evidence in the linked final record. Other rows retain
+their broader whole-release gates; partial identity evidence does not verify them.
 
 | ID | Release requirement | Minimum verification | Status / evidence |
 | --- | --- | --- | --- |
-| A01 | Identity self-registration, verification, login/logout/recovery | Happy path; expired/reused tokens; duplicates/concurrent registration; disabled user; secure browser flows | OPEN / none |
-| A02 | Personal/organization accounts and memberships | Invitations/expiry/replay, roles, account switching, invalid membership and cross-account access | OPEN / none |
+| A01 | Identity self-registration, verification, login/logout/recovery | Happy path; expired/reused tokens; duplicates/concurrent registration; disabled user; secure browser flows | VERIFIED in review branches / [exact-source evidence](identity-auth-acceptance-0.6.0.md); merge pending |
+| A02 | Personal/organization accounts and memberships | Invitations/expiry/replay, roles, account switching, invalid membership and cross-account access | VERIFIED in review branches / [exact-source evidence](identity-auth-acceptance-0.6.0.md); merge pending |
 | A03 | Typed rights and usecase all/any requirements | Compiler diagnostics, nested conditional calls, absent context/provider, object ownership, system identities | OPEN / none |
 | A04 | Endpoint/usecase security integration | REST and MVC, explicit public endpoints, webhook verification, CSRF, context cleanup, no proxy/invocation bypass in supported paths | OPEN / none |
 | A05 | Dynamic per-operation and current-capacity limits | Repository-derived facts, concurrent last slot, release on delete/deactivation, rollback and scoped isolation | OPEN / none |
@@ -79,17 +91,17 @@ Evidence is currently **none** for all rows. All statuses are OPEN.
 | A08 | Plans, prices and subscriptions | Free/paid, entitlement assignment, lifecycle, renewal/change/cancel, over-limit state, existing-customer plan changes | OPEN / none |
 | A09 | Payment adapter(s) and local provider | Agreed real provider sandbox, checkout, pending/success/refusal/cancel, verified duplicate/out-of-order webhook, refund/reconciliation | OPEN / none |
 | A10 | Customer invoicing | Agreed seller/tax scope, calculation/rounding, concurrent unique numbering, immutable issue, PDF/agreed formats, customer access, correction and payment linkage | OPEN / none |
-| A11 | System email | Verification/recovery/invite/billing templates, durable dispatch, retries/failures, duplicate handling, local inbox and agreed real-provider check | OPEN / none |
-| A12 | Reusable UI and customization | Registration through cancellation/invoice download, useful denials/upgrade guidance, no UI-only authorization, account isolation | OPEN / none |
+| A11 | System email | Verification/recovery/invite/billing templates, durable dispatch, retries/failures, duplicate handling, local inbox and agreed real-provider check | IN PROGRESS / identity portion evidenced in [the scoped record](identity-auth-acceptance-0.6.0.md); broader gate remains OPEN |
+| A12 | Reusable UI and customization | Registration through cancellation/invoice download, useful denials/upgrade guidance, no UI-only authorization, account isolation | IN PROGRESS / identity portion evidenced in [the scoped record](identity-auth-acceptance-0.6.0.md); broader gate remains OPEN |
 | A13 | Modules and migrations | Separate published-like consumers, exports/activation/provider profiles, fresh install and upgrade with existing subscriptions/invoices, ownership/history checks | OPEN / none |
-| A14 | Deployable complete sample | Clean-machine local start without production secrets; deployment configuration, persistent restart, health/logging and recovery walkthrough | OPEN / none |
+| A14 | Deployable complete sample | Clean-machine local start without production secrets; deployment configuration, persistent restart, health/logging and recovery walkthrough | IN PROGRESS / identity portion evidenced in [the scoped record](identity-auth-acceptance-0.6.0.md); broader gate remains OPEN |
 | A15 | Language/tooling/documentation completeness | Parser/analyzer/generator consistency, live Java APIs, module metadata, LSP/IDE completion/navigation/diagnostics, compiled reference/AI examples, tutorials/FAQ | OPEN / none |
 | A16 | Release distribution integrity | Exact-commit dry run, required test execution, actual packaged ZIP verification, supported-IDE smoke, Maven/extension fresh consumption and Marketplace approval | OPEN / none |
-| A17 | Credential-free predefined test providers | Fresh application startup with fixed success and selectable failure sequences, local inbox, same processing paths, no unexpected provider traffic, explicit test/production bindings | OPEN / none |
-| A18 | Business observability and actionable failures | Stable safe reasons across API/UI/workers; rights/limits/payment/renewal failures and recovery; useful event correlation; seeded sensitive values absent from normal/error logs | OPEN / none |
+| A17 | Credential-free predefined test providers | Fresh application startup with fixed success and selectable failure sequences, local inbox, same processing paths, no unexpected provider traffic, explicit test/production bindings | IN PROGRESS / identity portion evidenced in [the scoped record](identity-auth-acceptance-0.6.0.md); broader gate remains OPEN |
+| A18 | Business observability and actionable failures | Stable safe reasons across API/UI/workers; rights/limits/payment/renewal failures and recovery; useful event correlation; seeded sensitive values absent from normal/error logs | IN PROGRESS / identity portion evidenced in [the scoped record](identity-auth-acceptance-0.6.0.md); broader gate remains OPEN |
 | A19 | Automatic shared-database tenant isolation | Declarative classification; byId/find/CRUD/graphs/pages/count/cursors; cross-tenant references and object-save rejection; missing context and pooling/concurrency tests under the actual database role | OPEN / none |
-| A20 | Tenant lifecycle and whole-SaaS propagation | Personal/shared membership, provisioning/global data, module metadata/DDL/backfill, event/payment/mail workers, files/caches and fresh/upgrade E2E isolation | OPEN / none |
-| A21 | Separate SaaS sample and New Project Wizard option | Existing non-SaaS examples/templates still build and run unchanged; explicit SaaS selection generates a complete independent app with module activation/UI/local DB and test providers, no API keys; verify packaged plugin | OPEN / none |
+| A20 | Tenant lifecycle and whole-SaaS propagation | Personal/shared membership, provisioning/global data, module metadata/DDL/backfill, event/payment/mail workers, files/caches and fresh/upgrade E2E isolation | IN PROGRESS / identity portion evidenced in [the scoped record](identity-auth-acceptance-0.6.0.md); broader gate remains OPEN |
+| A21 | Separate SaaS sample and New Project Wizard option | Existing non-SaaS examples/templates still build and run unchanged; explicit SaaS selection generates a complete independent app with module activation/UI/local DB and test providers, no API keys; verify packaged plugin | IN PROGRESS / identity portion evidenced in [the scoped record](identity-auth-acceptance-0.6.0.md); broader gate remains OPEN |
 | A22 | Supported handwritten repository extensions | Pre-query runtime binding/RLS; canonical graph hydration/write/version/timestamp semantics; return-shape/tenant/provenance guards; scalar/count paths; compiled guide/examples and negative restricted-role tests | OPEN / none |
 | A23 | Verified webhook tenant routing | Provider proof and scoped resource registry; no claimed-tenant/global fallback; early/unknown/conflicting route; duplicate/out-of-order/concurrent/restart processing; safe logging; real/test-provider journeys | OPEN / none |
 
@@ -246,7 +258,7 @@ conversions, identity/authorization and the SaaS starter remain OPEN or fail clo
 
 ## Tenant module metadata evidence
 
-module-contracts-12 preserves exported aggregate scope and entity ownership/restoration
+module-contracts-13 preserves exported aggregate scope and entity ownership/restoration
 capability. Read-only import views retain scope; scope changes are incompatible. Tests
 compile a producer JAR and persist its entities inside a local tenant graph without
 regenerating dependency classes. This is partial A20 evidence. Persistent tenant module activation now verifies
@@ -802,7 +814,7 @@ spellings, both unique/mut modifier orders and shared located validation. The fi
 accepted type slice is checked in project/editor analysis. Ordinary generated domain
 objects compile without a cross-instance Java registry or new constraint methods.
 
-The requirement is retained in module-contracts-12 field metadata, source views, JSON
+The requirement is retained in module-contracts-13 field metadata, source views, JSON
 round trips, imported ASTs and compatibility fingerprints. Rebuild development producers
 and consumers together; older contract versions fail explicitly. Existing persistence
 snapshot formats and migrations are unchanged. LSP/native type references and incomplete
@@ -834,7 +846,7 @@ PostgreSQL UNIQUE constraints, automatic tenant qualification and explicit selec
 C collation. Schema format 4 carries the collation through compiler/runtime metadata,
 module history/fingerprints, migration planning, live schema-check and activation
 validation. Old unchanged schema bytes/fingerprints remain stable; the seven identity
-migration histories are unchanged. Module source metadata remains module-contracts-12.
+migration histories are unchanged. Module source metadata remains module-contracts-13.
 
 Generated JDBC uses Spring classification plus exact structured PostgreSQL schema/table/
 constraint metadata. Declared conflicts expose logical aggregate/field identities only,

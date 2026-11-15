@@ -19,3 +19,19 @@ term IdentityDirectory {
 port IdentityDirectory {
     IdentityStatus? status(UserId);
 }
+
+term AccountId { description "One personal or organization workspace, distinct from a human login and a technical tenant."; }
+id AccountId;
+term MembershipId { description "One human identity's participation in one account."; }
+id MembershipId;
+term InvitationId { description "One purpose-bound invitation into an account, never ownership or an authentication grant."; }
+id InvitationId;
+term AccountPermissions { description "Finite account-management capabilities; product permissions are always separate explicit grants."; }
+permission AccountPermissions {
+    INSPECT_ACCOUNT;
+    INSPECT_MEMBERS;
+    MANAGE_MEMBER_ROLES;
+    REMOVE_MEMBERS;
+    INVITE_MEMBERS;
+    TRANSFER_OWNERSHIP;
+}

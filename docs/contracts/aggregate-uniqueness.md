@@ -135,7 +135,7 @@ than being silently shortened or converted to a digest.
 
 ## Modules, tooling and evidence
 
-Uniqueness remains part of **module-contracts-12** field metadata, JSON round trips,
+Uniqueness remains part of **module-contracts-13** field metadata, JSON round trips,
 source contract views, imported ASTs, fingerprints and compatibility diagnostics.
 Use matching compiler/runtime artifacts and rebuild development producers/consumers.
 Importing a module-owned aggregate does not create a duplicate local table or constraint.

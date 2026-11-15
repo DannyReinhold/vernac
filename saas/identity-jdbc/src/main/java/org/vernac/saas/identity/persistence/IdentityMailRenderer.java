@@ -20,9 +20,8 @@ final class IdentityMailRenderer {
  OutboundMail render(IdentityMailContent content,IdentityDeliveryCrypto.Context context) {
   Objects.requireNonNull(content);Objects.requireNonNull(context);
   if(!content.locator().equals(context.locator()))throw new IllegalArgumentException("Invalid identity mail context");
-  boolean verification=context.purpose()==org.vernac.saas.identity.persistence.domain.IdentityChallengePurpose.VERIFICATION;
-  String title=verification?"Confirm your email address":"Reset your password";
-  String path=verification?"/auth/verify":"/auth/recover";
+  String title=switch(context.purpose()){case VERIFICATION->"Confirm your email address";case RECOVERY->"Reset your password";case INVITATION->"Invitation to a workspace";};
+  String path=switch(context.purpose()){case VERIFICATION->"/auth/verify";case RECOVERY->"/auth/recover";case INVITATION->"/auth/invitation";};
   String link;
   try{link=new URI(origin.getScheme(),null,origin.getHost(),origin.getPort(),path,null,content.deliveryToken()).toASCIIString();}
   catch(URISyntaxException invalid){throw new IllegalArgumentException("Invalid identity mail link");}

@@ -76,6 +76,7 @@ final class JdbcIdentityChallenges {
     private Issue issue(UserId subject, IdentityChallengePurpose purpose, boolean reserved) {
         DomainChecks.requireNonNull(subject, "Identity challenge subject");
         DomainChecks.requireNonNull(purpose, "Identity challenge purpose");
+        if(purpose==IdentityChallengePurpose.INVITATION)throw new IllegalArgumentException("Invitation lifecycle is separate");
         return mutate(
                 () -> {
                     Instant now = clock.instant();
@@ -122,6 +123,7 @@ final class JdbcIdentityChallenges {
     /** Trusted local action only; callback must join this writer and perform no remote effects. */
     boolean consume(String input, IdentityChallengePurpose purpose, Consumer<UserId> action) {
         DomainChecks.requireNonNull(purpose, "Identity challenge purpose");
+        if(purpose==IdentityChallengePurpose.INVITATION)throw new IllegalArgumentException("Invitation lifecycle is separate");
         DomainChecks.requireNonNull(action, "Identity challenge action");
         var token = IdentityChallengeToken.parse(input);
         if (token == null) return false; // bounded parsing before any database access

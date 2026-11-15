@@ -61,6 +61,9 @@ public final class IdentityJdbcAuthentication {
         try { keyedAdmission.cleanup(250); }
         catch(RuntimeException unavailable) { throw new IllegalStateException("Identity admission maintenance unavailable"); }
     }
+    JdbcIdentityAdmission admissionFor(NamedParameterJdbcTemplate jdbc,PlatformTransactionManager manager) {
+        if(!keyedAdmission.uses(jdbc,manager))throw new IllegalStateException("Identity authentication writer mismatch");return keyedAdmission;
+    }
     public IdentityRequestAdmission requestAdmission() { return ingress; }
     public AuthenticationManager authenticationManager() { return manager; }
     public IdentitySessionTrust sessionTrust() { return sessions; }

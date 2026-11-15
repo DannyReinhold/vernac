@@ -95,7 +95,7 @@ public final class ModuleArtifacts {
         }
         return new VernacProject(merged.sourceRoot(),merged.sources(),merged.symbols().withHiddenTypes(hidden));
     }
-    private static List<FieldNode> fields(List<Field> source,SourceLocation at) {return source.stream().map(f->new FieldNode(at,type(f.type(),at),f.name(),f.mutable(),true,f.unique())).toList();}
+    private static List<FieldNode> fields(List<Field> source,SourceLocation at) {return source.stream().map(f->new FieldNode(at,type(f.type(),at),f.name(),f.mutable(),true,f.unique(),f.referenceTarget())).toList();}
     private static TypeNode type(Type source,SourceLocation at) {return new TypeNode(at,source.name(),List.of(),source.optional(),TypeNode.PageKind.valueOf(source.pageKind()));}
     private static List<MethodNode> methods(List<Method> source,SourceLocation at) {return source.stream().map(m->new MethodNode(at,"public",type(m.returns(),at),m.name(),fields(m.parameters(),at),"throw new UnsupportedOperationException();",Optional.empty(),MethodNode.Mode.valueOf(m.mode()))).toList();}
     private static String namespace(String name) {return name.substring(0,name.lastIndexOf('.'));}
@@ -155,22 +155,22 @@ public final class ModuleArtifacts {
             if(d.kind().equals("ENTITY")||d.kind().equals("AGGREGATE")) {
                 if (d.kind().equals("AGGREGATE")) text.append(d.aggregateScope().toLowerCase(Locale.ROOT)).append(" ");
                 text.append(d.kind().toLowerCase(Locale.ROOT)).append(" ").append(simple(d.identity())).append("[").append(d.element()).append("](")
-                    .append(d.fields().stream().map(f->(f.unique()?"unique ":"")+(f.mutable()?"mut ":"")+typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(")");
+                    .append(d.fields().stream().map(f->(f.unique()?"unique ":"")+(f.mutable()?"mut ":"")+typeText(f.type())+" "+f.name()+(f.referenceTarget()==null?"":" references "+f.referenceTarget())).collect(java.util.stream.Collectors.joining(", "))).append(")");
                 if(!d.methods().isEmpty()) {
-                    text.append(" behavior {\n");for(var m:d.methods())text.append("    ").append(m.mode().toLowerCase(Locale.ROOT)).append(" ").append(typeText(m.returns())).append(" ").append(m.name()).append("(").append(m.parameters().stream().map(f->typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(") { throw new UnsupportedOperationException(); }\n");text.append("}");
+                    text.append(" behavior {\n");for(var m:d.methods())text.append("    ").append(m.mode().toLowerCase(Locale.ROOT)).append(" ").append(typeText(m.returns())).append(" ").append(m.name()).append("(").append(m.parameters().stream().map(f->typeText(f.type())+" "+f.name()+(f.referenceTarget()==null?"":" references "+f.referenceTarget())).collect(java.util.stream.Collectors.joining(", "))).append(") { throw new UnsupportedOperationException(); }\n");text.append("}");
                 }
                 appendCollections(text,module,d.identity());
                 text.append(";\n");continue;
             }
             if(d.kind().equals("REPOSITORY")) {
                 text.append("repository ").append(simple(d.identity())).append(" for ").append(d.element()).append(" {\n    // Public query signatures only; predicates and ordering belong to the compiled module.\n");
-                for(var m:d.methods())if(!Set.of("byId","save","delete").contains(m.name()))text.append("    find ").append(m.mode().equals("CURSOR_QUERY")?"cursor ":m.mode().contains("OFFSET_QUERY")?"offset ":"").append(typeText(m.returns())).append(" ").append(m.name()).append("(").append(m.parameters().stream().map(f->typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(")").append(m.mode().equals("COUNTED_OFFSET_QUERY")?" counting":"").append(";\n");
+                for(var m:d.methods())if(!Set.of("byId","save","delete").contains(m.name()))text.append("    find ").append(m.mode().equals("CURSOR_QUERY")?"cursor ":m.mode().contains("OFFSET_QUERY")?"offset ":"").append(typeText(m.returns())).append(" ").append(m.name()).append("(").append(m.parameters().stream().map(f->typeText(f.type())+" "+f.name()+(f.referenceTarget()==null?"":" references "+f.referenceTarget())).collect(java.util.stream.Collectors.joining(", "))).append(")").append(m.mode().equals("COUNTED_OFFSET_QUERY")?" counting":"").append(";\n");
                 text.append("}\n");continue;
             }
             if(d.kind().equals("DOMAIN_SERVICE")) {
                 text.append("service ").append(simple(d.identity())).append(" behavior {\n");
                 for(var method:d.methods())text.append(" public ").append(typeText(method.returns())).append(" ").append(method.name()).append("(")
-                    .append(method.parameters().stream().map(f->typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(") {throw new UnsupportedOperationException();}\n");
+                    .append(method.parameters().stream().map(f->typeText(f.type())+" "+f.name()+(f.referenceTarget()==null?"":" references "+f.referenceTarget())).collect(java.util.stream.Collectors.joining(", "))).append(") {throw new UnsupportedOperationException();}\n");
                 text.append("}\n");continue;
             }
             if(d.kind().equals("PERMISSION")) {
@@ -179,8 +179,8 @@ public final class ModuleArtifacts {
             }
             if(d.kind().equals("USE_CASE")) {
                 var execute=d.methods().stream().filter(m->m.name().equals("execute")).findFirst().orElseThrow();
-                text.append("usecase ").append(simple(d.identity())).append("(").append(execute.parameters().stream().map(f->typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(")");
-                if(!d.fields().isEmpty())text.append(" returns (").append(d.fields().stream().map(f->typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(")");
+                text.append("usecase ").append(simple(d.identity())).append("(").append(execute.parameters().stream().map(f->typeText(f.type())+" "+f.name()+(f.referenceTarget()==null?"":" references "+f.referenceTarget())).collect(java.util.stream.Collectors.joining(", "))).append(")");
+                if(!d.fields().isEmpty())text.append(" returns (").append(d.fields().stream().map(f->typeText(f.type())+" "+f.name()+(f.referenceTarget()==null?"":" references "+f.referenceTarget())).collect(java.util.stream.Collectors.joining(", "))).append(")");
                 else if(!execute.returns().name().equals("void"))text.append(" returns ").append(typeText(execute.returns()));
                 String authorization=ModuleAuthorization.source(d.authorization());
                 if(!authorization.isEmpty())text.append(" requires ").append(authorization);
@@ -197,7 +197,7 @@ public final class ModuleArtifacts {
                 text.append("} }\n");continue;
             }
             if(d.kind().equals("EVENT")) {
-                text.append(Boolean.parseBoolean(d.javaMembers().get("@recorded"))?"recorded event ":"event ").append(simple(d.identity())).append("(").append(d.fields().stream().map(f->typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(");\n");continue;
+                text.append(Boolean.parseBoolean(d.javaMembers().get("@recorded"))?"recorded event ":"event ").append(simple(d.identity())).append("(").append(d.fields().stream().map(f->typeText(f.type())+" "+f.name()+(f.referenceTarget()==null?"":" references "+f.referenceTarget())).collect(java.util.stream.Collectors.joining(", "))).append(");\n");continue;
             }
             if(d.kind().equals("PORT")) {
                 text.append("port ").append(simple(d.identity())).append(" {\n");

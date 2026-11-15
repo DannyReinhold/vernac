@@ -7,6 +7,7 @@ on:
       - 'saas/**'
       - 'templates/**'
       - 'examples/persistent-modules/**'
+      - 'examples/identity-auth/**'
       - 'tools/release.py'
       - 'tools/identity_password_corpus.py'
       - '.gitattributes'
@@ -26,7 +27,7 @@ permissions:
 jobs:
   spike:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:17.11
@@ -58,7 +59,26 @@ jobs:
       - name: Verify shared mail and selected local/Brevo providers
         run: mvn -B -ntp -pl saas/mail,saas/mail-local,saas/mail-brevo clean install
       - name: Verify optional identity artifacts and their JAR consumer
-        run: mvn -B -ntp -pl saas/identity,saas/identity-spring-security,saas/identity-jdbc clean verify
+        run: mvn -B -ntp -pl saas/identity,saas/identity-spring-security,saas/identity-jdbc clean install
+      - name: Require integrated identity browser proofs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          path = Path('saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityBrowserPostgresIT.xml')
+          suite = ET.parse(path).getroot()
+          expected = {'registrationLoginSelectionAndRecoveryUseRealMetadataMailAndSharedSessionsAcrossRestart', 'invitationAcceptanceRoleChangesLastOwnerAndMembershipRevocationCrossTheActualBrowserBoundary'}
+          cases = {case.attrib['name']: case for case in suite.findall('testcase')}
+          assert expected <= cases.keys()
+          assert all(int(suite.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
+          for case in cases.values():
+              assert not any(case.find(tag) is not None for tag in ('failure', 'error', 'skipped'))
+          print('Integrated identity browser/PostgreSQL proofs executed; none skipped.')
+          ops = ET.parse('saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityOperationsPostgresIT.xml').getroot()
+          assert all(int(ops.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
+          assert any(case.attrib['name'] == 'aggregateMonitoringDistinguishesRealBacklogWorkerFailureAndRecoveryWithoutSensitiveLabels' for case in ops.findall('testcase'))
+          print('Aggregate monitoring/backend recovery proof executed; none skipped.')
+          PY
       - name: Verify Boot module startup and actual HTTP JSON converter selection
         run: mvn -B -ntp -f examples/persistent-modules/pom.xml clean verify
       - name: Check release tooling and documentation links
@@ -68,7 +88,7 @@ jobs:
       - name: Execute real PostgreSQL and Spring boundary tests
         run: mvn -B -ntp -f experiments/tenant-isolation-spike/pom.xml clean verify
       - name: Execute tenant schema replay and schema-check policy proofs
-        run: mvn -B -ntp -pl vernac-maven-plugin -am -Dtest=UniquePersistencePostgresTest,UniqueModulePostgresTest,UseCaseAccessAuditExecutionTest,VernacCompileMojoTest,TypeModuleExecutionTest,ModulePersistenceMojoTest,InboundErrorPolicyExecutionTest,InboundMvcExecutionTest,TenantEventWorkerPostgresTest,EventSchemaPostgresTest,DocumentationExamplesTest,TenantSchemaPostgresTest,SchemaMojoTest,ExplicitTenancyMojoTest,TenantModuleActivationPostgresTest,TenantGeneratedPostgresTest,RepositoryQueryPostgresTest,ScalarQueryPostgresTest,ModuleMigrationPostgresTest,EventStoragePostgresTest,EventWorkerPostgresTest -Dsurefire.failIfNoSpecifiedTests=false test
+        run: mvn -B -ntp -pl vernac-maven-plugin -am -Dtest=GlobalIdReferencePostgresTest,UniquePersistencePostgresTest,UniqueModulePostgresTest,UseCaseAccessAuditExecutionTest,VernacCompileMojoTest,TypeModuleExecutionTest,ModulePersistenceMojoTest,InboundErrorPolicyExecutionTest,InboundMvcExecutionTest,TenantEventWorkerPostgresTest,EventSchemaPostgresTest,DocumentationExamplesTest,TenantSchemaPostgresTest,SchemaMojoTest,ExplicitTenancyMojoTest,TenantModuleActivationPostgresTest,TenantGeneratedPostgresTest,RepositoryQueryPostgresTest,ScalarQueryPostgresTest,ModuleMigrationPostgresTest,EventStoragePostgresTest,EventWorkerPostgresTest -Dsurefire.failIfNoSpecifiedTests=false test
       - name: Require every spike proof to execute
         run: |
           python3 - <<'PY'
@@ -261,6 +281,65 @@ jobs:
                   assert not any(case.find(t) is not None for t in ('skipped', 'failure', 'error'))
           print('Shared mail provider and compiled consumer proofs executed; none skipped.')
           saas_proofs = {
+              'saas/identity-spring-security/target/surefire-reports/TEST-org.vernac.saas.identity.security.IdentityAccountChainTest.xml': {
+                  'accountPagesRequireAuthenticationAndMutationsRequireCsrfBeforeInvokingThePort',
+                  'selectionStoresOnlyVerifiedAccountAndBindsItsMappedTenantForEachProductRequest',
+                  'productFailuresCloseScopeAndGlobalAccountActionsNeverInheritSelectedTenant',
+                  'ownerScreensEscapeScopedMemberDataAndRoleCsvSupportsTheFiniteCatalogAssignmentBound',
+                  'lastOwnerAndTechnicalFailuresHaveSafeStatusAndDoNotLogOutOrSilentlySwitchAccount',
+              },
+              'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.AccountInvitationsPostgresIT.xml': {
+                  'intendedVerifiedRecipientCanAcceptOnceWithoutOwnerPromotionAndWrongPurposeOrIdentityCannot',
+                  'existingMembershipIsIdempotentAndInvitationsCannotSilentlyEscalateRoles',
+                  'concurrentAcceptanceAcrossTwoContextsHasOneWinnerAndOneMembership',
+                  'revocationExpiryAndLostIssuerOwnershipInvalidateLinksAndBoundedCleanupRefundsCapacity',
+              },
+              'saas/identity-spring-security/target/surefire-reports/TEST-org.vernac.saas.identity.security.IdentityInvitationChainTest.xml': {
+                  'invitationGetScrubsCapabilityButAnonymousPostCannotAccept',
+                  'explicitAcceptanceRetainsCurrentIdentityAndRequiresDeliberateAccountSelection',
+              },
+              'saas/identity-spring-security/target/surefire-reports/TEST-org.vernac.saas.identity.security.IdentityJourneyChainTest.xml': {
+                  'getNeverInvokesActionsAndBearerPagesScrubFragmentsBeforeFormActivation',
+                  'csrfBodyAndQueryLimitsPrecedeEveryPublicPostAction',
+                  'neutralRequestsAndExplicitVerificationPostUseTransportSourceAndDoNotAutoLogin',
+                  'safePolicyThrottleAndTechnicalFailuresDoNotInvalidateAnExistingSessionOrLeakInputs',
+                  'protectedPasswordChangeRequiresLoginAndInvalidatesSessionOnlyAfterSuccess',
+              },
+              'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityJourneysPostgresIT.xml': {
+                  'verificationCommitsCredentialsActivationAccountAndFirstOwnerAtomicallyAndDoesNotLogIn',
+                  'failedProvisioningRollsBackTokenPasswordActivationAndWorkspaceAndCanRetryAfterRestart',
+                  'concurrentVerificationAcrossContextsHasOneWinnerAndOnePersonalAccount',
+                  'recoveryAndAuthenticatedChangeAdvanceEpochRequireReauthenticationAndNeverCreateAccountsOrSessions',
+                  'weakPasswordsExpiredLinksAndNeutralUnknownRecoveryDoNotConsumeAValidChallengeOrCreateIdentity',
+              },
+              'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.AccountPolicyPostgresIT.xml': {
+                  'twoContextsCannotBothRemoveTheLastSurvivingActiveOwner',
+                  'freshRoleUnionSelectionAndObjectPolicyNeverInferOwnerOrSpringAuthorityProductRights',
+                  'identityWideDisableRequiresSurvivingOwnersAcrossAllActiveAccounts',
+                  'unknownPersistedRolesFailStartupAndUntrustedSelectionAndNestedWritesFailClosed',
+                  'ownershipTransferIsExplicitAndProductRoleAssignmentCannotPromoteAMember',
+              },
+              'saas/identity/target/surefire-reports/TEST-org.vernac.saas.identity.roles.RoleAssignmentsTest.xml': {
+                  'representationIsFiniteCanonicalAndRoundTripsEmptyAndMultipleRoles',
+                  'duplicatesUnknownGrammarNoncanonicalAndExcessiveInputAreRejected',
+              },
+              'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.AccountMetadataPostgresIT.xml': {
+                  'nominalMetadataPersistsAndDatabaseEnforcesTenantMembershipAndPersonalUniqueness',
+                  'generatedForeignKeysRejectOrphanMetadataAndRuntimeCannotDropConstraints',
+              },
+              'vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.persistence.GlobalIdReferenceTest.xml': {
+                  'nominalGlobalReferencesGenerateTrackedNoCascadeForeignKeysAndSchemaDeltas',
+                  'wrongNominalTypesMutabilityMissingRepositoriesAndTenantBoundariesFailBeforeGeneration',
+                  'moduleRoundTripPreservesExplicitReferencesAndRequiresExportedTargets',
+              },
+              'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.GlobalIdReferencePostgresTest.xml': {
+                  'restrictedWritesEnforceReferencesAndReplayDetectsConstraintDrift',
+              },
+              'saas/identity/target/surefire-reports/TEST-org.vernac.saas.identity.roles.RoleCatalogTest.xml': {
+                  'exactUnionIsImmutableAndCatalogOrderDoesNotChangeItsFingerprint',
+                  'malformedDuplicateUnknownAndOverLimitCatalogsFailWithoutEchoingInput',
+                  'missingRemovedDuplicateAndUnboundedAssignmentsNeverGrant',
+              },
               'saas/identity-spring-security/target/surefire-reports/TEST-org.vernac.saas.identity.security.IdentityRequestAdmissionFilterTest.xml': {
                   'denialNeverReadsParametersOrSessionsAndReturnsBoundedRetry',
                   'backendAndInvalidDecisionsFailClosedWithoutLeakingDetails',
@@ -795,3 +874,47 @@ jobs:
                   assert not any(case.find(t) is not None for t in ('skipped', 'failure', 'error')), f'Unverified schema proof: {name}'
           print('All tenant schema and Maven/PostgreSQL proofs executed; none skipped.')
           PY
+
+  identity-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_USER: vernac
+          POSTGRES_PASSWORD: ephemeral-browser-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vernac -d postgres"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      VERNAC_PG_TEST_URL: jdbc:postgresql://localhost:5432/postgres
+      VERNAC_PG_TEST_USER: vernac
+      VERNAC_PG_TEST_PASSWORD: ephemeral-browser-only
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Install matching compiler and runtime artifacts
+        run: mvn -B -ntp -pl vernac-maven-plugin,vernac-jdbc-spring-boot-starter,vernac-runtime-http -am -DskipTests install
+      - name: Install matching shared mail and identity artifacts
+        run: mvn -B -ntp -pl saas/mail,saas/mail-local,saas/mail-brevo,saas/identity,saas/identity-spring-security,saas/identity-jdbc -DskipTests install
+      - name: Package the ordinary Identity/Auth sample
+        run: mvn -B -ntp -f examples/identity-auth/pom.xml clean package
+      - name: Install the isolated Chromium acceptance runner
+        working-directory: examples/identity-auth/browser
+        run: |
+          npm install --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Verify real HTTPS and Chromium Identity/Auth journeys
+        run: python3 examples/identity-auth/verify.py

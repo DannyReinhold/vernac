@@ -18,10 +18,13 @@ import zipfile
 
 MODULES = ("vernac", "vernac-runtime", "vernac-runtime-json", "vernac-runtime-http",
            "vernac-runtime-jdbc", "vernac-jdbc-spring-boot-starter", "vernac-compiler", "vernac-maven-plugin",
-           "vernac-saas-identity", "vernac-saas-identity-spring-security", "vernac-saas-identity-jdbc")
+           "vernac-saas-identity", "vernac-saas-identity-spring-security", "vernac-saas-identity-jdbc",
+           "vernac-saas-mail", "vernac-saas-mail-local", "vernac-saas-mail-brevo")
 MODULE_PATHS = {"vernac-saas-identity": "saas/identity",
                 "vernac-saas-identity-spring-security": "saas/identity-spring-security",
-                "vernac-saas-identity-jdbc": "saas/identity-jdbc"}
+                "vernac-saas-identity-jdbc": "saas/identity-jdbc",
+                "vernac-saas-mail": "saas/mail", "vernac-saas-mail-local": "saas/mail-local",
+                "vernac-saas-mail-brevo": "saas/mail-brevo"}
 
 
 def reactor_modules():
@@ -38,9 +41,67 @@ REQUIRED_TESTS = ("AdapterBindingsTest","PortModuleTest", "PortModuleSymbolsTest
     "DocumentationExamplesTest", "InboundHttpContractTest", "InboundHttpExecutionTest",
     "InboundHttpRuntimeTest", "InboundHttpSymbolsTest", "PaginationTest", "JdbcCursorCodecTest", "PaginationHttpExecutionTest", "JsonPagesTest", "PaginationResultContractTest")
 
-SAAS_IDENTITY_TESTS = ("IdentityModuleContractIT", "IdentityActorResolverTest", "IdentityPrincipalTest", "IdentityJdbcModuleIT",
-                   "LoginAddressTest", "PasswordInputTest", "OfflinePasswordBlocklistTest", "CredentialPasswordsTest",
-                   "BundledPasswordBlocklistTest", "CredentialCorpusDistributionIT", "IdentityCapacityPostgresIT", "IdentityChallengeTokenTest", "IdentityChallengesPostgresIT", "IdentityIngressModelTest", "IdentityIngressPostgresIT", "IdentityChallengeRepresentationTest", "StoredEncodingPolicyTest", "IdentitySecurityEpochTest", "IdentityCredentialsPostgresIT", "BoundedCredentialPasswordsTest", "AdmissionDigestsTest", "IdentityAdmissionModelTest", "IdentityAdmissionPostgresIT", "IdentityRegistrationsPostgresIT", "IdentityLoginAddressModelTest", "IdentityLoginOwnershipPostgresIT")
+SAAS_IDENTITY_TESTS = (
+    "AccountInvitationsPostgresIT",
+    "AccountMetadataPostgresIT",
+    "AccountPolicyPostgresIT",
+    "AdmissionDigestsTest",
+    "IdentityAdmissionModelTest",
+    "IdentityAdmissionPostgresIT",
+    "IdentityAuthenticationPostgresIT",
+    "IdentityCapacityPostgresIT",
+    "IdentityChallengeRepresentationTest",
+    "IdentityChallengeTokenTest",
+    "IdentityChallengesPostgresIT",
+    "IdentityCredentialsPostgresIT",
+    "IdentityDeliveryCryptoTest",
+    "IdentityEncryptionAdmissionPostgresIT",
+    "IdentityIngressModelTest",
+    "IdentityIngressPostgresIT",
+    "IdentityJdbcAuthenticationAssemblyPostgresIT",
+    "IdentityJdbcModuleIT",
+    "IdentityJdbcSessionsPostgresIT",
+    "IdentityJourneysPostgresIT",
+    "IdentityLoginAddressModelTest",
+    "IdentityLoginOwnershipPostgresIT",
+    "IdentityMailRequestsPostgresIT",
+    "IdentityMailWorkerPostgresIT",
+    "IdentityProviderMailSenderTest",
+    "IdentityRegistrationsPostgresIT",
+    "IdentitySecurityEpochTest",
+    "IdentitySessionEpochPostgresIT",
+    "IdentityAccountChainTest",
+    "IdentityActorResolverTest",
+    "IdentityBrowserSecurityTest",
+    "IdentityFormFilterTest",
+    "IdentityInvitationChainTest",
+    "IdentityJourneyChainTest",
+    "IdentityLocalReturnTargetTest",
+    "IdentityLoginFilterTest",
+    "IdentityLoginPageFilterTest",
+    "IdentityPrincipalTest",
+    "IdentityRequestAdmissionFilterTest",
+    "IdentitySessionTrustTest",
+    "IdentitySessionValidationFilterTest",
+    "BoundedCredentialPasswordsTest",
+    "BundledPasswordBlocklistTest",
+    "CredentialCorpusDistributionIT",
+    "CredentialPasswordsTest",
+    "LoginAddressTest",
+    "OfflinePasswordBlocklistTest",
+    "PasswordInputTest",
+    "StoredEncodingPolicyTest",
+    "IdentityModuleContractIT",
+    "RoleAssignmentsTest",
+    "RoleCatalogTest",
+    "BrevoMailTransportTest",
+    "MailModuleConsumerTest",
+    "MailProviderSelectionTest",
+    "LocalMailInboxTest",
+    "MailContractsTest",
+    "IdentityBrowserPostgresIT",
+    "IdentityOperationsPostgresIT",
+)
 REQUIRED_TESTS += SAAS_IDENTITY_TESTS
 
 # 0.4.0 acceptance: module contracts/lifecycle, pagination, vocabulary and diagrams.
@@ -64,7 +125,8 @@ REQUIRED_TESTS += ("BehaviorSourceMapTest", "BehaviorDebugExecutionTest", "Verna
 # Explicit ordinary-value representation and unsaved LSP diagnostics are required in 0.6.0.
 REQUIRED_TESTS += ("ValueStringRepresentationTest", "VernacProjectDiagnosticsTest",
                    "UniqueAggregateFieldsTest", "UniqueFieldModuleTest", "UniqueFieldSymbolsTest",
-                   "UniquePersistenceSchemaTest", "UniquePersistencePostgresTest", "UniqueModulePostgresTest")
+                   "UniquePersistenceSchemaTest", "UniquePersistencePostgresTest", "UniqueModulePostgresTest",
+                   "GlobalIdReferenceTest", "GlobalIdReferencePostgresTest")
 
 # Live editor APIs are a 0.5.0 release feature, including native Java PSI lookup.
 REQUIRED_TESTS += ("EditorValueObjectsTest", "BehaviorJavaProjectionTest",
