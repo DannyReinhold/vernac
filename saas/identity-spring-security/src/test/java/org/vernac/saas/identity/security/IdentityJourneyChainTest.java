@@ -64,7 +64,7 @@ class IdentityJourneyChainTest {
     }
     @Test void safePolicyThrottleAndTechnicalFailuresDoNotInvalidateAnExistingSessionOrLeakInputs()throws Exception{
         for(var code:IdentityActionException.Code.values()){actions.failure=new IdentityActionException(code,91);var get=request("GET","/auth/recover",null);var page=dispatch(get);var session=(MockHttpSession)get.getSession(false);var post=request("POST","/auth/recover",session);body(post,form(Map.of("token","synthetic-secret","password","synthetic-password","_csrf",csrf(page))));var response=dispatch(post);
-            assertEquals(switch(code){case PASSWORD_POLICY->400;case THROTTLED->429;case AUTHENTICATION_REQUIRED->401;case UNAVAILABLE->503;},response.getStatus());assertFalse(session.isInvalid());assertFalse(response.getContentAsString().contains("synthetic"));if(code==IdentityActionException.Code.THROTTLED)assertEquals("91",response.getHeader("Retry-After"));}
+            assertEquals(switch(code){case PASSWORD_POLICY,REJECTED->400;case ACCESS_DENIED->403;case THROTTLED->429;case AUTHENTICATION_REQUIRED->401;case UNAVAILABLE->503;},response.getStatus());assertFalse(session.isInvalid());assertFalse(response.getContentAsString().contains("synthetic"));if(code==IdentityActionException.Code.THROTTLED)assertEquals("91",response.getHeader("Retry-After"));}
     }
     @Test void protectedPasswordChangeRequiresLoginAndInvalidatesSessionOnlyAfterSuccess()throws Exception{
         var session=login();var get=request("GET","/auth/password",session);var page=dispatch(get);assertEquals(200,page.getStatus());assertTrue(page.getContentAsString().contains("autocomplete=\"current-password\""));

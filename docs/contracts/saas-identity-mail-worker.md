@@ -9,8 +9,8 @@ No worker bean is installed by merely adding/activating the identity JDBC provid
 
 ## Claim, submit, settle
 
-`JdbcIdentityMailWorker` initializes four fixed durable cursor rows: dispatch, mail
-cleanup, challenge cleanup and abandoned registration cleanup. Each cursor uses a
+`JdbcIdentityMailWorker` initializes five fixed durable cursor rows: dispatch, mail
+cleanup, challenge cleanup, abandoned registration cleanup and account-invitation cleanup. Each cursor uses a
 bounded primary-key seek, never a full-table expiration sort. At most 500 IDs are
 inspected per call. Cursor movement and controlled mutations commit together under
 the existing capacity/writer lock. Cursors survive restart; initialization does not

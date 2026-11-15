@@ -24,7 +24,7 @@ import javax.tools.ToolProvider;
 
 /** Actual producer-JAR consumer, explicit module activation and restricted PostgreSQL runtime. */
 final class IdentityJdbcTestEnvironment {
-    static final int EXPECTED_MIGRATIONS = 12;
+    static final int EXPECTED_MIGRATIONS = 13;
     static final String SCHEMA = "org.vernac.saas.identity.persistence";
     private final Path root;
 

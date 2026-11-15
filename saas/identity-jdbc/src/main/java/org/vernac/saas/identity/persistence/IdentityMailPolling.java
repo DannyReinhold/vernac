@@ -39,6 +39,7 @@ final class IdentityMailPolling implements SmartLifecycle {
                 () -> {
                     safe(() -> worker.sweep(500));
                     safe(() -> worker.expireChallenges(500));
+                    safe(() -> worker.expireInvitations(500));
                     safe(() -> worker.expireRegistrations(500));
                     safe(admissionCleanup);
                 },

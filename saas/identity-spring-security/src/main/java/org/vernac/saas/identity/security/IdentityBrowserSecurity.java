@@ -54,7 +54,7 @@ public final class IdentityBrowserSecurity {
                 }).accessDeniedHandler((request,response,failure) -> {
                     response.setHeader("Cache-Control", "no-store");response.setStatus(403);
                 }))
-                .authorizeHttpRequests(c -> c.requestMatchers(path("GET", "/identity/login"),path("POST", "/identity/login"),request -> actions!=null && IdentityJourneyFilter.PUBLIC.contains(request.getServletPath()) && Set.of("GET","POST").contains(request.getMethod())).permitAll()
+                .authorizeHttpRequests(c -> c.requestMatchers(path("GET", "/identity/login"),path("POST", "/identity/login"),request -> actions!=null && (IdentityJourneyFilter.PUBLIC.contains(request.getServletPath()) && Set.of("GET","POST").contains(request.getMethod()) || actions instanceof IdentityInvitationActions && request.getServletPath().equals("/auth/invitation") && request.getMethod().equals("GET"))).permitAll()
                         .anyRequest().access((authentication, context) -> {
                             var value=authentication.get();
                             return new AuthorizationDecision(value != null && value.isAuthenticated()

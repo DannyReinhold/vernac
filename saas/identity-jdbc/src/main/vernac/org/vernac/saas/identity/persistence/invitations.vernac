@@ -1,0 +1,15 @@
+namespace org.vernac.saas.identity.persistence;
+import org.vernac.saas.identity.InvitationId;
+import org.vernac.saas.identity.AccountId;
+import org.vernac.saas.identity.UserId;
+term AccountInvitation {
+    description "One bounded purpose-bound invitation to a canonical verified recipient, with explicit product roles and no ownership promotion.";
+    note "Only the current account owner may issue/revoke. Acceptance rechecks account, issuer ownership, recipient identity, deadline and role catalog in one writer.";
+}
+global aggregate AccountInvitation[InvitationId](AccountId account references Account, UserId issuer references Identity,
+    IdentityLoginKey recipient, IdentityDeliveryAddress delivery, AccountRoleKeys roles, IdentityChallengeVerifier verifier, IdentityChallengeExpiry expiresAt) validates {
+    require(org.vernac.saas.identity.security.credentials.LoginAddress.parse(self.delivery().encoded()).loginKey().equals(self.recipient().encoded()), "Invitation delivery and recipient must match");
+};
+repository AccountInvitationRepository for AccountInvitation {
+    find AccountInvitation? existing(InvitationId invitationId) where id = :invitationId;
+}

@@ -27,6 +27,7 @@ public final class IdentityAccounts implements PermissionEvaluator {
     public record AccountView(AccountId account,AccountKind kind,boolean owner) {}
     private final NamedParameterJdbcTemplate jdbc;private final TransactionTemplate writer,read;
     private final JdbcIdentityCapacity budget;private final AccountRepository accounts;private final AccountMembershipRepository members;
+    private final AccountInvitationRepository invitations;
     private final PersonalAccountRepository personal;private final IdentityRepository identities;
     private final IdentitySessionTrust trust;private final RoleCatalog catalog;private final Set<String> initial;
     private final PermissionEvaluator objectPolicy;private final Clock clock;
@@ -41,10 +42,11 @@ public final class IdentityAccounts implements PermissionEvaluator {
             writer=new TransactionTemplate(manager);writer.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);writer.setTimeout(5);
             read=new TransactionTemplate(manager);read.setReadOnly(true);read.setTimeout(5);
             budget=new JdbcIdentityCapacity(jdbc);accounts=new JdbcAccountRepository(jdbc);members=new JdbcAccountMembershipRepository(jdbc);
-            personal=new JdbcPersonalAccountRepository(jdbc);identities=new JdbcIdentityRepository(jdbc);
+            invitations=new JdbcAccountInvitationRepository(jdbc);personal=new JdbcPersonalAccountRepository(jdbc);identities=new JdbcIdentityRepository(jdbc);
             // Bounded result; never load every stored assignment into application memory.
             String unknown=catalog.roleKeys().isEmpty()?"\"roles\"<>''":"EXISTS (SELECT 1 FROM unnest(string_to_array(\"roles\",',')) AS k WHERE k<>'' AND k NOT IN (:known))";
-            if(!jdbc.queryForList("SELECT 1 FROM "+S+"\"AccountMembership\" WHERE "+unknown+" LIMIT 1",Map.of("known",catalog.roleKeys()),Integer.class).isEmpty())throw fail(CONFIGURATION);
+            for(String table:List.of("AccountMembership","AccountInvitation"))
+                if(!jdbc.queryForList("SELECT 1 FROM "+S+"\""+table+"\" WHERE "+unknown+" LIMIT 1",Map.of("known",catalog.roleKeys()),Integer.class).isEmpty())throw fail(CONFIGURATION);
         } catch(RuntimeException unavailable) {throw fail(CONFIGURATION);}
     }
     boolean uses(NamedParameterJdbcTemplate template,PlatformTransactionManager manager) {
@@ -142,6 +144,72 @@ public final class IdentityAccounts implements PermissionEvaluator {
             var owned=jdbc.queryForList("SELECT m.\"account\" FROM "+S+"\"AccountMembership\" m JOIN "+S+"\"Account\" a ON a.\"id\"=m.\"account\" WHERE m.\"subject\"=:user AND m.\"owner\" AND m.\"status\"='ACTIVE' AND a.\"status\"='ACTIVE' ORDER BY m.\"account\"",Map.of("user",user.value()),UUID.class);
             for(UUID account:owned){var id=AccountId.of(account);locked(id);if(owners(id)<=1)throw fail(LAST_OWNER);}
             var row=identities.byId(user);if(close)row.close();else row.disable();identities.save(row);return true;});
+    }
+    public record MemberView(UserId subject,boolean owner,boolean active,Set<String> roles) {
+        public MemberView {roles=Set.copyOf(roles);}
+        @Override public String toString(){return "MemberView[REDACTED]";}
+    }
+    public record InvitationView(InvitationId invitation,String recipient,Instant expires,Set<String> roles) {
+        public InvitationView {roles=Set.copyOf(roles);}
+        @Override public String toString(){return "InvitationView[REDACTED]";}
+    }
+    public List<String> availableRoles() {unscoped();currentUser();return catalog.roleKeys().stream().sorted().toList();}
+    public List<MemberView> members(AccountId id) {
+        unscoped();try{return Objects.requireNonNull(read.execute(status->{var user=currentUser();var account=accounts.existing(id).orElseThrow(()->fail(ACCESS_DENIED));
+            if(account.status()!=AccountStatus.ACTIVE)throw fail(ACCESS_DENIED);owner(id,user);
+            return jdbc.query("SELECT \"subject\",\"owner\",\"status\",\"roles\" FROM "+S+"\"AccountMembership\" WHERE \"account\"=:account ORDER BY \"subject\" LIMIT :limit",Map.of("account",id.value(),"limit",MAX_MEMBERS_PER_ACCOUNT),
+                (rs,n)->new MemberView(UserId.of(rs.getObject(1,UUID.class)),rs.getBoolean(2),rs.getString(3).equals("ACTIVE"),Set.copyOf(catalog.assignments(RoleAssignments.decode(rs.getString(4))))));}));}
+        catch(AccountAccessException safe){throw safe;}catch(RuntimeException unavailable){throw fail(UNAVAILABLE);}
+    }
+    public List<InvitationView> invitations(AccountId id) {
+        unscoped();try{return Objects.requireNonNull(read.execute(status->{var user=currentUser();var account=accounts.existing(id).orElseThrow(()->fail(ACCESS_DENIED));
+            if(account.status()!=AccountStatus.ACTIVE)throw fail(ACCESS_DENIED);owner(id,user);
+            return jdbc.query("SELECT \"id\",\"delivery\",\"expiresAt\",\"@nanoRemainder:expiresAt\",\"roles\" FROM "+S+"\"AccountInvitation\" WHERE \"account\"=:account ORDER BY \"id\" LIMIT 100",Map.of("account",id.value()),
+                (rs,n)->new InvitationView(InvitationId.of(rs.getObject(1,UUID.class)),rs.getString(2),rs.getTimestamp(3).toInstant().plusNanos(rs.getShort(4)),Set.copyOf(catalog.assignments(RoleAssignments.decode(rs.getString(5))))));}));}
+        catch(AccountAccessException safe){throw safe;}catch(RuntimeException unavailable){throw fail(UNAVAILABLE);}
+    }
+    AccountInvitation issueInvitation(AccountId account,org.vernac.saas.identity.security.credentials.LoginAddress address,Collection<String> roles,IdentityChallengeToken token) {
+        if(!TransactionSynchronizationManager.isActualTransactionActive() || TenantContext.currentTenant().isPresent() || AuthorizationGuard.currentActor().isPresent())throw fail(CONFIGURATION);
+        return budget.withBudgetLock(()->{
+            var user=currentUser();locked(account);owner(account,user);
+            final String selected;try{selected=RoleAssignments.encode(catalog.assignments(roles));}catch(RuntimeException invalid){throw fail(INVALID_ROLES);}
+            long pending=Objects.requireNonNull(jdbc.queryForObject("SELECT count(*) FROM "+S+"\"AccountInvitation\" WHERE \"account\"=:account",Map.of("account",account.value()),Long.class));
+            if(pending>=100 || !budget.reserve(Map.of(JdbcIdentityCapacity.Resource.ACTIONABLE_CHALLENGES,1L)))throw fail(CAPACITY);
+            Instant now=clock.instant();return invitations.save(AccountInvitation.reconstitute(InvitationId.of(token.locator()),account,user,
+                IdentityLoginKey.of(address.loginKey()),IdentityDeliveryAddress.of(address.deliveryAddress()),AccountRoleKeys.of(selected),
+                IdentityChallengeVerifier.of(token.verifier()),IdentityChallengeExpiry.of(now.plus(Duration.ofDays(7))),now,now,0));
+        });
+    }
+    boolean acceptInvitation(IdentityChallengeToken token) {
+        if(!TransactionSynchronizationManager.isActualTransactionActive() || TenantContext.currentTenant().isPresent() || AuthorizationGuard.currentActor().isPresent())throw fail(CONFIGURATION);
+        return budget.withBudgetLock(()->{
+            var user=currentUser();var found=invitations.existing(InvitationId.of(token.locator()));if(found.isEmpty())return false;var invitation=found.get();
+            if(!clock.instant().isBefore(invitation.expiresAt().instant()) || !token.matches(invitation.verifier().encoded()))return false;
+            var account=accounts.existing(invitation.account());if(account.isEmpty() || account.get().status()!=AccountStatus.ACTIVE)return false;locked(invitation.account());
+            var issuer=members.forKey(key(invitation.account(),invitation.issuer()));
+            if(issuer.isEmpty() || issuer.get().status()!=AccountMemberStatus.ACTIVE || !issuer.get().owner().enabled()
+                || identities.existing(invitation.issuer()).map(identity->identity.status()!=IdentityStatus.ACTIVE).orElse(true))return false;
+            var address=new JdbcIdentityLoginAddressRepository(jdbc).existing(user);
+            if(address.isEmpty() || !address.get().loginKey().equals(invitation.recipient()))return false;
+            var roles=AccountRoleKeys.of(RoleAssignments.encode(catalog.assignments(RoleAssignments.decode(invitation.roles().encoded()))));
+            var existing=members.forKey(key(invitation.account(),user));
+            if(existing.isEmpty()) {
+                room(user);long count=Objects.requireNonNull(jdbc.queryForObject("SELECT count(*) FROM "+S+"\"AccountMembership\" WHERE \"account\"=:account",Map.of("account",invitation.account().value()),Long.class));
+                if(count>=MAX_MEMBERS_PER_ACCOUNT)throw fail(CAPACITY);
+                members.save(AccountMembership.create(invitation.account(),user,key(invitation.account(),user),AccountOwner.of(false),AccountMemberStatus.ACTIVE,roles));
+            }else if(existing.get().status()==AccountMemberStatus.REMOVED) {
+                room(user);var membership=existing.get();membership.restore(roles);members.save(membership);
+            }else checkedRoles(existing.get()); // idempotent membership; never replace/promote/escalate it
+            deleteInvitation(invitation);return true;
+        });
+    }
+    private void deleteInvitation(AccountInvitation invitation) {
+        new JdbcIdentityMailLedger(jdbc).cancel(IdentityChallengeId.of(invitation.id().value()));
+        invitations.delete(invitation);budget.release(Map.of(JdbcIdentityCapacity.Resource.ACTIONABLE_CHALLENGES,1L));
+    }
+    public void revokeInvitation(AccountId account,InvitationId invitation) {
+        mutate(()->{var user=currentUser();locked(account);owner(account,user);var found=invitations.existing(invitation);
+            if(found.isPresent() && found.get().account().equals(account))deleteInvitation(found.get());return true;});
     }
     /** Pure fresh account/role policy, composed with the application's explicit object-specific policy. */
     @Override public PermissionDecision evaluate(PermissionRequest request) {

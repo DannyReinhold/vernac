@@ -20,7 +20,7 @@ import org.vernac.saas.mail.domain.MailProvider;
 import static org.vernac.saas.identity.security.IdentityActionException.Code.*;
 
 /** Explicit application assembly of neutral mail requests and atomic public credential/provisioning journeys. */
-public final class IdentityJourneys implements IdentityBrowserActions {
+public final class IdentityJourneys implements IdentityInvitationActions {
     private static final class Rejected extends RuntimeException {}
     private final TransactionTemplate writer;private final NamedParameterJdbcTemplate jdbc;
     private final IdentityJdbcAuthentication authentication;private final JdbcIdentityAdmission admission;
@@ -96,6 +96,24 @@ public final class IdentityJourneys implements IdentityBrowserActions {
             return Boolean.TRUE.equals(writer.execute(status->credentials.replace(snapshot,encoded)));
         }catch(CredentialInputException invalid){throw failure(PASSWORD_POLICY);}
         catch(Rejected invalid){return false;}catch(IdentityActionException safe){throw safe;}catch(RuntimeException unavailable){throw failure(UNAVAILABLE);}
+    }
+    @Override public void requestInvitation(AccountId account,String address,Collection<String> roles,InetAddress source) {
+        boundary();try {
+            if(!authentication.sessionTrust().current(SecurityContextHolder.getContext().getAuthentication()))throw failure(AUTHENTICATION_REQUIRED);
+            LoginAddress recipient;try{recipient=LoginAddress.parse(address);}catch(CredentialInputException invalid){recipient=null;}
+            if(!admitted(admission.mail(source,recipient)) || recipient==null)return;
+            var permit=crypto.prepare();var token=IdentityChallengeToken.create();var delivery=recipient;
+            writer.executeWithoutResult(status->{var invitation=accounts.issueInvitation(account,delivery,roles,token);mail.invitation(invitation,token,permit);});
+        }catch(AccountAccessException denied){throw failure(denied.code()==AccountAccessException.Code.ACCESS_DENIED?ACCESS_DENIED:denied.code()==AccountAccessException.Code.INVALID_ROLES?REJECTED:UNAVAILABLE);}
+        catch(IdentityActionException safe){throw safe;}catch(RuntimeException unavailable){throw failure(UNAVAILABLE);}
+    }
+    @Override public boolean acceptInvitation(String input,InetAddress source) {
+        boundary();try {
+            if(!authentication.sessionTrust().current(SecurityContextHolder.getContext().getAuthentication()))throw failure(AUTHENTICATION_REQUIRED);
+            var token=IdentityChallengeToken.parse(input);
+            if(!admitted(admission.challenge(source,token==null?null:token.locator().toString())) || token==null)return false;
+            return Boolean.TRUE.equals(writer.execute(status->accounts.acceptInvitation(token)));
+        }catch(IdentityActionException safe){throw safe;}catch(RuntimeException unavailable){throw failure(UNAVAILABLE);}
     }
     @Override public String toString(){return "IdentityJourneys[REDACTED]";}
 }
