@@ -11,6 +11,22 @@ jobs:
   subscriptions:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_USER: vernac
+          POSTGRES_PASSWORD: ephemeral-subscriptions-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vernac -d postgres"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      VERNAC_PG_TEST_URL: jdbc:postgresql://localhost:5432/postgres
+      VERNAC_PG_TEST_USER: vernac
+      VERNAC_PG_TEST_PASSWORD: ephemeral-subscriptions-only
     steps:
       - uses: actions/checkout@v7
         with:
@@ -20,16 +36,25 @@ jobs:
           distribution: temurin
           java-version: '25'
       - name: Install matching compiler and runtime
-        run: mvn -B -ntp -pl vernac-maven-plugin -am -DskipTests install
+        run: mvn -B -ntp -pl vernac-maven-plugin,vernac-jdbc-spring-boot-starter -am -DskipTests install
       - name: Install nominal account contracts
         run: mvn -B -ntp -pl saas/identity -DskipTests install
       - name: Verify generated subscription model
         run: mvn -B -ntp -pl saas/subscriptions clean verify
+      - name: Replay actual subscription migrations and compare schema
+        env:
+          VERNAC_CHECK_URL: jdbc:postgresql://localhost:5432/postgres
+          VERNAC_CHECK_USER: vernac
+          VERNAC_CHECK_PASSWORD: ephemeral-subscriptions-only
+        run: mvn -B -ntp -pl saas/subscriptions org.vernac:vernac-maven-plugin:0.6.0-SNAPSHOT:schema-check
       - name: Require domain proofs without skips
         run: |
           python3 - <<'PY'
           import xml.etree.ElementTree as ET
           root = ET.parse('saas/subscriptions/target/surefire-reports/TEST-org.vernac.saas.subscriptions.SubscriptionDomainTest.xml').getroot()
-          assert int(root.attrib['tests']) >= 6
+          assert int(root.attrib['tests']) >= 8
           assert all(int(root.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
+          integration = ET.parse('saas/subscriptions/target/failsafe-reports/TEST-org.vernac.saas.subscriptions.SubscriptionPostgresIT.xml').getroot()
+          assert int(integration.attrib['tests']) >= 4
+          assert all(int(integration.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
           PY

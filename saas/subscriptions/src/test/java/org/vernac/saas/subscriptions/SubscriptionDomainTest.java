@@ -18,7 +18,7 @@ class SubscriptionDomainTest {
     }
     static Subscription awaiting(OfferTerms terms) {
         return Subscription.create(AccountId.create(), terms, SubscriptionStatus.AWAITING_PAYMENT,
-                START, END, false, terms, false);
+                SubscriptionPeriod.of(START, END), RenewalStatus.ENABLED, terms);
     }
     @Test void freeAndPaidActivationAreDistinctAndEffectiveWindowsAreHalfOpen() {
         var free = awaiting(offer("free", "v1", 0, 3));
@@ -62,7 +62,23 @@ class SubscriptionDomainTest {
         sub.lapse(END); assertEquals(SubscriptionStatus.SUSPENDED, sub.status()); assertFalse(sub.effectiveAt(END));
         sub.settleRenewal(terms, END, Instant.parse("2026-03-01T00:00:00Z"));
         assertTrue(sub.effectiveAt(END)); sub.end(); assertFalse(sub.effectiveAt(END));
-        assertThrows(SubscriptionFailure.class, () -> sub.settleRenewal(terms, sub.periodEnd(), sub.periodEnd().plusSeconds(100)));
+        assertThrows(SubscriptionFailure.class, () -> sub.settleRenewal(terms, sub.period().end(), sub.period().end().plusSeconds(100)));
+    }
+    @Test void freeToPaidKeepsFreeBenefitsUntilExactConfirmedFirstPeriod() {
+        var free = offer("free", "v1", 0, 3); var paid = offer("pro", "v1", 1200, 100);
+        var sub = awaiting(free); sub.activateFree(); sub.scheduleChange(paid);
+        assertEquals(3, Benefits.allowance(sub.benefitsAt(START), EXPORTS).maximum());
+        assertThrows(SubscriptionFailure.class, () -> sub.settleUpgrade(paid, START.minusSeconds(1), END));
+        assertThrows(SubscriptionFailure.class, () -> sub.settleUpgrade(paid, START, END.plusSeconds(1)));
+        sub.settleUpgrade(paid, START, END);
+        assertEquals(100, Benefits.allowance(sub.benefitsAt(START), EXPORTS).maximum());
+        assertThrows(SubscriptionFailure.class, () -> sub.settleUpgrade(paid, START, END));
+    }
+    @Test void billingCalendarUsesUtcCalendarBoundariesIncludingLeapYears() {
+        var january = Instant.parse("2028-01-31T12:34:56Z");
+        assertEquals(Instant.parse("2028-02-29T12:34:56Z"), BillingCalendar.end(january, BillingInterval.MONTHLY));
+        assertEquals(Instant.parse("2029-02-28T12:34:56Z"), BillingCalendar.end(Instant.parse("2028-02-29T12:34:56Z"), BillingInterval.YEARLY));
+        assertThrows(RuntimeException.class, () -> SubscriptionPeriod.of(END, START));
     }
     @Test void benefitsAreCanonicalFiniteImmutableAndMissingMeansZeroRatherThanUnlimited() {
         var snapshot = Benefits.of(Map.of(BenefitKey.of("z"), Allowance.of(-1), BenefitKey.of("a"), Allowance.of(Long.MAX_VALUE)));

@@ -1,4 +1,5 @@
 module vernac.saas.subscriptions {
+    tenancy explicit;
     export org.vernac.saas.subscriptions.PlanKey;
     export org.vernac.saas.subscriptions.OfferRevision;
     export org.vernac.saas.subscriptions.MinorUnits;
@@ -9,6 +10,8 @@ module vernac.saas.subscriptions {
     export org.vernac.saas.subscriptions.BenefitSnapshot;
     export org.vernac.saas.subscriptions.OfferTerms;
     export org.vernac.saas.subscriptions.SubscriptionStatus;
+    export org.vernac.saas.subscriptions.RenewalStatus;
+    export org.vernac.saas.subscriptions.SubscriptionPeriod;
     export org.vernac.saas.subscriptions.SubscriptionId;
     export org.vernac.saas.subscriptions.Subscription;
 }

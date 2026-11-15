@@ -25,28 +25,31 @@ value Allowance(long maximum) validates {
 value BenefitSnapshot(String encoded) validates {
     require(org.vernac.saas.subscriptions.Benefits.valid(self.encoded()), "Invalid benefit snapshot");
 };
-term OfferTerms {
-    description "Complete immutable commercial and entitlement terms copied into a subscription, not a live reference to mutable configuration.";
-}
+term OfferTerms { description "Complete immutable commercial and entitlement terms copied into a subscription, not a live reference to mutable configuration."; }
 value OfferTerms(PlanKey plan, OfferRevision revision, MinorUnits price, BillingCurrency currency,
     BillingInterval interval, BenefitSnapshot benefits);
 value SubscriptionStatus = AWAITING_PAYMENT | ACTIVE | SUSPENDED | ENDED;
+value RenewalStatus = ENABLED | CANCELLED;
+value SubscriptionPeriod(Instant start, Instant end) validates {
+    require(self.end().isAfter(self.start()), "Invalid subscription period");
+};
 id SubscriptionId;
 
 term Subscription {
     description "One account's agreement and effective benefit window. Domain transitions neither authenticate a member nor prove a remote payment.";
-    note "The application writer authorizes account administration, serializes mutations and accepts settlements only periodFrom verified payment processing.";
+    note "The application writer authorizes account administration, serializes mutations and accepts settlements only from verified payment processing.";
 }
-global aggregate Subscription[SubscriptionId](AccountId account, mut OfferTerms terms,
-    mut SubscriptionStatus status, mut Instant periodStart, mut Instant periodEnd,
-    mut boolean cancelAtEnd, mut OfferTerms renewalTerms, mut boolean changeScheduled) validates {
-    require(self.periodEnd().isAfter(self.periodStart()), "Invalid subscription period");
-    require(self.terms().price().value() == 0 || org.vernac.saas.subscriptions.BillingCalendar.end(self.periodStart(), self.terms().interval()).equals(self.periodEnd()), "Invalid paid billing interval");
+global aggregate Subscription[SubscriptionId](unique AccountId account, mut OfferTerms terms,
+    mut SubscriptionStatus status, mut SubscriptionPeriod period,
+    mut RenewalStatus renewal, mut OfferTerms renewalTerms) validates {
+    require(self.terms().price().value() == 0 || org.vernac.saas.subscriptions.BillingCalendar.end(self.period().start(), self.terms().interval()).equals(self.period().end()), "Invalid paid billing interval");
 } behavior {
-    public boolean effectiveAt(Instant now) {
-        return self.status() == SubscriptionStatus.ACTIVE && !now.isBefore(self.periodStart()) && now.isBefore(self.periodEnd());
+    read boolean effectiveAt(Instant now) {
+        return self.status() == SubscriptionStatus.ACTIVE && !now.isBefore(self.period().start()) && now.isBefore(self.period().end());
     }
-    public BenefitSnapshot benefitsAt(Instant now) {
+    read boolean cancelAtEnd() { return self.renewal() == RenewalStatus.CANCELLED; }
+    read boolean changeScheduled() { return !self.renewalTerms().equals(self.terms()); }
+    read BenefitSnapshot benefitsAt(Instant now) {
         return self.effectiveAt(now) ? self.terms().benefits() : BenefitSnapshot.of("");
     }
     modify void activateFree() {
@@ -56,7 +59,7 @@ global aggregate Subscription[SubscriptionId](AccountId account, mut OfferTerms 
     }
     modify void settleInitial(OfferTerms paidTerms, Instant periodFrom, Instant until) {
         org.vernac.saas.subscriptions.SubscriptionRules.require(self.status() == SubscriptionStatus.AWAITING_PAYMENT && self.terms().price().value() > 0
-            && self.terms().equals(paidTerms) && self.periodStart().equals(periodFrom) && self.periodEnd().equals(until),
+            && self.terms().equals(paidTerms) && self.period().start().equals(periodFrom) && self.period().end().equals(until),
             org.vernac.saas.subscriptions.SubscriptionFailure.Code.SETTLEMENT_MISMATCH);
         self.status(SubscriptionStatus.ACTIVE);
     }
@@ -64,40 +67,59 @@ global aggregate Subscription[SubscriptionId](AccountId account, mut OfferTerms 
         org.vernac.saas.subscriptions.SubscriptionRules.require(self.status() == SubscriptionStatus.ACTIVE && !self.cancelAtEnd(),
             org.vernac.saas.subscriptions.SubscriptionFailure.Code.INVALID_TRANSITION);
         self.renewalTerms(next);
-        self.changeScheduled(true);
     }
     modify void cancelRenewal() {
         org.vernac.saas.subscriptions.SubscriptionRules.require(self.status() == SubscriptionStatus.ACTIVE || self.status() == SubscriptionStatus.SUSPENDED,
             org.vernac.saas.subscriptions.SubscriptionFailure.Code.INVALID_TRANSITION);
-        self.cancelAtEnd(true);
-        self.changeScheduled(false);
+        self.renewal(RenewalStatus.CANCELLED);
         self.renewalTerms(self.terms());
     }
     modify void resumeRenewal(Instant now) {
-        org.vernac.saas.subscriptions.SubscriptionRules.require(self.status() == SubscriptionStatus.ACTIVE && now.isBefore(self.periodEnd()),
+        org.vernac.saas.subscriptions.SubscriptionRules.require(self.status() == SubscriptionStatus.ACTIVE && now.isBefore(self.period().end()),
             org.vernac.saas.subscriptions.SubscriptionFailure.Code.INVALID_TRANSITION);
-        self.cancelAtEnd(false);
+        self.renewal(RenewalStatus.ENABLED);
     }
     modify void settleRenewal(OfferTerms paidTerms, Instant periodFrom, Instant until) {
         org.vernac.saas.subscriptions.SubscriptionRules.require((self.status() == SubscriptionStatus.ACTIVE || self.status() == SubscriptionStatus.SUSPENDED)
-            && !self.cancelAtEnd() && periodFrom.equals(self.periodEnd()) && until.isAfter(periodFrom)
-            && paidTerms.equals(self.changeScheduled() ? self.renewalTerms() : self.terms()),
+            && !self.cancelAtEnd() && periodFrom.equals(self.period().end()) && until.isAfter(periodFrom)
+            && paidTerms.equals(self.renewalTerms()) && until.equals(org.vernac.saas.subscriptions.BillingCalendar.end(periodFrom, paidTerms.interval())),
             org.vernac.saas.subscriptions.SubscriptionFailure.Code.SETTLEMENT_MISMATCH);
         self.terms(paidTerms);
-        self.periodStart(periodFrom);
-        self.periodEnd(until);
+        self.period(SubscriptionPeriod.of(periodFrom, until));
         self.renewalTerms(paidTerms);
-        self.changeScheduled(false);
         self.status(SubscriptionStatus.ACTIVE);
     }
+    modify void settleUpgrade(OfferTerms paidTerms, Instant periodFrom, Instant until) {
+        org.vernac.saas.subscriptions.SubscriptionRules.require(self.status() == SubscriptionStatus.ACTIVE && self.terms().price().value() == 0
+            && paidTerms.price().value() > 0 && !self.cancelAtEnd() && paidTerms.equals(self.renewalTerms())
+            && !periodFrom.isBefore(self.period().start()) && periodFrom.isBefore(self.period().end())
+            && until.equals(org.vernac.saas.subscriptions.BillingCalendar.end(periodFrom, paidTerms.interval())),
+            org.vernac.saas.subscriptions.SubscriptionFailure.Code.SETTLEMENT_MISMATCH);
+        self.terms(paidTerms);
+        self.period(SubscriptionPeriod.of(periodFrom, until));
+        self.renewalTerms(paidTerms);
+    }
     modify void lapse(Instant now) {
-        org.vernac.saas.subscriptions.SubscriptionRules.require(!now.isBefore(self.periodEnd()) && self.status() != SubscriptionStatus.ENDED,
+        org.vernac.saas.subscriptions.SubscriptionRules.require(!now.isBefore(self.period().end()) && self.status() != SubscriptionStatus.ENDED,
             org.vernac.saas.subscriptions.SubscriptionFailure.Code.INVALID_TRANSITION);
         self.status(self.cancelAtEnd() ? SubscriptionStatus.ENDED : SubscriptionStatus.SUSPENDED);
     }
     modify void end() {
         self.status(SubscriptionStatus.ENDED);
-        self.cancelAtEnd(true);
-        self.changeScheduled(false);
+        self.renewal(RenewalStatus.CANCELLED);
+        self.renewalTerms(self.terms());
     }
 };
+
+repository SubscriptionRepository for Subscription {
+    find Subscription? forAccount(AccountId account) where account = :account;
+}
+value SettlementKey(String encoded) validates {
+    require(self.encoded().matches("[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,127}"), "Invalid settlement key");
+} behavior { public String toString() { return "SettlementKey[REDACTED]"; } };
+id SubscriptionSettlementId;
+global aggregate SubscriptionSettlement[SubscriptionSettlementId](SubscriptionId subscription references Subscription,
+    unique SettlementKey operation, OfferTerms terms, SubscriptionPeriod period);
+repository SubscriptionSettlementRepository for SubscriptionSettlement {
+    find SubscriptionSettlement? forOperation(SettlementKey operation) where operation = :operation;
+}

@@ -68,3 +68,29 @@ SubscriptionDomainTest exercises free/paid separation, window boundaries, retain
 scheduled changes, cancellation, nonpayment/recovery, replay, canonical bounded snapshots
 and invalid catalogs. Public docs/AI references/Wizard must not advertise a complete
 billing system from this domain-only slice. There is no new syntax to add to parser/LSP.
+
+## Explicit module composition
+
+```vernac-application
+application consumer.subscriptions {
+    tenancy explicit;
+    authorization explicit;
+    activate vernac.saas.subscriptions;
+}
+```
+
+The module owns the generated global subscription and settlement tables. AccountId
+is immutable and unique on Subscription; settled operations are unique and refer to
+an existing subscription. Imported identity/account tables are not owned or migrated
+by subscriptions. Runtime credentials require CRUD only, without schema CREATE,
+superuser or bypass-RLS privileges; migration uses the separate standard module owner.
+
+SubscriptionLedger is an explicitly constructed internal writer. Applications must
+perform current account authorization before administration and verified payment
+routing before confirm; do not bind it directly to public HTTP request data. It
+rejects inherited business actor/tenant/transaction scopes. Account-scoped transaction
+locks serialize creation and mutations, including independent instances. Generated
+repositories preserve normal version, hydration and timestamp semantics. Settlement
+receipt and subscription changes share one physical transaction. Reusing an operation
+key with different terms/account/period fails; replay cannot renew a second time.
+These facts are not a replacement for provider checkout idempotency and reconciliation.

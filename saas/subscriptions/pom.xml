@@ -10,6 +10,9 @@
     <name>Vernac SaaS Subscriptions</name>
     <description>Optional plan catalog and subscription domain</description>
     <dependencies>
+        <dependency><groupId>org.vernac</groupId><artifactId>vernac-jdbc-spring-boot-starter</artifactId></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-test</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>org.assertj</groupId><artifactId>assertj-core</artifactId><scope>test</scope></dependency>
         <dependency><groupId>org.vernac</groupId><artifactId>vernac-saas-identity</artifactId></dependency>
         <dependency><groupId>org.vernac</groupId><artifactId>vernac-runtime</artifactId></dependency>
         <dependency><groupId>org.vernac</groupId><artifactId>vernac-compiler</artifactId><version>${project.version}</version><scope>test</scope></dependency>
@@ -21,7 +24,7 @@
     </plugin>
     <plugin>
         <groupId>org.apache.maven.plugins</groupId><artifactId>maven-failsafe-plugin</artifactId><version>3.5.2</version>
-        <configuration><systemPropertyVariables><subscriptions.jar>${project.build.directory}/${project.build.finalName}.jar</subscriptions.jar></systemPropertyVariables></configuration>
+        <configuration><systemPropertyVariables><subscriptions.jar>${project.build.directory}/${project.build.finalName}.jar</subscriptions.jar><identity.types.jar>${project.basedir}/../identity/target/vernac-saas-identity-${project.version}.jar</identity.types.jar></systemPropertyVariables></configuration>
         <executions><execution><goals><goal>integration-test</goal><goal>verify</goal></goals></execution></executions>
     </plugin></plugins></build>
 </project>
