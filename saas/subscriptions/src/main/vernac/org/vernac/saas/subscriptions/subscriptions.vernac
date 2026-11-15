@@ -35,7 +35,7 @@ id SubscriptionId;
 
 term Subscription {
     description "One account's agreement and effective benefit window. Domain transitions neither authenticate a member nor prove a remote payment.";
-    note "The application writer authorizes account administration, serializes mutations and accepts settlements only from verified payment processing.";
+    note "The application writer authorizes account administration, serializes mutations and accepts settlements only periodFrom verified payment processing.";
 }
 global aggregate Subscription[SubscriptionId](AccountId account, mut OfferTerms terms,
     mut SubscriptionStatus status, mut Instant periodStart, mut Instant periodEnd,
@@ -54,9 +54,9 @@ global aggregate Subscription[SubscriptionId](AccountId account, mut OfferTerms 
             org.vernac.saas.subscriptions.SubscriptionFailure.Code.INVALID_TRANSITION);
         self.status(SubscriptionStatus.ACTIVE);
     }
-    modify void settleInitial(OfferTerms paidTerms, Instant from, Instant until) {
+    modify void settleInitial(OfferTerms paidTerms, Instant periodFrom, Instant until) {
         org.vernac.saas.subscriptions.SubscriptionRules.require(self.status() == SubscriptionStatus.AWAITING_PAYMENT && self.terms().price().value() > 0
-            && self.terms().equals(paidTerms) && self.periodStart().equals(from) && self.periodEnd().equals(until),
+            && self.terms().equals(paidTerms) && self.periodStart().equals(periodFrom) && self.periodEnd().equals(until),
             org.vernac.saas.subscriptions.SubscriptionFailure.Code.SETTLEMENT_MISMATCH);
         self.status(SubscriptionStatus.ACTIVE);
     }
@@ -78,13 +78,13 @@ global aggregate Subscription[SubscriptionId](AccountId account, mut OfferTerms 
             org.vernac.saas.subscriptions.SubscriptionFailure.Code.INVALID_TRANSITION);
         self.cancelAtEnd(false);
     }
-    modify void settleRenewal(OfferTerms paidTerms, Instant from, Instant until) {
+    modify void settleRenewal(OfferTerms paidTerms, Instant periodFrom, Instant until) {
         org.vernac.saas.subscriptions.SubscriptionRules.require((self.status() == SubscriptionStatus.ACTIVE || self.status() == SubscriptionStatus.SUSPENDED)
-            && !self.cancelAtEnd() && from.equals(self.periodEnd()) && until.isAfter(from)
+            && !self.cancelAtEnd() && periodFrom.equals(self.periodEnd()) && until.isAfter(periodFrom)
             && paidTerms.equals(self.changeScheduled() ? self.renewalTerms() : self.terms()),
             org.vernac.saas.subscriptions.SubscriptionFailure.Code.SETTLEMENT_MISMATCH);
         self.terms(paidTerms);
-        self.periodStart(from);
+        self.periodStart(periodFrom);
         self.periodEnd(until);
         self.renewalTerms(paidTerms);
         self.changeScheduled(false);
