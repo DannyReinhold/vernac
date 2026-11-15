@@ -246,7 +246,7 @@ conversions, identity/authorization and the SaaS starter remain OPEN or fail clo
 
 ## Tenant module metadata evidence
 
-module-contracts-12 preserves exported aggregate scope and entity ownership/restoration
+module-contracts-13 preserves exported aggregate scope and entity ownership/restoration
 capability. Read-only import views retain scope; scope changes are incompatible. Tests
 compile a producer JAR and persist its entities inside a local tenant graph without
 regenerating dependency classes. This is partial A20 evidence. Persistent tenant module activation now verifies
@@ -802,7 +802,7 @@ spellings, both unique/mut modifier orders and shared located validation. The fi
 accepted type slice is checked in project/editor analysis. Ordinary generated domain
 objects compile without a cross-instance Java registry or new constraint methods.
 
-The requirement is retained in module-contracts-12 field metadata, source views, JSON
+The requirement is retained in module-contracts-13 field metadata, source views, JSON
 round trips, imported ASTs and compatibility fingerprints. Rebuild development producers
 and consumers together; older contract versions fail explicitly. Existing persistence
 snapshot formats and migrations are unchanged. LSP/native type references and incomplete
@@ -834,7 +834,7 @@ PostgreSQL UNIQUE constraints, automatic tenant qualification and explicit selec
 C collation. Schema format 4 carries the collation through compiler/runtime metadata,
 module history/fingerprints, migration planning, live schema-check and activation
 validation. Old unchanged schema bytes/fingerprints remain stable; the seven identity
-migration histories are unchanged. Module source metadata remains module-contracts-12.
+migration histories are unchanged. Module source metadata remains module-contracts-13.
 
 Generated JDBC uses Spring classification plus exact structured PostgreSQL schema/table/
 constraint metadata. Declared conflicts expose logical aggregate/field identities only,

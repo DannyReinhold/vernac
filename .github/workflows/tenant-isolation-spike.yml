@@ -68,7 +68,7 @@ jobs:
       - name: Execute real PostgreSQL and Spring boundary tests
         run: mvn -B -ntp -f experiments/tenant-isolation-spike/pom.xml clean verify
       - name: Execute tenant schema replay and schema-check policy proofs
-        run: mvn -B -ntp -pl vernac-maven-plugin -am -Dtest=UniquePersistencePostgresTest,UniqueModulePostgresTest,UseCaseAccessAuditExecutionTest,VernacCompileMojoTest,TypeModuleExecutionTest,ModulePersistenceMojoTest,InboundErrorPolicyExecutionTest,InboundMvcExecutionTest,TenantEventWorkerPostgresTest,EventSchemaPostgresTest,DocumentationExamplesTest,TenantSchemaPostgresTest,SchemaMojoTest,ExplicitTenancyMojoTest,TenantModuleActivationPostgresTest,TenantGeneratedPostgresTest,RepositoryQueryPostgresTest,ScalarQueryPostgresTest,ModuleMigrationPostgresTest,EventStoragePostgresTest,EventWorkerPostgresTest -Dsurefire.failIfNoSpecifiedTests=false test
+        run: mvn -B -ntp -pl vernac-maven-plugin -am -Dtest=GlobalIdReferencePostgresTest,UniquePersistencePostgresTest,UniqueModulePostgresTest,UseCaseAccessAuditExecutionTest,VernacCompileMojoTest,TypeModuleExecutionTest,ModulePersistenceMojoTest,InboundErrorPolicyExecutionTest,InboundMvcExecutionTest,TenantEventWorkerPostgresTest,EventSchemaPostgresTest,DocumentationExamplesTest,TenantSchemaPostgresTest,SchemaMojoTest,ExplicitTenancyMojoTest,TenantModuleActivationPostgresTest,TenantGeneratedPostgresTest,RepositoryQueryPostgresTest,ScalarQueryPostgresTest,ModuleMigrationPostgresTest,EventStoragePostgresTest,EventWorkerPostgresTest -Dsurefire.failIfNoSpecifiedTests=false test
       - name: Require every spike proof to execute
         run: |
           python3 - <<'PY'
@@ -261,6 +261,14 @@ jobs:
                   assert not any(case.find(t) is not None for t in ('skipped', 'failure', 'error'))
           print('Shared mail provider and compiled consumer proofs executed; none skipped.')
           saas_proofs = {
+              'vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.persistence.GlobalIdReferenceTest.xml': {
+                  'nominalGlobalReferencesGenerateTrackedNoCascadeForeignKeysAndSchemaDeltas',
+                  'wrongNominalTypesMutabilityMissingRepositoriesAndTenantBoundariesFailBeforeGeneration',
+                  'moduleRoundTripPreservesExplicitReferencesAndRequiresExportedTargets',
+              },
+              'vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.GlobalIdReferencePostgresTest.xml': {
+                  'restrictedWritesEnforceReferencesAndReplayDetectsConstraintDrift',
+              },
               'saas/identity/target/surefire-reports/TEST-org.vernac.saas.identity.roles.RoleCatalogTest.xml': {
                   'exactUnionIsImmutableAndCatalogOrderDoesNotChangeItsFingerprint',
                   'malformedDuplicateUnknownAndOverLimitCatalogsFailWithoutEchoingInput',
