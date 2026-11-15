@@ -69,4 +69,19 @@ class LocalPaymentsPostgresIT {
             });
         });
     }
+    @Test void configuredPendingThenPaidSequenceUsesNormalBindingAndRetainsProgressAfterRestart() throws Exception {
+        var payment = new AtomicReference<ProviderPayment>();
+        new LocalPaymentTestEnvironment(root).withDatabase(db -> {
+            db.boot.withPropertyValues("vernac.payments.local.scenario=PENDING,PAID").run(context -> {
+                assertNull(context.getStartupFailure()); var provider = context.getBean(PaymentProvider.class);
+                var customer = provider.createCustomer(PaymentOperationId.create()); payment.set(provider.checkout(request(PaymentOperationId.create(), customer)));
+                assertEquals(PaymentState.PENDING, provider.inspect(payment.get().id()).state());
+            });
+            db.boot.withPropertyValues("vernac.payments.local.scenario=PENDING,PAID").run(context -> {
+                assertNull(context.getStartupFailure()); var provider = context.getBean(PaymentProvider.class);
+                var proof = provider.inspect(payment.get().id()); assertEquals(PaymentState.PAID, proof.state()); assertTrue(proof.postedAt().isPresent());
+            });
+        });
+    }
+
 }
