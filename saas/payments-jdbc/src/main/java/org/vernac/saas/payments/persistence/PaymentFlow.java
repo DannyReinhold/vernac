@@ -153,6 +153,7 @@ public final class PaymentFlow {
                 }
                 case WAITING -> { var proof = provider.inspect(attempt.remote().orElseThrow()); acknowledge(claim, row -> observe(row, proof)); }
                 case APPLY -> apply(claim, work);
+                case REVOKE -> revoke(claim, work);
                 default -> acknowledge(claim, PaymentAttempt::finish);
             }
         } catch (PaymentFailure failure) {
@@ -194,6 +195,26 @@ public final class PaymentFlow {
             });
         }
     }
+    /** A reversal tombstone fences both a previously applied and a delayed first settlement. */
+    private void revoke(Claim claim, Work work) {
+        var order = work.order();
+        if (order.paidAttempt().filter(work.attempt().id()::equals).isPresent()) {
+            try {
+                subscriptions.revokeVerifiedSettlement(order.account(), SettlementKey.of("payment-order/" + order.id().asString()), order.terms(), order.period());
+            } catch (SubscriptionFailure failure) {
+                acknowledge(claim, row -> {
+                    if (failure.code() == SubscriptionFailure.Code.UNAVAILABLE) row.defer(due(now().plusSeconds(30)), PaymentReason.PROVIDER_UNAVAILABLE);
+                    else row.review(PaymentReason.SETTLEMENT_CONFLICT);
+                });
+                return;
+            }
+        }
+        acknowledge(claim, row -> {
+            var current = orders.byId(order.id());
+            if (current.paidAttempt().filter(row.id()::equals).isPresent()) { current.close(); orders.save(current); }
+            row.finish();
+        });
+    }
     private Claim claim() {
         return write(() -> {
             Instant time = now();
@@ -203,7 +224,7 @@ public final class PaymentFlow {
             if ((row.stage() == PaymentAttemptStage.NEW || row.stage() == PaymentAttemptStage.CUSTOMER_READY) && (row.calls().value() >= 5 || row.financialStarted().filter(start -> !time.isBefore(start.value().plus(Duration.ofMinutes(30)))).isPresent())) {
                 row.review(PaymentReason.OUTCOME_UNKNOWN); attempts.save(row); return null;
             }
-            UUID token = UUID.randomUUID(); row.claim(PaymentLease.of(token, time.plusSeconds(60)), PaymentStartedAt.of(time)); attempts.save(row); return new Claim(row.id(), token);
+            UUID token = UUID.randomUUID(); row.claim(PaymentLease.of(token, time.plusSeconds(120)), PaymentStartedAt.of(time)); attempts.save(row); return new Claim(row.id(), token);
         });
     }
     private void acknowledge(Claim claim, Consumer<PaymentAttempt> action) {
@@ -222,12 +243,19 @@ public final class PaymentFlow {
         if (existing.filter(other -> !other.attempt().equals(attempt.id())).isPresent()) throw fail(PaymentProcessingFailure.Code.UNVERIFIED_RESOURCE);
         if (existing.isEmpty()) resources.save(RegisteredPaymentResource.create(route, attempt.id(), attempt.profile(), proof.id()));
         PaymentAttemptStage next = PaymentAttemptStage.WAITING; PaymentReason reason = PaymentReason.NONE;
-        if (proof.state() == PaymentState.PAID) {
+        if (attempt.state() == PaymentState.REFUNDED && proof.state() != PaymentState.REFUNDED) return;
+        if (proof.state() == PaymentState.REFUNDED) {
+            // Full refund is also proof of a prior settlement. Register it before recording its reversal,
+            // even when the callback overtakes the worker's first PAID observation.
+            if (proof.refunded().value() != order.terms().price().value()) throw fail(PaymentProcessingFailure.Code.UNVERIFIED_RESOURCE);
+            if (order.acceptPaid(attempt.id())) { orders.save(order); next = PaymentAttemptStage.REVOKE; }
+            else next = PaymentAttemptStage.DONE; // Reversing an extra paid attempt cannot revoke the winner.
+        } else if (proof.state() == PaymentState.PAID) {
             if (order.acceptPaid(attempt.id())) { orders.save(order); next = order.status() == PaymentOrderStatus.APPLIED ? PaymentAttemptStage.DONE : PaymentAttemptStage.APPLY; }
             else { next = PaymentAttemptStage.REVIEW; reason = PaymentReason.DUPLICATE_PAID; order.review(reason); orders.save(order); }
         } else if (Set.of(PaymentState.FAILED, PaymentState.CANCELLED, PaymentState.EXPIRED, PaymentState.REFUNDED).contains(proof.state())) next = PaymentAttemptStage.DONE;
         else if (attempt.state() == PaymentState.PAID || attempt.state() == PaymentState.REFUNDED) return; // Stale nonpaid reads cannot remove a proven settlement.
-        attempt.observed(proof.id(), proof.checkout().orElse(null), proof.mandate().orElse(null), proof.state(), proof.refunded(), next, due(next == PaymentAttemptStage.APPLY ? now() : now().plusSeconds(30)), reason);
+        attempt.observed(proof.id(), proof.checkout().orElse(null), proof.mandate().orElse(null), proof.state(), proof.refunded(), next, due((next == PaymentAttemptStage.APPLY || next == PaymentAttemptStage.REVOKE) ? now() : now().plusSeconds(30)), reason);
     }
     private PaymentAttempt firstAttempt(PaymentOrder order, PaymentProfileKey profile, PaymentAttemptKind kind, RemoteCustomerId customer, RemoteMandateId mandate) {
         order.attempted(); orders.save(order);

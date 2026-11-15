@@ -95,4 +95,41 @@ class PaymentFlowPostgresIT {
             assertNotEquals(first.id(), next.id());
         }));
     }
+    @Test void fullRefundBeforeFirstApplicationCreatesTombstoneAndNeverGrantsPaidBenefits() throws Exception {
+        refundReversesSettlement(false);
+    }
+    @Test void fullRefundAfterApplicationRevokesBenefitsAndDuplicateCallbacksRemainIdempotent() throws Exception {
+        refundReversesSettlement(true);
+    }
+    private void refundReversesSettlement(boolean applyFirst) throws Exception {
+        var account = AccountId.create(); var time = new Time();
+        var order = new AtomicReference<PaymentOrderId>(); var remote = new AtomicReference<RemotePaymentId>();
+        new PaymentFlowTestEnvironment(root).withDatabase(db -> {
+            db.boot.run(context -> {
+                var f = fixture(context, time, account);
+                order.set(f.flow.checkout(account, PaymentOperationId.create(), LOCAL, PlanCatalog.id(PAID)).id());
+                for (int i = 0; i < 3; i++) assertTrue(f.flow.processOne(URL, URL));
+                time.advance(30); assertTrue(f.flow.processOne(URL, URL)); // Authoritative PAID, before APPLY.
+                if (applyFirst) {
+                    assertTrue(f.flow.processOne(URL, URL));
+                    assertEquals(PAID.benefits(), f.subscriptions.benefits(account));
+                }
+                remote.set(RemotePaymentId.of(f.jdbc.queryForObject("SELECT \"remote\" FROM \"org.vernac.saas.payments.persistence\".\"PaymentAttempt\" WHERE \"order\"=:order", Map.of("order", order.get().value()), String.class)));
+                f.provider.refund(RefundRequest.of(PaymentOperationId.create(), remote.get(), PAID.price(), BillingCurrency.EUR));
+                f.flow.webhook(LOCAL, PaymentNoticeBody.of("id=" + remote.get().encoded()), PaymentSignature.of(""));
+                assertTrue(f.flow.processOne(URL, URL));
+                assertEquals(PaymentOrderStatus.CLOSED, f.flow.order(account, order.get()).status());
+                assertNotEquals(PAID.benefits(), f.subscriptions.benefits(account));
+            });
+            db.boot.run(context -> {
+                var f = fixture(context, time, account);
+                f.flow.webhook(LOCAL, PaymentNoticeBody.of("id=" + remote.get().encoded()), PaymentSignature.of(""));
+                assertTrue(f.flow.processOne(URL, URL));
+                assertNotEquals(PAID.benefits(), f.subscriptions.benefits(account));
+                assertEquals("REVOKED", f.jdbc.queryForObject("SELECT \"status\" FROM \"org.vernac.saas.subscriptions\".\"SubscriptionSettlement\"", Map.of(), String.class));
+                assertEquals(1L, f.jdbc.queryForObject("SELECT count(*) FROM \"org.vernac.saas.subscriptions\".\"SubscriptionSettlement\"", Map.of(), Long.class));
+            });
+        });
+    }
+
 }

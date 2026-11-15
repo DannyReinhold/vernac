@@ -29,7 +29,7 @@ value PaymentStartedAt(Instant value);
 value PaymentLease(UUID token, Instant until);
 value PaymentCounter(int value) validates { require(self.value() >= 0 && self.value() <= 5, "Payment attempts are bounded"); };
 value PaymentOrderStatus = OPEN | PAID | APPLIED | CLOSED | REVIEW;
-value PaymentAttemptStage = PREPARING | NEW | CUSTOMER_READY | WAITING | APPLY | DONE | REVIEW;
+value PaymentAttemptStage = PREPARING | NEW | CUSTOMER_READY | WAITING | APPLY | REVOKE | DONE | REVIEW;
 value PaymentAttemptKind = FIRST | RECURRING;
 value PaymentReason = NONE | PROVIDER_UNAVAILABLE | OUTCOME_UNKNOWN | INVALID_PROVIDER_FACTS | SETTLEMENT_CONFLICT | DUPLICATE_PAID | REFUND_UNCERTAIN | MANDATE_UNAVAILABLE;
 id PaymentOrderId;

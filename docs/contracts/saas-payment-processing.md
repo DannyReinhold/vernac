@@ -60,8 +60,10 @@ uses one stable settlement receipt, so a crash between application and acknowled
 can be retried without extending benefits twice. A future paid period waits until its
 effective boundary while preserving the current period. Explicit purchase terms are
 installed atomically with verified settlement; an abandoned unpaid quote does not
-pre-emptively change renewal terms. Full reversals require a durable subscription receipt
-tombstone to fence late activation; they must not merely change a browser session.
+pre-emptively change renewal terms. Authenticated full reversals queue a durable REVOKE stage. Its subscription receipt
+tombstone fences late activation, including a refund which overtakes first application.
+Replaying it after a restart cannot grant the refunded period; reversing an additional
+paid attempt cannot revoke the winning agreement. A partial refund preserves benefits.
 
 The first requested billing period is recorded before payment and shown to the customer.
 UTC calendar months/years and explicit resumed periods are used, with no implicit
