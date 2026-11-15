@@ -1,0 +1,373 @@
+{
+  "formatVersion" : 1,
+  "migration" : "V20261115221500000__settlement_reversal.sql",
+  "previousFingerprint" : "d825ecaa418686e7d93cf601e16ed45433d552a7b1dd6b3149106475fb1f58c0",
+  "modelFingerprint" : "55f53a2395749629c2633a3eab7e9aa9cd782b81b012c27471addbe57b1b1056",
+  "model" : {
+    "formatVersion" : 4,
+    "mappingVersion" : 1,
+    "tables" : [ {
+      "namespace" : "org.vernac.saas.subscriptions",
+      "name" : "Subscription",
+      "origin" : "org.vernac.saas.subscriptions.Subscription",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.subscriptions.Subscription"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.subscriptions.Subscription"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.subscriptions.Subscription"
+      }, {
+        "name" : "@nanoRemainder:period.end",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.subscriptions.Subscription.period.end"
+      }, {
+        "name" : "@nanoRemainder:period.start",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.subscriptions.Subscription.period.start"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.subscriptions.Subscription"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.subscriptions.Subscription"
+      }, {
+        "name" : "account",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.identity.AccountId"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.subscriptions.Subscription.id"
+      }, {
+        "name" : "period.end",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.subscriptions.Subscription.period.end"
+      }, {
+        "name" : "period.start",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.subscriptions.Subscription.period.start"
+      }, {
+        "name" : "renewal",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.RenewalStatus"
+      }, {
+        "name" : "renewalTerms.benefits",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.Subscription.renewalTerms.benefits"
+      }, {
+        "name" : "renewalTerms.currency",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.BillingCurrency"
+      }, {
+        "name" : "renewalTerms.interval",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.BillingInterval"
+      }, {
+        "name" : "renewalTerms.plan",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.Subscription.renewalTerms.plan"
+      }, {
+        "name" : "renewalTerms.price",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.subscriptions.Subscription.renewalTerms.price"
+      }, {
+        "name" : "renewalTerms.revision",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.Subscription.renewalTerms.revision"
+      }, {
+        "name" : "status",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.SubscriptionStatus"
+      }, {
+        "name" : "terms.benefits",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.Subscription.terms.benefits"
+      }, {
+        "name" : "terms.currency",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.BillingCurrency"
+      }, {
+        "name" : "terms.interval",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.BillingInterval"
+      }, {
+        "name" : "terms.plan",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.Subscription.terms.plan"
+      }, {
+        "name" : "terms.price",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.subscriptions.Subscription.terms.price"
+      }, {
+        "name" : "terms.revision",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.Subscription.terms.revision"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:enum:renewal",
+        "clause" : "CHECK (\"renewal\" IN ('CANCELLED', 'ENABLED'))"
+      }, {
+        "name" : "@check:enum:renewalTerms.currency",
+        "clause" : "CHECK (\"renewalTerms.currency\" IN ('EUR'))"
+      }, {
+        "name" : "@check:enum:renewalTerms.interval",
+        "clause" : "CHECK (\"renewalTerms.interval\" IN ('MONTHLY', 'YEARLY'))"
+      }, {
+        "name" : "@check:enum:status",
+        "clause" : "CHECK (\"status\" IN ('ACTIVE', 'AWAITING_PAYMENT', 'ENDED', 'SUSPENDED'))"
+      }, {
+        "name" : "@check:enum:terms.currency",
+        "clause" : "CHECK (\"terms.currency\" IN ('EUR'))"
+      }, {
+        "name" : "@check:enum:terms.interval",
+        "clause" : "CHECK (\"terms.interval\" IN ('MONTHLY', 'YEARLY'))"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:period.end",
+        "clause" : "CHECK (\"@nanoRemainder:period.end\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:period.start",
+        "clause" : "CHECK (\"@nanoRemainder:period.start\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@unique:Subscription:account",
+        "clause" : "UNIQUE (\"account\")"
+      } ]
+    }, {
+      "namespace" : "org.vernac.saas.subscriptions",
+      "name" : "SubscriptionSettlement",
+      "origin" : "org.vernac.saas.subscriptions.SubscriptionSettlement",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.subscriptions.SubscriptionSettlement"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.subscriptions.SubscriptionSettlement"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.subscriptions.SubscriptionSettlement"
+      }, {
+        "name" : "@nanoRemainder:period.end",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.subscriptions.SubscriptionSettlement.period.end"
+      }, {
+        "name" : "@nanoRemainder:period.start",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.subscriptions.SubscriptionSettlement.period.start"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.subscriptions.SubscriptionSettlement"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.subscriptions.SubscriptionSettlement"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.subscriptions.SubscriptionSettlement.id"
+      }, {
+        "name" : "operation",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.SubscriptionSettlement.operation",
+        "collation" : "C"
+      }, {
+        "name" : "period.end",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.subscriptions.SubscriptionSettlement.period.end"
+      }, {
+        "name" : "period.start",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.subscriptions.SubscriptionSettlement.period.start"
+      }, {
+        "name" : "status",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.SettlementStatus"
+      }, {
+        "name" : "subscription",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.subscriptions.SubscriptionId"
+      }, {
+        "name" : "terms.benefits",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.SubscriptionSettlement.terms.benefits"
+      }, {
+        "name" : "terms.currency",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.BillingCurrency"
+      }, {
+        "name" : "terms.interval",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.BillingInterval"
+      }, {
+        "name" : "terms.plan",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.SubscriptionSettlement.terms.plan"
+      }, {
+        "name" : "terms.price",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.subscriptions.SubscriptionSettlement.terms.price"
+      }, {
+        "name" : "terms.revision",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.SubscriptionSettlement.terms.revision"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:enum:status",
+        "clause" : "CHECK (\"status\" IN ('REVOKED', 'SETTLED'))"
+      }, {
+        "name" : "@check:enum:terms.currency",
+        "clause" : "CHECK (\"terms.currency\" IN ('EUR'))"
+      }, {
+        "name" : "@check:enum:terms.interval",
+        "clause" : "CHECK (\"terms.interval\" IN ('MONTHLY', 'YEARLY'))"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:period.end",
+        "clause" : "CHECK (\"@nanoRemainder:period.end\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:period.start",
+        "clause" : "CHECK (\"@nanoRemainder:period.start\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@fk:reference:subscription",
+        "clause" : "FOREIGN KEY (\"subscription\") REFERENCES \"org.vernac.saas.subscriptions\".\"Subscription\" (\"id\")"
+      }, {
+        "name" : "@unique:SubscriptionSettlement:operation",
+        "clause" : "UNIQUE (\"operation\")"
+      } ]
+    } ],
+    "enumCodes" : {
+      "org.vernac.saas.subscriptions.BillingCurrency" : {
+        "EUR" : "EUR"
+      },
+      "org.vernac.saas.subscriptions.BillingInterval" : {
+        "MONTHLY" : "MONTHLY",
+        "YEARLY" : "YEARLY"
+      },
+      "org.vernac.saas.subscriptions.RenewalStatus" : {
+        "CANCELLED" : "CANCELLED",
+        "ENABLED" : "ENABLED"
+      },
+      "org.vernac.saas.subscriptions.SettlementStatus" : {
+        "REVOKED" : "REVOKED",
+        "SETTLED" : "SETTLED"
+      },
+      "org.vernac.saas.subscriptions.SubscriptionStatus" : {
+        "ACTIVE" : "ACTIVE",
+        "AWAITING_PAYMENT" : "AWAITING_PAYMENT",
+        "ENDED" : "ENDED",
+        "SUSPENDED" : "SUSPENDED"
+      }
+    }
+  }
+}
