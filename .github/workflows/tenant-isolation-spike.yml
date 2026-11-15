@@ -7,6 +7,7 @@ on:
       - 'saas/**'
       - 'templates/**'
       - 'examples/persistent-modules/**'
+      - 'examples/identity-auth/**'
       - 'tools/release.py'
       - 'tools/identity_password_corpus.py'
       - '.gitattributes'
@@ -26,7 +27,7 @@ permissions:
 jobs:
   spike:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:17.11
@@ -58,7 +59,7 @@ jobs:
       - name: Verify shared mail and selected local/Brevo providers
         run: mvn -B -ntp -pl saas/mail,saas/mail-local,saas/mail-brevo clean install
       - name: Verify optional identity artifacts and their JAR consumer
-        run: mvn -B -ntp -pl saas/identity,saas/identity-spring-security,saas/identity-jdbc clean verify
+        run: mvn -B -ntp -pl saas/identity,saas/identity-spring-security,saas/identity-jdbc clean install
       - name: Require integrated identity browser proofs
         run: |
           python3 - <<'PY'
@@ -74,6 +75,18 @@ jobs:
               assert not any(case.find(tag) is not None for tag in ('failure', 'error', 'skipped'))
           print('Integrated identity browser/PostgreSQL proofs executed; none skipped.')
           PY
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Package the ordinary Identity/Auth sample
+        run: mvn -B -ntp -f examples/identity-auth/pom.xml clean package
+      - name: Install the isolated Chromium acceptance runner
+        working-directory: examples/identity-auth/browser
+        run: |
+          npm install --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Verify real HTTPS and Chromium Identity/Auth journeys
+        run: python3 examples/identity-auth/verify.py
       - name: Verify Boot module startup and actual HTTP JSON converter selection
         run: mvn -B -ntp -f examples/persistent-modules/pom.xml clean verify
       - name: Check release tooling and documentation links
