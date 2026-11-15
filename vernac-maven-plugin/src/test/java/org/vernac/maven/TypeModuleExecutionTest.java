@@ -191,7 +191,7 @@ class TypeModuleExecutionTest {
                 // Registry/transaction test only: real SQL startup is covered by ModuleMigrationPostgresTest.
                 context.registerBean("dataSource",javax.sql.DataSource.class,TypeModuleExecutionTest::registryOnlyDataSource);
                 context.registerBean("jdbc",org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate.class,()->new org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate(context.getBean(javax.sql.DataSource.class)));
-                context.registerBean("flywayInitializer",org.springframework.boot.autoconfigure.flyway.FlywayMigrationInitializer.class,()->new org.springframework.boot.autoconfigure.flyway.FlywayMigrationInitializer(org.flywaydb.core.Flyway.configure().dataSource(context.getBean(javax.sql.DataSource.class)).load()){@Override public void afterPropertiesSet(){}});
+                context.registerBean("flywayInitializer",org.springframework.boot.flyway.autoconfigure.FlywayMigrationInitializer.class,()->new org.springframework.boot.flyway.autoconfigure.FlywayMigrationInitializer(org.flywaydb.core.Flyway.configure().dataSource(context.getBean(javax.sql.DataSource.class)).load()){@Override public void afterPropertiesSet(){}});
                 context.register(code.loadClass("app.configuration.__VernacApplication"),code.loadClass("app.usecase.Forward"));context.refresh();
                 Class<?> name=code.loadClass("events.api.domain.Name");Object value=name.getMethod("of",String.class).invoke(null,"fixture");
                 Object forward=context.getBean(code.loadClass("app.usecase.Forward"));forward.getClass().getMethod("execute",name).invoke(forward,value);

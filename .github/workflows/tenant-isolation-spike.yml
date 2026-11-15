@@ -5,6 +5,8 @@ on:
     paths:
       - 'experiments/tenant-isolation-spike/**'
       - 'saas/**'
+      - 'templates/**'
+      - 'examples/persistent-modules/**'
       - 'tools/release.py'
       - 'tools/identity_password_corpus.py'
       - '.gitattributes'
@@ -53,8 +55,12 @@ jobs:
         run: mvn -B -ntp -pl vernac-lsp,vernac-runtime-http,vernac-runtime-jdbc -am clean install
       - name: Build the compiler plugin for optional SaaS modules
         run: mvn -B -ntp -pl vernac-maven-plugin,vernac-jdbc-spring-boot-starter -am -DskipTests install
+      - name: Verify shared mail and selected local/Brevo providers
+        run: mvn -B -ntp -pl saas/mail,saas/mail-local,saas/mail-brevo clean install
       - name: Verify optional identity artifacts and their JAR consumer
         run: mvn -B -ntp -pl saas/identity,saas/identity-spring-security,saas/identity-jdbc clean verify
+      - name: Verify Boot module startup and actual HTTP JSON converter selection
+        run: mvn -B -ntp -f examples/persistent-modules/pom.xml clean verify
       - name: Check release tooling and documentation links
         run: |
           python3 -m unittest discover -s tools/tests -v -b
@@ -220,9 +226,94 @@ jobs:
               for case in cases.values():
                   assert not any(case.find(t) is not None for t in ('skipped', 'failure', 'error'))
           print('Unique aggregate/compiler/schema/JDBC/module/editor proofs executed; none skipped.')
+          mail_proofs = {
+              'saas/mail/target/surefire-reports/TEST-org.vernac.saas.mail.MailContractsTest.xml': {
+                  'boundedValuesKeepClearContentOutOfStringRepresentations',
+                  'standardAddressParserAndHeaderBoundsRejectInjection',
+                  'bodyUtf8SizeAndMalformedUnicodeAreBounded',
+                  'outcomesHaveFiniteRetryHintsAndNoFalseAcceptance',
+              },
+              'saas/mail-local/target/surefire-reports/TEST-org.vernac.saas.mail.local.LocalMailInboxTest.xml': {
+                  'defaultAcceptsWithoutNetworkAndCapacityNeverEvictsLiveMessages',
+                  'expiryAndScriptedFailuresFollowTheSameSubmissionContract',
+              },
+              'saas/mail-brevo/target/surefire-reports/TEST-org.vernac.saas.mail.brevo.BrevoMailTransportTest.xml': {
+                  'standardBrevoRequestHasOneRecipientAndNeverReturnsProviderBody',
+                  'retryHintsPermanentFailuresAndRedirectsStayWithinThePortContract',
+                  'fullCallTimeoutAndParallelAdmissionAreBounded',
+                  'retryAfterZeroDoesNotCauseHiddenHttpResubmission',
+                  'invalidConfigurationAndNonLoopbackTestTargetsAreRejectedWithoutSecrets',
+              },
+              'saas/mail-brevo/target/surefire-reports/TEST-org.vernac.saas.mail.brevo.MailProviderSelectionTest.xml': {
+                  'normalBindingSelectsOnlyNoopWithoutAnyBrevoCredentialsOrStartupNetwork',
+                  'selectedBrevoRequiresConfigurationAndNeverFallsBackToNoop',
+              },
+              'saas/mail-brevo/target/surefire-reports/TEST-org.vernac.saas.mail.brevo.MailModuleConsumerTest.xml': {
+                  'compiledModulesDriveTheOrdinaryConsumerBindingWithoutRegeneratingProviders',
+              },
+          }
+          for path, expected in mail_proofs.items():
+              root = ET.parse(path).getroot()
+              cases = {c.attrib['name']: c for c in root.findall('testcase')}
+              assert not (expected - cases.keys()), f'Missing mail provider proofs: {path}'
+              assert all(int(root.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
+              for case in cases.values():
+                  assert not any(case.find(t) is not None for t in ('skipped', 'failure', 'error'))
+          print('Shared mail provider and compiled consumer proofs executed; none skipped.')
           saas_proofs = {
+              'saas/identity-jdbc/target/surefire-reports/TEST-org.vernac.saas.identity.persistence.IdentityProviderMailSenderTest.xml': {
+                  'trustedOriginPurposeFragmentsAndStableCorrelationReachTheBoundProvider',
+                  'simulationRequiresExplicitLoopbackAndUntrustedOriginsNeverReachTheProvider',
+              },
+              'saas/identity-spring-security/target/surefire-reports/TEST-org.vernac.saas.identity.security.IdentitySessionTrustTest.xml': {
+                  'stampsRoundTripWithoutGeneratedDomainObjectsOrExposedMetadata',
+                  'absoluteExpiryFutureMissingAndAnonymousStampsNeverReadOrGrant',
+                  'changedOrInactiveEpochDeniesAndBackendFailuresStayTechnicalAndSanitized',
+                  'actorResolutionRechecksTheEpochAndClearsItsRecursiveLookupGuard',
+              },
+              'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentitySessionEpochPostgresIT.xml': {
+                  'freshMetadataRejectsRevokedEpochsAndDisabledIdentitiesAcrossRestart',
+              },
+
+              'saas/identity-jdbc/target/surefire-reports/TEST-org.vernac.saas.identity.persistence.IdentityDeliveryCryptoTest.xml': {
+                  'encryptionBindsContextAndSurvivesReconstruction',
+                  'everyTrustedContextFieldRejectsCiphertextSubstitution',
+                  'rotatedKeyRingReadsOldJobsAndRejectsRemovalOrRekeying',
+                  'malformedTamperedAndOversizedInputsNeverExposeLibraryExceptions',
+                  'boundsAndExpiryRejectEncryptionButPreparedAttemptsRemainSpent',
+                  'missingInvalidOrExcessKeysFailClosedAndCallerMutationCannotChangeKeys',
+                  'refusedAdmissionCannotEncryptAndItsExceptionIsSanitized',
+                  'concurrentCallersCannotBypassTheirSharedAdmissionBoundary',
+                  'preparedPermitIsSingleUseAndBoundToItsEncryptor',
+              },
               'saas/identity-jdbc/target/surefire-reports/TEST-org.vernac.saas.identity.persistence.IdentityLoginAddressModelTest.xml': {
                   'canonicalAndDeliveryValuesReuseTheExistingAddressPolicyAndRedactRepresentations',
+              },
+              'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityMailWorkerPostgresIT.xml': {
+                  'submissionRunsOutsideTransactionsAndAcceptedPayloadIsErasedOnce',
+                  'providerRetryHintAndPermanentRejectionSettleOneEncryptedJobWithoutAnotherSend',
+                  'retriesKeepOneChargedEnvelopeAndRespectBackoffWithoutReencryption',
+                  'crashedClaimsAreFencedAndExhaustionReclaimsOnlyAfterLeaseExpiry',
+                  'missingReadKeysPauseClaimsAndExpiryStillCleansChargedRows',
+                  'consumedLeasedWorkStaysChargedUntilItsOwnerSettles',
+                  'twoApplicationContextsCannotSubmitOneLiveLeaseTwice',
+                  'contaminatedContextsCannotClaimAndPollingWaitsForOutstandingDeliveryOnStop',
+                  'corruptEnvelopesAndClosedOwnersNeverReachTheProvider',
+              },
+              'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityMailRequestsPostgresIT.xml': {
+                  'registrationPersistsOnlyProtectedMailAndCooldownReusesOriginalOwner',
+                  'restartAndChallengeConsumptionKeepSecretErasureAndRefundAtomic',
+                  'fullJobOrByteBudgetFailsBeforeKnownAndUnknownLookupWithoutLeaks',
+                  'rollbackAndCaughtEncryptionFailureCannotLeaveIdentityChallengeOrJob',
+                  'resendReplacesQueuedWorkButRetainsChargedLeasedPayload',
+                  'lastBacklogSlotIsAtomicAcrossConcurrentInstances',
+                  'recoveryUnknownAndIneligibleOwnersAllocateNothing',
+              },
+              'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityEncryptionAdmissionPostgresIT.xml': {
+                  'attemptsSurviveUnusedPermitsBusinessRollbackAndRestart',
+                  'twoInstancesCompeteForTheLastAttemptWithoutResettingTheCap',
+                  'keyIdentityAliasesAndBoundedHistoryFailClosedAcrossRestart',
+                  'damagedRegistryCannotSilentlyRestartFromZero',
               },
               'saas/identity-jdbc/target/failsafe-reports/TEST-org.vernac.saas.identity.persistence.IdentityLoginOwnershipPostgresIT.xml': {
                   'canonicalRepeatsPreserveOriginalSpellingDeadlineAndOneOwnerWithoutAliasFolding',

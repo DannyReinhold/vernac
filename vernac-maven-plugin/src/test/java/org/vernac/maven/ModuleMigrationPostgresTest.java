@@ -15,7 +15,7 @@ import org.springframework.context.annotation.*;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.*;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
-import org.springframework.boot.autoconfigure.flyway.*;
+import org.springframework.boot.flyway.autoconfigure.*;
 import org.flywaydb.core.Flyway;
 import org.vernac.compiler.modules.*;
 import org.vernac.compiler.persistence.*;

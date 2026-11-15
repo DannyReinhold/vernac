@@ -1,0 +1,12 @@
+namespace org.vernac.saas.mail.local;
+import org.vernac.saas.mail.MailProvider;
+import org.vernac.saas.mail.MailProviderMode;
+import org.vernac.saas.mail.MailSubmission;
+import org.vernac.saas.mail.OutboundMail;
+adapter NoopMailProvider implements MailProvider {
+ behavior {
+  java uses { org.vernac.saas.mail.local.LocalMailInbox transport; }
+  public MailProviderMode mode() { return MailProviderMode.SIMULATED; }
+  public MailSubmission submit(OutboundMail mail) { return self.transport().submit(mail); }
+ }
+}

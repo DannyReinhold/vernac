@@ -1,0 +1,9 @@
+namespace org.vernac.saas.identity.persistence;
+id IdentityMailSweepId;
+value IdentityMailSweepPosition(UUID value);
+global aggregate IdentityMailSweep[IdentityMailSweepId](mut IdentityMailSweepPosition after) behavior {
+    modify void advance(UUID id) { self.after(IdentityMailSweepPosition.of(id)); }
+};
+repository IdentityMailSweepRepository for IdentityMailSweep {
+    find IdentityMailSweep? existing(IdentityMailSweepId id) where id = :id;
+}

@@ -8,7 +8,7 @@ production tenancy runtime or SaaS starter. It deliberately does not use the pro
 
 It tests the [technical proposal](../../docs/development/tenant-technical-contract.md)
 against real PostgreSQL 17, Spring JDBC/transactions and Spring Security from the same
-Spring Boot **3.4.2 BOM** used by Vernac. Build with a full JDK 21+ (JDK 25 is fine)
+Spring Boot **4.1.2 BOM** used by Vernac. Build with a full JDK 21+ (JDK 25 is fine)
 and Maven 3.9+. A JRE without javac is not sufficient.
 
 ## Run in PowerShell

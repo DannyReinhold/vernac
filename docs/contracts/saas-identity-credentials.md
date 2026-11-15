@@ -397,7 +397,7 @@ remaining 0.6.0 scope. A01/A02 and the full SaaS/final manual acceptance gates r
 Reviewed against primary guidance on 2026-11-12. These sources inform specific choices;
 the policy does not claim blanket compliance. Rolling Spring documentation may describe
 newer releases; implementation must compile and test the repository-managed versions
-(currently Spring Boot 3.4.2 / Spring Security 6.4.2) and record any required dependency.
+(0.6.0 now aligns Spring Boot 4.1.2 / Spring Security 7.1.2) and record any required dependency.
 
 - [NIST SP 800-63B-4: password verifier guidance](https://pages.nist.gov/800-63-4/sp800-63b.html)
 - [OWASP: password storage and Argon2id parameters](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)

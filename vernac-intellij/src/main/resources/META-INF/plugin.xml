@@ -100,6 +100,10 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>0.6.0 development — Private protected delivery envelope</h3>
+<ul><li>Internal mail framing now uses Spring GCM with bounded keys/payloads and authenticated job context. Durable key-attempt admission, queued mail and provider workers remain open; no public mail API is added.</li></ul>
+<h3>0.6.0 development — Spring Boot 4 baseline</h3>
+<ul><li>0.6.0 templates and runtime integration now align on Boot 4.1.2/Security 7.1.2. Generated DTO endpoints explicitly select Jackson 2 compatibility; existing applications must follow the platform migration guide.</li></ul>
 <h3>0.6.0 development — Private login-address ownership</h3>
 <p>Optional identity JDBC now stores canonical unique login keys and original delivery
 spelling with the charged pending lifetime. Repeat requests preserve the owner,

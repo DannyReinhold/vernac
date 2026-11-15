@@ -40,7 +40,7 @@ class PaginationHttpExecutionTest {
         Object controller=code.loadClass("pageweb.adapter.inbound.http.Api").getConstructor(board,single)
                 .newInstance(board.getConstructor(ObjectProvider.class).newInstance(provider),single.getConstructor(ObjectProvider.class).newInstance(provider));
         Object advice=code.loadClass("pageweb.adapter.inbound.http.ApiErrors").getConstructor().newInstance();
-        return MockMvcBuilders.standaloneSetup(controller).setControllerAdvice(advice).build();
+        return MockMvcBuilders.standaloneSetup(controller).setMessageConverters(new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter()).setControllerAdvice(advice).build();
     }
     @Test void independentPagesKeepTheirKindsAndMetadataWithoutGlobalJacksonModules() throws Exception {
         try(var code=compile()) {

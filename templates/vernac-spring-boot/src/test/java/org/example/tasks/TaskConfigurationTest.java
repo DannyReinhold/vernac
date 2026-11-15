@@ -19,6 +19,7 @@ class TaskConfigurationTest {
     void runWithoutAnActiveProfileUsesLocalDevelopment() {
         configuration().run(context -> {
             var environment = context.getEnvironment();
+            assertEquals("jackson2", environment.getProperty("spring.http.converters.preferred-json-mapper"));
             assertTrue(List.of(environment.getDefaultProfiles()).contains("local"));
             assertEquals("jdbc:postgresql://localhost:55439/tasks", environment.getProperty("spring.datasource.url"));
             assertEquals("local-development-only", environment.getProperty("spring.datasource.password"));
@@ -33,6 +34,7 @@ class TaskConfigurationTest {
                 "DB_URL=jdbc:postgresql://external.example/application", "DB_USERNAME=deployment",
                 "DB_PASSWORD=test-only-secret").run(context -> {
             var environment = context.getEnvironment();
+            assertEquals("jackson2", environment.getProperty("spring.http.converters.preferred-json-mapper"));
             assertEquals(List.of("production"), List.of(environment.getActiveProfiles()));
             assertEquals("jdbc:postgresql://external.example/application", environment.getProperty("spring.datasource.url"));
             assertEquals("deployment", environment.getProperty("spring.datasource.username"));
@@ -48,6 +50,7 @@ class TaskConfigurationTest {
                 "DB_URL=jdbc:postgresql://localhost:55440/disposable", "DB_USERNAME=test",
                 "DB_PASSWORD=disposable-test-only").run(context -> {
             var environment = context.getEnvironment();
+            assertEquals("jackson2", environment.getProperty("spring.http.converters.preferred-json-mapper"));
             assertEquals(List.of("persistence-test"), List.of(environment.getActiveProfiles()));
             assertEquals("jdbc:postgresql://localhost:55440/disposable", environment.getProperty("spring.datasource.url"));
             assertEquals("disposable-test-only", environment.getProperty("spring.datasource.password"));

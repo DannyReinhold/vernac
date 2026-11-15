@@ -1,5 +1,11 @@
 # HTTP inbound adapter contract
 
+For 0.6.0 source builds, Spring integration uses Boot 4.1.2. Generated codecs remain
+Jackson 2: Boot applications must select `spring.http.converters.preferred-json-mapper=jackson2`
+and include Boot's Jackson 2 support; standalone MVC must select the Jackson 2 converter.
+See the [platform migration](../development/spring-boot-4-baseline.md). Jackson 3 support
+for these generated codecs is not implied by the Boot upgrade.
+
 Status: normative contract for HTTP inbound adapters, including 0.4.0 error policies. The application usecase is the
 inbound operation contract; this slice adds no duplicate inbound port interface.
 

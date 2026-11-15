@@ -75,7 +75,7 @@ public class InboundHttpExecutionTest {
         Class<?> controller=loader.loadClass("webdemo.adapter.inbound.http."+adapter);
         Object bean=controller.getConstructor(types.toArray(Class<?>[]::new)).newInstance(beans.toArray());
         Object advice=loader.loadClass("webdemo.adapter.inbound.http."+adapter+"Errors").getConstructor().newInstance();
-        return MockMvcBuilders.standaloneSetup(bean).setControllerAdvice(advice).build();
+        return MockMvcBuilders.standaloneSetup(bean).setMessageConverters(new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter()).setControllerAdvice(advice).build();
     }
     @Test void requestsRunTheUsecaseAndMapDeclaredResultsAndAbsence() throws Exception {
         try(var code=compile(MODEL)) {
