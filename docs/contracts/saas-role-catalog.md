@@ -26,3 +26,6 @@ are implemented in the following slices; this loader alone grants no access.
 Three mandatory unit proofs cover immutable exact unions and stable fingerprints,
 malformed/duplicate/unknown/oversized input, restricted vocabulary and unknown/duplicate
 assignment rejection. This does not close persisted membership or provisioning acceptance.
+
+The composed implementation, exact-source tests and remaining whole-release boundaries
+are recorded in [final Identity/Auth acceptance](../development/identity-auth-acceptance-0.6.0.md).

@@ -46,3 +46,6 @@ They prove full verification/provisioning and no login, privilege-injected rollb
 retry after restart, two-context verification race, purpose/replay/epoch/password-change
 semantics and password-policy/expiry/neutral unknown recovery. Provider callbacks assert
 absence of transaction/actor/tenant context. No real email is sent.
+
+The composed implementation, exact-source tests and remaining whole-release boundaries
+are recorded in [final Identity/Auth acceptance](../development/identity-auth-acceptance-0.6.0.md).

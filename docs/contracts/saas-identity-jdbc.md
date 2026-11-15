@@ -3,10 +3,11 @@ title: Optional JDBC identity directory
 ---
 # Optional JDBC identity directory
 
-Status: implemented in **0.6.0-SNAPSHOT** as a narrow persistence foundation. This
-is not a login, registration or email-verification implementation. See the
-[identity foundation](saas-identity-foundation.md) and the
-[remaining lifecycle work](../development/identity-membership-0.6.0.md).
+Status: implemented in **0.6.0-SNAPSHOT**. This page specifies the narrow directory
+provider and its private persistence boundary. The separate explicit
+[public journeys](saas-public-identity-journeys.md), [account policy](saas-account-policy.md)
+and [browser assembly](saas-account-browser.md) now build on it; activating the directory
+alone does not install any login/registration route, session filter or default grant.
 
 ## Explicit adoption
 
@@ -73,8 +74,8 @@ application history; normal explicit module activation performs migration before
 component use and validates it again on restart.
 
 The internal lifecycle offers pending-to-active activation, active-to-disabled
-disabling and closure. These operations do not prove email verification; a future
-trusted workflow must perform that proof before activation. No write endpoint,
+disabling and closure. These operations do not prove email verification; the explicit IdentityJourneys
+verification workflow performs that proof and atomic provisioning before activation. No write endpoint,
 registration factory or generally callable management service is exported. The
 internal generic factory/reconstitution APIs are implementation mechanisms, not
 registration policy. Applications must not reach into generated internal Java
@@ -97,10 +98,11 @@ VERNAC_PG_TEST_PASSWORD; CI and release checks reject missing or skipped proof.
 The [credential policy](saas-identity-credentials.md),
 [credential primitives](saas-credential-primitives.md) and
 [private challenge lifecycle](saas-identity-challenges.md) are now available. Private
-[credential persistence](saas-identity-credentials-jdbc.md) is now available, while
-complete registration/verification/recovery, login/session
-infrastructure, memberships, roles and the final SaaS application remain unfinished. This provider does not close those
-release acceptance items.
+[credential persistence](saas-identity-credentials-jdbc.md), public identity journeys,
+account/membership/role policy and the independent HTTPS sample are now implemented;
+see the [current identity roadmap](../development/identity-membership-0.6.0.md).
+The directory provider itself supplies none of those flows automatically. Whole-SaaS
+payment/invoicing/Wizard release acceptance remains separate.
 
 
 The private [identity storage-capacity foundation](saas-identity-capacity.md) now adds a
@@ -127,6 +129,6 @@ module migration and purpose-separated pseudonym counters/configuration. It comp
 the independent coarse gate and indexed bounded cursor cleanup; explicit key material,
 initialization, scheduling and public ingress integration remain application assembly work.
 
-The seventh generated migration adds the [private pending registration lifetime](saas-identity-registrations.md). Explicit allocation/completion and cleanup remain separate from module activation; protected mail and public registration remain OPEN.
+The seventh generated migration adds the [private pending registration lifetime](saas-identity-registrations.md). Explicit allocation/completion and cleanup remain separate from module activation; protected mail and public registration are supplied by the later explicit journey assembly.
 
 The eighth generated migration adds [private canonical login-address ownership](saas-identity-login-ownership.md). Request, completion and abandoned-registration cleanup couple the original address and exact unique key to the pending lifetime. There is no public registration/mail flow or automatic cleanup scheduler.

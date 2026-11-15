@@ -47,4 +47,5 @@ non-escalation, two-context one-winner acceptance, revoke/expiry/lost issuer own
 actual shared mail delivery and cleanup refunds. Seven configured-chain proofs (including
 the inherited public-flow cases) verify the invitation GET/anonymous POST and preservation
 of the authenticated session pending explicit account selection. All use bounded local
-test providers; no real email is sent. Full owner UI/application acceptance follows.
+test providers; no real email is sent. Owner UI, actual metadata/session composition and Chromium acceptance are now recorded
+in [final Identity/Auth acceptance](../development/identity-auth-acceptance-0.6.0.md).

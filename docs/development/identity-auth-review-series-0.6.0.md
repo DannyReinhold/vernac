@@ -28,69 +28,36 @@ diffs retain only their own slice. No PR in this series was automatically merged
 | 17 | [#66](https://github.com/DannyReinhold/vernac/pull/66) | Minimal CSRF-protected login page |
 | 18 | [#67](https://github.com/DannyReinhold/vernac/pull/67) | Explicit actual JDBC authentication assembly |
 | 19 | [#68](https://github.com/DannyReinhold/vernac/pull/68) | Mandatory pre-session ingress and bounded admission maintenance |
+| 20 | [#69](https://github.com/DannyReinhold/vernac/pull/69) | Strict app-owned D05 role catalog |
+| 21 | [#70](https://github.com/DannyReinhold/vernac/pull/70) | Generated global-ID metadata references and foreign keys |
+| 22 | [#71](https://github.com/DannyReinhold/vernac/pull/71) | Account, personal-owner and membership metadata |
+| 23 | [#72](https://github.com/DannyReinhold/vernac/pull/72) | Current role/object policy, verified selection and last-owner protection |
+| 24 | [#73](https://github.com/DannyReinhold/vernac/pull/73) | Actual registration/verification/recovery/password journeys |
+| 25 | [#74](https://github.com/DannyReinhold/vernac/pull/74) | CSRF-protected public journey forms and fragment handling |
+| 26 | [#75](https://github.com/DannyReinhold/vernac/pull/75) | Intended-recipient invitations, encrypted delivery and bounded cleanup |
+| 27 | [#76](https://github.com/DannyReinhold/vernac/pull/76) | Workspace/owner screens and fresh product request selection |
+| 28 | [#77](https://github.com/DannyReinhold/vernac/pull/77) | Actual metadata/mail/session browser-filter PostgreSQL acceptance |
+| 29 | [#78](https://github.com/DannyReinhold/vernac/pull/78) | Ordinary deployable HTTPS sample, protected local preview and Chromium |
+| 30 | [#79](https://github.com/DannyReinhold/vernac/pull/79) | Aggregate-only operations, worker failure monitoring and recovery |
+| 31 | [#80](https://github.com/DannyReinhold/vernac/pull/80) | Final technical acceptance, documentation and mandatory identity/mail release inventory |
 
-GitHub checks and draft status on each exact head are authoritative. The 13 November
-provider continuation used repository CI after its local environment became unavailable.
-The 15 November continuation also has local production/test compilation and targeted
-unit evidence. A green primitive or filter/session PR does not establish acceptance of
-an unimplemented public registration/recovery journey.
+Exact-head GitHub checks are authoritative; the final [acceptance record](identity-auth-acceptance-0.6.0.md)
+names source commits and test runs. The initial 15 November continuation ran local compilation
+and targeted unit/PostgreSQL tests. After the local environment became unavailable, later
+integration/sample verification ran through GitHub CI. No real provider email was sent.
 
-## Delivered slices
+D05 Option 1 was accepted by the project owner on 15 November 2026. The catalog,
+metadata, policy, atomic provisioning, public journeys, invitations and browser/account
+assembly are implemented in the listed slices; no further D05 approval is pending.
 
-- [Mandatory pre-session browser admission](../contracts/saas-identity-request-admission.md),
-  plus a bounded public admission-maintenance entry point.
-- [Explicit JDBC authentication assembly](../contracts/saas-identity-authentication-assembly.md),
-  with default-policy startup and actual password/provider PostgreSQL proofs.
-- [Minimal CSRF-protected login page](../contracts/saas-identity-login-page.md),
-  with actual form submission in chain/session tests.
-- [Explicit shared JDBC sessions](../contracts/saas-identity-jdbc-sessions.md), with
-  separate framework schema ownership and secure host-only cookies.
-- [Opt-in HTTPS browser chain](../contracts/saas-identity-browser-chain.md), including
-  current-session checks, CSRF renewal, POST logout and no saved-request URLs.
-- [Explicit login HTTP adapter](../contracts/saas-identity-login-http.md), with
-  Spring filter-chain/CSRF/fixation/context persistence tests.
-- [Shared mail providers](../contracts/saas-mail-providers.md) and
-  [the Identity bridge](../contracts/saas-identity-mail-provider-bridge.md).
-- [Session metadata validation](../contracts/saas-identity-session-trust.md),
-  [request checks](../contracts/saas-identity-session-filter.md) and
-  [Spring authentication](../contracts/saas-identity-authentication-provider.md).
-- Existing private admission, capacity, challenge, credential, registration, login
-  ownership, protected queue and worker contracts remain in force.
+The standalone HTTPS sample composes the ordinary module/provider bindings and actual
+generated permission guard. PostgreSQL proofs use restricted runtime credentials;
+Chromium runs the real fragment script and form journeys. The operations API exposes
+only fixed-cardinality aggregate state and safe stage counters; it installs no public
+metrics endpoint. See the [current roadmap](identity-membership-0.6.0.md) and
+[operational contract](../contracts/saas-identity-operations.md).
 
-The new Identity modules do not automatically install public routes or infer
-application roles, accounts or tenants. No real provider email is sent by tests.
-
-## Remaining implementation sequence
-
-1. Finish ordinary application/profile binding and production lifecycle wiring: trusted
-   origin/source policy, selected mail provider, encryption keys, bounded mail worker and
-   scheduled admission maintenance. The explicit login/authentication/session assembly
-   APIs now exist; automatic activation is deliberately absent. Register framework Session
-   before Security once in the actual servlet container. Configure and test header/body,
-   read/total-time and concurrent-request limits at the connector/proxy boundary.
-2. Implement public recovery request/reset and authenticated password-change pages/actions.
-   Fragment handling must erase the bearer token from history before explicit protected
-   POST; GET never consumes a challenge. Prove neutral public outcomes and no auto-login
-   after recovery. The login HTML/POST, CSRF renewal, POST logout, stale-session checks,
-   shared JDBC storage and idle-expiry slices are implemented and have separate proofs;
-   their completion does not close these remaining journeys.
-3. Implement the owner-accepted [D05 design](../contracts/saas-account-roles-d05-proposal.md): the catalog, account/owner/membership model, protected assignment and
-   invitation policies, and atomic personal provisioning. Public verification/registration
-   cannot close before provisioning rollback, replay/restart, owner and generated schema
-   proofs pass. No role policy was silently accepted or invented during the login work.
-4. Add complete real-HTTP/browser acceptance composing actual JDBC credentials, admission,
-   Session filters, worker and public journeys. Current Spring filter-chain and two-instance
-   PostgreSQL proofs identify their mocked servlet transport/test-manager boundaries.
-5. Finish controlled local inbox-preview authorization, deployment/operations documentation,
-   framework-schema migration tracking and remaining delivery monitoring acceptance.
-
-The project owner accepted the D05 design (Option 1) on 15 November 2026.
-Implementation must still satisfy its complete policy/schema/journey proofs. Independent login/session work does not imply account or product grants.
-
-## Acceptance status
-
-The 15 November continuation adds focused PRs #62–#68 after the existing #50–#61
-review series. Merge in that order with ordinary merge commits; no PR was auto-merged.
-Exact-head GitHub results remain authoritative. The new optional browser path has
-executable proofs, but Identity/Auth as a whole and the complete 0.6.0 release remain
-OPEN. No updated percentage is inferred from the number of PRs or passing unit tests.
+Maintainer review/merging remains separate. Use ordinary merge commits in numerical
+order; squash-merging cumulative predecessors causes later PRs to repeat earlier changes.
+The complete 0.6.0 release, payment/invoicing/quotas and full SaaS Wizard/installed-plugin
+acceptance remain OPEN. No completion percentage is inferred from the PR count.

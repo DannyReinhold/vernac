@@ -51,3 +51,6 @@ Five mandatory actual PostgreSQL tests prove two-context last-owner concurrency,
 role union/object policy/selection and no implicit product grants, identity-wide disable,
 removed-role startup rejection and untrusted/nested scopes, and explicit transfer without
 role-based owner promotion. No owner policy is implemented by a bare Spring authority.
+
+The composed implementation, exact-source tests and remaining whole-release boundaries
+are recorded in [final Identity/Auth acceptance](../development/identity-auth-acceptance-0.6.0.md).

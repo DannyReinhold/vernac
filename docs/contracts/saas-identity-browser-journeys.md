@@ -37,5 +37,6 @@ Five mandatory configured Spring-chain tests cover no-action GET and CSP/script 
 CSRF/body/query ordering, neutral requests/trusted source/no auto-login, safe error and
 session retention, and authenticated password-change protection. These use an identified
 synthetic action port; actual Argon2/provisioning/queue/recovery behavior has the separate
-PostgreSQL proofs. Complete real connector/browser execution follows in application
-acceptance; source inspection alone is not a JavaScript browser-execution proof.
+PostgreSQL proofs. The independent HTTPS sample now executes these scripts in Chromium; see
+[final Identity/Auth acceptance](../development/identity-auth-acceptance-0.6.0.md).
+Source inspection alone is not a JavaScript browser-execution proof.

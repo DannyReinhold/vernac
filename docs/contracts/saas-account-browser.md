@@ -43,4 +43,5 @@ selection and per-request mapping/revocation without fallback, cleanup on produc
 escaped owner data and long finite role sets, and safe last-owner/backend failure with
 session retention. Their metadata port is explicitly synthetic; real account policy,
 foreign keys, concurrency and public credential journeys have separate PostgreSQL tests.
-Full sample/real connector/browser composition follows in final acceptance.
+The independent HTTPS sample and actual Chromium execution are now recorded in
+[final Identity/Auth acceptance](../development/identity-auth-acceptance-0.6.0.md).
