@@ -1,0 +1,35 @@
+name: SaaS subscription domain
+on:
+  pull_request:
+    paths:
+      - 'saas/subscriptions/**'
+      - '.github/workflows/saas-subscriptions.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  subscriptions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Install matching compiler and runtime
+        run: mvn -B -ntp -pl vernac-maven-plugin -am -DskipTests install
+      - name: Install nominal account contracts
+        run: mvn -B -ntp -pl saas/identity -DskipTests install
+      - name: Verify generated subscription model
+        run: mvn -B -ntp -pl saas/subscriptions clean verify
+      - name: Require domain proofs without skips
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse('saas/subscriptions/target/surefire-reports/TEST-org.vernac.saas.subscriptions.SubscriptionDomainTest.xml').getroot()
+          assert int(root.attrib['tests']) >= 6
+          assert all(int(root.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
+          PY

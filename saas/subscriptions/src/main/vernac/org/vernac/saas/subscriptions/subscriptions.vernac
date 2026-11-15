@@ -10,7 +10,7 @@ value OfferRevision(String value) validates {
     require(self.value().matches("[a-zA-Z0-9][a-zA-Z0-9._-]{0,47}"), "Invalid offer revision");
 };
 value MinorUnits(long value) validates {
-    require(self.value() >= 0 && self.value() <= 9000000000000000L, "Invalid price amount");
+    require(org.vernac.saas.subscriptions.SubscriptionRules.validPrice(self.value()), "Invalid price amount");
 };
 value BillingCurrency = EUR;
 value BillingInterval = MONTHLY | YEARLY;
@@ -41,6 +41,7 @@ global aggregate Subscription[SubscriptionId](AccountId account, mut OfferTerms 
     mut SubscriptionStatus status, mut Instant periodStart, mut Instant periodEnd,
     mut boolean cancelAtEnd, mut OfferTerms renewalTerms, mut boolean changeScheduled) validates {
     require(self.periodEnd().isAfter(self.periodStart()), "Invalid subscription period");
+    require(self.terms().price().value() == 0 || org.vernac.saas.subscriptions.BillingCalendar.end(self.periodStart(), self.terms().interval()).equals(self.periodEnd()), "Invalid paid billing interval");
 } behavior {
     public boolean effectiveAt(Instant now) {
         return self.status() == SubscriptionStatus.ACTIVE && !now.isBefore(self.periodStart()) && now.isBefore(self.periodEnd());

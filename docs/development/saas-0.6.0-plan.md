@@ -345,6 +345,19 @@ Merge in this order using ordinary merge commits; after each predecessor merges,
 retarget its successor to feature/0.6.0 **before** merging it. Do not automatically
 merge, publish or deploy this series. Small commits do not create extra PRs.
 
+### Confirmed provider and invoice scope — 15 November 2026
+
+The owner explicitly selected **both Mollie and Stripe** as required real payment
+adapters, alongside the credential-free local provider. Each real adapter requires
+its own verification/reconciliation/refund and sandbox evidence; neither can be
+silently treated as optional.
+
+The owner selected **Germany B2B and B2C**, a German seller and domestic customers,
+with EUR invoices. EU cross-border/OSS/Reverse-Charge scope is excluded from this
+release baseline. Supported domestic tax treatments, invoice formats and correction
+rules must be specified and checked against authoritative sources in the invoice topic;
+this choice alone does not establish legal/tax correctness.
+
 ### Developer-first design rules
 
 - Model domain vocabulary and invariants in ordinary .vernac values/aggregates/events/
