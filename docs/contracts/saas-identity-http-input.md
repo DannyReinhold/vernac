@@ -12,10 +12,12 @@ Identity POSTs accept only UTF-8 `application/x-www-form-urlencoded`, no query s
 at most 16,384 raw body bytes, 16 uniquely named fields and 4,096 UTF-16 units per value.
 The bounded stream read also covers unknown Content-Length/chunked bodies. It does not
 call container parameter parsing. The wrapped request supplies defensive parameter
-copies to CSRF and downstream handlers. Duplicate fields, malformed escapes/UTF-8,
-controls and ambiguous names fail with a fixed no-store 400; oversized bodies return
+copies to CSRF and downstream handlers. Duplicate fields, malformed escapes/UTF-8
+and ambiguous names fail with a fixed no-store 400; oversized bodies return
 413, unsupported media/charset 415. Passwords are never included in these responses.
-The replacement character is conservatively rejected even when intentionally supplied.
+Valid Unicode scalar values, including controls and an intentional replacement
+character, are preserved exactly for the existing password policy; no trimming,
+normalization or silent malformed-input replacement happens in the form parser.
 
 The application must also configure connector/proxy header limits, finite read/idle
 and total request timeouts, request concurrency and transport-source admission. A byte
@@ -30,7 +32,7 @@ policy does not preserve query strings. Mount paths belong in the configured pat
 never prepend a request-derived Host or forwarded header. Do not use Spring's unvalidated
 saved-request URL as a substitute. Applications still authorize the destination.
 
-Seven mandatory tests cover container-free parsing, encoded credentials/CSRF values,
+Eight mandatory tests cover container-free parsing, encoded credentials/CSRF values,
 known/chunked limits, parameter pollution/malformed fields, route/media boundaries,
 redirect ambiguities and startup fallback rejection. Full HTTP/session assembly remains
 in [the review sequence](../development/identity-auth-review-series-0.6.0.md).

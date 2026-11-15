@@ -4,7 +4,6 @@ package org.vernac.saas.identity.security;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import java.io.*;
-import java.net.URLDecoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.*;
 import java.util.*;
@@ -79,15 +78,32 @@ public final class IdentityFormFilter extends OncePerRequestFilter {
         return result;
     }
 
-    private static String decode(String value) {
-        String decoded = URLDecoder.decode(value, StandardCharsets.UTF_8);
-        // URLDecoder replaces malformed percent-encoded UTF-8. Reject that ambiguity as well
-        // as controls before credentials, CSRF, logging or handlers can inspect parameters.
-        for (int i = 0; i < decoded.length(); i++) {
-            char c = decoded.charAt(i);
-            if (Character.isISOControl(c) || c == '\ufffd') throw new IllegalArgumentException();
+    private static String decode(String value) throws CharacterCodingException {
+        var bytes=new ByteArrayOutputStream(value.length());
+        for(int i=0;i<value.length();) {
+            char current=value.charAt(i);
+            if(current=='%') {
+                if(i+2>=value.length())throw new IllegalArgumentException();
+                int high=hex(value.charAt(i+1)),low=hex(value.charAt(i+2));
+                if(high<0 || low<0)throw new IllegalArgumentException();
+                bytes.write(high*16+low);i+=3;
+            } else if(current=='+') { bytes.write(' ');i++; }
+            else {
+                int end=i+1;
+                while(end<value.length() && value.charAt(end)!='%' && value.charAt(end)!='+')end++;
+                bytes.writeBytes(value.substring(i,end).getBytes(StandardCharsets.UTF_8));i=end;
+            }
         }
-        return decoded;
+        // Preserve all valid Unicode scalar password input, including controls and U+FFFD;
+        // malformed UTF-8 is rejected, never silently replaced or normalized here.
+        return StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes.toByteArray())).toString();
+    }
+    private static int hex(char value) {
+        if(value>='0' && value<='9')return value-'0';
+        if(value>='a' && value<='f')return value-'a'+10;
+        if(value>='A' && value<='F')return value-'A'+10;
+        return -1;
     }
 
     private static void reject(HttpServletResponse response, int status) throws IOException {

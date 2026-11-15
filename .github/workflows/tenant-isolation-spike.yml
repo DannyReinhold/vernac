@@ -297,6 +297,7 @@ jobs:
               },
               'saas/identity-spring-security/target/surefire-reports/TEST-org.vernac.saas.identity.security.IdentityFormFilterTest.xml': {
                   'parsesBoundedUtf8WithoutInvokingContainerParameterParsing',
+                  'preservesAllValidUnicodePasswordInputWithoutTrimmingOrReplacement',
                   'rejectsOversizedKnownAndChunkedBodiesBeforeParametersAreRead',
                   'rejectsAmbiguousMalformedAndUnboundedFields',
                   'rejectsMultipartAndForeignCharsetsButLeavesUnrelatedRoutesAlone',

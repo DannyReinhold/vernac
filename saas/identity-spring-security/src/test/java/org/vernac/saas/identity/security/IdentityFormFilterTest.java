@@ -38,6 +38,13 @@ class IdentityFormFilterTest {
         });
     }
 
+    @Test void preservesAllValidUnicodePasswordInputWithoutTrimmingOrReplacement() throws Exception {
+        var response=new MockHttpServletResponse();
+        filter.doFilter(request("password=+%00%0A%EF%BF%BD+"),response,(raw,out)->
+            assertEquals(" \u0000\n\ufffd ",((HttpServletRequest)raw).getParameter("password")));
+        assertEquals(200,response.getStatus());
+    }
+
     @Test void rejectsOversizedKnownAndChunkedBodiesBeforeParametersAreRead() throws Exception {
         for (boolean unknown : new boolean[]{false,true}) {
             var request = new MockHttpServletRequest("POST", "/identity/login") {
@@ -53,8 +60,7 @@ class IdentityFormFilterTest {
     }
 
     @Test void rejectsAmbiguousMalformedAndUnboundedFields() throws Exception {
-        for (String body : new String[]{"password=a&password=b", "password=%zz", "password=%C0%AF", "password=%00",
-                "password=%0A", "a", "a=b&", "=secret", "a="+"x".repeat(4097), "a=b&".repeat(16)+"z=b"}) {
+        for (String body : new String[]{"password=a&password=b", "password=%zz", "password=%C0%AF", "password=%E0%80%80", "a", "a=b&", "=secret", "a="+"x".repeat(4097), "a=b&".repeat(16)+"z=b"}) {
             var response=new MockHttpServletResponse();
             filter.doFilter(request(body),response,(a,b)->fail("malformed request reached handler"));
             assertEquals(400,response.getStatus(),body.substring(0,Math.min(30,body.length())));

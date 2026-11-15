@@ -33,6 +33,7 @@ primitive PR is not acceptance of an unimplemented public browser journey.
 | 16 | [#65](https://github.com/DannyReinhold/vernac/pull/65) | Shared JDBC sessions and restricted framework schema |
 | 17 | [#66](https://github.com/DannyReinhold/vernac/pull/66) | Minimal CSRF-protected login page |
 | 18 | [#67](https://github.com/DannyReinhold/vernac/pull/67) | Explicit actual JDBC authentication assembly |
+| 19 | [#68](https://github.com/DannyReinhold/vernac/pull/68) | Mandatory pre-session ingress and bounded admission maintenance |
 
 ## Delivered slices
 
@@ -61,33 +62,36 @@ application roles, accounts or tenants. No real provider email is sent by tests.
 
 ## Remaining implementation sequence
 
-1. [Bounded form and local-return primitives](../contracts/saas-identity-http-input.md)
-   supply pre-parameter byte/field caps and conservative redirect validation. Full
-   application assembly remains open. Explicit application assembly using the ordinary binding, trusted origin and
-   source policy, writer transaction manager and bounded workers. Full request limits
-   must apply before form parsing. Fail startup on incomplete production configuration.
-2. Spring Session JDBC with separately reviewed framework-table migration ownership,
-   restricted runtime privileges, thirty-minute idle expiry, host-only production
-   cookies, session-ID rotation, POST logout, CSRF and validated local return paths.
-   Prove two instances/restart, fixation, expiry, logout and stale-session behavior
-   through the actual HTTP filter chain.
-3. Public login, recovery request/reset and password-change pages/actions. Fragment
-   handling must erase the bearer token from history before explicit protected POST;
-   GET never consumes a challenge. Prove neutral public outcomes and no auto-login
-   after verification/recovery.
-4. Review [the concrete D05 proposal](../contracts/saas-account-roles-d05-proposal.md),
-   then implement its catalog, account/owner model and atomic personal provisioning.
-   Public verification/registration cannot close before provisioning rollback,
-   replay/restart, owner and schema proofs pass.
-5. Add complete browser acceptance, controlled local preview authorization,
-   deployment/operations documentation and the remaining delivery monitoring gate.
+1. Finish ordinary application/profile binding and production lifecycle wiring: trusted
+   origin/source policy, selected mail provider, encryption keys, bounded mail worker and
+   scheduled admission maintenance. The explicit login/authentication/session assembly
+   APIs now exist; automatic activation is deliberately absent. Register framework Session
+   before Security once in the actual servlet container. Configure and test header/body,
+   read/total-time and concurrent-request limits at the connector/proxy boundary.
+2. Implement public recovery request/reset and authenticated password-change pages/actions.
+   Fragment handling must erase the bearer token from history before explicit protected
+   POST; GET never consumes a challenge. Prove neutral public outcomes and no auto-login
+   after recovery. The login HTML/POST, CSRF renewal, POST logout, stale-session checks,
+   shared JDBC storage and idle-expiry slices are implemented and have separate proofs;
+   their completion does not close these remaining journeys.
+3. Review [the concrete D05 proposal](../contracts/saas-account-roles-d05-proposal.md),
+   then implement the catalog, account/owner/membership model, protected assignment and
+   invitation policies, and atomic personal provisioning. Public verification/registration
+   cannot close before provisioning rollback, replay/restart, owner and generated schema
+   proofs pass. No role policy was silently accepted or invented during the login work.
+4. Add complete real-HTTP/browser acceptance composing actual JDBC credentials, admission,
+   Session filters, worker and public journeys. Current Spring filter-chain and two-instance
+   PostgreSQL proofs identify their mocked servlet transport/test-manager boundaries.
+5. Finish controlled local inbox-preview authorization, deployment/operations documentation,
+   framework-schema migration tracking and remaining delivery monitoring acceptance.
 
-The D05 proposal is not accepted merely because its documentation PR passes CI.
-Independent login/session work does not require inventing the role policy.
+D05 is a review proposal, not an accepted role policy merely because its documentation
+PR passes CI. Independent login/session work does not imply account or product grants.
 
-## Coarse progress
+## Acceptance status
 
-Engineering estimate only: Identity/Auth is roughly two-thirds implemented across
-accepted/private primitives and the new review series; the full 0.6.0 release is
-roughly one-third. These are not test percentages or a release-readiness statement.
-The public journey and operational acceptance gates are still open.
+The 15 November continuation adds focused PRs #62–#68 after the existing #50–#61
+review series. Merge in that order with ordinary merge commits; no PR was auto-merged.
+Exact-head GitHub results remain authoritative. The new optional browser path has
+executable proofs, but Identity/Auth as a whole and the complete 0.6.0 release remain
+OPEN. No updated percentage is inferred from the number of PRs or passing unit tests.

@@ -5,7 +5,8 @@ title: Explicit public JDBC authentication assembly
 
 `IdentityJdbcAuthentication.initializeDefaultPolicy` is an explicit Java assembly entry
 point for the existing private JDBC provider and fresh session metadata lookup. It returns
-only a standard Spring AuthenticationManager and IdentitySessionTrust. It exports no
+a standard Spring AuthenticationManager, IdentitySessionTrust, shared request-admission
+gate and a bounded maintenance entry point. It exports no
 Identity/credential/admission repository, registration bypass or tenant selection API.
 
 Call it once during controlled application startup after the generated Identity module
