@@ -1,0 +1,58 @@
+namespace org.vernac.saas.restrictions;
+import org.vernac.saas.identity.AccountId;
+import org.vernac.saas.subscriptions.BenefitKey;
+import org.vernac.saas.subscriptions.Allowance;
+
+value Units(long value) validates { require(self.value() >= 0, "Invalid usage amount"); };
+value UsageWindow(Instant start, Instant end) validates { require(self.end().isAfter(self.start()), "Invalid usage window"); };
+value BudgetKey(String encoded) validates {
+    require(org.vernac.saas.restrictions.MeteringRules.validBudgetKey(self.encoded()), "Invalid budget key");
+} behavior { public String toString() { return "BudgetKey[REDACTED]"; } };
+id BudgetId;
+global aggregate QuotaBudget[BudgetId](unique BudgetKey key, AccountId account, BenefitKey benefit, UsageWindow window,
+    mut Units consumed, mut Units reserved) validates {
+    require(org.vernac.saas.restrictions.MeteringRules.validTotal(self.consumed().value(), self.reserved().value()), "Usage total overflow");
+} behavior {
+    modify void reserve(Units amount, Allowance allowance) {
+        org.vernac.saas.restrictions.MeteringRules.requireRoom(self.consumed().value(), self.reserved().value(), amount.value(), allowance.maximum());
+        self.reserved(Units.of(Math.addExact(self.reserved().value(), amount.value())));
+    }
+    modify void consume(Units amount, Allowance allowance) {
+        org.vernac.saas.restrictions.MeteringRules.requireRoom(self.consumed().value(), self.reserved().value(), amount.value(), allowance.maximum());
+        self.consumed(Units.of(Math.addExact(self.consumed().value(), amount.value())));
+    }
+    modify void confirm(Units amount) {
+        org.vernac.saas.restrictions.MeteringRules.requireReserved(self.reserved().value(), amount.value());
+        self.reserved(Units.of(self.reserved().value() - amount.value()));
+        self.consumed(Units.of(Math.addExact(self.consumed().value(), amount.value())));
+    }
+    modify void release(Units amount) {
+        org.vernac.saas.restrictions.MeteringRules.requireReserved(self.reserved().value(), amount.value());
+        self.reserved(Units.of(self.reserved().value() - amount.value()));
+    }
+};
+repository QuotaBudgetRepository for QuotaBudget {
+    find QuotaBudget? forKey(BudgetKey key) where key = :key;
+}
+value UsageOperationKey(String encoded) validates {
+    require(self.encoded().matches("[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,127}"), "Invalid usage operation key");
+} behavior { public String toString() { return "UsageOperationKey[REDACTED]"; } };
+value ReservationKey(String encoded) validates {
+    require(org.vernac.saas.restrictions.MeteringRules.validReservationKey(self.encoded()), "Invalid reservation key");
+} behavior { public String toString() { return "ReservationKey[REDACTED]"; } };
+value ReservationStatus = RESERVED | CONFIRMED | RELEASED;
+id ReservationId;
+global aggregate QuotaReservation[ReservationId](unique ReservationKey key, BudgetId budget references QuotaBudget,
+    AccountId account, BenefitKey benefit, UsageWindow window, Units amount, mut ReservationStatus status) behavior {
+    modify void confirm() {
+        org.vernac.saas.restrictions.MeteringRules.requirePending(self.status() == ReservationStatus.RESERVED);
+        self.status(ReservationStatus.CONFIRMED);
+    }
+    modify void release() {
+        org.vernac.saas.restrictions.MeteringRules.requirePending(self.status() == ReservationStatus.RESERVED);
+        self.status(ReservationStatus.RELEASED);
+    }
+};
+repository QuotaReservationRepository for QuotaReservation {
+    find QuotaReservation? forKey(ReservationKey key) where key = :key;
+}

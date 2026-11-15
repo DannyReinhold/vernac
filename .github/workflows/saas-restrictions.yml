@@ -1,0 +1,61 @@
+name: SaaS restrictions
+on:
+  pull_request:
+    paths:
+      - 'saas/restrictions/**'
+      - '.github/workflows/saas-restrictions.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  restrictions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_USER: vernac
+          POSTGRES_PASSWORD: ephemeral-restrictions-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vernac -d postgres"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      VERNAC_PG_TEST_URL: jdbc:postgresql://localhost:5432/postgres
+      VERNAC_PG_TEST_USER: vernac
+      VERNAC_PG_TEST_PASSWORD: ephemeral-restrictions-only
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Install matching compiler and runtime
+        run: mvn -B -ntp -pl vernac-maven-plugin,vernac-jdbc-spring-boot-starter -am -DskipTests install
+      - name: Install nominal account contracts
+        run: mvn -B -ntp -pl saas/identity,saas/subscriptions -DskipTests install
+      - name: Verify generated restrictions and actual transaction boundaries
+        run: mvn -B -ntp -pl saas/restrictions clean verify
+      - name: Replay actual restriction migrations and compare schema
+        env:
+          VERNAC_CHECK_URL: jdbc:postgresql://localhost:5432/postgres
+          VERNAC_CHECK_USER: vernac
+          VERNAC_CHECK_PASSWORD: ephemeral-restrictions-only
+        run: mvn -B -ntp -pl saas/restrictions org.vernac:vernac-maven-plugin:0.6.0-SNAPSHOT:schema-check
+      - name: Require domain proofs without skips
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse('saas/restrictions/target/surefire-reports/TEST-org.vernac.saas.restrictions.RestrictionDomainTest.xml').getroot()
+          assert int(root.attrib['tests']) >= 4
+          assert all(int(root.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
+          integration = ET.parse('saas/restrictions/target/failsafe-reports/TEST-org.vernac.saas.restrictions.RestrictionPostgresIT.xml').getroot()
+          expected = {'localCallbackRunsOnceAndBusinessFailureRollsBackUsageAndProductWrite', 'independentInstancesCannotAllocateTheSameLastCapacitySlotAndDeletionWorksAfterDowngrade', 'externalUnknownSurvivesRestartAndRolloverWithoutExecutingCallbackAgain', 'knownUnusedReleaseAndNestedAccountPinPreserveAtomicBudgets'}
+          assert expected <= {case.attrib['name'] for case in integration.findall('testcase')}
+          assert all(int(integration.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
+          PY
