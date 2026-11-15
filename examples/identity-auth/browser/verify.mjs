@@ -48,6 +48,7 @@ async function login(page,address,secret){
  await page.goto("/identity/login");await page.getByLabel("Email address").fill(address);await page.getByLabel("Password",{exact:true}).fill(secret);
  check((await submit(page,"Sign in")).status()===303,"login response");
  await page.waitForURL("**/auth/accounts");
+ for(const cookie of await page.context().cookies()){secrets.push(cookie.value);if(cookie.name==="__Host-VERNACSESSION")secrets.push(Buffer.from(cookie.value,"base64").toString("utf8"));}
 }
 try{
  check((await anonymous.request.get("/__local/mail")).status()===403,"anonymous local inbox");
@@ -74,6 +75,28 @@ try{
  const select=memberPage.locator('form[action="/auth/account/select"]').filter({has:memberPage.locator('input[value="'+personal+'"]')});
  await select.getByRole("button",{name:"Open workspace",exact:true}).click();
  await memberPage.waitForURL("**/workspace");await memberPage.getByRole("heading",{name:"Your workspace",exact:true}).waitFor();
+ const memberRow=()=>ownerPage.getByRole("row").filter({hasText:"browser-recipient@example.test"});
+ await ownerPage.goto("/auth/account?account="+personal);
+ await memberRow().getByRole("textbox").fill("");
+ const removeRoles=ownerPage.waitForResponse(r=>r.request().method()==="POST"&&r.url().endsWith("/auth/account/roles"));
+ await memberRow().getByRole("button",{name:"Update roles",exact:true}).click();
+ check((await removeRoles).status()===303,"role removal response");
+ check((await recipient.request.get("/workspace")).status()===403,"role removal did not revoke generated usecase access");
+ await ownerPage.goto("/auth/account?account="+personal);
+ await memberRow().getByRole("textbox").fill("example.workspace_reader");
+ const restoreRoles=ownerPage.waitForResponse(r=>r.request().method()==="POST"&&r.url().endsWith("/auth/account/roles"));
+ await memberRow().getByRole("button",{name:"Update roles",exact:true}).click();
+ check((await restoreRoles).status()===303,"role restoration response");
+ check((await recipient.request.get("/workspace")).status()===200,"role restoration did not recover access");
+ await ownerPage.goto("/auth/account?account="+personal);
+ const removeMember=ownerPage.waitForResponse(r=>r.request().method()==="POST"&&r.url().endsWith("/auth/account/remove"));
+ await memberRow().getByRole("button",{name:"Remove member",exact:true}).click();
+ check((await removeMember).status()===303,"membership removal response");
+ check((await recipient.request.get("/workspace")).status()===403,"revoked membership still selected product scope");
+ check((await recipient.request.get("/auth/accounts")).status()===200,"membership removal incorrectly ended identity session");
+ await ownerPage.goto("/auth/accounts");
+ check((await submit(ownerPage,"Disable my identity")).status()===409,"last-owner disable accepted");
+ check((await owner.request.get("/auth/accounts")).status()===200,"last-owner rejection ended identity session");
  const recovery=await anonymous.newPage();await recovery.goto("/auth/recovery-request");
  await recovery.getByLabel("Email address").fill("browser-owner@example.test");check((await submit(recovery)).status()===202,"recovery request");
  check((await bearer(recovery,await mail("browser-owner@example.test","recover"),replacement)).status()===303,"recovery completion");
