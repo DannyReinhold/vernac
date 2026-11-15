@@ -228,6 +228,7 @@ public final class TenantProbe {
     public static class ExtensionTransactions {}
     public static void extensionProxy(DataSource data) {
         try(var context=new org.springframework.context.annotation.AnnotationConfigApplicationContext()) {
+            context.setClassLoader(TenantProbe.class.getClassLoader());
             context.register(ExtensionTransactions.class);
             context.registerBean(javax.sql.DataSource.class,()->data);
             context.registerBean(org.springframework.transaction.PlatformTransactionManager.class,()->new DataSourceTransactionManager(data));
