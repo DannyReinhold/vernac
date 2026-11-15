@@ -58,6 +58,58 @@ public final class JdbcAggregateStore<A extends AggregateRoot<?>> {
             coordinator.verifyRuntimeRole();
         } else coordinator=null;
     }
+    /** Generated adapters publish this capability without exposing their private mappings or JDBC template. */
+    public <I> JdbcRepositoryAccess<A,I> extensions(java.util.function.Function<I,UUID> identity, int maximum, String fingerprint) {
+        return new JdbcRepositoryAccess<>(this,identity,maximum,fingerprint);
+    }
+    Object extensionTransaction() {
+        requireTransaction();var source=Objects.requireNonNull(jdbc.getJdbcTemplate().getDataSource());
+        var holder=TransactionSynchronizationManager.getResource(source);
+        if(!(holder instanceof org.springframework.jdbc.datasource.ConnectionHolder connection) || !TransactionSynchronizationManager.isActualTransactionActive() || !TransactionSynchronizationManager.isSynchronizationActive())
+            throw new RepositoryExtensionException(RepositoryExtensionException.Code.SCOPE_CHANGED);
+        try { if(connection.getConnection().getAutoCommit()) throw new RepositoryExtensionException(RepositoryExtensionException.Code.SCOPE_CHANGED); }
+        catch(SQLException unavailable) { throw new RepositoryExtensionException(RepositoryExtensionException.Code.STORAGE_FAILURE); }
+        return holder;
+    }
+    long extensionCount(JdbcRootQuery query) {
+        return execute(()->{
+            var transaction=extensionTransaction();
+            Long count=jdbc.queryForObject("SELECT count(*) FROM "+root.table()+" WHERE "+scopedWhere(query.condition()),bindParameters(query.parameters()),Long.class);
+            if(extensionTransaction()!=transaction || count==null || count<0) throw new RepositoryExtensionException(RepositoryExtensionException.Code.INVALID_RESULT);
+            return count;
+        });
+    }
+    Object extensionSnapshot(A aggregate) {
+        if(!type.isInstance(aggregate) || aggregate.persistenceState().version()<1) throw new RepositoryExtensionException(RepositoryExtensionException.Code.INVALID_RESULT);
+        var graph=new ReadBoundary(root.id().apply(aggregate)); graph.entity(root.table(),aggregate);
+        return graph.rows;
+    }
+    /** Encoding is used only to compare read images. It never adopts NEW/DETACHED ownership or writes SQL. */
+    private final class ReadBoundary implements Writer {
+        final UUID aggregateId;
+        final Map<String,List<Map<String,@Nullable Object>>> rows=new LinkedHashMap<>();
+        final Map<Identity,Object> instances=new LinkedHashMap<>();
+        final Set<Identity> active=new HashSet<>();long rowNumber;
+        ReadBoundary(UUID aggregateId){this.aggregateId=aggregateId;}
+        public Map<String,@Nullable Object> row(String table) {
+            var binding=tables.get(table);if(binding==null)throw new RepositoryExtensionException(RepositoryExtensionException.Code.INVALID_RESULT);
+            Map<String,@Nullable Object> row=new LinkedHashMap<>();for(var column:binding.columns())row.put(column.name(),null);
+            if(tenant)row.put("@tenantId",TenantContext.requireTenant().value());
+            if(row.containsKey("@aggregateId"))row.put("@aggregateId",aggregateId);
+            if(row.containsKey("@rowId"))row.put("@rowId",new UUID(0,++rowNumber));
+            rows.computeIfAbsent(table,key->new ArrayList<>()).add(row);return row;
+        }
+        public UUID entity(String table,Object value) {
+            TenantOwnership ownership=value instanceof AggregateRoot<?> aggregate?aggregate.persistenceState().ownership():value instanceof Entity<?> entity?entity.__vernacTenantOwnership():null;
+            if(ownership==null || tenant && (ownership.origin()!=TenantOwnership.Origin.RESTORED || !ownership.tenant().filter(TenantContext.requireTenant()::equals).isPresent()) || !tenant && !ownership.isUnscoped())
+                throw new RepositoryExtensionException(RepositoryExtensionException.Code.INVALID_RESULT);
+            var domain=domains.get(table);if(domain==null)throw new RepositoryExtensionException(RepositoryExtensionException.Code.INVALID_RESULT);
+            UUID id=domain.id().apply(value);var key=new Identity(table,id);
+            if(active.contains(key))throw new RepositoryExtensionException(RepositoryExtensionException.Code.INVALID_RESULT);
+            var previous=instances.putIfAbsent(key,value);if(previous!=null){if(previous!=value)throw new RepositoryExtensionException(RepositoryExtensionException.Code.INVALID_RESULT);return id;}
+            active.add(key);var row=row(table);row.put("id",id);for(Field field:domain.fields())field.value().write(field.getter().apply(value),row,this,true);active.remove(key);return id;
+        }
+    }
     public A byId(UUID id) { return execute(()->byIdImpl(id)); }
     private A byIdImpl(UUID id) {
         requireTransaction(); Objects.requireNonNull(id);

@@ -4,6 +4,7 @@ import tenantdemo.adapter.outbound.jdbc.*;
 import org.vernac.runtime.*;
 import org.vernac.runtime.tenancy.*;
 import org.vernac.runtime.pagination.*;
+import org.vernac.runtime.jdbc.*;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.*;
@@ -187,4 +188,106 @@ public final class TenantProbe {
         assertThrows(TenancyException.class,()->invoices(data));
         assertThrows(TenancyException.class,()->in(A,tx,()->existing.all()));
     }
+    static JdbcRootQuery allRoots(){return JdbcRootQuery.of("SELECT id FROM tenantdemo.\"Invoice\"",Map.of());}
+    public static void extensions(DataSource data) {
+        var repository=invoices(data);var tx=tx(data);var access=repository.jdbcExtensions();
+        assertThrows(TenancyException.class,()->tx.execute(status->access.count(allRoots())));
+        try(var selected=TenantContext.openVerified(A)){assertThrows(TenancyException.class,()->access.count(allRoots()));}
+        var first=in(A,tx,()->{
+            var parcel=Parcel.create(Title.of("parcel"));var stop=Stop.create(Title.of("stop"),Parcels.of(parcel),Tags.of(Tag.of("tag")));
+            var second=Stop.create(Title.of("second"),Parcels.of(parcel),Tags.empty());
+            var root=repository.save(Invoice.create(Title.of("A"),Stops.of(stop,stop,second),Stops.of(stop),stop,TagGroups.of(TagGroup.of(Tags.of(Tag.of("nested"))))));
+            repository.save(empty("A-second"));repository.save(empty("A-third"));return root;
+        });
+        var foreign=in(B,tx,()->repository.save(empty("B")));
+        in(A,tx,()->{
+            assertEquals(3L,access.count(allRoots()));assertTrue(access.exists(allRoots()));
+            var root=access.single(read->read.byId(first.id()));assertEquals(first.persistenceState().version(),root.persistenceState().version());
+            assertSame(root.stops().get(0),root.stops().get(1));assertSame(root.stops().get(0),root.preferred().orElseThrow());
+            assertSame(root.stops().get(0).parcels().stream().findFirst().orElseThrow(),root.stops().get(2).parcels().stream().findFirst().orElseThrow());
+            assertEquals("nested",root.groups().get(0).tags().get(0).string());
+            assertTrue(access.optional(read->read.optional(foreign.id())).isEmpty());assertTrue(access.optional(read->read.optional(first.id())).isPresent());
+            var roots=access.list(read->read.roots(allRoots()));assertEquals(3,roots.size());
+            assertEquals(3,access.set(read->new LinkedHashSet<>(read.roots(allRoots()))).size());
+            assertEquals(3,access.collection(read->Invoices.of(read.roots(allRoots()))).size());
+            assertTrue(access.page(read->read.offset(allRoots(),OffsetRequest.ofPage(1,1),Invoices::of)).hasNext());
+            var page=access.page(read->read.countedOffset(allRoots(),OffsetRequest.ofPage(1,1),Invoices::of));assertEquals(3,page.totalElements());assertTrue(page.hasNext());
+            assertEquals(0,access.page(read->read.countedOffset(allRoots(),OffsetRequest.ofPage(20,1),Invoices::of)).items().size());
+            var cursor=access.page(read->read.cursor(allRoots(),CursorRequest.first(1),Invoices::of,JdbcCursorCodec.configured(KEY)));
+            assertEquals(1,cursor.items().size());assertTrue(cursor.nextCursor().isPresent());
+            assertEquals(1,access.page(read->read.cursor(allRoots(),cursor.nextRequest().orElseThrow(),Invoices::of,JdbcCursorCodec.configured(KEY))).items().size());
+            assertThrows(TenancyException.class,()->{try(var wrong=TenantContext.openVerified(B)){access.count(allRoots());}});
+            return true;
+        });
+        var cursor=in(A,tx,()->access.page(read->read.cursor(allRoots(),CursorRequest.first(1),Invoices::of,JdbcCursorCodec.configured(KEY))).nextCursor().orElseThrow());
+        assertThrows(InvalidCursorException.class,()->in(B,tx,()->access.page(read->read.cursor(allRoots(),CursorRequest.after(cursor,1),Invoices::of,JdbcCursorCodec.configured(KEY)))));
+        assertEquals(1L,in(B,tx,()->access.count(allRoots())).longValue());
+    }
+    @org.springframework.context.annotation.Configuration(proxyBeanMethods=false)
+    @org.springframework.transaction.annotation.EnableTransactionManagement(proxyTargetClass=false)
+    public static class ExtensionTransactions {}
+    public static void extensionProxy(DataSource data) {
+        try(var context=new org.springframework.context.annotation.AnnotationConfigApplicationContext()) {
+            context.setClassLoader(TenantProbe.class.getClassLoader());
+            context.register(ExtensionTransactions.class);
+            context.registerBean(javax.sql.DataSource.class,()->data);
+            context.registerBean(org.springframework.transaction.PlatformTransactionManager.class,()->new DataSourceTransactionManager(data));
+            context.registerBean("extensionRepository",JdbcInvoiceRepository.class,()->invoices(data));context.refresh();
+            Object bean=context.getBean("extensionRepository");assertTrue(org.springframework.aop.support.AopUtils.isJdkDynamicProxy(bean));
+            @SuppressWarnings("unchecked") var source=(JdbcRepositoryExtensionSource<Invoice,InvoiceId>)bean;
+            var access=source.jdbcExtensions(); // Factory is valid outside a business transaction.
+            assertThrows(org.springframework.transaction.IllegalTransactionStateException.class,()->((InvoiceRepository)bean).all());
+            assertEquals(0L,in(A,tx(data),()->access.count(allRoots())).longValue());
+        }
+    }
+    public static void extensionGuards(DataSource data) {
+        var repository=invoices(data);var access=repository.jdbcExtensions();var tx=tx(data);
+        var stored=in(A,tx,()->repository.save(empty("A")));var foreign=in(B,tx,()->{var value=repository.save(empty("B"));return repository.byId(value.id());});
+        in(A,tx,()->{
+            var fresh=empty("new");var time=java.time.Instant.now();var detached=Invoice.reconstitute(InvoiceId.create(),Title.of("detached"),Stops.empty(),Stops.empty(),null,TagGroups.empty(),time,time,1);
+            for(var invalid:List.of(foreign,fresh,detached)) {
+                assertThrows(RepositoryExtensionException.class,()->access.single(read->invalid));
+                assertThrows(RepositoryExtensionException.class,()->access.optional(read->Optional.of(invalid)));
+                assertThrows(RepositoryExtensionException.class,()->access.list(read->List.of(invalid)));
+                assertThrows(RepositoryExtensionException.class,()->access.set(read->Set.of(invalid)));
+                assertThrows(RepositoryExtensionException.class,()->access.collection(read->Invoices.of(invalid)));
+                assertThrows(RepositoryExtensionException.class,()->access.page(read->read.countedOffset(allRoots(),OffsetRequest.ofPage(1,1),items->Invoices.of(invalid))));
+            }
+            assertEquals(TenantOwnership.Origin.NEW,fresh.persistenceState().ownership().origin());assertEquals(0,fresh.persistenceState().version());
+            assertEquals(TenantOwnership.Origin.DETACHED,detached.persistenceState().ownership().origin());assertTrue(detached.persistenceState().ownership().tenant().isEmpty());
+            assertThrows(RepositoryExtensionException.class,()->access.single(read->{var root=read.byId(stored.id());root.replace(Stops.of(Stop.create(Title.of("new child"),Parcels.empty(),Tags.empty())),Stops.empty(),null);return root;}));
+            assertThrows(RepositoryExtensionException.class,()->access.list(read->{var root=read.byId(stored.id());return List.of(root,root);}));
+            var escaped=new java.util.concurrent.atomic.AtomicReference<JdbcRepositoryAccess.Read<Invoice,InvoiceId>>();
+            access.optional(read->{escaped.set(read);return Optional.empty();});
+            assertEquals(RepositoryExtensionException.Code.SCOPE_EXPIRED,assertThrows(RepositoryExtensionException.class,()->escaped.get().byId(stored.id())).code());
+            var other=new TransactionTemplate(new DataSourceTransactionManager(data));other.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+            assertThrows(RepositoryExtensionException.class,()->access.single(read->other.execute(status->read.byId(stored.id()))));
+            return true;
+        });
+        var failure=assertThrows(TenancyException.class,()->in(A,tx,()->access.count(JdbcRootQuery.of("SELECT nonexistent_sensitive_field FROM tenantdemo.\"Invoice\"",Map.of("secret","sensitive fixture")))));
+        assertNull(failure.getCause());assertFalse(failure.toString().contains("sensitive"));
+        var wrong=new org.springframework.jdbc.datasource.DelegatingDataSource(data);var wrongAccess=invoices(wrong).jdbcExtensions();
+        assertThrows(TenancyException.class,()->in(A,tx,()->wrongAccess.count(allRoots())));
+    }
+    public static void extensionPool(DataSource data) throws Exception {
+        try(var pool=new com.zaxxer.hikari.HikariDataSource()) {
+            pool.setDataSource(data);pool.setMaximumPoolSize(2);pool.setMinimumIdle(0);pool.setConnectionTimeout(3000);
+            var repository=invoices(pool);var access=repository.jdbcExtensions();var tx=tx(pool);
+            var first=in(A,tx,()->repository.save(empty("A")));in(A,tx,()->repository.save(empty("A2")));in(B,tx,()->repository.save(empty("B")));
+            var start=new CyclicBarrier(4);
+            try(var workers=Executors.newFixedThreadPool(4)) {
+                var results=new ArrayList<Future<Boolean>>();
+                for(int n=0;n<4;n++){var tenant=n%2==0?A:B;long expected=n%2==0?2:1;
+                    results.add(workers.submit(()->{start.await(10,TimeUnit.SECONDS);for(int round=0;round<10;round++)assertEquals(expected,in(tenant,tx,()->access.count(allRoots())).longValue());assertTrue(TenantContext.currentTenant().isEmpty());assertTrue(TenantContext.transactionTenant().isEmpty());return true;}));
+                }
+                for(var result:results)assertTrue(result.get(30,TimeUnit.SECONDS));
+            }
+            var stale=in(A,tx,()->access.single(read->read.byId(first.id())));
+            in(A,tx,()->{var root=access.single(read->read.byId(first.id()));root.replace(Stops.of(Stop.create(Title.of("updated"),Parcels.empty(),Tags.empty())),Stops.empty(),null);access.save(root);return true;});
+            assertThrows(OptimisticLockingFailureException.class,()->in(A,tx,()->access.save(stale)));
+            in(A,tx,()->{var root=access.single(read->read.byId(first.id()));assertEquals("updated",root.stops().get(0).title().string());access.delete(root);return true;});
+            assertEquals(1L,in(A,tx,()->access.count(allRoots())).longValue());
+        }
+    }
+
 }

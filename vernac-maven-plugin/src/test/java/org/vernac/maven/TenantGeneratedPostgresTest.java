@@ -120,6 +120,14 @@ class TenantGeneratedPostgresTest {
     void generatedStoresRejectOwnerRolesAndChangedPolicies() throws Exception {database("policies",true);}
     @Test @EnabledIfEnvironmentVariable(named="VERNAC_PG_TEST_URL",matches=".+")
     void tenantMigrationBackfillsAllTenantsWithDedicatedMigrationPrivileges() throws Exception {database("migration",false);}
+    @Test @EnabledIfEnvironmentVariable(named="VERNAC_PG_TEST_URL",matches=".+")
+    void repositoryExtensionsHydrateCanonicalShapesAndScopeCountsBeforeSql() throws Exception {database("extensions",false);}
+    @Test @EnabledIfEnvironmentVariable(named="VERNAC_PG_TEST_URL",matches=".+")
+    void repositoryExtensionsRejectUntrackedModifiedAndEscapedResults() throws Exception {database("extensionGuards",false);}
+    @Test @EnabledIfEnvironmentVariable(named="VERNAC_PG_TEST_URL",matches=".+")
+    void repositoryExtensionsRetainScopeAcrossPooledConcurrencyAndCanonicalWrites() throws Exception {database("extensionPool",false);}
+    @Test @EnabledIfEnvironmentVariable(named="VERNAC_PG_TEST_URL",matches=".+")
+    void repositoryExtensionCapabilityIsAvailableThroughJdkRepositoryProxiesWithoutAnAmbientTransaction() throws Exception {database("extensionProxy",false);}
     private void evolve(DataSource owner, SchemaModel schema) throws Exception {
         var tables=schema.tables().stream().map(t->{
             if(!t.name().equals("Invoice"))return t;
