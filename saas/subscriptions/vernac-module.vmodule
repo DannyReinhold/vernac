@@ -1,0 +1,14 @@
+module vernac.saas.subscriptions {
+    export org.vernac.saas.subscriptions.PlanKey;
+    export org.vernac.saas.subscriptions.OfferRevision;
+    export org.vernac.saas.subscriptions.MinorUnits;
+    export org.vernac.saas.subscriptions.BillingCurrency;
+    export org.vernac.saas.subscriptions.BillingInterval;
+    export org.vernac.saas.subscriptions.BenefitKey;
+    export org.vernac.saas.subscriptions.Allowance;
+    export org.vernac.saas.subscriptions.BenefitSnapshot;
+    export org.vernac.saas.subscriptions.OfferTerms;
+    export org.vernac.saas.subscriptions.SubscriptionStatus;
+    export org.vernac.saas.subscriptions.SubscriptionId;
+    export org.vernac.saas.subscriptions.Subscription;
+}

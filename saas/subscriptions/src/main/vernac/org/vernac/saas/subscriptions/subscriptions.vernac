@@ -1,0 +1,102 @@
+namespace org.vernac.saas.subscriptions;
+import org.vernac.saas.identity.AccountId;
+
+term PlanKey { description "An application-owned commercial plan, independent of member roles and permissions."; }
+value PlanKey(String value) validates {
+    require(self.value().matches("[a-z][a-z0-9-]{0,47}"), "Invalid plan key");
+};
+term OfferRevision { description "An immutable revision of purchased terms. Reusing a revision for different terms is a configuration error."; }
+value OfferRevision(String value) validates {
+    require(self.value().matches("[a-zA-Z0-9][a-zA-Z0-9._-]{0,47}"), "Invalid offer revision");
+};
+value MinorUnits(long value) validates {
+    require(self.value() >= 0 && self.value() <= 9000000000000000L, "Invalid price amount");
+};
+value BillingCurrency = EUR;
+value BillingInterval = MONTHLY | YEARLY;
+term BenefitKey { description "One application-defined purchased feature or metering allowance; never an identity permission."; }
+value BenefitKey(String value) validates {
+    require(self.value().matches("[a-z][a-z0-9-]{0,47}"), "Invalid benefit key");
+};
+term Allowance { description "Zero denies allocation, positive values are finite, minus one explicitly means unlimited."; }
+value Allowance(long maximum) validates {
+    require(self.maximum() >= -1, "Invalid allowance");
+};
+value BenefitSnapshot(String encoded) validates {
+    require(org.vernac.saas.subscriptions.Benefits.valid(self.encoded()), "Invalid benefit snapshot");
+};
+term OfferTerms {
+    description "Complete immutable commercial and entitlement terms copied into a subscription, not a live reference to mutable configuration.";
+}
+value OfferTerms(PlanKey plan, OfferRevision revision, MinorUnits price, BillingCurrency currency,
+    BillingInterval interval, BenefitSnapshot benefits);
+value SubscriptionStatus = AWAITING_PAYMENT | ACTIVE | SUSPENDED | ENDED;
+id SubscriptionId;
+
+term Subscription {
+    description "One account's agreement and effective benefit window. Domain transitions neither authenticate a member nor prove a remote payment.";
+    note "The application writer authorizes account administration, serializes mutations and accepts settlements only from verified payment processing.";
+}
+global aggregate Subscription[SubscriptionId](AccountId account, mut OfferTerms terms,
+    mut SubscriptionStatus status, mut Instant periodStart, mut Instant periodEnd,
+    mut boolean cancelAtEnd, mut OfferTerms renewalTerms, mut boolean changeScheduled) validates {
+    require(self.periodEnd().isAfter(self.periodStart()), "Invalid subscription period");
+} behavior {
+    public boolean effectiveAt(Instant now) {
+        return self.status() == SubscriptionStatus.ACTIVE && !now.isBefore(self.periodStart()) && now.isBefore(self.periodEnd());
+    }
+    public BenefitSnapshot benefitsAt(Instant now) {
+        return self.effectiveAt(now) ? self.terms().benefits() : BenefitSnapshot.of("");
+    }
+    modify void activateFree() {
+        org.vernac.saas.subscriptions.SubscriptionRules.require(self.status() == SubscriptionStatus.AWAITING_PAYMENT && self.terms().price().value() == 0,
+            org.vernac.saas.subscriptions.SubscriptionFailure.Code.INVALID_TRANSITION);
+        self.status(SubscriptionStatus.ACTIVE);
+    }
+    modify void settleInitial(OfferTerms paidTerms, Instant from, Instant until) {
+        org.vernac.saas.subscriptions.SubscriptionRules.require(self.status() == SubscriptionStatus.AWAITING_PAYMENT && self.terms().price().value() > 0
+            && self.terms().equals(paidTerms) && self.periodStart().equals(from) && self.periodEnd().equals(until),
+            org.vernac.saas.subscriptions.SubscriptionFailure.Code.SETTLEMENT_MISMATCH);
+        self.status(SubscriptionStatus.ACTIVE);
+    }
+    modify void scheduleChange(OfferTerms next) {
+        org.vernac.saas.subscriptions.SubscriptionRules.require(self.status() == SubscriptionStatus.ACTIVE && !self.cancelAtEnd(),
+            org.vernac.saas.subscriptions.SubscriptionFailure.Code.INVALID_TRANSITION);
+        self.renewalTerms(next);
+        self.changeScheduled(true);
+    }
+    modify void cancelRenewal() {
+        org.vernac.saas.subscriptions.SubscriptionRules.require(self.status() == SubscriptionStatus.ACTIVE || self.status() == SubscriptionStatus.SUSPENDED,
+            org.vernac.saas.subscriptions.SubscriptionFailure.Code.INVALID_TRANSITION);
+        self.cancelAtEnd(true);
+        self.changeScheduled(false);
+        self.renewalTerms(self.terms());
+    }
+    modify void resumeRenewal(Instant now) {
+        org.vernac.saas.subscriptions.SubscriptionRules.require(self.status() == SubscriptionStatus.ACTIVE && now.isBefore(self.periodEnd()),
+            org.vernac.saas.subscriptions.SubscriptionFailure.Code.INVALID_TRANSITION);
+        self.cancelAtEnd(false);
+    }
+    modify void settleRenewal(OfferTerms paidTerms, Instant from, Instant until) {
+        org.vernac.saas.subscriptions.SubscriptionRules.require((self.status() == SubscriptionStatus.ACTIVE || self.status() == SubscriptionStatus.SUSPENDED)
+            && !self.cancelAtEnd() && from.equals(self.periodEnd()) && until.isAfter(from)
+            && paidTerms.equals(self.changeScheduled() ? self.renewalTerms() : self.terms()),
+            org.vernac.saas.subscriptions.SubscriptionFailure.Code.SETTLEMENT_MISMATCH);
+        self.terms(paidTerms);
+        self.periodStart(from);
+        self.periodEnd(until);
+        self.renewalTerms(paidTerms);
+        self.changeScheduled(false);
+        self.status(SubscriptionStatus.ACTIVE);
+    }
+    modify void lapse(Instant now) {
+        org.vernac.saas.subscriptions.SubscriptionRules.require(!now.isBefore(self.periodEnd()) && self.status() != SubscriptionStatus.ENDED,
+            org.vernac.saas.subscriptions.SubscriptionFailure.Code.INVALID_TRANSITION);
+        self.status(self.cancelAtEnd() ? SubscriptionStatus.ENDED : SubscriptionStatus.SUSPENDED);
+    }
+    modify void end() {
+        self.status(SubscriptionStatus.ENDED);
+        self.cancelAtEnd(true);
+        self.changeScheduled(false);
+    }
+};
