@@ -49,6 +49,7 @@ public class IdentitySetup {
   return IdentityJdbcAuthentication.initializeDefaultPolicy(jdbc,writer,clock,e.getRequiredProperty("identity.admission-key-label"),
    new SecretKeySpec(key(e,"identity.admission-key"),"HmacSHA256"),passwords);
  }
+ @Bean org.springframework.security.authentication.AuthenticationManager browserAuthenticationManager(IdentityJdbcAuthentication authentication){return authentication.authenticationManager();}
  @Bean RoleCatalog roleCatalog(){
   return RoleCatalog.fromClasspath(getClass().getClassLoader(),"roles.json",List.of(WorkspacePermissions.values()));
  }
