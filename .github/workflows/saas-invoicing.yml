@@ -1,0 +1,66 @@
+name: SaaS invoices and ZUGFeRD
+on:
+  pull_request:
+    paths:
+      - 'saas/invoicing*/**'
+      - 'docs/contracts/saas-invoicing.md'
+      - '.github/workflows/saas-invoicing.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  invoices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_USER: vernac
+          POSTGRES_PASSWORD: ephemeral-invoices-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vernac -d postgres"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      VERNAC_PG_TEST_URL: jdbc:postgresql://localhost:5432/postgres
+      VERNAC_PG_TEST_USER: vernac
+      VERNAC_PG_TEST_PASSWORD: ephemeral-invoices-only
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Install matching compiler and runtime
+        run: mvn -B -ntp -pl vernac-maven-plugin,vernac-jdbc-spring-boot-starter -am -DskipTests install
+      - name: Install nominal contracts and payment processing
+        run: mvn -B -ntp -pl saas/identity,saas/mail,saas/subscriptions,saas/payments,saas/payments-http,saas/payments-local,saas/payments-jdbc -DskipTests install
+      - name: Verify fiscal calculations PDF-A EN16931 and packaged database consumption
+        run: mvn -B -ntp -pl saas/invoicing,saas/invoicing-pdf clean install
+      - name: Replay invoice migrations and compare generated schema
+        env:
+          VERNAC_CHECK_URL: jdbc:postgresql://localhost:5432/postgres
+          VERNAC_CHECK_USER: vernac
+          VERNAC_CHECK_PASSWORD: ephemeral-invoices-only
+        run: mvn -B -ntp -pl saas/invoicing org.vernac:vernac-maven-plugin:0.6.0-SNAPSHOT:schema-check
+      - name: Require actual invoice proofs without skips
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          suites = {
+              'saas/invoicing/target/surefire-reports/TEST-org.vernac.saas.invoicing.DomesticTaxTest.xml': 3,
+              'saas/invoicing-pdf/target/surefire-reports/TEST-org.vernac.saas.invoicing.pdf.ZugferdDocumentsTest.xml': 4,
+              'saas/invoicing-pdf/target/failsafe-reports/TEST-org.vernac.saas.invoicing.pdf.InvoiceFlowPostgresIT.xml': 3,
+          }
+          for path, count in suites.items():
+              root = ET.parse(path).getroot()
+              assert int(root.attrib['tests']) >= count
+              assert all(int(root.attrib.get(key, '0')) == 0 for key in ('failures', 'errors', 'skipped'))
+              assert all(not any(case.find(tag) is not None for tag in ('skipped', 'failure', 'error')) for case in root.findall('testcase'))
+          PY

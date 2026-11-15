@@ -1,0 +1,23 @@
+module vernac.saas.invoicing {
+    tenancy explicit;
+    export org.vernac.saas.invoicing.InvoiceId;
+    export org.vernac.saas.invoicing.InvoiceNumber;
+    export org.vernac.saas.invoicing.InvoiceContent;
+    export org.vernac.saas.invoicing.InvoiceEnvironment;
+    export org.vernac.saas.invoicing.InvoiceKind;
+    export org.vernac.saas.invoicing.InvoiceReference;
+    export org.vernac.saas.invoicing.InvoiceIssueDate;
+    export org.vernac.saas.invoicing.InvoiceText;
+    export org.vernac.saas.invoicing.InvoicePostalCode;
+    export org.vernac.saas.invoicing.InvoiceParty;
+    export org.vernac.saas.invoicing.InvoiceSeller;
+    export org.vernac.saas.invoicing.InvoiceBuyer;
+    export org.vernac.saas.invoicing.SellerTaxIdentifier;
+    export org.vernac.saas.invoicing.InvoiceTaxTreatment;
+    export org.vernac.saas.invoicing.CustomerNumber;
+    export org.vernac.saas.invoicing.InvoiceAmounts;
+    export org.vernac.saas.invoicing.InvoicePdf;
+    export org.vernac.saas.invoicing.InvoiceXml;
+    export org.vernac.saas.invoicing.RenderedInvoice;
+    export org.vernac.saas.invoicing.InvoiceRenderer;
+}

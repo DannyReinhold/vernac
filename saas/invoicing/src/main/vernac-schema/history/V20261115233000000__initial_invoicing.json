@@ -1,0 +1,641 @@
+{
+  "formatVersion" : 1,
+  "migration" : "V20261115233000000__initial_invoicing.sql",
+  "previousFingerprint" : "80a947793d1802db05dd3d1246d9b9534a6c51dd00f17d796277da3e0441da66",
+  "modelFingerprint" : "b1704bfb0d718005980817933c8a5417f86a04b86489a34f890f03e2d27d4c3b",
+  "model" : {
+    "formatVersion" : 4,
+    "mappingVersion" : 1,
+    "tables" : [ {
+      "namespace" : "org.vernac.saas.invoicing",
+      "name" : "BillingProfile",
+      "origin" : "org.vernac.saas.invoicing.BillingProfile",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.invoicing.BillingProfile"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.invoicing.BillingProfile"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.invoicing.BillingProfile"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.invoicing.BillingProfile"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.invoicing.BillingProfile"
+      }, {
+        "name" : "buyer.contact",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.BillingProfile.buyer.contact"
+      }, {
+        "name" : "buyer.customer",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.BillingProfile.buyer.customer"
+      }, {
+        "name" : "buyer.party.city",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.BillingProfile.buyer.party.city"
+      }, {
+        "name" : "buyer.party.name",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.BillingProfile.buyer.party.name"
+      }, {
+        "name" : "buyer.party.postalCode",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.BillingProfile.buyer.party.postalCode"
+      }, {
+        "name" : "buyer.party.street",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.BillingProfile.buyer.party.street"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.invoicing.BillingProfile.id"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      } ]
+    }, {
+      "namespace" : "org.vernac.saas.invoicing",
+      "name" : "Invoice",
+      "origin" : "org.vernac.saas.invoicing.Invoice",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.invoicing.Invoice"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.invoicing.Invoice"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.invoicing.Invoice"
+      }, {
+        "name" : "@nanoRemainder:content.paymentPostedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.paymentPostedAt"
+      }, {
+        "name" : "@nanoRemainder:content.period.end",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.period.end"
+      }, {
+        "name" : "@nanoRemainder:content.period.start",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.period.start"
+      }, {
+        "name" : "@nanoRemainder:due",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.invoicing.Invoice.due"
+      }, {
+        "name" : "@nanoRemainder:lease.until",
+        "sqlType" : "SMALLINT",
+        "nullable" : true,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.invoicing.Invoice.lease.until"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.invoicing.Invoice"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.invoicing.Invoice"
+      }, {
+        "name" : "account",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.identity.AccountId"
+      }, {
+        "name" : "content.amounts.gross",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.amounts.gross"
+      }, {
+        "name" : "content.amounts.net",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.amounts.net"
+      }, {
+        "name" : "content.amounts.tax",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.amounts.tax"
+      }, {
+        "name" : "content.buyer.contact",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.buyer.contact"
+      }, {
+        "name" : "content.buyer.customer",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.buyer.customer"
+      }, {
+        "name" : "content.buyer.party.city",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.buyer.party.city"
+      }, {
+        "name" : "content.buyer.party.name",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.buyer.party.name"
+      }, {
+        "name" : "content.buyer.party.postalCode",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.buyer.party.postalCode"
+      }, {
+        "name" : "content.buyer.party.street",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.buyer.party.street"
+      }, {
+        "name" : "content.description",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.description"
+      }, {
+        "name" : "content.environment",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.InvoiceEnvironment"
+      }, {
+        "name" : "content.issued",
+        "sqlType" : "DATE",
+        "nullable" : false,
+        "codec" : "LocalDate:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.issued"
+      }, {
+        "name" : "content.kind",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.InvoiceKind"
+      }, {
+        "name" : "content.number",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.number"
+      }, {
+        "name" : "content.original.issued",
+        "sqlType" : "DATE",
+        "nullable" : true,
+        "codec" : "LocalDate:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.original.issued"
+      }, {
+        "name" : "content.original.number",
+        "sqlType" : "TEXT",
+        "nullable" : true,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.original.number"
+      }, {
+        "name" : "content.paymentPostedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.paymentPostedAt"
+      }, {
+        "name" : "content.period.end",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.period.end"
+      }, {
+        "name" : "content.period.start",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.period.start"
+      }, {
+        "name" : "content.seller.contact",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.seller.contact"
+      }, {
+        "name" : "content.seller.party.city",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.seller.party.city"
+      }, {
+        "name" : "content.seller.party.name",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.seller.party.name"
+      }, {
+        "name" : "content.seller.party.postalCode",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.seller.party.postalCode"
+      }, {
+        "name" : "content.seller.party.street",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.seller.party.street"
+      }, {
+        "name" : "content.seller.taxIdentifier",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.seller.taxIdentifier"
+      }, {
+        "name" : "content.seller.treatment",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.InvoiceTaxTreatment"
+      }, {
+        "name" : "content.terms.benefits",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.terms.benefits"
+      }, {
+        "name" : "content.terms.currency",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.BillingCurrency"
+      }, {
+        "name" : "content.terms.interval",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.subscriptions.BillingInterval"
+      }, {
+        "name" : "content.terms.plan",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.terms.plan"
+      }, {
+        "name" : "content.terms.price",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.terms.price"
+      }, {
+        "name" : "content.terms.revision",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.content.terms.revision"
+      }, {
+        "name" : "cumulativeRefund",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.cumulativeRefund"
+      }, {
+        "name" : "due",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.due"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.invoicing.Invoice.id"
+      }, {
+        "name" : "lease.token",
+        "sqlType" : "UUID",
+        "nullable" : true,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.lease.token"
+      }, {
+        "name" : "lease.until",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : true,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.lease.until"
+      }, {
+        "name" : "number",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.number",
+        "collation" : "C"
+      }, {
+        "name" : "payment",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.payments.persistence.PaymentOrderId"
+      }, {
+        "name" : "source",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.Invoice.source",
+        "collation" : "C"
+      }, {
+        "name" : "status",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.InvoiceWorkStatus"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:absent:content.original.issued:org.vernac.saas.invoicing.InvoiceIssueDate",
+        "clause" : "CHECK ((\"content.original.number\" IS NOT NULL) OR (\"content.original.issued\" IS NULL))"
+      }, {
+        "name" : "@check:absent:content.original:org.vernac.saas.invoicing.InvoiceReference",
+        "clause" : "CHECK ((\"content.original.number\" IS NOT NULL) OR (\"content.original.issued\" IS NULL AND \"content.original.number\" IS NULL))"
+      }, {
+        "name" : "@check:absent:lease:org.vernac.saas.invoicing.InvoiceWorkLease",
+        "clause" : "CHECK ((\"lease.token\" IS NOT NULL) OR (\"@nanoRemainder:lease.until\" IS NULL AND \"lease.token\" IS NULL AND \"lease.until\" IS NULL))"
+      }, {
+        "name" : "@check:enum:content.environment",
+        "clause" : "CHECK (\"content.environment\" IN ('LIVE', 'TEST'))"
+      }, {
+        "name" : "@check:enum:content.kind",
+        "clause" : "CHECK (\"content.kind\" IN ('CORRECTION', 'INVOICE'))"
+      }, {
+        "name" : "@check:enum:content.seller.treatment",
+        "clause" : "CHECK (\"content.seller.treatment\" IN ('SMALL_BUSINESS_EXEMPT', 'STANDARD_19'))"
+      }, {
+        "name" : "@check:enum:content.terms.currency",
+        "clause" : "CHECK (\"content.terms.currency\" IN ('EUR'))"
+      }, {
+        "name" : "@check:enum:content.terms.interval",
+        "clause" : "CHECK (\"content.terms.interval\" IN ('MONTHLY', 'YEARLY'))"
+      }, {
+        "name" : "@check:enum:status",
+        "clause" : "CHECK (\"status\" IN ('PENDING', 'READY', 'REVIEW'))"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:content.paymentPostedAt",
+        "clause" : "CHECK (\"@nanoRemainder:content.paymentPostedAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:content.period.end",
+        "clause" : "CHECK (\"@nanoRemainder:content.period.end\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:content.period.start",
+        "clause" : "CHECK (\"@nanoRemainder:content.period.start\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:due",
+        "clause" : "CHECK (\"@nanoRemainder:due\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:lease.until",
+        "clause" : "CHECK (\"@nanoRemainder:lease.until\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:shape:content.original.issued",
+        "clause" : "CHECK (((\"content.original.number\" IS NOT NULL) AND (\"content.original.issued\" IS NOT NULL)) OR ((NOT (\"content.original.number\" IS NOT NULL)) AND (\"content.original.issued\" IS NULL)))"
+      }, {
+        "name" : "@check:shape:lease.until",
+        "clause" : "CHECK (((\"lease.token\" IS NOT NULL) AND (\"lease.until\" IS NOT NULL AND \"@nanoRemainder:lease.until\" IS NOT NULL)) OR ((NOT (\"lease.token\" IS NOT NULL)) AND (\"lease.until\" IS NULL AND \"@nanoRemainder:lease.until\" IS NULL)))"
+      }, {
+        "name" : "@unique:Invoice:number",
+        "clause" : "UNIQUE (\"number\")"
+      }, {
+        "name" : "@unique:Invoice:source",
+        "clause" : "UNIQUE (\"source\")"
+      } ]
+    }, {
+      "namespace" : "org.vernac.saas.invoicing",
+      "name" : "InvoiceSequence",
+      "origin" : "org.vernac.saas.invoicing.InvoiceSequence",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.invoicing.InvoiceSequence"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.invoicing.InvoiceSequence"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.invoicing.InvoiceSequence"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.invoicing.InvoiceSequence"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.invoicing.InvoiceSequence"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.invoicing.InvoiceSequence.id"
+      }, {
+        "name" : "key",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.InvoiceSequence.key",
+        "collation" : "C"
+      }, {
+        "name" : "last",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.invoicing.InvoiceSequence.last"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@unique:InvoiceSequence:key",
+        "clause" : "UNIQUE (\"key\")"
+      } ]
+    }, {
+      "namespace" : "org.vernac.saas.invoicing",
+      "name" : "IssuedInvoiceDocument",
+      "origin" : "org.vernac.saas.invoicing.IssuedInvoiceDocument",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.invoicing.IssuedInvoiceDocument"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.invoicing.IssuedInvoiceDocument"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.invoicing.IssuedInvoiceDocument"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.invoicing.IssuedInvoiceDocument"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.invoicing.IssuedInvoiceDocument"
+      }, {
+        "name" : "document.pdf",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.IssuedInvoiceDocument.document.pdf"
+      }, {
+        "name" : "document.xml",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.invoicing.IssuedInvoiceDocument.document.xml"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.invoicing.IssuedInvoiceDocument.id"
+      }, {
+        "name" : "invoice",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.invoicing.InvoiceId"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@fk:reference:invoice",
+        "clause" : "FOREIGN KEY (\"invoice\") REFERENCES \"org.vernac.saas.invoicing\".\"Invoice\" (\"id\")"
+      }, {
+        "name" : "@unique:IssuedInvoiceDocument:invoice",
+        "clause" : "UNIQUE (\"invoice\")"
+      } ]
+    } ],
+    "enumCodes" : {
+      "org.vernac.saas.invoicing.InvoiceEnvironment" : {
+        "LIVE" : "LIVE",
+        "TEST" : "TEST"
+      },
+      "org.vernac.saas.invoicing.InvoiceKind" : {
+        "CORRECTION" : "CORRECTION",
+        "INVOICE" : "INVOICE"
+      },
+      "org.vernac.saas.invoicing.InvoiceTaxTreatment" : {
+        "SMALL_BUSINESS_EXEMPT" : "SMALL_BUSINESS_EXEMPT",
+        "STANDARD_19" : "STANDARD_19"
+      },
+      "org.vernac.saas.invoicing.InvoiceWorkStatus" : {
+        "PENDING" : "PENDING",
+        "READY" : "READY",
+        "REVIEW" : "REVIEW"
+      },
+      "org.vernac.saas.subscriptions.BillingCurrency" : {
+        "EUR" : "EUR"
+      },
+      "org.vernac.saas.subscriptions.BillingInterval" : {
+        "MONTHLY" : "MONTHLY",
+        "YEARLY" : "YEARLY"
+      }
+    }
+  }
+}

@@ -358,6 +358,9 @@ release baseline. Supported domestic tax treatments, invoice formats and correct
 rules must be specified and checked against authoritative sources in the invoice topic;
 this choice alone does not establish legal/tax correctness.
 
+The owner also selected **PDF with ZUGFeRD** (EN16931 structured invoice data).
+Standalone XRechnung is not part of the selected format baseline.
+
 ### Developer-first design rules
 
 - Model domain vocabulary and invariants in ordinary .vernac values/aggregates/events/
