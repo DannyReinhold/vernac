@@ -50,6 +50,7 @@ jobs:
       RELEASE_VERSION: ${{ inputs.version }}
       DRY_RUN: ${{ inputs.dry_run }}
       VERNAC_PG_TEST_URL: jdbc:postgresql://localhost:5432/postgres
+      VERNAC_PG_CONTAINER: ${{ job.services.postgres.id }}
       VERNAC_PG_TEST_USER: vernac
       VERNAC_PG_TEST_PASSWORD: ephemeral-ci-only
 
@@ -59,6 +60,9 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Use matching PostgreSQL service clients
+        run: sh tools/pg-service-clients.sh
 
       - name: Check release version and history
         shell: bash
