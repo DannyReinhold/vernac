@@ -1,0 +1,375 @@
+{
+  "format": 1,
+  "version": "0.6.0",
+  "state": "CANDIDATE",
+  "synthetic_only": true,
+  "source_sha": "345bcf80b33cff8e33e8e5dd26570efdcc9ee6a0",
+  "application_jar_sha256": "971c4268915910c87fc781dc73f3016c72c4ad22400c14e643fe6c58452cb868",
+  "postgres": "pg_dump (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+  "files": {
+    "database.sql": "dc9c670f0ae91077af5e0b4b561ee1743d7ec8f403f18e1aa6449b86cd962827",
+    "expectations.json": "b7ab86406c7c811ddab1c760977008364ec33473c85dad435e5106a41b37e253",
+    "test-runtime.json": "3cd06893e814ebd3b5298040bc13ddb80122e5bc2df3950ca7bb2e7c1d15fbb6"
+  },
+  "migration_files": {
+    "saas/identity-jdbc/src/main/vernac-schema/migration/V20261112150000000__initial_identity_state.sql": "7c2cf3ddb58079cf43588a3556d857c7938273248183619df51ea2392366d17d",
+    "saas/identity-jdbc/src/main/vernac-schema/migration/V20261112195431850__identity_capacity_ledger.sql": "9130330c7d2338ddf5d01fb898a6f1908f64321a810fa63aa03e3ea953695954",
+    "saas/identity-jdbc/src/main/vernac-schema/migration/V20261112210742206__identity_one_time_challenges.sql": "672394691c65540a4f7da09ddc35a481b154afe757068a94c3d0e88669e318cf",
+    "saas/identity-jdbc/src/main/vernac-schema/migration/V20261112213009661__identity_global_admission.sql": "e72291e9fad488c956e2b2bf5173a068a97fbab9be96f01437e2d9e46e70995e",
+    "saas/identity-jdbc/src/main/vernac-schema/migration/V20261112232415175__identity_credentials_and_security_epoch.sql": "73e8aa735fab39b1984f761febadcc7b0cd27af932816c45a2c5a8f70ec2ff8d",
+    "saas/identity-jdbc/src/main/vernac-schema/migration/V20261113081431590__identity_keyed_admission.sql": "dff25b6d08c1de7b8c8cfbef09a41f02a5811b1c3776d90a7b5e305c7c788e9c",
+    "saas/identity-jdbc/src/main/vernac-schema/migration/V20261113090127123__identity_pending_registration_lifetime.sql": "383f3853b71cd4d1cb3e20ed8e485bf060d8b317865a19c696df11433b2edfce",
+    "saas/identity-jdbc/src/main/vernac-schema/migration/V20261113112251688__identity_login_address_ownership.sql": "f0d146011756de07d7e9b4b817fee56ee4ef603c682ebd38da8a61a57fe35cd9",
+    "saas/identity-jdbc/src/main/vernac-schema/migration/V20261113185958756__identity_encryption_admission.sql": "ac272807e7b50267337cbbb5334925036924c55998406a12170a372dd873bbdf",
+    "saas/identity-jdbc/src/main/vernac-schema/migration/V20261113191127959__identity_protected_mail_jobs.sql": "fa03618cb2d2197c23c596bfa4aa1b1c59c60a180847fbf5ed460c08cd1850c4",
+    "saas/identity-jdbc/src/main/vernac-schema/migration/V20261113192804743__identity_mail_worker_cursors.sql": "9a28396d4827c4d369aa8dd4096324fa16da3a98d433291a6f4e4620497ac462",
+    "saas/identity-jdbc/src/main/vernac-schema/migration/V20261115135135914__account_access_metadata.sql": "dbc95ba800be4a664caed30b4e54b800337bee4ed66bcd6e5bb266a5549968b9",
+    "saas/identity-jdbc/src/main/vernac-schema/migration/V20261115142559842__account_invitations.sql": "59b9735b8a75fa1124961bc78a59e73e0695daa3211437afbe00c8168fa2a6fb",
+    "saas/invoicing/src/main/vernac-schema/migration/V20261115233000000__initial_invoicing.sql": "44dc7e07da61f8ab422a92bd407e5347834d47b3fd38560008cffd973b3a5778",
+    "saas/invoicing/src/main/vernac-schema/migration/V20261115234500000__invoice_mail_notices.sql": "012c61a9082c9141af170bc8db24108a1e7b736173a7250241489a25805172fd",
+    "saas/payments-jdbc/src/main/vernac-schema/migration/V20261115213000000__initial_payment_processing.sql": "eb0f688bc49d7511175d7e17b40f7731f44439714068a74616c94a7927d3040c",
+    "saas/payments-jdbc/src/main/vernac-schema/migration/V20261115223000000__payment_reversal.sql": "4e5a4861699427e2b341e2e62f64df372ac9b48d366886265c2f47ed2b1f253d",
+    "saas/payments-jdbc/src/main/vernac-schema/migration/V20261115224500000__refund_resource_registry.sql": "a762b9328970db1a904558aa271dea091ed58904be5ebcbeb82daf9106b9ac8e",
+    "saas/payments-jdbc/src/main/vernac-schema/migration/V20261115230000000__provider_posting_time.sql": "7dce34c48ef9365867b4c53343a8ace9200a7971981e178da177bd1ce675f542",
+    "saas/payments-local/src/main/vernac-schema/migration/V20261115210000000__initial_local_payments.sql": "45058d7aac9ad4ec938a1a5452d0429e9aeb1de6d19177610720baa518fe2876",
+    "saas/payments-local/src/main/vernac-schema/migration/V20261115230000000__provider_posting_time.sql": "40c8c725a6c033be9fc44f10f15fd978ae09366ba745231109cea3960b07da8a",
+    "saas/restrictions/src/main/vernac-schema/migration/V20261115203000000__initial_restrictions.sql": "3f107e42a788aed9c76cebebe62d64cc75019415cfc5832b5ed14de3bea7bb31",
+    "saas/restrictions/src/main/vernac-schema/migration/V20261115204500000__reservation_dispatch.sql": "fae8597565fbf7b9afbd4cbc78023b6aa740e0dce1c10e5efe21f2a5d470f17a",
+    "saas/subscriptions/src/main/vernac-schema/migration/V20261115193000000__initial_subscriptions.sql": "bae36c67efa5fa085d6e285ff205226fcc53ce46f7beb828b1ece7c86e8d465c",
+    "saas/subscriptions/src/main/vernac-schema/migration/V20261115221500000__settlement_reversal.sql": "ad75c42f5261e7da7594fa2c3bd57034a4235351f76071e165d9d75c4e904114",
+    "examples/saas-document-workspace/src/main/resources/db/migration/V20261115153000000__identity_sessions.sql": "153c9b972ca3442bd046b777f956cc6e59e439df3f94a1b51774578e62f6d54f",
+    "examples/saas-document-workspace/src/main/resources/db/migration/V20261116010000000__initial_documents.sql": "e9d7c14a8ec533b242247e220f855592db47bae7fc34db33bddde5a12a7018f5"
+  },
+  "history": [
+    {
+      "schema": "public",
+      "installed_rank": 1,
+      "version": "20261115153000000",
+      "description": "identity sessions",
+      "type": "SQL",
+      "script": "V20261115153000000__identity_sessions.sql",
+      "checksum": 1998883064,
+      "success": true
+    },
+    {
+      "schema": "public",
+      "installed_rank": 2,
+      "version": "20261116010000000",
+      "description": "initial documents",
+      "type": "SQL",
+      "script": "V20261116010000000__initial_documents.sql",
+      "checksum": -844240011,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_02461e43c5c7661d9593ea86c5b38038",
+      "installed_rank": 0,
+      "version": null,
+      "description": "<< Flyway Schema Creation >>",
+      "type": "SCHEMA",
+      "script": "\"vernac_module_02461e43c5c7661d9593ea86c5b38038\"",
+      "checksum": null,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_02461e43c5c7661d9593ea86c5b38038",
+      "installed_rank": 1,
+      "version": "20261115213000000",
+      "description": "initial payment processing",
+      "type": "SQL",
+      "script": "V20261115213000000__initial_payment_processing.sql",
+      "checksum": -1931287812,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_02461e43c5c7661d9593ea86c5b38038",
+      "installed_rank": 2,
+      "version": "20261115223000000",
+      "description": "payment reversal",
+      "type": "SQL",
+      "script": "V20261115223000000__payment_reversal.sql",
+      "checksum": -1931338057,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_02461e43c5c7661d9593ea86c5b38038",
+      "installed_rank": 3,
+      "version": "20261115224500000",
+      "description": "refund resource registry",
+      "type": "SQL",
+      "script": "V20261115224500000__refund_resource_registry.sql",
+      "checksum": 1327872095,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_02461e43c5c7661d9593ea86c5b38038",
+      "installed_rank": 4,
+      "version": "20261115230000000",
+      "description": "provider posting time",
+      "type": "SQL",
+      "script": "V20261115230000000__provider_posting_time.sql",
+      "checksum": 690788171,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_223223bacb1f2ab497f2765c2eb0f1e8",
+      "installed_rank": 0,
+      "version": null,
+      "description": "<< Flyway Schema Creation >>",
+      "type": "SCHEMA",
+      "script": "\"vernac_module_223223bacb1f2ab497f2765c2eb0f1e8\"",
+      "checksum": null,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_223223bacb1f2ab497f2765c2eb0f1e8",
+      "installed_rank": 1,
+      "version": "20261115233000000",
+      "description": "initial invoicing",
+      "type": "SQL",
+      "script": "V20261115233000000__initial_invoicing.sql",
+      "checksum": 615389890,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_223223bacb1f2ab497f2765c2eb0f1e8",
+      "installed_rank": 2,
+      "version": "20261115234500000",
+      "description": "invoice mail notices",
+      "type": "SQL",
+      "script": "V20261115234500000__invoice_mail_notices.sql",
+      "checksum": -1432837210,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_6064720f0e9bcf7784a9cd54030bbfb2",
+      "installed_rank": 0,
+      "version": null,
+      "description": "<< Flyway Schema Creation >>",
+      "type": "SCHEMA",
+      "script": "\"vernac_module_6064720f0e9bcf7784a9cd54030bbfb2\"",
+      "checksum": null,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_6064720f0e9bcf7784a9cd54030bbfb2",
+      "installed_rank": 1,
+      "version": "20261112150000000",
+      "description": "initial identity state",
+      "type": "SQL",
+      "script": "V20261112150000000__initial_identity_state.sql",
+      "checksum": 354121849,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_6064720f0e9bcf7784a9cd54030bbfb2",
+      "installed_rank": 2,
+      "version": "20261112195431850",
+      "description": "identity capacity ledger",
+      "type": "SQL",
+      "script": "V20261112195431850__identity_capacity_ledger.sql",
+      "checksum": -1450470639,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_6064720f0e9bcf7784a9cd54030bbfb2",
+      "installed_rank": 3,
+      "version": "20261112210742206",
+      "description": "identity one time challenges",
+      "type": "SQL",
+      "script": "V20261112210742206__identity_one_time_challenges.sql",
+      "checksum": 2019547965,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_6064720f0e9bcf7784a9cd54030bbfb2",
+      "installed_rank": 4,
+      "version": "20261112213009661",
+      "description": "identity global admission",
+      "type": "SQL",
+      "script": "V20261112213009661__identity_global_admission.sql",
+      "checksum": -2140707889,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_6064720f0e9bcf7784a9cd54030bbfb2",
+      "installed_rank": 5,
+      "version": "20261112232415175",
+      "description": "identity credentials and security epoch",
+      "type": "SQL",
+      "script": "V20261112232415175__identity_credentials_and_security_epoch.sql",
+      "checksum": 1980490374,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_6064720f0e9bcf7784a9cd54030bbfb2",
+      "installed_rank": 6,
+      "version": "20261113081431590",
+      "description": "identity keyed admission",
+      "type": "SQL",
+      "script": "V20261113081431590__identity_keyed_admission.sql",
+      "checksum": 792258887,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_6064720f0e9bcf7784a9cd54030bbfb2",
+      "installed_rank": 7,
+      "version": "20261113090127123",
+      "description": "identity pending registration lifetime",
+      "type": "SQL",
+      "script": "V20261113090127123__identity_pending_registration_lifetime.sql",
+      "checksum": 1765931226,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_6064720f0e9bcf7784a9cd54030bbfb2",
+      "installed_rank": 8,
+      "version": "20261113112251688",
+      "description": "identity login address ownership",
+      "type": "SQL",
+      "script": "V20261113112251688__identity_login_address_ownership.sql",
+      "checksum": 1774698071,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_6064720f0e9bcf7784a9cd54030bbfb2",
+      "installed_rank": 9,
+      "version": "20261113185958756",
+      "description": "identity encryption admission",
+      "type": "SQL",
+      "script": "V20261113185958756__identity_encryption_admission.sql",
+      "checksum": 1859250529,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_6064720f0e9bcf7784a9cd54030bbfb2",
+      "installed_rank": 10,
+      "version": "20261113191127959",
+      "description": "identity protected mail jobs",
+      "type": "SQL",
+      "script": "V20261113191127959__identity_protected_mail_jobs.sql",
+      "checksum": 1331484428,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_6064720f0e9bcf7784a9cd54030bbfb2",
+      "installed_rank": 11,
+      "version": "20261113192804743",
+      "description": "identity mail worker cursors",
+      "type": "SQL",
+      "script": "V20261113192804743__identity_mail_worker_cursors.sql",
+      "checksum": 1642011739,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_6064720f0e9bcf7784a9cd54030bbfb2",
+      "installed_rank": 12,
+      "version": "20261115135135914",
+      "description": "account access metadata",
+      "type": "SQL",
+      "script": "V20261115135135914__account_access_metadata.sql",
+      "checksum": 670402228,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_6064720f0e9bcf7784a9cd54030bbfb2",
+      "installed_rank": 13,
+      "version": "20261115142559842",
+      "description": "account invitations",
+      "type": "SQL",
+      "script": "V20261115142559842__account_invitations.sql",
+      "checksum": 1707125731,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_8c0aa620e8c239e028dbfab5a4bd42d6",
+      "installed_rank": 0,
+      "version": null,
+      "description": "<< Flyway Schema Creation >>",
+      "type": "SCHEMA",
+      "script": "\"vernac_module_8c0aa620e8c239e028dbfab5a4bd42d6\"",
+      "checksum": null,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_8c0aa620e8c239e028dbfab5a4bd42d6",
+      "installed_rank": 1,
+      "version": "20261115203000000",
+      "description": "initial restrictions",
+      "type": "SQL",
+      "script": "V20261115203000000__initial_restrictions.sql",
+      "checksum": 1442562330,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_8c0aa620e8c239e028dbfab5a4bd42d6",
+      "installed_rank": 2,
+      "version": "20261115204500000",
+      "description": "reservation dispatch",
+      "type": "SQL",
+      "script": "V20261115204500000__reservation_dispatch.sql",
+      "checksum": -1196893332,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_b274b5f08da39dfeb273e3b9cf17453c",
+      "installed_rank": 0,
+      "version": null,
+      "description": "<< Flyway Schema Creation >>",
+      "type": "SCHEMA",
+      "script": "\"vernac_module_b274b5f08da39dfeb273e3b9cf17453c\"",
+      "checksum": null,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_b274b5f08da39dfeb273e3b9cf17453c",
+      "installed_rank": 1,
+      "version": "20261115210000000",
+      "description": "initial local payments",
+      "type": "SQL",
+      "script": "V20261115210000000__initial_local_payments.sql",
+      "checksum": 1453345205,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_b274b5f08da39dfeb273e3b9cf17453c",
+      "installed_rank": 2,
+      "version": "20261115230000000",
+      "description": "provider posting time",
+      "type": "SQL",
+      "script": "V20261115230000000__provider_posting_time.sql",
+      "checksum": 1678819255,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_f6523acb5b7e870448bad5ceed3dddb3",
+      "installed_rank": 0,
+      "version": null,
+      "description": "<< Flyway Schema Creation >>",
+      "type": "SCHEMA",
+      "script": "\"vernac_module_f6523acb5b7e870448bad5ceed3dddb3\"",
+      "checksum": null,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_f6523acb5b7e870448bad5ceed3dddb3",
+      "installed_rank": 1,
+      "version": "20261115193000000",
+      "description": "initial subscriptions",
+      "type": "SQL",
+      "script": "V20261115193000000__initial_subscriptions.sql",
+      "checksum": 1222623923,
+      "success": true
+    },
+    {
+      "schema": "vernac_module_f6523acb5b7e870448bad5ceed3dddb3",
+      "installed_rank": 2,
+      "version": "20261115221500000",
+      "description": "settlement reversal",
+      "type": "SQL",
+      "script": "V20261115221500000__settlement_reversal.sql",
+      "checksum": -393630987,
+      "success": true
+    }
+  ]
+}
