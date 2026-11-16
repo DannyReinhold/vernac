@@ -376,7 +376,8 @@
     "VocabularySymbolsTest",
     "VocabularyTest",
     "ZugferdDocumentsTest",
-    "SaaSScenarios"
+    "SaaSScenarios",
+    "UpgradeBaseline"
   ],
   "resolved_implementation_findings": {
     "F03": {
@@ -397,7 +398,7 @@
     "real Mollie/Stripe/Brevo tests",
     "installed IDE and exact release candidate",
     "seller/fiscal/archive operational review",
-    "historical-version upgrade and exact release-candidate final acceptance"
+    "freeze 0.6.0 upgrade baseline from approved build and exact release-candidate final acceptance"
   ],
   "business_flow_guide": "../saas/index.md",
   "automated_saas_scenarios": {
@@ -456,12 +457,20 @@
     ],
     "report": "examples/saas-document-workspace/target/acceptance-reports/TEST-SaaSScenarios.xml",
     "real_provider_acceptance": "PENDING",
-    "historical_version_upgrade": "PENDING",
+    "historical_version_upgrade": "NOT_APPLICABLE_BEFORE_0.6.0",
     "local_status": "PASSED",
     "source_sha": "943bac624358602744684ecacd1ed7bf5169c7d2",
     "passed": 29,
     "skipped": 0,
     "retries": 0,
     "duration_seconds": 361
+  },
+  "upgrade_policy": {
+    "minimum_supported": "0.6.0",
+    "pre_0_6_upgrade_required": false,
+    "baseline_state": "CANDIDATE",
+    "required_suite": "UpgradeBaseline",
+    "policy": "upgrade-policy.md",
+    "registry": "../../tests/upgrades/registry.json"
   }
 }
