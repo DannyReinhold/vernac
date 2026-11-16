@@ -374,7 +374,9 @@ See <a href="https://vernac.org/tutorials/what-is-ddd.html">What is DDD?</a> and
     </ul>
 ]]></change-notes>
 
-    <idea-version since-build="262.10968.63" until-build="262.*"/>
+    <!-- Keep the oldest supported build; admit the next announced IDE branch.
+         See docs/maintainers/releasing.md for compatibility maintenance. -->
+    <idea-version since-build="262.10968.63" until-build="263.*"/>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lsp</depends>

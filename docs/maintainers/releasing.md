@@ -48,6 +48,41 @@ the plugin is distributed through GitHub and JetBrains Marketplace, not Central.
 Its stable Marketplace ID is **org.vernac**. Source packages org.vernac.intellij and
 the vernac-intellij Maven module keep their existing names.
 
+## IntelliJ compatibility policy
+
+Preserve every older IDE version whose compatibility is established. Raise
+`since-build` only when a required API, runtime level or verified incompatibility
+requires it; record the reason and evidence in the PR. A newer compilation SDK
+alone is not evidence that older IDEs stopped working. Build against the oldest
+supported platform where possible, and use Plugin Verifier before extending the
+range backwards.
+
+Allow the current IntelliJ branch and the next announced upcoming branch whenever
+technically possible. Review the range during the upcoming branch's EAP, before
+its release, rather than waiting for users to hit a metadata-only installation
+block. Do not invent future branch numbers or use an unlimited upper bound as a
+substitute for checking compatibility. If the upcoming branch cannot be admitted,
+record the concrete incompatibility and follow-up work.
+
+For 0.6.0 the descriptor admits `262.10968.63` through `263.*`. Compilation stays
+on `262.10968.63`; the Java 25 runtime and current SDK usage do not establish
+compatibility with 261 or earlier 262 builds. This change preserves the existing
+minimum rather than claiming unverified support. Branch 263 is admitted in the
+metadata; this alone does not establish binary compatibility or installed-IDE
+acceptance.
+
+For each release:
+
+- Inspect `idea-version` in the actual packaged ZIP, not only the source descriptor.
+- Run Plugin Verifier on that same ZIP against the minimum supported build, current
+  supported releases and the available EAP of the next announced branch. Record
+  exact builds and distinguish an unavailable EAP from a passing check.
+- Exercise project creation, completion/navigation, embedded Java and debugging in
+  the supported IDEs. Record pending installed-IDE checks explicitly.
+- Keep the packaged-distribution regression and this range record consistent when
+  deliberately changing either bound; never raise the minimum just to match an
+  SDK upgrade.
+
 ## GitHub Actions
 
 The established workflows remain manually dispatched:
