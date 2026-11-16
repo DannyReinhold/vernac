@@ -1,0 +1,129 @@
+namespace org.vernac.saas.payments.persistence;
+import org.vernac.saas.identity.AccountId;
+import org.vernac.saas.subscriptions.SubscriptionId;
+import org.vernac.saas.subscriptions.OfferTerms;
+import org.vernac.saas.subscriptions.SubscriptionPeriod;
+import org.vernac.saas.subscriptions.MinorUnits;
+import org.vernac.saas.payments.PaymentOperationId;
+import org.vernac.saas.payments.PaymentProviderKind;
+import org.vernac.saas.payments.PaymentProviderEnvironment;
+import org.vernac.saas.payments.PaymentState;
+import org.vernac.saas.payments.PaymentPostedAt;
+import org.vernac.saas.payments.RemoteCustomerId;
+import org.vernac.saas.payments.RemotePaymentId;
+import org.vernac.saas.payments.RemoteRefundId;
+import org.vernac.saas.payments.RemoteMandateId;
+import org.vernac.saas.payments.PaymentUri;
+import org.vernac.saas.payments.RefundState;
+
+value PaymentProfileKey(String value) validates { require(self.value().matches("[a-z][a-z0-9-]{0,47}"), "Invalid payment profile key"); };
+value PaymentCycleKey(String encoded) validates { require(self.encoded().matches("[0-9a-f-]{36}/[0-9a-f-]{36}/[0-9a-f]{64}"), "Invalid payment cycle key"); }
+behavior { public String toString() { return "PaymentCycleKey[REDACTED]"; } };
+value PaymentRouteKey(String encoded) validates { require(self.encoded().matches("[a-z][a-z0-9-]{0,47}/[a-zA-Z0-9][a-zA-Z0-9_-]{0,199}"), "Invalid provider resource route"); }
+behavior { public String toString() { return "PaymentRouteKey[REDACTED]"; } };
+value PaymentRequestKey(String encoded) validates { require(self.encoded().matches("[0-9a-f-]{36}/[0-9a-f-]{36}"), "Invalid checkout request key"); }
+behavior { public String toString() { return "PaymentRequestKey[REDACTED]"; } };
+value PaymentAttemptKey(String encoded) validates { require(self.encoded().matches("[0-9a-f-]{36}/[1-5]"), "Invalid payment attempt key"); }
+behavior { public String toString() { return "PaymentAttemptKey[REDACTED]"; } };
+value PaymentDueAt(Instant value);
+value PaymentStartedAt(Instant value);
+value PaymentLease(UUID token, Instant until);
+value PaymentCounter(int value) validates { require(self.value() >= 0 && self.value() <= 5, "Payment attempts are bounded"); };
+value PaymentOrderStatus = OPEN | PAID | APPLIED | CLOSED | REVIEW;
+value PaymentAttemptStage = PREPARING | NEW | CUSTOMER_READY | WAITING | APPLY | REVOKE | DONE | REVIEW;
+value PaymentAttemptKind = FIRST | RECURRING;
+value PaymentReason = NONE | PROVIDER_UNAVAILABLE | OUTCOME_UNKNOWN | INVALID_PROVIDER_FACTS | SETTLEMENT_CONFLICT | DUPLICATE_PAID | REFUND_UNCERTAIN | MANDATE_UNAVAILABLE;
+id PaymentOrderId;
+id PaymentAttemptId;
+id PaymentProfileId;
+id PaymentRefundId;
+
+global aggregate ProviderRegistration[PaymentProfileId](unique PaymentProfileKey key, PaymentProviderKind kind, PaymentProviderEnvironment environment);
+repository ProviderRegistrationRepository for ProviderRegistration {
+    find ProviderRegistration? forKey(PaymentProfileKey key) where key = :key;
+}
+global aggregate PaymentOrder[PaymentOrderId](PaymentCycleKey cycle, unique PaymentRequestKey request, AccountId account, SubscriptionId subscription,
+    OfferTerms terms, SubscriptionPeriod period, mut PaymentOrderStatus status,
+    mut PaymentAttemptId? paidAttempt, mut PaymentCounter attempts, mut PaymentReason reason) behavior {
+    modify void attempted() { self.attempts(PaymentCounter.of(self.attempts().value() + 1)); }
+    modify boolean acceptPaid(PaymentAttemptId attempt) {
+        if (self.paidAttempt().isPresent()) return self.paidAttempt().get().equals(attempt);
+        if (self.status() == PaymentOrderStatus.CLOSED) return false;
+        self.paidAttempt(attempt); self.status(PaymentOrderStatus.PAID); self.reason(PaymentReason.NONE); return true;
+    }
+    modify void applied() { self.status(PaymentOrderStatus.APPLIED); self.reason(PaymentReason.NONE); }
+    modify void close() { self.status(PaymentOrderStatus.CLOSED); self.reason(PaymentReason.NONE); }
+    modify void review(PaymentReason reason) { if (self.status() == PaymentOrderStatus.OPEN) self.status(PaymentOrderStatus.REVIEW); self.reason(reason); }
+};
+repository PaymentOrderRepository for PaymentOrder {
+    find PaymentOrder? forRequest(PaymentRequestKey request) where request = :request;
+}
+global aggregate PaymentAttempt[PaymentAttemptId](PaymentOrderId order references PaymentOrder, AccountId account,
+    PaymentProfileKey profile, PaymentAttemptKind kind, unique PaymentAttemptKey key, unique PaymentOperationId operation, PaymentOperationId customerOperation,
+    mut RemoteCustomerId? customer, mut RemotePaymentId? remote,
+    mut PaymentUri? checkout, mut RemoteMandateId? mandate, mut PaymentState state, mut MinorUnits refunded,
+    mut PaymentAttemptStage stage, mut PaymentDueAt due, mut PaymentLease? lease, mut PaymentStartedAt? financialStarted,
+    mut PaymentCounter calls, mut PaymentReason reason, mut PaymentPostedAt? postedAt) behavior {
+    modify void prepared(PaymentDueAt due) {
+        self.stage(self.customer().isPresent() ? PaymentAttemptStage.CUSTOMER_READY : PaymentAttemptStage.NEW);
+        self.due(due); self.lease(null);
+    }
+    modify void claim(PaymentLease lease, PaymentStartedAt now) {
+        self.lease(lease);
+        if (self.stage() == PaymentAttemptStage.NEW || self.stage() == PaymentAttemptStage.CUSTOMER_READY) self.calls(PaymentCounter.of(self.calls().value() + 1));
+        if (self.stage() == PaymentAttemptStage.CUSTOMER_READY && self.financialStarted().isEmpty()) self.financialStarted(now);
+    }
+    modify void customerReady(RemoteCustomerId customer, PaymentDueAt due) {
+        self.customer(customer); self.stage(PaymentAttemptStage.CUSTOMER_READY); self.due(due); self.lease(null); self.reason(PaymentReason.NONE);
+    }
+    modify void observed(RemotePaymentId remote, PaymentUri? checkout, RemoteMandateId? mandate,
+        PaymentState state, MinorUnits refunded, PaymentPostedAt? postedAt, PaymentAttemptStage stage, PaymentDueAt due, PaymentReason reason) {
+        if (self.postedAt().isEmpty()) self.postedAt(postedAt);
+        self.remote(remote); self.checkout(checkout); self.mandate(mandate); self.state(state); self.refunded(refunded);
+        self.stage(stage); self.due(due); self.reason(reason); self.lease(null);
+    }
+    modify void defer(PaymentDueAt due, PaymentReason reason) { self.due(due); self.reason(reason); self.lease(null); }
+    modify void finish() { self.stage(PaymentAttemptStage.DONE); self.lease(null); self.reason(PaymentReason.NONE); }
+    modify void review(PaymentReason reason) { self.stage(PaymentAttemptStage.REVIEW); self.reason(reason); self.lease(null); }
+};
+repository PaymentAttemptRepository for PaymentAttempt {
+    find PaymentAttempt? forKey(PaymentAttemptKey key) where key = :key;
+    find PaymentAttempt? forOperation(PaymentOperationId operation) where operation = :operation;
+}
+global aggregate BillingAgreement[SubscriptionId](AccountId account, mut PaymentProfileKey profile, mut RemoteCustomerId customer,
+    mut RemoteMandateId mandate, mut PaymentDueAt nextBillingAt) behavior {
+    modify void replace(PaymentProfileKey profile, RemoteCustomerId customer, RemoteMandateId mandate, PaymentDueAt due) {
+        self.profile(profile); self.customer(customer); self.mandate(mandate); self.nextBillingAt(due);
+    }
+    modify void next(PaymentDueAt next) { self.nextBillingAt(next); }
+};
+repository BillingAgreementRepository for BillingAgreement {}
+global aggregate PaymentRefund[PaymentRefundId](PaymentAttemptId attempt references PaymentAttempt, AccountId account,
+    unique PaymentOperationId operation, MinorUnits amount, mut RemoteRefundId? remote, mut RefundState state,
+    mut PaymentDueAt due, mut PaymentLease? lease, mut PaymentStartedAt? financialStarted, mut PaymentCounter calls, mut PaymentReason reason) behavior {
+    modify void claim(PaymentLease lease, PaymentStartedAt now) {
+        self.lease(lease); if (self.remote().isEmpty()) self.calls(PaymentCounter.of(self.calls().value() + 1));
+        if (self.financialStarted().isEmpty()) self.financialStarted(now);
+    }
+    modify void observe(RemoteRefundId remote, RefundState state, PaymentDueAt due) {
+        self.remote(remote); self.state(state); self.due(due); self.lease(null); self.reason(PaymentReason.NONE);
+    }
+    modify void defer(PaymentDueAt due, PaymentReason reason) { self.due(due); self.reason(reason); self.lease(null); }
+    modify void review() { if (self.state() != RefundState.REFUNDED) self.state(RefundState.UNKNOWN); self.reason(PaymentReason.REFUND_UNCERTAIN); self.lease(null); }
+};
+repository PaymentRefundRepository for PaymentRefund {
+    find PaymentRefund? forOperation(PaymentOperationId operation) where operation = :operation;
+}
+
+id PaymentResourceId;
+global aggregate RegisteredPaymentResource[PaymentResourceId](unique PaymentRouteKey route, PaymentAttemptId attempt references PaymentAttempt,
+    PaymentProfileKey profile, RemotePaymentId remote);
+repository RegisteredPaymentResourceRepository for RegisteredPaymentResource {
+    find RegisteredPaymentResource? forRoute(PaymentRouteKey route) where route = :route;
+}
+
+id RefundResourceId;
+global aggregate RegisteredRefundResource[RefundResourceId](unique PaymentRouteKey route, PaymentRefundId refund references PaymentRefund);
+repository RegisteredRefundResourceRepository for RegisteredRefundResource {
+    find RegisteredRefundResource? forRoute(PaymentRouteKey route) where route = :route;
+}

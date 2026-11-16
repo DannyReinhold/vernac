@@ -1,0 +1,70 @@
+namespace org.vernac.saas.payments;
+import org.vernac.saas.subscriptions.MinorUnits;
+import org.vernac.saas.subscriptions.BillingCurrency;
+
+id PaymentOperationId;
+value PaymentProviderMode = LIVE | SIMULATED;
+value PaymentProviderKind = LOCAL | MOLLIE | STRIPE;
+value PaymentProviderEnvironment = TEST | PRODUCTION | SIMULATED;
+value PaymentState = OPEN | PENDING | PAID | FAILED | CANCELLED | EXPIRED | REFUNDED | UNKNOWN;
+value RefundState = PENDING | REFUNDED | FAILED | UNKNOWN;
+value RemotePaymentId(String encoded) validates {
+    require(self.encoded().matches("[a-zA-Z0-9][a-zA-Z0-9_-]{0,199}"), "Invalid remote payment reference");
+} behavior { public String toString() { return "RemotePaymentId[REDACTED]"; } };
+value RemoteCustomerId(String encoded) validates {
+    require(self.encoded().matches("[a-zA-Z0-9][a-zA-Z0-9_-]{0,199}"), "Invalid remote customer reference");
+} behavior { public String toString() { return "RemoteCustomerId[REDACTED]"; } };
+value RemoteMandateId(String encoded) validates {
+    require(self.encoded().matches("[a-zA-Z0-9][a-zA-Z0-9_-]{0,199}"), "Invalid remote mandate reference");
+} behavior { public String toString() { return "RemoteMandateId[REDACTED]"; } };
+value RemoteRefundId(String encoded) validates {
+    require(self.encoded().matches("[a-zA-Z0-9][a-zA-Z0-9_-]{0,199}"), "Invalid remote refund reference");
+} behavior { public String toString() { return "RemoteRefundId[REDACTED]"; } };
+value PaymentUri(String encoded) validates {
+    require(org.vernac.saas.payments.PaymentValidation.httpsUri(self.encoded()), "Invalid payment URL");
+} behavior { public String toString() { return "PaymentUri[REDACTED]"; } };
+value PaymentNoticeBody(String encoded) validates {
+    require(org.vernac.saas.payments.PaymentValidation.notice(self.encoded()), "Invalid payment notification");
+} behavior { public String toString() { return "PaymentNoticeBody[REDACTED]"; } };
+value PaymentSignature(String encoded) validates {
+    require(org.vernac.saas.payments.PaymentValidation.signature(self.encoded()), "Invalid payment signature");
+} behavior { public String toString() { return "PaymentSignature[REDACTED]"; } };
+term CheckoutRequest {
+    description "Provider-neutral first payment and mandate setup. Contains no claimed account or tenant authority.";
+}
+value CheckoutRequest(PaymentOperationId operation, RemoteCustomerId customer, MinorUnits amount,
+    BillingCurrency currency, PaymentUri returnTo, PaymentUri webhook) validates {
+    require(self.amount().value() > 0, "A checkout requires a positive payable amount");
+};
+value RecurringChargeRequest(PaymentOperationId operation, RemoteCustomerId customer, RemoteMandateId mandate,
+    MinorUnits amount, BillingCurrency currency, PaymentUri webhook) validates {
+    require(self.amount().value() > 0, "A recurring charge requires a positive payable amount");
+};
+term PaymentPostedAt { description "Provider ledger posting time of the original successful charge, distinct from callback arrival, invoice issue and bank payout."; }
+value PaymentPostedAt(Instant value);
+value ProviderPayment(RemotePaymentId id, PaymentOperationId operation, RemoteCustomerId customer,
+    MinorUnits amount, BillingCurrency currency, PaymentState state, MinorUnits refunded, PaymentUri? checkout, RemoteMandateId? mandate, PaymentPostedAt? postedAt) validates {
+    require(self.refunded().value() <= self.amount().value(), "Refund exceeds payment");
+    require(self.state() != PaymentState.REFUNDED || self.refunded().equals(self.amount()), "Full refund total required");
+    require((self.state() != PaymentState.PAID && self.state() != PaymentState.REFUNDED) || self.postedAt().isPresent(), "Successful charge requires provider posting time");
+}
+behavior { public String toString() { return "ProviderPayment[REDACTED]"; } };
+value RefundRequest(PaymentOperationId operation, RemotePaymentId payment, MinorUnits amount, BillingCurrency currency) validates {
+    require(self.amount().value() > 0, "A refund requires a positive amount");
+};
+value ProviderCustomer(RemoteCustomerId id, PaymentOperationId operation) behavior { public String toString() { return "ProviderCustomer[REDACTED]"; } };
+value ProviderRefund(RemoteRefundId id, RemotePaymentId payment, MinorUnits amount, BillingCurrency currency, RefundState state)
+behavior { public String toString() { return "ProviderRefund[REDACTED]"; } };
+port PaymentProvider {
+    PaymentProviderMode mode();
+    PaymentProviderKind kind();
+    PaymentProviderEnvironment environment();
+    RemoteCustomerId createCustomer(PaymentOperationId operation);
+    ProviderCustomer inspectCustomer(RemoteCustomerId customer);
+    ProviderPayment checkout(CheckoutRequest request);
+    ProviderPayment charge(RecurringChargeRequest request);
+    ProviderPayment inspect(RemotePaymentId payment);
+    ProviderRefund refund(RefundRequest request);
+    ProviderRefund inspectRefund(RemotePaymentId payment, RemoteRefundId refund);
+    RemotePaymentId notification(PaymentNoticeBody body, PaymentSignature signature);
+}

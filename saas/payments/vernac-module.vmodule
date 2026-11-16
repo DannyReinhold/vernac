@@ -1,0 +1,23 @@
+module vernac.saas.payments {
+    export org.vernac.saas.payments.PaymentOperationId;
+    export org.vernac.saas.payments.PaymentProviderMode;
+    export org.vernac.saas.payments.PaymentProviderKind;
+    export org.vernac.saas.payments.PaymentProviderEnvironment;
+    export org.vernac.saas.payments.ProviderCustomer;
+    export org.vernac.saas.payments.PaymentState;
+    export org.vernac.saas.payments.RefundState;
+    export org.vernac.saas.payments.RemotePaymentId;
+    export org.vernac.saas.payments.RemoteCustomerId;
+    export org.vernac.saas.payments.RemoteMandateId;
+    export org.vernac.saas.payments.RemoteRefundId;
+    export org.vernac.saas.payments.PaymentUri;
+    export org.vernac.saas.payments.PaymentNoticeBody;
+    export org.vernac.saas.payments.PaymentSignature;
+    export org.vernac.saas.payments.CheckoutRequest;
+    export org.vernac.saas.payments.RecurringChargeRequest;
+    export org.vernac.saas.payments.PaymentPostedAt;
+    export org.vernac.saas.payments.ProviderPayment;
+    export org.vernac.saas.payments.RefundRequest;
+    export org.vernac.saas.payments.ProviderRefund;
+    export org.vernac.saas.payments.PaymentProvider;
+}

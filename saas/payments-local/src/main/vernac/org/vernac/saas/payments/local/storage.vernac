@@ -1,0 +1,35 @@
+namespace org.vernac.saas.payments.local;
+import org.vernac.saas.payments.PaymentOperationId;
+import org.vernac.saas.payments.RemoteCustomerId;
+import org.vernac.saas.payments.RemotePaymentId;
+import org.vernac.saas.payments.PaymentState;
+import org.vernac.saas.payments.PaymentPostedAt;
+import org.vernac.saas.payments.PaymentUri;
+import org.vernac.saas.payments.RemoteMandateId;
+import org.vernac.saas.subscriptions.MinorUnits;
+
+value LocalMandateStatus = ABSENT | VALID;
+value LocalRequestKind = CHECKOUT | RECURRING;
+value LocalCursor(int value) validates { require(self.value() >= 0 && self.value() <= 16, "Invalid local scenario cursor"); };
+global aggregate LocalCustomer[PaymentOperationId](mut LocalMandateStatus mandate) behavior {
+    modify void grantMandate() { self.mandate(LocalMandateStatus.VALID); }
+};
+repository LocalCustomerRepository for LocalCustomer {}
+global aggregate LocalPayment[PaymentOperationId](PaymentOperationId customerOperation references LocalCustomer,
+    RemoteCustomerId customer, LocalRequestKind kind, MinorUnits amount, PaymentUri? checkout,
+    mut RemoteMandateId? mandate, mut PaymentState status, mut MinorUnits refunded, mut LocalCursor cursor, mut PaymentPostedAt? postedAt) validates {
+    require(self.refunded().value() <= self.amount().value(), "Local refunds exceed payment");
+} behavior {
+    modify void advance(PaymentState status, LocalCursor cursor, RemoteMandateId? mandate, PaymentPostedAt? postedAt) {
+        self.status(status); self.cursor(cursor); self.mandate(mandate);
+        if (self.postedAt().isEmpty()) self.postedAt(postedAt);
+    }
+    modify void refund(MinorUnits total) {
+        org.vernac.saas.payments.local.LocalPayments.requireRefund(self.status() == PaymentState.PAID && total.value() >= self.refunded().value() && total.value() <= self.amount().value());
+        self.refunded(total);
+        if (total.value() == self.amount().value()) self.status(PaymentState.REFUNDED);
+    }
+};
+repository LocalPaymentRepository for LocalPayment {}
+global aggregate LocalRefund[PaymentOperationId](PaymentOperationId paymentOperation references LocalPayment, MinorUnits amount);
+repository LocalRefundRepository for LocalRefund {}

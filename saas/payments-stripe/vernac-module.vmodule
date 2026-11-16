@@ -1,0 +1,3 @@
+module vernac.saas.payments.stripe {
+    export org.vernac.saas.payments.stripe.StripePaymentProvider;
+}
