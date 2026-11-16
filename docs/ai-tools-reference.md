@@ -165,3 +165,13 @@ mvn vernac:migration "-Dvernac.migrationDescription=add_feature_tasks"
 Do not put those shell quotes into IntelliJ's Maven command field. Do not change
 the goal to `deploy-file` or switch working directories to work around an argument
 parsing error; check the active run configuration and shell first.
+
+
+## Mandatory upgrade compatibility
+
+Follow the [binding upgrade policy](development/upgrade-policy.md). Starting with 0.6.0, all necessary
+schema and data transformations MUST be versioned migrations or explicit versioned,
+resumable and automatically tested upgrade steps. No implicit intermediate application
+starts or manual repairs. Preserve historical migrations and frozen baselines. Run
+`python3 tools/verify-upgrades.py`; retain the `UpgradeBaseline` report for release.
+Final release approval requires frozen baseline evidence from the approved build.
