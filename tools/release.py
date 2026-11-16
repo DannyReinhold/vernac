@@ -179,6 +179,7 @@ def validate_upgrade_baseline(suite, root):
         require(isinstance(version, str) and re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version), "Unsafe baseline version.")
         directory = root / "tests/upgrades" / version
         manifest_file = directory / "manifest.json"
+        require(not manifest_file.is_symlink() and manifest_file.resolve().is_relative_to(root), "Unsafe baseline manifest.")
         manifest = json.loads(manifest_file.read_text())
         require(manifest.get("version") == version and manifest.get("state") == "FROZEN"
                 and manifest.get("synthetic_only") is True
@@ -186,7 +187,7 @@ def validate_upgrade_baseline(suite, root):
         require(set(manifest.get("files", {})) == {"database.sql", "expectations.json", "test-runtime.json"}, "Incomplete baseline files.")
         for name, expected in manifest["files"].items():
             path = directory / name
-            require(not path.is_symlink() and path.is_file() and digest(path) == expected, "Baseline file changed.")
+            require(not path.is_symlink() and path.resolve().is_relative_to(root) and path.is_file() and digest(path) == expected, "Baseline file changed.")
         require(manifest.get("migration_files"), "Missing baseline migration inventory.")
         for name, expected in manifest["migration_files"].items():
             path = root / name
