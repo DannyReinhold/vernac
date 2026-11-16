@@ -7,7 +7,8 @@ Diese Übersicht beschreibt die fachlichen Abläufe der optionalen SaaS-Baustein
 für 0.6.0. Sie richtet sich an Entwickler, Betreiber und Personen, die das
 Kundenerlebnis beurteilen. Die Diagramme zeigen unterstützte Abläufe und
 Fehlerentscheidungen; sie sind kein Nachweis einer abgeschlossenen Gesamtabnahme.
-Echte Provider-Tests und umfassende Tests führt der Maintainer später durch.
+Die automatisierte Abdeckung und ihre Grenzen beschreibt die
+[Testmatrix](testabdeckung.md). Echte Provider-Tests führt der Maintainer separat durch.
 
 ## Drei Einstiegspunkte
 

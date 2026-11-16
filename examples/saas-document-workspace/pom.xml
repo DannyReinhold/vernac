@@ -22,5 +22,6 @@
  <build><plugins>
   <plugin><groupId>org.vernac</groupId><artifactId>vernac-maven-plugin</artifactId><version>${vernac.version}</version><executions><execution><goals><goal>compile</goal></goals></execution></executions></plugin>
   <plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin>
+  <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-dependency-plugin</artifactId><executions><execution><id>acceptance-classpath</id><phase>test-compile</phase><goals><goal>build-classpath</goal></goals><configuration><outputFile>${project.build.directory}/acceptance-classpath.txt</outputFile></configuration></execution></executions></plugin>
  </plugins></build>
 </project>

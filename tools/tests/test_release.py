@@ -17,6 +17,12 @@ release = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(release)
 
 
+def fixture_report(name):
+    if name == "SaaSScenarios":
+        return '<testsuite name="SaaSScenarios" tests="29" failures="0" errors="0" skipped="0">'+''.join(f'<testcase name="E{i:02} S{(i-1)%20+1:02} fixture"/>' for i in range(1,30))+'</testsuite>'
+    return f'<testsuite name="org.vernac.{name}" tests="1" failures="0" errors="0" skipped="0"/>'
+
+
 class ReleaseTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -133,7 +139,7 @@ class ReleaseTests(unittest.TestCase):
         folder.mkdir(parents=True)
         for name in release.REQUIRED_TESTS:
             if name not in release.SAAS_IDENTITY_TESTS:
-                (folder / f"TEST-{name}.xml").write_text(f'<testsuite name="org.vernac.{name}" tests="1" failures="0" errors="0" skipped="0"/>')
+                (folder / f"TEST-{name}.xml").write_text(fixture_report(name))
         nested = self.root / "saas/identity/target/failsafe-reports"
         nested.mkdir(parents=True)
         for name in release.REQUIRED_TESTS:
@@ -142,7 +148,7 @@ class ReleaseTests(unittest.TestCase):
                 kind = "failsafe-reports" if name.endswith("IT") else "surefire-reports"
                 report_dir = self.root / f"saas/{module}/target/{kind}"
                 report_dir.mkdir(parents=True, exist_ok=True)
-                (report_dir / f"TEST-{name}.xml").write_text(f'<testsuite name="org.vernac.{name}" tests="1" failures="0" errors="0" skipped="0"/>')
+                (report_dir / f"TEST-{name}.xml").write_text(fixture_report(name))
         release.audit_tests()
         (nested / "TEST-skipped.xml").write_text('<testsuite name="Extra" tests="1" skipped="1"/>')
         with self.assertRaisesRegex(ValueError, "skipped"):
@@ -152,7 +158,7 @@ class ReleaseTests(unittest.TestCase):
         folder = self.root / "saas/identity-jdbc/target/failsafe-reports"
         folder.mkdir(parents=True)
         for name in release.REQUIRED_TESTS:
-            (folder / f"TEST-{name}.xml").write_text(f'<testsuite name="org.vernac.{name}" tests="1" failures="0" errors="0" skipped="0"/>')
+            (folder / f"TEST-{name}.xml").write_text(fixture_report(name))
         for name in ("IdentityBrowserPostgresIT", "IdentityOperationsPostgresIT", "AccountInvitationsPostgresIT", "RoleCatalogTest", "GlobalIdReferencePostgresTest", "MailProviderSelectionTest"):
             path = folder / f"TEST-{name}.xml"
             original = path.read_text()
@@ -181,7 +187,7 @@ class ReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Missing required"):
             release.audit_tests()
         for name in release.REQUIRED_TESTS:
-            (folder / f"TEST-{name}.xml").write_text(f'<testsuite name="org.vernac.{name}" tests="1" failures="0" errors="0" skipped="0"/>')
+            (folder / f"TEST-{name}.xml").write_text(fixture_report(name))
         release.audit_tests()
         (folder / "TEST-skipped.xml").write_text('<testsuite name="Extra" tests="1" skipped="1"/>')
         with self.assertRaisesRegex(ValueError, "skipped"):

@@ -145,9 +145,21 @@ REQUIRED_TESTS += ("SubscriptionDomainTest", "SubscriptionPostgresIT", "Restrict
                    "PaymentContractsTest", "MolliePaymentsTest", "StripePaymentsTest", "LocalPaymentsPostgresIT",
                    "PaymentFlowPostgresIT", "DomesticTaxTest", "ZugferdDocumentsTest", "InvoiceFlowPostgresIT",
                    "BillingPagesTest", "VernacSaasTemplateTest", "JdbcRootQueryTest",
-                   "RepositoryBindingTest", "TenantGeneratedPostgresTest")
+                   "RepositoryBindingTest", "TenantGeneratedPostgresTest", "SaaSScenarios")
 ACCEPTANCE_IDS = tuple(f"A{i:02}" for i in range(1, 24)) + tuple(f"J{i:02}" for i in range(1, 10))
 DECISION_IDS = tuple(f"D{i:02}" for i in range(1, 15))
+
+
+def validate_saas_scenarios(suite):
+    if suite.get("name", "").split(".")[-1] != "SaaSScenarios":
+        return
+    cases = suite.findall("testcase")
+    ids = [re.match(r"E\d{2}(?= )", case.get("name", "")) for case in cases]
+    require(len(cases) == 29 and int(suite.get("tests", "0")) == 29
+            and all(ids) and {m.group() for m in ids} == {f"E{i:02}" for i in range(1, 30)},
+            "Incomplete or duplicate SaaS scenarios.")
+    require({case for row in cases for case in re.findall(r"\bS\d{2}\b", row.get("name", ""))}
+            == {f"S{i:02}" for i in range(1, 21)}, "Missing SaaS usecase coverage.")
 
 
 def acceptance(bundle_file, release, source_sha, root=Path(".")):
@@ -181,6 +193,7 @@ def acceptance(bundle_file, release, source_sha, root=Path(".")):
         require(re.fullmatch(r"[0-9a-f]{64}", record.get("sha256", "")) and digest(path) == record["sha256"], "Evidence digest changed.")
         if record["kind"] == "junit":
             suite = ET.parse(path).getroot()
+            validate_saas_scenarios(suite)
             require(int(suite.get("tests", "0")) > 0 and all(int(suite.get(k,"0")) == 0 for k in ("failures","errors","skipped")), "Required acceptance report failed or skipped.")
             require(all(not any(c.find(k) is not None for k in ("failure","error","skipped")) for c in suite.findall("testcase")), "Required acceptance testcase failed or skipped.")
         else:
@@ -373,9 +386,11 @@ def audit_tests():
     reports += list(Path(".").glob("*/target/failsafe-reports/TEST-*.xml"))
     reports += list(Path(".").glob("saas/*/target/surefire-reports/TEST-*.xml"))
     reports += list(Path(".").glob("saas/*/target/failsafe-reports/TEST-*.xml"))
+    reports += list(Path(".").glob("examples/saas-document-workspace/target/acceptance-reports/TEST-*.xml"))
     seen = set()
     for path in reports:
         suite = ET.parse(path).getroot()
+        validate_saas_scenarios(suite)
         name = suite.get("name", "").split(".")[-1]
         require(all(int(suite.get(key, "0")) == 0 for key in ("failures", "errors", "skipped")),
                 f"Release test report has failures, errors or skipped tests: {path}")

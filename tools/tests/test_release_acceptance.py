@@ -13,6 +13,8 @@ class AcceptanceTests(unittest.TestCase):
   self.bundle['requirements']['A09']['evidence']=['mollie','stripe'];self.bundle['requirements']['A11']['evidence']=['brevo'];self.bundle['requirements']['A16']['evidence']=['ide']
   for suite in release.REQUIRED_TESTS:
    p=self.file('reports/'+suite+'.xml','<testsuite name="org.vernac.'+suite+'" tests="1" failures="0" errors="0" skipped="0"><testcase name="fixture"/></testsuite>')
+   if suite=='SaaSScenarios':
+    p.write_text('<testsuite name="SaaSScenarios" tests="29" failures="0" errors="0" skipped="0">'+''.join(f'<testcase name="E{i:02} S{(i-1)%20+1:02} fixture"/>' for i in range(1,30))+'</testsuite>')
    self.bundle['evidence']['suite-'+suite]={'kind':'junit','status':'PASSED','source_sha':self.sha,'file':str(p.relative_to(self.root)),'sha256':release.digest(p)}
   for module in set(release.published_modules('0.6.0'))|{'vernac-intellij'}:
    filename='vernac-intellij-0.6.0-plugin.zip' if module=='vernac-intellij' else '.flattened-pom.xml' if module=='vernac' else module+'-0.6.0.jar'
@@ -74,4 +76,12 @@ class AcceptanceTests(unittest.TestCase):
  def test_outside_evidence_path_is_rejected(self):
   self.bundle['evidence']['review']['file']='../outside.txt'
   with self.assertRaisesRegex(ValueError,'unsafe evidence'):self.validate()
+
+ def test_saas_report_cannot_hide_missing_or_duplicated_scenarios(self):
+  record=self.bundle['evidence']['suite-SaaSScenarios'];path=self.root/record['file'];good=path.read_text()
+  for changed in (good.replace('E29 ','E28 '),good.replace('<testcase name="E29 S09 fixture"/>',''),good.replace('S20 fixture','S19 fixture')):
+   path.write_text(changed);record['sha256']=release.digest(path)
+   with self.assertRaisesRegex(ValueError,'SaaS'):self.validate()
+  path.write_text(good)
+
 if __name__=='__main__':unittest.main()

@@ -1,10 +1,13 @@
 .gitignore
 .mvn/wrapper/maven-wrapper.properties
 README.md
+acceptance_runtime.py
+browser/fixtures.mjs
 browser/package-lock.json
 browser/package.json
-browser/restart.mjs
-browser/verify.mjs
+browser/playwright.config.mjs
+browser/reporter.cjs
+browser/saas.spec.mjs
 compose.yaml
 mvnw
 mvnw.cmd
@@ -15,6 +18,8 @@ src/main/java/example/documentworkspace/DemoApplication.java
 src/main/java/example/documentworkspace/DocumentActions.java
 src/main/java/example/documentworkspace/IdentitySetup.java
 src/main/java/example/documentworkspace/LocalPreview.java
+src/main/java/example/documentworkspace/MerchantAccess.java
+src/main/java/example/documentworkspace/MerchantOperations.java
 src/main/java/example/documentworkspace/PaymentNotices.java
 src/main/java/example/documentworkspace/WorkspaceController.java
 src/main/java/example/documentworkspace/WorkspaceErrors.java
@@ -25,7 +30,9 @@ src/main/resources/db/migration/V20261116010000000__initial_documents.sql
 src/main/resources/roles.json
 src/main/vernac-schema/history/V20261116010000000__initial_documents.json
 src/main/vernac/example/documentworkspace/model.vernac
+src/test/java/acceptance/support/AcceptanceApplication.java
+src/test/java/acceptance/support/AcceptanceConfiguration.java
+src/test/java/acceptance/support/AcceptanceControls.java
+test_acceptance_gate.py
 verify.py
 vernac-application.vapplication
-src/main/java/example/documentworkspace/MerchantAccess.java
-src/main/java/example/documentworkspace/MerchantOperations.java

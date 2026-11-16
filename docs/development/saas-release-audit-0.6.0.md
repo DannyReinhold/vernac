@@ -7,17 +7,19 @@ Marketplace upload, external payment or external email is authorized by this rec
 ## Maintainer scope update — 16 November 2026
 
 The maintainer requested all feasible implementation work and illustrated business
-flows, and explicitly deferred real provider tests and comprehensive acceptance.
-Those checks remain pending; their deferral does not block implementation or count
-as successful verification.
+flows. The subsequent request explicitly authorizes completing the automated tests.
+The independent suite now contains 29 isolated scenarios covering S01–S20, including
+controlled time boundaries, financial failures/restarts and concurrent closure.
+Real provider acceptance remains deferred; it does not count as successful verification.
+See the [test matrix](../saas/testabdeckung.md) for precise variants and limits.
 
-Application source `6a6eabe919f8fab449cb1425c24f6f119cd7ebab` now includes independent merchant refund authority,
+Application source `943bac624358602744684ecacd1ed7bf5169c7d2` now includes independent merchant refund authority,
 optional operator capability/CLI, transaction-coordinated closure/new-charge guards,
 retained invoice ownership after closure and isolated bounded maintenance stages.
 The [SaaS guide](../saas/index.md) documents 20 use cases, customer journeys and
 explicit developer/operator decisions with 18 editable/rendered static diagrams.
 
-Targeted local checks on the corresponding worktree passed: 12 payment PostgreSQL
+Earlier scoped checks on the predecessor worktree passed: 12 payment PostgreSQL
 cases without skips; Identity/security and billing unit suites; 13 template checks;
 and the packaged HTTPS/Chromium application with real restart, operator-only
 idempotent partial/full refunds, correction issuance, paid-closure refusal, eventual
@@ -64,9 +66,9 @@ only that failed job was restarted. Its independent Identity browser job passed.
 
 | ID | Finding | Required closure |
 | --- | --- | --- |
-| F01 | Comprehensive whole-SaaS final-source acceptance is deferred to the maintainer; targeted merchant/refund/closure and recovery proofs now exist. | Passing, unskipped browser/DB evidence for J01–J09 with relevant negative cases; inspect actual UI. |
+| F01 | Independent automated whole-SaaS scenarios are implemented; exact release-candidate evidence and final review remain pending. | Passing, unskipped browser/DB evidence for J01–J09 with relevant negative cases; inspect actual UI. |
 | F02 | Real Mollie, Stripe and Brevo sandbox attestations are absent. Local simulations and loopback protocol tests do not prove provider-account configuration. | Explicit sandbox credentials/configuration and retained verified test results; no invented external delivery or charge. |
-| F03 | IMPLEMENTED; targeted checks PASS. Explicit merchant authority, safe closure/new-charge coordination and retained invoices are present. No automatic refund policy is invented. | Comprehensive operator/lifecycle verification remains part of the maintainer's later F01/F05 acceptance, rather than missing implementation. |
+| F03 | IMPLEMENTED; targeted checks PASS. Explicit merchant authority, safe closure/new-charge coordination and retained invoices are present. No automatic refund policy is invented. | Automated operator/lifecycle scenarios now exist; exact-candidate final review remains part of F01/F05. |
 | F04 | Final supported invoice scope, seller eligibility, archival/fiscal history and operational acceptance are not approved. | Review retained fiscal snapshots, correction history and intended deployment/archive policy within the supported domestic EUR scope. |
 | F05 | Release distribution and exact-candidate acceptance are incomplete. | Fresh installed-IDE smoke, final plugin ZIP and module dependency inventory, all required reports, matching source/artifact digests and maintainer GO. Verify reproducibility or promote the actual approved artifacts; do not substitute a rebuilt candidate. |
 
@@ -80,7 +82,8 @@ older planning phrases must not be treated as blanket acceptance.
 `tools/release.py` includes every aligned SaaS artifact, including nested reactor
 paths, in the 0.6.0 publishing/availability inventory. Pre-0.6 plugin recovery
 retains its original coordinate inventory. Required test execution now includes
-subscriptions, restrictions, payments, invoicing, billing pages, SaaS Wizard and
+subscriptions, restrictions, payments, invoicing, billing pages, all 29 named
+SaaSScenarios (with complete S01–S20 tags), SaaS Wizard and
 canonical repository/query proofs.
 
 `python3 tools/release.py acceptance --version 0.6.0 --evidence release-evidence/acceptance.json`
@@ -125,3 +128,24 @@ The gate tests remove every required capability, reports and dependency entries;
 change source/artifact/dependency hashes; inject skipped tests/unknown decisions;
 replace a real provider with a simulator; omit approval; and attempt path escape.
 All must fail. A fixture-only passing gate test does not approve a real candidate.
+
+## Automated test continuation — 16 November 2026
+
+Local validation of the application tree matching `943bac624358602744684ecacd1ed7bf5169c7d2`:
+all 29 independent scenarios passed, no retries/skips, in 361 seconds; both evidence-gate
+unit tests and both source-shared SaaS Wizard tests passed. All 28 Python tooling
+tests (including scenario-evidence rejection cases) pass. Local documentation links pass.
+Fresh GitHub checks and exact release-candidate evidence remain separate.
+The application CI replaces the dependent browser scripts with one fresh restricted
+PostgreSQL database and HTTPS application per Playwright scenario, no retries, and
+sanitized JSON/JUnit evidence. A test-only launcher controls time and provider-edge
+faults; it cannot enter the production executable JAR. PostgreSQL permission failures
+prove that unrelated worker phases continue. Concurrent checkout/closure must both
+wait on an actual database lock before release.
+
+The release gate now requires SaaSScenarios and checks its exact E01–E29 identities,
+case count and all S01–S20 tags. Duplicate/missing cases and false aggregate-green
+reports are rejected. Local upgrade evidence remains limited to a restart/Flyway
+replay of this build against populated data; it is not historical-version upgrade
+acceptance. Real Mollie/Stripe/Brevo, fiscal/archive review, installed IDE and final
+source/artifact approval remain separate release requirements.
