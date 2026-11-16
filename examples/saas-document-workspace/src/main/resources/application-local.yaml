@@ -1,0 +1,28 @@
+vernac:
+  mail:
+    provider: "org.vernac.saas.mail.local.NoopMailProvider"
+    local:
+      max-messages: "100"
+      max-bytes: "1048576"
+      retention: "PT10M"
+  payments:
+    provider: "org.vernac.saas.payments.local.LocalPaymentProvider"
+    local:
+      scenario: "PAID"
+      allowed: "true"
+identity:
+  origin: "https://localhost:8443"
+  allow-loopback-simulation: "true"
+billing:
+  profile: "local-v1"
+  allow-simulation: "true"
+  seller:
+    name: "Vernac Local Demonstration"
+    street: "Beispielstrasse 1"
+    postal-code: "28199"
+    city: "Bremen"
+    tax-identifier: "DE123456789"
+    email: "seller@example.test"
+    tax-treatment: "STANDARD_19"
+  operator:
+    enabled: "true"
