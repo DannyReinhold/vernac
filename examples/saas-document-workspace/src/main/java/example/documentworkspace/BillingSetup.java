@@ -29,6 +29,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Import(BillingMvcConfiguration.class)
 class BillingSetup {
     @Bean
+    org.vernac.saas.billing.lifecycle.BillingAccountLifecycle billingAccountLifecycle(NamedParameterJdbcTemplate jdbc, Clock clock) {
+        return new org.vernac.saas.billing.lifecycle.BillingAccountLifecycle(jdbc,clock);
+    }
+
+    @Bean
     PlanCatalog plans() {
         var free = offer("free", 0, 3, 1000, 2);
         var pro = offer("pro", 1200, 100, 10000, 100);
@@ -98,7 +103,8 @@ class BillingSetup {
             SubscriptionLedger subscriptions,
             BillingAccess access,
             Environment e,
-            Clock clock) {
+            Clock clock,
+            org.vernac.saas.billing.lifecycle.BillingAccountLifecycle lifecycle) {
         if (provider.mode() == PaymentProviderMode.SIMULATED
                 && !e.getProperty("billing.allow-simulation", Boolean.class, false))
             throw new IllegalStateException("Simulated payments require explicit opt-in");
@@ -115,7 +121,9 @@ class BillingSetup {
                     if (!ignored.equals(profile))
                         throw new PaymentProcessingFailure(PaymentProcessingFailure.Code.ACCESS_DENIED);
                 },
-                clock);
+                clock,
+                MerchantAccess::requireAuthorized,
+                lifecycle);
     }
 
     @Bean
@@ -151,7 +159,7 @@ class BillingSetup {
             PaymentFlow payments,
             InvoiceSeller seller,
             InvoiceRenderer renderer,
-            BillingAccess access,
+            IdentityAccounts accounts,
             Clock clock) {
         return new InvoiceLedger(
                 jdbc,
@@ -161,7 +169,7 @@ class BillingSetup {
                 InvoiceSeries.of("DOC"),
                 InvoiceText.of("Document Workspace Abonnement"),
                 renderer,
-                access::requireOwner,
+                accounts::requireRetainedOwnership,
                 clock);
     }
 
@@ -170,7 +178,7 @@ class BillingSetup {
             NamedParameterJdbcTemplate jdbc,
             PlatformTransactionManager writer,
             MailProvider provider,
-            BillingAccess access,
+            IdentityAccounts accounts,
             Environment e,
             Clock clock) {
         URI origin = origin(e);
@@ -179,7 +187,7 @@ class BillingSetup {
                 writer,
                 provider,
                 id -> origin.resolve("/billing/invoices/" + id.asString()),
-                access::requireOwner,
+                accounts::requireRetainedOwnership,
                 clock);
     }
 
@@ -210,12 +218,17 @@ class BillingSetup {
     }
 
     @Bean
+    org.vernac.saas.billing.lifecycle.BillingMaintenance billingMaintenance(PaymentFlow payments, InvoiceLedger invoices, InvoiceMail mail, Environment e) {
+        return new org.vernac.saas.billing.lifecycle.BillingMaintenance(payments,invoices,mail,
+                PaymentUri.of(origin(e).resolve("/billing").toString()),PaymentUri.of(origin(e).resolve(PaymentNotices.PATH).toString()));
+    }
+
+    @Bean
     SmartLifecycle billingWorker(
-            PaymentFlow payments, InvoiceLedger invoices, InvoiceMail mail, Environment e) {
+            org.vernac.saas.billing.lifecycle.BillingMaintenance maintenance) {
         return new SmartLifecycle() {
             final AtomicBoolean running = new AtomicBoolean();
             ScheduledExecutorService executor;
-            Optional<PaymentOrderId> after = Optional.empty();
 
             public synchronized void start() {
                 if (!running.compareAndSet(false, true)) return;
@@ -229,26 +242,7 @@ class BillingSetup {
                 executor.scheduleWithFixedDelay(
                         () -> {
                             if (!running.get()) return;
-                            try {
-                                payments.scheduleRenewalOne();
-                                payments.processOne(
-                                        PaymentUri.of(origin(e).resolve("/billing").toString()),
-                                        PaymentUri.of(
-                                                origin(e)
-                                                        .resolve(PaymentNotices.PATH)
-                                                        .toString()));
-                                payments.processRefundOne();
-                                var rows = payments.verifiedPayments(after, 10);
-                                for (var row : rows) {
-                                    invoices.synchronize(row.order());
-                                    after = Optional.of(row.order());
-                                }
-                                if (rows.size() < 10) after = Optional.empty();
-                                invoices.renderOne();
-                                mail.processOne();
-                            } catch (RuntimeException unavailable) {
-                                /* Persisted work remains recoverable; no untrusted exception/log payload. */
-                            }
+                            maintenance.tick();
                         },
                         1,
                         1,

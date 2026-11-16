@@ -23,6 +23,7 @@ try:
         keystore=tmp/"localhost.p12"
         subprocess.run(["keytool","-genkeypair","-alias","local","-keyalg","RSA","-keysize","2048","-validity","2","-storetype","PKCS12","-keystore",str(keystore),"-storepass",storepass,"-dname","CN=localhost","-ext","SAN=dns:localhost,ip:127.0.0.1"],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
         capability=secrets.token_urlsafe(32)
+        merchant=secrets.token_urlsafe(32)
         admission=base64.b64encode(secrets.token_bytes(32)).decode()
         delivery=base64.b64encode(secrets.token_bytes(32)).decode()
         env=dict(os.environ,
@@ -32,7 +33,7 @@ try:
             SERVER_SSL_KEY_STORE=str(keystore),SERVER_SSL_KEY_STORE_PASSWORD=storepass,
             IDENTITY_ADMISSION_KEY_LABEL="browser-v1",IDENTITY_ADMISSION_KEY=admission,
             IDENTITY_DELIVERY_KEY_LABEL="browser-v1",IDENTITY_DELIVERY_KEY=delivery,
-            IDENTITY_PREVIEW_CAPABILITY=capability,IDENTITY_BROWSER_SECRETS_FILE=str(tmp/"browser-secrets.json"))
+            IDENTITY_PREVIEW_CAPABILITY=capability,BILLING_OPERATOR_CAPABILITY=merchant,IDENTITY_BROWSER_SECRETS_FILE=str(tmp/"browser-secrets.json"))
         with (tmp/"application.log").open("w") as log:
             process=subprocess.Popen(["java","-jar",str(ROOT/"target/saas-document-workspace-1.0.0.jar")],env=env,stdout=log,stderr=subprocess.STDOUT)
             def ready_check():
@@ -65,7 +66,7 @@ try:
             if result.returncode:raise RuntimeError("Chromium restart acceptance failed")
             process.terminate();process.wait(timeout=20);process=None
         logtext=(tmp/"application.log").read_text()+(tmp/"restart.log").read_text()
-        sensitive=[password,storepass,capability,admission,delivery,"browser-owner@example.test","browser-recipient@example.test",
+        sensitive=[password,storepass,capability,merchant,admission,delivery,"browser-owner@example.test","browser-recipient@example.test",
             "an independent browser fixture passphrase 83957","another independent browser fixture phrase 19238"]
         sensitive+=json.loads((tmp/"browser-secrets.json").read_text())
         if any(value in logtext for value in sensitive):raise RuntimeError("Sensitive value appeared in sample application logs")

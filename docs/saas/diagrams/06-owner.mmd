@@ -1,0 +1,11 @@
+flowchart TB
+  A["Owner soll austreten oder Identität beenden"] --> B{"Bleibt ein anderer aktiver Owner?"}
+  B -->|Ja| C["Verantwortung bleibt erhalten"]
+  C --> D["Zulässige Entfernung oder Identitätsaktion ausführen"]
+  B -->|Nein| E{"Gewünschter Weg?"}
+  E -->|Übertragen| F["Vorhandenes Mitglied zum Owner machen"]
+  F --> G["Eigenen Owner-Status abgeben"]
+  G --> D
+  E -->|Konto beenden| H["Abrechnung und Kontoschließung durchführen"]
+  H --> I["Erst danach Identität beenden"]
+  E -->|Keine Änderung| J["Letzten Owner nicht entfernen"]

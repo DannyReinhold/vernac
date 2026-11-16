@@ -106,3 +106,8 @@ current behavior. Feature gaps belong on the linked roadmaps, not in guessed syn
 [FAQ](faq/index.md) · [Specification index](specification/index.md)
 
 - **0.6.0 development tenant persistence:** [local modeling and roles](tutorials/tenant-persistence.md), then [tenant-aware module lifecycle](tutorials/tenant-modules.md), with explicit current limitations.
+
+
+## SaaS use cases and lifecycle diagrams
+
+The [SaaS guide](saas/index.md) connects the use-case catalog with customer journeys, developer/operator decisions, refunds, account closure and recovery. It includes static diagrams and editable Mermaid sources.

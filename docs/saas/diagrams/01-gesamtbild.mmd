@@ -1,0 +1,16 @@
+flowchart TB
+  A["Interessent besucht Anwendung"] --> B{"Schon registriert?"}
+  B -->|Nein| C["E-Mail bestätigen und Identität einrichten"]
+  B -->|Ja| D["Anmelden und Konto wählen"]
+  C --> D
+  D --> E["Aktuelle Mitgliedschaft und Produktrechte prüfen"]
+  E --> F{"Leistungen ausreichend?"}
+  F -->|Ja| G["Produkt im eigenen Konto nutzen"]
+  F -->|Nein| H["Passenden Tarif bewusst bestellen"]
+  H --> I["Anbieterzahlung serverseitig bestätigen"]
+  I --> J["Leistungen aktivieren und Rechnung ausstellen"]
+  J --> G
+  G --> K{"Weiterer Kundenwunsch?"}
+  K -->|Team| L["Mitglieder einladen und Rollen verwalten"]
+  K -->|Abo| M["Tarifwechsel oder Kündigung vormerken"]
+  K -->|Störung| N["Bestehenden Vorgang prüfen lassen"]

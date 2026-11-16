@@ -13,6 +13,30 @@ The application topic includes this prerequisite through merge commit
 `63d66d822b1f2d38b3de5fd7897919e4410e47b5`.
 The release branch has not been merged or published.
 
+## Operator/lifecycle implementation and illustrated guide — 2026-11-16
+
+The maintainer explicitly deferred real provider tests and comprehensive acceptance
+until later. They are not implementation prerequisites and are not marked passed.
+
+Added separate merchant refund authority (default deny), an optional capability-
+protected operator adapter/CLI, same-database account-closure/charge guards, retained
+owner invoice reads after soft closure and independent bounded maintenance stages.
+The charge claim lock order was aligned with closure. Customer account ownership
+never authorizes a merchant refund. No automatic refund/proration policy was added.
+
+Targeted local verification passed: all 12 PaymentFlowPostgresIT cases on PostgreSQL
+17.11 (zero skips), Identity/security and billing unit suites, the 13 existing/new
+project-template checks, and the packaged HTTPS/browser consumer with actual restart,
+merchant-only idempotent partial/full refunds, issued corrections, active paid-account
+closure denial, final closure and unchanged retained PDF/XML. No external provider
+call was made. These are targeted proofs, not full J01–J09/release approval.
+
+The [SaaS guide](../saas/index.md) adds the complete use-case catalog, developer/operator
+decision tables, customer journeys and operations/recovery. Eighteen Mermaid sources
+and rendered static SVG diagrams are retained together; the no-JavaScript site can
+show the actual diagrams. Real provider/comprehensive/fiscal/installed-IDE acceptance
+remain for the maintainer's later checks.
+
 ## Verified consumer and Wizard — 2026-11-16
 
 Implementation/test source `51f98d5a2d656900a48e0d9017b46d5ef3f4e221` passed

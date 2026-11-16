@@ -42,7 +42,7 @@ class PaymentFlowPostgresIT {
         var subscriptions = new SubscriptionLedger(jdbc, manager, catalog(), time); var provider = context.getBean(PaymentProvider.class);
         // Synthetic authority/admission fixtures: full fresh Identity/HTTP owner integration remains separate acceptance.
         var flow = new PaymentFlow(jdbc, manager, Map.of(LOCAL, provider), catalog(), subscriptions,
-                account -> { if (!account.equals(allowed)) throw new IllegalArgumentException(); }, profile -> { if (!profile.equals(LOCAL)) throw new IllegalArgumentException(); }, time);
+                account -> { if (!account.equals(allowed)) throw new IllegalArgumentException(); }, profile -> { if (!profile.equals(LOCAL)) throw new IllegalArgumentException(); }, time, account -> { if (!account.equals(allowed)) throw new IllegalArgumentException(); }, account -> {});
         return new Fixture(flow, subscriptions, jdbc, provider);
     }
     static void settle(Fixture f, Time time) {
@@ -69,6 +69,24 @@ class PaymentFlowPostgresIT {
             time.advance(32L * 24 * 3600);
             assertTrue(f.flow.scheduleRenewalOne());
             assertEquals(2L, f.jdbc.queryForObject("SELECT count(*) FROM \"org.vernac.saas.payments.persistence\".\"PaymentOrder\"", Map.of(), Long.class));
+        }));
+    }
+    @Test void customerAdministrationDoesNotGrantRefundAuthorityAndAccountGuardFencesNewCharges() throws Exception {
+        var account=AccountId.create();var time=new Time();
+        new PaymentFlowTestEnvironment(root).withDatabase(db -> db.boot.run(context -> {
+            var f=fixture(context,time,account);var manager=context.getBean(PlatformTransactionManager.class);
+            var customerOnly=new PaymentFlow(f.jdbc,manager,Map.of(LOCAL,f.provider),catalog(),f.subscriptions,ignored -> {},ignored -> {},time);
+            var order=customerOnly.checkout(account,PaymentOperationId.create(),LOCAL,PlanCatalog.id(PAID));settle(f,time);
+            assertEquals(PaymentProcessingFailure.Code.ACCESS_DENIED,assertThrows(PaymentProcessingFailure.class,
+                    () -> customerOnly.refund(account,order.id(),PaymentOperationId.create(),MinorUnits.of(100))).code());
+            assertEquals(0L,f.jdbc.queryForObject("SELECT count(*) FROM \"org.vernac.saas.payments.persistence\".\"PaymentRefund\"",Map.of(),Long.class));
+            var refund=f.flow.refund(account,order.id(),PaymentOperationId.create(),MinorUnits.of(100));
+            assertThrows(PaymentProcessingFailure.class,() -> customerOnly.refund(account,refund.id()));
+            var fenced=new PaymentFlow(f.jdbc,manager,Map.of(LOCAL,f.provider),catalog(),f.subscriptions,ignored -> {},ignored -> {},time,ignored -> {},
+                    ignored -> {throw new PaymentProcessingFailure(PaymentProcessingFailure.Code.INVALID_STATE);});
+            assertEquals(PaymentProcessingFailure.Code.INVALID_STATE,assertThrows(PaymentProcessingFailure.class,
+                    () -> fenced.checkout(account,PaymentOperationId.create(),LOCAL,PlanCatalog.id(PAID))).code());
+            assertEquals(1L,f.jdbc.queryForObject("SELECT count(*) FROM \"org.vernac.saas.payments.persistence\".\"PaymentOrder\"",Map.of(),Long.class));
         }));
     }
     @Test void actualLocalCheckoutAndRegisteredProofApplySubscriptionOnceAcrossRestartAndDuplicateCallbacks() throws Exception {
@@ -269,7 +287,7 @@ class PaymentFlowPostgresIT {
             db.boot.run(context -> {
                 var f = fixture(context, time, account); var order = f.flow.checkout(account, PaymentOperationId.create(), LOCAL, PlanCatalog.id(PAID)); settle(f, time);
                 var wrapped = new PaymentFlow(f.jdbc, context.getBean(PlatformTransactionManager.class), Map.of(LOCAL, new LostRefundResponse(f.provider)), catalog(), f.subscriptions,
-                        checked -> { if (!checked.equals(account)) throw new IllegalArgumentException(); }, profile -> {}, time);
+                        checked -> { if (!checked.equals(account)) throw new IllegalArgumentException(); }, profile -> {}, time, checked -> { if (!checked.equals(account)) throw new IllegalArgumentException(); }, checked -> {});
                 refund.set(wrapped.refund(account, order.id(), PaymentOperationId.create(), PAID.price()).id());
                 assertTrue(wrapped.processRefundOne());
                 assertEquals(PaymentReason.OUTCOME_UNKNOWN, wrapped.refund(account, refund.get()).reason());

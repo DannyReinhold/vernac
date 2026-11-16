@@ -1,0 +1,12 @@
+flowchart TB
+  A["Entwickler beginnt eigenständige Anwendung"] --> B{"Projektart wählen"}
+  B -->|Minimal oder Web| C["Bestehende Vorlage ohne SaaS-Zwang"]
+  B -->|SaaS| D["Namensraum, Produktmodell und Datenbankhistorie erzeugen"]
+  D --> E["Produktrechte, Rollen und fachliche Limits definieren"]
+  E --> F["Free-Angebot, bezahlte Revisionen und Änderungen festlegen"]
+  F --> G{"Betriebsprofil?"}
+  G -->|Lokal| H["Simulierte Zahlung und geschützten Mailfang ausdrücklich aktivieren"]
+  G -->|Produktion| I["Reale Provider, Schlüssel, HTTPS und Runtime-Rolle konfigurieren"]
+  H --> J["Gezielt prüfen und Produktoberfläche anpassen"]
+  I --> J
+  J --> K["Produktive Provider- und Gesamtabnahme später durchführen"]

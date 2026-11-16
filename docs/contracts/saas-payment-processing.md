@@ -74,7 +74,7 @@ within this topic before it can be called finished.
 
 ## Refund requests
 
-An authorized administrator requests a positive refund against the winning paid order,
+A separately authorized merchant operator requests a positive refund against the winning paid order,
 using a persisted operation UUID. Repeating the same request returns its existing
 receipt; changing its order or amount conflicts. Account-serialized reservations include
 all pending/unknown refunds and externally observed refunds, so concurrent requests
@@ -127,3 +127,30 @@ of replacing it with a supplied alias. Public HTTP adapters must keep the same f
 Identity administration check; the example's complete HTTP acceptance remains open.
 
 The opt-in local provider accepts `vernac.payments.local.scenario=PENDING,PAID` (default `PAID`), with at most 16 named steps. Supported steps are PAID, PENDING, FAILED, CANCELLED, EXPIRED, UNAVAILABLE and TIMEOUT_PAID. The persisted payment cursor resumes the configured scenario after restart; changing a scenario is an explicit development configuration change. Invalid names/length fail configuration and never select success silently.
+
+
+## Merchant authority and account closure composition
+
+Refund registration and refund-status reads require an explicit `PaymentFlow.RefundAuthority`;
+customer account administration is insufficient. The compatibility constructor denies refunds
+by default. Explicit merchant requests preserve the existing reservation, idempotency,
+finite retry horizon and verified partial/full reversal rules; they install no automatic
+refund entitlement or customer-facing refund policy.
+
+`PaymentFlow.AccountStatusGuard` runs inside the charge writer before the account payment
+lock. `BillingAccountLifecycle` composes it with `IdentityAccounts.ClosurePolicy` in the
+independent SaaS application. Active account rows, subscription and payment locks use a
+consistent order. Closure refuses unresolved payments/refunds, enabled paid renewal and
+an unexpired paid period. New financial work cannot rely solely on earlier owner validation.
+Known resource inspection/reversal remains recoverable without requiring a new active
+product account. `IdentityAccounts.requireRetainedOwnership` permits separately authorized
+invoice reads after soft closure; it grants neither product scope nor payment/refund rights.
+
+`BillingMaintenance` processes bounded independent stages so one failing invoice/profile
+cannot starve payment reconciliation, rendering or mail. Progress counters are process-local
+stage invocations, not durable backlog or delivery confirmations.
+
+See the [SaaS use-case guide](../saas/index.md) for customer/operator diagrams and the
+[operator procedure](../saas/betrieb.md) for explicit refund and recovery commands.
+Real provider tests and comprehensive acceptance are deferred to the maintainer; targeted
+local provider/PostgreSQL proofs are not substituted for those tests.

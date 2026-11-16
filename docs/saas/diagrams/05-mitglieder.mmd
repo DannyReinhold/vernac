@@ -1,0 +1,13 @@
+flowchart TB
+  A["Owner wählt Organisation oder Konto"] --> B["Empfänger und Produktrollen festlegen"]
+  B --> C["Einladung dauerhaft ausstellen und versenden"]
+  C --> D{"Widerrufen oder abgelaufen?"}
+  D -->|Ja| E["Kein Beitritt; gegebenenfalls neu einladen"]
+  D -->|Nein| F["Vorgesehener Empfänger meldet sich an"]
+  F --> G{"Empfängerbindung und Einmaligkeit gültig?"}
+  G -->|Nein| E
+  G -->|Ja| H["Mitgliedschaft mit gewählten Rollen anlegen"]
+  H --> I["Mitglied wählt Konto und nutzt erlaubte Aktionen"]
+  I --> J{"Rollen oder Mitgliedschaft ändern?"}
+  J -->|Rollen ändern| K["Neue Rechte wirken bei nachfolgenden Aktionen"]
+  J -->|Entfernen| L["Produktzugriff widerrufen; Identität bleibt getrennt"]

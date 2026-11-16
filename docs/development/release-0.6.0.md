@@ -47,6 +47,19 @@ Candidate creation now enforces source-bound evidence and the repository's own
 open blockers. A supplied external GO cannot override incomplete source requirements.
 Earlier infrastructure notes below are historical milestones, not current absence claims.
 
+## Implementation continuation and deferred acceptance — 16 November 2026
+
+The maintainer will run real-provider and comprehensive tests later. PR #87 now
+implements separate merchant refund authority/operator commands, coordinated account
+closure/new-charge checks, retained invoice downloads and independent maintenance
+stages. Targeted local PostgreSQL and packaged browser/refund/closure/restart checks
+passed. F03 is implemented in the [findings record](saas-release-audit-0.6.0.md);
+comprehensive validation, provider/fiscal/distribution evidence and final GO remain
+pending rather than being marked successful.
+
+The [illustrated SaaS guide](../saas/index.md) supplies the use-case catalog, customer
+journeys, developer/operator decisions and 18 static diagrams with editable sources.
+
 ## Mandatory tenant isolation scope
 
 [Declarative tenant isolation](tenant-isolation-0.6.0.md) is required for 0.6.0.

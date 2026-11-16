@@ -1,0 +1,13 @@
+flowchart TB
+  A["Mitglied startet Produktaktion"] --> B{"Konto und Mitgliedschaft aktuell gültig?"}
+  B -->|Nein| C["Zugriff ablehnen"]
+  B -->|Ja| D{"Erforderliches Produktrecht vorhanden?"}
+  D -->|Nein| C
+  D -->|Ja| E["Fachliche Größe und tatsächlichen Bestand bestimmen"]
+  E --> F{"Leistung im Tarif enthalten?"}
+  F -->|Nein| G["Limit erklären; Bestand oder Tarif anpassen"]
+  F -->|Ja| H["Verbrauch beziehungsweise Kapazität atomar absichern"]
+  H --> I["Fachaktion im verifizierten Tenant ausführen"]
+  I --> J{"Lokale Transaktion erfolgreich?"}
+  J -->|Nein| K["Lokale Änderungen und lokalen Verbrauch zurückrollen"]
+  J -->|Ja| L["Ergebnis und lokalen Verbrauch gemeinsam festschreiben"]

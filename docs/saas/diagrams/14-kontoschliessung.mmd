@@ -1,0 +1,12 @@
+flowchart TB
+  A["Owner fordert Kontoschließung an"] --> B["Eigentum frisch prüfen und Konto sperren"]
+  B --> C{"Offene oder ungeklärte Zahlung oder Erstattung?"}
+  C -->|Ja| D["Schließung ablehnen; bestehenden Finanzvorgang auflösen"]
+  C -->|Nein| E{"Kostenpflichtige Verlängerung aktiv?"}
+  E -->|Ja| F["Zuerst Verlängerung kündigen"]
+  E -->|Nein| G{"Bezahlter Zeitraum noch wirksam?"}
+  G -->|Ja| H["Periodenende abwarten oder ausdrücklichen Betreiberfall bearbeiten"]
+  G -->|Nein| I["Konto schließen und Produktzugriff beenden"]
+  I --> J["Neue Belastungen gegen Kontoschließung absichern"]
+  J --> K["Originalrechnungen und Korrekturen behalten"]
+  K --> L["Aktive zurückbehaltene Owner-Berechtigung erlaubt Dokumentdownload"]

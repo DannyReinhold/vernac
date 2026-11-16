@@ -11,6 +11,12 @@ if not state.exists():
         'admission':base64.b64encode(secrets.token_bytes(32)).decode(),'delivery':base64.b64encode(secrets.token_bytes(32)).decode()}
     with state.open('x',opener=lambda path,flags:os.open(path,flags,0o600)) as stream:json.dump(config,stream)
 config=json.loads(state.read_text())
+if 'merchant' not in config:
+    config['merchant']=secrets.token_urlsafe(32)
+    pending=local/('settings-'+secrets.token_hex(8)+'.json')
+    with pending.open('x',opener=lambda path,flags:os.open(path,flags,0o600)) as stream:
+        json.dump(config,stream);stream.flush();os.fsync(stream.fileno())
+    os.replace(pending,state)
 env=dict(os.environ,LOCAL_DATABASE_PASSWORD=config['database'])
 compose=['docker','compose','-p',ROOT.name]
 if '--stop' in sys.argv:
@@ -19,6 +25,20 @@ if '--mail' in sys.argv:
     req=urllib.request.Request('https://localhost:8443/__local/mail',headers={'Authorization':'Bearer '+config['preview']})
     with urllib.request.urlopen(req,context=ssl._create_unverified_context(),timeout=5) as response:
         for item in json.load(response):print(item['recipient']+'\n'+item['text']+'\n')
+    sys.exit()
+if '--refund' in sys.argv or '--operator-status' in sys.argv:
+    if '--refund' in sys.argv:
+        values=sys.argv[sys.argv.index('--refund')+1:]
+        if len(values)!=4:
+            print('Usage: python3 run-local.py --refund ACCOUNT_ID PAYMENT_ORDER_ID CENTS STABLE_OPERATION_UUID');sys.exit(2)
+        account,order,cents,operation=values
+        body='\n'.join([account,order,operation,cents]).encode('utf-8');path='/__operator/refunds'
+    else:body=b'';path='/__operator/billing-status'
+    req=urllib.request.Request('https://localhost:8443'+path,data=body,method='POST',headers={'Authorization':'Bearer '+config['merchant'],'Content-Type':'text/plain;charset=UTF-8'})
+    try:
+        with urllib.request.urlopen(req,context=ssl._create_unverified_context(),timeout=15) as response:print(response.read().decode('utf-8'))
+    except Exception:
+        print('Operator action not confirmed. Inspect the existing operation; do not create a new refund UUID to retry an unknown result.');sys.exit(1)
     sys.exit()
 subprocess.run(compose+['up','-d','--wait'],env=env,check=True)
 def sql(statement):
@@ -37,7 +57,7 @@ if not (ROOT/'target/saas-document-workspace-1.0.0.jar').exists():
 url='jdbc:postgresql://127.0.0.1:'+env.get('LOCAL_DB_PORT','55439')+'/workspace'
 env.update(SPRING_PROFILES_ACTIVE='local',SPRING_DATASOURCE_URL=url,SPRING_DATASOURCE_USERNAME='workspace_runtime',SPRING_DATASOURCE_PASSWORD=config['runtime'],
     SPRING_FLYWAY_URL=url,SPRING_FLYWAY_USER='vernac',SPRING_FLYWAY_PASSWORD=config['database'],SERVER_SSL_KEY_STORE=str(keystore),SERVER_SSL_KEY_STORE_PASSWORD=config['store'],
-    IDENTITY_ADMISSION_KEY_LABEL='local-v1',IDENTITY_ADMISSION_KEY=config['admission'],IDENTITY_DELIVERY_KEY_LABEL='local-v1',IDENTITY_DELIVERY_KEY=config['delivery'],IDENTITY_PREVIEW_CAPABILITY=config['preview'])
+    IDENTITY_ADMISSION_KEY_LABEL='local-v1',IDENTITY_ADMISSION_KEY=config['admission'],IDENTITY_DELIVERY_KEY_LABEL='local-v1',IDENTITY_DELIVERY_KEY=config['delivery'],IDENTITY_PREVIEW_CAPABILITY=config['preview'],BILLING_OPERATOR_CAPABILITY=config['merchant'])
 print('Open https://localhost:8443/auth/register and accept your local development certificate.\nRead simulated mail in a second terminal: python3 run-local.py --mail\nCtrl+C stops the app; PostgreSQL and all account/document/billing data remain. Use --stop to stop PostgreSQL.',flush=True)
 try:subprocess.run(['java','-jar',str(ROOT/'target/saas-document-workspace-1.0.0.jar')],env=env,check=True)
 except KeyboardInterrupt:pass

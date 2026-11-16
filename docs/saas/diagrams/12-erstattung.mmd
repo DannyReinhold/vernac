@@ -1,0 +1,13 @@
+flowchart TB
+  A["Betreiber prüft Kundenanliegen außerhalb automatischer Tarifregeln"] --> B{"Erstattung ausdrücklich veranlassen?"}
+  B -->|Nein| C["Keine Finanzaktion"]
+  B -->|Ja| D["Separate Betreiberberechtigung prüfen"]
+  D --> E["Gedeckten Betrag mit stabiler Erstattungskennung reservieren"]
+  E --> F["Provider-Erstattung außerhalb der Transaktion verarbeiten"]
+  F --> G{"Bestätigtes Ergebnis?"}
+  G -->|Unbekannt| H["Reservierung halten; gleiche Operation prüfen"]
+  H --> G
+  G -->|Sicher fehlgeschlagen| I["Fehler festhalten; keine Erstattung behaupten"]
+  G -->|Teilbetrag erstattet| J["Korrektur ausstellen; bezahlte Leistungen bleiben"]
+  G -->|Gesamtbetrag erstattet| K["Leistungszuordnung widerrufen und Auftrag schließen"]
+  K --> L["Korrektur ausstellen; Original erhalten"]

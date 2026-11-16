@@ -224,3 +224,8 @@ The [Spring Boot starter](tutorials/spring-boot-starter.md) now declares its HTM
 pages and forms in Vernac. Learn how [inbound MVC adapters](tutorials/inbound-mvc.md)
 connect typed usecases to Thymeleaf views, preserve permitted form inputs after
 validation errors and generate the controller and scoped error handling.
+
+
+## Build a SaaS application
+
+The [illustrated SaaS guide](saas/index.md) maps customer use cases, developer/operator decisions, subscriptions, payments, refunds, invoices and recovery.

@@ -187,7 +187,6 @@
   "blocking_findings": [
     "F01",
     "F02",
-    "F03",
     "F04",
     "F05"
   ],
@@ -377,5 +376,27 @@
     "VocabularySymbolsTest",
     "VocabularyTest",
     "ZugferdDocumentsTest"
-  ]
+  ],
+  "resolved_implementation_findings": {
+    "F03": {
+      "status": "IMPLEMENTED_TARGETED_CHECKS_PASSED",
+      "source_sha": "6a6eabe919f8fab449cb1425c24f6f119cd7ebab",
+      "coverage": [
+        "separate default-deny merchant authority",
+        "operator capability and stable refund identity",
+        "partial/full correction paths",
+        "active paid account closure denied",
+        "account closure after settled full reversal",
+        "retained immutable invoice downloads",
+        "isolated bounded maintenance stages"
+      ]
+    }
+  },
+  "maintainer_deferred_checks": [
+    "real Mollie/Stripe/Brevo tests",
+    "comprehensive error/concurrency/upgrade acceptance",
+    "installed IDE and exact release candidate",
+    "seller/fiscal/archive operational review"
+  ],
+  "business_flow_guide": "../saas/index.md"
 }

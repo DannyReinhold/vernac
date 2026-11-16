@@ -22,6 +22,10 @@ import org.vernac.saas.subscriptions.domain.*;
 /** Explicit global payment application boundary. Provider work always occurs outside its writers. */
 public final class PaymentFlow {
     @FunctionalInterface public interface BillingAuthority { void requireCurrentAdministrator(AccountId account); }
+    /** Merchant refund authority is intentionally independent of customer account administration. */
+    @FunctionalInterface public interface RefundAuthority { void requireMerchantRefundAuthority(AccountId account); }
+    /** Runs inside writers before account payment locks; coordinates with an account closure writer. */
+    @FunctionalInterface public interface AccountStatusGuard { void requireActiveAccount(AccountId account); }
     @FunctionalInterface public interface WebhookAdmission { void admit(PaymentProfileKey profile); }
     public record OrderView(PaymentOrderId id, PaymentOrderStatus status, OfferTerms terms, SubscriptionPeriod period,
             PaymentState payment, MinorUnits refunded, Optional<PaymentUri> checkout, PaymentReason reason) {
@@ -65,12 +69,22 @@ public final class PaymentFlow {
     private final PlanCatalog catalog;
     private final SubscriptionLedger subscriptions;
     private final BillingAuthority authority;
+    private final RefundAuthority refundAuthority;
+    private final AccountStatusGuard accountStatus;
     private final WebhookAdmission admission;
     private final Clock clock;
 
     public PaymentFlow(NamedParameterJdbcTemplate jdbc, PlatformTransactionManager manager,
             Map<PaymentProfileKey, PaymentProvider> providers, PlanCatalog catalog, SubscriptionLedger subscriptions,
             BillingAuthority authority, WebhookAdmission admission, Clock clock) {
+        this(jdbc,manager,providers,catalog,subscriptions,authority,admission,clock,
+                account -> { throw fail(PaymentProcessingFailure.Code.ACCESS_DENIED); }, account -> {});
+    }
+    public PaymentFlow(NamedParameterJdbcTemplate jdbc, PlatformTransactionManager manager,
+            Map<PaymentProfileKey, PaymentProvider> providers, PlanCatalog catalog, SubscriptionLedger subscriptions,
+            BillingAuthority authority, WebhookAdmission admission, Clock clock,
+            RefundAuthority refundAuthority, AccountStatusGuard accountStatus) {
+        this.refundAuthority=Objects.requireNonNull(refundAuthority);this.accountStatus=Objects.requireNonNull(accountStatus);
         unscoped(); this.jdbc = Objects.requireNonNull(jdbc); this.catalog = Objects.requireNonNull(catalog); this.subscriptions = Objects.requireNonNull(subscriptions);
         this.authority = Objects.requireNonNull(authority); this.admission = Objects.requireNonNull(admission); this.clock = Objects.requireNonNull(clock);
         this.providers = Map.copyOf(providers);
@@ -104,7 +118,7 @@ public final class PaymentFlow {
         if (terms.price().value() == 0) throw fail(PaymentProcessingFailure.Code.INVALID_STATE);
         var current = subscriptions.ensureFree(account);
         return write(() -> {
-            lock(account); var requestKey = PaymentKeys.request(account, request); var existing = orders.forRequest(requestKey);
+            accountStatus.requireActiveAccount(account); lock(account); var requestKey = PaymentKeys.request(account, request); var existing = orders.forRequest(requestKey);
             if (existing.isPresent()) {
                 var order = existing.get(); var attempt = latest(order);
                 if (!order.terms().equals(terms) || !attempt.profile().equals(profile)) throw fail(PaymentProcessingFailure.Code.CONFLICT);
@@ -145,7 +159,7 @@ public final class PaymentFlow {
     public OrderView retry(AccountId account, PaymentOrderId order) {
         administrator(account);
         return write(() -> {
-            lock(account); var row = owned(account, order); var previous = latest(row);
+            accountStatus.requireActiveAccount(account); lock(account); var row = owned(account, order); var previous = latest(row);
             if (row.paidAttempt().isPresent() || row.status() == PaymentOrderStatus.CLOSED || !Set.of(PaymentState.FAILED, PaymentState.CANCELLED, PaymentState.EXPIRED).contains(previous.state()) || row.attempts().value() >= 5) throw fail(PaymentProcessingFailure.Code.INVALID_STATE);
             var attempt = firstAttempt(row, previous.profile(), previous.kind(), previous.kind() == PaymentAttemptKind.RECURRING ? previous.customer().orElseThrow() : null, previous.kind() == PaymentAttemptKind.RECURRING ? previous.mandate().orElseThrow() : null); return view(orders.byId(row.id()), attempt);
         });
@@ -174,7 +188,7 @@ public final class PaymentFlow {
         }
         var period = SubscriptionPeriod.of(current.period().end(), BillingCalendar.end(current.period().end(), terms.interval()));
         write(() -> {
-            lock(agreement.account());
+            accountStatus.requireActiveAccount(agreement.account()); lock(agreement.account());
             if (!jdbc.queryForList("SELECT 1 FROM " + S + "\"PaymentOrder\" WHERE \"account\"=:account AND (\"status\" IN ('OPEN','PAID','REVIEW') OR \"reason\"<>'NONE') LIMIT 1", Map.of("account", agreement.account().value()), Integer.class).isEmpty()) return Boolean.FALSE;
             var cycle = PaymentKeys.cycle(agreement.account(), current.id(), period);
             if (!jdbc.queryForList("SELECT 1 FROM " + S + "\"PaymentOrder\" WHERE \"cycle\"=:cycle AND \"status\"<>'CLOSED' LIMIT 1", Map.of("cycle", cycle.encoded()), Integer.class).isEmpty()) return Boolean.FALSE;
@@ -204,7 +218,7 @@ public final class PaymentFlow {
 
     /** Reserves the refund amount before any external effect. Unknown outcomes retain their reservation. */
     public RefundView refund(AccountId account, PaymentOrderId orderId, PaymentOperationId operation, MinorUnits amount) {
-        administrator(account);
+        merchant(account);
         if (amount.value() <= 0) throw fail(PaymentProcessingFailure.Code.INVALID_STATE);
         return write(() -> {
             lock(account); var order = owned(account, orderId); var recorded = refunds.forOperation(operation);
@@ -224,7 +238,7 @@ public final class PaymentFlow {
         });
     }
     public RefundView refund(AccountId account, PaymentRefundId id) {
-        administrator(account); return write(() -> {
+        merchant(account); return write(() -> {
             var row = refunds.byId(id); if (!row.account().equals(account)) throw fail(PaymentProcessingFailure.Code.ACCESS_DENIED);
             return refundView(row);
         });
@@ -404,9 +418,15 @@ public final class PaymentFlow {
     private Claim claim() {
         return write(() -> {
             Instant time = now();
-            var rows = jdbc.queryForList("SELECT \"id\" FROM " + S + "\"PaymentAttempt\" WHERE \"stage\" NOT IN ('DONE','REVIEW') AND \"due\"<=:now AND (\"lease.token\" IS NULL OR \"lease.until\"<=:now) ORDER BY \"due\",\"id\" LIMIT 1 FOR UPDATE SKIP LOCKED", Map.of("now", java.sql.Timestamp.from(time)), UUID.class);
+            var rows = jdbc.queryForList("SELECT \"id\" FROM " + S + "\"PaymentAttempt\" WHERE \"stage\" NOT IN ('DONE','REVIEW') AND \"due\"<=:now AND (\"lease.token\" IS NULL OR \"lease.until\"<=:now) ORDER BY \"due\",\"id\" LIMIT 1", Map.of("now", java.sql.Timestamp.from(time)), UUID.class);
             if (rows.isEmpty()) return null;
-            var row = attempts.byId(PaymentAttemptId.of(rows.getFirst()));
+            var selected = attempts.byId(PaymentAttemptId.of(rows.getFirst()));
+            if(Set.of(PaymentAttemptStage.PREPARING,PaymentAttemptStage.NEW,PaymentAttemptStage.CUSTOMER_READY).contains(selected.stage()))
+                accountStatus.requireActiveAccount(selected.account());
+            lock(selected.account());
+            var eligible = jdbc.queryForList("SELECT \"id\" FROM " + S + "\"PaymentAttempt\" WHERE \"id\"=:id AND \"stage\" NOT IN ('DONE','REVIEW') AND \"due\"<=:now AND (\"lease.token\" IS NULL OR \"lease.until\"<=:now) FOR UPDATE SKIP LOCKED", Map.of("id",selected.id().value(),"now",java.sql.Timestamp.from(time)), UUID.class);
+            if(eligible.isEmpty())return null;
+            var row = attempts.byId(selected.id());
             if ((row.stage() == PaymentAttemptStage.NEW || row.stage() == PaymentAttemptStage.CUSTOMER_READY) && (row.calls().value() >= 5 || row.financialStarted().filter(start -> !time.isBefore(start.value().plus(Duration.ofMinutes(30)))).isPresent())) {
                 row.review(PaymentReason.OUTCOME_UNKNOWN); attempts.save(row); return null;
             }
@@ -476,6 +496,7 @@ public final class PaymentFlow {
     private static OrderView view(PaymentOrder order, PaymentAttempt attempt) { return new OrderView(order.id(), order.status(), order.terms(), order.period(), attempt.state(), attempt.refunded(), attempt.checkout(), order.reason() == PaymentReason.NONE ? attempt.reason() : order.reason()); }
     private PaymentProvider provider(PaymentProfileKey key) { var provider = providers.get(key); if (provider == null) throw fail(PaymentProcessingFailure.Code.CONFIGURATION); return provider; }
     private void administrator(AccountId account) { unscoped(); try { authority.requireCurrentAdministrator(Objects.requireNonNull(account)); } catch (RuntimeException denied) { throw fail(PaymentProcessingFailure.Code.ACCESS_DENIED); } }
+    private void merchant(AccountId account) { unscoped(); try { refundAuthority.requireMerchantRefundAuthority(Objects.requireNonNull(account)); } catch(RuntimeException denied) { throw fail(PaymentProcessingFailure.Code.ACCESS_DENIED); } }
     private void lock(AccountId account) { jdbc.queryForList("SELECT pg_advisory_xact_lock(hashtextextended(:key,0))", Map.of("key", "vernac.payments/account/" + account.asString())); }
     private <T> T write(Supplier<T> action) { unscoped(); try { return writer.execute(status -> action.get()); } catch (PaymentProcessingFailure safe) { throw safe; } catch (RuntimeException unavailable) { throw fail(PaymentProcessingFailure.Code.UNAVAILABLE); } }
     private Instant now() { return clock.instant().truncatedTo(ChronoUnit.MICROS); }

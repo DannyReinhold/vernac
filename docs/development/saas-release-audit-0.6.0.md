@@ -4,6 +4,31 @@ Recommendation: **NO-GO**. This is a separate assessment of the stacked implemen
 not a claim that creating its PR finishes the agreed scope. No merge, release,
 Marketplace upload, external payment or external email is authorized by this record.
 
+## Maintainer scope update — 16 November 2026
+
+The maintainer requested all feasible implementation work and illustrated business
+flows, and explicitly deferred real provider tests and comprehensive acceptance.
+Those checks remain pending; their deferral does not block implementation or count
+as successful verification.
+
+Application source `6a6eabe919f8fab449cb1425c24f6f119cd7ebab` now includes independent merchant refund authority,
+optional operator capability/CLI, transaction-coordinated closure/new-charge guards,
+retained invoice ownership after closure and isolated bounded maintenance stages.
+The [SaaS guide](../saas/index.md) documents 20 use cases, customer journeys and
+explicit developer/operator decisions with 18 editable/rendered static diagrams.
+
+Targeted local checks on the corresponding worktree passed: 12 payment PostgreSQL
+cases without skips; Identity/security and billing unit suites; 13 template checks;
+and the packaged HTTPS/Chromium application with real restart, operator-only
+idempotent partial/full refunds, correction issuance, paid-closure refusal, eventual
+closure and byte-identical retained PDF/XML. No real payment or email was sent.
+These scoped local checks are not comprehensive acceptance or whole-release GO.
+
+F03's missing implementation has been addressed and its targeted scenarios passed.
+Later comprehensive operator/lifecycle review belongs to F01/F05; actual provider,
+fiscal/archive and distribution approval remain pending. Earlier findings below
+are read with this dated scope update.
+
 ## Source and evidence inspected
 
 Identity/Auth is integrated through #81. Subscriptions #82, restrictions #83,
@@ -39,9 +64,9 @@ only that failed job was restarted. Its independent Identity browser job passed.
 
 | ID | Finding | Required closure |
 | --- | --- | --- |
-| F01 | Whole-SaaS journeys still need complete final-source execution, including refusal/pending/recovery and operator/refund paths. | Passing, unskipped browser/DB evidence for J01–J09 with relevant negative cases; inspect actual UI. |
+| F01 | Comprehensive whole-SaaS final-source acceptance is deferred to the maintainer; targeted merchant/refund/closure and recovery proofs now exist. | Passing, unskipped browser/DB evidence for J01–J09 with relevant negative cases; inspect actual UI. |
 | F02 | Real Mollie, Stripe and Brevo sandbox attestations are absent. Local simulations and loopback protocol tests do not prove provider-account configuration. | Explicit sandbox credentials/configuration and retained verified test results; no invented external delivery or charge. |
-| F03 | Merchant refund policy/operator integration and account/identity closure versus ongoing billing need explicit lifecycle review. | Merchant-only authority and recovery acceptance; prove closure cannot silently leave charges unmanaged. Customer membership ownership is not merchant refund authority. |
+| F03 | IMPLEMENTED; targeted checks PASS. Explicit merchant authority, safe closure/new-charge coordination and retained invoices are present. No automatic refund policy is invented. | Comprehensive operator/lifecycle verification remains part of the maintainer's later F01/F05 acceptance, rather than missing implementation. |
 | F04 | Final supported invoice scope, seller eligibility, archival/fiscal history and operational acceptance are not approved. | Review retained fiscal snapshots, correction history and intended deployment/archive policy within the supported domestic EUR scope. |
 | F05 | Release distribution and exact-candidate acceptance are incomplete. | Fresh installed-IDE smoke, final plugin ZIP and module dependency inventory, all required reports, matching source/artifact digests and maintainer GO. Verify reproducibility or promote the actual approved artifacts; do not substitute a rebuilt candidate. |
 
