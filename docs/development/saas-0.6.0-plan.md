@@ -320,37 +320,65 @@ is not approval; record accepted resolutions and their PRs.
 These can be resolved incrementally. Identity credentials, tax algorithms and payment
 semantics must not be guessed to avoid asking a genuinely necessary question.
 
-## PR sequence
+## Implementation sequence — 15 November 2026
 
-The next implementation sequence starts with real identity/membership ownership before
-restriction accounting; both remain required for 0.6.0. Earlier foundation slices are
-recorded below for context, not as tasks to repeat.
+Identity/Auth is integrated in feature/0.6.0 through PR #81 (9202744bb29100dd14443b352ce61fde375193b4).
+Its accepted D05/D14 implementation and automated evidence remain in the
+[acceptance record](identity-auth-acceptance-0.6.0.md).
 
-1. **Plan and acceptance ledger** (planning baseline): align roadmaps; no language/runtime change.
-2. **Authorization/tenant contract and Spring spike**: D02/D03/D13, entrypoint-to-usecase example,
-   denial taxonomy, chosen enforcement boundary and nested-call proof.
-3. **Tenant foundation and rights/tooling**: resolve D13 with the authorization context;
-   implement automatic isolation across schema, repositories, modules and workers. Then
-   continue with the shared compiler/analyzer model, generation, runtime/starter,
-   LSP/IDE metadata/navigation/completion, executable reference and tutorials together.
-4. **Identity/accounts/roles contract and packaging decision**: review the
-   [identity/membership proposal](identity-membership-0.6.0.md), then resolve credential-specific D14 before
-   implementing credential workflows. D01 packaging/license is now accepted. Existing permission/tenant foundations do not
-   supply a login system.
-5. **Identity/accounts/roles implementation**: reusable modules, public flows, protected
-   administration and initial end-to-end UI. Resolve packaging before publishing.
-6. **Dynamic restrictions**: limits/capacity/quota facts, atomic accounting and explicit
-   APIs; concurrency/failure tests, then functional/external reservation lifecycle.
-7. **Subscriptions/payments/invoices/mail**: deliver complete vertical slices through
-   modules, adapters, migrations and UI; resolve D07–D10 before their implementations.
-8. **Application assembly**: real consuming application, documented deployment, local
-   simulators and provider sandbox checks. Library internals alone do not satisfy this.
-9. **Dedicated completeness audit and release gate**: close the acceptance ledger,
-   fresh artifact consumption, plugin verification and maintainer go/no-go.
+The owner requests a single stacked review PR per topic, with any number of small
+commits inside it. Do not create a PR per implementation slice or claim completion
+from a planning document. The release scope and A01–A23/J01–J09 gates are unchanged.
 
-Split these into smaller reviewable PRs where useful. Target `feature/0.6.0`, include
-code/tests/docs in each feature PR, and keep supported user documentation accurate.
-No automatic merges or publication are authorized by this plan.
+| Order | Topic / branch | Required developer outcome | Acceptance |
+| --- | --- | --- | --- |
+| 1 | Catalog/subscriptions — feature/saas-subscriptions | Explicit typed plans/prices/benefits, preserved purchased terms, account-owned subscription lifecycle; current entitlement facts independent of member roles | A08; subscription portions of A11–A15/A18/A20 |
+| 2 | Dynamic restrictions — feature/saas-restrictions | Named typed operation limits, atomic capacity and quotas, reservations and external-outcome recovery, usable Java/generated APIs | A05–A07/A15/A18/A20; J06/J07 |
+| 3 | Payments/webhooks — feature/saas-payments | Selected real adapter plus credential-free local provider, durable checkout/reconciliation/refunds, verified resource routing | A09/A17/A23; J03–J05/J07 |
+| 4 | Customer invoices — feature/saas-invoicing | Explicit seller/tax scope, immutable numbering/documents, corrections, authorized download, payment linkage and shared-mail notices | A10/A11; J03–J05/J07 |
+| 5 | SaaS assembly/Wizard — feature/saas-application | Complete independent document workspace and reusable self-service UI; explicit SaaS Wizard option, ordinary module/profile bindings and local startup | A12–A15/A17/A20/A21/A22; J01–J09 |
+| 6 | Completeness/release evidence — feature/saas-release-acceptance | Reconcile every requirement against actual source and executable evidence; packaged plugin/fresh consumption, enforced source-bound gate and explicit maintainer GO | A01–A23/J01–J09/A16/D12 |
+
+The roadmap update belongs to the first topic PR. Each successor branches from its
+predecessor and initially targets that branch so review diffs contain only that topic.
+Merge in this order using ordinary merge commits; after each predecessor merges,
+retarget its successor to feature/0.6.0 **before** merging it. Do not automatically
+merge, publish or deploy this series. Small commits do not create extra PRs.
+
+### Confirmed provider and invoice scope — 15 November 2026
+
+The owner explicitly selected **both Mollie and Stripe** as required real payment
+adapters, alongside the credential-free local provider. Each real adapter requires
+its own verification/reconciliation/refund and sandbox evidence; neither can be
+silently treated as optional.
+
+The owner selected **Germany B2B and B2C**, a German seller and domestic customers,
+with EUR invoices. EU cross-border/OSS/Reverse-Charge scope is excluded from this
+release baseline. Supported domestic tax treatments, invoice formats and correction
+rules must be specified and checked against authoritative sources in the invoice topic;
+this choice alone does not establish legal/tax correctness.
+
+### Developer-first design rules
+
+- Model domain vocabulary and invariants in ordinary .vernac values/aggregates/events/
+  ports wherever supported. Handwritten adapters implement integration and persistence
+  mechanics; do not build a parallel generic SaaS framework beside Vernac.
+- Keep identity, account membership, purchased entitlements, metering, payment and
+  customer invoicing as separate responsibilities. Connect them with nominal IDs and
+  explicit application workflows, never a shared universal customer/user aggregate.
+- Use the existing module exports, activation, migrations, application/profile bindings,
+  generated guards and trusted tenant boundaries. No provider-specific compiler keywords.
+- Keep non-SaaS applications simple. Prefer a small explicit setup and useful defaults
+  over configuration matrices, hidden network activity or silent simulated fallbacks.
+- Protect invariants under concurrent requests, retries, rollback and restart. Expose
+  safe typed outcomes and useful recovery paths; no secrets in logs/errors.
+- Implement tests, documentation and examples alongside each feature; record the exact
+  boundary of every proof. Installed IDE/provider sandbox/legal review remain real gates,
+  not implied passes from local unit tests.
+
+D04/D06–D09/D11 must be recorded with the relevant implementation. Choose routine
+technical details autonomously within this direction; genuinely product-affecting
+payment/tax scope choices must be explicit before they constrain customer contracts.
 
 ## Preserve the simple application; add SaaS explicitly
 

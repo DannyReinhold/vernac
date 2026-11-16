@@ -15,12 +15,20 @@ acceptance boundary even if they have their own versions or repositories.
 ## Identity/Auth scope update — 15 November 2026
 
 The [final Identity/Auth record](identity-auth-acceptance-0.6.0.md) supplies accepted
-D05/D14 implementation and exact-source automated evidence for A01/A02 in the open
-review branches. Their maintainer review/merging is still pending. It also contributes
+D05/D14 implementation and exact-source automated evidence for A01/A02. These changes
+are integrated in feature/0.6.0 through PR #81 (9202744bb29100dd14443b352ce61fde375193b4). It also contributes
 identity portions of mail/UI/sample/operations; the broader rows below remain open
 where billing, full product, provider or Wizard/installed-plugin evidence is missing.
 Earlier planning-only or future-tense identity notes below are historical milestones,
 not a statement that the now-delivered identity code is absent.
+
+## Remaining delivery order
+
+Follow the [topic sequence and developer-first rules](saas-0.6.0-plan.md#implementation-sequence--15-november-2026):
+catalog/subscriptions → dynamic restrictions → payments/webhooks → customer invoices →
+SaaS application/Wizard → completeness audit/release evidence. One stacked PR per
+topic; all release requirements remain mandatory. The earlier incremental notes below
+are historical evidence and do not override current contracts or claim missing merged work.
 
 ## Mandatory tenant isolation scope
 
@@ -81,8 +89,8 @@ their broader whole-release gates; partial identity evidence does not verify the
 
 | ID | Release requirement | Minimum verification | Status / evidence |
 | --- | --- | --- | --- |
-| A01 | Identity self-registration, verification, login/logout/recovery | Happy path; expired/reused tokens; duplicates/concurrent registration; disabled user; secure browser flows | VERIFIED in review branches / [exact-source evidence](identity-auth-acceptance-0.6.0.md); merge pending |
-| A02 | Personal/organization accounts and memberships | Invitations/expiry/replay, roles, account switching, invalid membership and cross-account access | VERIFIED in review branches / [exact-source evidence](identity-auth-acceptance-0.6.0.md); merge pending |
+| A01 | Identity self-registration, verification, login/logout/recovery | Happy path; expired/reused tokens; duplicates/concurrent registration; disabled user; secure browser flows | VERIFIED technical scope / [exact-source evidence](identity-auth-acceptance-0.6.0.md); integrated via #81 |
+| A02 | Personal/organization accounts and memberships | Invitations/expiry/replay, roles, account switching, invalid membership and cross-account access | VERIFIED technical scope / [exact-source evidence](identity-auth-acceptance-0.6.0.md); integrated via #81 |
 | A03 | Typed rights and usecase all/any requirements | Compiler diagnostics, nested conditional calls, absent context/provider, object ownership, system identities | OPEN / none |
 | A04 | Endpoint/usecase security integration | REST and MVC, explicit public endpoints, webhook verification, CSRF, context cleanup, no proxy/invocation bypass in supported paths | OPEN / none |
 | A05 | Dynamic per-operation and current-capacity limits | Repository-derived facts, concurrent last slot, release on delete/deactivation, rollback and scoped isolation | OPEN / none |

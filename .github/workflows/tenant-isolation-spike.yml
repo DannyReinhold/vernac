@@ -60,6 +60,8 @@ jobs:
         run: mvn -B -ntp -pl saas/mail,saas/mail-local,saas/mail-brevo clean install
       - name: Verify optional identity artifacts and their JAR consumer
         run: mvn -B -ntp -pl saas/identity,saas/identity-spring-security,saas/identity-jdbc clean install
+      - name: Verify plan catalog and generated subscription domain
+        run: mvn -B -ntp -pl saas/subscriptions clean install
       - name: Require integrated identity browser proofs
         run: |
           python3 - <<'PY'
