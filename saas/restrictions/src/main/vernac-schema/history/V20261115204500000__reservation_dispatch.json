@@ -1,0 +1,257 @@
+{
+  "formatVersion" : 1,
+  "migration" : "V20261115204500000__reservation_dispatch.sql",
+  "previousFingerprint" : "27f206bf98e46b4494e21101c30a1746ba475ad61f0cb62bb3c26d68b0891fc8",
+  "modelFingerprint" : "614cd5c4b50c874699e45432f3024bb2f51ef97aeecd69184d7921d42b94c938",
+  "model" : {
+    "formatVersion" : 4,
+    "mappingVersion" : 1,
+    "tables" : [ {
+      "namespace" : "org.vernac.saas.restrictions",
+      "name" : "QuotaBudget",
+      "origin" : "org.vernac.saas.restrictions.QuotaBudget",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.restrictions.QuotaBudget"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.restrictions.QuotaBudget"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.restrictions.QuotaBudget"
+      }, {
+        "name" : "@nanoRemainder:window.end",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.restrictions.QuotaBudget.window.end"
+      }, {
+        "name" : "@nanoRemainder:window.start",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.restrictions.QuotaBudget.window.start"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.restrictions.QuotaBudget"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.restrictions.QuotaBudget"
+      }, {
+        "name" : "account",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.identity.AccountId"
+      }, {
+        "name" : "benefit",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.restrictions.QuotaBudget.benefit"
+      }, {
+        "name" : "consumed",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.restrictions.QuotaBudget.consumed"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.restrictions.QuotaBudget.id"
+      }, {
+        "name" : "key",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.restrictions.QuotaBudget.key",
+        "collation" : "C"
+      }, {
+        "name" : "reserved",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.restrictions.QuotaBudget.reserved"
+      }, {
+        "name" : "window.end",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.restrictions.QuotaBudget.window.end"
+      }, {
+        "name" : "window.start",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.restrictions.QuotaBudget.window.start"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:window.end",
+        "clause" : "CHECK (\"@nanoRemainder:window.end\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:window.start",
+        "clause" : "CHECK (\"@nanoRemainder:window.start\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@unique:QuotaBudget:key",
+        "clause" : "UNIQUE (\"key\")"
+      } ]
+    }, {
+      "namespace" : "org.vernac.saas.restrictions",
+      "name" : "QuotaReservation",
+      "origin" : "org.vernac.saas.restrictions.QuotaReservation",
+      "columns" : [ {
+        "name" : "@createdAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.restrictions.QuotaReservation"
+      }, {
+        "name" : "@nanoRemainder:@createdAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.restrictions.QuotaReservation"
+      }, {
+        "name" : "@nanoRemainder:@updatedAt",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.restrictions.QuotaReservation"
+      }, {
+        "name" : "@nanoRemainder:window.end",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.restrictions.QuotaReservation.window.end"
+      }, {
+        "name" : "@nanoRemainder:window.start",
+        "sqlType" : "SMALLINT",
+        "nullable" : false,
+        "codec" : "Instant:nanoRemainder",
+        "origin" : "org.vernac.saas.restrictions.QuotaReservation.window.start"
+      }, {
+        "name" : "@updatedAt",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.restrictions.QuotaReservation"
+      }, {
+        "name" : "@version",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "persistence-version",
+        "origin" : "org.vernac.saas.restrictions.QuotaReservation"
+      }, {
+        "name" : "account",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.identity.AccountId"
+      }, {
+        "name" : "amount",
+        "sqlType" : "BIGINT",
+        "nullable" : false,
+        "codec" : "long:",
+        "origin" : "org.vernac.saas.restrictions.QuotaReservation.amount"
+      }, {
+        "name" : "benefit",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.restrictions.QuotaReservation.benefit"
+      }, {
+        "name" : "budget",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID:",
+        "origin" : "org.vernac.saas.restrictions.BudgetId"
+      }, {
+        "name" : "id",
+        "sqlType" : "UUID",
+        "nullable" : false,
+        "codec" : "UUID",
+        "origin" : "org.vernac.saas.restrictions.QuotaReservation.id"
+      }, {
+        "name" : "key",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.restrictions.QuotaReservation.key",
+        "collation" : "C"
+      }, {
+        "name" : "status",
+        "sqlType" : "TEXT",
+        "nullable" : false,
+        "codec" : "String:",
+        "origin" : "org.vernac.saas.restrictions.ReservationStatus"
+      }, {
+        "name" : "window.end",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.restrictions.QuotaReservation.window.end"
+      }, {
+        "name" : "window.start",
+        "sqlType" : "TIMESTAMPTZ(6)",
+        "nullable" : false,
+        "codec" : "Instant:",
+        "origin" : "org.vernac.saas.restrictions.QuotaReservation.window.start"
+      } ],
+      "primaryKey" : [ "id" ],
+      "constraints" : [ {
+        "name" : "@check:enum:status",
+        "clause" : "CHECK (\"status\" IN ('CONFIRMED', 'IN_DOUBT', 'RELEASED', 'RESERVED'))"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@createdAt",
+        "clause" : "CHECK (\"@nanoRemainder:@createdAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:@updatedAt",
+        "clause" : "CHECK (\"@nanoRemainder:@updatedAt\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:window.end",
+        "clause" : "CHECK (\"@nanoRemainder:window.end\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@check:range:@nanoRemainder:window.start",
+        "clause" : "CHECK (\"@nanoRemainder:window.start\" BETWEEN 0 AND 999)"
+      }, {
+        "name" : "@fk:reference:budget",
+        "clause" : "FOREIGN KEY (\"budget\") REFERENCES \"org.vernac.saas.restrictions\".\"QuotaBudget\" (\"id\")"
+      }, {
+        "name" : "@unique:QuotaReservation:key",
+        "clause" : "UNIQUE (\"key\")"
+      } ]
+    } ],
+    "enumCodes" : {
+      "org.vernac.saas.restrictions.ReservationStatus" : {
+        "CONFIRMED" : "CONFIRMED",
+        "IN_DOUBT" : "IN_DOUBT",
+        "RELEASED" : "RELEASED",
+        "RESERVED" : "RESERVED"
+      }
+    }
+  }
+}

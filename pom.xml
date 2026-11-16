@@ -63,6 +63,7 @@
         <module>saas/mail-brevo</module>
         <module>saas/identity-jdbc</module>
         <module>saas/subscriptions</module>
+        <module>saas/restrictions</module>
     </modules>
 
     <properties>

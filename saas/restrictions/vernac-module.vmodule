@@ -1,0 +1,8 @@
+module vernac.saas.restrictions {
+    tenancy explicit;
+    export org.vernac.saas.restrictions.Units;
+    export org.vernac.saas.restrictions.UsageWindow;
+    export org.vernac.saas.restrictions.UsageOperationKey;
+    export org.vernac.saas.restrictions.ReservationId;
+    export org.vernac.saas.restrictions.ReservationStatus;
+}
