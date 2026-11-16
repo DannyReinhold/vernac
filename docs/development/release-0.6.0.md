@@ -25,7 +25,7 @@ not a statement that the now-delivered identity code is absent.
 ## Remaining delivery order
 
 Follow the [topic sequence and developer-first rules](saas-0.6.0-plan.md#implementation-sequence--15-november-2026):
-catalog/subscriptions → dynamic restrictions → payments/webhooks → customer invoices →
+catalog/subscriptions → dynamic restrictions → payments/webhooks → customer invoices → safe Java repository extensions →
 SaaS application/Wizard → completeness audit/release evidence. One stacked PR per
 topic; all release requirements remain mandatory. The earlier incremental notes below
 are historical evidence and do not override current contracts or claim missing merged work.

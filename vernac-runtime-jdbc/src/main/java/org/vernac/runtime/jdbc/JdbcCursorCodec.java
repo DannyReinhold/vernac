@@ -52,11 +52,22 @@ public final class JdbcCursorCodec {
             }
             String[] names=Objects.requireNonNull(parameters.getParameterNames());
             Arrays.sort(names); out.writeInt(names.length);
-            for(String name:names) { text(out,name); writeValue(out,Objects.requireNonNull(parameters.getValue(name))); }
+            for(String name:names) { text(out,name); writeContextValue(out,parameters.getValue(name)); }
             return MessageDigest.getInstance("SHA-256").digest(bytes.toByteArray());
         } catch(IOException | GeneralSecurityException failure) {
             throw new PaginationContractException("Could not construct cursor query context");
         }
+    }
+    /** Query filters may include bounded IN-list values; scalar cursor contexts retain their previous encoding. */
+    private static void writeContextValue(DataOutputStream out,Object value) throws IOException {
+        if(value==null){text(out,"Null");return;}
+        if(value instanceof List<?> list){
+            if(list.size()>1000)throw new PaginationContractException("Cursor filter list exceeds its bounded representation");
+            text(out,"List");out.writeInt(list.size());
+            for(Object item:list){if(item instanceof Collection<?>)throw new PaginationContractException("Nested cursor filter collections are unsupported");writeContextValue(out,item);}
+            return;
+        }
+        writeValue(out,value);
     }
     public PageCursor seal(byte[] context,List<Object> values) {
         try {

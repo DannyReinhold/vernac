@@ -336,10 +336,14 @@ from a planning document. The release scope and A01–A23/J01–J09 gates are un
 | 2 | Dynamic restrictions — feature/saas-restrictions | Named typed operation limits, atomic capacity and quotas, reservations and external-outcome recovery, usable Java/generated APIs | A05–A07/A15/A18/A20; J06/J07 |
 | 3 | Payments/webhooks — feature/saas-payments | Selected real adapter plus credential-free local provider, durable checkout/reconciliation/refunds, verified resource routing | A09/A17/A23; J03–J05/J07 |
 | 4 | Customer invoices — feature/saas-invoicing | Explicit seller/tax scope, immutable numbering/documents, corrections, authorized download, payment linkage and shared-mail notices | A10/A11; J03–J05/J07 |
-| 5 | SaaS assembly/Wizard — feature/saas-application | Complete independent document workspace and reusable self-service UI; explicit SaaS Wizard option, ordinary module/profile bindings and local startup | A12–A15/A17/A20/A21/A22; J01–J09 |
-| 6 | Completeness/release evidence — feature/saas-release-acceptance | Reconcile every requirement against actual source and executable evidence; packaged plugin/fresh consumption, enforced source-bound gate and explicit maintainer GO | A01–A23/J01–J09/A16/D12 |
+| 5 | Safe Java repository extensions — feature/saas-repository-extensions | Generated JDBC capability, bound root selection/canonical hydration, guarded eager results and canonical writes; restricted-role and pooled negative proofs | A22; J09 and extension parts of A05/A06/A19/A20 |
+| 6 | SaaS assembly/Wizard — feature/saas-application | Complete independent document workspace and reusable self-service UI; explicit SaaS Wizard option, ordinary module/profile bindings and local startup | A12–A15/A17/A20/A21/A22; J01–J09 |
+| 7 | Completeness/release evidence — feature/saas-release-acceptance | Reconcile every requirement against actual source and executable evidence; packaged plugin/fresh consumption, enforced source-bound gate and explicit maintainer GO | A01–A23/J01–J09/A16/D12 |
 
-The roadmap update belongs to the first topic PR. Each successor branches from its
+The A22 source audit during assembly found that its supported extension path was still
+specified but not implemented. It is now a separate prerequisite topic before the
+consuming SaaS/Wizard, preserving one PR per topic instead of hiding a core feature in
+the final audit. The initial roadmap update belongs to the first topic PR. Each successor branches from its
 predecessor and initially targets that branch so review diffs contain only that topic.
 Merge in this order using ordinary merge commits; after each predecessor merges,
 retarget its successor to feature/0.6.0 **before** merging it. Do not automatically

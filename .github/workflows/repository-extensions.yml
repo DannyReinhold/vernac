@@ -1,0 +1,65 @@
+name: Safe repository extensions
+on:
+  pull_request:
+    paths:
+      - 'vernac-runtime-jdbc/**'
+      - 'vernac-compiler/**'
+      - 'vernac-maven-plugin/**'
+      - 'docs/contracts/repository-extensions.md'
+      - '.github/workflows/repository-extensions.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  extensions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_USER: vernac
+          POSTGRES_PASSWORD: ephemeral-extensions-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vernac -d postgres"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      VERNAC_PG_TEST_URL: jdbc:postgresql://localhost:5432/postgres
+      VERNAC_PG_TEST_USER: vernac
+      VERNAC_PG_TEST_PASSWORD: ephemeral-extensions-only
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Build matching compiler runtime and plugin
+        run: mvn -B -ntp -pl vernac-maven-plugin,vernac-jdbc-spring-boot-starter -am -DskipTests install
+      - name: Verify root selection parameters and cursor filter binding
+        run: mvn -B -ntp -pl vernac-runtime-jdbc -Dtest=JdbcRootQueryTest,JdbcCursorCodecTest test
+      - name: Verify generated infrastructure capability
+        run: mvn -B -ntp -pl vernac-compiler -Dtest=RepositoryBindingTest test
+      - name: Execute generated graph extension and restricted PostgreSQL proofs
+        run: mvn -B -ntp -pl vernac-maven-plugin -Dtest=TenantGeneratedPostgresTest test
+      - name: Require actual extension proofs without skips
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          root=ET.parse('vernac-maven-plugin/target/surefire-reports/TEST-org.vernac.maven.TenantGeneratedPostgresTest.xml').getroot()
+          expected={
+            'repositoryExtensionsHydrateCanonicalShapesAndScopeCountsBeforeSql',
+            'repositoryExtensionsRejectUntrackedModifiedAndEscapedResults',
+            'repositoryExtensionsRetainScopeAcrossPooledConcurrencyAndCanonicalWrites',
+            'repositoryExtensionCapabilityIsAvailableThroughJdkRepositoryProxiesWithoutAnAmbientTransaction',
+          }
+          assert expected <= {case.attrib['name'] for case in root.findall('testcase')}
+          assert all(int(root.attrib.get(key,'0'))==0 for key in ('failures','errors','skipped'))
+          for case in root.findall('testcase'):
+            assert not any(case.find(tag) is not None for tag in ('failure','error','skipped'))
+          PY
