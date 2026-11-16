@@ -35,12 +35,20 @@ final class VernacProjectDiagnostics {
         folders.clear();
         if (params.getWorkspaceFolders() != null && !params.getWorkspaceFolders().isEmpty()) {
             params.getWorkspaceFolders().forEach(folder -> addFolder(folder.getUri()));
-        } else if (params.getRootUri() != null) {
+        } else {
+            initializeLegacyRoot(params);
+        }
+        workspaceBound = !folders.isEmpty();
+    }
+
+    /** LSP retains these deprecated wire fields for clients without workspaceFolders. */
+    @SuppressWarnings("deprecation")
+    private void initializeLegacyRoot(InitializeParams params) {
+        if (params.getRootUri() != null) {
             addFolder(params.getRootUri());
         } else if (params.getRootPath() != null) {
             folders.add(Path.of(params.getRootPath()).toAbsolutePath().normalize());
         }
-        workspaceBound = !folders.isEmpty();
     }
 
     synchronized void foldersChanged(DidChangeWorkspaceFoldersParams params) {

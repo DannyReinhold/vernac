@@ -16,7 +16,7 @@ class ExplicitTenancySymbolsTest {
     private VernacProjectDiagnostics project() throws Exception {
         Files.writeString(root.resolve("pom.xml"), "<project/>");
         var projects = new VernacProjectDiagnostics();
-        var params = new InitializeParams(); params.setRootUri(root.toUri().toString()); projects.initialize(params);
+        var params = new InitializeParams(); params.setWorkspaceFolders(List.of(new WorkspaceFolder(root.toUri().toString(), "test"))); projects.initialize(params);
         projects.connect(new LanguageClient() {
             public void telemetryEvent(Object o) {}
             public void publishDiagnostics(PublishDiagnosticsParams p) { messages.add(p); }

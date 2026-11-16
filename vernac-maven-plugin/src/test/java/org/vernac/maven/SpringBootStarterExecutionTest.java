@@ -52,6 +52,8 @@ class SpringBootStarterExecutionTest {
                         List.of(
                                 "--release",
                                 "21",
+                                "-Xlint:deprecation,removal",
+                                "-Werror",
                                 "-parameters",
                                 "-classpath",
                                 System.getProperty("java.class.path"),

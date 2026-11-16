@@ -63,7 +63,7 @@ public class InboundHttpExecutionTest {
         Path input=root.resolve("model/webdemo/model.vernac");Files.createDirectories(input.getParent());Files.writeString(input,model);
         Path java=root.resolve("java"),classes=Files.createDirectories(root.resolve("classes"));
         new VernacCompiler().compileProject(root.resolve("model")).writeTo(java);
-        var args=new ArrayList<>(List.of("--release","21","-proc:none","-classpath",System.getProperty("java.class.path"),"-d",classes.toString()));
+        var args=new ArrayList<>(List.of("--release","21","-Xlint:deprecation,removal","-Werror","-proc:none","-classpath",System.getProperty("java.class.path"),"-d",classes.toString()));
         try(var files=Files.walk(java)){files.filter(p->p.toString().endsWith(".java")).map(Path::toString).forEach(args::add);}
         assertEquals(0,ToolProvider.getSystemJavaCompiler().run(null,null,null,args.toArray(String[]::new)),"Generated controller, Result mappings and codecs must compile");
         return new URLClassLoader(new URL[]{classes.toUri().toURL()},getClass().getClassLoader());
@@ -75,7 +75,7 @@ public class InboundHttpExecutionTest {
         Class<?> controller=loader.loadClass("webdemo.adapter.inbound.http."+adapter);
         Object bean=controller.getConstructor(types.toArray(Class<?>[]::new)).newInstance(beans.toArray());
         Object advice=loader.loadClass("webdemo.adapter.inbound.http."+adapter+"Errors").getConstructor().newInstance();
-        return MockMvcBuilders.standaloneSetup(bean).setMessageConverters(new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter()).setControllerAdvice(advice).build();
+        return MockMvcBuilders.standaloneSetup(bean).setMessageConverters(Jackson2MvcTestSupport.converter()).setControllerAdvice(advice).build();
     }
     @Test void requestsRunTheUsecaseAndMapDeclaredResultsAndAbsence() throws Exception {
         try(var code=compile(MODEL)) {

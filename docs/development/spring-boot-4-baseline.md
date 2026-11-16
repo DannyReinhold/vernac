@@ -52,3 +52,19 @@ Primary upgrade references:
 - [Boot 4 migration](https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-4.0-Migration-Guide).
 - [Boot 4.1 upgrade notes](https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-4.1-Release-Notes).
 - [Jackson 2 compatibility and mapper selection](https://docs.spring.io/spring-boot/reference/features/json.html).
+
+
+## Deprecation boundaries in tests
+
+Use Spring 7's `isUnprocessableContent()` matcher for HTTP 422. The Jackson 2
+converter remains the explicit compatibility bridge for generated codecs. Its
+upstream removal warning is isolated in `Jackson2MvcTestSupport.converter()` and
+the standalone module sample's converter assertion, with a method-local `removal`
+exception. Keep HTTP/page/null-omission/input assertions intact; moving to Jackson 3
+requires its own codec migration and wire-compatibility tests. Do not suppress entire
+test classes or compiler warnings globally.
+
+LSP tests initialize through `workspaceFolders`. The server retains deprecated
+`rootUri`/`rootPath` wire fields solely in a documented fallback for older clients.
+`WorkspaceInitializationTest` verifies modern-folder precedence and both old formats
+through initialization JSON, without deprecated setters in ordinary test setup.

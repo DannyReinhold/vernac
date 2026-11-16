@@ -20,8 +20,8 @@ class DocumentationExamplesTest {
 
     @Test void diagramTutorialShowsTheActualGeneratedGraph() throws Exception {
         String document=Files.readString(Path.of("../docs/tutorials/domain-diagrams.md")).replace("\r\n","\n");
-        var model=Pattern.compile("```vernac\\n(.*?)```",Pattern.DOTALL).matcher(document);
-        var graph=Pattern.compile("```mermaid\\n(.*?)```",Pattern.DOTALL).matcher(document);
+        var model=Pattern.compile("```vernac\\R(.*?)```",Pattern.DOTALL).matcher(document);
+        var graph=Pattern.compile("```mermaid\\R(.*?)```",Pattern.DOTALL).matcher(document);
         assertTrue(model.find());assertTrue(graph.find());
         Path file=temporary.resolve("example/diagrams/model.vernac");Files.createDirectories(file.getParent());Files.writeString(file,model.group(1));
         var resolved=new VernacCompiler().analyzeProject(temporary);
@@ -30,12 +30,12 @@ class DocumentationExamplesTest {
 
     @Test void persistentModuleTutorialHasACompleteExportableProducerModel() throws Exception {
         String document=Files.readString(Path.of("../docs/tutorials/type-modules.md")).replace("\r\n","\n");
-        var blocks=Pattern.compile("```vernac\\n(.*?)```",Pattern.DOTALL).matcher(document);String model=null;
+        var blocks=Pattern.compile("```vernac\\R(.*?)```",Pattern.DOTALL).matcher(document);String model=null;
         while(blocks.find())model=blocks.group(1);
         assertNotNull(model);assertTrue(model.contains("namespace example.billing;"));
         Path root=temporary.resolve("persistent-module-doc"),source=root.resolve("example/billing/invoice.vernac");Files.createDirectories(source.getParent());Files.writeString(source,model);
         var compiler=new VernacCompiler();var resolved=compiler.analyzeProject(root);var generated=compiler.generate(resolved,org.vernac.compiler.persistence.SchemaModel.empty(),java.util.Map.of());
-        var manifests=Pattern.compile("```vernac-module\\n(.*?)```",Pattern.DOTALL).matcher(document);String manifest=null;
+        var manifests=Pattern.compile("```vernac-module\\R(.*?)```",Pattern.DOTALL).matcher(document);String manifest=null;
         while(manifests.find())manifest=manifests.group(1);
         assertNotNull(manifest);
         var descriptor=org.vernac.compiler.modules.ModuleContracts.publish(org.vernac.compiler.modules.ModuleDefinition.parse(root.resolve("vernac-module.vmodule"),manifest),resolved,generated.generatedFiles(),"example","billing","1",List.of());
@@ -43,11 +43,19 @@ class DocumentationExamplesTest {
     }
 
     @Test void persistentTenantModuleTutorialCompilesBothProjectsAndGeneratedActivation() throws Exception {
-        String document = Files.readString(Path.of("../docs/tutorials/tenant-modules.md"));
-        var models = Pattern.compile("```vernac\\n(.*?)```", Pattern.DOTALL).matcher(document);
+        verifyPersistentTenantModuleTutorialCompilesBothProjectsAndGeneratedActivation("\n");
+    }
+
+    @Test void persistentTenantModuleTutorialCompilesBothProjectsAndGeneratedActivationWithWindowsLineEndings() throws Exception {
+        verifyPersistentTenantModuleTutorialCompilesBothProjectsAndGeneratedActivation("\r\n");
+    }
+
+    private void verifyPersistentTenantModuleTutorialCompilesBothProjectsAndGeneratedActivation(String newline) throws Exception {
+        String document = readWithLineEndings(Path.of("../docs/tutorials/tenant-modules.md"), newline);
+        var models = Pattern.compile("```vernac\\R(.*?)```", Pattern.DOTALL).matcher(document);
         assertTrue(models.find()); Path producer = writeModel("tenant-producer", models.group(1));
         assertTrue(models.find()); Path consumer = writeModel("tenant-consumer", models.group(1));
-        var manifests = Pattern.compile("```vernac-module\\n(.*?)```", Pattern.DOTALL).matcher(document);
+        var manifests = Pattern.compile("```vernac-module\\R(.*?)```", Pattern.DOTALL).matcher(document);
         assertTrue(manifests.find()); Path manifest = producer.resolve("vernac-module.vmodule");
         Files.writeString(manifest, manifests.group(1));
         var compiler = new VernacCompiler(); var resolved = compiler.analyzeProject(producer);
@@ -56,7 +64,7 @@ class DocumentationExamplesTest {
                 org.vernac.compiler.modules.ModuleDefinition.parse(manifest, manifests.group(1)), resolved,
                 generated.generatedFiles(), "org.example", "billing-domain", "1.0.0", List.of());
         assertTrue(module.persistent());
-        var applications = Pattern.compile("```vernac-application\\n(.*?)```", Pattern.DOTALL).matcher(document);
+        var applications = Pattern.compile("```vernac-application\\R(.*?)```", Pattern.DOTALL).matcher(document);
         assertTrue(applications.find()); Path application = consumer.resolve("vernac-application.vapplication");
         Files.writeString(application, applications.group(1));
         var appModel = compiler.analyzeProject(consumer, List.of(module));
@@ -76,11 +84,19 @@ class DocumentationExamplesTest {
     }
 
     @Test void authorizationModuleTutorialRetainsRequirementsAcrossPublicationAndActivation() throws Exception {
-        String document=Files.readString(Path.of("../docs/tutorials/module-authorization.md"));
-        var models=Pattern.compile("```vernac\\n(.*?)```",Pattern.DOTALL).matcher(document);
+        verifyAuthorizationModuleTutorialRetainsRequirementsAcrossPublicationAndActivation("\n");
+    }
+
+    @Test void authorizationModuleTutorialRetainsRequirementsAcrossPublicationAndActivationWithWindowsLineEndings() throws Exception {
+        verifyAuthorizationModuleTutorialRetainsRequirementsAcrossPublicationAndActivation("\r\n");
+    }
+
+    private void verifyAuthorizationModuleTutorialRetainsRequirementsAcrossPublicationAndActivation(String newline) throws Exception {
+        String document=readWithLineEndings(Path.of("../docs/tutorials/module-authorization.md"), newline);
+        var models=Pattern.compile("```vernac\\R(.*?)```",Pattern.DOTALL).matcher(document);
         assertTrue(models.find());Path producer=writeModel("auth-producer",models.group(1));
         assertTrue(models.find());Path consumer=writeModel("auth-consumer",models.group(1));
-        var manifests=Pattern.compile("```vernac-module\\n(.*?)```",Pattern.DOTALL).matcher(document);
+        var manifests=Pattern.compile("```vernac-module\\R(.*?)```",Pattern.DOTALL).matcher(document);
         assertTrue(manifests.find());Path manifest=producer.resolve("vernac-module.vmodule");
         var compiler=new VernacCompiler();var resolved=compiler.analyzeProject(producer);
         var generated=compiler.generate(resolved,org.vernac.compiler.persistence.SchemaModel.empty(),java.util.Map.of());
@@ -88,7 +104,7 @@ class DocumentationExamplesTest {
                 org.vernac.compiler.modules.ModuleDefinition.parse(manifest,manifests.group(1)),resolved,generated.generatedFiles(),"example","invoice-library","1",List.of());
         assertEquals("ALL",module.usecaseAccess().getFirst().requirement().mode());
         var appModel=compiler.analyzeProject(consumer,List.of(module));
-        var applications=Pattern.compile("```vernac-application\\n(.*?)```",Pattern.DOTALL).matcher(document);assertTrue(applications.find());
+        var applications=Pattern.compile("```vernac-application\\R(.*?)```",Pattern.DOTALL).matcher(document);assertTrue(applications.find());
         var app=org.vernac.compiler.application.ApplicationDefinition.parse(consumer.resolve("vernac-application.vapplication"),applications.group(1));
         var appFiles=org.vernac.compiler.application.ApplicationBindings.generate(app,appModel,List.of(module),
                 compiler.generate(appModel,org.vernac.compiler.persistence.SchemaModel.empty(),java.util.Map.of()).generatedFiles(),false);
@@ -101,6 +117,11 @@ class DocumentationExamplesTest {
         assertEquals(0,ToolProvider.getSystemJavaCompiler().run(null,null,null,arguments.toArray(String[]::new)));
     }
 
+    private static String readWithLineEndings(Path file, String newline) throws Exception {
+        return Files.readString(file).replace("\r\n", "\n").replace("\r", "\n")
+                .replace("\n", newline);
+    }
+
     private Path writeModel(String folder, String model) throws Exception {
         var namespace = Pattern.compile("namespace ([\\p{L}\\p{N}_.]+);").matcher(model);
         assertTrue(namespace.find());
@@ -111,12 +132,20 @@ class DocumentationExamplesTest {
     }
 
     @Test void tenantModuleTutorialPreservesEntityOwnership() throws Exception {
-        String document = Files.readString(Path.of("../docs/tutorials/tenant-persistence.md"));
-        var blocks = Pattern.compile("```vernac\\n(.*?)```", Pattern.DOTALL).matcher(document);
+        verifyTenantModuleTutorialPreservesEntityOwnership("\n");
+    }
+
+    @Test void tenantModuleTutorialPreservesEntityOwnershipWithWindowsLineEndings() throws Exception {
+        verifyTenantModuleTutorialPreservesEntityOwnership("\r\n");
+    }
+
+    private void verifyTenantModuleTutorialPreservesEntityOwnership(String newline) throws Exception {
+        String document = readWithLineEndings(Path.of("../docs/tutorials/tenant-persistence.md"), newline);
+        var blocks = Pattern.compile("```vernac\\R(.*?)```", Pattern.DOTALL).matcher(document);
         assertTrue(blocks.find()); // Local introductory model.
         assertTrue(blocks.find()); String producer = blocks.group(1);
         assertTrue(blocks.find()); String consumer = blocks.group(1);
-        var manifest = Pattern.compile("```vernac-module\\n(.*?)```", Pattern.DOTALL).matcher(document);
+        var manifest = Pattern.compile("```vernac-module\\R(.*?)```", Pattern.DOTALL).matcher(document);
         assertTrue(manifest.find());
         Path source = temporary.resolve("producer/example/contacts/model.vernac");
         Files.createDirectories(source.getParent()); Files.writeString(source, producer);
@@ -139,7 +168,7 @@ class DocumentationExamplesTest {
                 "your-first-domain-model", "tenant-persistence", "tenant-modules", "what-is-ddd", "ddd-for-small-projects", "adapter-mappings", "inbound-http", "inbound-mvc", "pagination")) {
             String document = Files.readString(Path.of("../docs/tutorials/" + name + ".md"))
                     .replace("\r\n", "\n");
-            var block = Pattern.compile("```vernac\\n(.*?)```", Pattern.DOTALL).matcher(document);
+            var block = Pattern.compile("```vernac\\R(.*?)```", Pattern.DOTALL).matcher(document);
             assertTrue(block.find(), name + " needs a complete introductory model");
             String model = block.group(1);
             var namespace = Pattern.compile("namespace ([\\p{L}\\p{N}_.]+);").matcher(model);
@@ -154,7 +183,7 @@ class DocumentationExamplesTest {
 
     @Test void paginationTutorialGeneratesCompilableJava() throws Exception {
         String document = Files.readString(Path.of("../docs/tutorials/pagination.md")).replace("\r\n", "\n");
-        var block = Pattern.compile("```vernac\\n(.*?)```", Pattern.DOTALL).matcher(document);
+        var block = Pattern.compile("```vernac\\R(.*?)```", Pattern.DOTALL).matcher(document);
         assertTrue(block.find());
         Path root = temporary.resolve("pagination-model");
         Path file = root.resolve("example/paging/names.vernac");
@@ -194,7 +223,7 @@ class DocumentationExamplesTest {
     @Test void aiReferenceExamplesCompileTogetherIncludingHandwrittenJava() throws Exception {
         String document = Files.readString(Path.of("../docs/ai-language-reference.md")).replace("\r\n", "\n");
         Path root = temporary.resolve("ai-model");
-        var blocks = Pattern.compile("```vernac\\n(.*?)```", Pattern.DOTALL).matcher(document);
+        var blocks = Pattern.compile("```vernac\\R(.*?)```", Pattern.DOTALL).matcher(document);
         int count = 0;
         while (blocks.find()) {
             String model = blocks.group(1);
@@ -207,7 +236,7 @@ class DocumentationExamplesTest {
         assertTrue(count > 0, "AI reference must contain examples");
         Path sources = temporary.resolve("ai-java");
         new VernacCompiler().compileProject(root).writeTo(sources);
-        var java = Pattern.compile("```java\\n(.*?)```", Pattern.DOTALL).matcher(document);
+        var java = Pattern.compile("```java\\R(.*?)```", Pattern.DOTALL).matcher(document);
         while (java.find()) {
             String source = java.group(1);
             var packageName = Pattern.compile("package ([\\p{L}\\p{N}_.]+);").matcher(source);
@@ -232,7 +261,7 @@ class DocumentationExamplesTest {
         for (String name : List.of("what-is-ddd", "ddd-for-small-projects")) {
             String document = Files.readString(Path.of("../docs/tutorials/" + name + ".md"))
                     .replace("\r\n", "\n");
-            var block = Pattern.compile("```vernac\\n(.*?)```", Pattern.DOTALL).matcher(document);
+            var block = Pattern.compile("```vernac\\R(.*?)```", Pattern.DOTALL).matcher(document);
             assertTrue(block.find(), name + " needs its complete example");
             Path root = temporary.resolve(name + "-java");
             Path model = root.resolve("vernac/example/tasks/model.vernac");
@@ -257,7 +286,7 @@ class DocumentationExamplesTest {
         for (String page : List.of("README.md", "docs/index.md",
                 "docs/tutorials/from-model-to-application.md")) {
             String document = Files.readString(Path.of("..").resolve(page)).replace("\r\n", "\n");
-            var match = Pattern.compile("```vernac\\n(.*?)```", Pattern.DOTALL).matcher(document);
+            var match = Pattern.compile("```vernac\\R(.*?)```", Pattern.DOTALL).matcher(document);
             assertTrue(match.find(), page + " needs its complete model");
             String model = match.group(1);
             if (expected == null) expected = model;

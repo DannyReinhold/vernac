@@ -60,3 +60,23 @@ For a later version, keep this fixture unchanged. Extend the harness's accepted 
 metadata and registry and add a newly captured fixture plus explicit expectations for
 new capabilities. Required data transformations belong to versioned migrations/steps;
 intermediate application starts are not an implicit migration mechanism.
+
+## Two clocks in the session fixture
+
+Business time is controlled by the acceptance clock. Spring Session JDBC uses the
+real wall clock and its 30-minute inactivity timeout independently. A versioned dump
+therefore cannot retain immediately usable sessions forever without an explicit
+fixture-time translation.
+
+After restoring into the disposable database, **before application startup**, the test
+harness shifts only JDBC session creation/access/expiry timestamps by one common offset.
+The most recent saved access is the fixture's wall-clock origin; relative session ages,
+inactivity intervals and authentication attributes remain intact. Neither the stored
+dump nor production session behavior changes. No application migrations, financial
+facts, business timestamps, rights, principals or session cookies are repaired.
+
+Before that translation, the harness seeds a deliberately expired session with
+retained authentication attributes. U01 presents it and requires HTTP 401, while all valid restored sessions must return 200,
+including after restart. This guards against making every session indefinitely valid.
+Thus valid-session continuity is tested at a reproducible fixture time, rather than
+claiming that an honestly expired real session should survive an arbitrary elapsed wait.

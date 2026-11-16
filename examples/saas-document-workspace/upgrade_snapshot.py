@@ -91,3 +91,51 @@ def capture(directory, database, credentials, username, runtime, expected):
     except Exception:
         # Failed capture is not a usable baseline; caller must inspect/remove explicitly.
         raise
+
+
+def rebase_test_sessions(database, credentials, username):
+    """Translate the synthetic JDBC-session wall clock only, before application startup.
+
+    Spring Session uses the system clock, independently of the controlled business
+    clock. Retain relative session ages and inactivity intervals; never extend TTLs
+    or change authentication attributes. The checked-in dump remains immutable.
+    """
+    import time
+    import uuid
+
+    def sql(statement):
+        return subprocess.run(['psql', '-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1',
+                               '-d', database, '-U', username, '-c', statement],
+                              env=credentials, check=True, capture_output=True, text=True).stdout
+
+    reference = json.loads(sql('SELECT json_build_object(\'reference\',max(last_access_time)) '
+                               'FROM identity_sessions.spring_session'))['reference']
+    if reference is None:
+        raise ValueError('Upgrade baseline has no JDBC sessions')
+    now = time.time_ns() // 1_000_000
+    reference = int(reference)
+    delta = now - reference
+    primary, session = str(uuid.uuid4()), str(uuid.uuid4())
+    # Seed the expired negative control BEFORE translating time, so it must remain
+    # expired through the same translation as the valid baseline sessions.
+    # IDs are generated UUID literals, not fixture-provided SQL. All work is confined
+    # to the new disposable database, before the application/migration connection opens.
+    sql(f'''BEGIN;
+        INSERT INTO identity_sessions.spring_session
+            (primary_id,session_id,creation_time,last_access_time,max_inactive_interval,expiry_time,principal_name)
+        SELECT '{primary}','{session}',{reference}-max_inactive_interval*1000-60000,
+               {reference}-max_inactive_interval*1000-60000,max_inactive_interval,{reference}-60000,principal_name
+          FROM identity_sessions.spring_session ORDER BY last_access_time DESC,primary_id LIMIT 1;
+        INSERT INTO identity_sessions.spring_session_attributes
+            (session_primary_id,attribute_name,attribute_bytes)
+        SELECT '{primary}',attribute_name,attribute_bytes
+          FROM identity_sessions.spring_session_attributes
+         WHERE session_primary_id=(SELECT primary_id FROM identity_sessions.spring_session
+                                    WHERE primary_id<>'{primary}'
+                                    ORDER BY last_access_time DESC,primary_id LIMIT 1);
+        UPDATE identity_sessions.spring_session
+           SET creation_time=creation_time+({delta}),
+               last_access_time=last_access_time+({delta}),
+               expiry_time=expiry_time+({delta});
+        COMMIT;''')
+    return {'expiredSession': session}

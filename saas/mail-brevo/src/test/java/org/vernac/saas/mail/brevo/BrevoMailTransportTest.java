@@ -32,10 +32,10 @@ class BrevoMailTransportTest {
   });var provider=new BrevoMailTransport("synthetic-key-not-real","sender@example.test",server.uri(),CLOCK,Duration.ofSeconds(2))) {
    var mail=message();var outcome=provider.submit(mail);assertEquals(MailAcceptance.ACCEPTED,outcome.acceptance());
    var json=JsonMapper.builder().build().readTree(captured.get());
-   assertEquals("sender@example.test",json.at("/sender/email").asText());assertEquals(1,json.get("to").size());
-   assertEquals(mail.recipient().encoded(),json.at("/to/0/email").asText());
-   assertEquals(mail.text().text(),json.get("textContent").asText());assertEquals(mail.html().text(),json.get("htmlContent").asText());
-   assertEquals(mail.correlation().value().toString(),json.at("/headers/X-Vernac-Correlation").asText());
+   assertEquals("sender@example.test",json.at("/sender/email").asString());assertEquals(1,json.get("to").size());
+   assertEquals(mail.recipient().encoded(),json.at("/to/0/email").asString());
+   assertEquals(mail.text().text(),json.get("textContent").asString());assertEquals(mail.html().text(),json.get("htmlContent").asString());
+   assertEquals(mail.correlation().value().toString(),json.at("/headers/X-Vernac-Correlation").asString());
    assertEquals("synthetic-key-not-real",header.get());assertFalse(outcome.toString().contains("synthetic-provider-secret"));
    assertEquals("BrevoMailTransport[REDACTED]",provider.toString());
   }

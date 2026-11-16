@@ -52,6 +52,15 @@ if(capturing){
   try{
    expect(await app.facts()).toEqual(expected.facts);
    for(const user of Object.values(users))expect((await user.context.request.get('/auth/accounts')).status()).toBe(200);
+   // A portable valid-session fixture must not make an actually expired session valid.
+   expect(app.expiredSession).toMatch(/^[0-9a-f-]{36}$/);app.secrets.push(app.expiredSession);
+   const expired=await browser.newContext({baseURL:app.origin,ignoreHTTPSErrors:true});
+   try{
+    const cookie=expected.users.owner.storage.cookies.find(c=>c.name==='__Host-VERNACSESSION');
+    await expired.addCookies([{...cookie,value:app.expiredSession}]);
+    expect((await expired.request.get('/auth/accounts')).status()).toBe(401);
+   }finally{await expired.close();}
+
    const {owner,member}=users;await owner.page.goto('/workspace');
    expect(await owner.page.locator('form[action="/documents/delete"]').count()).toBe(4);
    await expect(owner.page.getByText('Unicode äöü — 你好',{exact:true})).toBeVisible();
@@ -68,6 +77,7 @@ if(capturing){
    expect((await post(member.context,member.page,'/documents/create',{title:'Forbidden',text:'Reader'})).status()).toBe(403);
    expect((await member.context.request.get('/billing/accounts/'+expected.organization)).status()).toBe(403);
    await app.history();await app.restart();await app.history();
+   for(const user of Object.values(users))expect((await user.context.request.get('/auth/accounts')).status()).toBe(200);
    expect(await app.facts()).toEqual(expected.facts);
    for(const [id,hashes] of Object.entries(expected.invoices))expect(await bytes(owner,id)).toEqual(hashes);
   }finally{for(const user of Object.values(users))await user.context.close();}

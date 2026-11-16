@@ -42,6 +42,8 @@ first. Examples under `examples/` are standalone projects; follow their READMEs.
 PostgreSQL integration tests require an explicitly configured disposable server.
 Consult the [AI tools reference](docs/ai-tools-reference.md) for test environment
 variables and build/schema commands. A skipped database test is not a passing test.
+See [local testing and skipped cases](docs/development/local-testing.md) for the
+PowerShell/PostgreSQL setup, test phases and separate browser suites.
 Never point destructive test tooling at an application or production database.
 
 Run checks appropriate to your change and report exactly what ran, failed or was

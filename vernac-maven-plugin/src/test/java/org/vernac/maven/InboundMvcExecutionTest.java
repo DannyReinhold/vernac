@@ -169,6 +169,8 @@ class InboundMvcExecutionTest {
                         List.of(
                                 "--release",
                                 "21",
+                                "-Xlint:deprecation,removal",
+                                "-Werror",
                                 "-g",
                                 "-parameters",
                                 "-classpath",
@@ -365,7 +367,7 @@ class InboundMvcExecutionTest {
                                             .param("note", "keep this")
                                             .param("undeclared", "PRIVATE_EXTRA")
                                             .header("Authorization", "PRIVATE_AUTH"))
-                            .andExpect(status().isUnprocessableEntity())
+                            .andExpect(status().isUnprocessableContent())
                             .andExpect(view().name("board"))
                             .andReturn();
             assertEquals("FORM_VALIDATION", error(result).code());
