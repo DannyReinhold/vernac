@@ -9,6 +9,7 @@ on:
       - '.github/workflows/saas-application.yml'
       - 'tests/upgrades/**'
       - 'tools/verify-upgrades.py'
+      - 'tools/pg-service-clients.sh'
       - 'tools/tests/test_upgrade_baseline.py'
   workflow_dispatch:
 permissions:
@@ -31,6 +32,7 @@ jobs:
           --health-interval 2s --health-timeout 3s --health-retries 30
     env:
       VERNAC_PG_TEST_URL: jdbc:postgresql://localhost:5432/postgres
+      VERNAC_PG_CONTAINER: ${{ job.services.postgres.id }}
       VERNAC_PG_TEST_USER: vernac
       VERNAC_PG_TEST_PASSWORD: ephemeral-saas-only
     steps:
@@ -45,6 +47,9 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
+      - name: Use matching PostgreSQL service clients
+        run: sh tools/pg-service-clients.sh
+
       - name: Install matching producers and compiler
         run: mvn -B -ntp -pl saas/billing-spring-mvc,saas/invoicing-pdf,saas/restrictions,saas/payments-mollie,saas/payments-stripe,saas/identity-jdbc,saas/mail-local,saas/mail-brevo -am -DskipTests install
       - name: Verify billing escaping and identity composition
