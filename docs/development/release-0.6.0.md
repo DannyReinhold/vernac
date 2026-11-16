@@ -12,6 +12,16 @@ The [SaaS plan](saas-0.6.0-plan.md) defines the outcome. No row below is complet
 because this planning document exists. Required extension artifacts are part of the
 acceptance boundary even if they have their own versions or repositories.
 
+## Binding upgrade scope — 16 November 2026
+
+By explicit maintainer decision, **0.6.0 is the first supported upgrade baseline**.
+No historical 0.5.x upgrade evidence is required. Earlier upgrade requirements below
+are superseded only for that unsupported predecessor boundary. For 0.6.0, require fresh
+installation, populated restart and the captured/restored 0.6.0 baseline; freeze it
+from the approved release build. Later releases must test every supported frozen baseline.
+The [mandatory policy](upgrade-policy.md) requires all necessary data transformations
+to be versioned, resumable and automatically tested; no implicit intermediate app starts.
+
 ## Identity/Auth scope update — 15 November 2026
 
 The [final Identity/Auth record](identity-auth-acceptance-0.6.0.md) supplies accepted
@@ -131,7 +141,7 @@ their broader whole-release gates; partial identity evidence does not verify the
 | A10 | Customer invoicing | Agreed seller/tax scope, calculation/rounding, concurrent unique numbering, immutable issue, PDF/agreed formats, customer access, correction and payment linkage | OPEN / none |
 | A11 | System email | Verification/recovery/invite/billing templates, durable dispatch, retries/failures, duplicate handling, local inbox and agreed real-provider check | IN PROGRESS / identity portion evidenced in [the scoped record](identity-auth-acceptance-0.6.0.md); broader gate remains OPEN |
 | A12 | Reusable UI and customization | Registration through cancellation/invoice download, useful denials/upgrade guidance, no UI-only authorization, account isolation | IN PROGRESS / identity portion evidenced in [the scoped record](identity-auth-acceptance-0.6.0.md); broader gate remains OPEN |
-| A13 | Modules and migrations | Separate published-like consumers, exports/activation/provider profiles, fresh install and upgrade with existing subscriptions/invoices, ownership/history checks | OPEN / none |
+| A13 | Modules and migrations | Separate published-like consumers, exports/activation/provider profiles, fresh install, populated restart and 0.6.0 baseline capture/restore; upgrades from 0.6.0 required in later releases, ownership/history checks | OPEN / none |
 | A14 | Deployable complete sample | Clean-machine local start without production secrets; deployment configuration, persistent restart, health/logging and recovery walkthrough | IN PROGRESS / identity portion evidenced in [the scoped record](identity-auth-acceptance-0.6.0.md); broader gate remains OPEN |
 | A15 | Language/tooling/documentation completeness | Parser/analyzer/generator consistency, live Java APIs, module metadata, LSP/IDE completion/navigation/diagnostics, compiled reference/AI examples, tutorials/FAQ | OPEN / none |
 | A16 | Release distribution integrity | Exact-commit dry run, required test execution, actual packaged ZIP verification, supported-IDE smoke, Maven/extension fresh consumption and Marketplace approval | OPEN / none |
@@ -162,7 +172,7 @@ local providers; add sandbox evidence for the agreed real adapters separately.
   price and existing-customer policy; correct entitlements/limits and invoice effects.
 - **J06 Restrictions under load:** concurrent last-slot allocation, dynamic counts,
   time-period rollover, nested usecases and local rollback versus external consumption.
-- **J07 Restart/upgrade:** preserve customers/subscriptions/issued invoices, replay
+- **J07 Restart/upgrade (support starts at 0.6.0):** preserve customers/subscriptions/issued invoices, replay
   application and module migrations, recover durable email/payment/reservation work.
 - **J08 Developer adoption:** new independent app → module dependencies/activation →
   provider configuration → usable UI/deployment; no edits to generated files or

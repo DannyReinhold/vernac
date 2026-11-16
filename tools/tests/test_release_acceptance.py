@@ -16,6 +16,14 @@ class AcceptanceTests(unittest.TestCase):
    if suite=='SaaSScenarios':
     p.write_text('<testsuite name="SaaSScenarios" tests="29" failures="0" errors="0" skipped="0">'+''.join(f'<testcase name="E{i:02} S{(i-1)%20+1:02} fixture"/>' for i in range(1,30))+'</testsuite>')
    self.bundle['evidence']['suite-'+suite]={'kind':'junit','status':'PASSED','source_sha':self.sha,'file':str(p.relative_to(self.root)),'sha256':release.digest(p)}
+  self.file('tests/upgrades/registry.json',json.dumps({'minimum_supported':'0.6.0','baselines':['0.6.0']}))
+  paths={name:self.file('tests/upgrades/0.6.0/'+name,'synthetic-fixture') for name in ['database.sql','expectations.json','test-runtime.json']}
+  migration=self.file('fixture/migration.sql','fixture migration')
+  manifest={'version':'0.6.0','state':'FROZEN','synthetic_only':True,'files':{name:release.digest(path) for name,path in paths.items()},'migration_files':{'fixture/migration.sql':release.digest(migration)}}
+  mp=self.file('tests/upgrades/0.6.0/manifest.json',json.dumps(manifest))
+  record=self.bundle['evidence']['suite-UpgradeBaseline'];up=self.root/record['file']
+  up.write_text('<testsuite name="UpgradeBaseline" tests="2" failures="0" errors="0" skipped="0"><properties><property name="baseline.0.6.0" value="'+release.digest(mp)+'"/></properties><testcase name="0.6.0 U01 data"/><testcase name="0.6.0 U02 pending"/></testsuite>')
+  record['sha256']=release.digest(up)
   for module in set(release.published_modules('0.6.0'))|{'vernac-intellij'}:
    filename='vernac-intellij-0.6.0-plugin.zip' if module=='vernac-intellij' else '.flattened-pom.xml' if module=='vernac' else module+'-0.6.0.jar'
    p=self.file('artifacts/'+module+'/'+filename,'fixture-artifact-'+module)
@@ -83,5 +91,18 @@ class AcceptanceTests(unittest.TestCase):
    path.write_text(changed);record['sha256']=release.digest(path)
    with self.assertRaisesRegex(ValueError,'SaaS'):self.validate()
   path.write_text(good)
+
+ def test_upgrade_gate_rejects_candidate_stale_or_missing_cases(self):
+  mp=self.root/'tests/upgrades/0.6.0/manifest.json';original=mp.read_text()
+  manifest=json.loads(original);manifest['state']='CANDIDATE';mp.write_text(json.dumps(manifest))
+  with self.assertRaisesRegex(ValueError,'frozen baseline'):self.validate()
+  mp.write_text(original)
+  record=self.bundle['evidence']['suite-UpgradeBaseline'];path=self.root/record['file'];good=path.read_text()
+  for invalid in (good.replace('U02 pending','U01 pending'),good.replace('tests="2"','tests="0"')):
+   path.write_text(invalid);record['sha256']=release.digest(path)
+   with self.assertRaisesRegex(ValueError,'UpgradeBaseline'):self.validate()
+  path.write_text(good);record['sha256']=release.digest(path)
+  self.file('tests/upgrades/0.6.0/database.sql','changed')
+  with self.assertRaisesRegex(ValueError,'Baseline file changed'):self.validate()
 
 if __name__=='__main__':unittest.main()

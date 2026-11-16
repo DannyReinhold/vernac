@@ -48,12 +48,20 @@ Run checks appropriate to your change and report exactly what ran, failed or was
 skipped. IDE changes also need acceptance with the packaged plugin in IntelliJ;
 headless PSI tests do not establish that completion popups or debugger UI work.
 
+## Persistent state and upgrade compatibility
+
+The [mandatory upgrade policy](docs/development/upgrade-policy.md) applies to every
+persistence change. Necessary schema/data transformations MUST be versioned migrations
+or explicit versioned, resumable upgrade steps with automated tests. Never rely on
+intermediate application starts or manual data repairs. Upgrade support starts at 0.6.0;
+released migrations and frozen version fixtures are immutable.
+
 ## Submit a pull request
 
 Explain the problem, resulting behavior and validation. Add meaningful regression
 coverage for behavior changes. Update documentation alongside code: specification
 and contracts, tutorials/examples, AI references and plugin What's New where relevant.
-Keep generated artifacts, local configuration, experimental migrations and secrets
+Keep generated artifacts (except reviewed synthetic versioned upgrade fixtures), local configuration, experimental migrations and secrets
 out of the change. Review migration candidates before applying or committing them;
 their generation does not establish deployment safety.
 

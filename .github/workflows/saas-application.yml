@@ -7,6 +7,10 @@ on:
       - 'vernac-runtime-jdbc/**'
       - 'vernac-compiler/**'
       - '.github/workflows/saas-application.yml'
+      - 'tests/upgrades/**'
+      - 'tools/verify-upgrades.py'
+      - 'tools/pg-service-clients.sh'
+      - 'tools/tests/test_upgrade_baseline.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -42,6 +46,13 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
+      - name: Use matching PostgreSQL service clients
+        env:
+          VERNAC_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          echo "VERNAC_PG_CONTAINER=$VERNAC_PG_CONTAINER" >> "$GITHUB_ENV"
+          sh tools/pg-service-clients.sh
+
       - name: Install matching producers and compiler
         run: mvn -B -ntp -pl saas/billing-spring-mvc,saas/invoicing-pdf,saas/restrictions,saas/payments-mollie,saas/payments-stripe,saas/identity-jdbc,saas/mail-local,saas/mail-brevo -am -DskipTests install
       - name: Verify billing escaping and identity composition
@@ -65,10 +76,16 @@ jobs:
         run: python3 -m unittest discover -s examples/saas-document-workspace -p test_acceptance_gate.py
       - name: Execute restricted PostgreSQL and HTTPS browser journeys
         run: python3 examples/saas-document-workspace/verify.py
+      - name: Verify every versioned upgrade baseline
+        run: |
+          python3 -m unittest discover -s tools/tests -p test_upgrade_baseline.py
+          python3 tools/verify-upgrades.py
       - name: Publish sanitized scenario evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: saas-scenario-evidence
-          path: examples/saas-document-workspace/target/acceptance-reports/
+          path: |
+            examples/saas-document-workspace/target/acceptance-reports/
+            examples/saas-document-workspace/target/upgrade-reports/
           if-no-files-found: error

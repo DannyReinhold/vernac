@@ -101,3 +101,13 @@ AI reference, tutorials/examples, relevant FAQs, diagnostics/tooling and plugin
 What's New. Update each affected location or record why it is unaffected. Planned
 syntax MUST be labelled planned; runtime-only support MUST NOT be advertised as
 compiler or IDE support. Existing entry-point examples must remain synchronized.
+
+
+## Mandatory upgrade compatibility
+
+Follow the [binding upgrade policy](upgrade-policy.md). Starting with 0.6.0, all necessary
+schema and data transformations MUST be versioned migrations or explicit versioned,
+resumable and automatically tested upgrade steps. No implicit intermediate application
+starts or manual repairs. Preserve historical migrations and frozen baselines. Run
+`python3 tools/verify-upgrades.py`; retain the `UpgradeBaseline` report for release.
+Final release approval requires frozen baseline evidence from the approved build.

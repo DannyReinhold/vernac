@@ -147,5 +147,17 @@ The release gate now requires SaaSScenarios and checks its exact E01–E29 ident
 case count and all S01–S20 tags. Duplicate/missing cases and false aggregate-green
 reports are rejected. Local upgrade evidence remains limited to a restart/Flyway
 replay of this build against populated data; it is not historical-version upgrade
-acceptance. Real Mollie/Stripe/Brevo, fiscal/archive review, installed IDE and final
+acceptance. Under the subsequent maintainer decision, historical pre-0.6.0 upgrades
+are outside supported scope; see the [mandatory upgrade policy](upgrade-policy.md). Real Mollie/Stripe/Brevo, fiscal/archive review, installed IDE and final
 source/artifact approval remain separate release requirements.
+
+
+## Upgrade support decision — 16 November 2026
+
+0.6.0 is the first supported baseline. A missing 0.5.x upgrade test is no longer a
+release blocker. The candidate snapshot, automatic restore and post-restore business
+checks are the initial baseline work; final release still requires freezing a fixture
+from the approved build and retaining its source/artifact evidence. `UpgradeBaseline`
+is a required suite. Later versions must test direct migration from every supported
+frozen baseline, with explicit versioned data steps where needed. See the binding
+[upgrade policy](upgrade-policy.md); same-version restoration is not historical proof.

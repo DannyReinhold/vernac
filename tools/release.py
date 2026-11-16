@@ -145,7 +145,7 @@ REQUIRED_TESTS += ("SubscriptionDomainTest", "SubscriptionPostgresIT", "Restrict
                    "PaymentContractsTest", "MolliePaymentsTest", "StripePaymentsTest", "LocalPaymentsPostgresIT",
                    "PaymentFlowPostgresIT", "DomesticTaxTest", "ZugferdDocumentsTest", "InvoiceFlowPostgresIT",
                    "BillingPagesTest", "VernacSaasTemplateTest", "JdbcRootQueryTest",
-                   "RepositoryBindingTest", "TenantGeneratedPostgresTest", "SaaSScenarios")
+                   "RepositoryBindingTest", "TenantGeneratedPostgresTest", "SaaSScenarios", "UpgradeBaseline")
 ACCEPTANCE_IDS = tuple(f"A{i:02}" for i in range(1, 24)) + tuple(f"J{i:02}" for i in range(1, 10))
 DECISION_IDS = tuple(f"D{i:02}" for i in range(1, 15))
 
@@ -160,6 +160,39 @@ def validate_saas_scenarios(suite):
             "Incomplete or duplicate SaaS scenarios.")
     require({case for row in cases for case in re.findall(r"\bS\d{2}\b", row.get("name", ""))}
             == {f"S{i:02}" for i in range(1, 21)}, "Missing SaaS usecase coverage.")
+
+
+def validate_upgrade_baseline(suite, root):
+    if suite.get("name", "").split(".")[-1] != "UpgradeBaseline":
+        return
+    registry = json.loads((root / "tests/upgrades/registry.json").read_text())
+    versions = registry.get("baselines", [])
+    require(registry.get("minimum_supported") == "0.6.0" and versions
+            and "0.6.0" in versions and len(set(versions)) == len(versions), "Invalid upgrade registry.")
+    cases = suite.findall("testcase")
+    names = [" ".join(case.get("name", "").split()[:2]) for case in cases]
+    require(len(names) == 2*len(versions) and int(suite.get("tests", "0")) == len(names)
+            and set(names) == {v+" "+u for v in versions for u in ("U01", "U02")},
+            "Incomplete or duplicate UpgradeBaseline scenarios.")
+    properties = {p.get("name"): p.get("value") for p in suite.findall("properties/property")}
+    for version in versions:
+        require(isinstance(version, str) and re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version), "Unsafe baseline version.")
+        directory = root / "tests/upgrades" / version
+        manifest_file = directory / "manifest.json"
+        require(not manifest_file.is_symlink() and manifest_file.resolve().is_relative_to(root), "Unsafe baseline manifest.")
+        manifest = json.loads(manifest_file.read_text())
+        require(manifest.get("version") == version and manifest.get("state") == "FROZEN"
+                and manifest.get("synthetic_only") is True
+                and properties.get("baseline."+version) == digest(manifest_file), "Missing frozen baseline evidence.")
+        require(set(manifest.get("files", {})) == {"database.sql", "expectations.json", "test-runtime.json"}, "Incomplete baseline files.")
+        for name, expected in manifest["files"].items():
+            path = directory / name
+            require(not path.is_symlink() and path.resolve().is_relative_to(root) and path.is_file() and digest(path) == expected, "Baseline file changed.")
+        require(manifest.get("migration_files"), "Missing baseline migration inventory.")
+        for name, expected in manifest["migration_files"].items():
+            path = root / name
+            require(not path.is_symlink() and path.resolve().is_relative_to(root) and path.is_file()
+                    and digest(path) == expected, "Historical baseline migration changed.")
 
 
 def acceptance(bundle_file, release, source_sha, root=Path(".")):
@@ -194,6 +227,7 @@ def acceptance(bundle_file, release, source_sha, root=Path(".")):
         if record["kind"] == "junit":
             suite = ET.parse(path).getroot()
             validate_saas_scenarios(suite)
+            validate_upgrade_baseline(suite, root)
             require(int(suite.get("tests", "0")) > 0 and all(int(suite.get(k,"0")) == 0 for k in ("failures","errors","skipped")), "Required acceptance report failed or skipped.")
             require(all(not any(c.find(k) is not None for k in ("failure","error","skipped")) for c in suite.findall("testcase")), "Required acceptance testcase failed or skipped.")
         else:
@@ -387,6 +421,7 @@ def audit_tests():
     reports += list(Path(".").glob("saas/*/target/surefire-reports/TEST-*.xml"))
     reports += list(Path(".").glob("saas/*/target/failsafe-reports/TEST-*.xml"))
     reports += list(Path(".").glob("examples/saas-document-workspace/target/acceptance-reports/TEST-*.xml"))
+    reports += list(Path(".").glob("examples/saas-document-workspace/target/upgrade-reports/TEST-*.xml"))
     seen = set()
     for path in reports:
         suite = ET.parse(path).getroot()

@@ -265,3 +265,13 @@ Until it is enabled, the policy's email fallback remains the private contact.
 Review [Community Standards](https://github.com/DannyReinhold/vernac/community)
 after changes reach the default branch; this checklist is not a code-quality or
 security certification.
+
+
+## Mandatory upgrade compatibility
+
+Follow the [binding upgrade policy](../development/upgrade-policy.md). Starting with 0.6.0, all necessary
+schema and data transformations MUST be versioned migrations or explicit versioned,
+resumable and automatically tested upgrade steps. No implicit intermediate application
+starts or manual repairs. Preserve historical migrations and frozen baselines. Run
+`python3 tools/verify-upgrades.py`; retain the `UpgradeBaseline` report for release.
+Final release approval requires frozen baseline evidence from the approved build.

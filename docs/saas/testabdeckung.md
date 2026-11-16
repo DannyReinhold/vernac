@@ -82,3 +82,16 @@ verwendeten Geheimnisse geprüft.
   fest versionierte Ausgangsversion samt repräsentativen Daten hinzukommen.
 * Last-, Langzeit-, Infrastruktur-/Proxy- und vollständige Sicherheitsabnahme
   bleiben eigene Prüfungen. Automatisierte funktionale Tests ersetzen diese nicht.
+
+
+## Upgradebasis ab 0.6.0
+
+Die [verbindliche Migrationsrichtlinie](../development/upgrade-policy.md) legt 0.6.0
+als erste unterstützte Basis fest. Für frühere Versionen wird kein Upgrade zugesagt.
+Die Suite `UpgradeBaseline` stellt den versionierten Bestand pro Test frisch wieder
+her und prüft fachliche Daten, Sitzungen, Mandantentrennung, Rechte, Rechnungsbytes,
+Flyway-Historien und die Fortsetzung offener Zahlungen/Erstattungen. Siehe
+[Ausführung und Grenzen](../../tests/upgrades/README.md). Der anfängliche Kandidat
+beweist Wiederherstellbarkeit derselben Version; vor Veröffentlichung wird die Basis
+vom freigegebenen Build eingefroren. Historische Upgrades werden ab der Folgerelease
+gegen diesen unveränderten Bestand geprüft. E27 bleibt ein separater Neustarttest.

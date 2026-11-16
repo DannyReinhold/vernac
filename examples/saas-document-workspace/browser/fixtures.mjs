@@ -20,6 +20,8 @@ export const test=base.extend({
    async advance(seconds){return this.control('time',{seconds:String(seconds)});},
    async until(predicate,{limit=16,advance=0}={}){for(let i=0;i<limit;i++){await this.tick();const facts=await this.facts();if(await predicate(facts))return facts;if(advance)await this.advance(advance);}throw new Error('Durable outcome not reached');},
    async mail(address,route){for(let i=0;i<80;i++){const r=await inbox.get('/__local/mail');expect(r.status()).toBe(200);const items=await r.json();for(const item of items.slice().reverse()){if(item.recipient!==address)continue;const match=item.text.match(new RegExp('https://localhost:8443/auth/'+route+'#[^\\s]+'));if(match){secrets.push(new URL(match[0]).hash.slice(1));return match[0];}}await new Promise(r=>setTimeout(r,100));}throw new Error('Expected local mail missing');},
+   async snapshot(directory,expected){process.stdin.write(JSON.stringify({action:'snapshot',directory,expected})+'\n');expect((await receive()).captured).toBe(true);},
+   async history(){process.stdin.write(JSON.stringify({action:'history'})+'\n');expect((await receive()).historyPreserved).toBe(true);},
    async restart(){await writeFile(ready.secretsFile,JSON.stringify(secrets),{mode:0o600});process.stdin.write(JSON.stringify({action:'restart'})+'\n');ready=await receive();},
   };
   try{await use(app);}finally{
