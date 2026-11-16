@@ -9,6 +9,10 @@ on:
         description: "Release version, e.g. 0.5.0"
         required: true
         type: string
+      acceptance_run_id:
+        description: "0.6.0+: run containing source-bound vernac-acceptance-VERSION artifact (missing evidence blocks release)"
+        required: false
+        type: string
       dry_run:
         description: "Dry Run (Build and sign; no Central or Marketplace upload)"
         required: true
@@ -70,6 +74,15 @@ jobs:
           if [[ "$DRY_RUN" == "false" ]]; then
             python3 tools/release.py unpublished
           fi
+
+      - name: Download explicit acceptance bundle
+        if: inputs.acceptance_run_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: vernac-acceptance-${{ inputs.version }}
+          path: release-evidence
+          run-id: ${{ inputs.acceptance_run_id }}
+          github-token: ${{ github.token }}
 
       - name: Check documentation links
         run: python3 tools/check-doc-links.py
