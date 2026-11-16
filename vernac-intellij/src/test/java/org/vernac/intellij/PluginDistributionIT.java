@@ -93,7 +93,7 @@ class PluginDistributionIT {
 
     @Test
     void includesPluginTemplateAndExecutableLanguageServer()
-            throws IOException {
+            throws Exception {
         Path distribution = Path.of(requiredProperty("vernac.plugin.zip"));
         String pluginJarName = requiredProperty("vernac.plugin.jar.name");
 
@@ -142,6 +142,15 @@ class PluginDistributionIT {
 
             String descriptor = new String(requireContent(plugin, "META-INF/plugin.xml"),
                     java.nio.charset.StandardCharsets.UTF_8);
+            var xml = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+                    .newDocumentBuilder().parse(new ByteArrayInputStream(
+                            requireContent(plugin, "META-INF/plugin.xml")));
+            var compatibility = (org.w3c.dom.Element) xml.getElementsByTagName("idea-version").item(0);
+            assertNotNull(compatibility, "Packaged plugin must declare IDE compatibility");
+            assertEquals("262.10968.63", compatibility.getAttribute("since-build"),
+                    "Do not exclude the supported baseline without compatibility evidence");
+            assertEquals("263.*", compatibility.getAttribute("until-build"),
+                    "The packaged plugin must admit the next announced IntelliJ branch");
             assertTrue(descriptor.contains("<internalFileTemplate name=\"Vernac File\"/>"));
             assertTrue(descriptor.contains("<internalFileTemplate name=\"Vernac Getting Started\"/>"));
             assertTrue(descriptor.contains("implementation=\"org.vernac.intellij.VernacFileTemplateHandler\""));
