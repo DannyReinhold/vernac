@@ -1,0 +1,210 @@
+{
+  "users": {
+    "owner": {
+      "account": "101aa119-1a80-45f8-8631-85a7d2c886d8",
+      "address": "baseline-owner@case.example.test",
+      "storage": {
+        "cookies": [
+          {
+            "name": "__Host-VERNACSESSION",
+            "value": "YWY4ZmRkMmUtYWUwYy00YTZhLThmZTctZjIwMjg4ZWIyZTQx",
+            "domain": "localhost",
+            "path": "/",
+            "expires": -1,
+            "httpOnly": true,
+            "secure": true,
+            "sameSite": "Lax"
+          }
+        ],
+        "origins": []
+      }
+    },
+    "member": {
+      "account": "2eaaa406-9407-471a-b05e-6074f63b8f09",
+      "address": "baseline-member@case.example.test",
+      "storage": {
+        "cookies": [
+          {
+            "name": "__Host-VERNACSESSION",
+            "value": "NmMxMWE3NGQtYWViMy00NWYyLTg2NmMtMjc5ZTkyZDZmN2Fh",
+            "domain": "localhost",
+            "path": "/",
+            "expires": -1,
+            "httpOnly": true,
+            "secure": true,
+            "sameSite": "Lax"
+          }
+        ],
+        "origins": []
+      }
+    },
+    "pending": {
+      "account": "0508fb2b-57c8-4441-9697-17231605d935",
+      "address": "baseline-pending@case.example.test",
+      "storage": {
+        "cookies": [
+          {
+            "name": "__Host-VERNACSESSION",
+            "value": "NWViM2JiYTctOWIxMy00OTUzLTgyYjMtY2Q2NjkwODUxMTEx",
+            "domain": "localhost",
+            "path": "/",
+            "expires": -1,
+            "httpOnly": true,
+            "secure": true,
+            "sameSite": "Lax"
+          }
+        ],
+        "origins": []
+      }
+    }
+  },
+  "facts": {
+    "accounts": [
+      {
+        "id": "0508fb2b-57c8-4441-9697-17231605d935",
+        "status": "ACTIVE"
+      },
+      {
+        "id": "101aa119-1a80-45f8-8631-85a7d2c886d8",
+        "status": "ACTIVE"
+      },
+      {
+        "id": "2eaaa406-9407-471a-b05e-6074f63b8f09",
+        "status": "ACTIVE"
+      },
+      {
+        "id": "a6b56c9f-3b87-4cfb-9650-4d1ea626472e",
+        "status": "ACTIVE"
+      }
+    ],
+    "subscriptions": [
+      {
+        "account": "0508fb2b-57c8-4441-9697-17231605d935",
+        "status": "ACTIVE",
+        "plan": "free",
+        "price": 0,
+        "renewal": "ENABLED",
+        "next": "free",
+        "start": 1768478400000,
+        "end": 253370764800000
+      },
+      {
+        "account": "a6b56c9f-3b87-4cfb-9650-4d1ea626472e",
+        "status": "ACTIVE",
+        "plan": "free",
+        "price": 0,
+        "renewal": "ENABLED",
+        "next": "free",
+        "start": 1768478520000,
+        "end": 253370764800000
+      },
+      {
+        "account": "2eaaa406-9407-471a-b05e-6074f63b8f09",
+        "status": "ACTIVE",
+        "plan": "free",
+        "price": 0,
+        "renewal": "ENABLED",
+        "next": "free",
+        "start": 1768478400000,
+        "end": 253370764800000
+      },
+      {
+        "account": "101aa119-1a80-45f8-8631-85a7d2c886d8",
+        "status": "ACTIVE",
+        "plan": "pro",
+        "price": 1200,
+        "renewal": "ENABLED",
+        "next": "free",
+        "start": 1768478400000,
+        "end": 1771156800000
+      }
+    ],
+    "orders": [
+      {
+        "id": "65d8b4e7-fe62-49c1-882b-2defdde2b771",
+        "account": "101aa119-1a80-45f8-8631-85a7d2c886d8",
+        "status": "APPLIED",
+        "reason": "NONE",
+        "price": 1200
+      },
+      {
+        "id": "80dfb6ff-d64f-46c5-a0f7-cd14ffc582b4",
+        "account": "0508fb2b-57c8-4441-9697-17231605d935",
+        "status": "OPEN",
+        "reason": "NONE",
+        "price": 1200
+      }
+    ],
+    "attempts": [
+      {
+        "order": "65d8b4e7-fe62-49c1-882b-2defdde2b771",
+        "stage": "DONE",
+        "state": "PAID",
+        "remote": "localp_833dd9009c844a2f876b22943e5b421d",
+        "refunded": 300
+      },
+      {
+        "order": "80dfb6ff-d64f-46c5-a0f7-cd14ffc582b4",
+        "stage": "WAITING",
+        "state": "PENDING",
+        "remote": "localp_159e8a10536b43deb8b456d871ee30b4",
+        "refunded": 0
+      }
+    ],
+    "refunds": [
+      {
+        "id": "096d44e9-ebbe-461e-9da4-93c6f7035eaf",
+        "state": "REFUNDED",
+        "reason": "NONE",
+        "amount": 300
+      }
+    ],
+    "invoices": [
+      {
+        "id": "c7817032-5e38-4331-a3bc-2b916aa1b38a",
+        "account": "101aa119-1a80-45f8-8631-85a7d2c886d8",
+        "status": "READY",
+        "kind": "INVOICE",
+        "number": "TEST-DOC-2026-00000001",
+        "original": null,
+        "net": 1008,
+        "tax": 192,
+        "gross": 1200
+      },
+      {
+        "id": "79337465-f018-4cdb-a6cd-1d7479a06011",
+        "account": "101aa119-1a80-45f8-8631-85a7d2c886d8",
+        "status": "READY",
+        "kind": "CORRECTION",
+        "number": "TEST-DOC-2026-00000002",
+        "original": "TEST-DOC-2026-00000001",
+        "net": 252,
+        "tax": 48,
+        "gross": 300
+      }
+    ],
+    "notices": [
+      {
+        "status": "SIMULATED"
+      },
+      {
+        "status": "SIMULATED"
+      }
+    ],
+    "providerPayments": 2,
+    "providerRefunds": 1
+  },
+  "invoices": {
+    "c7817032-5e38-4331-a3bc-2b916aa1b38a": {
+      "pdf": "13580137b1e6a0ab913f67dfd6b0f9b34cfcce561a6f76d17d1aca1cbcb3b560",
+      "xml": "e5af97ff637bbe043b913fe863c1be77776fe0c6bd6cb5f402f1bb85375be2cd"
+    },
+    "79337465-f018-4cdb-a6cd-1d7479a06011": {
+      "pdf": "14c10cc9bada18f4bd3cc9f7923ad3568a4ac9a11346b87e323e05ac72ba8996",
+      "xml": "bb5cc5edc2928a650cc5a9eec1976c6934db96aead2d4bbd48fbd58db661851d"
+    }
+  },
+  "organization": "a6b56c9f-3b87-4cfb-9650-4d1ea626472e",
+  "paidOrder": "65d8b4e7-fe62-49c1-882b-2defdde2b771",
+  "pendingOrder": "80dfb6ff-d64f-46c5-a0f7-cd14ffc582b4"
+}
