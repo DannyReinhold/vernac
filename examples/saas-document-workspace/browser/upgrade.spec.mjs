@@ -22,6 +22,8 @@ if(capturing){
    await document(owner,'Third paid document','Capacity boundary');
    await document(owner,'Fourth paid document','Over Free capacity');
    await document(member,'Foreign private document','Must remain isolated');
+   await member.page.goto('/workspace');
+   for(let i=0;i<3;i++)expect((await post(member.context,member.page,'/documents/export')).status()).toBe(i<2?200:409);
    // Organization and reader membership, alongside each user's personal account.
    await owner.page.goto('/auth/accounts');expect((await post(customer,owner.page,'/auth/account/create')).status()).toBe(303);
    const org=(await app.facts()).accounts.find(a=>![owner.account,member.account,pending.account].includes(a.id)).id;
@@ -44,7 +46,7 @@ if(capturing){
   }finally{await memberContext.close();await pendingContext.close();}
  });
 }else{
- test('U01 frozen data, sessions, RLS, memberships and immutable invoices survive restore and repeated startup',async({app,browser})=>{
+ test('U01 versioned data, sessions, RLS, memberships and immutable invoices survive restore and repeated startup',async({app,browser})=>{
   const expected=JSON.parse(await readFile(process.env.VERNAC_UPGRADE_BASELINE+'/expectations.json','utf8'));
   const users=await restored(browser,app,expected);
   try{
@@ -58,6 +60,8 @@ if(capturing){
     expect(await bytes(owner,id)).toEqual(hashes);expect((await member.context.request.get('/billing/invoices/'+id)).status()).toBe(403);
    }
    await member.page.goto('/workspace');expect(await member.page.locator('form[action="/documents/delete"]').count()).toBe(1);
+   expect((await post(member.context,member.page,'/documents/export')).status()).toBe(409);
+   expect((await post(member.context,member.page,'/documents/create',{title:'Too large',text:'x'.repeat(1001)})).status()).toBe(409);
    const values=await form(member.page,'/documents/delete');expect((await member.context.request.post('/documents/delete',{form:{...values,id:foreign},maxRedirects:0})).status()).toBe(404);
    await select(member,expected.organization);await member.page.goto('/workspace');
    await expect(member.page.getByText('Shared organization document',{exact:true})).toBeVisible();
