@@ -29,7 +29,7 @@ class PaginationHttpExecutionTest {
         }
         Path sources=root.resolve("java"),classes=Files.createDirectories(root.resolve("classes"));
         new VernacCompiler().compileProject(root.resolve("model")).writeTo(sources);
-        var args=new ArrayList<>(List.of("--release","21","-proc:none","-classpath",System.getProperty("java.class.path"),"-d",classes.toString()));
+        var args=new ArrayList<>(List.of("--release","21","-Xlint:deprecation,removal","-Werror","-proc:none","-classpath",System.getProperty("java.class.path"),"-d",classes.toString()));
         try(var files=Files.walk(sources)) { files.filter(p->p.toString().endsWith(".java")).map(Path::toString).forEach(args::add); }
         assertEquals(0,ToolProvider.getSystemJavaCompiler().run(null,null,null,args.toArray(String[]::new)));
         return new URLClassLoader(new URL[]{classes.toUri().toURL()},getClass().getClassLoader());
@@ -40,7 +40,7 @@ class PaginationHttpExecutionTest {
         Object controller=code.loadClass("pageweb.adapter.inbound.http.Api").getConstructor(board,single)
                 .newInstance(board.getConstructor(ObjectProvider.class).newInstance(provider),single.getConstructor(ObjectProvider.class).newInstance(provider));
         Object advice=code.loadClass("pageweb.adapter.inbound.http.ApiErrors").getConstructor().newInstance();
-        return MockMvcBuilders.standaloneSetup(controller).setMessageConverters(new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter()).setControllerAdvice(advice).build();
+        return MockMvcBuilders.standaloneSetup(controller).setMessageConverters(Jackson2MvcTestSupport.converter()).setControllerAdvice(advice).build();
     }
     @Test void independentPagesKeepTheirKindsAndMetadataWithoutGlobalJacksonModules() throws Exception {
         try(var code=compile()) {
