@@ -55,7 +55,8 @@ class PaymentNotices {
                 String content=request.getContentType();
                 if (!request.isSecure() || request.getQueryString()!=null || request.getHeader("Content-Encoding")!=null
                         || content==null || !content.split(";",2)[0].trim().equalsIgnoreCase(expected)
-                        || request.getContentLengthLong()>65536) return response(400);
+                        ) return response(400);
+                if(request.getContentLengthLong()>65536)return response(413);
                 byte[] bytes=request.getInputStream().readNBytes(65537);
                 if(bytes.length>65536)return response(413);
                 String body=StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)

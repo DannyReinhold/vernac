@@ -30,7 +30,8 @@ public final class VernacProjectTemplate {
 
     public enum ProjectKind {
         APPLICATION("Minimal Domain Project"), TYPE_MODULE("Module / Type Library"),
-        SPRING_BOOT_APPLICATION("Spring Boot Web Application");
+        SPRING_BOOT_APPLICATION("Spring Boot Web Application"),
+        SAAS_APPLICATION("SaaS Application — Accounts, Billing and Documents");
         private final String label;
         ProjectKind(String label) { this.label = label; }
         @Override public String toString() { return label; }
@@ -57,6 +58,10 @@ public final class VernacProjectTemplate {
             throw new IOException("A type module requires a qualified namespace with at least two segments.");
         }
 
+        if (kind == ProjectKind.SAAS_APPLICATION) {
+            VernacSaasTemplate.copyTo(projectDirectory, projectName, groupId, artifactId, basePackage, readVernacVersion());
+            return;
+        }
         if (kind == ProjectKind.SPRING_BOOT_APPLICATION) {
             VernacSpringBootTemplate.copyTo(projectDirectory, projectName, groupId, artifactId, basePackage, readVernacVersion());
             return;

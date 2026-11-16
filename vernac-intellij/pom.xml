@@ -159,6 +159,19 @@
                 </includes>
                 <excludes><exclude>target/**</exclude><exclude>.idea/**</exclude></excludes>
             </resource>
+            <resource>
+                <directory>${project.basedir}/../examples/saas-document-workspace</directory>
+                <targetPath>projectTemplates/vernac-saas</targetPath>
+                <filtering>false</filtering>
+                <includes>
+                    <include>pom.xml</include><include>README.md</include><include>compose.yaml</include>
+                    <include>run-local.py</include><include>verify.py</include>
+                    <include>mvnw</include><include>mvnw.cmd</include><include>.mvn/wrapper/**</include><include>.gitignore</include>
+                    <include>vernac-application.vapplication</include><include>src/**</include>
+                    <include>browser/*.json</include><include>browser/*.mjs</include>
+                </includes>
+                <excludes><exclude>**/__pycache__/**</exclude></excludes>
+            </resource>
         </resources>
         <plugins>
             <plugin>

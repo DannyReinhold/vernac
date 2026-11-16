@@ -44,7 +44,7 @@ public final class BillingController {
 
     @GetMapping("/accounts/{account}")
     public ResponseEntity<String> account(
-            @PathVariable String account, HttpServletRequest request) {
+            @PathVariable("account") String account, HttpServletRequest request) {
         requireKeys(request, Set.of("afterOrder", "afterInvoice"));
         return html(
                 pages.account(
@@ -59,7 +59,7 @@ public final class BillingController {
 
     @GetMapping("/accounts/{account}/payments/{order}")
     public ResponseEntity<String> payment(
-            @PathVariable String account, @PathVariable String order, HttpServletRequest request) {
+            @PathVariable("account") String account, @PathVariable("order") String order, HttpServletRequest request) {
         noQuery(request);
         return html(
                 pages.payment(
@@ -69,7 +69,7 @@ public final class BillingController {
     }
 
     @GetMapping("/invoices/{invoice}")
-    public ResponseEntity<byte[]> pdf(@PathVariable String invoice, HttpServletRequest request) {
+    public ResponseEntity<byte[]> pdf(@PathVariable("invoice") String invoice, HttpServletRequest request) {
         noQuery(request);
         var id = InvoiceId.of(uuid(invoice));
         var view = service.invoice(id);
@@ -81,7 +81,7 @@ public final class BillingController {
     }
 
     @GetMapping("/invoices/{invoice}/xml")
-    public ResponseEntity<byte[]> xml(@PathVariable String invoice, HttpServletRequest request) {
+    public ResponseEntity<byte[]> xml(@PathVariable("invoice") String invoice, HttpServletRequest request) {
         noQuery(request);
         var id = InvoiceId.of(uuid(invoice));
         var view = service.invoice(id);
@@ -149,7 +149,7 @@ public final class BillingController {
 
     @PostMapping("/payment/{action:retry|close|reconcile}")
     public ResponseEntity<Void> paymentAction(
-            @PathVariable String action, HttpServletRequest request) {
+            @PathVariable("action") String action, HttpServletRequest request) {
         form(
                 request,
                 action.equals("reconcile")
@@ -173,7 +173,7 @@ public final class BillingController {
     }
 
     @PostMapping("/{kind:invoice|mail}/retry")
-    public ResponseEntity<Void> retry(@PathVariable String kind, HttpServletRequest request) {
+    public ResponseEntity<Void> retry(@PathVariable("kind") String kind, HttpServletRequest request) {
         form(request, "account", "invoice");
         var account = account(value(request, "account"));
         var invoice = InvoiceId.of(uuid(value(request, "invoice")));

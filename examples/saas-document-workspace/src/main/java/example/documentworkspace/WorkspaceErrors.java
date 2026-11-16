@@ -19,6 +19,11 @@ class WorkspaceErrors {
                 .body("Aktion nicht möglich. Bitte Eingaben, Tarif und verfügbares Limit prüfen.");
     }
 
+    @ExceptionHandler(org.vernac.runtime.AggregateNotFoundException.class)
+    ResponseEntity<String> missing() {
+        return ResponseEntity.status(404).header("Cache-Control", "no-store").body("Dokument nicht verfügbar.");
+    }
+
     @ExceptionHandler(AuthorizationException.class)
     ResponseEntity<String> authorization(AuthorizationException failure) {
         int status =
@@ -30,6 +35,6 @@ class WorkspaceErrors {
                 };
         return ResponseEntity.status(status)
                 .header("Cache-Control", "no-store")
-                .body(failure.code().name());
+                .body(status == 403 ? "Für diese Aktion fehlt die Berechtigung." : status == 401 ? "Bitte erneut anmelden." : "Berechtigungsprüfung vorübergehend nicht verfügbar.");
     }
 }

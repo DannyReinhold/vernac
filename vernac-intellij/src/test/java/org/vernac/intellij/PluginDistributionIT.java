@@ -114,6 +114,8 @@ class PluginDistributionIT {
                     "org/vernac/intellij/VernacNewProjectWizard.class",
                     "org/vernac/intellij/VernacProjectTemplate.class",
                     "org/vernac/intellij/VernacSpringBootTemplate.class",
+                    "org/vernac/intellij/VernacSaasTemplate.class",
+                    "projectTemplates/vernac-saas-files.txt",
                     "org/vernac/intellij/VernacProjectOpenActivity.class",
                     "org/vernac/intellij/VernacLspIntegrationProvider.class",
                     "org/vernac/intellij/VernacLspCustomization.class",
@@ -132,6 +134,11 @@ class PluginDistributionIT {
             )) {
                 requireContent(plugin, entry);
             }
+
+            String saasManifest = new String(requireContent(plugin, "projectTemplates/vernac-saas-files.txt"), java.nio.charset.StandardCharsets.UTF_8);
+            for (String entry : saasManifest.lines().filter(line -> !line.isBlank()).toList())
+                requireContent(plugin, "projectTemplates/vernac-saas/" + entry);
+            assertFalse(plugin.keySet().stream().anyMatch(entry -> entry.contains("node_modules/") || entry.contains("/.local/")));
 
             String descriptor = new String(requireContent(plugin, "META-INF/plugin.xml"),
                     java.nio.charset.StandardCharsets.UTF_8);
