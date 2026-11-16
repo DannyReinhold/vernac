@@ -1,0 +1,467 @@
+{
+  "schema_version": 1,
+  "release": "0.6.0",
+  "recommendation": "NO-GO",
+  "requirements": {
+    "A01": {
+      "requirement": "Identity self-registration, verification, login/logout/recovery",
+      "status": "VERIFIED",
+      "evidence": [
+        "identity-auth-acceptance-0.6.0.md (technical scope, final-source bundle still required)"
+      ]
+    },
+    "A02": {
+      "requirement": "Personal/organization accounts and memberships",
+      "status": "VERIFIED",
+      "evidence": [
+        "identity-auth-acceptance-0.6.0.md (technical scope, final-source bundle still required)"
+      ]
+    },
+    "A03": {
+      "requirement": "Typed rights and usecase all/any requirements",
+      "status": "PARTIAL",
+      "evidence": []
+    },
+    "A04": {
+      "requirement": "Endpoint/usecase security integration",
+      "status": "OPEN",
+      "evidence": []
+    },
+    "A05": {
+      "requirement": "Dynamic per-operation and current-capacity limits",
+      "status": "PARTIAL",
+      "evidence": []
+    },
+    "A06": {
+      "requirement": "Quotas and reservation APIs",
+      "status": "PARTIAL",
+      "evidence": []
+    },
+    "A07": {
+      "requirement": "External accounting and recovery",
+      "status": "OPEN",
+      "evidence": []
+    },
+    "A08": {
+      "requirement": "Plans, prices and subscriptions",
+      "status": "PARTIAL",
+      "evidence": []
+    },
+    "A09": {
+      "requirement": "Payment adapter(s) and local provider",
+      "status": "OPEN",
+      "evidence": []
+    },
+    "A10": {
+      "requirement": "Customer invoicing",
+      "status": "PARTIAL",
+      "evidence": []
+    },
+    "A11": {
+      "requirement": "System email",
+      "status": "PARTIAL",
+      "evidence": []
+    },
+    "A12": {
+      "requirement": "Reusable UI and customization",
+      "status": "PARTIAL",
+      "evidence": []
+    },
+    "A13": {
+      "requirement": "Modules and migrations",
+      "status": "PARTIAL",
+      "evidence": []
+    },
+    "A14": {
+      "requirement": "Deployable complete sample",
+      "status": "PARTIAL",
+      "evidence": []
+    },
+    "A15": {
+      "requirement": "Language/tooling/documentation completeness",
+      "status": "OPEN",
+      "evidence": []
+    },
+    "A16": {
+      "requirement": "Release distribution integrity",
+      "status": "OPEN",
+      "evidence": []
+    },
+    "A17": {
+      "requirement": "Credential-free predefined test providers",
+      "status": "PARTIAL",
+      "evidence": []
+    },
+    "A18": {
+      "requirement": "Business observability and actionable failures",
+      "status": "OPEN",
+      "evidence": []
+    },
+    "A19": {
+      "requirement": "Automatic shared-database tenant isolation",
+      "status": "PARTIAL",
+      "evidence": []
+    },
+    "A20": {
+      "requirement": "Tenant lifecycle and whole-SaaS propagation",
+      "status": "PARTIAL",
+      "evidence": []
+    },
+    "A21": {
+      "requirement": "Separate SaaS sample and New Project Wizard option",
+      "status": "PARTIAL",
+      "evidence": []
+    },
+    "A22": {
+      "requirement": "Supported handwritten repository extensions",
+      "status": "PARTIAL",
+      "evidence": []
+    },
+    "A23": {
+      "requirement": "Verified webhook tenant routing",
+      "status": "PARTIAL",
+      "evidence": []
+    },
+    "J01": {
+      "requirement": "First customer",
+      "status": "OPEN",
+      "evidence": []
+    },
+    "J02": {
+      "requirement": "Organization",
+      "status": "OPEN",
+      "evidence": []
+    },
+    "J03": {
+      "requirement": "Paid conversion",
+      "status": "OPEN",
+      "evidence": []
+    },
+    "J04": {
+      "requirement": "Payment failure/recovery",
+      "status": "OPEN",
+      "evidence": []
+    },
+    "J05": {
+      "requirement": "Subscription changes",
+      "status": "OPEN",
+      "evidence": []
+    },
+    "J06": {
+      "requirement": "Restrictions under load",
+      "status": "OPEN",
+      "evidence": []
+    },
+    "J07": {
+      "requirement": "Restart/upgrade",
+      "status": "OPEN",
+      "evidence": []
+    },
+    "J08": {
+      "requirement": "Developer adoption",
+      "status": "OPEN",
+      "evidence": []
+    },
+    "J09": {
+      "requirement": "Extension safety",
+      "status": "OPEN",
+      "evidence": []
+    }
+  },
+  "decisions": {
+    "D01": "ACCEPTED",
+    "D02": "REVIEW_REQUIRED",
+    "D03": "REVIEW_REQUIRED",
+    "D04": "REVIEW_REQUIRED",
+    "D05": "ACCEPTED",
+    "D06": "REVIEW_REQUIRED",
+    "D07": "REVIEW_REQUIRED",
+    "D08": "REVIEW_REQUIRED",
+    "D09": "REVIEW_REQUIRED",
+    "D10": "REVIEW_REQUIRED",
+    "D11": "REVIEW_REQUIRED",
+    "D12": "REVIEW_REQUIRED",
+    "D13": "REVIEW_REQUIRED",
+    "D14": "ACCEPTED"
+  },
+  "blocking_findings": [
+    "F01",
+    "F02",
+    "F04",
+    "F05"
+  ],
+  "module_inventory": [
+    "vernac",
+    "vernac-runtime",
+    "vernac-runtime-json",
+    "vernac-runtime-http",
+    "vernac-runtime-jdbc",
+    "vernac-jdbc-spring-boot-starter",
+    "vernac-compiler",
+    "vernac-maven-plugin",
+    "vernac-saas-identity",
+    "vernac-saas-identity-spring-security",
+    "vernac-saas-identity-jdbc",
+    "vernac-saas-mail",
+    "vernac-saas-mail-local",
+    "vernac-saas-mail-brevo",
+    "vernac-saas-subscriptions",
+    "vernac-saas-restrictions",
+    "vernac-saas-payments",
+    "vernac-saas-payments-http",
+    "vernac-saas-payments-local",
+    "vernac-saas-payments-mollie",
+    "vernac-saas-payments-stripe",
+    "vernac-saas-payments-jdbc",
+    "vernac-saas-invoicing",
+    "vernac-saas-invoicing-pdf",
+    "vernac-saas-billing-spring-mvc",
+    "vernac-intellij"
+  ],
+  "required_suites": [
+    "AccountInvitationsPostgresIT",
+    "AccountMetadataPostgresIT",
+    "AccountPolicyPostgresIT",
+    "AdapterBindingsTest",
+    "AdapterDebugExecutionTest",
+    "AdapterSourceMapTest",
+    "AdmissionDigestsTest",
+    "ApplicationDefinitionSymbolsTest",
+    "ApplicationDefinitionTest",
+    "BehaviorDebugExecutionTest",
+    "BehaviorJavaProjectionTest",
+    "BehaviorSourceMapTest",
+    "BillingPagesTest",
+    "BoundedCredentialPasswordsTest",
+    "BrevoMailTransportTest",
+    "BundledPasswordBlocklistTest",
+    "CredentialCorpusDistributionIT",
+    "CredentialPasswordsTest",
+    "DiagramMojoTest",
+    "DiagramSelectionTest",
+    "DocumentationExamplesTest",
+    "DomainDiagramsTest",
+    "DomesticTaxTest",
+    "EditorValueObjectsTest",
+    "EntitySchemaPostgresTest",
+    "EventModuleSymbolsTest",
+    "EventModuleTest",
+    "EventStoragePostgresTest",
+    "EventWorkerPostgresTest",
+    "GlobalIdReferencePostgresTest",
+    "GlobalIdReferenceTest",
+    "IdentityAccountChainTest",
+    "IdentityActorResolverTest",
+    "IdentityAdmissionModelTest",
+    "IdentityAdmissionPostgresIT",
+    "IdentityAuthenticationPostgresIT",
+    "IdentityBrowserPostgresIT",
+    "IdentityBrowserSecurityTest",
+    "IdentityCapacityPostgresIT",
+    "IdentityChallengeRepresentationTest",
+    "IdentityChallengeTokenTest",
+    "IdentityChallengesPostgresIT",
+    "IdentityCredentialsPostgresIT",
+    "IdentityDeliveryCryptoTest",
+    "IdentityEncryptionAdmissionPostgresIT",
+    "IdentityFormFilterTest",
+    "IdentityIngressModelTest",
+    "IdentityIngressPostgresIT",
+    "IdentityInvitationChainTest",
+    "IdentityJdbcAuthenticationAssemblyPostgresIT",
+    "IdentityJdbcModuleIT",
+    "IdentityJdbcSessionsPostgresIT",
+    "IdentityJourneyChainTest",
+    "IdentityJourneysPostgresIT",
+    "IdentityLocalReturnTargetTest",
+    "IdentityLoginAddressModelTest",
+    "IdentityLoginFilterTest",
+    "IdentityLoginOwnershipPostgresIT",
+    "IdentityLoginPageFilterTest",
+    "IdentityMailRequestsPostgresIT",
+    "IdentityMailWorkerPostgresIT",
+    "IdentityModuleContractIT",
+    "IdentityOperationsPostgresIT",
+    "IdentityPrincipalTest",
+    "IdentityProviderMailSenderTest",
+    "IdentityRegistrationsPostgresIT",
+    "IdentityRequestAdmissionFilterTest",
+    "IdentitySecurityEpochTest",
+    "IdentitySessionEpochPostgresIT",
+    "IdentitySessionTrustTest",
+    "IdentitySessionValidationFilterTest",
+    "ImplementationContractsExecutionTest",
+    "InboundErrorPolicyContractTest",
+    "InboundErrorPolicyExecutionTest",
+    "InboundErrorPolicySymbolsTest",
+    "InboundHttpContractTest",
+    "InboundHttpExecutionTest",
+    "InboundHttpRuntimeTest",
+    "InboundHttpSymbolsTest",
+    "InboundMvcContractTest",
+    "InboundMvcExecutionTest",
+    "InboundMvcSymbolsTest",
+    "InvoiceFlowPostgresIT",
+    "JdbcCursorCodecTest",
+    "JdbcRootQueryTest",
+    "JsonPagesTest",
+    "ListenerDebugExecutionTest",
+    "ListenerSourceMapTest",
+    "LocalMailInboxTest",
+    "LocalPaymentsPostgresIT",
+    "LoginAddressTest",
+    "MailContractsTest",
+    "MailModuleConsumerTest",
+    "MailProviderSelectionTest",
+    "ModuleCoordinatorTest",
+    "ModuleDefinitionSymbolsTest",
+    "ModuleMigrationPostgresTest",
+    "ModulePersistenceMojoTest",
+    "ModulePersistenceTest",
+    "MolliePaymentsTest",
+    "OfflinePasswordBlocklistTest",
+    "PaginationHttpExecutionTest",
+    "PaginationResultContractTest",
+    "PaginationResultSymbolsTest",
+    "PaginationTest",
+    "PasswordInputTest",
+    "PaymentContractsTest",
+    "PaymentFlowPostgresIT",
+    "PersistentModuleSymbolsTest",
+    "PersistentModuleTest",
+    "PluginDistributionIT",
+    "PortModuleSymbolsTest",
+    "PortModuleTest",
+    "RepositoryBindingTest",
+    "RepositoryQueryPostgresTest",
+    "RequiredFieldBackfillTest",
+    "RestrictionDomainTest",
+    "RestrictionPostgresIT",
+    "RoleAssignmentsTest",
+    "RoleCatalogTest",
+    "ScalarQueryPostgresTest",
+    "ScalarStoragePostgresTest",
+    "SchemaMojoTest",
+    "SpringBootStarterExecutionTest",
+    "StoredEncodingPolicyTest",
+    "StripePaymentsTest",
+    "SubscriptionDomainTest",
+    "SubscriptionPostgresIT",
+    "TenantGeneratedPostgresTest",
+    "TypeModuleExecutionTest",
+    "TypeModuleTest",
+    "UniqueAggregateFieldsTest",
+    "UniqueFieldModuleTest",
+    "UniqueFieldSymbolsTest",
+    "UniqueModulePostgresTest",
+    "UniquePersistencePostgresTest",
+    "UniquePersistenceSchemaTest",
+    "ValidationDebugExecutionTest",
+    "ValidationSourceMapTest",
+    "ValueStringRepresentationTest",
+    "VernacDebuggerApiTest",
+    "VernacDebuggerHostLexerTest",
+    "VernacExpressionFactoryTest",
+    "VernacLivePackageTest",
+    "VernacLiveShortNamesCacheTest",
+    "VernacLiveUnionScopeTest",
+    "VernacLiveValueTest",
+    "VernacProjectDiagnosticsTest",
+    "VernacRuntimeFingerprintTest",
+    "VernacSaasTemplateTest",
+    "VernacSpringBootTemplateTest",
+    "VernacTypeReferenceTest",
+    "VernacTypeReferencesTest",
+    "VernacViewInspectorTest",
+    "VocabularySymbolsTest",
+    "VocabularyTest",
+    "ZugferdDocumentsTest",
+    "SaaSScenarios"
+  ],
+  "resolved_implementation_findings": {
+    "F03": {
+      "status": "IMPLEMENTED_TARGETED_CHECKS_PASSED",
+      "source_sha": "6a6eabe919f8fab449cb1425c24f6f119cd7ebab",
+      "coverage": [
+        "separate default-deny merchant authority",
+        "operator capability and stable refund identity",
+        "partial/full correction paths",
+        "active paid account closure denied",
+        "account closure after settled full reversal",
+        "retained immutable invoice downloads",
+        "isolated bounded maintenance stages"
+      ]
+    }
+  },
+  "maintainer_deferred_checks": [
+    "real Mollie/Stripe/Brevo tests",
+    "installed IDE and exact release candidate",
+    "seller/fiscal/archive operational review",
+    "historical-version upgrade and exact release-candidate final acceptance"
+  ],
+  "business_flow_guide": "../saas/index.md",
+  "automated_saas_scenarios": {
+    "required_ids": [
+      "E01",
+      "E02",
+      "E03",
+      "E04",
+      "E05",
+      "E06",
+      "E07",
+      "E08",
+      "E09",
+      "E10",
+      "E11",
+      "E12",
+      "E13",
+      "E14",
+      "E15",
+      "E16",
+      "E17",
+      "E18",
+      "E19",
+      "E20",
+      "E21",
+      "E22",
+      "E23",
+      "E24",
+      "E25",
+      "E26",
+      "E27",
+      "E28",
+      "E29"
+    ],
+    "usecases": [
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06",
+      "S07",
+      "S08",
+      "S09",
+      "S10",
+      "S11",
+      "S12",
+      "S13",
+      "S14",
+      "S15",
+      "S16",
+      "S17",
+      "S18",
+      "S19",
+      "S20"
+    ],
+    "report": "examples/saas-document-workspace/target/acceptance-reports/TEST-SaaSScenarios.xml",
+    "real_provider_acceptance": "PENDING",
+    "historical_version_upgrade": "PENDING",
+    "local_status": "PASSED",
+    "source_sha": "943bac624358602744684ecacd1ed7bf5169c7d2",
+    "passed": 29,
+    "skipped": 0,
+    "retries": 0,
+    "duration_seconds": 361
+  }
+}

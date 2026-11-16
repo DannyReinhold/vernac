@@ -26,6 +26,13 @@ MODULE_PATHS = {"vernac-saas-identity": "saas/identity",
                 "vernac-saas-mail": "saas/mail", "vernac-saas-mail-local": "saas/mail-local",
                 "vernac-saas-mail-brevo": "saas/mail-brevo"}
 
+# Optional SaaS artifacts are version-aligned and explicitly included only from 0.6.0.
+for _suffix in ("subscriptions", "restrictions", "payments", "payments-http", "payments-local",
+                "payments-mollie", "payments-stripe", "payments-jdbc", "invoicing", "invoicing-pdf", "billing-spring-mvc"):
+    _artifact = "vernac-saas-" + _suffix
+    MODULES += (_artifact,)
+    MODULE_PATHS[_artifact] = "saas/" + _suffix
+
 
 def reactor_modules():
     return tuple(MODULE_PATHS.get(module, module) for module in MODULES[1:])
@@ -134,6 +141,107 @@ REQUIRED_TESTS += ("EditorValueObjectsTest", "BehaviorJavaProjectionTest",
                    "VernacLiveShortNamesCacheTest", "VernacLiveValueTest")
 
 
+REQUIRED_TESTS += ("SubscriptionDomainTest", "SubscriptionPostgresIT", "RestrictionDomainTest", "RestrictionPostgresIT",
+                   "PaymentContractsTest", "MolliePaymentsTest", "StripePaymentsTest", "LocalPaymentsPostgresIT",
+                   "PaymentFlowPostgresIT", "DomesticTaxTest", "ZugferdDocumentsTest", "InvoiceFlowPostgresIT",
+                   "BillingPagesTest", "VernacSaasTemplateTest", "JdbcRootQueryTest",
+                   "RepositoryBindingTest", "TenantGeneratedPostgresTest", "SaaSScenarios")
+ACCEPTANCE_IDS = tuple(f"A{i:02}" for i in range(1, 24)) + tuple(f"J{i:02}" for i in range(1, 10))
+DECISION_IDS = tuple(f"D{i:02}" for i in range(1, 15))
+
+
+def validate_saas_scenarios(suite):
+    if suite.get("name", "").split(".")[-1] != "SaaSScenarios":
+        return
+    cases = suite.findall("testcase")
+    ids = [re.match(r"E\d{2}(?= )", case.get("name", "")) for case in cases]
+    require(len(cases) == 29 and int(suite.get("tests", "0")) == 29
+            and all(ids) and {m.group() for m in ids} == {f"E{i:02}" for i in range(1, 30)},
+            "Incomplete or duplicate SaaS scenarios.")
+    require({case for row in cases for case in re.findall(r"\bS\d{2}\b", row.get("name", ""))}
+            == {f"S{i:02}" for i in range(1, 21)}, "Missing SaaS usecase coverage.")
+
+
+def acceptance(bundle_file, release, source_sha, root=Path(".")):
+    """Validate an external, source-bound review bundle. Missing evidence is always NO-GO."""
+    version(release)
+    require(re.fullmatch(r"[0-9a-f]{40}", source_sha or ""), "Acceptance requires an immutable source SHA.")
+    root = root.resolve()
+    inventory = json.loads((root / "docs/development/saas-release-inventory-0.6.0.json").read_text())
+    require(set(inventory.get("requirements", {})) == set(ACCEPTANCE_IDS)
+            and set(inventory.get("decisions", {})) == set(DECISION_IDS), "Source inventory lost a requirement or decision.")
+    require(set(inventory.get("module_inventory", [])) == set(published_modules(release)) | {"vernac-intellij"}
+            and set(inventory.get("required_suites", [])) == set(REQUIRED_TESTS), "Source release inventory is incomplete.")
+    require(inventory.get("recommendation") == "GO" and inventory.get("blocking_findings") == []
+            and all(row.get("status") == "VERIFIED" for row in inventory["requirements"].values())
+            and all(value == "ACCEPTED" for value in inventory["decisions"].values()), "Source inventory retains unresolved release blockers.")
+    bundle = json.loads(bundle_file.read_text(encoding="utf-8"))
+    require(bundle.get("schema_version") == 1 and bundle.get("version") == release, "Wrong acceptance schema/version.")
+    require(bundle.get("source_sha") == source_sha, "Stale acceptance source SHA.")
+    require(set(bundle.get("requirements", {})) == set(ACCEPTANCE_IDS), "Missing or unknown acceptance requirement.")
+    require(set(bundle.get("decisions", {})) == set(DECISION_IDS), "Missing or unknown design decision.")
+    require(all(v == "ACCEPTED" for v in bundle["decisions"].values()), "Unresolved design decision.")
+    require(bundle.get("blocking_findings") == [], "Unresolved release-blocking findings.")
+    records = bundle.get("evidence", {})
+    require(isinstance(records, dict) and records, "Missing acceptance evidence records.")
+    for key, record in records.items():
+        require(re.fullmatch(r"[A-Za-z0-9._-]{1,100}", key), "Invalid acceptance evidence key.")
+        require(record.get("source_sha") == source_sha and record.get("status") == "PASSED", "Unknown, failed or stale evidence.")
+        require(isinstance(record.get("kind"), str) and record["kind"] in {"junit", "browser", "sandbox", "review", "ide-smoke"}, "Unknown evidence kind.")
+        path = root / record.get("file", "")
+        require(not path.is_symlink() and path.resolve().is_relative_to(root) and path.is_file(), "Missing or unsafe evidence file.")
+        require(re.fullmatch(r"[0-9a-f]{64}", record.get("sha256", "")) and digest(path) == record["sha256"], "Evidence digest changed.")
+        if record["kind"] == "junit":
+            suite = ET.parse(path).getroot()
+            validate_saas_scenarios(suite)
+            require(int(suite.get("tests", "0")) > 0 and all(int(suite.get(k,"0")) == 0 for k in ("failures","errors","skipped")), "Required acceptance report failed or skipped.")
+            require(all(not any(c.find(k) is not None for k in ("failure","error","skipped")) for c in suite.findall("testcase")), "Required acceptance testcase failed or skipped.")
+        else:
+            require(isinstance(record.get("reviewed_by"), str) and bool(record["reviewed_by"].strip()), "Evidence needs an identified reviewer.")
+    suites = {ET.parse(root / record["file"]).getroot().get("name", "").split(".")[-1]
+              for record in records.values() if record["kind"] == "junit"}
+    require(set(REQUIRED_TESTS) <= suites, "Missing required source-bound acceptance suites.")
+    for key, row in bundle["requirements"].items():
+        require(row.get("status") == "VERIFIED" and row.get("evidence"), "Unverified acceptance requirement: " + key)
+        require(all(ref in records for ref in row["evidence"]), "Unknown requirement evidence reference.")
+    for key, providers in (("A09", {"mollie", "stripe"}), ("A11", {"brevo"})):
+        verified = {records[ref].get("provider") for ref in bundle["requirements"][key]["evidence"] if records[ref]["kind"] == "sandbox"}
+        require(providers <= verified, "Real provider attestation missing: " + key)
+    require(any(records[ref]["kind"] == "ide-smoke" for ref in bundle["requirements"]["A16"]["evidence"]), "Installed IDE smoke evidence missing.")
+    expected = set(published_modules(release)) | {"vernac-intellij"}
+    artifacts = bundle.get("artifacts", {})
+    require(set(artifacts) == expected, "Missing or unknown release artifact.")
+    for name, record in artifacts.items():
+        path = root / record.get("file", "")
+        require(not path.is_symlink() and path.resolve().is_relative_to(root) and path.is_file(), "Missing or unsafe release artifact.")
+        require(record.get("sha256") == digest(path), "Artifact digest changed: " + name)
+        expected_name = (f"vernac-intellij-{release}-plugin.zip" if name == "vernac-intellij" else
+                         ".flattened-pom.xml" if name == "vernac" else f"{name}-{release}.jar")
+        require(path.name == expected_name, "Wrong release artifact filename.")
+    classpaths = bundle.get("dependency_reports", {})
+    require(set(classpaths) == expected - {"vernac"}, "Missing resolved dependency report.")
+    resolved_dependencies = set()
+    for module, report in classpaths.items():
+        path = root / report.get("file", "")
+        require(not path.is_symlink() and path.resolve().is_relative_to(root) and path.is_file(), "Missing or unsafe dependency report.")
+        require(report.get("sha256") == digest(path), "Resolved dependency report changed.")
+        paths = path.read_text().strip().split(os.pathsep)
+        require(bool(paths) and all(p.endswith(".jar") for p in paths), "Invalid resolved dependency classpath.")
+        resolved_dependencies.update(paths)
+    dependencies = bundle.get("dependencies", {})
+    require(isinstance(dependencies, dict) and set(dependencies) == resolved_dependencies, "Incomplete dependency digest inventory.")
+    # A full build exports its resolved Maven dependencies into this retained inventory.
+    for location, expected_hash in dependencies.items():
+        path = Path(location)
+        require(path.is_file() and not path.is_symlink() and re.fullmatch(r"[0-9a-f]{64}", expected_hash), "Missing dependency artifact.")
+        require(digest(path) == expected_hash, "Dependency digest changed.")
+    approval = bundle.get("approval", {})
+    require(approval.get("decision") == "GO" and approval.get("source_sha") == source_sha
+            and approval.get("plugin_sha256") == artifacts["vernac-intellij"]["sha256"]
+            and isinstance(approval.get("approved_by"), str) and bool(approval["approved_by"].strip()), "Missing exact-candidate maintainer GO.")
+    return bundle
+
+
 def require(condition, message):
     if not condition:
         raise ValueError(message)
@@ -176,6 +284,9 @@ def candidate(release, output):
     release = version(release)
     source = Path(f"vernac-intellij/target/vernac-intellij-{release}-plugin.zip")
     plugin_jar(source, release)
+    evidence_file = Path("release-evidence/acceptance.json")
+    if tuple(map(int, release.split("."))) >= (0, 6, 0):
+        acceptance(evidence_file, release, os.environ.get("GITHUB_SHA", ""))
     output.mkdir(parents=True, exist_ok=False)
     target = output / source.name
     shutil.copyfile(source, target)
@@ -183,6 +294,9 @@ def candidate(release, output):
                 "sha256": digest(target), "commit": os.environ["GITHUB_SHA"],
                 "repository": os.environ["GITHUB_REPOSITORY"], "run_id": os.environ["GITHUB_RUN_ID"],
                 "attempt": os.environ["GITHUB_RUN_ATTEMPT"], "dry_run": os.environ["DRY_RUN"] == "true"}
+    if tuple(map(int, release.split("."))) >= (0, 6, 0):
+        manifest["acceptance_sha256"] = digest(evidence_file)
+        shutil.copyfile(evidence_file, output / "acceptance.json")
     (output / "release.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     summary(f"### Plugin candidate {release}\nCommit: `{manifest['commit']}`\n\nSHA-256: `{manifest['sha256']}`\n\n"
             f"Source run: `{manifest['run_id']}`, attempt `{manifest['attempt']}`.\n"
@@ -200,6 +314,11 @@ def verify_candidate(directory, release, run_id, attempt):
     path = directory / manifest["file"]
     require(digest(path) == manifest["sha256"], "Plugin ZIP checksum mismatch.")
     plugin_jar(path, release)
+    if tuple(map(int, release.split("."))) >= (0, 6, 0):
+        evidence_file = directory / "acceptance.json"
+        require(evidence_file.is_file() and digest(evidence_file) == manifest.get("acceptance_sha256"), "Missing or changed archived acceptance bundle.")
+        evidence = json.loads(evidence_file.read_text())
+        require(evidence.get("source_sha") == manifest["commit"] and evidence.get("approval", {}).get("plugin_sha256") == manifest["sha256"], "Archived acceptance candidate mismatch.")
     return manifest, path
 
 
@@ -267,9 +386,11 @@ def audit_tests():
     reports += list(Path(".").glob("*/target/failsafe-reports/TEST-*.xml"))
     reports += list(Path(".").glob("saas/*/target/surefire-reports/TEST-*.xml"))
     reports += list(Path(".").glob("saas/*/target/failsafe-reports/TEST-*.xml"))
+    reports += list(Path(".").glob("examples/saas-document-workspace/target/acceptance-reports/TEST-*.xml"))
     seen = set()
     for path in reports:
         suite = ET.parse(path).getroot()
+        validate_saas_scenarios(suite)
         name = suite.get("name", "").split(".")[-1]
         require(all(int(suite.get(key, "0")) == 0 for key in ("failures", "errors", "skipped")),
                 f"Release test report has failures, errors or skipped tests: {path}")
@@ -339,7 +460,7 @@ def upload(directory, release, run_id, attempt):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("version", "modules", "candidate", "provenance", "central", "unpublished", "tests", "consumer", "upload"))
+    parser.add_argument("command", choices=("version", "modules", "candidate", "provenance", "central", "unpublished", "tests", "consumer", "upload", "acceptance"))
     parser.add_argument("--version", default=os.environ.get("RELEASE_VERSION", ""))
     parser.add_argument("--directory", type=Path, default=Path("release-candidate"))
     parser.add_argument("--run-id", default=os.environ.get("SOURCE_RUN_ID", ""))
@@ -348,11 +469,15 @@ def main():
     parser.add_argument("--jobs-file", type=Path, default=Path("source-jobs.json"))
     parser.add_argument("--output", type=Path, default=Path("central-consumer"))
     parser.add_argument("--timeout", type=int, default=1800)
+    parser.add_argument("--evidence", type=Path, default=Path("release-evidence/acceptance.json"))
     args = parser.parse_args()
     if args.command == "modules": print(",".join(reactor_modules()))
     elif args.command == "version": print(version(args.version))
     elif args.command == "candidate": candidate(args.version, args.directory)
     elif args.command == "tests": audit_tests()
+    elif args.command == "acceptance":
+        acceptance(args.evidence, args.version, os.environ.get("GITHUB_SHA", ""))
+        summary("Source-bound SaaS acceptance bundle passed; this command publishes nothing.")
     elif args.command == "central": central(args.version, args.timeout)
     elif args.command == "unpublished": central(args.version, 0, True)
     elif args.command == "consumer": consumer(args.directory, args.version, args.output)

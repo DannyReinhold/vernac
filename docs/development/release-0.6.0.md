@@ -4,7 +4,7 @@ title: 0.6.0 completeness and release acceptance
 # 0.6.0 completeness and release acceptance
 
 Status: **NOT READY — implementation in progress**. Planning baseline: 2026-11-11;
-Identity/Auth acceptance updated 2026-11-15.
+Identity/Auth acceptance updated 2026-11-15; SaaS consumer/Wizard and audit updated 2026-11-16.
 Owner of final go/no-go: maintainer. Release implementation/evidence owner: each PR
 contributor, with a dedicated review pass before release preparation.
 
@@ -29,6 +29,36 @@ catalog/subscriptions → dynamic restrictions → payments/webhooks → custome
 SaaS application/Wizard → completeness audit/release evidence. One stacked PR per
 topic; all release requirements remain mandatory. The earlier incremental notes below
 are historical evidence and do not override current contracts or claim missing merged work.
+
+## SaaS consumer/Wizard and audit update — 16 November 2026
+
+[PR #87](https://github.com/DannyReinhold/vernac/pull/87) now contains the independent
+document workspace, reusable billing UI, explicit source-shared SaaS Wizard,
+namespace-specific schema generation and persistent local HTTPS launcher.
+Implementation source `51f98d5a2d656900a48e0d9017b46d5ef3f4e221` passed
+[restricted PostgreSQL/HTTPS/Chromium consumer acceptance](https://github.com/DannyReinhold/vernac/actions/runs/43839846054)
+and [packaged plugin/Wizard checks](https://github.com/DannyReinhold/vernac/actions/runs/43839846020).
+These support portions of J01–J03/J05–J09; they do not establish missing
+refusal/recovery/operator, real-provider, fiscal or installed-IDE evidence.
+
+The separate [completeness findings and gate contract](saas-release-audit-0.6.0.md)
+and [machine inventory](saas-release-inventory-0.6.0.json) retain explicit NO-GO.
+Candidate creation now enforces source-bound evidence and the repository's own
+open blockers. A supplied external GO cannot override incomplete source requirements.
+Earlier infrastructure notes below are historical milestones, not current absence claims.
+
+## Implementation continuation and deferred acceptance — 16 November 2026
+
+The maintainer will run real-provider and comprehensive tests later. PR #87 now
+implements separate merchant refund authority/operator commands, coordinated account
+closure/new-charge checks, retained invoice downloads and independent maintenance
+stages. Targeted local PostgreSQL and packaged browser/refund/closure/restart checks
+passed. F03 is implemented in the [findings record](saas-release-audit-0.6.0.md);
+comprehensive validation, provider/fiscal/distribution evidence and final GO remain
+pending rather than being marked successful.
+
+The [illustrated SaaS guide](../saas/index.md) supplies the use-case catalog, customer
+journeys, developer/operator decisions and 18 static diagrams with editable sources.
 
 ## Mandatory tenant isolation scope
 
@@ -109,8 +139,8 @@ their broader whole-release gates; partial identity evidence does not verify the
 | A18 | Business observability and actionable failures | Stable safe reasons across API/UI/workers; rights/limits/payment/renewal failures and recovery; useful event correlation; seeded sensitive values absent from normal/error logs | IN PROGRESS / identity portion evidenced in [the scoped record](identity-auth-acceptance-0.6.0.md); broader gate remains OPEN |
 | A19 | Automatic shared-database tenant isolation | Declarative classification; byId/find/CRUD/graphs/pages/count/cursors; cross-tenant references and object-save rejection; missing context and pooling/concurrency tests under the actual database role | OPEN / none |
 | A20 | Tenant lifecycle and whole-SaaS propagation | Personal/shared membership, provisioning/global data, module metadata/DDL/backfill, event/payment/mail workers, files/caches and fresh/upgrade E2E isolation | IN PROGRESS / identity portion evidenced in [the scoped record](identity-auth-acceptance-0.6.0.md); broader gate remains OPEN |
-| A21 | Separate SaaS sample and New Project Wizard option | Existing non-SaaS examples/templates still build and run unchanged; explicit SaaS selection generates a complete independent app with module activation/UI/local DB and test providers, no API keys; verify packaged plugin | IN PROGRESS / identity portion evidenced in [the scoped record](identity-auth-acceptance-0.6.0.md); broader gate remains OPEN |
-| A22 | Supported handwritten repository extensions | Pre-query runtime binding/RLS; canonical graph hydration/write/version/timestamp semantics; return-shape/tenant/provenance guards; scalar/count paths; compiled guide/examples and negative restricted-role tests | OPEN / none |
+| A21 | Separate SaaS sample and New Project Wizard option | Existing non-SaaS examples/templates still build and run unchanged; explicit SaaS selection generates a complete independent app with module activation/UI/local DB and test providers, no API keys; verify packaged plugin | IN PROGRESS / #87 consumer browser, namespace schema and packaged plugin/Wizard checks pass; fresh installed-IDE and final release evidence remain OPEN |
+| A22 | Supported handwritten repository extensions | Pre-query runtime binding/RLS; canonical graph hydration/write/version/timestamp semantics; return-shape/tenant/provenance guards; scalar/count paths; compiled guide/examples and negative restricted-role tests | IN PROGRESS / #86 restricted PostgreSQL/JDK proxy proofs and #87 consuming application passed; final source-bound release gate remains OPEN |
 | A23 | Verified webhook tenant routing | Provider proof and scoped resource registry; no claimed-tenant/global fallback; early/unknown/conflicting route; duplicate/out-of-order/concurrent/restart processing; safe logging; real/test-provider journeys | OPEN / none |
 
 ## Required integrated journeys
@@ -146,7 +176,9 @@ corresponding actionable user/developer outcomes. Capture correlated operational
 events, assert no sensitive values appear in logs and prove production cannot silently
 substitute a simulated success. J08 must work without real provider API keys.
 
-All journeys are currently **OPEN / no evidence**.
+All journeys retain **OPEN for whole-release acceptance**. #87 now supplies the scoped
+consumer evidence above; missing failure/operator/provider and distribution cases must
+be added rather than treating a happy-path consumer pass as complete J01–J09.
 
 ## Dedicated pre-release completeness audit
 
@@ -177,9 +209,11 @@ the final implementation, not merely a repetition of prior progress summaries.
 
 ## Enforced gate to implement before release
 
-**This planning PR does not implement a CI gate.** Until the following automation is
-implemented and proven, this release remains NOT READY. Extend the existing release
-tooling rather than relying on a maintainer remembering to inspect this Markdown.
+The separate audit now implements a fail-closed gate in `tools/release.py` and a
+machine-readable requirement/module/suite inventory. Its negative tests cover missing,
+skipped, stale and changed evidence. Real final-source evidence and final-candidate
+approval are still absent, so this release remains NOT READY. The unchecked items
+below describe required acceptance, not permission to bypass the implemented gate.
 
 - [ ] Maintain a machine-readable acceptance manifest with required IDs, suite names,
       artifact/module inventory and evidence references; reject missing/unknown/unverified
