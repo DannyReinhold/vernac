@@ -8,6 +8,7 @@ SCHEMAS=('org.vernac.saas.identity.persistence','identity_sessions','org.vernac.
 def main():
     baseline=os.environ.get('VERNAC_UPGRADE_BASELINE')
     manifest=upgrade_snapshot.read(baseline) if baseline else None
+    session_fixture={}
     retained=json.loads((pathlib.Path(baseline)/'test-runtime.json').read_text()) if baseline else None
     admin=os.environ['VERNAC_PG_TEST_URL'].removeprefix('jdbc:')
     db='case_'+secrets.token_hex(8);role='case_runtime_'+secrets.token_hex(8);password=secrets.token_urlsafe(32)
@@ -30,6 +31,7 @@ def main():
         if baseline:
             with (pathlib.Path(baseline)/'database.sql').open() as source:
                 subprocess.run(['psql','-X','-q','-v','ON_ERROR_STOP=1','-d',url,'-U',os.environ['VERNAC_PG_TEST_USER']],env=credentials,stdin=source,check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
+            session_fixture=upgrade_snapshot.rebase_test_sessions(url,credentials,os.environ['VERNAC_PG_TEST_USER'])
         for schema in SCHEMAS:
             sql(url,'CREATE SCHEMA IF NOT EXISTS "'+schema+'"; GRANT USAGE ON SCHEMA "'+schema+'" TO "'+role+'"; ALTER DEFAULT PRIVILEGES IN SCHEMA "'+schema+'" GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES TO "'+role+'"')
         if baseline:
@@ -59,7 +61,7 @@ def main():
                     try:
                         with urllib.request.urlopen('https://localhost:8443/identity/login',context=ssl._create_unverified_context(),timeout=1) as response:
                             if response.status==200:
-                                print(json.dumps({'ready':True,'origin':'https://localhost:8443','preview':preview,'merchant':merchant,'control':control,'secretsFile':str(tmp/'seen-secrets.json')}),flush=True);return
+                                print(json.dumps({'ready':True,'origin':'https://localhost:8443','preview':preview,'merchant':merchant,'control':control,'secretsFile':str(tmp/'seen-secrets.json'),**session_fixture}),flush=True);return
                     except Exception:time.sleep(.2)
                 # Fixed class names only, never driver values, body payloads or credentials.
                 import re
