@@ -13,6 +13,28 @@ The application topic includes this prerequisite through merge commit
 `63d66d822b1f2d38b3de5fd7897919e4410e47b5`.
 The release branch has not been merged or published.
 
+## Verified consumer and Wizard — 2026-11-16
+
+Implementation/test source `51f98d5a2d656900a48e0d9017b46d5ef3f4e221` passed
+[the independent SaaS application workflow](https://github.com/DannyReinhold/vernac/actions/runs/43839846054)
+and [actual packaged plugin/Wizard verification](https://github.com/DannyReinhold/vernac/actions/runs/43839846020).
+The application run includes eleven real payment PostgreSQL tests and HTTPS/Chromium
+registration, concurrent Free capacity, size/quota limits, paid activation, stable
+checkout identity, owned PDF/XML, foreign access denial, role separation/revocation,
+cancel/resume and restart with immutable invoice byte hashes. The explicit SaaS Wizard
+reuses this consumer source and regenerates the chosen namespace's schema fingerprints.
+Existing basic/Spring template defaults are retained.
+
+PR #87 now contains the application, reusable billing UI, persistent local launcher,
+provider ingress and Wizard. This is scoped technical evidence, not whole-release GO.
+Remaining: full pending/refusal/recovery and merchant/operator refund journeys,
+account closure versus ongoing billing review, real Mollie/Stripe/Brevo attestations,
+final fiscal/archive policy review, installed-IDE smoke and source/artifact-bound
+release acceptance. Keep one application PR and one separate audit/gate PR.
+
+The recovery and interruption sections below are historical, not the current list
+of delivered application/Wizard work.
+
 ## Recovery on 2026-11-16
 
 The original uncommitted worktree was recovered intact. The application and billing

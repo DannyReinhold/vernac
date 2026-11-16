@@ -48,7 +48,10 @@ correlation before tenant business access; arbitrary callback tenant claims do n
 establish ownership. Handwritten repository methods require a supported scoped facade,
 canonical hydration/writes, metadata/provenance result guards and executable documentation.
 The implementation must cover negative/restart/concurrency cases under restricted roles.
-A22/A23 in the release ledger track completion; these APIs are not implemented yet.
+A22/A23 in the release ledger track completion. The canonical generated JDBC extension
+capability is implemented and tested in #86. Registered provider routing and the bounded
+consumer ingress are implemented in #84/#87; whole-release routing/provider acceptance
+remains separate.
 
 ## Architecture and ownership
 
@@ -425,3 +428,16 @@ challenge lifetimes, abuse budgets, browser sessions and revocation requirements
 The policy baseline is accepted, not completed identity functionality.
 Protected durable mail secrets (D10) and account/owner provisioning (D05) remain
 explicit dependencies before public end-to-end registration can ship.
+
+
+## Consumer/Wizard implementation update — 16 November 2026
+
+PR #87 implements the independent document workspace, reusable billing pages,
+explicit source-shared SaaS Wizard, namespace-specific migration generation and
+persistent local Docker/HTTPS startup. The implementation source
+`51f98d5a2d656900a48e0d9017b46d5ef3f4e221` passed the
+[restricted PostgreSQL/HTTPS/Chromium consumer workflow](https://github.com/DannyReinhold/vernac/actions/runs/43839846054)
+and [packaged IntelliJ/Wizard checks](https://github.com/DannyReinhold/vernac/actions/runs/43839846020).
+See the [continuation record](saas-application-checkpoint.md) for the exact tested
+flows and remaining operator/provider/release work. The separate final audit retains
+NO-GO until all A01–A23/J01–J09 requirements and final-candidate evidence are closed.
