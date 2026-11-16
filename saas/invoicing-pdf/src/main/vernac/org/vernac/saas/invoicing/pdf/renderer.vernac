@@ -1,0 +1,10 @@
+namespace org.vernac.saas.invoicing.pdf;
+import org.vernac.saas.invoicing.InvoiceRenderer;
+import org.vernac.saas.invoicing.InvoiceContent;
+import org.vernac.saas.invoicing.RenderedInvoice;
+adapter ZugferdInvoiceRenderer implements InvoiceRenderer {
+    behavior {
+        java uses { org.vernac.saas.invoicing.pdf.ZugferdDocuments documents; }
+        public RenderedInvoice render(InvoiceContent content) { return self.documents().render(content); }
+    }
+}

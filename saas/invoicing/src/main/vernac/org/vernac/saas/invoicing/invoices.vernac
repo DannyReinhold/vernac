@@ -1,0 +1,118 @@
+namespace org.vernac.saas.invoicing;
+import org.vernac.saas.identity.AccountId;
+import org.vernac.saas.mail.MailAddress;
+import org.vernac.saas.mail.MailCorrelationId;
+import org.vernac.saas.subscriptions.OfferTerms;
+import org.vernac.saas.subscriptions.MinorUnits;
+import org.vernac.saas.subscriptions.SubscriptionPeriod;
+import org.vernac.saas.payments.PaymentPostedAt;
+import org.vernac.saas.payments.persistence.PaymentOrderId;
+
+term InvoiceTaxTreatment { description "Explicit domestic seller tax policy. Eligibility is configured by the seller, never inferred from payment or customer role."; }
+value InvoiceTaxTreatment = STANDARD_19 | SMALL_BUSINESS_EXEMPT;
+value InvoiceEnvironment = LIVE | TEST;
+value InvoiceKind = INVOICE | CORRECTION;
+value InvoiceText(String text) validates { require(org.vernac.saas.invoicing.InvoiceRules.text(self.text()), "Invalid invoice text"); }
+behavior { public String toString() { return "InvoiceText[REDACTED]"; } };
+value InvoicePostalCode(String text) validates { require(self.text().matches("[0-9]{5}"), "A German postal code is required"); }
+behavior { public String toString() { return "InvoicePostalCode[REDACTED]"; } };
+term InvoiceParty { description "Immutable complete postal party snapshot. This release supports domestic German parties only."; }
+value InvoiceParty(InvoiceText name, InvoiceText street, InvoicePostalCode postalCode, InvoiceText city)
+behavior { public String toString() { return "InvoiceParty[REDACTED]"; } };
+value SellerTaxIdentifier(String text) validates { require(self.text().matches("DE[0-9]{9}|[0-9][0-9 /]{4,23}"), "A German seller tax number or VAT identifier is required"); }
+behavior { public String toString() { return "SellerTaxIdentifier[REDACTED]"; } };
+value InvoiceSeller(InvoiceParty party, SellerTaxIdentifier taxIdentifier, MailAddress contact, InvoiceTaxTreatment treatment)
+behavior { public String toString() { return "InvoiceSeller[REDACTED]"; } };
+value CustomerNumber(String text) validates { require(self.text().matches("[a-zA-Z0-9][a-zA-Z0-9-]{0,47}"), "Invalid customer number"); }
+behavior { public String toString() { return "CustomerNumber[REDACTED]"; } };
+value InvoiceBuyer(InvoiceParty party, MailAddress contact, CustomerNumber customer)
+behavior { public String toString() { return "InvoiceBuyer[REDACTED]"; } };
+value InvoiceAmounts(MinorUnits net, MinorUnits tax, MinorUnits gross) validates {
+    require(self.net().value() + self.tax().value() == self.gross().value(), "Invoice totals must balance");
+};
+value InvoiceIssueDate(LocalDate value);
+value InvoiceNumber(String text) validates { require(self.text().matches("(TEST-)?[A-Z][A-Z0-9-]{0,15}-[0-9]{4}-[0-9]{8}"), "Invalid invoice number"); };
+value InvoiceSeries(String text) validates { require(self.text().matches("[A-Z][A-Z0-9-]{0,15}"), "Invalid invoice series"); };
+value InvoiceReference(InvoiceNumber number, InvoiceIssueDate issued);
+value InvoiceContent(InvoiceNumber number, InvoiceIssueDate issued, InvoiceKind kind, InvoiceEnvironment environment,
+    InvoiceSeller seller, InvoiceBuyer buyer, InvoiceText description, OfferTerms terms, SubscriptionPeriod period,
+    PaymentPostedAt paymentPostedAt, InvoiceAmounts amounts, InvoiceReference? original) validates {
+    require(self.amounts().gross().value() > 0, "Invoice amount must be positive");
+    require((self.environment() == InvoiceEnvironment.TEST) == self.number().text().startsWith("TEST-"), "Test documents require separate numbering");
+    require(self.seller().treatment() != InvoiceTaxTreatment.SMALL_BUSINESS_EXEMPT || self.amounts().tax().value() == 0, "Exempt invoices cannot charge VAT");
+    require((self.kind() == InvoiceKind.CORRECTION) == self.original().isPresent(), "Corrections require an original invoice reference");
+} behavior { public String toString() { return "InvoiceContent[REDACTED]"; } };
+value InvoicePdf(String encoded) validates { require(org.vernac.saas.invoicing.InvoiceRules.pdf(self.encoded()), "Invalid bounded PDF document"); }
+behavior { public String toString() { return "InvoicePdf[REDACTED]"; } };
+value InvoiceXml(String encoded) validates { require(org.vernac.saas.invoicing.InvoiceRules.xml(self.encoded()), "Invalid bounded invoice XML"); }
+behavior { public String toString() { return "InvoiceXml[REDACTED]"; } };
+value RenderedInvoice(InvoicePdf pdf, InvoiceXml xml)
+behavior { public String toString() { return "RenderedInvoice[REDACTED]"; } };
+port InvoiceRenderer { RenderedInvoice render(InvoiceContent content); }
+
+id InvoiceId;
+value InvoiceSourceKey(String text) validates { require(self.text().matches("[0-9a-f-]{36}/[0-9]{1,16}"), "Invalid invoice source key"); }
+behavior { public String toString() { return "InvoiceSourceKey[REDACTED]"; } };
+value InvoiceSequenceKey(String text) validates { require(self.text().matches("(LIVE|TEST)/[A-Z][A-Z0-9-]{0,15}/[0-9]{4}"), "Invalid invoice sequence key"); };
+id InvoiceSequenceId;
+value InvoiceSequenceValue(long value) validates { require(self.value() >= 0 && self.value() <= 99999999, "Invoice sequence exhausted"); };
+value InvoiceWorkStatus = PENDING | READY | REVIEW;
+value InvoiceWorkDue(Instant value);
+value InvoiceWorkLease(UUID token, Instant until);
+
+global aggregate BillingProfile[AccountId](mut InvoiceBuyer buyer) behavior {
+    modify void replace(InvoiceBuyer buyer) { self.buyer(buyer); }
+};
+repository BillingProfileRepository for BillingProfile {}
+global aggregate InvoiceSequence[InvoiceSequenceId](unique InvoiceSequenceKey key, mut InvoiceSequenceValue last) behavior {
+    modify InvoiceSequenceValue next() { self.last(InvoiceSequenceValue.of(self.last().value() + 1)); return self.last(); }
+};
+repository InvoiceSequenceRepository for InvoiceSequence {
+    find InvoiceSequence? forKey(InvoiceSequenceKey key) where key = :key;
+}
+term Invoice { description "Immutable fiscal snapshot allocated once per registered payment/refund source. Rendering status never changes commercial facts."; }
+global aggregate Invoice[InvoiceId](AccountId account, PaymentOrderId payment, unique InvoiceSourceKey source,
+    unique InvoiceNumber number, InvoiceContent content, MinorUnits cumulativeRefund,
+    mut InvoiceWorkStatus status, mut InvoiceWorkDue due, mut InvoiceWorkLease? lease) validates {
+    require(self.number().equals(self.content().number()), "Invoice number must match its document");
+} behavior {
+    modify void claim(InvoiceWorkLease lease) { self.lease(lease); }
+    modify void retry(InvoiceWorkDue due) {
+        org.vernac.saas.invoicing.InvoiceRules.requireRetry(self.status() == InvoiceWorkStatus.REVIEW);
+        self.status(InvoiceWorkStatus.PENDING); self.due(due); self.lease(null);
+    }
+    modify void ready() { self.status(InvoiceWorkStatus.READY); self.lease(null); }
+    modify void defer(InvoiceWorkDue due) { self.due(due); self.lease(null); }
+    modify void review() { self.status(InvoiceWorkStatus.REVIEW); self.lease(null); }
+};
+repository InvoiceRepository for Invoice {
+    find Invoice? forSource(InvoiceSourceKey source) where source = :source;
+}
+id IssuedInvoiceDocumentId;
+global aggregate IssuedInvoiceDocument[IssuedInvoiceDocumentId](unique InvoiceId invoice references Invoice, RenderedInvoice document);
+repository IssuedInvoiceDocumentRepository for IssuedInvoiceDocument {
+    find IssuedInvoiceDocument? forInvoice(InvoiceId invoice) where invoice = :invoice;
+}
+
+value InvoiceNoticeStatus = PENDING | ACCEPTED | SIMULATED | REVIEW;
+value InvoiceNoticeReason = NONE | CONFIGURATION | PROVIDER_REJECTED | OUTCOME_UNKNOWN;
+value InvoiceNoticeCount(int value) validates { require(self.value() >= 0 && self.value() <= 5, "Invoice notice attempts are bounded"); };
+id InvoiceNoticeId;
+global aggregate InvoiceNotice[InvoiceNoticeId](unique InvoiceId invoice references Invoice, MailCorrelationId correlation,
+    mut InvoiceNoticeStatus status, mut InvoiceNoticeReason reason, mut InvoiceNoticeCount calls,
+    mut InvoiceWorkDue due, mut InvoiceWorkLease? lease) behavior {
+    modify void claim(InvoiceWorkLease lease) { self.lease(lease); self.calls(InvoiceNoticeCount.of(self.calls().value() + 1)); }
+    modify void accept(boolean simulated) {
+        self.status(simulated ? InvoiceNoticeStatus.SIMULATED : InvoiceNoticeStatus.ACCEPTED);
+        self.reason(InvoiceNoticeReason.NONE); self.lease(null);
+    }
+    modify void defer(InvoiceWorkDue due) { self.due(due); self.reason(InvoiceNoticeReason.OUTCOME_UNKNOWN); self.lease(null); }
+    modify void review(InvoiceNoticeReason reason) { self.status(InvoiceNoticeStatus.REVIEW); self.reason(reason); self.lease(null); }
+    modify void retry(InvoiceWorkDue due) {
+        org.vernac.saas.invoicing.InvoiceRules.requireRetry(self.status() == InvoiceNoticeStatus.REVIEW);
+        self.status(InvoiceNoticeStatus.PENDING); self.reason(InvoiceNoticeReason.NONE); self.calls(InvoiceNoticeCount.of(0)); self.due(due); self.lease(null);
+    }
+};
+repository InvoiceNoticeRepository for InvoiceNotice {
+    find InvoiceNotice? forInvoice(InvoiceId invoice) where invoice = :invoice;
+}

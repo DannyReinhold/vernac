@@ -1,0 +1,3 @@
+module vernac.saas.invoicing.pdf {
+    export org.vernac.saas.invoicing.pdf.ZugferdInvoiceRenderer;
+}
