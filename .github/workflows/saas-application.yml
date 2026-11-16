@@ -52,7 +52,7 @@ jobs:
           python3 - <<'PYTEST'
           import xml.etree.ElementTree as ET
           r=ET.parse('saas/payments-jdbc/target/failsafe-reports/TEST-org.vernac.saas.payments.persistence.PaymentFlowPostgresIT.xml').getroot()
-          assert int(r.attrib['tests']) == 11 and all(int(r.attrib.get(k,'0')) == 0 for k in ['failures','errors','skipped'])
+          assert int(r.attrib['tests']) >= 12 and all(int(r.attrib.get(k,'0')) == 0 for k in ['failures','errors','skipped'])
           PYTEST
       - name: Package the standalone consumer
         run: mvn -B -ntp -f examples/saas-document-workspace/pom.xml clean package

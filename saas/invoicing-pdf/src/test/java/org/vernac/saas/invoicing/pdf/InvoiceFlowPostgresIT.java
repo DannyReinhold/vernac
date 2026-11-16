@@ -89,7 +89,9 @@ class InvoiceFlowPostgresIT {
                             if (!allowed.contains(account)) throw new IllegalArgumentException();
                         },
                         profile -> {},
-                        time);
+                        time,
+                        account -> { if (!allowed.contains(account)) throw new IllegalArgumentException(); },
+                        account -> {});
         var renderer = context.getBean(InvoiceRenderer.class);
         var seller =
                 ZugferdDocumentsTest.content(

@@ -1,0 +1,10 @@
+flowchart TB
+  A["Implementierungskandidat liegt vor"] --> B["Gezielte technische Prüfungen dokumentieren"]
+  B --> C["Offene Anforderungen und Betreiberentscheidungen sichtbar halten"]
+  C --> D["Maintainer führt reale Provider- und umfassende Tests durch"]
+  D --> E{"Alle vereinbarten Nachweise vorhanden?"}
+  E -->|Nein| F["Nicht veröffentlichen; fehlende Punkte nacharbeiten"]
+  F --> C
+  E -->|Ja| G["Quellstand, Abhängigkeiten und tatsächliche Artefakte binden"]
+  G --> H["Exakten Kandidaten prüfen und ausdrücklich freigeben"]
+  H --> I["Veröffentlichung separat auslösen"]

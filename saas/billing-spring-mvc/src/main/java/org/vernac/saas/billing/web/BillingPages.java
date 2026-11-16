@@ -323,6 +323,7 @@ public final class BillingPages {
                 .append("</details><p>")
                 .append(link(context + "/billing/accounts/" + account, "Zur Abrechnung"))
                 .append("</p>");
+        body.append("<p>").append(link(context + "/billing/accounts/" + account + "/payments/" + order.id().asString(), "Status aktualisieren")).append("</p>");
         return shell(body.toString());
     }
 

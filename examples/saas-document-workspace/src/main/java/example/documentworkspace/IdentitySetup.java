@@ -108,7 +108,8 @@ public class IdentitySetup {
             @Qualifier("transactionManager") PlatformTransactionManager writer,
             Clock clock,
             IdentityJdbcAuthentication authentication,
-            RoleCatalog catalog) {
+            RoleCatalog catalog,
+            org.vernac.saas.billing.lifecycle.BillingAccountLifecycle billingLifecycle) {
         // This demonstration has one workspace-wide operation and no resource-specific
         // authorization.
         PermissionEvaluator objects =
@@ -130,7 +131,8 @@ public class IdentitySetup {
                 authentication.sessionTrust(),
                 catalog,
                 List.of("example.workspace_editor"),
-                objects);
+                objects,
+                billingLifecycle);
     }
 
     @Bean

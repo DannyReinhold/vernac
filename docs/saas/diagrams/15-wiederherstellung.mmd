@@ -1,0 +1,11 @@
+flowchart TB
+  A["Kunde oder Betreiber sieht gestörten Vorgang"] --> B{"Welche Wirkung ist bewiesen?"}
+  B -->|Keine Finanzwirkung| C["Unbezahlten Auftrag zulässig schließen oder fehlgeschlagenen Versuch fortsetzen"]
+  B -->|Provider-Ressource bekannt| D["Bestehende Ressource authentifiziert abrufen"]
+  B -->|Ausgang unbekannt| E["Vorgang und Reservierung halten; keine neue Operation erfinden"]
+  D --> F{"Fakten passen zur gespeicherten Zuordnung?"}
+  F -->|Nein| G["Nicht zuordnen; Betreiberprüfung"]
+  F -->|Ja| H["Idempotent auf bestehenden Auftrag anwenden"]
+  E --> I["Providerkonto und bestehende Vorgangskennung prüfen"]
+  I --> D
+  H --> J["Abo, Korrektur oder Benachrichtigung sicher nacharbeiten"]

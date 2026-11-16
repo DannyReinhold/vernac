@@ -198,3 +198,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contributor and maintainer documentat
 build checks and reporting guidance. Participation follows the
 [Code of Conduct](CODE_OF_CONDUCT.md). Report vulnerabilities privately according
 to the [security policy](SECURITY.md).
+
+
+### SaaS use cases and lifecycle guide
+
+See the [illustrated SaaS guide](docs/saas/index.md) for customer journeys, developer/operator choices, billing, refunds, account closure and recovery.

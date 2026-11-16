@@ -1,0 +1,14 @@
+flowchart TB
+  A["Owner prüft Angebot und Rechnungsadresse"] --> B["Auftrag mit stabiler Vorgangskennung registrieren"]
+  B --> C{"Derselbe Vorgang schon vorhanden?"}
+  C -->|Ja| D["Vorhandenen Auftrag anzeigen"]
+  C -->|Nein| E["Checkout beim gewählten Anbieter vorbereiten"]
+  E --> F["Kunde führt Anbieterzahlung aus"]
+  F --> G["Callback oder Polling prüft registrierte Provider-Fakten"]
+  G --> H{"Verifiziertes Ergebnis?"}
+  H -->|Ausstehend| I["Bestehenden Auftrag weiter beobachten"]
+  I --> G
+  H -->|Fehlgeschlagen| J["Zulässigen Wiederholungsweg anbieten"]
+  H -->|Unbekannt| K["Prüffall; keine neue Blindbestellung"]
+  H -->|Bezahlt| L["Einen Abo-Zeitraum idempotent aktivieren"]
+  L --> M["Rechnung und Benachrichtigung verarbeiten"]

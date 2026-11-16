@@ -1,0 +1,13 @@
+flowchart TB
+  A["Kontingentpflichtige Aktion"] --> B{"Nur lokale Wirkung?"}
+  B -->|Ja| C["Verbrauch und Fachaktion gemeinsam buchen"]
+  C --> D{"Transaktion erfolgreich?"}
+  D -->|Ja| E["Beides bleibt bestehen"]
+  D -->|Nein| F["Beides zurückrollen"]
+  B -->|Nein| G["Externe Menge dauerhaft reservieren"]
+  G --> H["Externen Dienst außerhalb der Buchung aufrufen"]
+  H --> I{"Ergebnis nachweisbar?"}
+  I -->|Erfolg| J["Reservierung als verbraucht bestätigen"]
+  I -->|Sicher keine Wirkung| K["Nach festgelegter Regel freigeben"]
+  I -->|Unbekannt| L["Reservierung behalten und bestehenden Vorgang prüfen"]
+  L --> I

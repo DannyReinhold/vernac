@@ -27,3 +27,5 @@ src/main/vernac-schema/history/V20261116010000000__initial_documents.json
 src/main/vernac/example/documentworkspace/model.vernac
 verify.py
 vernac-application.vapplication
+src/main/java/example/documentworkspace/MerchantAccess.java
+src/main/java/example/documentworkspace/MerchantOperations.java

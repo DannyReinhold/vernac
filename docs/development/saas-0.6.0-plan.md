@@ -441,3 +441,14 @@ and [packaged IntelliJ/Wizard checks](https://github.com/DannyReinhold/vernac/ac
 See the [continuation record](saas-application-checkpoint.md) for the exact tested
 flows and remaining operator/provider/release work. The separate final audit retains
 NO-GO until all A01–A23/J01–J09 requirements and final-candidate evidence are closed.
+
+
+## Operator/lifecycle continuation — 16 November 2026
+
+PR #87 now supplies explicit merchant refund authority and operator commands,
+transaction-coordinated account closure/new-charge guards, retained invoice reads
+after closure, and independent billing-maintenance stages. Targeted local PostgreSQL
+and packaged browser/restart/refund/closure checks pass. The [illustrated SaaS guide](../saas/index.md)
+records all customer use cases and the developer/operator decisions with 18 diagrams.
+The maintainer will perform real provider and comprehensive acceptance tests later;
+these deferred checks remain separate and are not silently recorded as passing.

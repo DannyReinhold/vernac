@@ -1,0 +1,12 @@
+flowchart TB
+  A["Anmeldung absenden"] --> B{"Anfrage zugelassen?"}
+  B -->|Nein| C["Später denselben Einstieg erneut versuchen"]
+  B -->|Ja| D{"Zugangsdaten und Identität gültig?"}
+  D -->|Nein| E["Keine Sitzung; neutrale Ablehnung"]
+  D -->|Ja| F["Geschützte Sitzung anlegen"]
+  F --> G["Konto ausdrücklich wählen"]
+  G --> H{"Aktive Mitgliedschaft?"}
+  H -->|Nein| I["Anderes berechtigtes Konto wählen"]
+  H -->|Ja| J["Beim ersten Einstieg Free bereitstellen"]
+  J --> K["Verifizierten Produktkontext öffnen"]
+  K --> L["Bei jeder Aktion Rechte und aktuellen Zustand prüfen"]

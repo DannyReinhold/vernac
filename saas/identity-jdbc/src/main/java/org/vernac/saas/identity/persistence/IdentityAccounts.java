@@ -31,9 +31,18 @@ public final class IdentityAccounts implements PermissionEvaluator,IdentityAccou
     private final PersonalAccountRepository personal;private final IdentityRepository identities;
     private final IdentitySessionTrust trust;private final RoleCatalog catalog;private final Set<String> initial;
     private final PermissionEvaluator objectPolicy;private final Clock clock;
+    /** Runs in the account writer after current ownership and the account row lock. */
+    @FunctionalInterface public interface ClosurePolicy { void requireClosureAllowed(AccountId account); }
+    private final ClosurePolicy closurePolicy;
 
     public IdentityAccounts(NamedParameterJdbcTemplate jdbc,PlatformTransactionManager manager,Clock clock,
             IdentitySessionTrust trust,RoleCatalog catalog,Collection<String> initialRoles,PermissionEvaluator objectPolicy) {
+        this(jdbc,manager,clock,trust,catalog,initialRoles,objectPolicy,account -> {});
+    }
+    public IdentityAccounts(NamedParameterJdbcTemplate jdbc,PlatformTransactionManager manager,Clock clock,
+            IdentitySessionTrust trust,RoleCatalog catalog,Collection<String> initialRoles,PermissionEvaluator objectPolicy,
+            ClosurePolicy closurePolicy) {
+        this.closurePolicy=Objects.requireNonNull(closurePolicy);
         try {
             unscoped();this.jdbc=Objects.requireNonNull(jdbc);this.clock=Objects.requireNonNull(clock);this.trust=Objects.requireNonNull(trust);
             this.catalog=Objects.requireNonNull(catalog);this.initial=Set.copyOf(catalog.assignments(initialRoles));this.objectPolicy=Objects.requireNonNull(objectPolicy);
@@ -115,6 +124,14 @@ public final class IdentityAccounts implements PermissionEvaluator,IdentityAccou
             return jdbc.query("SELECT a.\"id\",a.\"kind\",m.\"owner\" FROM "+S+"\"AccountMembership\" m JOIN "+S+"\"Account\" a ON a.\"id\"=m.\"account\" WHERE m.\"subject\"=:user AND m.\"status\"='ACTIVE' AND a.\"status\"='ACTIVE' ORDER BY a.\"id\" LIMIT :limit",Map.of("user",user.value(),"limit",MAX_ACCOUNTS_PER_USER),(rs,n)->new AccountView(AccountId.of(rs.getObject(1,UUID.class)),rs.getString(2),rs.getBoolean(3)));}));}
         catch(AccountAccessException safe){throw safe;}catch(RuntimeException unavailable){throw fail(UNAVAILABLE);}
     }
+    /** Fresh retained ownership for billing-document reads; grants no product access or payment authority. */
+    public void requireRetainedOwnership(AccountId id) {
+        unscoped();
+        try { read.executeWithoutResult(status -> {
+            var user=currentUser();accounts.existing(id).orElseThrow(() -> fail(ACCESS_DENIED));owner(id,user);
+        }); }
+        catch(AccountAccessException safe){throw safe;}catch(RuntimeException unavailable){throw fail(UNAVAILABLE);}
+    }
     /** Validate the account/membership first; callers must close this scope and later permissions recheck membership. */
     public TenantContext.Scope select(AccountId id) {
         unscoped();try {var tenant=Objects.requireNonNull(read.execute(status->{var user=currentUser();var account=accounts.existing(id).orElseThrow(()->fail(ACCESS_DENIED));
@@ -136,7 +153,7 @@ public final class IdentityAccounts implements PermissionEvaluator,IdentityAccou
             var next=member(id,successor);next.ownership(AccountOwner.of(true));members.save(next);
             var previous=member(id,user);previous.ownership(AccountOwner.of(false));members.save(previous);return true;});
     }
-    public void closeAccount(AccountId id) {mutate(()->{var user=currentUser();var account=locked(id);owner(id,user);account.closeAccount();accounts.save(account);return true;});}
+    public void closeAccount(AccountId id) {mutate(()->{var user=currentUser();var account=locked(id);owner(id,user);closurePolicy.requireClosureAllowed(id);account.closeAccount();accounts.save(account);return true;});}
     public void disableIdentity() {endIdentity(false);}
     public void closeIdentity() {endIdentity(true);}
     private void endIdentity(boolean close) {

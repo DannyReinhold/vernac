@@ -1,0 +1,15 @@
+flowchart TB
+  A["Aktiver bezahlter Zeitraum"] --> B{"Kunde plant nächste Periode"}
+  B -->|Unverändert| C["Verlängerung bleibt aktiv"]
+  B -->|Anderer Tarif| D["Gewählte nächste Konditionen festhalten"]
+  B -->|Kündigen| E["Verlängerung stoppen; laufende Leistungen behalten"]
+  C --> F["Zeitraumgrenze erreicht"]
+  D --> F
+  E --> F
+  F --> G{"Nächster Zustand?"}
+  G -->|Gekündigt| H["Bezahlte Leistungen enden"]
+  G -->|Explizit Free| I["Free aktivieren; keine Zahlung anlegen"]
+  G -->|Kostenpflichtig| J["Mit verifiziertem Mandat einen Zeitraum registrieren"]
+  J --> K{"Zahlung bestätigt?"}
+  K -->|Ja| L["Leistungen für neue Periode freigeben"]
+  K -->|Nein oder unklar| M["Keine erfundene Freigabe; bestehenden Vorgang prüfen"]
