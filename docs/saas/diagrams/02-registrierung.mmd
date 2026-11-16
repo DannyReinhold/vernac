@@ -1,0 +1,10 @@
+flowchart TB
+  A["E-Mail eingeben und Registrierung anfordern"] --> B["Anfragebegrenzung und sichere Form prüfen"]
+  B --> C["Neutrale Antwort und dauerhaften Auftrag anlegen"]
+  C --> D["Bestätigungsnachricht verarbeiten"]
+  D --> E["Empfänger öffnet Einmal-Link"]
+  E --> F{"Link gültig und unverbraucht?"}
+  F -->|Nein| G["Keine Aktivierung; neuen Link anfordern"]
+  F -->|Ja| H["Zulässiges Passwort setzen"]
+  H --> I["Identität und persönliches Konto gemeinsam bereitstellen"]
+  I --> J["Zur Anmeldung; noch keine Sitzung"]

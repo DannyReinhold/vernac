@@ -1,0 +1,12 @@
+flowchart TB
+  A["Fachlicher Anlass: Bestätigung, Einladung, Recovery oder Rechnung"] --> B["Dauerhaften Benachrichtigungsauftrag festschreiben"]
+  B --> C["Explizit konfigurierten Mailprovider aufrufen"]
+  C --> D{"Provider-Ergebnis?"}
+  D -->|Angenommen| E["Annahme festhalten; keine Zustellung behaupten"]
+  D -->|Vorübergehend nicht verfügbar| F["Begrenzt denselben Auftrag später versuchen"]
+  D -->|Dauerhaft abgelehnt| G["Sicheren Fehlerzustand und zulässigen Wiederanlauf anbieten"]
+  D -->|Antwort verloren| H["Unbekannten Ausgang behalten; doppelte Nachricht möglich"]
+  F --> C
+  H --> C
+  E --> I["Rechnung und Zahlungswahrheit bleiben unabhängig erhalten"]
+  G --> I

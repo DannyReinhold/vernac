@@ -72,6 +72,7 @@
         <module>saas/payments-jdbc</module>
         <module>saas/invoicing</module>
         <module>saas/invoicing-pdf</module>
+        <module>saas/billing-spring-mvc</module>
     </modules>
 
     <properties>

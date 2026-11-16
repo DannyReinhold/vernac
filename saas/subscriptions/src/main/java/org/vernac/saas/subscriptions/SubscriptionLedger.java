@@ -30,10 +30,19 @@ public final class SubscriptionLedger {
     private final SubscriptionSettlementRepository settlements;
     private final PlanCatalog catalog;
     private final Clock clock;
+    /** Runs inside the subscription writer after its account lock, before a user-directed change. */
+    @FunctionalInterface public interface LifecyclePolicy { void requireChangeAllowed(AccountId account); }
+    private final LifecyclePolicy lifecycle;
+
 
     public SubscriptionLedger(NamedParameterJdbcTemplate jdbc, PlatformTransactionManager manager,
             PlanCatalog catalog, Clock clock) {
+        this(jdbc, manager, catalog, clock, account -> {});
+    }
+    public SubscriptionLedger(NamedParameterJdbcTemplate jdbc, PlatformTransactionManager manager,
+            PlanCatalog catalog, Clock clock, LifecyclePolicy lifecycle) {
         unscoped();
+        this.lifecycle = Objects.requireNonNull(lifecycle);
         this.jdbc = Objects.requireNonNull(jdbc); this.catalog = Objects.requireNonNull(catalog); this.clock = Objects.requireNonNull(clock);
         if (!(manager instanceof DataSourceTransactionManager tx) || tx.getDataSource() != jdbc.getJdbcTemplate().getDataSource()) throw fail(SubscriptionFailure.Code.CONFIGURATION);
         writer = new TransactionTemplate(manager); writer.setTimeout(5);
@@ -148,7 +157,7 @@ public final class SubscriptionLedger {
         });
     }
     private View mutate(AccountId account, java.util.function.Consumer<Subscription> operation) {
-        return transact(account, existing -> { var subscription = required(existing); operation.accept(subscription); return view(subscriptions.save(subscription)); });
+        return transact(account, existing -> { lifecycle.requireChangeAllowed(account); var subscription = required(existing); operation.accept(subscription); return view(subscriptions.save(subscription)); });
     }
     private <T> T transact(AccountId account, Function<Optional<Subscription>, T> operation) {
         unscoped(); Objects.requireNonNull(account);

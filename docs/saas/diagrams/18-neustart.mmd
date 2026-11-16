@@ -1,0 +1,12 @@
+flowchart TB
+  A["Ausfall oder geplanter Neustart"] --> B["Datenbank, Archiv und benötigte Schlüssel erhalten"]
+  B --> C["Migrationen mit separater Migrationsrolle prüfen"]
+  C --> D["Runtime mit eingeschränkter Rolle starten"]
+  D --> E["Persistente Worker-Aufträge wieder aufnehmen"]
+  E --> F{"Art des verbliebenen Auftrags?"}
+  F -->|Finanzvorgang| G["Bekannte Zuordnung prüfen; unklaren Ausgang reserviert lassen"]
+  F -->|Dokument| H["Aus festgeschriebenem Snapshot rendern oder vorhandene Bytes verwenden"]
+  F -->|Nachricht| I["Denselben Auftrag mit begrenztem Wiederanlauf verarbeiten"]
+  G --> J["Fortschritt und sichere Fehlerzustände überwachen"]
+  H --> J
+  I --> J

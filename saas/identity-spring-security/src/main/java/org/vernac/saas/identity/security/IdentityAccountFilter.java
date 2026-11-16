@@ -39,8 +39,8 @@ public final class IdentityAccountFilter extends OncePerRequestFilter {
                 default->throw new IdentityAccountException(IdentityAccountException.Code.INVALID_INPUT);
             }
             response.setStatus(303);response.setHeader("Location",request.getContextPath()+"/auth/accounts");
-        }catch(IdentityAccountException failure){int status=switch(failure.code()){case ACCESS_DENIED->403;case LAST_OWNER,CAPACITY->409;case INVALID_INPUT,INVALID_ROLES->400;case CONFIGURATION,UNAVAILABLE->503;};
-            reject(response,status,failure.code()==IdentityAccountException.Code.LAST_OWNER?"Transfer ownership or close the account before removing its last active owner.":"Account operation unavailable");}
+        }catch(IdentityAccountException failure){int status=switch(failure.code()){case ACCESS_DENIED->403;case LAST_OWNER,BILLING_ACTIVE,CAPACITY->409;case INVALID_INPUT,INVALID_ROLES->400;case CONFIGURATION,UNAVAILABLE->503;};
+            reject(response,status,failure.code()==IdentityAccountException.Code.LAST_OWNER?"Transfer ownership or close the account before removing its last active owner.":failure.code()==IdentityAccountException.Code.BILLING_ACTIVE?"Cancel renewal, wait until the paid period ends and resolve pending payments or refunds before closing this account.":"Account operation unavailable");}
         catch(IdentityActionException failure){int status=switch(failure.code()){case ACCESS_DENIED->403;case PASSWORD_POLICY,REJECTED->400;case AUTHENTICATION_REQUIRED->401;case THROTTLED->429;case UNAVAILABLE->503;};if(status==429)response.setHeader("Retry-After",Integer.toString(failure.retryAfterSeconds()));reject(response,status,"Account operation unavailable");}
         catch(RuntimeException unavailable){reject(response,503,"Account operation unavailable");}
     }

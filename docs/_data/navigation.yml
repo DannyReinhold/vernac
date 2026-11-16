@@ -20,6 +20,16 @@
       url: /tutorials/debugging.html
     - title: Dispatch showcase
       url: /tutorials/dispatch.html
+- title: SaaS applications
+  links:
+    - title: Use cases and overview
+      url: /saas/index.html
+    - title: Customer journeys
+      url: /saas/kundenablaeufe.html
+    - title: Developer decisions
+      url: /saas/entscheidungen.html
+    - title: Operations and recovery
+      url: /saas/betrieb.html
 - title: Find an answer
   links:
     - title: Documentation map

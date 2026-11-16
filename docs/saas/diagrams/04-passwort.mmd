@@ -1,0 +1,11 @@
+flowchart TB
+  A{"Passwort vergessen oder angemeldet?"}
+  A -->|Vergessen| B["Neutrale Wiederherstellung anfordern"]
+  B --> C["Gültigen Einmal-Link öffnen"]
+  A -->|Angemeldet| D["Aktuelles Passwort nachweisen"]
+  C --> E{"Nachweis gültig?"}
+  D --> E
+  E -->|Nein| F["Keine Änderung; sicheren Einstieg wiederholen"]
+  E -->|Ja| G["Neues Passwort nach Richtlinie festlegen"]
+  G --> H["Passwort speichern und alte Sitzungen widerrufen"]
+  H --> I["Erneut anmelden"]

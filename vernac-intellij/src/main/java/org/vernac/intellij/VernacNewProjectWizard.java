@@ -52,7 +52,7 @@ public final class VernacNewProjectWizard
     @Override
     public String getDescription() {
         return "Create a Spring Boot web application with PostgreSQL and Thymeleaf, "
-                + "a minimal domain project, or a reusable Vernac module.";
+                + "an independent SaaS app, a minimal domain project, or a reusable Vernac module.";
     }
 
     @Override
@@ -101,7 +101,7 @@ public final class VernacNewProjectWizard
             });
 
             kindField.setSelectedItem(VernacProjectTemplate.ProjectKind.SPRING_BOOT_APPLICATION);
-            kindField.setToolTipText("Web application: real UI, PostgreSQL, Flyway, local Compose; minimal and module projects need no Docker.");
+            kindField.setToolTipText("SaaS adds accounts, subscription billing and local test providers. Web/SaaS use PostgreSQL and Docker Compose; minimal/module projects need no Docker.");
             configureJdkSelection();
         }
 

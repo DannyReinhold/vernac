@@ -20,7 +20,7 @@ public final class IdentityFormFilter extends OncePerRequestFilter {
     static boolean parsed(HttpServletRequest request) { return request.getAttribute(PARSED) == PARSED_MARKER; }
 
     public IdentityFormFilter(Set<String> paths) {
-        if (paths == null || paths.isEmpty() || paths.size() > 32) throw new IllegalArgumentException("Invalid identity form paths");
+        if (paths == null || paths.isEmpty() || paths.size() > 64) throw new IllegalArgumentException("Invalid identity form paths");
         for (String path : paths) {
             if (path == null || !path.matches("/[a-zA-Z0-9/_-]+")) throw new IllegalArgumentException("Invalid identity form path");
         }

@@ -1,0 +1,16 @@
+application example.documentworkspace {
+ tenancy explicit;
+ authorization explicit;
+ activate vernac.saas.identity.jdbc;
+ activate vernac.saas.subscriptions;
+ activate vernac.saas.restrictions;
+ activate vernac.saas.payments.jdbc;
+ activate vernac.saas.payments.local;
+ activate vernac.saas.invoicing;
+ bind org.vernac.saas.identity.IdentityDirectory
+  to org.vernac.saas.identity.persistence.StoredIdentityDirectory;
+ bind org.vernac.saas.mail.MailProvider from configuration "vernac.mail.provider";
+ bind org.vernac.saas.payments.PaymentProvider from configuration "vernac.payments.provider";
+ bind org.vernac.saas.invoicing.InvoiceRenderer to org.vernac.saas.invoicing.pdf.ZugferdInvoiceRenderer;
+ bind example.documentworkspace.DocumentOperations to example.documentworkspace.StoredDocuments;
+}

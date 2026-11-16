@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'vernac-intellij/**'
+      - 'examples/saas-document-workspace/**'
+      - 'templates/**'
       - 'vernac-compiler/**'
       - 'vernac-lsp/**'
       - 'vernac-runtime/**'
@@ -30,7 +32,7 @@ jobs:
       - name: Build and test compiled renderer and actual plugin ZIP
         run: >-
           mvn -B -ntp -pl vernac-intellij -am
-          -Dtest=VernacDebuggerApiTest,VernacViewInspectorTest
+          -Dtest=VernacDebuggerApiTest,VernacViewInspectorTest,VernacSaasTemplateTest,VernacSpringBootTemplateTest,VernacProjectTemplateTest
           -Dsurefire.failIfNoSpecifiedTests=false
           -Dit.test=PluginDistributionIT -Dfailsafe.failIfNoSpecifiedTests=false
           clean verify
@@ -51,6 +53,10 @@ jobs:
                   'packagedPluginDoesNotReferenceRejectedInternalRendererApi',
                   'includesPluginTemplateAndExecutableLanguageServer',
               },
+          }
+          proofs['surefire-reports/TEST-org.vernac.intellij.VernacSaasTemplateTest.xml'] = {
+              'independentConsumerUsesItsOwnNamespaceAndConsistentTenantSchema',
+              'detectsCollisionsBeforeWritingAnything',
           }
           for report, expected in proofs.items():
               root = ET.parse(Path('vernac-intellij/target') / report).getroot()

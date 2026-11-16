@@ -1,0 +1,16 @@
+flowchart TB
+  A["Bestätigte Zahlungsfakten liegen vor"] --> B{"Rechnung für diese Quelle schon vorhanden?"}
+  B -->|Ja| C["Bestehenden unveränderten Snapshot verwenden"]
+  B -->|Nein| D["Käufer-, Verkäufer- und Leistungsfakten einfrieren"]
+  D --> E["Eindeutige Nummer dauerhaft zuweisen"]
+  E --> F["PDF und XML aus denselben Fakten erzeugen und prüfen"]
+  F --> G{"Dokument gültig?"}
+  G -->|Nein| H["Snapshot und Nummer behalten; Rendering später erneut bearbeiten"]
+  H --> F
+  G -->|Ja| I["Dokument und Benachrichtigungsauftrag gemeinsam bereitstellen"]
+  I --> J["Berechtigter Owner lädt PDF oder XML herunter"]
+  C --> V{"Dokument bereits bereit?"}
+  V -->|Ja| J
+  V -->|Nein| F
+  I --> K{"Spätere bestätigte Erstattung?"}
+  K -->|Ja| L["Referenzierte Korrektur ausstellen; Original behalten"]

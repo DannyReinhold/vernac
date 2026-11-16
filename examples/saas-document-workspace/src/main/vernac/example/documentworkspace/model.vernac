@@ -1,0 +1,41 @@
+namespace example.documentworkspace;
+permission WorkspacePermissions { VIEW; EDIT; EXPORT; }
+id DocumentId;
+value DocumentTitle(String text) validates { require(!self.text().isBlank() && self.text().length() <= 120, "Title must contain 1 to 120 characters"); };
+value DocumentText(String text) validates { require(self.text().length() <= 10000, "Document is too long"); };
+tenant aggregate Document[DocumentId](mut DocumentTitle title, mut DocumentText text) behavior {
+    modify void edit(DocumentTitle title, DocumentText text) { self.title(title); self.text(text); }
+} list Documents;
+repository DocumentRepository for Document {}
+value WorkspaceMessage(String text);
+value DocumentSummary(DocumentId id, DocumentTitle title, DocumentText text) list DocumentSummaries;
+port DocumentOperations {
+    DocumentSummaries allDocuments();
+    DocumentId create(DocumentTitle title, DocumentText text);
+    void delete(DocumentId id);
+    DocumentSummary export(DocumentId id);
+}
+adapter StoredDocuments implements DocumentOperations {
+ behavior {
+    java uses { example.documentworkspace.DocumentActions actions; }
+    public DocumentSummaries allDocuments() { return self.actions().list(); }
+    public DocumentId create(DocumentTitle title, DocumentText text) { return self.actions().create(title,text); }
+    public void delete(DocumentId id) { self.actions().delete(id); }
+    public DocumentSummary export(DocumentId id) { return self.actions().export(id); }
+ }
+}
+usecase ViewWorkspace() returns WorkspaceMessage requires permission WorkspacePermissions.VIEW behavior {
+ execute { return WorkspaceMessage.of("Your verified workspace is open."); }
+}
+usecase ListDocuments() returns DocumentSummaries requires permission WorkspacePermissions.VIEW uses DocumentOperations behavior {
+ execute { return self.documentOperations().allDocuments(); }
+}
+usecase CreateDocument(DocumentTitle title, DocumentText text) returns DocumentId requires permission WorkspacePermissions.EDIT uses DocumentOperations behavior {
+ execute { return self.documentOperations().create(title, text); }
+}
+usecase DeleteDocument(DocumentId id) requires permission WorkspacePermissions.EDIT uses DocumentOperations behavior {
+ execute { self.documentOperations().delete(id); }
+}
+usecase ExportDocument(DocumentId id) returns DocumentSummary requires permission WorkspacePermissions.EXPORT uses DocumentOperations behavior {
+ execute { return self.documentOperations().export(id); }
+}
