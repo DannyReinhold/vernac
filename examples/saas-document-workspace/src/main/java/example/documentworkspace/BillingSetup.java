@@ -224,6 +224,7 @@ class BillingSetup {
     }
 
     @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="billing.worker.enabled",havingValue="true",matchIfMissing=true)
     SmartLifecycle billingWorker(
             org.vernac.saas.billing.lifecycle.BillingMaintenance maintenance) {
         return new SmartLifecycle() {
