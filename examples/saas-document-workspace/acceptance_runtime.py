@@ -2,9 +2,13 @@
 # Copyright 2026 Danny Reinhold; SPDX-License-Identifier: Apache-2.0
 """One isolated test runtime. Private JSON protocol over pipes; never expose fixture routes in a JAR."""
 import base64,json,os,pathlib,secrets,ssl,subprocess,sys,tempfile,time,urllib.request,zipfile
+import upgrade_snapshot
 ROOT=pathlib.Path(__file__).resolve().parent
 SCHEMAS=('org.vernac.saas.identity.persistence','identity_sessions','org.vernac.saas.subscriptions','org.vernac.saas.restrictions','org.vernac.saas.payments.persistence','org.vernac.saas.payments.local','org.vernac.saas.invoicing','example.documentworkspace')
 def main():
+    baseline=os.environ.get('VERNAC_UPGRADE_BASELINE')
+    manifest=upgrade_snapshot.read(baseline) if baseline else None
+    retained=json.loads((pathlib.Path(baseline)/'test-runtime.json').read_text()) if baseline else None
     admin=os.environ['VERNAC_PG_TEST_URL'].removeprefix('jdbc:')
     db='case_'+secrets.token_hex(8);role='case_runtime_'+secrets.token_hex(8);password=secrets.token_urlsafe(32)
     credentials=dict(os.environ,PGPASSWORD=os.environ['VERNAC_PG_TEST_PASSWORD'])
@@ -23,8 +27,14 @@ def main():
             if any('/acceptance/support/' in name for name in jar.namelist()):raise RuntimeError('Fixture leaked into production JAR')
         sql(admin,'CREATE DATABASE "'+db+'"');created_db=True
         sql(admin,'CREATE ROLE "'+role+'" LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD \''+password+"'");created_role=True
+        if baseline:
+            with (pathlib.Path(baseline)/'database.sql').open() as source:
+                subprocess.run(['psql','-X','-q','-v','ON_ERROR_STOP=1','-d',url,'-U',os.environ['VERNAC_PG_TEST_USER']],env=credentials,stdin=source,check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
         for schema in SCHEMAS:
-            sql(url,'CREATE SCHEMA "'+schema+'"; GRANT USAGE ON SCHEMA "'+schema+'" TO "'+role+'"; ALTER DEFAULT PRIVILEGES IN SCHEMA "'+schema+'" GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES TO "'+role+'"')
+            sql(url,'CREATE SCHEMA IF NOT EXISTS "'+schema+'"; GRANT USAGE ON SCHEMA "'+schema+'" TO "'+role+'"; ALTER DEFAULT PRIVILEGES IN SCHEMA "'+schema+'" GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES TO "'+role+'"')
+        if baseline:
+            for schema in SCHEMAS:
+                sql(url,'GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA "'+schema+'" TO "'+role+'"')
         with tempfile.TemporaryDirectory(prefix='vernac-case-') as temporary:
             tmp=pathlib.Path(temporary);storepass=secrets.token_urlsafe(24);keystore=tmp/'localhost.p12'
             subprocess.run(['keytool','-genkeypair','-alias','local','-keyalg','RSA','-keysize','2048','-validity','2','-storetype','PKCS12','-keystore',str(keystore),'-storepass',storepass,'-dname','CN=localhost','-ext','SAN=dns:localhost,ip:127.0.0.1'],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
@@ -36,6 +46,9 @@ def main():
                 SERVER_SSL_KEY_STORE=str(keystore),SERVER_SSL_KEY_STORE_PASSWORD=storepass,
                 IDENTITY_ADMISSION_KEY_LABEL='case-v1',IDENTITY_ADMISSION_KEY=admission,IDENTITY_DELIVERY_KEY_LABEL='case-v1',IDENTITY_DELIVERY_KEY=delivery,
                 IDENTITY_PREVIEW_CAPABILITY=preview,BILLING_OPERATOR_CAPABILITY=merchant,ACCEPTANCE_CAPABILITY=control,ACCEPTANCE_CLOCK_FILE=str(tmp/'clock.txt'))
+            if retained:
+                env.update(retained['keys'])
+                (tmp/'clock.txt').write_text(retained['clock'])
             classpath=os.pathsep.join([str(ROOT/'target/test-classes'),str(ROOT/'target/classes'),(ROOT/'target/acceptance-classpath.txt').read_text().strip()])
             def start():
                 nonlocal process
@@ -53,13 +66,23 @@ def main():
                 classes=sorted(set(re.findall(r'(?:org|java|jakarta|example|acceptance)\.[\w.$]+(?:Exception|Error)',log.read_text())))
                 raise RuntimeError('Startup: '+','.join(classes))
             start()
+            if baseline:
+                upgrade_snapshot.check_history(manifest['history'],upgrade_snapshot.history(url,credentials,os.environ['VERNAC_PG_TEST_USER']))
             for line in sys.stdin:
                 command=json.loads(line)
                 if command['action']=='restart':stop();start()
+                elif command['action']=='snapshot':
+                    stop()
+                    retained_runtime={'clock':(tmp/'clock.txt').read_text(), 'keys':{key:env[key] for key in ['IDENTITY_ADMISSION_KEY_LABEL','IDENTITY_ADMISSION_KEY','IDENTITY_DELIVERY_KEY_LABEL','IDENTITY_DELIVERY_KEY']}}
+                    upgrade_snapshot.capture(command['directory'],url,credentials,os.environ['VERNAC_PG_TEST_USER'],retained_runtime,command['expected'])
+                    print(json.dumps({'captured':True}),flush=True)
+                elif command['action']=='history':
+                    upgrade_snapshot.check_history(manifest['history'],upgrade_snapshot.history(url,credentials,os.environ['VERNAC_PG_TEST_USER']))
+                    print(json.dumps({'historyPreserved':True}),flush=True)
                 elif command['action']=='stop':break
                 else:raise RuntimeError('Unknown runtime command')
             stop()
-            seen=[password,storepass,preview,merchant,control,admission,delivery]
+            seen=[password,storepass,preview,merchant,control,admission,delivery,env["IDENTITY_ADMISSION_KEY"],env["IDENTITY_DELIVERY_KEY"]]
             if (tmp/'seen-secrets.json').exists():seen+=json.loads((tmp/'seen-secrets.json').read_text())
             for log in logs:
                 content=log.read_text()
