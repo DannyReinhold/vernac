@@ -87,7 +87,7 @@ public final class BillingController {
         var view = service.invoice(id);
         var document = service.download(id);
         return document(
-                Base64.getDecoder().decode(document.xml().encoded()),
+                document.xml().encoded().getBytes(java.nio.charset.StandardCharsets.UTF_8),
                 MediaType.APPLICATION_XML,
                 view.content().number().text() + ".xml");
     }
