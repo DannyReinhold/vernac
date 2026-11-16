@@ -1,0 +1,10 @@
+vernac:
+  mail:
+    provider: "org.vernac.saas.mail.local.NoopMailProvider"
+    local:
+      max-messages: "100"
+      max-bytes: "1048576"
+      retention: "PT10M"
+identity:
+  origin: "https://localhost:8443"
+  allow-loopback-simulation: "true"
