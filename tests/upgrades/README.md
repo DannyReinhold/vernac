@@ -8,7 +8,7 @@ The binding [upgrade policy](../../docs/development/upgrade-policy.md) starts at
 - `database.sql`: all schemas, data, constraints, RLS policies and Flyway histories;
   portable plain SQL with no source database owner or role grants.
 - `expectations.json`: multiple identities and personal/organization accounts, reader
-  membership, Unicode documents, Free/paid limits, pending payment, scheduled downgrade,
+  membership, Unicode documents, Free/paid limits, exhausted durable export quota, pending payment, scheduled downgrade,
   partial refund, original invoice/correction bytes and original browser sessions.
 - `test-runtime.json`: synthetic encryption/admission keys and deterministic time.
   These public fixture keys MUST NEVER be used by a deployed application.
