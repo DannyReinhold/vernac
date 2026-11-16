@@ -15,7 +15,7 @@ class VocabularySymbolsTest {
     @TempDir Path root;
     private VernacProjectDiagnostics projects() throws Exception {
         Files.writeString(root.resolve("pom.xml"),"<project/>");
-        var projects=new VernacProjectDiagnostics();var params=new InitializeParams();params.setRootUri(root.toUri().toString());projects.initialize(params);return projects;
+        var projects=new VernacProjectDiagnostics();var params=new InitializeParams();params.setWorkspaceFolders(List.of(new WorkspaceFolder(root.toUri().toString(), "test")));projects.initialize(params);return projects;
     }
     @Test void typesAndStandaloneQuotedTermsHaveHoverAndTermNavigationAcrossFiles() throws Exception {
         Path model=root.resolve("src/main/vernac/sales/model.vernac"),words=model.resolveSibling("words.vernac");Files.createDirectories(model.getParent());
