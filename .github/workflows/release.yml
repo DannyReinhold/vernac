@@ -118,6 +118,24 @@ jobs:
       - name: Verify complete project
         run: mvn -B -ntp -Drevision="$RELEASE_VERSION" clean verify
 
+      - name: Set up Node for SaaS and upgrade acceptance
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Verify SaaS and frozen upgrade baselines on release source
+        env:
+          VERNAC_REQUIRE_FROZEN_BASELINES: 'true'
+        run: |
+          mvn -B -ntp -Drevision="$RELEASE_VERSION" -DskipTests -pl saas/billing-spring-mvc,saas/invoicing-pdf,saas/restrictions,saas/payments-mollie,saas/payments-stripe,saas/identity-jdbc,saas/mail-local,saas/mail-brevo -am install
+          mvn -B -ntp -f examples/saas-document-workspace/pom.xml -Dvernac.version="$RELEASE_VERSION" clean package
+          cd examples/saas-document-workspace/browser
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          cd ../../..
+          python3 examples/saas-document-workspace/verify.py
+          python3 tools/verify-upgrades.py
+
       - name: Require release test execution
         run: python3 tools/release.py tests
 
