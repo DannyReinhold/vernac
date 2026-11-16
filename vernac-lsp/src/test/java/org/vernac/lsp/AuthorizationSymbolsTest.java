@@ -17,7 +17,7 @@ class AuthorizationSymbolsTest {
         Path model = root.resolve("src/main/vernac/sample/model.vernac"); Files.createDirectories(model.getParent());
         String valid = "namespace sample; permission Rights {VIEW;} id InvoiceId; usecase Read(InvoiceId) requires permission Rights.VIEW on invoiceId behavior {execute {}}";
         Files.writeString(model, valid); var messages = new ArrayList<PublishDiagnosticsParams>();
-        var project = new VernacProjectDiagnostics(); var params = new InitializeParams(); params.setRootUri(root.toUri().toString()); project.initialize(params);
+        var project = new VernacProjectDiagnostics(); var params = new InitializeParams(); params.setWorkspaceFolders(List.of(new WorkspaceFolder(root.toUri().toString(), "test"))); project.initialize(params);
         project.connect(new LanguageClient() {
             public void telemetryEvent(Object value) {}
             public void publishDiagnostics(PublishDiagnosticsParams message) { messages.add(message); }
@@ -45,7 +45,7 @@ class AuthorizationSymbolsTest {
         Files.writeString(root.resolve("pom.xml"),"<project/>");
         Path source=root.resolve("src/main/vernac/app/model.vernac"); Files.createDirectories(source.getParent());
         String text="namespace app; import library.security.Rights; usecase Read() requires permission Rights.VIEW behavior {execute {}}";
-        Files.writeString(source,text); var project=new VernacProjectDiagnostics();var params=new InitializeParams();params.setRootUri(root.toUri().toString());project.initialize(params);
+        Files.writeString(source,text); var project=new VernacProjectDiagnostics();var params=new InitializeParams();params.setWorkspaceFolders(List.of(new WorkspaceFolder(root.toUri().toString(), "test")));project.initialize(params);
         var messages=new ArrayList<PublishDiagnosticsParams>();
         project.connect(new LanguageClient() {
             public void telemetryEvent(Object value) {}
