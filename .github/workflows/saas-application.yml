@@ -7,6 +7,9 @@ on:
       - 'vernac-runtime-jdbc/**'
       - 'vernac-compiler/**'
       - '.github/workflows/saas-application.yml'
+      - 'tests/upgrades/**'
+      - 'tools/verify-upgrades.py'
+      - 'tools/tests/test_upgrade_baseline.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -65,10 +68,16 @@ jobs:
         run: python3 -m unittest discover -s examples/saas-document-workspace -p test_acceptance_gate.py
       - name: Execute restricted PostgreSQL and HTTPS browser journeys
         run: python3 examples/saas-document-workspace/verify.py
+      - name: Verify every versioned upgrade baseline
+        run: |
+          python3 -m unittest discover -s tools/tests -p test_upgrade_baseline.py
+          python3 tools/verify-upgrades.py
       - name: Publish sanitized scenario evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: saas-scenario-evidence
-          path: examples/saas-document-workspace/target/acceptance-reports/
+          path: |
+            examples/saas-document-workspace/target/acceptance-reports/
+            examples/saas-document-workspace/target/upgrade-reports/
           if-no-files-found: error
