@@ -14,7 +14,7 @@ export const test=base.extend({
   const control=await request.newContext({baseURL:ready.origin,ignoreHTTPSErrors:true,extraHTTPHeaders:{Authorization:'Bearer '+ready.control}});
   const merchant=await request.newContext({baseURL:ready.origin,ignoreHTTPSErrors:true,extraHTTPHeaders:{Authorization:'Bearer '+ready.merchant}});
   const inbox=await request.newContext({baseURL:ready.origin,ignoreHTTPSErrors:true,extraHTTPHeaders:{Authorization:'Bearer '+ready.preview}});
-  const app={origin:ready.origin,merchant,secrets,
+  const app={origin:ready.origin,expiredSession:ready.expiredSession,merchant,secrets,
    async control(route,data={}){const r=await control.post('/__acceptance/'+route,{data});expect(r.status(),'fixture control '+route).toBe(200);return r.json();},
    async facts(){return this.control('facts');},async tick(n=1){for(let i=0;i<n;i++)await this.control('tick');},
    async advance(seconds){return this.control('time',{seconds:String(seconds)});},
