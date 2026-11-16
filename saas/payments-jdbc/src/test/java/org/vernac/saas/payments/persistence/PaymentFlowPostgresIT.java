@@ -49,6 +49,28 @@ class PaymentFlowPostgresIT {
         assertTrue(f.flow.processOne(URL, URL)); assertTrue(f.flow.processOne(URL, URL)); assertTrue(f.flow.processOne(URL, URL));
         time.advance(30); assertTrue(f.flow.processOne(URL, URL)); assertTrue(f.flow.processOne(URL, URL));
     }
+    @Test void lifecycleChangesAreBlockedUntilUnresolvedPaymentsAreClosedAndAllowedAfterSettlement() throws Exception {
+        var account = AccountId.create(); var time = new Time();
+        new PaymentFlowTestEnvironment(root).withDatabase(db -> db.boot.run(context -> {
+            var f = fixture(context, time, account);
+            var guarded = new SubscriptionLedger(f.jdbc, context.getBean(PlatformTransactionManager.class), catalog(), time, new PaymentLifecyclePolicy(f.jdbc));
+            var order = f.flow.checkout(account, PaymentOperationId.create(), LOCAL, PlanCatalog.id(PAID));
+            assertEquals(SubscriptionFailure.Code.INVALID_TRANSITION,
+                    assertThrows(SubscriptionFailure.class, () -> guarded.cancel(account)).code());
+            assertThrows(SubscriptionFailure.class, () -> guarded.schedule(account, PlanCatalog.id(FREE)));
+            assertEquals(RenewalStatus.ENABLED, guarded.current(account).renewal());
+            f.flow.closeUnpaid(account, order.id());
+            assertEquals(RenewalStatus.CANCELLED, guarded.cancel(account).renewal());
+            guarded.resume(account); time.advance(1);
+            f.flow.checkout(account, PaymentOperationId.create(), LOCAL, PlanCatalog.id(PAID));
+            settle(f, time);
+            assertEquals(RenewalStatus.CANCELLED, guarded.cancel(account).renewal());
+            assertEquals(PAID.benefits(), guarded.benefits(account));
+            time.advance(32L * 24 * 3600);
+            assertTrue(f.flow.scheduleRenewalOne());
+            assertEquals(2L, f.jdbc.queryForObject("SELECT count(*) FROM \"org.vernac.saas.payments.persistence\".\"PaymentOrder\"", Map.of(), Long.class));
+        }));
+    }
     @Test void actualLocalCheckoutAndRegisteredProofApplySubscriptionOnceAcrossRestartAndDuplicateCallbacks() throws Exception {
         var account = AccountId.create(); var request = PaymentOperationId.create(); var order = new AtomicReference<PaymentOrderId>(); var remote = new AtomicReference<String>(); var time = new Time();
         new PaymentFlowTestEnvironment(root).withDatabase(db -> {

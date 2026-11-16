@@ -13,6 +13,27 @@ The application topic includes this prerequisite through merge commit
 `63d66d822b1f2d38b3de5fd7897919e4410e47b5`.
 The release branch has not been merged or published.
 
+## Recovery on 2026-11-16
+
+The original uncommitted worktree was recovered intact. The application and billing
+module now compile. All eleven PaymentFlowPostgresIT cases executed on PostgreSQL
+17.11 with zero failures/errors/skips, including a new unresolved-payment lifecycle
+policy proof. Existing reactor unit tests passed; database tests skipped by that
+unit-only run are not counted as evidence.
+
+The first actual application startup exposed a duplicate security bean name; that
+was fixed and HTTPS startup now succeeds. Local Chromium cannot start because this
+execution environment disallows its required Unix socket. The dedicated GitHub
+Actions application workflow must supply browser evidence; no browser acceptance
+is claimed from the failed local browser launch.
+
+Added explicit lifecycle policy inside subscription writers (payment-account lock
+and database-wide EXISTS, no paginated history decision), application-owned customer
+numbers, bounded stateless provider notice routing, browser restart byte-hash checks,
+and a persistent local Docker/HTTPS launcher. These changes remain in progress.
+Wizard adoption, complete browser journeys, operator recovery and release audit
+are still required. The historical notes below describe the interrupted state.
+
 ## Interruption
 
 The execution environment became unavailable during application work on
@@ -98,3 +119,4 @@ The final audit must map A01–A23 and J01–J09 to source/dependency/artifact h
 and actual unskipped evidence; unknown/stale/missing evidence must block GO.
 Real Mollie/Stripe sandbox attestations require actual credentials/evidence and
 must never be replaced with simulated success. No automatic merge or release.
+

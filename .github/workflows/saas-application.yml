@@ -1,0 +1,65 @@
+name: Independent SaaS application
+on:
+  pull_request:
+    paths:
+      - 'examples/saas-document-workspace/**'
+      - 'saas/**'
+      - 'vernac-runtime-jdbc/**'
+      - 'vernac-compiler/**'
+      - '.github/workflows/saas-application.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  consumer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_USER: vernac
+          POSTGRES_PASSWORD: ephemeral-saas-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vernac -d postgres"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      VERNAC_PG_TEST_URL: jdbc:postgresql://localhost:5432/postgres
+      VERNAC_PG_TEST_USER: vernac
+      VERNAC_PG_TEST_PASSWORD: ephemeral-saas-only
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Install matching producers and compiler
+        run: mvn -B -ntp -pl saas/billing-spring-mvc,saas/invoicing-pdf,saas/restrictions,saas/payments-mollie,saas/payments-stripe,saas/identity-jdbc,saas/mail-local,saas/mail-brevo -am -DskipTests install
+      - name: Verify billing escaping and identity composition
+        run: mvn -B -ntp -pl saas/billing-spring-mvc,saas/identity-spring-security test
+      - name: Verify durable payment lifecycle policy
+        run: |
+          mvn -B -ntp -pl saas/payments-jdbc verify
+          python3 - <<'PYTEST'
+          import xml.etree.ElementTree as ET
+          r=ET.parse('saas/payments-jdbc/target/failsafe-reports/TEST-org.vernac.saas.payments.persistence.PaymentFlowPostgresIT.xml').getroot()
+          assert int(r.attrib['tests']) == 11 and all(int(r.attrib.get(k,'0')) == 0 for k in ['failures','errors','skipped'])
+          PYTEST
+      - name: Package the standalone consumer
+        run: mvn -B -ntp -f examples/saas-document-workspace/pom.xml clean package
+      - name: Install real browser
+        working-directory: examples/saas-document-workspace/browser
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Execute restricted PostgreSQL and HTTPS browser journeys
+        run: python3 examples/saas-document-workspace/verify.py
