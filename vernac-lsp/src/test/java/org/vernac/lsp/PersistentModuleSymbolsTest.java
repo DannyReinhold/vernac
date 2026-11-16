@@ -31,7 +31,7 @@ class PersistentModuleSymbolsTest {
         String text = "namespace app; import billing.Invoice;";
         Files.writeString(source, text);
         var projects = new VernacProjectDiagnostics();
-        var params = new InitializeParams(); params.setRootUri(root.toUri().toString());
+        var params = new InitializeParams(); params.setWorkspaceFolders(List.of(new WorkspaceFolder(root.toUri().toString(), "test")));
         projects.initialize(params); projects.open(source.toUri().toString(), text, 1);
         var position = new Position(0, text.lastIndexOf("Invoice") + 3);
         var target = projects.definition(source.toUri().toString(), position).getFirst();
@@ -50,7 +50,7 @@ class PersistentModuleSymbolsTest {
         var module=ModuleContracts.publish(ModuleDefinition.parse(root.resolve("manifest.vmodule"),"module example.billing {export billing.InvoiceId;export billing.Reference;export billing.Invoice;export billing.Invoices;export billing.InvoiceRepository;}"),resolved,generated.generatedFiles(),"example","billing","1",List.of());
         Files.writeString(root.resolve("pom.xml"),"<project/>");Files.createDirectories(root.resolve("target"));Files.writeString(root.resolve("target/vernac-module-index.json"),ModuleDescriptor.JSON.writeValueAsString(List.of(module)));
         Path source=root.resolve("src/main/vernac/app/model.vernac");Files.createDirectories(source.getParent());String text="namespace app; import billing.InvoiceRepository; usecase Run() uses InvoiceRepository invoiceRepository behavior {execute {}}";Files.writeString(source,text);
-        var projects=new VernacProjectDiagnostics();var params=new InitializeParams();params.setRootUri(root.toUri().toString());projects.initialize(params);projects.open(source.toUri().toString(),text,1);
+        var projects=new VernacProjectDiagnostics();var params=new InitializeParams();params.setWorkspaceFolders(List.of(new WorkspaceFolder(root.toUri().toString(), "test")));projects.initialize(params);projects.open(source.toUri().toString(),text,1);
         var position=new Position(0,text.lastIndexOf("InvoiceRepository")+3);var target=projects.definition(source.toUri().toString(),position).getFirst();
         String view=Files.readString(Path.of(java.net.URI.create(target.getUri())));assertTrue(view.contains("repository InvoiceRepository"));assertTrue(view.contains("Public query signatures only"));
         assertTrue(projects.complete(source.toUri().toString(),position).stream().anyMatch(c->c.getLabel().equals("InvoiceRepository")));
