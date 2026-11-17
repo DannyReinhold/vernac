@@ -32,7 +32,7 @@ jobs:
       - name: Build and test compiled renderer and actual plugin ZIP
         run: >-
           mvn -B -ntp -pl vernac-intellij -am
-          -Dtest=VernacDebuggerApiTest,VernacViewInspectorTest,VernacSaasTemplateTest,VernacSpringBootTemplateTest,VernacProjectTemplateTest
+          -Dtest=VernacFormatterTest,VernacFormattingServiceTest,VernacDebuggerApiTest,VernacViewInspectorTest,VernacSaasTemplateTest,VernacSpringBootTemplateTest,VernacProjectTemplateTest
           -Dsurefire.failIfNoSpecifiedTests=false
           -Dit.test=PluginDistributionIT -Dfailsafe.failIfNoSpecifiedTests=false
           clean verify
@@ -54,6 +54,10 @@ jobs:
                   'includesPluginTemplateAndExecutableLanguageServer',
               },
           }
+          proofs['surefire-reports/TEST-org.vernac.intellij.VernacFormattingServiceTest.xml'] = {
+              'fullFileReformatUsesTheCompilerFormatterAndSelectionDoesNotChangeUnselectedText',
+              'standardReformatServiceIsRegisteredInThePluginDescriptor',
+          }
           proofs['surefire-reports/TEST-org.vernac.intellij.VernacSaasTemplateTest.xml'] = {
               'independentConsumerUsesItsOwnNamespaceAndConsistentTenantSchema',
               'detectsCollisionsBeforeWritingAnything',
@@ -64,5 +68,8 @@ jobs:
               assert not (expected - cases.keys()), f'Missing debugger API proofs: {report}'
               assert all(int(root.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
               assert all(not any(c.find(k) is not None for k in ('failure', 'error', 'skipped')) for c in cases.values())
+          formatter = ET.parse('vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.format.VernacFormatterTest.xml').getroot()
+          assert int(formatter.attrib['tests']) >= 5
+          assert all(int(formatter.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
           print('Known internal-API regression and packaged distribution proofs passed; none skipped.')
           PY

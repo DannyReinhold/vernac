@@ -146,3 +146,5 @@ mappings, Java-backed Vernac breakpoints and the installed-IDE acceptance walkth
 
 - [Mandatory upgrade and migration policy](upgrade-policy.md): versioned transformations,
   automatic baseline tests and the 0.6.0 support boundary.
+
+- [Vernac formatter](formatter.md): standard IntelliJ Reformat Code, preserved Java islands and test boundaries.

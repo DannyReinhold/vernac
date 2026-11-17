@@ -1,5 +1,7 @@
 # Übergabe für Vernac 0.6.0
 
+Die Abschnitte 1–5 bewahren den ursprünglichen Auftrag nach PR #92. Den aktuellen Umsetzungsstand enthält die Fortsetzung am Ende.
+
 Arbeitsauftrag von Danny: Alle fünf offenen Themen implementieren, testen und per PR in `feature/0.6.0` mergen. Pro Thema ein PR, kleine Commits sind willkommen. Direktes Mergen ist autorisiert. Danny kann momentan nicht lokal testen. Vor Beginn Branchstand und offene PRs prüfen. Dieser Text beschreibt den Stand nach PR #92.
 
 ## Bereits erledigt
@@ -38,3 +40,6 @@ Für jedes Thema PR, gemergten Zielbranch, tatsächlich ausgeführte Checks und 
 - Deklarative Rollen: PR #94 enthält Grammatik, Compilerdiagnostik, generierte Ressource, Editorunterstützung und umgestellte Beispiele/Wizard. Lokal 24 gezielte Tests und E05 mit eigenem Namespace und anderen Rollen grün; Alle vier GitHub-Checks einschließlich Browser-/Upgrade-Abnahme erfolgreich; in `feature/0.6.0` gemergt.
 - SaaS-Modulverdrahtung: PR #95 nach allen relevanten GitHub-Checks gemergt. Explizite Auto-Konfigurationen und verwaltete Worker, generische Webhook-/Betreiber-/Vorschauadapter in ihren Modulen, deklarative MVC-Flows und Anwendungsvorlagen. Frischer Wizard mit anderen Rollen und Exportlimit 3 bestand alle 29 Szenarien; Identity/Billing/Local-Mail-PostgreSQL-Checks grün.
 - Start ohne Python: normaler IDE-/Maven-Start, geteilter lokaler Java-Support, persistente alte/neue Schlüssel und HTTPS, getrennte Datenbankrollen sowie Java-Mail-/Betreiberwerkzeuge implementiert. Lokal fünf Tests inklusive realer Rechteprüfung und normaler Start/Neustart gegen bereitgestelltes PostgreSQL grün. Die neue CI-Wizard-Abnahme prüft zusätzlich den tatsächlichen Spring-Boot-Docker-Compose-Start. Vor Merge deren Ergebnis prüfen.
+
+- Start ohne Python: PR #96 nach erfolgreicher tatsächlicher Docker-Compose-Wizard-Abnahme und den übrigen Browser-/Upgrade-/IDE-/Tenant-Checks in `feature/0.6.0` gemergt.
+- Formatter: Standard-IntelliJ-Service für `.vernac`, `.vapplication`, `.vmodule`, parserbasierte Java-Islands und abschließender Tokenvergleich implementiert. Kommentare/Strings/Java-Bodies bleiben erhalten; fehlerhafte Dateien bleiben unverändert. Dokumenten- und Identity-Modell erst nach erfolgreichen Idempotenz-/Token-/Semantiktests mit diesem Formatter formatiert. CI prüft zusätzlich Service und gepackte Plugin-/Compilerklassen. Interaktiver installierter IDE-Test und vollständiger Plugin Verifier bleiben separate Prüflücken; echte Providerabnahmen bleiben beim Maintainer. Es wurde kein Release veröffentlicht.
