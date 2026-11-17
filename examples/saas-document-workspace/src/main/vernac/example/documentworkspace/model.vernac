@@ -20,14 +20,15 @@ tenant aggregate Document[DocumentId](mut DocumentTitle title, mut DocumentText 
     modify void edit(DocumentTitle title, DocumentText text) { self.title(title); self.text(text); }
 } list Documents;
 
-repository DocumentRepository for Document {}
+repository DocumentRepository for Document {
+    find Documents all() order by title;
+}
 
 value WorkspaceMessage(String text);
 
 value DocumentSummary(DocumentId id, DocumentTitle title, DocumentText text) list DocumentSummaries;
 
 port DocumentOperations {
-    DocumentSummaries allDocuments();
     DocumentId create(DocumentTitle title, DocumentText text);
     void delete(DocumentId id);
     DocumentSummary export(DocumentId id);
@@ -38,7 +39,6 @@ adapter StoredDocuments implements DocumentOperations {
         java uses {
             example.documentworkspace.DocumentActions actions;
         }
-        public DocumentSummaries allDocuments() { return self.actions().list(); }
         public DocumentId create(DocumentTitle title, DocumentText text) { return self.actions().create(title,text); }
         public void delete(DocumentId id) { self.actions().delete(id); }
         public DocumentSummary export(DocumentId id) { return self.actions().export(id); }
@@ -49,8 +49,12 @@ usecase ViewWorkspace() returns WorkspaceMessage requires permission WorkspacePe
     execute { return WorkspaceMessage.of("Your verified workspace is open."); }
 }
 
-usecase ListDocuments() returns DocumentSummaries requires permission WorkspacePermissions.VIEW uses DocumentOperations behavior {
-    execute { return self.documentOperations().allDocuments(); }
+usecase ListDocuments() returns DocumentSummaries requires permission WorkspacePermissions.VIEW uses DocumentRepository behavior {
+    execute {
+        return DocumentSummaries.of(self.documentRepository().all().stream()
+                .map(document -> DocumentSummary.of(document.id(), document.title(), document.text()))
+                .toList());
+    }
 }
 
 usecase CreateDocument(DocumentTitle title, DocumentText text) returns DocumentId requires permission WorkspacePermissions.EDIT uses DocumentOperations behavior {
