@@ -10,6 +10,11 @@ import java.util.Optional;
 final class VernacNamespaces {
     private VernacNamespaces() { }
 
+    static Optional<Path> modelSourceRoot(Path file) {
+        return file.getFileName().toString().endsWith(".vernac")
+                ? sourceRoot(file.toAbsolutePath().normalize().getParent()) : Optional.empty();
+    }
+
     static Optional<Path> sourceRoot(Path directory) {
         for (Path current = directory.toAbsolutePath().normalize(); current != null; current = current.getParent()) {
             if (current.endsWith(Path.of("src", "main", "vernac"))) return Optional.of(current);

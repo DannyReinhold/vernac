@@ -51,7 +51,7 @@ public final class VernacTypeReferenceContributor extends PsiReferenceContributo
         var file = host.getContainingFile().getOriginalFile().getVirtualFile();
         if (file == null || !file.isInLocalFileSystem()) return List.of();
         Path path = file.toNioPath();
-        var root = VernacNamespaces.sourceRoot(path.getParent());
+        var root = VernacNamespaces.modelSourceRoot(path);
         if (root.isEmpty()) return List.of();
         Map<Path, String> texts = new HashMap<>();
         var documents = FileDocumentManager.getInstance();

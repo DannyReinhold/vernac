@@ -46,6 +46,23 @@ class VernacSaasTemplateTest {
         assertTrue(catalog.contains("product.auditor"));assertTrue(catalog.contains("de.rsas.roles.WorkspacePermissions.VIEW"));
         assertFalse(catalog.contains("workspace_reader"));assertFalse(Files.exists(root.resolve("src/main/resources/roles.json")));
     }
+    @Test void onlyModelFilesInAFreshWizardProjectEnterNativeEditorAnalysis() throws Exception {
+        Path root=temporary.resolve("wizard");
+        VernacProjectTemplate.copyTo(root,"Workspace","de.rsas","workspace","de.rsas.workspace",
+                VernacProjectTemplate.ProjectKind.SAAS_APPLICATION);
+        Path sources=root.resolve("src/main/vernac");
+        try (var paths=Files.walk(sources)) {
+            var files=paths.filter(Files::isRegularFile).toList();
+            assertTrue(files.contains(sources.resolve("de/rsas/workspace/web/vernac-module.vmodule")));
+            for (Path file : files) {
+                var modelRoot=VernacNamespaces.modelSourceRoot(file);
+                if (file.toString().endsWith(".vernac")) assertEquals(sources,modelRoot.orElseThrow());
+                else assertTrue(modelRoot.isEmpty(),file.toString());
+            }
+        }
+        assertTrue(VernacNamespaces.modelSourceRoot(root.resolve("vernac-application.vapplication")).isEmpty());
+    }
+
     @Test void detectsCollisionsBeforeWritingAnything()throws Exception {
         Path root=temporary.resolve("collision");Files.createDirectories(root);Files.writeString(root.resolve("compose.yaml"),"owned");
         assertThrows(java.io.IOException.class,()->VernacProjectTemplate.copyTo(root,"SaaS","de.rsas","saas","de.rsas.saas",VernacProjectTemplate.ProjectKind.SAAS_APPLICATION));
