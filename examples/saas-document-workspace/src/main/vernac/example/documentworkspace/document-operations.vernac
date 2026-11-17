@@ -1,4 +1,5 @@
 namespace example.documentworkspace;
+import example.documentworkspace.commercial.WorkspaceBenefit;
 
 // Keep the mutation inside the reservation so rollback also restores the allowance.
 port DocumentOperations {
@@ -14,14 +15,14 @@ adapter StoredDocuments implements DocumentOperations {
         }
         public DocumentId create(DocumentTitle title, DocumentText text) {
             var storage = self.storage();
-            storage.requireOperation("document-characters", text.text().length());
-            return storage.allocate("documents", () -> storage.save(Document.create(title, text)).id());
+            storage.requireOperation(WorkspaceBenefit.DOCUMENT_CHARACTERS.key(), text.text().length());
+            return storage.allocate(WorkspaceBenefit.DOCUMENTS.key(), () -> storage.save(Document.create(title, text)).id());
         }
         public void delete(DocumentId id) {
             self.storage().release(() -> self.storage().delete(id));
         }
         public DocumentSummary export(DocumentId id) {
-            var document = self.storage().consumeMonthly("monthly-exports", () -> self.storage().load(id));
+            var document = self.storage().consumeMonthly(WorkspaceBenefit.MONTHLY_EXPORTS.key(), () -> self.storage().load(id));
             return DocumentSummary.of(document.id(), document.title(), document.text());
         }
     }

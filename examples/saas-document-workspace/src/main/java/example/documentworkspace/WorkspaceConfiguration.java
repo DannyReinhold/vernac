@@ -21,20 +21,11 @@ class WorkspaceConfiguration {
         return new PlanCatalog(List.of(free, pro), PlanCatalog.id(free));
     }
     private static OfferTerms offer(WorkspaceOffer offer) {
-        return OfferTerms.of(
-                PlanKey.of(offer.plan()),
-                OfferRevision.of("v1"),
-                MinorUnits.of(offer.price().amount()),
-                BillingCurrency.EUR,
-                BillingInterval.MONTHLY,
-                Benefits.of(
-                        Map.of(
-                                BenefitKey.of("documents"),
-                                Allowance.of(offer.documents().maximum()),
-                                BenefitKey.of("document-characters"),
-                                Allowance.of(offer.characters().maximum()),
-                                BenefitKey.of("monthly-exports"),
-                                Allowance.of(offer.exports().maximum()))));
+        var benefits = offer.benefits().stream().collect(java.util.stream.Collectors.toMap(
+                included -> BenefitKey.of(included.benefit().key()), included -> Allowance.of(included.maximum())));
+        return OfferTerms.of(PlanKey.of(offer.plan()), OfferRevision.of(offer.revision()),
+                MinorUnits.of(offer.price().amount()), BillingCurrency.valueOf(offer.currency()),
+                BillingInterval.valueOf(offer.interval()), Benefits.of(benefits));
     }
 
     @Bean
