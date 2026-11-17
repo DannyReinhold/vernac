@@ -21,7 +21,7 @@ tenant aggregate Document[DocumentId](mut DocumentTitle title, mut DocumentText 
 } list Documents;
 
 repository DocumentRepository for Document {
-    find Documents all() order by id;
+    find Documents all() order by title;
 }
 
 value WorkspaceMessage(String text);
