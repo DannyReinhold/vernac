@@ -12,7 +12,6 @@ compose.yaml
 mvnw
 mvnw.cmd
 pom.xml
-run-local.py
 src/main/java/example/documentworkspace/BillingSetup.java
 src/main/java/example/documentworkspace/DemoApplication.java
 src/main/java/example/documentworkspace/DocumentActions.java

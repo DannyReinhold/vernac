@@ -42,7 +42,7 @@ def main():
             subprocess.run(['keytool','-genkeypair','-alias','local','-keyalg','RSA','-keysize','2048','-validity','2','-storetype','PKCS12','-keystore',str(keystore),'-storepass',storepass,'-dname','CN=localhost','-ext','SAN=dns:localhost,ip:127.0.0.1'],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
             preview,merchant,control=[secrets.token_urlsafe(32) for _ in range(3)]
             admission,delivery=[base64.b64encode(secrets.token_bytes(32)).decode() for _ in range(2)]
-            env=dict(os.environ,VERNAC_ACCEPTANCE_FIXTURE='true',SPRING_PROFILES_ACTIVE='local',BILLING_WORKER_ENABLED='false',
+            env=dict(os.environ,VERNAC_LOCAL_ENABLED='false',SPRING_DOCKER_COMPOSE_ENABLED='false',VERNAC_ACCEPTANCE_FIXTURE='true',SPRING_PROFILES_ACTIVE='local',BILLING_WORKER_ENABLED='false',
                 SPRING_DATASOURCE_URL='jdbc:'+url,SPRING_DATASOURCE_USERNAME=role,SPRING_DATASOURCE_PASSWORD=password,
                 SPRING_FLYWAY_URL='jdbc:'+url,SPRING_FLYWAY_USER=os.environ['VERNAC_PG_TEST_USER'],SPRING_FLYWAY_PASSWORD=os.environ['VERNAC_PG_TEST_PASSWORD'],
                 SERVER_SSL_KEY_STORE=str(keystore),SERVER_SSL_KEY_STORE_PASSWORD=storepass,

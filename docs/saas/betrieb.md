@@ -68,8 +68,8 @@ Capability in das eigene Betriebskonzept. Ein bloßer Kundenlogin reicht nie aus
 Lokal können berechtigte Betreiber im Anwendungsverzeichnis aufrufen:
 
 ```sh
-python3 run-local.py --operator-status
-python3 run-local.py --refund ACCOUNT_ID PAYMENT_ORDER_ID 300 STABLE_OPERATION_UUID
+./mvnw exec:java -Dexec.args=status
+./mvnw exec:java -Dexec.args="refund ACCOUNT_ID PAYMENT_ORDER_ID 300 STABLE_OPERATION_UUID"
 ```
 
 `300` bedeutet 300 Cent. Die Vorgangskennung ist für denselben fachlichen
@@ -146,7 +146,7 @@ fehlgeschlagene Quellen werden später erneut besucht.
 | Providerprofil und Umgebung | Bedeutung historischer Ressourcen | Profil nicht unter gleichem Namen auf einen anderen Anbieter umhängen |
 | Rechnungssnapshots und Dokumentbytes | Unveränderliche Ausgaben, Nummern und Korrekturbezug | Vorhandene Bytes bleiben identisch; fehlendes Rendering nutzt dieselben Fakten |
 | Getrennte Migration-/Runtime-Zugänge | Eigentum an Schema und eingeschränkte Geschäftsoperationen | Migrationen vor Runtime prüfen; keine Superuser-Runtime als Reparaturabkürzung |
-| Lokale Geheimnisse und Datenvolume | Wiederholbarer lokaler Demonstrationsbetrieb | `run-local.py` verwendet vorhandene Konfiguration weiter |
+| Lokale Geheimnisse und Datenvolume | Wiederholbarer lokaler Demonstrationsbetrieb | Spring Boot/Java verwenden `.local` und das Compose-Volume weiter |
 
 ### Betreiberentscheidungen pro Störung
 

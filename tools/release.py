@@ -23,12 +23,13 @@ MODULES = ("vernac", "vernac-runtime", "vernac-runtime-json", "vernac-runtime-ht
 MODULE_PATHS = {"vernac-saas-identity": "saas/identity",
                 "vernac-saas-identity-spring-security": "saas/identity-spring-security",
                 "vernac-saas-identity-jdbc": "saas/identity-jdbc",
+                "vernac-saas-local-development": "saas/local-development",
                 "vernac-saas-mail": "saas/mail", "vernac-saas-mail-local": "saas/mail-local",
                 "vernac-saas-mail-brevo": "saas/mail-brevo"}
 
 # Optional SaaS artifacts are version-aligned and explicitly included only from 0.6.0.
 for _suffix in ("subscriptions", "restrictions", "payments", "payments-http", "payments-local",
-                "payments-mollie", "payments-stripe", "payments-jdbc", "invoicing", "invoicing-pdf", "billing-spring-mvc"):
+                "payments-mollie", "payments-stripe", "payments-jdbc", "invoicing", "invoicing-pdf", "billing-spring-mvc", "local-development"):
     _artifact = "vernac-saas-" + _suffix
     MODULES += (_artifact,)
     MODULE_PATHS[_artifact] = "saas/" + _suffix

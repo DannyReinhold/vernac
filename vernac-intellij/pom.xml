@@ -165,7 +165,7 @@
                 <filtering>false</filtering>
                 <includes>
                     <include>pom.xml</include><include>README.md</include><include>compose.yaml</include>
-                    <include>upgrade_snapshot.py</include><include>run-local.py</include><include>verify.py</include><include>acceptance_runtime.py</include><include>test_acceptance_gate.py</include>
+                    <include>upgrade_snapshot.py</include><include>verify.py</include><include>acceptance_runtime.py</include><include>test_acceptance_gate.py</include>
                     <include>mvnw</include><include>mvnw.cmd</include><include>.mvn/wrapper/**</include><include>.gitignore</include>
                     <include>vernac-application.vapplication</include><include>src/**</include>
                     <include>browser/*.json</include><include>browser/*.mjs</include><include>browser/*.cjs</include>
