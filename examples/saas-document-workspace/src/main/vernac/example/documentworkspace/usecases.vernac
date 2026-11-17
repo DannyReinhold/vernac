@@ -1,13 +1,7 @@
 namespace example.documentworkspace;
 
 // Every entry point uses these permission-guarded operations.
-value WorkspaceMessage(String text);
-
 value DocumentSummary(DocumentId id, DocumentTitle title, DocumentText text) list DocumentSummaries;
-
-usecase ViewWorkspace() returns WorkspaceMessage requires permission WorkspacePermissions.VIEW behavior {
-    execute { return WorkspaceMessage.of("Your verified workspace is open."); }
-}
 
 usecase ListDocuments() returns DocumentSummaries requires permission WorkspacePermissions.VIEW uses DocumentRepository behavior {
     execute {

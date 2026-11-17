@@ -14,12 +14,12 @@ Local startup persists PostgreSQL data and local keys, uses Spring Boot Docker C
 
 ## Reading the workspace model
 
-Begin with `model.vernac` for the tenant aggregate, title and text invariants, and repository.
-Follow `usecases.vernac` from permission checks to the document operations. In
-`document-operations.vernac`, creation reserves capacity and export consumes one unit
-from the current UTC month. Read `commercial/offers.vernac` alongside those operations
-to see the Free and Pro allowances. `access.vernac` defines membership and grants.
-`web/pages.vernac` connects browser forms to the same use cases.
+Begin with [model.vernac](src/main/vernac/example/documentworkspace/model.vernac) for the tenant aggregate, title and text invariants, and repository.
+Follow [usecases.vernac](src/main/vernac/example/documentworkspace/usecases.vernac) from permission checks to the document operations. In
+[document-operations.vernac](src/main/vernac/example/documentworkspace/document-operations.vernac), creation reserves capacity and export consumes one unit
+from the current UTC month. Read [commercial/offers.vernac](src/main/vernac/example/documentworkspace/commercial/offers.vernac) alongside those operations
+to see the Free and Pro allowances. [access.vernac](src/main/vernac/example/documentworkspace/access.vernac) defines membership and grants.
+[web/pages.vernac](src/main/vernac/example/documentworkspace/web/pages.vernac) connects browser forms to the same use cases.
 
 The application composes the published Identity, Subscriptions, Restrictions, Payments and
 Invoicing modules in `vernac-application.vapplication`. Its document aggregate retains its

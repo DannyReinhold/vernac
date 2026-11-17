@@ -12,7 +12,10 @@ value DocumentText(String text) validates {
 };
 
 tenant aggregate Document[DocumentId](mut DocumentTitle title, mut DocumentText text) behavior {
-    modify void edit(DocumentTitle title, DocumentText text) { self.title(title); self.text(text); }
+    modify void edit(DocumentTitle title, DocumentText text) {
+        self.title(title);
+        self.text(text);
+    }
 } list Documents;
 
 repository DocumentRepository for Document {

@@ -1,3 +1,4 @@
-// Browser delivery consumes the document API. No other product module depends on its controllers.
+// The composition root selects this controller for the account-wide browser policy.
 module example.documentworkspace.web {
+    export example.documentworkspace.web.WorkspacePages;
 }
