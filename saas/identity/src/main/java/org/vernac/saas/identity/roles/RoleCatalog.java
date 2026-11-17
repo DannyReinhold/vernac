@@ -5,8 +5,9 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.*;
-import com.fasterxml.jackson.core.*;
-import com.fasterxml.jackson.databind.*;
+import tools.jackson.core.*;
+import tools.jackson.core.json.JsonFactory;
+import tools.jackson.databind.*;
 import org.vernac.runtime.authorization.PermissionKey;
 
 /** Application-owned immutable catalog. No classpath discovery, authority strings or implicit owner grants. */
@@ -40,28 +41,28 @@ public final class RoleCatalog {
             byte[] bytes=input.readNBytes(MAX_BYTES+1);if(bytes.length>MAX_BYTES)throw invalid();
             var factory=JsonFactory.builder().enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
                 .streamReadConstraints(StreamReadConstraints.builder().maxNestingDepth(8).maxStringLength(512).maxNumberLength(8).build()).build();
-            var mapper=new ObjectMapper(factory).enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
+            var mapper=tools.jackson.databind.json.JsonMapper.builder(factory).enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build();
             JsonNode root=mapper.readTree(bytes);fields(root,Set.of("format","roles"));
             if(!root.path("format").isInt() || root.path("format").intValue()!=1 || !root.path("roles").isArray()
                     || root.path("roles").size()>MAX_ROLES)throw invalid();
             Map<String,Set<PermissionKey>> roles=new HashMap<>();
             for(JsonNode row:root.path("roles")) {
                 fields(row,Set.of("key","permissions"));
-                if(!row.path("key").isTextual() || !qualified(row.path("key").textValue()) || !row.path("permissions").isArray()
+                if(!row.path("key").isTextual() || !qualified(row.path("key").stringValue()) || !row.path("permissions").isArray()
                         || row.path("permissions").size()>MAX_PERMISSIONS)throw invalid();
                 Set<PermissionKey> permissions=new HashSet<>();
                 for(JsonNode permission:row.path("permissions")) {
-                    PermissionKey key=permission.isTextual()?known.get(permission.textValue()):null;
+                    PermissionKey key=permission.isTextual()?known.get(permission.stringValue()):null;
                     if(key==null || !permissions.add(key))throw invalid();
                 }
-                if(roles.putIfAbsent(row.path("key").textValue(),Set.copyOf(permissions))!=null)throw invalid();
+                if(roles.putIfAbsent(row.path("key").stringValue(),Set.copyOf(permissions))!=null)throw invalid();
             }
             return new RoleCatalog(roles);
         } catch(IOException | RuntimeException unavailable) { throw invalid(); }
     }
     private static void fields(JsonNode node,Set<String> expected) {
         if(node==null || !node.isObject() || node.size()!=expected.size())throw invalid();
-        node.fieldNames().forEachRemaining(name->{if(!expected.contains(name))throw invalid();});
+        node.propertyNames().forEach(name->{if(!expected.contains(name))throw invalid();});
     }
     public static boolean qualified(String key) {
         return key!=null && key.length()<=256 && key.matches("[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*){1,15}");

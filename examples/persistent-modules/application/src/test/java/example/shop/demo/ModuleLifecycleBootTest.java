@@ -48,8 +48,8 @@ class ModuleLifecycleBootTest {
      var converters=context.getBean(org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.class).getMessageConverters();
      var dto=example.api.adapter.inbound.http.dto.PurchaseApiDtos.PurchaseRequest.class;
      var json=org.springframework.http.MediaType.APPLICATION_JSON;
-     assertJackson2Converter(converters.stream().filter(c->c.canRead(dto,json)).findFirst().orElseThrow());
-     assertJackson2Converter(converters.stream().filter(c->c.canWrite(dto,json)).findFirst().orElseThrow());
+     assertJacksonConverter(converters.stream().filter(c->c.canRead(dto,json)).findFirst().orElseThrow());
+     assertJacksonConverter(converters.stream().filter(c->c.canWrite(dto,json)).findFirst().orElseThrow());
      var client=java.net.http.HttpClient.newHttpClient();
      var endpoint=java.net.URI.create("http://localhost:"+port+"/api/module-purchases");
      for(String body:java.util.List.of("{\"text\":\"HTTP module customer\"}","{}","{\"text\":\"\"}")) {
@@ -58,7 +58,7 @@ class ModuleLifecycleBootTest {
          var response=client.send(request,java.net.http.HttpResponse.BodyHandlers.ofString());
          int expected=body.equals("{}")?400:body.contains("HTTP module customer")?201:422;
          assertEquals(expected,response.statusCode(),response.body());
-         if(expected==201)UUID.fromString(new com.fasterxml.jackson.databind.ObjectMapper().readTree(response.body()).get("invoiceId").asText());
+         if(expected==201)UUID.fromString(tools.jackson.databind.json.JsonMapper.builder().build().readTree(response.body()).get("invoiceId").asString());
          if(expected==400)org.junit.jupiter.api.Assertions.assertTrue(response.body().contains("INVALID_PURCHASE_REQUEST"));
          if(expected==422)org.junit.jupiter.api.Assertions.assertTrue(response.body().contains("INVALID_CUSTOMER"));
      }
@@ -70,10 +70,9 @@ class ModuleLifecycleBootTest {
         }
     }
     // Boot 4 intentionally selects Spring's Jackson 2 bridge for generated DTO codecs.
-    @SuppressWarnings("removal")
-    private static void assertJackson2Converter(Object converter) {
+    private static void assertJacksonConverter(Object converter) {
         org.junit.jupiter.api.Assertions.assertInstanceOf(
-                org.springframework.http.converter.json.MappingJackson2HttpMessageConverter.class,
+                org.springframework.http.converter.json.JacksonJsonHttpMessageConverter.class,
                 converter);
     }
 }

@@ -1,7 +1,7 @@
 package org.example.delivery.demo;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -16,7 +16,7 @@ final class LocalCarrierServer implements AutoCloseable {
     private static final String QUOTE = """
         {"quoteId":"Q-42","price":{"amount":12.30,"currency":"EUR","extra":true},"newField":"ignored"}
         """;
-    private final ObjectMapper json = new ObjectMapper();
+    private final ObjectMapper json = tools.jackson.databind.json.JsonMapper.builder().build();
     private final HttpServer server;
     private final AtomicInteger requests = new AtomicInteger();
     private final AtomicReference<String> deletedPath = new AtomicReference<>("");
@@ -46,7 +46,7 @@ final class LocalCarrierServer implements AutoCloseable {
                         || request.path("weightKg").decimalValue().compareTo(new java.math.BigDecimal("1.250")) != 0) {
                     reply(exchange, 400, "{}"); return;
                 }
-                switch (request.path("destination").asText()) {
+                switch (request.path("destination").asString()) {
                     case "Bremen" -> reply(exchange, 200, QUOTE);
                     case "unsupported" -> reply(exchange, 422, "{\"code\":\"UNSUPPORTED_DESTINATION\"}");
                     case "blocked" -> reply(exchange, 403, "{\"code\":\"ACCOUNT_BLOCKED\"}");

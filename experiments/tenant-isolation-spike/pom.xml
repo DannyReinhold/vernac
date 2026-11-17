@@ -26,7 +26,7 @@
         <dependency><groupId>org.springframework.security</groupId><artifactId>spring-security-test</artifactId><scope>test</scope></dependency>
         <dependency><groupId>org.springframework</groupId><artifactId>spring-webmvc</artifactId><scope>test</scope></dependency>
         <dependency><groupId>org.springframework</groupId><artifactId>spring-test</artifactId><scope>test</scope></dependency>
-        <dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>tools.jackson.core</groupId><artifactId>jackson-databind</artifactId><scope>test</scope></dependency>
         <dependency><groupId>jakarta.servlet</groupId><artifactId>jakarta.servlet-api</artifactId><scope>test</scope></dependency>
 
         <dependency><groupId>com.zaxxer</groupId><artifactId>HikariCP</artifactId><scope>test</scope></dependency>

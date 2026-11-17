@@ -2,12 +2,12 @@ package dtodemo;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
-import com.fasterxml.jackson.databind.*;
+import tools.jackson.databind.*;
 import dtodemo.adapter.outbound.dto.ClientDtos.*;
 import org.vernac.runtime.ports.PatchField;
 import org.vernac.runtime.json.DtoContractException;
 public final class Probe {
-    private static final ObjectMapper JSON=new ObjectMapper();
+    private static final ObjectMapper JSON=tools.jackson.databind.json.JsonMapper.builder().build();
     public static void run() throws Exception {
         String raw="""
             {"request_id":"r-1","count":2,"items":[{"productCode":"x","labels":[],"future":true}],
@@ -62,7 +62,7 @@ public final class Probe {
     }
     private static void failJson(String json,Class<?> type,String path) throws Exception {
         try { JSON.readValue(json,type);throw new AssertionError("Invalid JSON accepted for "+path); }
-        catch(com.fasterxml.jackson.core.JsonProcessingException | DtoContractException ex) {
+        catch(tools.jackson.core.JacksonException | DtoContractException ex) {
             check(ex.getMessage().contains(path),"error path "+path+": "+ex.getMessage());
         }
     }

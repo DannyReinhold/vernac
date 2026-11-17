@@ -25,7 +25,7 @@ For a guide across all documentation, use the [documentation map](../documentati
 
 ## Implementation and decisions
 
-- [Spring Boot 4 baseline](spring-boot-4-baseline.md): coordinated 0.6.0 platform upgrade and Jackson 2 compatibility requirements.
+- [Spring Boot 4 baseline](spring-boot-4-baseline.md): coordinated 0.6.0 platform upgrade and Jackson 3 codec requirements.
 
 - [Aggregate field uniqueness design](aggregate-uniqueness-0.6.0.md): implemented compiler/schema/JDBC/headless editor contract; installed IDE and final release acceptance remain separate.
 

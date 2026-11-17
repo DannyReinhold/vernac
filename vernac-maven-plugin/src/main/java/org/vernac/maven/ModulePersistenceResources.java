@@ -18,7 +18,7 @@ final class ModulePersistenceResources {
         // Track only this goal's generated files. Never infer ownership of other resources.
         Path inventory=output.resolveSibling(output.getFileName()+".manifest.json");
         if(Files.isRegularFile(inventory)) {
-            var old=ModuleDescriptor.JSON.readValue(Files.readString(inventory),new com.fasterxml.jackson.core.type.TypeReference<List<String>>(){});
+            var old=ModuleDescriptor.JSON.readValue(Files.readString(inventory),new tools.jackson.core.type.TypeReference<List<String>>(){});
             for(String name:old) {
                 Path relative=Path.of(name);
                 if(relative.isAbsolute()||relative.normalize().startsWith("..")||!name.startsWith("META-INF/vernac/modules/"))throw new IllegalArgumentException("Invalid generated module persistence inventory; run Maven clean");

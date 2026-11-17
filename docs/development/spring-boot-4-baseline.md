@@ -25,19 +25,26 @@ Boot 3 application compatibility is not claimed for the 0.6.0 Spring integration
 
 ## Preserve existing JSON contracts deliberately
 
-Generated DTO codecs and runtime HTTP/JSON infrastructure still use Jackson 2. The
-JDBC starter supplies `spring-boot-jackson2` alongside Boot's managed dependencies.
-Applications exposing generated DTOs must explicitly select
-`spring.http.converters.preferred-json-mapper=jackson2`. Bundled web applications and
-the web wizard template do so. Plain Spring MVC/standalone setups must select
-`MappingJackson2HttpMessageConverter` explicitly. Do not assume Jackson 3 honors the
-Jackson 2 custom serializer/deserializer classes. Existing null-omission, strict input
-and pagination wire assertions remain required; selecting a converter must not weaken
-them or install global DTO-specific modules.
+Generated DTO codecs, runtime HTTP/JSON infrastructure, compiler metadata and SaaS
+adapters use Jackson 3 (`tools.jackson`). The JDBC starter supplies
+`spring-boot-jackson`; Boot 4 selects Jackson 3 by default. Bundled applications
+explicitly select `spring.http.converters.preferred-json-mapper=jackson`.
+Plain MVC tests use `JacksonJsonHttpMessageConverter`.
 
-This compatibility path is deprecated upstream. Jackson 3 migration is separate work
-before removing it; merely changing the default mapper would silently alter wire
-contracts. Other consumer JSON configuration remains application-owned.
+Custom codecs extend `ValueDeserializer` / `ValueSerializer` and use
+`tools.jackson.databind.annotation`. Core annotations such as `JsonInclude` remain
+in `com.fasterxml.jackson.annotation`, as required by Jackson 3. Immutable
+`JsonMapper` builders replace mapper mutation. Strict DTO field validation,
+PATCH/null omission, duplicate/trailing-token rejection and page contracts remain.
+Schema snapshots keep their deterministic LF/inline-array representation; this
+migration must not rewrite historical snapshots or SQL.
+
+The migration follows the [Jackson 3 migration guide](https://github.com/FasterXML/jackson/blob/main/jackson3/MIGRATING_TO_JACKSON_3.md).
+There is no parallel Jackson 2 codec or converter support in 0.6.0.
+Mustangproject's unused JSON conversion dependency is excluded from the PDF/XML
+adapter. Its fiscal PDF/A and embedded XML generation/validation remain covered
+by the rendering and PostgreSQL integration suites; its separate JSON API is not
+part of Vernac's adapter contract.
 
 ## Evidence and remaining boundaries
 
@@ -51,18 +58,13 @@ Primary upgrade references:
 
 - [Boot 4 migration](https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-4.0-Migration-Guide).
 - [Boot 4.1 upgrade notes](https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-4.1-Release-Notes).
-- [Jackson 2 compatibility and mapper selection](https://docs.spring.io/spring-boot/reference/features/json.html).
+- [JSON mapper selection](https://docs.spring.io/spring-boot/reference/features/json.html).
 
 
 ## Deprecation boundaries in tests
 
-Use Spring 7's `isUnprocessableContent()` matcher for HTTP 422. The Jackson 2
-converter remains the explicit compatibility bridge for generated codecs. Its
-upstream removal warning is isolated in `Jackson2MvcTestSupport.converter()` and
-the standalone module sample's converter assertion, with a method-local `removal`
-exception. Keep HTTP/page/null-omission/input assertions intact; moving to Jackson 3
-requires its own codec migration and wire-compatibility tests. Do not suppress entire
-test classes or compiler warnings globally.
+Use Spring 7's `isUnprocessableContent()` matcher for HTTP 422.
+HTTP tests exercise the Jackson 3 converter without removal-warning suppressions.
 
 LSP tests initialize through `workspaceFolders`. The server retains deprecated
 `rootUri`/`rootPath` wire fields solely in a documented fallback for older clients.

@@ -15,13 +15,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.vernac.compiler.pipeline.VernacCompiler;
 import org.vernac.runtime.events.EventHandler;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class PaginationHttpExecutionTest {
     @TempDir Path root;
-    private static final ObjectMapper JSON=new ObjectMapper();
+    private static final ObjectMapper JSON=tools.jackson.databind.json.JsonMapper.builder().build();
     private URLClassLoader compile() throws Exception {
         Path model=root.resolve("model/pageweb/model.vernac");Files.createDirectories(model.getParent());
         try(var resource=getClass().getResourceAsStream("/pagination/model.vernac")) {
@@ -40,7 +40,7 @@ class PaginationHttpExecutionTest {
         Object controller=code.loadClass("pageweb.adapter.inbound.http.Api").getConstructor(board,single)
                 .newInstance(board.getConstructor(ObjectProvider.class).newInstance(provider),single.getConstructor(ObjectProvider.class).newInstance(provider));
         Object advice=code.loadClass("pageweb.adapter.inbound.http.ApiErrors").getConstructor().newInstance();
-        return MockMvcBuilders.standaloneSetup(controller).setMessageConverters(Jackson2MvcTestSupport.converter()).setControllerAdvice(advice).build();
+        return MockMvcBuilders.standaloneSetup(controller).setMessageConverters(JacksonMvcTestSupport.converter()).setControllerAdvice(advice).build();
     }
     @Test void independentPagesKeepTheirKindsAndMetadataWithoutGlobalJacksonModules() throws Exception {
         try(var code=compile()) {
@@ -48,12 +48,12 @@ class PaginationHttpExecutionTest {
             var response=mvc.perform(get("/pages").param("firstPage","2").param("secondPage","1").param("pageSize","2")).andReturn().getResponse();
             assertEquals(200,response.getStatus(),response.getContentAsString());
             var body=JSON.readTree(response.getContentAsString());
-            assertEquals("Board",body.get("heading").asText());
-            assertEquals("C",body.at("/first/items/0/text").asText());
+            assertEquals("Board",body.get("heading").asString());
+            assertEquals("C",body.at("/first/items/0/text").asString());
             assertEquals(2,body.at("/first/offset").asLong()); assertEquals(2,body.at("/first/pageNumber").asLong());
             assertEquals(6,body.at("/first/totalElements").asLong()); assertEquals(3,body.at("/first/totalPages").asLong());
-            assertEquals("A",body.at("/second/items/0").asText()); assertFalse(body.get("second").has("totalElements"));
-            assertEquals("sample-next",body.at("/feed/nextCursor").asText()); assertFalse(body.get("feed").has("offset"));
+            assertEquals("A",body.at("/second/items/0").asString()); assertFalse(body.get("second").has("totalElements"));
+            assertEquals("sample-next",body.at("/feed/nextCursor").asString()); assertFalse(body.get("feed").has("offset"));
             assertFalse(response.getContentAsString().contains("request"));
             var dto=code.loadClass("pageweb.adapter.inbound.http.dto.ApiDtos$BoardDto");
             assertEquals(body,JSON.readTree(JSON.writeValueAsString(JSON.readValue(response.getContentAsString(),dto))));
@@ -61,21 +61,21 @@ class PaginationHttpExecutionTest {
             assertEquals(200,last.getStatus()); var beyond=JSON.readTree(last.getContentAsString());
             assertEquals(0,beyond.at("/first/items").size()); assertEquals(6,beyond.at("/first/totalElements").asLong());
             assertFalse(beyond.get("feed").has("nextCursor"));
-            assertEquals("single",JSON.readTree(mvc.perform(get("/pages/single")).andReturn().getResponse().getContentAsString()).at("/page/items/0").asText());
+            assertEquals("single",JSON.readTree(mvc.perform(get("/pages/single")).andReturn().getResponse().getContentAsString()).at("/page/items/0").asString());
         }
     }
     @Test void invalidRequestsAndInconsistentWirePagesFailClearly() throws Exception {
         try(var code=compile()) {
             var mvc=mvc(code);
             var invalid=mvc.perform(get("/pages").param("firstPage","1").param("secondPage","1").param("pageSize","2").param("cursor","modified-token")).andReturn().getResponse();
-            assertEquals(400,invalid.getStatus());assertEquals("INVALID_CURSOR",JSON.readTree(invalid.getContentAsString()).get("code").asText());
+            assertEquals(400,invalid.getStatus());assertEquals("INVALID_CURSOR",JSON.readTree(invalid.getContentAsString()).get("code").asString());
             assertFalse(invalid.getContentAsString().contains("modified-token"));
             assertEquals(422,mvc.perform(get("/pages").param("firstPage","0").param("secondPage","1").param("pageSize","2")).andReturn().getResponse().getStatus());
             var dto=code.loadClass("pageweb.adapter.inbound.http.dto.ApiDtos$BoardDto");
             var response=mvc.perform(get("/pages").param("firstPage","1").param("secondPage","1").param("pageSize","2")).andReturn().getResponse();
             var body=JSON.readTree(response.getContentAsString());
-            ((com.fasterxml.jackson.databind.node.ObjectNode)body.get("first")).put("totalElements",0);
-            assertThrows(com.fasterxml.jackson.databind.JsonMappingException.class,()->JSON.readValue(body.toString(),dto));
+            ((tools.jackson.databind.node.ObjectNode)body.get("first")).put("totalElements",0);
+            assertThrows(tools.jackson.databind.DatabindException.class,()->JSON.readValue(body.toString(),dto));
         }
     }
 }

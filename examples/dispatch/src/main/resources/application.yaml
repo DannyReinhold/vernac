@@ -1,7 +1,7 @@
 spring:
   http:
     converters:
-      preferred-json-mapper: jackson2
+      preferred-json-mapper: jackson
   application:
     name: vernac-dispatch
   datasource:

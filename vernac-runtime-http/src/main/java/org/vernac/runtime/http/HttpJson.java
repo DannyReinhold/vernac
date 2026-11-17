@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.vernac.runtime.http;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.Locale;
 import java.util.Objects;
@@ -16,15 +16,15 @@ import org.vernac.runtime.json.MappingContractException;
 /** Local JSON codec. Generated DTO annotations supply strict field and PATCH semantics. */
 @NullMarked
 public final class HttpJson {
-    private static final ObjectMapper MAPPER = new ObjectMapper()
-            .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
+    private static final ObjectMapper MAPPER = tools.jackson.databind.json.JsonMapper.builder()
+            .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build();
     private HttpJson() { }
 
     public static byte[] write(Object dto) {
         Objects.requireNonNull(dto);
         try {
             return MAPPER.writeValueAsBytes(dto);
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             throw contractFailure(ex, "Could not encode JSON request");
         }
     }
@@ -40,7 +40,7 @@ public final class HttpJson {
             T result = MAPPER.readValue(response.body(), type);
             if (result == null) throw new DtoContractException("$", "Expected non-null JSON response");
             return result;
-        } catch (IOException ex) {
+        } catch (JacksonException ex) {
             throw contractFailure(ex, "Invalid JSON response");
         }
     }
@@ -54,7 +54,7 @@ public final class HttpJson {
     }
 
     private static RuntimeException contractFailure(Exception error, String message) {
-        // Generated codecs wrap their contract exception in JsonMappingException.
+        // Generated codecs wrap their contract exception in DatabindException.
         // Preserve useful field paths, but do not retain Jackson source excerpts.
         for (Throwable cause = error.getCause(); cause != null; cause = cause.getCause()) {
             if (cause instanceof DtoContractException ex) return ex;

@@ -277,7 +277,7 @@ class TypeModuleExecutionTest {
                 assertEquals(active,context.containsBean("httpentry.Api"));
                 assertEquals(active,context.containsBean("@http-errors:httpentry.Api"));
                 if(active) {
-                    assertEquals("Hello",new com.fasterxml.jackson.databind.ObjectMapper().readTree(response.getContentAsString()).get("text").asText());
+                    assertEquals("Hello",tools.jackson.databind.json.JsonMapper.builder().build().readTree(response.getContentAsString()).get("text").asString());
                     assertTrue(context.containsBean("httpdomain.Echo"),"Usecase module activates through the HTTP dependency");
                     var invalid=mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/module/echo")
                         .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content("{}"))

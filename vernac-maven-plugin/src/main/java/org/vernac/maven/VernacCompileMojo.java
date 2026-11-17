@@ -66,7 +66,7 @@ public class VernacCompileMojo extends AbstractMojo {
     }
     private java.util.Map<String,java.util.Map<String,String>> enumOverrides() throws java.io.IOException {
         return enumCodes == null ? java.util.Map.of() : org.vernac.compiler.persistence.SchemaModel.JSON.readValue(
-                java.nio.file.Files.readString(enumCodes.toPath()),new com.fasterxml.jackson.core.type.TypeReference<>() { });
+                java.nio.file.Files.readString(enumCodes.toPath()),new tools.jackson.core.type.TypeReference<>() { });
     }
 
     @Override

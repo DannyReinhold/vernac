@@ -371,8 +371,8 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         return new SchemaNode(toLocation(ctx),ctx.name.getText(),ctx.strategy==null ? "exact" : ctx.strategy.getText(),fields);
     }
     private String decodeExternalName(String token, SourceLocation location) {
-        try { return new com.fasterxml.jackson.databind.ObjectMapper().readValue(token,String.class); }
-        catch(java.io.IOException ex) { throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(
+        try { return tools.jackson.databind.json.JsonMapper.builder().build().readValue(token,String.class); }
+        catch(tools.jackson.core.JacksonException ex) { throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(
                 org.vernac.compiler.analyzer.CompilerDiagnostic.error(location,"Invalid JSON field-name literal: use JSON string escapes."))); }
     }
     private FieldNode adapterParameter(VernacParser.ParameterContext p) {

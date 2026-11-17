@@ -7,15 +7,15 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.*;
+import tools.jackson.core.JsonParser;
+import tools.jackson.databind.*;
 import okhttp3.*;
 import org.vernac.saas.payments.PaymentFailure;
 
 /** Bounded provider transport, with fixed production origins and no implicit retry/fallback/logging. */
 public final class PaymentHttp implements AutoCloseable {
     public enum Provider { MOLLIE, STRIPE }
-    private static final ObjectMapper JSON = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION).enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
+    private static final ObjectMapper JSON = tools.jackson.databind.json.JsonMapper.builder(tools.jackson.core.json.JsonFactory.builder().enable(tools.jackson.core.StreamReadFeature.STRICT_DUPLICATE_DETECTION).build()).enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build();
     private static final int MAX_BODY = 256 * 1024;
     private final OkHttpClient client;
     private final URI base;
@@ -90,8 +90,8 @@ public final class PaymentHttp implements AutoCloseable {
     }
     public static String requiredText(JsonNode value, String name) {
         JsonNode field = value.get(name);
-        if (field == null || !field.isTextual() || field.textValue().isEmpty() || field.textValue().length() > 4096) throw fail(PaymentFailure.Code.INVALID_PROVIDER_RESPONSE);
-        return field.textValue();
+        if (field == null || !field.isTextual() || field.stringValue().isEmpty() || field.stringValue().length() > 4096) throw fail(PaymentFailure.Code.INVALID_PROVIDER_RESPONSE);
+        return field.stringValue();
     }
     public static long requiredLong(JsonNode value, String name) {
         JsonNode field = value.get(name);
@@ -100,7 +100,7 @@ public final class PaymentHttp implements AutoCloseable {
     }
     public static JsonNode parseNotice(String body) {
         try { JsonNode json = JSON.readTree(body); if (json == null || !json.isObject()) throw fail(PaymentFailure.Code.INVALID_NOTIFICATION); return json; }
-        catch (IOException | RuntimeException invalid) { throw fail(PaymentFailure.Code.INVALID_NOTIFICATION); }
+        catch (RuntimeException invalid) { throw fail(PaymentFailure.Code.INVALID_NOTIFICATION); }
     }
     private static URI production(Provider provider) {
         return URI.create(provider == Provider.MOLLIE ? "https://api.mollie.com/v2/" : "https://api.stripe.com/v1/");
