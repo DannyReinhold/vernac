@@ -19,6 +19,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class VernacCompileMojoTest {
 
+    @Test void rolesAreGeneratedAndRemovedWithoutManualResourceMaintenance(@TempDir Path root) throws Exception {
+        Path source=root.resolve("src/main/vernac/app/model.vernac");Files.createDirectories(source.getParent());
+        Files.writeString(source,"namespace app; permission Rights {VIEW;} role app.reader {permission Rights.VIEW;}");
+        var project=new MavenProject();project.setFile(root.resolve("pom.xml").toFile());
+        var mojo=new VernacCompileMojo();mojo.setProject(project);mojo.setSourceDirectory(root.resolve("src/main/vernac").toFile());
+        mojo.setOutputDirectory(root.resolve("target/generated-sources/vernac").toFile());mojo.execute();
+        Path catalog=root.resolve("target/generated-resources/vernac-roles/META-INF/vernac/roles.json");
+        assertThat(Files.readString(catalog)).contains("app.reader","app.Rights.VIEW");
+        assertThat(project.getResources()).anyMatch(r->r.getDirectory().endsWith("vernac-roles"));
+        Files.writeString(source,"namespace app; permission Rights {VIEW;}");mojo.execute();
+        assertThat(org.vernac.compiler.modules.ModuleDescriptor.JSON.readTree(Files.readString(catalog)).path("roles").size()).isZero();
+    }
+
     @Test void auditOnlyCompositionPublishesAndRemovesItsSpringImports(@TempDir Path temporary) throws Exception {
         Path source=temporary.resolve("src/main/vernac/example/model.vernac");Files.createDirectories(source.getParent());
         Files.writeString(source,"namespace example; usecase Work() requires public behavior {execute {}}");

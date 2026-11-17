@@ -181,6 +181,7 @@ public final class ProjectTypeResolver {
             if (definition instanceof InboundHttpAdapterNode adapter && !invalidSources.contains(source.path().toString()))
                 inboundAdapters.put(adapter,new org.vernac.compiler.inbound.InboundResolver(project,fieldTypes,diagnostics,inboundRoutes)
                         .resolve(adapter,source.unit().namespace(),scopes.get(source.path())));
+        new RoleDeclarations().validate(project, scopes, diagnostics);
         if (strict) failOnErrors(diagnostics);
         List<TypeSymbol> deferred = namespaces.stream().flatMap(namespace -> project.symbols().inNamespace(namespace).stream())
                 .filter(symbol -> switch (symbol.kind()) {

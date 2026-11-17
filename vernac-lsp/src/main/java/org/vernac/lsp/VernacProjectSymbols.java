@@ -413,7 +413,8 @@ final class VernacProjectSymbols {
             ParserRuleContext name=contains(p.resource,point)?p.resource:contains(p.key,point)?p.key:null;
             if(name==null)return;
             for(var parent=p.getParent();parent!=null;parent=parent.getParent())
-                if(parent instanceof VernacParser.UsecaseDefinitionContext operation) {found.add(new AuthorizationReference(name,name==p.resource,operation));break;}
+                if(parent instanceof VernacParser.RoleDefinitionContext) {found.add(new AuthorizationReference(name,false,null));break;}
+                else if(parent instanceof VernacParser.UsecaseDefinitionContext operation) {found.add(new AuthorizationReference(name,name==p.resource,operation));break;}
         }});
         return found.size()==1?found.getFirst():null;
     }
@@ -505,7 +506,7 @@ final class VernacProjectSymbols {
                 if(permission!=null) {
                     var term=terms.get(new org.vernac.compiler.vocabulary.Vocabulary.Key(permission.identity().namespace(),permission.identity().name()));
                     return "**PERMISSION** `"+permission.identity().qualifiedName()+"`\n\n"+
-                        (authorizationChoices(path,current,authorization,name).containsKey(name)?"Key `"+name+"`; checked when this usecase is reached.":"Choose a declared permission member.")+
+                        (authorizationChoices(path,current,authorization,name).containsKey(name)?"Key `"+name+"`; " + (authorization.operation()==null ? "included in this application role." : "checked when this usecase is reached."):"Choose a declared permission member.")+
                         (term==null?"":"\n\n"+org.vernac.compiler.vocabulary.Vocabulary.markdown(term.entry()));
                 }
             }

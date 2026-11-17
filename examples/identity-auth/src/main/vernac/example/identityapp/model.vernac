@@ -6,3 +6,7 @@ usecase ViewWorkspace() returns WorkspaceMessage
 behavior {
  execute { return WorkspaceMessage.of("Your verified workspace is open."); }
 }
+
+role example.workspace_reader {
+    permission WorkspacePermissions.VIEW;
+}

@@ -52,7 +52,7 @@ public class IdentitySetup {
  }
  @Bean org.springframework.security.authentication.AuthenticationManager browserAuthenticationManager(IdentityJdbcAuthentication authentication){return authentication.authenticationManager();}
  @Bean RoleCatalog roleCatalog(){
-  return RoleCatalog.fromClasspath(getClass().getClassLoader(),"roles.json",List.of(WorkspacePermissions.values()));
+  return RoleCatalog.fromClasspath(getClass().getClassLoader(),"META-INF/vernac/roles.json",List.of(WorkspacePermissions.values()));
  }
  @Bean IdentityAccounts identityAccounts(NamedParameterJdbcTemplate jdbc,@Qualifier("transactionManager") PlatformTransactionManager writer,
   Clock clock,IdentityJdbcAuthentication authentication,RoleCatalog catalog) {
