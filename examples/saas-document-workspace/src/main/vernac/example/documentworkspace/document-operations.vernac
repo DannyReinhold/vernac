@@ -1,0 +1,29 @@
+namespace example.documentworkspace;
+import example.documentworkspace.commercial.WorkspaceBenefit;
+
+// Keep the mutation inside the reservation so rollback also restores the allowance.
+port DocumentOperations {
+    DocumentId create(DocumentTitle title, DocumentText text);
+    void delete(DocumentId id);
+    DocumentSummary export(DocumentId id);
+}
+
+adapter StoredDocuments implements DocumentOperations {
+    behavior {
+        java uses {
+            example.documentworkspace.WorkspaceStorage storage;
+        }
+        public DocumentId create(DocumentTitle title, DocumentText text) {
+            var storage = self.storage();
+            storage.requireOperation(WorkspaceBenefit.DOCUMENT_CHARACTERS.key(), text.text().length());
+            return storage.allocate(WorkspaceBenefit.DOCUMENTS.key(), () -> storage.save(Document.create(title, text)).id());
+        }
+        public void delete(DocumentId id) {
+            self.storage().release(() -> self.storage().delete(id));
+        }
+        public DocumentSummary export(DocumentId id) {
+            var document = self.storage().consumeMonthly(WorkspaceBenefit.MONTHLY_EXPORTS.key(), () -> self.storage().load(id));
+            return DocumentSummary.of(document.id(), document.title(), document.text());
+        }
+    }
+}

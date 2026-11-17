@@ -67,7 +67,9 @@ test('E06 S08 S09 concurrent last slot, rollback and monthly quota rollover',asy
  const races=await Promise.all(['C','D'].map(title=>customer.request.post('/documents/create',{form:{...values,title,text:'Content'},maxRedirects:0})));expect(races.map(r=>r.status()).sort()).toEqual([303,409]);
  await user.page.goto('/workspace');expect(await user.page.locator('form[action="/documents/delete"]').count()).toBe(3);
  const exportForm=await form(user.page,'/documents/export');for(let i=0;i<3;i++)expect((await customer.request.post('/documents/export',{form:exportForm,maxRedirects:0})).status()).toBe(i<2?200:409);
- await app.advance(18*86400);await login(customer,user.page,user.address);await select(user,user.account);await user.page.goto('/workspace');expect((await post(customer,user.page,'/documents/export')).status()).toBe(200);
+ await app.advance(18*86400);await login(customer,user.page,user.address);await select(user,user.account);await user.page.goto('/workspace');const download=await post(customer,user.page,'/documents/export');expect(download.status()).toBe(200);
+ expect(download.headers()['content-disposition']).toBe('attachment; filename="document.txt"');
+ expect(await download.text()).toContain('\n\n');
  expect((await post(customer,user.page,'/documents/delete')).status()).toBe(303);expect((await document(user,'Replacement')).status()).toBe(303);
 });
 
@@ -150,8 +152,20 @@ test('E22 S18 S11 parallel closure versus checkout cannot orphan a new charge',a
  const user=await register(customer,app);await profile(user);await billing(user);const orderForm=await form(user.page,'/billing/checkout');await user.page.goto('/auth/account?account='+user.account);const closure=await form(user.page,'/auth/account/close');
  await app.control('barrier',{account:user.account});const closing=customer.request.post('/auth/account/close',{form:closure,maxRedirects:0});const ordering=customer.request.post('/billing/checkout',{form:orderForm,maxRedirects:0});
  try{let blocked=0;for(let i=0;i<100;i++){blocked=(await app.control('blocked')).count;if(blocked>=2)break;await new Promise(r=>setTimeout(r,20));}expect(blocked,'both operations must overlap at the database lock').toBeGreaterThanOrEqual(2);}finally{await app.control('barrier',{action:'release'});}
- const [c,o]=await Promise.all([closing,ordering]);expect([303,409]).toContain(c.status());expect([303,409]).toContain(o.status());expect(c.status()===303&&o.status()===303).toBe(false);
- await app.tick(8);const f=await app.facts();if(f.accounts[0].status==='CLOSED'){expect(f.orders).toHaveLength(0);expect(f.providerPayments).toBe(0);}else{expect(c.status()).toBe(409);expect(f.orders).toHaveLength(1);}
+ const [closed,ordered]=await Promise.all([closing,ordering]);
+ await app.tick(8);
+ const facts=await app.facts();
+ if(facts.accounts[0].status==='CLOSED'){
+  expect(closed.status()).toBe(303);
+  // Closure can win before the ownership recheck (403) or at the active-account lock (409).
+  expect([403,409]).toContain(ordered.status());
+  expect(facts.orders).toHaveLength(0);
+  expect(facts.providerPayments).toBe(0);
+ }else{
+  expect(closed.status()).toBe(409);
+  expect(ordered.status()).toBe(303);
+  expect(facts.orders).toHaveLength(1);
+ }
 });
 
 test('E23 S18 S13 cancellation boundary and parallel renewal/closure produce no charge',async({app,customer})=>{

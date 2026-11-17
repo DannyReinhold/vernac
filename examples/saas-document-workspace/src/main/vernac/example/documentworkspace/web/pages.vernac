@@ -1,0 +1,44 @@
+namespace example.documentworkspace.web;
+import example.documentworkspace.ListDocuments;
+import example.documentworkspace.CreateDocument;
+import example.documentworkspace.DeleteDocument;
+import example.documentworkspace.ExportDocument;
+
+
+// HTTP flow uses the same guarded usecases as other entrypoints.
+adapter WorkspacePages inbound mvc uses ListDocuments listDocuments, CreateDocument createDocument, DeleteDocument deleteDocument, ExportDocument exportDocument {
+    base "/";
+    error view "workspace-error";
+    workspace {
+        GET "/workspace";
+        execute listDocuments {}
+        render "workspace" model documents;
+    }
+    create {
+        POST "/documents/create";
+        form String title;
+        form String text;
+        execute createDocument {
+            title <- form.title;
+            text <- form.text;
+        }
+        redirect "/workspace";
+    }
+    delete {
+        POST "/documents/delete";
+        form UUID id;
+        execute deleteDocument {
+            id <- form.id;
+        }
+        redirect "/workspace";
+    }
+    download {
+        POST "/documents/export";
+        form UUID id;
+        execute exportDocument {
+            id <- form.id;
+        }
+        export "document.txt" from text;
+    }
+    errors implemented by example.documentworkspace.WorkspaceErrorPolicy;
+}

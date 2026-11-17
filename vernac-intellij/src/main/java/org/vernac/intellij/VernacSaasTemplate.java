@@ -33,11 +33,21 @@ final class VernacSaasTemplate {
                 throw new IOException("Invalid SaaS template destination");
         }
         Path sourceRoot=root.resolve("src/main/vernac");
-        Path model=sourceRoot.resolve(namespace.replace('.','/')).resolve("model.vernac");
         try {
-            var unit=new VernacSourceParser().parse(model.toString(),new String(files.get(model),StandardCharsets.UTF_8));
-            var index=new VernacProjectLoader().index(sourceRoot,List.of(new VernacSourceFile(model,unit)));
-            var resolved=new ProjectTypeResolver().resolve(index);
+            var parser = new VernacSourceParser();
+            var sources = new ArrayList<VernacSourceFile>();
+            var manifests = new HashMap<Path, String>();
+            for (var entry : files.entrySet()) {
+                Path path = entry.getKey();
+                if (path.startsWith(sourceRoot) && path.toString().endsWith(".vernac")) {
+                    var unit = parser.parse(path.toString(), new String(entry.getValue(), StandardCharsets.UTF_8));
+                    sources.add(new VernacSourceFile(path, unit));
+                } else if (path.startsWith(sourceRoot) && path.toString().endsWith(".vmodule")) {
+                    manifests.put(path, new String(entry.getValue(), StandardCharsets.UTF_8));
+                }
+            }
+            var index = new VernacProjectLoader().index(sourceRoot, sources);
+            var resolved=new ProjectTypeResolver().resolve(index, manifests);
             var empty=SchemaModel.empty();
             var schema=new SchemaBuilder(resolved,empty,Map.of(),new SchemaBuilder.Options(false,false)).build();
             var plan=new MigrationPlanner().plan(empty,schema,MigrationPlanner.Options.safe());

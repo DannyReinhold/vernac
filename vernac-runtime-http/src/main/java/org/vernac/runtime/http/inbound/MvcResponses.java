@@ -32,6 +32,15 @@ public final class MvcResponses {
         return response;
     }
 
+    public static ModelAndView attachment(String filename, String text) {
+        var disposition = ContentDisposition.attachment().filename(filename).build();
+        return new ModelAndView((org.springframework.web.servlet.View) (model, request, response) -> {
+            response.setContentType("text/plain;charset=UTF-8");
+            response.setHeader(HttpHeaders.CONTENT_DISPOSITION, disposition.toString());
+            response.getOutputStream().write(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        });
+    }
+
     public static ModelAndView absent(String template, int status, MvcInputs inputs) {
         var response = view(template, status, null, null, inputs);
         response.addObject(

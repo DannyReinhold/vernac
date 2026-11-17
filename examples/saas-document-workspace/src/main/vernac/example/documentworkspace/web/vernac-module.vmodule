@@ -1,0 +1,4 @@
+// The composition root selects this controller for the account-wide browser policy.
+module example.documentworkspace.web {
+    export example.documentworkspace.web.WorkspacePages;
+}

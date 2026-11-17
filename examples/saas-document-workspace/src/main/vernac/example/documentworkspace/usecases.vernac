@@ -1,0 +1,29 @@
+namespace example.documentworkspace;
+
+// Every entry point uses these permission-guarded operations.
+value DocumentSummary(DocumentId id, DocumentTitle title, DocumentText text) list DocumentSummaries;
+
+usecase ListDocuments() returns DocumentSummaries requires permission WorkspacePermissions.VIEW uses DocumentRepository behavior {
+    execute {
+        return DocumentSummaries.of(self.documentRepository().all().stream()
+                .map(document -> DocumentSummary.of(document.id(), document.title(), document.text()))
+                .toList());
+    }
+}
+
+usecase CreateDocument(DocumentTitle title, DocumentText text) returns DocumentId requires permission WorkspacePermissions.EDIT uses DocumentOperations behavior {
+    execute { return self.documentOperations().create(title, text); }
+}
+
+usecase DeleteDocument(DocumentId id) requires permission WorkspacePermissions.EDIT uses DocumentOperations behavior {
+    execute { self.documentOperations().delete(id); }
+}
+
+value DocumentExport(String text);
+
+usecase ExportDocument(DocumentId id) returns DocumentExport requires permission WorkspacePermissions.EXPORT uses DocumentOperations behavior {
+    execute {
+        var document = self.documentOperations().export(id);
+        return DocumentExport.of(document.title().text() + "\n\n" + document.text().text());
+    }
+}

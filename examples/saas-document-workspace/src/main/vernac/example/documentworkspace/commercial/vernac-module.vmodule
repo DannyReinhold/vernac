@@ -1,0 +1,9 @@
+// The composition root adapts these published offers to the subscription catalog.
+module example.documentworkspace.commercial {
+    export example.documentworkspace.commercial.WorkspaceOffers;
+    export example.documentworkspace.commercial.WorkspaceOffer;
+    export example.documentworkspace.commercial.MonthlyPriceInCents;
+    export example.documentworkspace.commercial.IncludedBenefits;
+    export example.documentworkspace.commercial.IncludedBenefit;
+    export example.documentworkspace.commercial.WorkspaceBenefit;
+}

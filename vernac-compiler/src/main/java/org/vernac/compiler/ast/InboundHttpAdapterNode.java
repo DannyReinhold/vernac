@@ -48,7 +48,9 @@ public record InboundHttpAdapterNode(
             Optional<String> modelName,
             Optional<String> redirect,
             Optional<String> notice,
-            Optional<String> absentView) {}
+            Optional<String> absentView,
+            Optional<String> attachment,
+            Optional<String> contentField) {}
 
     public record ErrorView(Optional<String> template, Optional<String> reload) {}
 

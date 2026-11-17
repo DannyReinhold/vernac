@@ -56,13 +56,22 @@ try{
  await page.getByLabel('Titel',{exact:true}).fill('Wizard restart äöü');await page.getByLabel('Text',{exact:true}).fill('Persisted by the ordinary developer path');
  response=page.waitForResponse(r=>r.request().method()==='POST');await page.getByRole('button',{name:'Dokument anlegen',exact:true}).click();assert.equal((await response).status(),303);await page.waitForURL('**/workspace');
  await page.getByText('Wizard restart äöü',{exact:true}).waitFor();assert.equal(await page.getByText('Wizard restart äöü',{exact:true}).count(),1);
+ const exportForm=await page.locator('form[action="/documents/export"]').evaluate(form=>Object.fromEntries(new FormData(form)));
+ for(let used=0;used<3;used++){
+  const download=await context.request.post('/documents/export',{form:exportForm,headers:{Accept:'text/plain'}});
+  assert.equal(download.status(),200,'generated project permits three monthly exports');
+  assert.equal(download.headers()['content-disposition'],'attachment; filename="document.txt"');
+  assert.equal(await download.text(),'Wizard restart äöü\n\nPersisted by the ordinary developer path');
+ }
+ const exhausted=await context.request.post('/documents/export',{form:exportForm});
+ assert.equal(exhausted.status(),409,'fourth export exceeds the generated project allowance');
  const state=await readFile(path.join(root,'.local/settings.json')),store=await readFile(path.join(root,'.local/localhost.p12'));
  assert((await command(['exec:java','-Dexec.args=status'])).includes('RENEWAL'));
  await stop();await start(context);await page.goto('/workspace');await page.getByText('Wizard restart äöü',{exact:true}).waitFor();assert.equal(await page.getByText('Wizard restart äöü',{exact:true}).count(),1);
  assert.deepEqual(await readFile(path.join(root,'.local/settings.json')),state);assert.deepEqual(await readFile(path.join(root,'.local/localhost.p12')),store);
  const accountState=JSON.parse(state);const capabilities=Object.values(accountState);assert(capabilities.every(secret=>!logs.includes(secret)));
  await mkdir(path.join(root,'target/acceptance-reports'),{recursive:true});
- await writeFile(path.join(root,'target/acceptance-reports/normal-start.json'),JSON.stringify({status:'passed',checks:['normal Maven start without Python',environment.SPRING_DOCKER_COMPOSE_ENABLED==='false'?'external disposable database':'Compose database','registration and local Java mail client','verification and login','product mutation','operator isolation client','restart with retained session, document and keys']}));
+ await writeFile(path.join(root,'target/acceptance-reports/normal-start.json'),JSON.stringify({status:'passed',checks:['normal Maven start without Python',environment.SPRING_DOCKER_COMPOSE_ENABLED==='false'?'external disposable database':'Compose database','registration and local Java mail client','verification and login','product mutation','three exact UTF-8 exports and fourth denied','operator isolation client','restart with retained session, document and keys']}));
  console.log('Normal Wizard start, Java mail/operator tools and durable restart passed.');
 }catch(error){
  let safe=logs;try{for(const value of Object.values(JSON.parse(await readFile(path.join(root,'.local/settings.json'),'utf8'))))safe=safe.replaceAll(value,'[redacted]');}catch{}

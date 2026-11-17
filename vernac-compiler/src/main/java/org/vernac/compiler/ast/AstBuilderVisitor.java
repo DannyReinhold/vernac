@@ -236,12 +236,14 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 Optional.ofNullable(e.responseMapping).map(ParserRuleContext::getText),
                 Optional.ofNullable(e.absentStatus).map(t -> httpStatus(t.getText())),
                 inboundImplementation(e.inboundErrorPolicy()), inboundRules(e.inboundErrorPolicy()),
-                e.view == null && e.redirect == null && e.absentView == null ? Optional.empty() : Optional.of(new InboundHttpAdapterNode.View(
+                e.view == null && e.redirect == null && e.absentView == null && e.attachment == null ? Optional.empty() : Optional.of(new InboundHttpAdapterNode.View(
                         e.view == null ? "" : errorString(e.view.getText(),toLocation(e)),
                         Optional.ofNullable(e.modelName).map(ParserRuleContext::getText),
                         Optional.ofNullable(e.redirect).map(t -> errorString(t.getText(),toLocation(e))),
                         Optional.ofNullable(e.notice).map(t -> errorString(t.getText(),toLocation(e))),
-                        Optional.ofNullable(e.absentView).map(t -> errorString(t.getText(),toLocation(e))))))).toList();
+                        Optional.ofNullable(e.absentView).map(t -> errorString(t.getText(),toLocation(e))),
+                        Optional.ofNullable(e.attachment).map(t -> errorString(t.getText(),toLocation(e))),
+                        Optional.ofNullable(e.contentField).map(ParserRuleContext::getText))))).toList();
         return new InboundHttpAdapterNode(toLocation(ctx), ctx.name.getText(), unquote(ctx.base.getText()),
                 ctx.dependencies.stream().map(this::adapterParameter).toList(), endpoints,
                 ctx.schemaDefinition().stream().map(this::visitSchemaDefinition).toList(),

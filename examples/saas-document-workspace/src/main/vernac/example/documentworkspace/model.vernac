@@ -1,11 +1,6 @@
 namespace example.documentworkspace;
 
-permission WorkspacePermissions {
-    VIEW;
-    EDIT;
-    EXPORT;
-}
-
+// Start here. A document belongs to the selected tenant throughout its lifetime.
 id DocumentId;
 
 value DocumentTitle(String text) validates {
@@ -17,94 +12,12 @@ value DocumentText(String text) validates {
 };
 
 tenant aggregate Document[DocumentId](mut DocumentTitle title, mut DocumentText text) behavior {
-    modify void edit(DocumentTitle title, DocumentText text) { self.title(title); self.text(text); }
+    modify void edit(DocumentTitle title, DocumentText text) {
+        self.title(title);
+        self.text(text);
+    }
 } list Documents;
 
 repository DocumentRepository for Document {
     find Documents all() order by title;
-}
-
-value WorkspaceMessage(String text);
-
-value DocumentSummary(DocumentId id, DocumentTitle title, DocumentText text) list DocumentSummaries;
-
-port DocumentOperations {
-    DocumentId create(DocumentTitle title, DocumentText text);
-    void delete(DocumentId id);
-    DocumentSummary export(DocumentId id);
-}
-
-adapter StoredDocuments implements DocumentOperations {
-    behavior {
-        java uses {
-            example.documentworkspace.DocumentActions actions;
-        }
-        public DocumentId create(DocumentTitle title, DocumentText text) { return self.actions().create(title,text); }
-        public void delete(DocumentId id) { self.actions().delete(id); }
-        public DocumentSummary export(DocumentId id) { return self.actions().export(id); }
-    }
-}
-
-usecase ViewWorkspace() returns WorkspaceMessage requires permission WorkspacePermissions.VIEW behavior {
-    execute { return WorkspaceMessage.of("Your verified workspace is open."); }
-}
-
-usecase ListDocuments() returns DocumentSummaries requires permission WorkspacePermissions.VIEW uses DocumentRepository behavior {
-    execute {
-        return DocumentSummaries.of(self.documentRepository().all().stream()
-                .map(document -> DocumentSummary.of(document.id(), document.title(), document.text()))
-                .toList());
-    }
-}
-
-usecase CreateDocument(DocumentTitle title, DocumentText text) returns DocumentId requires permission WorkspacePermissions.EDIT uses DocumentOperations behavior {
-    execute { return self.documentOperations().create(title, text); }
-}
-
-usecase DeleteDocument(DocumentId id) requires permission WorkspacePermissions.EDIT uses DocumentOperations behavior {
-    execute { self.documentOperations().delete(id); }
-}
-
-usecase ExportDocument(DocumentId id) returns DocumentSummary requires permission WorkspacePermissions.EXPORT uses DocumentOperations behavior {
-    execute { return self.documentOperations().export(id); }
-}
-
-role example.workspace_reader {
-    permission WorkspacePermissions.VIEW;
-}
-
-role example.workspace_editor {
-    permission WorkspacePermissions.VIEW;
-    permission WorkspacePermissions.EDIT;
-    permission WorkspacePermissions.EXPORT;
-}
-
-// HTTP flow uses the same guarded usecases as other entrypoints.
-adapter WorkspacePages inbound mvc uses ListDocuments listDocuments, CreateDocument createDocument, DeleteDocument deleteDocument {
-    base "/";
-    error view "workspace-error";
-    workspace {
-        GET "/workspace";
-        execute listDocuments {}
-        render "workspace" model documents;
-    }
-    create {
-        POST "/documents/create";
-        form String title;
-        form String text;
-        execute createDocument {
-            title <- form.title;
-            text <- form.text;
-        }
-        redirect "/workspace";
-    }
-    delete {
-        POST "/documents/delete";
-        form UUID id;
-        execute deleteDocument {
-            id <- form.id;
-        }
-        redirect "/workspace";
-    }
-    errors implemented by example.documentworkspace.WorkspaceErrorPolicy;
 }

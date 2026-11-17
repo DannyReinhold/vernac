@@ -95,6 +95,9 @@ final class MvcContracts {
                                                     + " path; external targets and dynamic"
                                                     + " placeholders are forbidden.");
                                     }
+                                } else if (reply.attachment().isPresent()) {
+                                    if (!reply.attachment().get().matches("[A-Za-z0-9][A-Za-z0-9_-]{0,100}\\.txt"))
+                                        error(endpoint.location(), "Text exports require a simple .txt filename.");
                                 } else {
                                     view(endpoint.location(), reply.template());
                                     if (endpoint.status() == 204 || endpoint.status() == 205)
@@ -164,7 +167,7 @@ final class MvcContracts {
             boolean optional) {
         if (endpoint.view().isEmpty()) return;
         var reply = endpoint.view().get();
-        if (reply.redirect().isEmpty() && (result != null) != reply.modelName().isPresent())
+        if (reply.attachment().isEmpty() && reply.redirect().isEmpty() && (result != null) != reply.modelName().isPresent())
             error(
                     endpoint.location(),
                     result == null
@@ -193,6 +196,7 @@ final class MvcContracts {
                         || !target.get().source().verb().equals("GET")
                         || target.get().source().view().isEmpty()
                         || target.get().source().view().get().redirect().isPresent()
+                        || target.get().source().view().get().attachment().isPresent()
                         || target.get().source().view().get().absentView().isPresent()) {
                     error(
                             rule.location(),
