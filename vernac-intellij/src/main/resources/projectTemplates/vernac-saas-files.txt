@@ -17,10 +17,6 @@ src/main/java/example/documentworkspace/BillingSetup.java
 src/main/java/example/documentworkspace/DemoApplication.java
 src/main/java/example/documentworkspace/DocumentActions.java
 src/main/java/example/documentworkspace/IdentitySetup.java
-src/main/java/example/documentworkspace/LocalPreview.java
-src/main/java/example/documentworkspace/MerchantAccess.java
-src/main/java/example/documentworkspace/MerchantOperations.java
-src/main/java/example/documentworkspace/PaymentNotices.java
 src/main/java/example/documentworkspace/WorkspaceController.java
 src/main/java/example/documentworkspace/WorkspaceErrors.java
 src/main/resources/application-local.yaml
@@ -36,3 +32,7 @@ test_acceptance_gate.py
 verify.py
 upgrade_snapshot.py
 vernac-application.vapplication
+src/main/java/example/documentworkspace/WorkspaceErrorPolicy.java
+src/main/java/example/documentworkspace/WorkspaceRequestPolicy.java
+src/main/resources/templates/workspace.html
+src/main/resources/templates/workspace-error.html

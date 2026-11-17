@@ -1,5 +1,5 @@
 // Copyright 2026 Danny Reinhold; SPDX-License-Identifier: Apache-2.0
-package example.documentworkspace;
+package org.vernac.saas.billing.web;
 
 import jakarta.servlet.http.*;
 import java.nio.ByteBuffer;
@@ -24,6 +24,7 @@ import org.vernac.saas.payments.persistence.domain.PaymentProfileKey;
 
 /** One configured provider profile per endpoint. Callback data never selects an account or tenant. */
 @Configuration(proxyBeanMethods = false)
+@Import(PaymentNotices.Notice.class)
 class PaymentNotices {
     static final String PATH = "/billing/provider-notice";
     @Bean @Order(-1)

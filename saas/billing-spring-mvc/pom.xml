@@ -4,6 +4,7 @@
 <modelVersion>4.0.0</modelVersion><parent><groupId>org.vernac</groupId><artifactId>vernac</artifactId><version>${revision}</version><relativePath>../../pom.xml</relativePath></parent>
 <artifactId>vernac-saas-billing-spring-mvc</artifactId><name>Vernac SaaS Billing MVC</name>
 <dependencies>
+<dependency><groupId>org.vernac</groupId><artifactId>vernac-saas-restrictions</artifactId><version>${project.version}</version></dependency>
 <dependency><groupId>org.vernac</groupId><artifactId>vernac-saas-identity-jdbc</artifactId><version>${project.version}</version></dependency>
 <dependency><groupId>org.vernac</groupId><artifactId>vernac-saas-identity-spring-security</artifactId><version>${project.version}</version></dependency>
 <dependency><groupId>org.vernac</groupId><artifactId>vernac-saas-invoicing</artifactId><version>${project.version}</version></dependency>

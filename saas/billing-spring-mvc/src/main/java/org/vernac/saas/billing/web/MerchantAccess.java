@@ -1,5 +1,5 @@
 // Copyright 2026 Danny Reinhold; SPDX-License-Identifier: Apache-2.0
-package example.documentworkspace;
+package org.vernac.saas.billing.web;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.context.request.*;

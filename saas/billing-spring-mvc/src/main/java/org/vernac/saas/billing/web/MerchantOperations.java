@@ -1,5 +1,5 @@
 // Copyright 2026 Danny Reinhold; SPDX-License-Identifier: Apache-2.0
-package example.documentworkspace;
+package org.vernac.saas.billing.web;
 
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
@@ -33,6 +33,7 @@ import org.vernac.saas.subscriptions.domain.MinorUnits;
  */
 @Configuration(proxyBeanMethods=false)
 @ConditionalOnProperty(name="billing.operator.enabled",havingValue="true")
+@Import(MerchantOperations.OperatorController.class)
 class MerchantOperations {
     static final String PATH="/__operator/refunds",STATUS="/__operator/billing-status";
     @Bean @Order(-2)

@@ -102,3 +102,32 @@ durch. Ein fehlender Test wird nicht als Erfolg eingetragen. Das Release-Gate bi
 Quellstand, Abhängigkeiten, Originalartefakte und Freigabe; ein grüner Teiltest ersetzt
 diese Abnahme nicht. Die aktuelle Liste steht im
 [Release-Prüfstand](../development/release-0.6.0.md).
+
+## Modulverdrahtung und fachliche Oberfläche
+
+Die Anwendung aktiviert `vernac.identity.enabled` und `vernac.billing.enabled`
+explizit. Ihre `.vapplication` bleibt für Modulaktivierungen und Providerbindungen
+zuständig. Erst diese Kombination stellt die gemeinsamen JDBC-Dienste und die
+verwalteten Identity-/Billing-Worker bereit. Eine Bibliotheksabhängigkeit allein
+aktiviert keine Anmeldung, Rechnung oder Hintergrundverarbeitung.
+
+Die Anwendung definiert weiterhin den generierten Rollenkatalog, die initialen
+Rollen und Objektpolitik, den `PlanCatalog` mit eigenen Benefits/Limits,
+`BillingSettings`, den rechtlich geprüften `InvoiceSeller` und die
+`BillingInvoicePolicy` (Nummernserie und Leistungsbeschreibung). Keine generische
+SaaS-Komponente kennt Dokumente, Exportlimits oder die Workspace-Oberfläche.
+Standardbeans lassen sich gezielt ersetzen; Betreiberrechte bleiben von
+Kundenrollen getrennt. Die getrennten Laufzeit-/Migrationsrollen und
+Initialisierungsprüfungen bleiben erhalten.
+
+`WorkspacePages` erklärt im Modell GET-Anzeige, POST-Eingaben, Usecase-Aufruf und
+Redirect. Die Anwendung liefert die Thymeleaf-Vorlagen, ihre sichere
+Fehlerdarstellung und das Downloadformat. Alle Zugriffe laufen weiterhin durch
+die generierten Berechtigungsprüfungen und Transaktionen. Die strikte Prüfung der
+Formularfelder sowie die Sicherheitsheader umschließen auch generierte Routen.
+
+Der lokale Mailprovider bringt seine Vorschau mit. Sie erfordert zusätzlich
+`vernac.mail.local.preview.enabled=true`, das lokale Profil, den ausdrücklich
+gewählten Noop-Provider, HTTPS/Loopback und die gesonderte Vorschau-Capability.
+Webhooks und die separat aktivierten Betreiberaktionen gehören zur Billing-
+Integration; es gibt keinen impliziten Betreiberzugriff über Account-Owner.

@@ -25,7 +25,7 @@ class VernacSaasTemplateTest {
         assertTrue(pom.contains("<vernac.version>"+System.getProperty("vernac.expected.version")+"</vernac.version>"));
         String launcher=Files.readString(root.resolve("run-local.py"));assertTrue(launcher.contains(namespace));assertFalse(launcher.contains("example.documentworkspace"));
         assertTrue(Files.isRegularFile(root.resolve(".mvn/wrapper/maven-wrapper.properties")));
-        assertTrue(Files.isRegularFile(root.resolve("src/main/java/de/rsas/kunden/workspace/PaymentNotices.java")));
+        assertTrue(Files.isRegularFile(root.resolve("src/main/java/de/rsas/kunden/workspace/BillingSetup.java")));
         assertTrue(Files.readString(root.resolve(".gitignore")).contains(".local/"));
         for (String path : new String[]{"acceptance_runtime.py", "upgrade_snapshot.py", "test_acceptance_gate.py",
                 "browser/saas.spec.mjs", "browser/fixtures.mjs", "browser/reporter.cjs", "browser/playwright.config.mjs"})

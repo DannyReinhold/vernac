@@ -1,5 +1,5 @@
 // Copyright 2026 Danny Reinhold; SPDX-License-Identifier: Apache-2.0
-package example.documentworkspace;
+package org.vernac.saas.mail.local;
 
 import jakarta.servlet.http.*;
 
@@ -20,9 +20,13 @@ import java.security.MessageDigest;
 import java.util.*;
 
 /** Only the explicit local profile exposes this capability-protected bounded in-memory inbox. */
-@Configuration(proxyBeanMethods = false)
+@org.springframework.boot.autoconfigure.AutoConfiguration(after=LocalMailAutoConfiguration.class)
+@org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication(type=org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type.SERVLET)
+@org.springframework.boot.autoconfigure.condition.ConditionalOnClass(name="org.springframework.security.config.annotation.web.builders.HttpSecurity")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="vernac.mail.local.preview.enabled",havingValue="true")
+@Import(LocalMailPreviewAutoConfiguration.Inbox.class)
 @Profile("local")
-class LocalPreview {
+public class LocalMailPreviewAutoConfiguration {
     @Bean
     @Order(0)
     SecurityFilterChain localPreviewChain(HttpSecurity http, Environment env) throws Exception {
