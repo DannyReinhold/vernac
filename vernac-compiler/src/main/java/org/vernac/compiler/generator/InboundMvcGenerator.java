@@ -136,7 +136,8 @@ public final class InboundMvcGenerator {
                         .addMember(
                                 "path", "$S", InboundResolver.join(adapter.base(), source.route()))
                         .addMember("method", "$T.$L", annotation("RequestMethod"), source.verb())
-                        .addMember("produces", "$S", "text/html");
+                        .addMember("produces", "$S", source.view().flatMap(InboundHttpAdapterNode.View::attachment).isPresent()
+                                ? "text/plain" : "text/html");
         if (source.bindings().stream().anyMatch(b -> b.kind().equals("form")))
             mapping.addMember("consumes", "$S", "application/x-www-form-urlencoded");
         var method =
@@ -253,7 +254,10 @@ public final class InboundMvcGenerator {
                                 source.absentStatus().orElseThrow())
                         .endControlFlow();
         }
-        if (view.redirect().isPresent())
+        if (view.attachment().isPresent())
+            method.addStatement("return $T.attachment($S, $L.$N())", RESPONSES, view.attachment().get(),
+                    optional ? "__result.orElseThrow()" : "__result", view.contentField().orElseThrow());
+        else if (view.redirect().isPresent())
             method.addStatement(
                     "return $T.redirect($S, $L, $L, request)",
                     RESPONSES,

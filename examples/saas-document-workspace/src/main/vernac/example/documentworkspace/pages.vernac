@@ -33,7 +33,7 @@ adapter WorkspacePages inbound mvc uses ListDocuments listDocuments, CreateDocum
         execute exportDocument {
             id <- form.id;
         }
-        render "document-download" model document;
+        export "document.txt" from text;
     }
     errors implemented by example.documentworkspace.WorkspaceErrorPolicy;
 }

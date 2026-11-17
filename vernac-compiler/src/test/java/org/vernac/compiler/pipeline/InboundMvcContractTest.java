@@ -32,6 +32,16 @@ class InboundMvcContractTest {
                 + "}";
     }
 
+    @Test
+    void textAttachmentUsesADeclaredStringFieldAndAStaticFilename() {
+        String endpoint = "download {GET \"/file\";execute read {} export \"note.txt\" from content;}";
+        String source = adapter(endpoint).replace("value Text(String)", "value Text(String content)");
+        String generated = compiler.compileSource(source).generatedFiles().toString();
+        assertTrue(generated.contains("MvcResponses.attachment(\"note.txt\", __result.content())"));
+        assertThrows(SemanticValidationException.class, () -> compiler.compileSource(source.replace("note.txt", "../note.txt")));
+        assertThrows(SemanticValidationException.class, () -> compiler.compileSource(source.replace("from content", "from missing")));
+    }
+
     private static final String BOARD =
             "board {GET \"/\";execute read {} render \"board\" model page;}";
 

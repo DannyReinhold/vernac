@@ -25,6 +25,11 @@ usecase DeleteDocument(DocumentId id) requires permission WorkspacePermissions.E
     execute { self.documentOperations().delete(id); }
 }
 
-usecase ExportDocument(DocumentId id) returns DocumentSummary requires permission WorkspacePermissions.EXPORT uses DocumentOperations behavior {
-    execute { return self.documentOperations().export(id); }
+value DocumentExport(String text);
+
+usecase ExportDocument(DocumentId id) returns DocumentExport requires permission WorkspacePermissions.EXPORT uses DocumentOperations behavior {
+    execute {
+        var document = self.documentOperations().export(id);
+        return DocumentExport.of(document.title().text() + "\n\n" + document.text().text());
+    }
 }

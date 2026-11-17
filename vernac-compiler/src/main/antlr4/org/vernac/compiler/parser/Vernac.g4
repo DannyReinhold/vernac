@@ -163,6 +163,7 @@ inboundEndpoint
       inboundBinding* ('body' bodyType=type ';')?
       'execute' dependency=variableName '{' mappingAssignment* '}'
       ('respond' status=INT_LITERAL (responseType=type 'using' responseMapping=methodName)? ';'
+       | 'export' attachment=STRING_LITERAL 'from' contentField=variableName ';'
        | 'render' view=STRING_LITERAL ('model' modelName=variableName)? ('status' renderStatus=INT_LITERAL)? ';'
        | 'redirect' redirect=STRING_LITERAL ('message' notice=STRING_LITERAL)? ';')
       ('on' 'absent' ('respond' absentStatus=INT_LITERAL
