@@ -4,6 +4,7 @@ import example.documentworkspace.commercial.domain.WorkspaceOffer;
 import example.documentworkspace.commercial.domain.WorkspaceOffers;
 import java.util.*;
 import org.springframework.context.annotation.*;
+import example.documentworkspace.adapter.inbound.http.WorkspacePages;
 import example.documentworkspace.authorization.WorkspacePermissions;
 import example.documentworkspace.domain.WorkspaceMembership;
 import org.vernac.saas.billing.web.*;
@@ -23,22 +24,22 @@ class WorkspaceConfiguration {
         return OfferTerms.of(
                 PlanKey.of(offer.plan()),
                 OfferRevision.of("v1"),
-                MinorUnits.of(offer.monthlyPrice()),
+                MinorUnits.of(offer.price().amount()),
                 BillingCurrency.EUR,
                 BillingInterval.MONTHLY,
                 Benefits.of(
                         Map.of(
                                 BenefitKey.of("documents"),
-                                Allowance.of(offer.documents()),
+                                Allowance.of(offer.documents().maximum()),
                                 BenefitKey.of("document-characters"),
-                                Allowance.of(offer.characters()),
+                                Allowance.of(offer.characters().maximum()),
                                 BenefitKey.of("monthly-exports"),
-                                Allowance.of(offer.exports()))));
+                                Allowance.of(offer.exports().maximum()))));
     }
 
     @Bean
     AccountWideBillingConfiguration.Access workspaceAccess(WorkspaceMembership membership) {
         return new AccountWideBillingConfiguration.Access(List.of(WorkspacePermissions.values()),
-                List.of(membership.initialRole()), Set.of("/documents/create", "/documents/delete", "/documents/export"));
+                List.of(membership.initialRole()), WorkspacePages.class);
     }
 }

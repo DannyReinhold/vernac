@@ -140,8 +140,17 @@ public final class InboundMvcGenerator {
                                 ? "text/plain" : "text/html");
         if (source.bindings().stream().anyMatch(b -> b.kind().equals("form")))
             mapping.addMember("consumes", "$S", "application/x-www-form-urlencoded");
+        var contract = AnnotationSpec.builder(ClassName.get("org.vernac.runtime.http.inbound", "MvcFormContract"));
+        for (var binding : source.bindings()) {
+            if (binding.kind().equals("form") || binding.kind().equals("query"))
+                contract.addMember(binding.kind(), "$S", binding.externalName());
+            if (source.view().flatMap(InboundHttpAdapterNode.View::attachment).isPresent()
+                    && binding.kind().equals("form") && binding.type().name().equals("UUID"))
+                contract.addMember("canonicalUuids", "$S", binding.externalName());
+        }
         var method =
                 MethodSpec.methodBuilder(source.name())
+                        .addAnnotation(contract.build())
                         .addModifiers(Modifier.PUBLIC)
                         .returns(VIEW)
                         .addAnnotation(mapping.build())

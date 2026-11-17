@@ -21,6 +21,13 @@ from the current UTC month. Read `commercial/offers.vernac` alongside those oper
 to see the Free and Pro allowances. `access.vernac` defines membership and grants.
 `pages.vernac` connects browser forms to the same use cases.
 
+The application composes the published Identity, Subscriptions, Restrictions, Payments and
+Invoicing modules in `vernac-application.vapplication`. Its document aggregate retains its
+namespace and tenant schema across upgrades. The commercial namespace owns the offers;
+both product namespaces ship in one application. The HTTP adapter declares the form contract
+and the text attachment. The Java storage adapter supplies transaction-bound callbacks
+to the restriction ledger.
+
 ### Design criteria
 
 - Give each model file one question to answer. Keep commercial vocabulary in its own namespace.

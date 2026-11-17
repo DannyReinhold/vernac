@@ -23,12 +23,17 @@ import org.vernac.saas.identity.security.*;
 @Configuration(proxyBeanMethods = false)
 public class AccountWideBillingConfiguration {
     /** Explicit vocabulary for account-wide grants. Resource-bound checks always deny. */
-    public record Access(List<PermissionKey> vocabulary, List<String> initialRoles, Set<String> productPosts) {
+    public record Access(List<PermissionKey> vocabulary, List<String> initialRoles, Class<?> browserPages) {
         public Access {
             vocabulary = List.copyOf(vocabulary);
             initialRoles = List.copyOf(initialRoles);
-            productPosts = Set.copyOf(productPosts);
+            Objects.requireNonNull(browserPages);
         }
+    }
+
+    @Bean
+    AccountBrowserForms accountBrowserForms(Access access) {
+        return new AccountBrowserForms(access.browserPages());
     }
 
     @Bean
@@ -75,7 +80,7 @@ public class AccountWideBillingConfiguration {
                 authentication.requestAdmission(),
                 journeys,
                 accounts,
-                access.productPosts());
+                AccountBrowserForms.postPaths(access.browserPages()));
     }
 
     @Bean
