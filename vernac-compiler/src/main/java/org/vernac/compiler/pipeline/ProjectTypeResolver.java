@@ -31,8 +31,9 @@ public final class ProjectTypeResolver {
                 .collect(Collectors.toCollection(TreeSet::new));
         Map<Path, FileTypeScope> scopes = new LinkedHashMap<>();
         List<CompilerDiagnostic> diagnostics = new ArrayList<>();
+        var modules = new org.vernac.compiler.modules.SourceModules(project, configurationSnapshots, diagnostics);
         for (var source : project.sources()) {
-            var scope = new FileTypeScope(source.unit(), project.symbols(), namespaces);
+            var scope = new FileTypeScope(source.unit(), modules.visibleFrom(source.unit().namespace()), namespaces);
             scopes.put(source.path(), scope);
             diagnostics.addAll(scope.diagnostics());
         }

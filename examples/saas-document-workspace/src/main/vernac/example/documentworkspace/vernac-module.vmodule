@@ -1,0 +1,13 @@
+// The document application exposes its four guarded customer operations.
+module example.documentworkspace {
+    export example.documentworkspace.ListDocuments;
+    export example.documentworkspace.CreateDocument;
+    export example.documentworkspace.DeleteDocument;
+    export example.documentworkspace.ExportDocument;
+    export example.documentworkspace.DocumentId;
+    export example.documentworkspace.DocumentTitle;
+    export example.documentworkspace.DocumentText;
+    export example.documentworkspace.DocumentExport;
+    export example.documentworkspace.DocumentSummary;
+    export example.documentworkspace.DocumentSummaries;
+}

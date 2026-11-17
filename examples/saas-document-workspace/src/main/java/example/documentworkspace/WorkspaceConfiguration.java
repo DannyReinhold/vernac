@@ -4,7 +4,7 @@ import example.documentworkspace.commercial.domain.WorkspaceOffer;
 import example.documentworkspace.commercial.domain.WorkspaceOffers;
 import java.util.*;
 import org.springframework.context.annotation.*;
-import example.documentworkspace.adapter.inbound.http.WorkspacePages;
+import example.documentworkspace.web.adapter.inbound.http.WorkspacePages;
 import example.documentworkspace.authorization.WorkspacePermissions;
 import example.documentworkspace.domain.WorkspaceMembership;
 import org.vernac.saas.billing.web.*;

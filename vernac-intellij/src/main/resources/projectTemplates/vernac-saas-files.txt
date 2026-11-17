@@ -24,7 +24,7 @@ src/main/vernac/example/documentworkspace/access.vernac
 src/main/vernac/example/documentworkspace/commercial/offers.vernac
 src/main/vernac/example/documentworkspace/document-operations.vernac
 src/main/vernac/example/documentworkspace/model.vernac
-src/main/vernac/example/documentworkspace/pages.vernac
+src/main/vernac/example/documentworkspace/web/pages.vernac
 src/main/vernac/example/documentworkspace/usecases.vernac
 src/test/java/acceptance/support/AcceptanceApplication.java
 src/test/java/acceptance/support/AcceptanceConfiguration.java
@@ -36,3 +36,6 @@ vernac-application.vapplication
 src/main/java/example/documentworkspace/WorkspaceErrorPolicy.java
 src/main/resources/templates/workspace.html
 src/main/resources/templates/workspace-error.html
+src/main/vernac/example/documentworkspace/commercial/vernac-module.vmodule
+src/main/vernac/example/documentworkspace/vernac-module.vmodule
+src/main/vernac/example/documentworkspace/web/vernac-module.vmodule

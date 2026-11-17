@@ -1,4 +1,9 @@
-namespace example.documentworkspace;
+namespace example.documentworkspace.web;
+import example.documentworkspace.ListDocuments;
+import example.documentworkspace.CreateDocument;
+import example.documentworkspace.DeleteDocument;
+import example.documentworkspace.ExportDocument;
+
 
 // HTTP flow uses the same guarded usecases as other entrypoints.
 adapter WorkspacePages inbound mvc uses ListDocuments listDocuments, CreateDocument createDocument, DeleteDocument deleteDocument, ExportDocument exportDocument {

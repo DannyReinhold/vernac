@@ -1,0 +1,3 @@
+// Browser delivery consumes the document API. No other product module depends on its controllers.
+module example.documentworkspace.web {
+}

@@ -1,0 +1,4 @@
+// Other product modules share the benefit vocabulary. Offer construction stays here.
+module example.documentworkspace.commercial {
+    export example.documentworkspace.commercial.WorkspaceBenefit;
+}
