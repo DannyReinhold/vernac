@@ -1,0 +1,22 @@
+namespace example.documentworkspace;
+
+// Roles grant operations within the active workspace. Purchased allowances apply separately.
+permission WorkspacePermissions {
+    VIEW;
+    EDIT;
+    EXPORT;
+}
+
+role example.workspace_reader {
+    permission WorkspacePermissions.VIEW;
+}
+
+role example.workspace_editor {
+    permission WorkspacePermissions.VIEW;
+    permission WorkspacePermissions.EDIT;
+    permission WorkspacePermissions.EXPORT;
+}
+
+service WorkspaceMembership behavior {
+    public String initialRole() { return "example.workspace_editor"; }
+}

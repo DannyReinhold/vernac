@@ -30,6 +30,7 @@ public class IdentitySetup {
             Clock clock,
             IdentityJdbcAuthentication authentication,
             RoleCatalog catalog,
+            example.documentworkspace.domain.WorkspaceMembership membership,
             org.vernac.saas.billing.lifecycle.BillingAccountLifecycle billingLifecycle) {
         // This demonstration has one workspace-wide operation and no resource-specific
         // authorization.
@@ -51,7 +52,7 @@ public class IdentitySetup {
                 clock,
                 authentication.sessionTrust(),
                 catalog,
-                List.of("example.workspace_editor"),
+                List.of(membership.initialRole()),
                 objects,
                 billingLifecycle);
     }

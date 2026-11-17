@@ -22,7 +22,7 @@ import java.util.*;
  * conversion.
  */
 @Component
-public final class DocumentActions {
+public final class WorkspaceStorage {
     private static final JdbcRootQuery ALL =
             JdbcRootQuery.of("SELECT id FROM \"example.documentworkspace\".\"Document\"", Map.of());
     private final JdbcRepositoryAccess<Document, DocumentId> repository;
@@ -30,7 +30,7 @@ public final class DocumentActions {
     private final HttpServletRequest request;
     private final Clock clock;
 
-    public DocumentActions(
+    public WorkspaceStorage(
             @Qualifier("jdbcDocumentRepository")
                     JdbcRepositoryExtensionSource<Document, DocumentId> source,
             RestrictionLedger limits,
@@ -46,44 +46,31 @@ public final class DocumentActions {
         return IdentityAccountSelectionFilter.requireAccount(request);
     }
 
-    public DocumentId create(DocumentTitle title, DocumentText text) {
-        var account = account();
-        limits.requireOperation(
-                account, BenefitKey.of("document-characters"), Units.of(text.text().length()));
-        return limits.capacity(
-                account,
-                BenefitKey.of("documents"),
-                Units.of(1),
-                () -> repository.count(ALL),
-                () -> repository.save(Document.create(title, text)).id());
+    public void requireOperation(String benefit, long units) {
+        limits.requireOperation(account(), BenefitKey.of(benefit), Units.of(units));
     }
 
-    public void delete(DocumentId id) {
-        var account = account();
-        limits.reduceCapacity(
-                account,
-                () -> repository.count(ALL),
-                () -> {
-                    repository.delete(repository.single(read -> read.byId(id)));
-                    return Boolean.TRUE;
-                });
+    public <T> T allocate(String benefit, java.util.function.Supplier<T> operation) {
+        return limits.capacity(account(), BenefitKey.of(benefit), Units.of(1),
+                () -> repository.count(ALL), operation);
     }
 
-    public DocumentSummary export(DocumentId id) {
-        var account = account();
-        var start =
-                clock.instant()
-                        .atZone(ZoneOffset.UTC)
-                        .withDayOfMonth(1)
-                        .toLocalDate()
-                        .atStartOfDay(ZoneOffset.UTC);
+    public void release(Runnable operation) {
+        limits.reduceCapacity(account(), () -> repository.count(ALL), () -> {
+            operation.run();
+            return Boolean.TRUE;
+        });
+    }
+
+    public Document save(Document document) { return repository.save(document); }
+    public Document load(DocumentId id) { return repository.single(read -> read.byId(id)); }
+    public void delete(DocumentId id) { repository.delete(load(id)); }
+
+    public <T> T consumeMonthly(String benefit, java.util.function.Supplier<T> operation) {
+        var start = clock.instant().atZone(ZoneOffset.UTC).withDayOfMonth(1)
+                .toLocalDate().atStartOfDay(ZoneOffset.UTC);
         var window = UsageWindow.of(start.toInstant(), start.plusMonths(1).toInstant());
-        var root =
-                limits.local(
-                        new RestrictionLedger.QuotaScope(
-                                account, BenefitKey.of("monthly-exports"), window),
-                        Units.of(1),
-                        () -> repository.single(read -> read.byId(id)));
-        return DocumentSummary.of(root.id(), root.title(), root.text());
+        return limits.local(new RestrictionLedger.QuotaScope(account(), BenefitKey.of(benefit), window),
+                Units.of(1), operation);
     }
 }

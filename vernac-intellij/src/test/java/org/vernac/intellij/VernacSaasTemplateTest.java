@@ -39,7 +39,7 @@ class VernacSaasTemplateTest {
     @Test void rolesBelongToTheGeneratedModelAndCanBeChangedIndependently() throws Exception {
         Path root=temporary.resolve("roles");
         VernacProjectTemplate.copyTo(root,"Roles","de.rsas","roles","de.rsas.roles",VernacProjectTemplate.ProjectKind.SAAS_APPLICATION);
-        Path model=root.resolve("src/main/vernac/de/rsas/roles/model.vernac");
+        Path model=root.resolve("src/main/vernac/de/rsas/roles/access.vernac");
         Files.writeString(model,Files.readString(model).replace("example.workspace_reader","product.auditor").replace("example.workspace_editor","product.author"));
         var resolved=new VernacCompiler().analyzeProject(root.resolve("src/main/vernac"));
         String catalog=org.vernac.compiler.modules.ModuleDescriptor.JSON.writeValueAsString(new org.vernac.compiler.pipeline.RoleDeclarations().catalog(resolved));

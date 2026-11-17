@@ -11,7 +11,7 @@ public final class SaasWizardAcceptanceProject {
                 String name=path.getFileName().toString();
                 if(!(name.endsWith(".java")||name.endsWith(".vernac")||name.endsWith(".mjs")))continue;
                 String text=Files.readString(path).replace("example.workspace_reader","product.auditor").replace("example.workspace_editor","product.author");
-                if(name.equals("BillingSetup.java"))text=text.replace("offer(\"free\", 0, 3, 1000, 2)","offer(\"free\", 0, 3, 1000, 3)");
+                if(name.equals("offers.vernac"))text=text.replace("WorkspaceOffer.of(\"free\", 0, 3, 1000, 2)","WorkspaceOffer.of(\"free\", 0, 3, 1000, 3)");
                 Files.writeString(path,text);
             }
         }

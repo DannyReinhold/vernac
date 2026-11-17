@@ -12,6 +12,23 @@ cd examples/saas-document-workspace
 
 Local startup persists PostgreSQL data and local keys, uses Spring Boot Docker Compose for local services, generates a loopback HTTPS certificate and separates migration credentials from the restricted runtime role. Open https://localhost:8443/auth/register. Accept the local certificate. In a second terminal, `./mvnw exec:java -Dexec.args=mail` shows capability-protected simulated messages. Stop the app with Ctrl+C, restart with the same command; `docker compose --env-file .local/compose.env stop` stops PostgreSQL without deleting data. Keep `.local` private and back it up together with the database. Losing delivery keys can make pending encrypted mail unrecoverable. Start `DemoApplication` directly in IntelliJ or rerun the Maven command after source changes. Application configuration is YAML; production explicitly selects another profile and supplies managed credentials. Python is used only by optional internal acceptance tooling.
 
+## Reading the workspace model
+
+Begin with `model.vernac` for the tenant aggregate, title and text invariants, and repository.
+Follow `usecases.vernac` from permission checks to the document operations. In
+`document-operations.vernac`, creation reserves capacity and export consumes one unit
+from the current UTC month. Read `commercial/offers.vernac` alongside those operations
+to see the Free and Pro allowances. `access.vernac` defines membership and grants.
+`pages.vernac` connects browser forms to the same use cases.
+
+### Design criteria
+
+- Give each model file one question to answer. Keep commercial vocabulary in its own namespace.
+- Model invariants on values and aggregates, permission requirements on use cases, and purchased allowances in the offer model.
+- Keep a reservation and its product mutation in the same transaction. A failed write must release its reservation.
+- Keep framework types at the boundary. Java adapters translate HTTP, JDBC and SaaS runtime calls.
+- Generate the Wizard project from these same sources. Exercise it with a different namespace, role names and allowance.
+
 The local profile explicitly selects persistent simulated payments and captured mail. Free permits 3 documents, 1,000 characters per operation and 2 exports per UTC calendar month; Pro is a simulated EUR 12/month offer with 100 documents, 10,000 characters and 100 monthly exports. Local seller data and TEST invoices are demonstration fixtures. No external mail or payment is sent. Opening billing pages does not create subscriptions: selecting a verified workspace or explicitly starting Free does.
 
 `/billing` provides owner-authorized billing profiles, checkout, order recovery, subscription actions and immutable PDF/ZUGFeRD/XML downloads. Customer numbers are assigned by the application from the verified account, never editable buyer claims. Account history is keyset-paginated. Unresolved financial work blocks user-directed subscription changes; close a proven unsent/failed order or reconcile it first. Cancellation retains benefits through the paid period; it does not promise a refund. Refund decisions belong to the merchant and are not exposed as unrestricted customer actions. A separate merchant capability authorizes explicit refund requests; customer ownership alone never does.

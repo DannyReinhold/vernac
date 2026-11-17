@@ -1,5 +1,7 @@
 // Copyright 2026 Danny Reinhold; SPDX-License-Identifier: Apache-2.0
 package example.documentworkspace;
+import example.documentworkspace.commercial.domain.WorkspaceOffer;
+import example.documentworkspace.commercial.domain.WorkspaceOffers;
 import java.util.*;
 import org.springframework.context.annotation.*;
 import org.springframework.core.env.Environment;
@@ -14,9 +16,9 @@ import org.vernac.saas.subscriptions.domain.*;
 @Configuration(proxyBeanMethods = false)
 class BillingSetup {
     @Bean
-    PlanCatalog plans() {
-        var free = offer("free", 0, 3, 1000, 2);
-        var pro = offer("pro", 1200, 100, 10000, 100);
+    PlanCatalog plans(WorkspaceOffers offers) {
+        var free = offer(offers.entryPlan());
+        var pro = offer(offers.paidPlan());
         return new PlanCatalog(List.of(free, pro), PlanCatalog.id(free));
     }
     @Bean
@@ -42,22 +44,21 @@ class BillingSetup {
                 MailAddress.of(e.getRequiredProperty("billing.seller.email")),
                 InvoiceTaxTreatment.valueOf(e.getRequiredProperty("billing.seller.tax-treatment")));
     }
-    private static OfferTerms offer(
-            String plan, long price, long documents, long characters, long exports) {
+    private static OfferTerms offer(WorkspaceOffer offer) {
         return OfferTerms.of(
-                PlanKey.of(plan),
+                PlanKey.of(offer.plan()),
                 OfferRevision.of("v1"),
-                MinorUnits.of(price),
+                MinorUnits.of(offer.monthlyPrice()),
                 BillingCurrency.EUR,
                 BillingInterval.MONTHLY,
                 Benefits.of(
                         Map.of(
                                 BenefitKey.of("documents"),
-                                Allowance.of(documents),
+                                Allowance.of(offer.documents()),
                                 BenefitKey.of("document-characters"),
-                                Allowance.of(characters),
+                                Allowance.of(offer.characters()),
                                 BenefitKey.of("monthly-exports"),
-                                Allowance.of(exports))));
+                                Allowance.of(offer.exports()))));
     }
 
     @Bean

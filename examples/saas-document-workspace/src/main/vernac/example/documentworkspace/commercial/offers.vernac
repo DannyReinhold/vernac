@@ -1,0 +1,13 @@
+namespace example.documentworkspace.commercial;
+
+// Prices are monthly EUR cents. Capacity counts stored documents, while the export quota renews monthly.
+value WorkspaceOffer(String plan, long monthlyPrice, long documents, long characters, long exports);
+
+service WorkspaceOffers behavior {
+    public WorkspaceOffer entryPlan() {
+        return WorkspaceOffer.of("free", 0, 3, 1000, 2);
+    }
+    public WorkspaceOffer paidPlan() {
+        return WorkspaceOffer.of("pro", 1200, 100, 10000, 100);
+    }
+}
