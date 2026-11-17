@@ -46,14 +46,6 @@ public final class DocumentActions {
         return IdentityAccountSelectionFilter.requireAccount(request);
     }
 
-    public DocumentSummaries list() {
-        account();
-        return DocumentSummaries.of(
-                repository.list(read -> read.roots(ALL)).stream()
-                        .map(root -> DocumentSummary.of(root.id(), root.title(), root.text()))
-                        .toList());
-    }
-
     public DocumentId create(DocumentTitle title, DocumentText text) {
         var account = account();
         limits.requireOperation(
