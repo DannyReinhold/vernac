@@ -1,4 +1,9 @@
 spring:
+  profiles:
+    default: local
+  docker:
+    compose:
+      enabled: false
   application:
     name: "vernac-saas-document-workspace"
   http:

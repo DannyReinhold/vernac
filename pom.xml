@@ -60,6 +60,7 @@
         <module>saas/identity-spring-security</module>
         <module>saas/mail</module>
         <module>saas/mail-local</module>
+        <module>saas/local-development</module>
         <module>saas/mail-brevo</module>
         <module>saas/identity-jdbc</module>
         <module>saas/subscriptions</module>

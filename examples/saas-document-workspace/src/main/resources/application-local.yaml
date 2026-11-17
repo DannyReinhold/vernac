@@ -1,4 +1,12 @@
+spring:
+  docker:
+    compose:
+      enabled: true
+      lifecycle-management: start-only
 vernac:
+  local:
+    enabled: true
+    schemas: "org.vernac.saas.identity.persistence,identity_sessions,org.vernac.saas.subscriptions,org.vernac.saas.restrictions,org.vernac.saas.payments.persistence,org.vernac.saas.payments.local,org.vernac.saas.invoicing,example.documentworkspace"
   mail:
     provider: "org.vernac.saas.mail.local.NoopMailProvider"
     local:

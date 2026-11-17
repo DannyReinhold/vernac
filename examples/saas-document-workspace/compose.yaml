@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_USER: vernac
       POSTGRES_DB: workspace
-      POSTGRES_PASSWORD: ${LOCAL_DATABASE_PASSWORD:?Start with python3 run-local.py}
+      POSTGRES_PASSWORD: ${LOCAL_DATABASE_PASSWORD:?Start the application from the IDE or with ./mvnw spring-boot:run}
     ports:
       - "127.0.0.1:${LOCAL_DB_PORT:-55439}:5432"
     volumes:

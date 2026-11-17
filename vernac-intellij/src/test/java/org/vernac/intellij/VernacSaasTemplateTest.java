@@ -23,7 +23,8 @@ class VernacSaasTemplateTest {
         assertTrue(bindings.contains("activate vernac.saas.payments.jdbc"));assertTrue(bindings.contains(namespace+".StoredDocuments"));
         String pom=Files.readString(root.resolve("pom.xml"));assertTrue(pom.contains("<artifactId>my-saas</artifactId>"));
         assertTrue(pom.contains("<vernac.version>"+System.getProperty("vernac.expected.version")+"</vernac.version>"));
-        String launcher=Files.readString(root.resolve("run-local.py"));assertTrue(launcher.contains(namespace));assertFalse(launcher.contains("example.documentworkspace"));
+        String local=Files.readString(root.resolve("src/main/resources/application-local.yaml"));assertTrue(local.contains(namespace));assertFalse(local.contains("example.documentworkspace"));
+        assertFalse(Files.exists(root.resolve("run-local.py")));
         assertTrue(Files.isRegularFile(root.resolve(".mvn/wrapper/maven-wrapper.properties")));
         assertTrue(Files.isRegularFile(root.resolve("src/main/java/de/rsas/kunden/workspace/BillingSetup.java")));
         assertTrue(Files.readString(root.resolve(".gitignore")).contains(".local/"));

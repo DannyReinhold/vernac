@@ -2,15 +2,15 @@
 
 An independent Vernac application: ordinary tenant `Document` aggregates, generated repositories/usecases and explicit SaaS module/provider bindings. Membership roles authorize operations; purchased benefits control capacity and quotas separately.
 
-Use JDK 21+, Python 3 and Docker Compose. For a SNAPSHOT checkout first install matching producers from the repository root:
+Use JDK 21+ and Docker Compose. For a SNAPSHOT checkout first install matching producers from the repository root:
 
 ```sh
-mvn -B -ntp -pl saas/billing-spring-mvc,saas/invoicing-pdf,saas/restrictions,saas/payments-mollie,saas/payments-stripe,saas/identity-jdbc,saas/mail-local,saas/mail-brevo -am -DskipTests install
+mvn -B -ntp -pl saas/local-development,saas/billing-spring-mvc,saas/invoicing-pdf,saas/restrictions,saas/payments-mollie,saas/payments-stripe,saas/identity-jdbc,saas/mail-local,saas/mail-brevo -am -DskipTests install
 cd examples/saas-document-workspace
-python3 run-local.py
+./mvnw spring-boot:run
 ```
 
-The launcher persists PostgreSQL data and local keys, generates a loopback HTTPS certificate and separates migration credentials from the restricted runtime role. Open https://localhost:8443/auth/register. Accept the local certificate. In a second terminal, `python3 run-local.py --mail` shows capability-protected simulated messages. Stop the app with Ctrl+C, restart with the same command; `--stop` stops PostgreSQL without deleting data. Keep `.local` private and back it up together with the database. Losing delivery keys can make pending encrypted mail unrecoverable. Delete `target` or run `./mvnw clean package` after source changes.
+Local startup persists PostgreSQL data and local keys, uses Spring Boot Docker Compose for local services, generates a loopback HTTPS certificate and separates migration credentials from the restricted runtime role. Open https://localhost:8443/auth/register. Accept the local certificate. In a second terminal, `./mvnw exec:java -Dexec.args=mail` shows capability-protected simulated messages. Stop the app with Ctrl+C, restart with the same command; `docker compose --env-file .local/compose.env stop` stops PostgreSQL without deleting data. Keep `.local` private and back it up together with the database. Losing delivery keys can make pending encrypted mail unrecoverable. Start `DemoApplication` directly in IntelliJ or rerun the Maven command after source changes. Application configuration is YAML; production explicitly selects another profile and supplies managed credentials. Python is used only by optional internal acceptance tooling.
 
 The local profile explicitly selects persistent simulated payments and captured mail. Free permits 3 documents, 1,000 characters per operation and 2 exports per UTC calendar month; Pro is a simulated EUR 12/month offer with 100 documents, 10,000 characters and 100 monthly exports. Local seller data and TEST invoices are demonstration fixtures. No external mail or payment is sent. Opening billing pages does not create subscriptions: selecting a verified workspace or explicitly starting Free does.
 
@@ -26,9 +26,9 @@ Remaining release gates and known gaps are tracked in `docs/development/release-
 ## Operator actions and closure
 
 The local launcher retains an independent merchant capability alongside its other private
-local settings. Inspect bounded worker-stage counters with `python3 run-local.py --operator-status`.
+local settings. Inspect bounded worker-stage counters with `./mvnw exec:java -Dexec.args=status`.
 For an expressly authorized operator refund use
-`python3 run-local.py --refund ACCOUNT_ID PAYMENT_ORDER_ID CENTS STABLE_OPERATION_UUID`.
+`./mvnw exec:java -Dexec.args="refund ACCOUNT_ID PAYMENT_ORDER_ID CENTS STABLE_OPERATION_UUID"`.
 Keep the same UUID for retries of the same request. These commands target only the local
 application; its local profile uses simulated payments. Production operator endpoints are
 disabled unless `billing.operator.enabled=true` and a separate managed

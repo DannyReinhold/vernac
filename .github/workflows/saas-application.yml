@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'examples/saas-document-workspace/**'
+      - 'vernac-intellij/**'
+      - 'tools/verify-local-wizard.mjs'
       - 'saas/**'
       - 'vernac-runtime-jdbc/**'
       - 'vernac-compiler/**'
@@ -54,9 +56,9 @@ jobs:
           sh tools/pg-service-clients.sh
 
       - name: Install matching producers and compiler
-        run: mvn -B -ntp -pl saas/billing-spring-mvc,saas/invoicing-pdf,saas/restrictions,saas/payments-mollie,saas/payments-stripe,saas/identity-jdbc,saas/mail-local,saas/mail-brevo -am -DskipTests install
+        run: mvn -B -ntp -pl saas/local-development,saas/billing-spring-mvc,saas/invoicing-pdf,saas/restrictions,saas/payments-mollie,saas/payments-stripe,saas/identity-jdbc,saas/mail-local,saas/mail-brevo -am -DskipTests install
       - name: Verify billing escaping and identity composition
-        run: mvn -B -ntp -pl saas/billing-spring-mvc,saas/identity-spring-security test
+        run: mvn -B -ntp -pl saas/local-development,saas/billing-spring-mvc,saas/identity-spring-security test
       - name: Verify durable payment lifecycle policy
         run: |
           mvn -B -ntp -pl saas/payments-jdbc verify
@@ -89,3 +91,43 @@ jobs:
             examples/saas-document-workspace/target/acceptance-reports/
             examples/saas-document-workspace/target/upgrade-reports/
           if-no-files-found: error
+  wizard-start:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Install Wizard and matching SaaS producers
+        run: mvn -B -ntp -pl vernac-intellij,saas/local-development,saas/billing-spring-mvc,saas/invoicing-pdf,saas/payments-mollie,saas/payments-stripe,saas/mail-local,saas/mail-brevo -am -DskipTests install
+      - name: Generate independent Wizard project
+        run: |
+          mvn -B -ntp -pl vernac-intellij dependency:build-classpath -Dmdep.outputFile=target/wizard-classpath.txt
+          java -cp "vernac-intellij/target/test-classes:vernac-intellij/target/classes:$(cat vernac-intellij/target/wizard-classpath.txt)" org.vernac.intellij.SaasWizardAcceptanceProject target/wizard-acceptance
+          mvn -B -ntp -f target/wizard-acceptance/pom.xml package
+      - name: Install browser for normal developer acceptance
+        working-directory: target/wizard-acceptance/browser
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Start and restart the ordinary generated application without Python
+        run: node tools/verify-local-wizard.mjs target/wizard-acceptance
+      - name: Publish normal-start evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: wizard-normal-start-evidence
+          path: target/wizard-acceptance/target/acceptance-reports/normal-start.json
+          if-no-files-found: error
+      - name: Stop local development database
+        if: always()
+        working-directory: target/wizard-acceptance
+        run: docker compose --env-file .local/compose.env down -v
