@@ -61,6 +61,7 @@ jobs:
           proofs['surefire-reports/TEST-org.vernac.intellij.VernacSaasTemplateTest.xml'] = {
               'independentConsumerUsesItsOwnNamespaceAndConsistentTenantSchema',
               'detectsCollisionsBeforeWritingAnything',
+              'onlyModelFilesInAFreshWizardProjectEnterNativeEditorAnalysis',
           }
           for report, expected in proofs.items():
               root = ET.parse(Path('vernac-intellij/target') / report).getroot()
@@ -73,3 +74,10 @@ jobs:
           assert all(int(formatter.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
           print('Known internal-API regression and packaged distribution proofs passed; none skipped.')
           PY
+
+      - name: Upload tested IntelliJ plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: vernac-intellij-plugin
+          path: vernac-intellij/target/*-plugin.zip
+          if-no-files-found: error

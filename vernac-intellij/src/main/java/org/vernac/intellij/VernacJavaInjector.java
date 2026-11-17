@@ -46,8 +46,8 @@ public final class VernacJavaInjector implements MultiHostInjector {
     private List<BehaviorJavaProjection.Block> project(VernacInjectionHost host) {
         var file = host.getContainingFile().getOriginalFile().getVirtualFile();
         if (file == null || !file.isInLocalFileSystem()) return List.of();
-        Path path = Path.of(file.getPath()).toAbsolutePath().normalize();
-        var root = VernacNamespaces.sourceRoot(path.getParent());
+        Path path = file.toNioPath().toAbsolutePath().normalize();
+        var root = VernacNamespaces.modelSourceRoot(path);
         if (root.isEmpty()) return List.of();
         ProgressManager.checkCanceled();
         Map<Path, String> snapshots = new HashMap<>();
@@ -55,7 +55,7 @@ public final class VernacJavaInjector implements MultiHostInjector {
         for (var document : documents.getUnsavedDocuments()) {
             var virtualFile = documents.getFile(document);
             if (virtualFile == null || !virtualFile.isInLocalFileSystem()) continue;
-            Path candidate = Path.of(virtualFile.getPath()).toAbsolutePath().normalize();
+            Path candidate = virtualFile.toNioPath().toAbsolutePath().normalize();
             if (candidate.startsWith(root.get()) && candidate.toString().endsWith(".vernac"))
                 snapshots.put(candidate, document.getText());
         }
