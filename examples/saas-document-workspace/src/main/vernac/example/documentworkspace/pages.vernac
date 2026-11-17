@@ -1,7 +1,7 @@
 namespace example.documentworkspace;
 
 // HTTP flow uses the same guarded usecases as other entrypoints.
-adapter WorkspacePages inbound mvc uses ListDocuments listDocuments, CreateDocument createDocument, DeleteDocument deleteDocument {
+adapter WorkspacePages inbound mvc uses ListDocuments listDocuments, CreateDocument createDocument, DeleteDocument deleteDocument, ExportDocument exportDocument {
     base "/";
     error view "workspace-error";
     workspace {
@@ -26,6 +26,14 @@ adapter WorkspacePages inbound mvc uses ListDocuments listDocuments, CreateDocum
             id <- form.id;
         }
         redirect "/workspace";
+    }
+    download {
+        POST "/documents/export";
+        form UUID id;
+        execute exportDocument {
+            id <- form.id;
+        }
+        render "document-download" model document;
     }
     errors implemented by example.documentworkspace.WorkspaceErrorPolicy;
 }

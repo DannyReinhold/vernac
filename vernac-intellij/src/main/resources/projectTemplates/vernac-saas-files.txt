@@ -16,7 +16,7 @@ src/main/java/example/documentworkspace/BillingSetup.java
 src/main/java/example/documentworkspace/DemoApplication.java
 src/main/java/example/documentworkspace/WorkspaceStorage.java
 src/main/java/example/documentworkspace/IdentitySetup.java
-src/main/java/example/documentworkspace/WorkspaceController.java
+src/main/java/example/documentworkspace/DocumentDownload.java
 src/main/java/example/documentworkspace/WorkspaceErrors.java
 src/main/resources/application-local.yaml
 src/main/resources/application.yaml

@@ -67,7 +67,9 @@ test('E06 S08 S09 concurrent last slot, rollback and monthly quota rollover',asy
  const races=await Promise.all(['C','D'].map(title=>customer.request.post('/documents/create',{form:{...values,title,text:'Content'},maxRedirects:0})));expect(races.map(r=>r.status()).sort()).toEqual([303,409]);
  await user.page.goto('/workspace');expect(await user.page.locator('form[action="/documents/delete"]').count()).toBe(3);
  const exportForm=await form(user.page,'/documents/export');for(let i=0;i<3;i++)expect((await customer.request.post('/documents/export',{form:exportForm,maxRedirects:0})).status()).toBe(i<2?200:409);
- await app.advance(18*86400);await login(customer,user.page,user.address);await select(user,user.account);await user.page.goto('/workspace');expect((await post(customer,user.page,'/documents/export')).status()).toBe(200);
+ await app.advance(18*86400);await login(customer,user.page,user.address);await select(user,user.account);await user.page.goto('/workspace');const download=await post(customer,user.page,'/documents/export');expect(download.status()).toBe(200);
+ expect(download.headers()['content-disposition']).toBe('attachment; filename="document.txt"');
+ expect(await download.text()).toContain('\n\n');
  expect((await post(customer,user.page,'/documents/delete')).status()).toBe(303);expect((await document(user,'Replacement')).status()).toBe(303);
 });
 
