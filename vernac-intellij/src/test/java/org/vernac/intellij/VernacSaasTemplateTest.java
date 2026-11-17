@@ -26,7 +26,7 @@ class VernacSaasTemplateTest {
         String local=Files.readString(root.resolve("src/main/resources/application-local.yaml"));assertTrue(local.contains(namespace));assertFalse(local.contains("example.documentworkspace"));
         assertFalse(Files.exists(root.resolve("run-local.py")));
         assertTrue(Files.isRegularFile(root.resolve(".mvn/wrapper/maven-wrapper.properties")));
-        assertTrue(Files.isRegularFile(root.resolve("src/main/java/de/rsas/kunden/workspace/BillingSetup.java")));
+        assertTrue(Files.isRegularFile(root.resolve("src/main/java/de/rsas/kunden/workspace/WorkspaceConfiguration.java")));
         assertTrue(Files.readString(root.resolve(".gitignore")).contains(".local/"));
         for (String path : new String[]{"acceptance_runtime.py", "upgrade_snapshot.py", "test_acceptance_gate.py",
                 "browser/saas.spec.mjs", "browser/fixtures.mjs", "browser/reporter.cjs", "browser/playwright.config.mjs"})

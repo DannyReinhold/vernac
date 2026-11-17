@@ -47,3 +47,9 @@ vernac:
     enabled: true
   billing:
     enabled: true
+
+billing:
+  application-name: "Document Workspace"
+  product-path: "/workspace"
+  invoice-series: "DOC"
+  invoice-description: "Document Workspace Abonnement"
