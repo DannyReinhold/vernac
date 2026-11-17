@@ -42,6 +42,7 @@
         <li>Debug embedded Java in Vernac source: breakpoints, stepping, variables,
         expression evaluation and completion, conditions and logpoints (0.5.0 development).</li>
         <li>Syntax and semantic diagnostics</li>
+        <li>Reformat Code for Vernac models, application and module definitions; embedded Java and comments are preserved.</li>
         <li>Code completion and snippets</li>
         <li>Hover documentation</li>
         <li>Go to Declaration for definitions within Vernac</li>
@@ -384,6 +385,7 @@ See <a href="https://vernac.org/tutorials/what-is-ddd.html">What is DDD?</a> and
     <depends>com.intellij.java</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <formattingService implementation="org.vernac.intellij.VernacFormattingService"/>
         <debugger.codeFragmentFactory implementation="org.vernac.intellij.debug.VernacCodeFragmentFactory"/>
         <debugger.codeFragmentFactory implementation="org.vernac.intellij.debug.VernacSourceCodeFragmentFactory"/>
         <debugger.nodeRenderer implementation="org.vernac.intellij.debug.VernacViewRenderer"/>

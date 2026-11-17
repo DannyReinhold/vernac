@@ -1092,3 +1092,24 @@ cases, contaminated context rejection and graceful stop. All eleven migrations p
 schema-check. Installed IDE/final SaaS acceptance remain separate. Next: common mail
 provider modules and explicit identity assembly; Identity/Auth roughly 60–65%, complete
 0.6.0 still about 30%. No public journey is marked complete by this slice.
+
+## Maintainer-requested SaaS simplification follow-up (2026-11-17)
+
+The earlier Jackson-2 compatibility checkpoint above is superseded by PR #93:
+0.6.0 now uses Jackson 3 throughout generated DTO/HTTP codecs, metadata and SaaS
+adapters. Shared annotations retain their upstream package; the unused Mustang
+JSON dependency is excluded. Follow the current [platform migration guide](spring-boot-4-baseline.md).
+
+PR #94 declares application roles in Vernac and generates their internal catalog.
+PR #95 moves shared assembly/workers into explicitly activated owning modules and
+expresses workspace MVC flows in the model. PR #96 replaces the Python launcher
+with normal Boot/Compose startup and shared local Java state/operator support.
+The corresponding GitHub checks, including 29 browser scenarios and versioned
+upgrades, passed before each merge. The actual normal Wizard/Compose start and
+durable restart also passed on CI, with Python deliberately unavailable.
+
+The [formatter](formatter.md) uses the standard IntelliJ Reformat Code action and
+preserves comments, strings and embedded Java. Its tests and distribution checks
+are mandatory in the IntelliJ CI workflow. These follow-ups publish no release
+and do not close the real-provider, fiscal-review, installed-IDE or final release
+approval requirements.

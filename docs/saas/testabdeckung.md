@@ -95,3 +95,14 @@ Flyway-Historien und die Fortsetzung offener Zahlungen/Erstattungen. Siehe
 beweist Wiederherstellbarkeit derselben Version; vor Veröffentlichung wird die Basis
 vom freigegebenen Build eingefroren. Historische Upgrades werden ab der Folgerelease
 gegen diesen unveränderten Bestand geprüft. E27 bleibt ein separater Neustarttest.
+
+## Normaler Wizard-Start
+
+Der zusätzliche CI-Job `wizard-start` erzeugt ein Projekt über die tatsächliche
+Wizard-Implementierung mit eigenem Namespace, anderen Rollen und Exportlimit 3.
+Er startet die normale Anwendung mit `./mvnw spring-boot:run` und echtem Docker
+Compose, während Aufrufe von Python im PATH ausdrücklich scheitern. Registrierung,
+Java-Mailwerkzeug, Verifikation, Anmeldung, Dokumentanlage und Betreiberstatus
+werden geprüft. Nach Neustart müssen Session, Dokument, Zertifikat und Schlüssel
+erhalten bleiben. Diese Abnahme verwendet keine Fixture-Anwendung und ergänzt die
+29 fachlichen Szenarien sowie die versionierten Upgrade-Prüfungen.

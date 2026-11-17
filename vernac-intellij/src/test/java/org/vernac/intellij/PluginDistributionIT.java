@@ -112,6 +112,7 @@ class PluginDistributionIT {
                     "META-INF/plugin.xml",
                     "vernac-version.txt",
                     "org/vernac/intellij/VernacNewProjectWizard.class",
+                    "org/vernac/intellij/VernacFormattingService.class",
                     "org/vernac/intellij/VernacProjectTemplate.class",
                     "org/vernac/intellij/VernacSpringBootTemplate.class",
                     "org/vernac/intellij/VernacSaasTemplate.class",
@@ -191,6 +192,7 @@ class PluginDistributionIT {
             requireContent(compiler, "org/vernac/compiler/tooling/VernacTypeNavigation.class");
             requireContent(compiler, "org/vernac/compiler/pipeline/GeneratedSourceOwnership.class");
             requireContent(compiler, "org/vernac/compiler/parser/VernacParser.class");
+            requireContent(compiler, "org/vernac/compiler/format/VernacFormatter.class");
             requireContent(compiler, "org/vernac/language/VernacNames.class");
             for (String artifact : List.of("antlr4-runtime", "vernac-runtime", "javapoet", "jspecify")) {
                 assertTrue(zip.stream().anyMatch(e -> e.getName().startsWith("vernac-intellij/lib/" + artifact + "-")
