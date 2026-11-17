@@ -19,10 +19,10 @@ class VernacFormatterTest {
         assertEquals(new VernacCompiler().compileSource(source).generatedFiles().stream().map(Object::toString).toList(),new VernacCompiler().compileSource(formatted).generatedFiles().stream().map(Object::toString).toList());
     }
     @Test void commentsAndEscapedStringsArePreservedIncludingLineCommentBoundaries() {
-        String source="namespace sample; /* multi\n line 🧭 comment */ value Note(String text) validates{require(self.text()!=\"a;//{\\\"\\n\",\"message\");}; // tail\nvalue State=A|B;";
+        String source="namespace sample; /* multi\n line 🧭 comment */ value Note(String text) validates{require(self.text()!=\"a;//{\\\"\\n\",\"message\");}; // tail  \nvalue State=A|B; // final spaces  ";
         String result=VernacFormatter.format(source);
-        assertEquals(tokens(source),tokens(result));assertEquals(result,VernacFormatter.format(result));assertTrue(result.contains("/* multi\n line 🧭 comment */"));
-        assertTrue(result.contains("// tail\n"));
+        assertNotEquals(source,result);assertEquals(tokens(source),tokens(result));assertEquals(result,VernacFormatter.format(result));assertTrue(result.contains("/* multi\n line 🧭 comment */"));
+        assertTrue(result.contains("// tail  \n"));
     }
     @Test void brokenSourceIsLeftUntouchedAndCrLfRemainsCrLfOutsideJava() {
         String broken="namespace sample; value Thing(\n";assertEquals(broken,VernacFormatter.format(broken));

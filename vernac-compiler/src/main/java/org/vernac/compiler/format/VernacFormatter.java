@@ -30,7 +30,7 @@ public final class VernacFormatter {
                 int from=source.offsetByCodePoints(0,token.getStartIndex()),to=source.offsetByCodePoints(0,end.getStopIndex()+1);
                 out.space();out.append(source.substring(from,to));i=last;previous="}";
             } else if(token.getType()==VernacLexer.LINE_COMMENT||token.getType()==VernacLexer.BLOCK_COMMENT) {
-                out.line();out.append(text);out.line();previous="";
+                out.line();out.append(text);out.commentLine();previous="";
             } else {
                 switch(text) {
                     case "{" -> {out.space();out.append("{");out.indent++;if(!next(tokens,i).equals("}"))out.line();}
@@ -88,7 +88,8 @@ public final class VernacFormatter {
         void tight(){while(!text.isEmpty()&&(text.charAt(text.length()-1)==' '||text.charAt(text.length()-1)=='\t'))text.setLength(text.length()-1);}
         void space(){if(!text.isEmpty()&&!Character.isWhitespace(text.charAt(text.length()-1)))text.append(' ');}
         void line(){tight();if(!text.isEmpty()&&text.charAt(text.length()-1)!='\n')text.append(newline);}
+        void commentLine(){if(!text.isEmpty()&&text.charAt(text.length()-1)!='\n')text.append(newline);}
         void blank(){line();if(!text.isEmpty()&&!text.toString().endsWith(newline+newline))text.append(newline);}
-        String finish(){return text.toString().stripTrailing()+newline;}
+        String finish(){String result=text.toString();while(result.endsWith(newline+newline))result=result.substring(0,result.length()-newline.length());return result.endsWith(newline)?result:result+newline;}
     }
 }
