@@ -94,8 +94,8 @@ Open **New Project** and choose **Vernac**. Enter, for example:
 The artifact ID is suggested from the project name: `TaskManager` becomes `task-manager`. You can edit it independently.
 GroupId and namespace are separate settings; set both explicitly as needed.
 
-In the 0.5.0 wizard, **Spring Boot Web Application** is the default:
-a complete Thymeleaf/PostgreSQL application with local Compose and Flyway history.
+The wizard shows all four project kinds and preselects **SaaS Application** with accounts, billing and documents.
+Choose **Spring Boot Web Application** for a complete Thymeleaf/PostgreSQL application with local Compose and Flyway history.
 Follow [From New Project to a working application](spring-boot-starter.md) to run it.
 Choose **Minimal Domain Project** for the database-free exercise described below,
 or **Module / Type Library** to publish reusable types.
