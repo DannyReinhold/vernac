@@ -7,17 +7,22 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.jar.*;
 import javax.tools.ToolProvider;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.vernac.compiler.modules.*;
 import org.vernac.compiler.pipeline.VernacCompiler;
 
 class IdentityModuleContractIT {
     @TempDir Path root;
-    @ParameterizedTest
-    @ValueSource(strings = {"\n", "\r\n"})
-    void actualProducerJarExportsOnlyNominalContractsWithoutActivationOrRegeneration(String newline) throws Exception {
+    @Test void actualProducerJarExportsOnlyNominalContractsWithoutActivationOrRegeneration() throws Exception {
+        verifyDocumentedConsumer("\n");
+    }
+
+    @Test void documentedConsumerCompilesWithWindowsLineEndings() throws Exception {
+        verifyDocumentedConsumer("\r\n");
+    }
+
+    private void verifyDocumentedConsumer(String newline) throws Exception {
         Path jar=Path.of(System.getProperty("identity.jar"));assertTrue(Files.isRegularFile(jar));
         var module=ModuleArtifacts.read(List.of(jar)).getFirst();ModuleContracts.checkDependencies(List.of(module));
         assertEquals("vernac.saas.identity",module.module());assertFalse(module.activatable());assertFalse(module.persistent());
