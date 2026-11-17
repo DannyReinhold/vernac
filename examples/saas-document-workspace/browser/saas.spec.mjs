@@ -152,8 +152,20 @@ test('E22 S18 S11 parallel closure versus checkout cannot orphan a new charge',a
  const user=await register(customer,app);await profile(user);await billing(user);const orderForm=await form(user.page,'/billing/checkout');await user.page.goto('/auth/account?account='+user.account);const closure=await form(user.page,'/auth/account/close');
  await app.control('barrier',{account:user.account});const closing=customer.request.post('/auth/account/close',{form:closure,maxRedirects:0});const ordering=customer.request.post('/billing/checkout',{form:orderForm,maxRedirects:0});
  try{let blocked=0;for(let i=0;i<100;i++){blocked=(await app.control('blocked')).count;if(blocked>=2)break;await new Promise(r=>setTimeout(r,20));}expect(blocked,'both operations must overlap at the database lock').toBeGreaterThanOrEqual(2);}finally{await app.control('barrier',{action:'release'});}
- const [c,o]=await Promise.all([closing,ordering]);expect([303,409]).toContain(c.status());expect([303,409]).toContain(o.status());expect(c.status()===303&&o.status()===303).toBe(false);
- await app.tick(8);const f=await app.facts();if(f.accounts[0].status==='CLOSED'){expect(f.orders).toHaveLength(0);expect(f.providerPayments).toBe(0);}else{expect(c.status()).toBe(409);expect(f.orders).toHaveLength(1);}
+ const [closed,ordered]=await Promise.all([closing,ordering]);
+ await app.tick(8);
+ const facts=await app.facts();
+ if(facts.accounts[0].status==='CLOSED'){
+  expect(closed.status()).toBe(303);
+  // Closure can win before the ownership recheck (403) or at the active-account lock (409).
+  expect([403,409]).toContain(ordered.status());
+  expect(facts.orders).toHaveLength(0);
+  expect(facts.providerPayments).toBe(0);
+ }else{
+  expect(closed.status()).toBe(409);
+  expect(ordered.status()).toBe(303);
+  expect(facts.orders).toHaveLength(1);
+ }
 });
 
 test('E23 S18 S13 cancellation boundary and parallel renewal/closure produce no charge',async({app,customer})=>{
