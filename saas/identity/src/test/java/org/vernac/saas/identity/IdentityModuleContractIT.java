@@ -7,14 +7,17 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.jar.*;
 import javax.tools.ToolProvider;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.io.TempDir;
 import org.vernac.compiler.modules.*;
 import org.vernac.compiler.pipeline.VernacCompiler;
 
 class IdentityModuleContractIT {
     @TempDir Path root;
-    @Test void actualProducerJarExportsOnlyNominalContractsWithoutActivationOrRegeneration() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"\n", "\r\n"})
+    void actualProducerJarExportsOnlyNominalContractsWithoutActivationOrRegeneration(String newline) throws Exception {
         Path jar=Path.of(System.getProperty("identity.jar"));assertTrue(Files.isRegularFile(jar));
         var module=ModuleArtifacts.read(List.of(jar)).getFirst();ModuleContracts.checkDependencies(List.of(module));
         assertEquals("vernac.saas.identity",module.module());assertFalse(module.activatable());assertFalse(module.persistent());
@@ -23,8 +26,9 @@ class IdentityModuleContractIT {
         assertTrue(module.vocabulary().stream().anyMatch(t->t.name().equals("UserId")&&t.description().contains("stable human")));
         Path sources=root.resolve("consumer"),file=sources.resolve("consumer/model.vernac");Files.createDirectories(file.getParent());
         String document=Files.readString(Path.of("../../docs/contracts/saas-identity-foundation.md"));
-        var example=java.util.regex.Pattern.compile("```vernac\\n(.*?)```",java.util.regex.Pattern.DOTALL).matcher(document);
-        assertTrue(example.find());Files.writeString(file,example.group(1));
+        var example=java.util.regex.Pattern.compile("```vernac\\R(.*?)```",java.util.regex.Pattern.DOTALL)
+                .matcher(String.join(newline, document.lines().toList()));
+        assertTrue(example.find(), "Missing fenced Vernac example in docs/contracts/saas-identity-foundation.md");Files.writeString(file,example.group(1));
         var compiler=new VernacCompiler();var consumer=compiler.analyzeProject(sources,List.of(module));
         var generated=compiler.generate(consumer,org.vernac.compiler.persistence.SchemaModel.empty(),Map.of());
         assertTrue(generated.generatedFiles().stream().noneMatch(f->f.packageName().startsWith("org.vernac.saas")));
