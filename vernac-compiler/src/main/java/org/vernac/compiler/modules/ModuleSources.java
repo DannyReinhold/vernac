@@ -14,7 +14,7 @@ public final class ModuleSources {
     public static Map<String,View> locations(Path root,List<ModuleDescriptor> modules) throws java.io.IOException {
         Path index=ModuleArtifacts.projectDirectory(root).resolve("target/vernac-module-sources.json");
         if(!Files.isRegularFile(index))return Map.of();
-        var attachments=ModuleDescriptor.JSON.readValue(Files.readString(index),new com.fasterxml.jackson.core.type.TypeReference<Map<String,String>>(){});
+        var attachments=ModuleDescriptor.JSON.readValue(Files.readString(index),new tools.jackson.core.type.TypeReference<Map<String,String>>(){});
         Map<String,View> result=new HashMap<>();
         for(var module:modules) {
             String attached=attachments.get(module.module());if(attached==null||!Files.isRegularFile(Path.of(attached)))continue;

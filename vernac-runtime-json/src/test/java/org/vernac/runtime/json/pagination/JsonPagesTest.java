@@ -3,7 +3,7 @@
 package org.vernac.runtime.json.pagination;
 
 import java.util.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.vernac.runtime.DomainList;
 import org.vernac.runtime.pagination.*;
@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class JsonPagesTest {
     private record Values<T>(List<T> asList) implements DomainList<T> { public Iterator<T> iterator(){return asList.iterator();} }
-    private static final ObjectMapper JSON=new ObjectMapper();
+    private static final ObjectMapper JSON=tools.jackson.databind.json.JsonMapper.builder().build();
     @Test void countedMetadataAndEmptyWindowsRoundTripExactly() throws Exception {
         var source=CountedOffsetPage.of(new Values<>(List.of("a","b")),OffsetRequest.ofOffset(1,2),5);
         var mapped=JsonPages.mapCountedOffsetPage(source,(value,index)->value.toUpperCase(Locale.ROOT));
@@ -32,7 +32,7 @@ class JsonPagesTest {
         var dto=JsonPages.mapCursorPage(source,(value,index)->value);
         assertFalse(dto.toString().contains("opaque"));
         var wire=JsonPages.writeCursorPage(dto,JsonValues::scalarNode);
-        assertFalse(wire.has("offset"));assertFalse(wire.has("totalElements"));assertEquals("opaque",wire.get("nextCursor").asText());
+        assertFalse(wire.has("offset"));assertFalse(wire.has("totalElements"));assertEquals("opaque",wire.get("nextCursor").asString());
         assertEquals(dto,JsonPages.readCursorPage(wire,"$",(node,path)->JsonValues.scalar(node,path,String.class)));
         assertThrows(DtoContractException.class,()->new CursorPageDto<String>(List.of(),1,Optional.of("token")));
         assertThrows(DtoContractException.class,()->new CursorPageDto<>(List.of("x"),1,Optional.of(" ")));
@@ -51,9 +51,9 @@ class JsonPagesTest {
     @Test void wireInputRequiresExactNumbersAndValidMetadataButIgnoresAdditionalFields() throws Exception {
         var node=JSON.readTree("{\"items\":[],\"offset\":0,\"pageSize\":2,\"pageNumber\":1,\"hasNext\":false,\"totalElements\":0,\"totalPages\":0,\"extra\":true}");
         assertEquals(0,JsonPages.readCountedOffsetPage(node,"$",(n,p)->JsonValues.scalar(n,p,String.class)).totalElements());
-        ((com.fasterxml.jackson.databind.node.ObjectNode)node).put("totalElements",1.5);
+        ((tools.jackson.databind.node.ObjectNode)node).put("totalElements",1.5);
         assertThrows(DtoContractException.class,()->JsonPages.readCountedOffsetPage(node,"$",(n,p)->JsonValues.scalar(n,p,String.class)));
-        ((com.fasterxml.jackson.databind.node.ObjectNode)node).put("totalElements",2);
+        ((tools.jackson.databind.node.ObjectNode)node).put("totalElements",2);
         var error=assertThrows(DtoContractException.class,()->JsonPages.readCountedOffsetPage(node,"$.panel.page",(n,p)->JsonValues.scalar(n,p,String.class)));
         assertEquals("$.panel.page",error.path());
     }

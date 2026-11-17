@@ -4,7 +4,7 @@ package org.vernac.saas.payments.mollie;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.util.*;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.vernac.saas.payments.*;
 import org.vernac.saas.payments.domain.*;
 import org.vernac.saas.payments.http.PaymentHttp;

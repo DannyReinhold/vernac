@@ -3,7 +3,7 @@
 package org.vernac.compiler.modules;
 
 import java.util.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.vernac.compiler.ast.*;
 
 /** Versioned data, never executable source or Java serialization. */
@@ -28,7 +28,7 @@ public record ModuleDescriptor(int formatVersion,String contractVersion,String m
         return persistent || components.stream().anyMatch(c->org.vernac.runtime.application.ActivationPlan.isFunctionalKind(c.kind()));
     }
     public static final String RESOURCE="META-INF/vernac/module.json";
-    public static final ObjectMapper JSON=new ObjectMapper();
+    public static final ObjectMapper JSON=tools.jackson.databind.json.JsonMapper.builder().build();
     public static final String CONTRACT="module-contracts-13";
     public record Type(String name,boolean optional,String pageKind) {
         public Type(String name,boolean optional) {this(name,optional,"NONE");}

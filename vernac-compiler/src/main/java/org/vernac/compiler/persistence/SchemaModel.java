@@ -2,23 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.vernac.compiler.persistence;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.core.util.DefaultIndenter;
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.core.util.DefaultIndenter;
+import tools.jackson.core.util.DefaultPrettyPrinter;
 import java.io.IOException;
 import java.util.*;
 
 /** Versioned, deterministic source artifact. Lists are ordered by logical identity. */
 public record SchemaModel(int formatVersion, int mappingVersion, List<Table> tables,
                           Map<String, Map<String, String>> enumCodes) {
-    public static final ObjectMapper JSON = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT)
+    public static final ObjectMapper JSON = tools.jackson.databind.json.JsonMapper.builder().enable(SerializationFeature.INDENT_OUTPUT)
             .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
             // Fingerprints must not depend on the producing JVM's operating system.
             // Keep the existing LF representation, including inline array indentation.
-            .setDefaultPrettyPrinter(new DefaultPrettyPrinter()
-                    .withObjectIndenter(new DefaultIndenter("  ", "\n")));
+            .defaultPrettyPrinter(new DefaultPrettyPrinter()
+                    .withObjectIndenter(new DefaultIndenter("  ", "\n"))).build();
     public SchemaModel {
         if ((formatVersion != 1 && formatVersion != 2 && formatVersion != 3 && formatVersion != 4) || mappingVersion != 1) throw new IllegalArgumentException("Unsupported schema/mapping version");
         tables = tables.stream().sorted(Comparator.comparing(Table::identity)).toList();
@@ -66,7 +66,7 @@ public record SchemaModel(int formatVersion, int mappingVersion, List<Table> tab
     public static SchemaModel empty() { return new SchemaModel(1, 1, List.of(), Map.of()); }
     public String json() {
         try { return JSON.writeValueAsString(this) + "\n"; }
-        catch (IOException e) { throw new IllegalStateException(e); }
+        catch (tools.jackson.core.JacksonException e) { throw new IllegalStateException(e); }
     }
     public static SchemaModel parse(String json) throws IOException { return JSON.readValue(json, SchemaModel.class); }
     public String fingerprint() { return SqlNames.hash(json()); }

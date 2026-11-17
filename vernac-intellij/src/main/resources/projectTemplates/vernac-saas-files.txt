@@ -35,4 +35,5 @@ src/test/java/acceptance/support/AcceptanceConfiguration.java
 src/test/java/acceptance/support/AcceptanceControls.java
 test_acceptance_gate.py
 verify.py
+upgrade_snapshot.py
 vernac-application.vapplication

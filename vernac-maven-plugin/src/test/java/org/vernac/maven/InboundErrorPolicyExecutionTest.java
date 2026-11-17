@@ -13,7 +13,7 @@ import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.vernac.compiler.pipeline.VernacCompiler;
 import org.vernac.runtime.events.EventHandler;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -78,7 +78,7 @@ class InboundErrorPolicyExecutionTest {
                 new String[]{"inherited","authorization-down","503","AUTHORIZATION_UNAVAILABLE"})) {
                 var response=mvc.perform(get("/policy/"+scenario[0]).param("mode",scenario[1])).andReturn().getResponse();
                 assertEquals(Integer.parseInt(scenario[2]),response.getStatus(),response.getContentAsString());
-                assertEquals(scenario[3],new ObjectMapper().readTree(response.getContentAsString()).get("code").asText());
+                assertEquals(scenario[3],tools.jackson.databind.json.JsonMapper.builder().build().readTree(response.getContentAsString()).get("code").asString());
                 assertFalse(response.getContentAsString().contains("secret"));
             }
             assertEquals(400,mvc.perform(get("/policy/local")).andReturn().getResponse().getStatus());

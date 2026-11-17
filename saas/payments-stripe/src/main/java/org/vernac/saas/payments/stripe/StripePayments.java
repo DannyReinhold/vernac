@@ -3,7 +3,7 @@ package org.vernac.saas.payments.stripe;
 
 import java.net.URI;
 import java.util.*;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.stripe.Stripe;
 import com.stripe.net.Webhook;
 import org.vernac.saas.payments.*;

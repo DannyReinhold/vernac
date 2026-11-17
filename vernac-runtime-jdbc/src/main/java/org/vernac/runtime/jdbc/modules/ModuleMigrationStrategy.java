@@ -7,8 +7,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.*;
 import javax.sql.DataSource;
-import com.fasterxml.jackson.databind.*;
-import com.fasterxml.jackson.core.util.*;
+import tools.jackson.databind.*;
+import tools.jackson.core.util.*;
 import org.flywaydb.core.Flyway;
 import org.springframework.beans.factory.BeanClassLoaderAware;
 import org.springframework.boot.flyway.autoconfigure.FlywayMigrationStrategy;
@@ -17,8 +17,8 @@ import org.vernac.runtime.persistence.*;
 
 /** One coordinator: verify all inputs, migrate dependencies first, then the application. */
 public final class ModuleMigrationStrategy implements FlywayMigrationStrategy,BeanClassLoaderAware {
-    private static final ObjectMapper JSON=new ObjectMapper().addMixIn(SchemaDescription.Table.class, TenantTableJson.class).addMixIn(SchemaDescription.Column.class, ColumnJson.class).enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
-        .enable(SerializationFeature.INDENT_OUTPUT).setDefaultPrettyPrinter(new DefaultPrettyPrinter().withObjectIndenter(new DefaultIndenter("  ","\n")));
+    private static final ObjectMapper JSON=tools.jackson.databind.json.JsonMapper.builder().addMixIn(SchemaDescription.Table.class, TenantTableJson.class).addMixIn(SchemaDescription.Column.class, ColumnJson.class).enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+        .enable(SerializationFeature.INDENT_OUTPUT).defaultPrettyPrinter(new DefaultPrettyPrinter().withObjectIndenter(new DefaultIndenter("  ","\n"))).build();
     /** Keep version-1 snapshot bytes unchanged without adding JSON dependencies to core runtime data. */
     private abstract static class TenantTableJson {
         @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
@@ -88,7 +88,7 @@ public final class ModuleMigrationStrategy implements FlywayMigrationStrategy,Be
         var node = JSON.readTree(resource(applicationSchema));
         var schema = JSON.treeToValue(node.get("schema"), SchemaDescription.class);
         Set<String> owned = new TreeSet<>();
-        node.path("ownedTables").forEach(table -> owned.add(table.asText()));
+        node.path("ownedTables").forEach(table -> owned.add(table.asString()));
         return new Application(schema, Set.copyOf(owned));
     }
 
@@ -138,18 +138,18 @@ public final class ModuleMigrationStrategy implements FlywayMigrationStrategy,Be
         String prefix="META-INF/vernac/modules/"+module+"/";
         var manifest=JSON.readTree(resource(prefix+"persistence.json"));
         String history="vernac_module_"+hash(module.getBytes(StandardCharsets.UTF_8)).substring(0,32);
-        if(manifest.path("formatVersion").asInt()!=1||!manifest.path("module").asText().equals(module)||!manifest.path("migrationLocation").asText().equals("classpath:"+prefix+"migration")||!manifest.path("historySchema").asText().equals(history)||!manifest.path("historyTable").asText().equals("flyway_schema_history"))throw new IOException("Invalid module persistence identity: "+module);
+        if(manifest.path("formatVersion").asInt()!=1||!manifest.path("module").asString().equals(module)||!manifest.path("migrationLocation").asString().equals("classpath:"+prefix+"migration")||!manifest.path("historySchema").asString().equals(history)||!manifest.path("historyTable").asString().equals("flyway_schema_history"))throw new IOException("Invalid module persistence identity: "+module);
         var expected=JSON.treeToValue(manifest.get("expectedSchema"),SchemaDescription.class);
-        if(!fingerprint(expected).equals(manifest.path("schemaFingerprint").asText()))throw new IOException("Invalid module schema fingerprint: "+module);
+        if(!fingerprint(expected).equals(manifest.path("schemaFingerprint").asString()))throw new IOException("Invalid module schema fingerprint: "+module);
         SchemaDescription current=new SchemaDescription(1,1,List.of(),Map.of());Set<String> owned=new TreeSet<>(),versions=new HashSet<>(),inventory=new TreeSet<>();inventory.add(prefix+"persistence.json");String previous="";
         for(var migration:manifest.path("migrations")) {
-            String file=migration.path("file").asText();
+            String file=migration.path("file").asString();
             if(!file.matches("V[0-9]{17}__[a-z0-9_]+\\.sql")||previous.compareTo(file)>=0||!versions.add(file.substring(1,18)))throw new IOException("Invalid module migration order: "+module);
             inventory.add(prefix+"migration/"+file);inventory.add(prefix+"history/"+file.replace(".sql",".json"));
             byte[] sql=resource(prefix+"migration/"+file),snapshot=resource(prefix+"history/"+file.replace(".sql",".json"));
-            if(!hash(sql).equals(migration.path("sqlSha256").asText())||!hash(snapshot).equals(migration.path("snapshotSha256").asText()))throw new IOException("Changed module migration bytes: "+module+"/"+file);
+            if(!hash(sql).equals(migration.path("sqlSha256").asString())||!hash(snapshot).equals(migration.path("snapshotSha256").asString()))throw new IOException("Changed module migration bytes: "+module+"/"+file);
             var entry=JSON.readTree(snapshot);var model=JSON.treeToValue(entry.get("model"),SchemaDescription.class);
-            if(entry.path("formatVersion").asInt()!=1||!entry.path("migration").asText().equals(file)||!entry.path("previousFingerprint").asText().equals(fingerprint(current))||!entry.path("modelFingerprint").asText().equals(fingerprint(model)))throw new IOException("Module snapshot chain diverges: "+module+"/"+file);
+            if(entry.path("formatVersion").asInt()!=1||!entry.path("migration").asString().equals(file)||!entry.path("previousFingerprint").asString().equals(fingerprint(current))||!entry.path("modelFingerprint").asString().equals(fingerprint(model)))throw new IOException("Module snapshot chain diverges: "+module+"/"+file);
             model.tables().forEach(t->owned.add(key(t)));current=model;previous=file;
         }
         if(!fingerprint(current).equals(fingerprint(expected)))throw new IOException("Module history does not reach its expected schema: "+module);

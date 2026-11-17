@@ -48,11 +48,21 @@
       <groupId>org.mustangproject</groupId>
       <artifactId>library</artifactId>
       <version>2.26.0</version>
+      <!-- Mustang's separate JSON conversion API is not used by our PDF/XML adapter. -->
+      <exclusions>
+        <exclusion><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId></exclusion>
+        <exclusion><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-core</artifactId></exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.mustangproject</groupId>
       <artifactId>validator</artifactId>
       <version>2.26.0</version>
+      <!-- Mustang's separate JSON conversion API is not used by our PDF/XML adapter. -->
+      <exclusions>
+        <exclusion><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId></exclusion>
+        <exclusion><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-core</artifactId></exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>

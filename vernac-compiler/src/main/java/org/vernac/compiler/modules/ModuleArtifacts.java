@@ -109,7 +109,7 @@ public final class ModuleArtifacts {
     public static List<ModuleDescriptor> editorModules(Path sourceRoot) throws IOException {
         Path file=projectDirectory(sourceRoot).resolve("target/vernac-module-index.json");
         if(!Files.isRegularFile(file))return List.of();
-        var modules=JSON.readValue(Files.readString(file),new com.fasterxml.jackson.core.type.TypeReference<List<ModuleDescriptor>>(){});
+        var modules=JSON.readValue(Files.readString(file),new tools.jackson.core.type.TypeReference<List<ModuleDescriptor>>(){});
         ModuleContracts.checkDependencies(modules);return modules;
     }
     /** A navigation view, not a producer file and never compiler input. */

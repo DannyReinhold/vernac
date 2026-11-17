@@ -23,8 +23,8 @@ direction, not implemented mail APIs. Its dependency/crypto proof must precede d
 secret writes; do not invent encryption primitives or silently upgrade Spring.
 
 For 0.6.0 source builds, follow the [Boot 4 migration requirements](development/spring-boot-4-baseline.md),
-including explicit Jackson 2 converter selection for generated DTOs. Do not mix Security
-7 with a Boot 3 application or silently use Jackson 3 for Jackson 2 codecs.
+including Jackson 3 generated DTO codecs and converters. Do not mix Security 7 with
+a Boot 3 application or select a Jackson 2 converter for these codecs.
 
 The [private delivery envelope](contracts/saas-identity-delivery-envelope.md) is internal
 infrastructure. Use its [durable key registry](contracts/saas-identity-encryption-admission.md):
