@@ -103,7 +103,7 @@ final class PaymentFlowTestEnvironment {
         var document = Files.readString(Path.of("../../docs/contracts/saas-payment-processing.md"));
         var example =
                 java.util.regex.Pattern.compile(
-                                "```vernac-application\\n(.*?)```", java.util.regex.Pattern.DOTALL)
+                                "```vernac-application\\R(.*?)```", java.util.regex.Pattern.DOTALL)
                         .matcher(document);
         assertTrue(example.find(), "The provider contract must include its actual composition");
         var app =

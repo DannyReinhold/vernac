@@ -58,6 +58,13 @@ jobs:
         run: mvn -B -ntp -pl vernac-maven-plugin,vernac-jdbc-spring-boot-starter -am -DskipTests install
       - name: Verify shared mail and selected local/Brevo providers
         run: mvn -B -ntp -pl saas/mail,saas/mail-local,saas/mail-brevo clean install
+      - name: Exercise documented SaaS compositions with Windows line endings
+        run: |
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          for path in Path('docs/contracts').glob('saas-*.md'):
+              path.write_bytes(path.read_bytes().replace(b'\r\n', b'\n').replace(b'\n', b'\r\n'))
+          PYTHON
       - name: Verify optional identity artifacts and their JAR consumer
         run: mvn -B -ntp -pl saas/identity,saas/identity-spring-security,saas/identity-jdbc clean install
       - name: Verify plan catalog and generated subscription domain
