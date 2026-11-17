@@ -14,82 +14,8 @@ import java.util.*;
 
 @RestController
 class WorkspaceController {
-    private final ListDocuments list;
-    private final CreateDocument create;
-    private final DeleteDocument delete;
     private final ExportDocument export;
-
-    WorkspaceController(
-            ListDocuments list,
-            CreateDocument create,
-            DeleteDocument delete,
-            ExportDocument export) {
-        this.list = list;
-        this.create = create;
-        this.delete = delete;
-        this.export = export;
-    }
-
-    @GetMapping(value = "/workspace", produces = "text/html;charset=UTF-8")
-    ResponseEntity<String> workspace(HttpServletRequest request) {
-        if (request.getQueryString() != null) throw new IllegalArgumentException();
-        var csrf = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
-        String token = hidden(csrf.getParameterName(), csrf.getToken());
-        var body =
-                new StringBuilder(
-                        "<!doctype html><html lang=\"de\"><meta charset=\"utf-8\"><meta"
-                            + " name=\"viewport\""
-                            + " content=\"width=device-width,initial-scale=1\"><title>Document"
-                            + " Workspace</title><main><h1>Deine Dokumente</h1><p><a"
-                            + " href=\"/billing\">Tarif und Abrechnung</a> · <a"
-                            + " href=\"/auth/accounts\">Konten und Mitglieder</a></p><ul>");
-        for (var doc : list.execute())
-            body.append("<li><strong>")
-                    .append(escape(doc.title().text()))
-                    .append("</strong><p>")
-                    .append(escape(doc.text().text()))
-                    .append("</p><form method=\"post\" action=\"/documents/export\">")
-                    .append(token)
-                    .append(hidden("id", doc.id().asString()))
-                    .append(
-                            "<button>Als Text exportieren</button></form><form method=\"post\""
-                                + " action=\"/documents/delete\">")
-                    .append(token)
-                    .append(hidden("id", doc.id().asString()))
-                    .append("<button>Dokument löschen</button></form></li>");
-        body.append(
-                        "</ul><h2>Neues Dokument</h2><form method=\"post\""
-                            + " action=\"/documents/create\">")
-                .append(token)
-                .append(
-                        "<p><label>Titel <input name=\"title\" maxlength=\"120\""
-                            + " required></label></p><p><label>Text <textarea name=\"text\""
-                            + " maxlength=\"10000\""
-                            + " required></textarea></label></p><button>Dokument"
-                            + " anlegen</button></form></main></html>");
-        return ResponseEntity.ok().headers(headers()).body(body.toString());
-    }
-
-    @PostMapping("/documents/create")
-    ResponseEntity<Void> create(HttpServletRequest request) {
-        fields(request, "title", "text");
-        create.execute(
-                DocumentTitle.of(value(request, "title")), DocumentText.of(value(request, "text")));
-        return ResponseEntity.status(303)
-                .headers(headers())
-                .header("Location", "/workspace")
-                .build();
-    }
-
-    @PostMapping("/documents/delete")
-    ResponseEntity<Void> delete(HttpServletRequest request) {
-        fields(request, "id");
-        delete.execute(id(request));
-        return ResponseEntity.status(303)
-                .headers(headers())
-                .header("Location", "/workspace")
-                .build();
-    }
+    WorkspaceController(ExportDocument export) {this.export=export;}
 
     @PostMapping("/documents/export")
     ResponseEntity<byte[]> export(HttpServletRequest request) {
@@ -138,19 +64,4 @@ class WorkspaceController {
         return DocumentId.of(id);
     }
 
-    static String hidden(String name, String value) {
-        return "<input type=\"hidden\" name=\""
-                + escape(name)
-                + "\" value=\""
-                + escape(value)
-                + "\">";
-    }
-
-    static String escape(String value) {
-        return value.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&#39;");
-    }
 }

@@ -1,1 +1,2 @@
 org.vernac.saas.mail.local.LocalMailAutoConfiguration
+org.vernac.saas.mail.local.LocalMailPreviewAutoConfiguration

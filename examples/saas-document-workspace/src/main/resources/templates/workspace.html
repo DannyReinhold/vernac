@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Document Workspace</title>
+<main>
+<h1>Deine Dokumente</h1>
+<p><a href="/billing">Tarif und Abrechnung</a> · <a href="/auth/accounts">Konten und Mitglieder</a></p>
+<ul>
+<li th:each="doc : ${documents}">
+<strong th:text="${doc.title().text()}"></strong><p th:text="${doc.text().text()}"></p>
+<form method="post" th:action="@{/documents/export}"><input type="hidden" name="id" th:value="${doc.id().asString()}"><button>Als Text exportieren</button></form>
+<form method="post" th:action="@{/documents/delete}"><input type="hidden" name="id" th:value="${doc.id().asString()}"><button>Dokument löschen</button></form>
+</li>
+</ul>
+<h2>Neues Dokument</h2>
+<form method="post" th:action="@{/documents/create}">
+<p><label>Titel <input name="title" maxlength="120" required></label></p>
+<p><label>Text <textarea name="text" maxlength="10000" required></textarea></label></p>
+<button>Dokument anlegen</button>
+</form>
+</main></html>

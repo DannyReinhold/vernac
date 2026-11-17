@@ -31,3 +31,8 @@ Ein direkt nutzbarer Formatter gehört zum Auftrag. Sinnvoller Einstieg ist die 
 ## Fertigmeldung
 
 Für jedes Thema PR, gemergten Zielbranch, tatsächlich ausgeführte Checks und offene Prüflücken nennen. Das erzeugte Wizard-Projekt über den normalen Entwicklerpfad prüfen, nicht nur die Dateien des Quellbeispiels. Echte Provider-Abnahmen übernimmt Danny später. Für diese Arbeiten weder ein Marketplace- noch ein Maven-Central-Release veröffentlichen.
+
+## Fortsetzung am 17.11.2026
+
+- Jackson 3: PR #93 nach sechs erfolgreichen GitHub-Checks in `feature/0.6.0` gemergt. Lokal: 1.243 Java-Tests ohne Fehler/Skips; frisches SaaS-Wizard-Projekt mit 29 Browser-Szenarien; frischer HTTP-Wizard mit sieben Tests. Nur die gemeinsamen Jackson-Annotations bleiben unter `com.fasterxml`; Mustang-JSON-Abhängigkeit ausgeschlossen und PDF/XML separat geprüft.
+- Deklarative Rollen: PR #94 enthält Grammatik, Compilerdiagnostik, generierte Ressource, Editorunterstützung und umgestellte Beispiele/Wizard. Lokal 24 gezielte Tests und E05 mit eigenem Namespace und anderen Rollen grün; Alle vier GitHub-Checks einschließlich Browser-/Upgrade-Abnahme erfolgreich; in `feature/0.6.0` gemergt.
