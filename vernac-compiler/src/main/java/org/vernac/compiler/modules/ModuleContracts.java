@@ -24,6 +24,7 @@ public final class ModuleContracts {
         Map<String,VernacSourceFile> origins=new HashMap<>();
         for(var source:project.project().sources()) if(!source.external()) for(var top:source.unit().definitions()) {
             String name=top instanceof IdDeclarationNode id?id.name():top instanceof ValueObjectNode vo?vo.name():top instanceof PortNode port?port.name():top instanceof OutboundAdapterNode adapter?adapter.name():top instanceof DomainServiceNode service?service.name():top instanceof UseCaseNode usecase?usecase.name():top instanceof PermissionNode permission?permission.name():top instanceof EntityNode entity?entity.name():top instanceof AggregateNode aggregate?aggregate.name():top instanceof RepositoryNode repository?repository.name():top instanceof EventNode event?event.name():top instanceof ListenerNode listener?listener.name():top instanceof InboundHttpAdapterNode inbound?inbound.name():null;
+            if(top instanceof RoleNode) { errors.add(CompilerDiagnostic.error(top.location(),"Roles belong to the consuming application, not a published module.")); continue; }
             if(name==null)errors.add(CompilerDiagnostic.error(top.location(),"Unsupported module definition."));
             if(name!=null) {String identity=source.unit().namespace()+"."+name;local.put(identity,top);origins.put(identity,source);}
             for(var c:CollectionDeclaration.of(top)) {String identity=source.unit().namespace()+"."+c.name();collections.put(identity,c);origins.put(identity,source);}

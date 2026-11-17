@@ -51,6 +51,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         if (ctx.outboundAdapterDefinition() != null) return visitOutboundAdapterDefinition(ctx.outboundAdapterDefinition());
         if (ctx.portDefinition() != null) return visitPortDefinition(ctx.portDefinition());
         if (ctx.repositoryDefinition() != null) return visitRepositoryDefinition(ctx.repositoryDefinition());
+        if (ctx.roleDefinition() != null) return visitRoleDefinition(ctx.roleDefinition());
         if (ctx.permissionDefinition() != null) return visitPermissionDefinition(ctx.permissionDefinition());
         if (ctx.usecaseDefinition() != null) return visitUsecaseDefinition(ctx.usecaseDefinition());
         if (ctx.domainServiceDefinition() != null) return visitDomainServiceDefinition(ctx.domainServiceDefinition());
@@ -546,6 +547,10 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 Optional.ofNullable(ctx.resultType).map(this::toTypeNode),results,imports,helpers,body,implementation,count,Optional.ofNullable(ctx.requiresClause()).map(c -> authorization(c.authorizationRequirement())));
     }
 
+    @Override public RoleNode visitRoleDefinition(VernacParser.RoleDefinitionContext ctx) {
+        return new RoleNode(toLocation(ctx), ctx.name.getText(), ctx.permissionRequirement().stream()
+                .map(p -> (AuthorizationNode.Permission) permission(p)).toList());
+    }
     @Override public PermissionNode visitPermissionDefinition(VernacParser.PermissionDefinitionContext ctx) {
         return new PermissionNode(toLocation(ctx), ctx.name.getText(), ctx.members.stream()
                 .map(m -> new EnumConstantNode(toLocation(m), m.getText())).toList());

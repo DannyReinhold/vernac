@@ -19,6 +19,13 @@ class AuthorizationEditorSymbolsTest {
         var items=symbols(model).complete(app,at(model,marker));assertNotNull(items);
         return items.stream().map(CompletionItem::getLabel).collect(java.util.stream.Collectors.toSet());
     }
+    @Test void roleGrantsCompleteNavigateAndHoverWithTheSamePermissionVocabulary() {
+        String model=header+"role product.reader {permission Rights.VI;}";
+        assertEquals(Set.of("Rights.VIEW"),choices(model,"Rights.VI"));
+        var symbols=symbols(model.replace("Rights.VI","Rights.VIEW"));
+        assertEquals(keys.toUri().toString(),symbols.definition(app,at(model,"Rights.VI")).getFirst().getUri());
+        assertTrue(symbols.hover(app,at(model,"Rights.VI")).contains("PERMISSION"));
+    }
     @Test void incompleteKeysCompleteVisibleNominalPermissionsInsideNestedGroups() {
         String model=header+"usecase Read(InvoiceId) requires all {any {permission Rights.VI;}} behavior {execute {}}";
         assertEquals(Set.of("Rights.VIEW"),choices(model,"Rights.VI"));

@@ -35,6 +35,16 @@ class VernacSaasTemplateTest {
         assertFalse(Files.exists(root.resolve("src/main/java/acceptance")));
         assertTrue(Files.readString(root.resolve("acceptance_runtime.py")).contains(namespace));
     }
+    @Test void rolesBelongToTheGeneratedModelAndCanBeChangedIndependently() throws Exception {
+        Path root=temporary.resolve("roles");
+        VernacProjectTemplate.copyTo(root,"Roles","de.rsas","roles","de.rsas.roles",VernacProjectTemplate.ProjectKind.SAAS_APPLICATION);
+        Path model=root.resolve("src/main/vernac/de/rsas/roles/model.vernac");
+        Files.writeString(model,Files.readString(model).replace("example.workspace_reader","product.auditor").replace("example.workspace_editor","product.author"));
+        var resolved=new VernacCompiler().analyzeProject(root.resolve("src/main/vernac"));
+        String catalog=org.vernac.compiler.modules.ModuleDescriptor.JSON.writeValueAsString(new org.vernac.compiler.pipeline.RoleDeclarations().catalog(resolved));
+        assertTrue(catalog.contains("product.auditor"));assertTrue(catalog.contains("de.rsas.roles.WorkspacePermissions.VIEW"));
+        assertFalse(catalog.contains("workspace_reader"));assertFalse(Files.exists(root.resolve("src/main/resources/roles.json")));
+    }
     @Test void detectsCollisionsBeforeWritingAnything()throws Exception {
         Path root=temporary.resolve("collision");Files.createDirectories(root);Files.writeString(root.resolve("compose.yaml"),"owned");
         assertThrows(java.io.IOException.class,()->VernacProjectTemplate.copyTo(root,"SaaS","de.rsas","saas","de.rsas.saas",VernacProjectTemplate.ProjectKind.SAAS_APPLICATION));

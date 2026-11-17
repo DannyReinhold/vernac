@@ -1968,3 +1968,12 @@ Spring JDBC plus structured PostgreSQL metadata classify exact declared-field co
 The [private JDBC ownership lifecycle](contracts/saas-identity-login-ownership.md) now uses unique canonical keys and a UserId primary key. request(LoginAddress) reserves one potential pending slot before key lookup, reuses a live pending owner without overwriting delivery/deadline, and refuses a new registration for active/disabled/closed or expired-pending owners. Activation/closure retain claims; accounted abandoned cleanup releases them atomically. Old live tokens do not retarget a fresh UserId. Internal outcomes/subjects/addresses are not public DTOs. The eighth additive migration invents no legacy addresses; protected delivery and public flows remain OPEN.
 
 Global metadata may use [explicit immutable ID references](contracts/global-id-references.md); never infer cross-aggregate foreign keys from nominal ID use alone.
+
+## Product roles
+
+`role example.reader { permission DocumentPermissions.VIEW; }` declares an
+application-owned, qualified role key using the normal imported permission vocabulary.
+Maven generates `META-INF/vernac/roles.json` for the explicit Identity RoleCatalog
+binding. Do not create a handwritten role/permission JSON copy. Roles cannot use
+`on` inputs or be published in reusable modules. See the
+[authorization contract](contracts/usecase-authorization.md#application-roles-060).

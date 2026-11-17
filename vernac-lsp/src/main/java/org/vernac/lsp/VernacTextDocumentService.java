@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
 public class VernacTextDocumentService implements TextDocumentService {
 
     private static final Set<String> DSL_KEYWORDS = Set.of(
-            "permission", "requires", "authenticated", "all", "any",
+            "role", "permission", "requires", "authenticated", "all", "any",
             "term", "description", "example", "note", "GET", "POST", "PUT", "PATCH", "DELETE",
             "application", "activate", "bind", "to", "module", "export", "rejection", "integration", "invalid", "request", "validation", "found", "optimistic", "conflict", "domain", "when", "then", "otherwise", "default", "reject", "fail", "local", "remote", "unknown", "status",
             "client", "base", "body", "response", "errors", "path", "query", "header",
@@ -306,6 +306,7 @@ public class VernacTextDocumentService implements TextDocumentService {
     }
 
     private void addTopLevelCompletions(List<CompletionItem> items) {
+        addKeywordCompletion(items, "role", "role ${1:app.reader} {\n    permission ${2:Permissions.VIEW};\n    $0\n}");
         addKeywordCompletion(items, "permission", "permission ${1:Permissions} {\n    ${2:VIEW};\n    $0\n}");
         addKeywordCompletion(items, "term", "term ${1:Name} {\n    description \"${2:Meaning in this domain.}\";\n}");
         addKeywordCompletion(items, "adapter inbound mvc", "adapter ${1:Web} inbound mvc uses ${2:ReadPage} {\n    base \"/\";\n    error view \"problem\";\n    board {\n        GET \"/\";\n        execute ${3:readPage} { $0 }\n        render \"board\" model page;\n    }\n}");

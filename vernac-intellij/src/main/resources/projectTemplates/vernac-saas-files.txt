@@ -27,7 +27,6 @@ src/main/resources/application-local.yaml
 src/main/resources/application.yaml
 src/main/resources/db/migration/V20261115153000000__identity_sessions.sql
 src/main/resources/db/migration/V20261116010000000__initial_documents.sql
-src/main/resources/roles.json
 src/main/vernac-schema/history/V20261116010000000__initial_documents.json
 src/main/vernac/example/documentworkspace/model.vernac
 src/test/java/acceptance/support/AcceptanceApplication.java

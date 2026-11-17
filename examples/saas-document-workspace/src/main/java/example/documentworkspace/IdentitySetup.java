@@ -99,7 +99,7 @@ public class IdentitySetup {
     @Bean
     RoleCatalog roleCatalog() {
         return RoleCatalog.fromClasspath(
-                getClass().getClassLoader(), "roles.json", List.of(WorkspacePermissions.values()));
+                getClass().getClassLoader(), "META-INF/vernac/roles.json", List.of(WorkspacePermissions.values()));
     }
 
     @Bean

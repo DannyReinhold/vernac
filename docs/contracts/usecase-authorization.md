@@ -183,3 +183,36 @@ inline/external parity, public/authenticated modes, nominal cross-tenant resourc
 reads, missing-Guard startup, conditional nested checks and REQUIRED rollback.
 The complete SaaS assembly and identity/membership/role/plan policies,
 limits/quotas and full 0.6.0 acceptance remain OPEN.
+
+## Application roles (0.6.0)
+
+Declare product roles beside the permission vocabulary, keeping stable, qualified
+role keys. Role names are configuration keys, not domain types or implicit owners.
+
+```vernac
+role example.workspace_reader {
+    permission WorkspacePermissions.VIEW;
+}
+role example.workspace_editor {
+    permission WorkspacePermissions.VIEW;
+    permission WorkspacePermissions.EDIT;
+    permission WorkspacePermissions.EXPORT;
+}
+```
+
+Permission types use normal namespace/import resolution. Duplicate role keys across
+files, unknown permission types/members, repeated grants and `on` resource bindings
+are compilation errors with source locations. Empty roles explicitly grant nothing.
+The finite runtime limits apply (128 roles, 128 permissions each, 64 KiB catalog).
+Roles belong to the consuming application; published modules export permissions,
+not application role assignments. No dependency can silently add product roles.
+
+The Maven compile goal generates `META-INF/vernac/roles.json`. Configure Identity's
+`RoleCatalog.fromClasspath` with this resource and the explicit generated permission
+enums; do not maintain a second roles JSON file. Recompilation replaces removed
+roles/grants. Existing runtime checks reject unknown persisted roles on startup.
+Role membership supplies permission keys; object policy, current membership checks,
+tenant isolation and the separate last-owner rules still apply.
+
+The editor offers permission completion, navigation and hover inside role grants,
+and reports compiler diagnostics for unsaved role edits.

@@ -39,3 +39,13 @@ usecase DeleteDocument(DocumentId id) requires permission WorkspacePermissions.E
 usecase ExportDocument(DocumentId id) returns DocumentSummary requires permission WorkspacePermissions.EXPORT uses DocumentOperations behavior {
  execute { return self.documentOperations().export(id); }
 }
+
+role example.workspace_reader {
+    permission WorkspacePermissions.VIEW;
+}
+
+role example.workspace_editor {
+    permission WorkspacePermissions.VIEW;
+    permission WorkspacePermissions.EDIT;
+    permission WorkspacePermissions.EXPORT;
+}
