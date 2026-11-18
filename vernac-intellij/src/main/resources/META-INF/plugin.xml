@@ -101,134 +101,21 @@
 ]]></description>
 
     <change-notes><![CDATA[
-<h3>0.6.0 development — Private protected delivery envelope</h3>
-<ul><li>Internal mail framing now uses Spring GCM with bounded keys/payloads and authenticated job context. Durable key-attempt admission, queued mail and provider workers remain open; no public mail API is added.</li></ul>
-<h3>0.6.0 development — Spring Boot 4 baseline</h3>
-<ul><li>0.6.0 templates and runtime integration now align on Boot 4.1.2/Security 7.1.2. Generated DTO endpoints use Jackson 3 codecs and converters; existing applications must follow the platform migration guide.</li></ul>
-<h3>0.6.0 development — Private login-address ownership</h3>
-<p>Optional identity JDBC now stores canonical unique login keys and original delivery
-spelling with the charged pending lifetime. Repeat requests preserve the owner,
-activation/closure retain claims, and abandoned cleanup releases them atomically.
-Protected mail, public registration and browser login remain in development.</p>
+<h3>Vernac 0.6.0</h3>
+<ul>
+    <li><b>SaaS starter.</b> Create a document workspace from the New Project wizard.
+    The example includes registration, sign-in, account selection, billing and simulated
+    mail and payments for local development.</li>
+    <li><b>Access in the model.</b> Declare roles and use-case permissions in Vernac.
+    Mark MVC adapters as public or authenticated and render templates directly.</li>
+    <li><b>Editor tools.</b> Format Vernac code, complete MVC template names and navigate
+    from a render declaration to its HTML template.</li>
+    <li><b>Persistence.</b> Declare unique aggregate fields, activate tenant-aware modules
+    with separate migration credentials and deliver tenant events through the durable queue.</li>
+    <li><b>Runtime.</b> Generated applications target Spring Boot 4 and use Jackson 3.</li>
+</ul>
+<p><a href="https://github.com/DannyReinhold/vernac/blob/feature/0.6.0/docs/development/release-0.6.0.md">Detailed 0.6.0 release notes</a></p>
 
-<h3>0.6.0 development — Unique aggregate field model</h3>
-<p>Aggregate fields accept unique with normal field-name omission, including
-unique LoginKey. Shared analysis, module-contracts-13 metadata, type navigation and
-LSP scope hover retain the requirement. PostgreSQL now enforces derived constraints
-with tenant scope, explicit text collation, reviewed migrations and safe JDBC conflicts.
-Headless checks cover modifier completion; installed IDE acceptance remains separate.
-Rebuild development module producers and consumers together.</p>
-
-<h3>0.6.0 development — Pending registration lifetime</h3>
-<p>The optional SaaS library now supplies private charged seven-day pending state,
-transactional completion and bounded cleanup. Login-address ownership, protected mail,
-public registration and periodic cleanup scheduling remain in development.</p>
-
-<h3>0.6.0 development — Keyed identity admission</h3>
-<p>Private shared source/address/locator counters now compose the coarse ingress gate,
-with JCA HMAC pseudonyms, bounded storage and primary-key cursor cleanup. Public HTTP,
-trusted-source resolution and scheduled full sweeps remain unfinished.</p>
-<h3>0.6.0 development — Bounded password work</h3>
-<p>Optional identity security now offers an explicit shared bounded owner for Spring
-password operations, with queue/start limits and transaction guards. No new crypto,
-public authentication flow or automatic filter is installed.</p>
-<h3>0.6.0 development — Private credential persistence</h3>
-<p>Optional identity JDBC now persists redacted Spring password encodings and security
-epochs with guarded enrollment, replacement and rehash updates. Hashing/comparison
-remain in Spring Security. Public login/recovery/session integration remains unfinished.</p>
-<h3>0.6.0 development — Explicit value string representation</h3>
-<p>Ordinary values may define public String toString() using existing behavior syntax,
-matching enum behavior. Internal challenge verifiers now render a redacted label.
-Getters, equality, schema and serializer access remain unchanged.</p>
-<h3>0.6.0 development — Private global identity admission</h3>
-<p>A private deployment-wide fixed-minute gate commits attempts independently of
-business rollback and shares its limit across instances. Public ingress wiring and
-source/identifier protection remain unfinished; no new DSL or automatic filter.</p>
-<h3>0.6.0 development — Private one-time identity challenges</h3>
-<p>Private challenge persistence now couples purpose-bound secret verifiers, atomic
-resend/consumption and bounded explicit expiration cleanup to transactional storage
-budgets. No public registration, recovery, mail or session completion is claimed.</p>
-<h3>0.6.0 development — Private identity storage budgets</h3>
-<p>The optional JDBC identity module now carries private, transactional storage-budget
-primitives with multi-instance PostgreSQL proofs. Public registration, actual-record
-accounting and cleanup integration remain in progress.</p>
-
-<h3>0.6.0 development — Offline common-password baseline</h3>
-<p>The optional identity security artifact now carries an explicitly loaded, pinned
-common-password corpus with license, provenance and actual-JAR checks. No runtime
-network access is needed; complete SaaS registration remains in progress.</p>
-
-<h3>0.6.0 development — Debugger API compatibility</h3>
-<p>Restored the 0.5.2 public-API renderer fix in the development branch. Read/Access
-view applicability uses the public override; a packaged-plugin regression check
-prevents the rejected internal setter from returning.</p>
-
-<h3>0.6.0 development — Credential primitives</h3>
-<p>The optional Spring identity artifact now includes validated login keys, Unicode-aware
-password rules, explicit offline blocklist loading and real Spring Argon2id operations.
-No automatic login or registration endpoints are added; full SaaS integration is ongoing.</p>
-
-<h3>0.6.0 development — Optional persistent identity directory</h3>
-<p>A separately selected JDBC identity provider adds internal status persistence and
-module-owned migrations. Transactional lookups support the existing live-status actor
-bridge. This is a persistence foundation; registration and login remain in progress.</p>
-
-<h3>0.6.0 development — Optional SaaS identity boundary</h3>
-<p>Separate Apache-2.0 identity artifacts now publish nominal UserId/status/lookup
-contracts and an explicit live-status Spring actor adapter. Normal module imports
-need no activation. Registration, credentials, memberships and the SaaS Wizard remain
-in progress; the standard non-SaaS project template is unchanged.</p>
-
-<h3>0.6.0 development — Explicit application access</h3>
-<p>Enable authorization explicit in the application definition to detect missing
-requires clauses on registered local and activated-module usecases, including internal
-operations. Startup inspection grants no permissions and does not change ordinary
-applications. Composition completion, contracts and the authorization tutorial explain
-activation and lazy-factory boundaries. Full SaaS identity integration remains in progress.</p>
-
-<h3>0.6.0 development — Declarative usecase access</h3>
-<p>Declare named permissions and usecase requires clauses with ordered all/any groups
-and required typed resources. Matching 0.6.0 compiler/runtime generates Spring guards
-before validation and inline/external implementations. Local source diagnostics,
-permission declaration navigation and syntax keywords are supported. Module-contracts-11
-retains exported permissions, ordered requirements and security-aware dependency checks;
-rebuild development module artifacts. Imported permissions support read-only navigation
-and vocabulary hover without source attachments;
-permission-key and required-resource completion now works in nested requirements,
-including unsaved/imported definitions. Navigate key members and resource inputs
-without generating Java. The complete SaaS identity system remains in progress.</p>
-
-<h3>0.6.0 development — Durable tenant events</h3>
-<p>Publish ordinary domain events under a verified tenant selection. Current generated
-storage and the production worker retain origin through queued delivery, restart,
-retry and concurrent processing. PostgreSQL tests cover restricted pools, real module
-JARs, forged routing and lease fencing. Rebuild producer/application artifacts and
-review event/queue migrations before enabling tenant traffic. Routing is not identity
-or authorization; the complete SaaS starter remains in progress.</p>
-
-<h3>0.6.0 development — Persistent tenant modules</h3>
-<p>Activate modules with tenant repositories and independent migration histories.
-Generated activation verifies runtime role, owned RLS policy and DML access before
-module functions start. Cross-module/application REQUIRED transactions, upgrades and
-packaged module JARs are covered by PostgreSQL tests. Durable tenant event routing is also supported; the complete SaaS starter remains
-in progress.</p>
-
-<h3>0.6.0 development — Separate module migration credentials</h3>
-<p>Module and application histories use Spring Boot's Flyway credentials while
-repositories retain runtime credentials. Distinct connections are checked against
-the same PostgreSQL writer database before migration writes. Tenant module activation has dedicated RLS/startup acceptance.</p>
-
-<h3>0.6.0 development — Tenant-aware module contracts</h3>
-<p>Dependency contract views preserve tenant/global aggregate scope. Local tenant
-aggregates can persist imported module entities with ownership-aware restoration.
-Metadata is module-contracts-13; rebuild producers and consumers. Persistent tenant module activation and durable event routing have dedicated
-PostgreSQL acceptance.</p>
-
-<h3>0.6.0 development — Explicit persistence classification</h3>
-<p>Recognize global aggregate declarations and report the shared compiler's
-tenancy explicit rule, including unsaved application/module configuration.
-Local tenant aggregates now generate scoped JDBC graph/query persistence.
-Tenant modules and durable event routing are supported; the SaaS starter remains in progress.</p>
 <h3>Vernac 0.5.0 — Work in the model</h3>
 <p>Debug business behavior where you wrote it, use current model APIs before Java
 is generated, and start with a small working Spring Boot application.</p>
