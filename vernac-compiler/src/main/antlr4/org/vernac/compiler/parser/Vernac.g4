@@ -153,7 +153,7 @@ outboundAdapterDefinition
 inboundHttpAdapterDefinition
     : 'adapter' name=typeName 'inbound' transport=('http' | 'mvc')
       ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
-      '{' 'base' base=STRING_LITERAL ';'
+      '{' ('access' accessMode=('public' | 'authenticated') ';')? ('base' base=STRING_LITERAL ';')?
       ('error' 'view' errorView=STRING_LITERAL ';')?
       (inboundEndpoint | schemaDefinition | mappingDefinition)*
       inboundErrorPolicy? '}' ';'?
@@ -161,7 +161,7 @@ inboundHttpAdapterDefinition
 inboundEndpoint
     : name=methodName '{' verb=('GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE') route=STRING_LITERAL ';'
       inboundBinding* ('body' bodyType=type ';')?
-      'execute' dependency=variableName '{' mappingAssignment* '}'
+      ('execute' dependency=variableName '{' mappingAssignment* '}')?
       ('respond' status=INT_LITERAL (responseType=type 'using' responseMapping=methodName)? ';'
        | 'export' attachment=STRING_LITERAL 'from' contentField=variableName ';'
        | 'render' view=STRING_LITERAL ('model' modelName=variableName)? ('status' renderStatus=INT_LITERAL)? ';'

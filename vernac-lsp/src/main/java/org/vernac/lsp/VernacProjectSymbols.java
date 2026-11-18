@@ -534,6 +534,12 @@ final class VernacProjectSymbols {
         }
         int offset = offset(file.text(), position);
         if (offset < 0) return List.of();
+        for (var view : org.vernac.compiler.tooling.MvcTemplateReferences.find(root, file.text())) {
+            if (offset >= view.start() && offset < view.end()) {
+                var start = new Position(0, 0);
+                return List.of(new Location(view.target().toUri().toString(), new Range(start, start)));
+            }
+        }
         int point = file.text().codePointCount(0, offset);
         var authorization=authorizationReference(file.tree(),point);
         if(authorization!=null) {
@@ -690,7 +696,7 @@ final class VernacProjectSymbols {
         for(var n=assignment.getParent();n!=null;n=n.getParent())if(n instanceof VernacParser.InboundEndpointContext e){endpoint=e;break;}
         if(hit==assignment.target) {
             if(mapping!=null)return inboundFields(path,file,adapter,mapping.targetType,List.of(),"");
-            var usecase=endpoint==null?null:inboundUsecase(file,adapter,endpoint.dependency.getText());
+            var usecase=endpoint==null || endpoint.dependency==null?null:inboundUsecase(file,adapter,endpoint.dependency.getText());
             if(usecase!=null && usecase.inputs!=null)for(var p:usecase.inputs.parameter())result.put(parameterName(p),queryLocation(pathForUsecase(usecase),files.get(pathForUsecase(usecase)),p));
             return result;
         }

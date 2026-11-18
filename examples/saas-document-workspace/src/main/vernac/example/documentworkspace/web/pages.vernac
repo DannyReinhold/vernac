@@ -7,6 +7,7 @@ import example.documentworkspace.ExportDocument;
 
 // HTTP flow uses the same guarded usecases as other entrypoints.
 adapter WorkspacePages inbound mvc uses ListDocuments listDocuments, CreateDocument createDocument, DeleteDocument deleteDocument, ExportDocument exportDocument {
+    access authenticated;
     base "/";
     error view "workspace-error";
     workspace {

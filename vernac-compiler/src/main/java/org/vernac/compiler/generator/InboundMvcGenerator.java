@@ -63,6 +63,25 @@ public final class InboundMvcGenerator {
             type.addMethod(entry(adapter, endpoint.source()));
             type.addMethod(loader(endpoint, mappings));
         }
+        for (var endpoint : adapter.endpoints()) {
+            if (!endpoint.dependency().isEmpty()) continue;
+            type.addMethod(MethodSpec.methodBuilder(endpoint.name())
+                    .addModifiers(Modifier.PUBLIC)
+                    .addAnnotation(AnnotationSpec.builder(annotation("GetMapping"))
+                            .addMember("path", "$S", InboundResolver.join(adapter.base(), endpoint.route()))
+                            .addMember("produces", "$S", "text/html")
+                            .build())
+                    .returns(VIEW)
+                    .addStatement("var view = new $T($S)", VIEW, endpoint.view().orElseThrow().template())
+                    .addStatement("view.setStatus($T.valueOf($L))",
+                            ClassName.get("org.springframework.http", "HttpStatusCode"), endpoint.status())
+                    .addStatement("return view")
+                    .build());
+        }
+        if (plan.endpoints().isEmpty()) {
+            BehaviorGenerator.addDebugFingerprint(type, file(pkg, type), unit, project);
+            return withAccess(adapter, pkg, List.of(file(pkg, type)));
+        }
         type.addMethod(failure(adapter, project, pkg));
         BehaviorGenerator.addDebugFingerprint(type, file(pkg, type), unit, project);
         var advice =
@@ -126,7 +145,35 @@ public final class InboundMvcGenerator {
                                     unit,
                                     project,
                                     plan.mappings()));
-        return List.copyOf(files);
+        return withAccess(adapter, pkg, files);
+    }
+
+    private List<JavaFile> withAccess(InboundHttpAdapterNode adapter, String pkg, List<JavaFile> controllers) {
+        if (!adapter.accessMode().orElse("").equals("public")) return controllers;
+        var matcher = ClassName.get("org.springframework.security.web.servlet.util.matcher", "PathPatternRequestMatcher");
+        var combined = ClassName.get("org.springframework.security.web.util.matcher", "OrRequestMatcher");
+        var routes = CodeBlock.builder();
+        for (var endpoint : adapter.endpoints()) {
+            if (endpoint != adapter.endpoints().getFirst()) routes.add(", ");
+            routes.add("$T.withDefaults().matcher($T.$L, $S)", matcher,
+                    ClassName.get("org.springframework.http", "HttpMethod"), endpoint.verb(),
+                    InboundResolver.join(adapter.base(), endpoint.route()));
+        }
+        var chain = MethodSpec.methodBuilder("publicRoutesFor" + adapter.name())
+                .addAnnotation(ClassName.get("org.springframework.context.annotation", "Bean"))
+                .addAnnotation(AnnotationSpec.builder(ClassName.get("org.springframework.core.annotation", "Order"))
+                        .addMember("value", "0").build())
+                .returns(ClassName.get("org.springframework.security.web", "SecurityFilterChain"))
+                .addParameter(ClassName.get("org.springframework.security.config.annotation.web.builders", "HttpSecurity"), "http")
+                .addException(Exception.class)
+                .addStatement("return http.securityMatcher(new $T($L)).authorizeHttpRequests(r -> r.anyRequest().permitAll()).build()", combined, routes.build())
+                .build();
+        var configuration = TypeSpec.classBuilder(adapter.name() + "Access")
+                .addAnnotation(ClassName.get("org.springframework.context.annotation", "Configuration"))
+                .addMethod(chain).build();
+        var files = new ArrayList<>(controllers);
+        files.add(file(pkg, configuration));
+        return files;
     }
 
     private MethodSpec entry(

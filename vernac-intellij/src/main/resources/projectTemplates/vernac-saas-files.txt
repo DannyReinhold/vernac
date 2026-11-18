@@ -35,5 +35,6 @@ src/main/resources/templates/workspace-error.html
 src/main/vernac/example/documentworkspace/commercial/vernac-module.vmodule
 src/main/vernac/example/documentworkspace/vernac-module.vmodule
 src/main/vernac/example/documentworkspace/web/vernac-module.vmodule
-src/main/resources/static/impressum.html
-src/main/resources/static/index.html
+src/main/resources/templates/impressum.html
+src/main/resources/templates/home.html
+src/main/vernac/example/documentworkspace/web/public-pages.vernac
