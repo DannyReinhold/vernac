@@ -237,6 +237,38 @@ final class VernacProjectSymbols {
         if (file == null) return List.of();
         int cursor = offset(file.text(), position);
         if(cursor<0)return List.of();
+        int pointInCodePoints = file.text().codePointCount(0, cursor);
+        for (var top : file.tree().topLevelDeclaration()) {
+            var adapter = top.inboundHttpAdapterDefinition();
+            if (adapter == null || !"mvc".equals(adapter.transport.getText())) continue;
+            for (var endpoint : adapter.inboundEndpoint()) {
+                var token = endpoint.view;
+                if (token == null || pointInCodePoints <= token.getStartIndex()
+                        || pointInCodePoints > token.getStopIndex()) continue;
+                int start = utf16(file.text(), token.getStartIndex() + 1);
+                int end = utf16(file.text(), token.getStopIndex());
+                var range = new Range(position(file.text(), start), position(file.text(), end));
+                var templates = org.vernac.compiler.modules.ModuleArtifacts.projectDirectory(root)
+                        .resolve("src/main/resources/templates");
+                if (!java.nio.file.Files.isDirectory(templates)) return List.of();
+                try (var paths = java.nio.file.Files.walk(templates)) {
+                    return paths.filter(java.nio.file.Files::isRegularFile)
+                            .map(templates::relativize)
+                            .map(p -> p.toString().replace(java.io.File.separatorChar, '/'))
+                            .filter(p -> p.endsWith(".html"))
+                            .map(p -> p.substring(0, p.length() - 5))
+                            .filter(p -> p.startsWith(file.text().substring(start, cursor)))
+                            .sorted().map(name -> {
+                                var item = new CompletionItem(name);
+                                item.setKind(CompletionItemKind.File);
+                                item.setTextEdit(Either.forLeft(new TextEdit(range, name)));
+                                return item;
+                            }).toList();
+                } catch (java.io.IOException unavailable) {
+                    return List.of();
+                }
+            }
+        }
         if(excluded(file,cursor))return List.of();
         int termPoint=file.text().codePointCount(0,cursor);
         for(var top:file.tree().topLevelDeclaration())if(top.termDefinition()!=null&&contains(top.termDefinition(),termPoint)) {

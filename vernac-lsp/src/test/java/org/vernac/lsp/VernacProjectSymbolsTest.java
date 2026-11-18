@@ -44,6 +44,7 @@ class VernacProjectSymbolsTest {
                 + "home { GET \"/\"; render \"home\"; } }";
         var symbols = new VernacProjectSymbols(sources, Map.of(page, text));
         var at = new Position(0, text.lastIndexOf("home") + 1);
+        assertTrue(symbols.complete(page, at).stream().anyMatch(item -> item.getLabel().equals("home")));
         assertEquals(target.toUri().toString(), symbols.definition(page, at).getFirst().getUri());
     }
 
