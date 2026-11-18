@@ -43,7 +43,13 @@ try{
  const context=await browser.newContext({baseURL:'https://localhost:8443',ignoreHTTPSErrors:true});
  await start(context);
  const page=await context.newPage(),address='wizard-normal@example.test',password='Wizard normal passage 2026! Strong';
- await page.goto('/auth/register');await page.getByLabel('Email address').fill(address);
+ await page.goto('/');
+ await page.getByRole('link',{name:'Impressum'}).click();
+ await page.getByRole('link',{name:'Zur Startseite'}).click();
+ await page.getByRole('link',{name:'Anmelden'}).click();
+ assert.equal(new URL(page.url()).pathname,'/identity/login');
+ await page.goBack();
+ await page.getByRole('link',{name:'Registrieren'}).click();await page.getByLabel('Email address').fill(address);
  let response=page.waitForResponse(r=>r.request().method()==='POST');await page.getByRole('button',{name:'Continue',exact:true}).click();assert.equal((await response).status(),202);
  let mail='';
  for(let i=0;i<30;i++){mail=await command(['exec:java','-Dexec.args=mail']);if(mail.includes('/auth/verify#'))break;await delay(200);}

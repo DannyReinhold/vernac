@@ -15,6 +15,17 @@ import org.vernac.saas.subscriptions.domain.*;
 @Import(AccountWideBillingConfiguration.class)
 class WorkspaceConfiguration {
     @Bean
+    @org.springframework.core.annotation.Order(0)
+    org.springframework.security.web.SecurityFilterChain publicPages(
+            org.springframework.security.config.annotation.web.builders.HttpSecurity http) throws Exception {
+        return http.securityMatcher("/", "/index.html", "/impressum.html")
+                .authorizeHttpRequests(routes -> routes
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/", "/index.html", "/impressum.html").permitAll()
+                        .anyRequest().denyAll())
+                .build();
+    }
+
+    @Bean
     PlanCatalog plans(WorkspaceOffers offers) {
         var free = offer(offers.entryPlan());
         var pro = offer(offers.paidPlan());
