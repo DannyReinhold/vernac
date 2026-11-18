@@ -23,11 +23,23 @@ adapter StripePaymentProvider implements PaymentProvider {
         public PaymentProviderEnvironment environment() { return self.transport().environment(); }
         public ProviderCustomer inspectCustomer(RemoteCustomerId customer) { return self.transport().inspectCustomer(customer); }
         public ProviderRefund inspectRefund(RemotePaymentId payment, RemoteRefundId refund) { return self.transport().inspectRefund(payment, refund); }
-        public RemoteCustomerId createCustomer(PaymentOperationId operation) { return self.transport().createCustomer(operation); }
-        public ProviderPayment checkout(CheckoutRequest request) { return self.transport().checkout(request); }
-        public ProviderPayment charge(RecurringChargeRequest request) { return self.transport().charge(request); }
+        public RemoteCustomerId createCustomer(PaymentOperationId operation) { var result = self.transport().createCustomer(operation);
+            System.getLogger("org.vernac.saas.payments.stripe").log(System.Logger.Level.INFO,
+                "Payment provider stripe completed createCustomer.");
+            return result; }
+        public ProviderPayment checkout(CheckoutRequest request) { var result = self.transport().checkout(request);
+            System.getLogger("org.vernac.saas.payments.stripe").log(System.Logger.Level.INFO,
+                "Payment provider stripe completed checkout.");
+            return result; }
+        public ProviderPayment charge(RecurringChargeRequest request) { var result = self.transport().charge(request);
+            System.getLogger("org.vernac.saas.payments.stripe").log(System.Logger.Level.INFO,
+                "Payment provider stripe completed charge.");
+            return result; }
         public ProviderPayment inspect(RemotePaymentId payment) { return self.transport().inspect(payment); }
-        public ProviderRefund refund(RefundRequest request) { return self.transport().refund(request); }
+        public ProviderRefund refund(RefundRequest request) { var result = self.transport().refund(request);
+            System.getLogger("org.vernac.saas.payments.stripe").log(System.Logger.Level.INFO,
+                "Payment provider stripe completed refund.");
+            return result; }
         public RemotePaymentId notification(PaymentNoticeBody body, PaymentSignature signature) { return self.transport().notification(body, signature); }
     }
 }

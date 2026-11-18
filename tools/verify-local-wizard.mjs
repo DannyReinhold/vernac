@@ -46,15 +46,20 @@ try{
  const protectedPage=await context.request.get("/workspace",{maxRedirects:0});
  assert.ok([302,303,401,403].includes(protectedPage.status()),"anonymous workspace access must require login");
  await page.goto('/');
+ assert.equal(await page.locator('body').evaluate(body=>getComputedStyle(body).backgroundColor),'rgb(239, 245, 244)');
  await page.getByRole('link',{name:'Impressum'}).click();
  await page.getByRole('link',{name:'Zur Startseite'}).click();
  await page.getByRole('link',{name:'Anmelden'}).click();
  assert.equal(new URL(page.url()).pathname,'/identity/login');
+ assert.equal(await page.locator('body').evaluate(body=>getComputedStyle(body).backgroundColor),'rgb(239, 245, 244)');
  await page.goBack();
  await page.getByRole('link',{name:'Registrieren'}).click();await page.getByLabel('Email address').fill(address);
  let response=page.waitForResponse(r=>r.request().method()==='POST');await page.getByRole('button',{name:'Continue',exact:true}).click();assert.equal((await response).status(),202);
  let mail='';
  for(let i=0;i<30;i++){mail=await command(['exec:java','-Dexec.args=mail']);if(mail.includes('/auth/verify#'))break;await delay(200);}
+ assert.ok(logs.includes('Local mail simulation outcome: ACCEPTED'),'the development log explains local mail');
+ assert.ok(!logs.includes(address),'the development log excludes the recipient');
+ assert.ok(!logs.includes('/auth/verify#'),'the development log excludes confirmation links');
  assert(mail.includes(address));const link=mail.match(/https:\/\/localhost:8443\/auth\/verify#[^\s]+/)?.[0];assert(link);
  await page.goto(link);await page.waitForFunction(()=>location.hash===''&&!document.getElementById('confirm-action').disabled);
  await page.getByLabel('New password',{exact:false}).fill(password);response=page.waitForResponse(r=>r.request().method()==='POST');await page.getByRole('button',{name:'Continue',exact:true}).click();assert.equal((await response).status(),303);
