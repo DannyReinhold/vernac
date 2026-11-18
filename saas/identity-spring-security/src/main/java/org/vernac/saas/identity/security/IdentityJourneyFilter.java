@@ -20,13 +20,31 @@ public final class IdentityJourneyFilter extends OncePerRequestFilter {
         if(token&&button&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.[A-Za-z0-9_-]{43}$/.test(value)){
         token.value=value;button.disabled=false;}else{document.getElementById("action-message").textContent="Action unavailable. Request a new link.";}});})();
         """;
+    static final String PASSWORD_SCRIPT = """
+        document.addEventListener("DOMContentLoaded", () => {
+            const password = document.getElementById("password");
+            const update = () => {
+                const raw = Array.from(password.value);
+                const count = Array.from(password.value.normalize("NFC")).length;
+                const minimum = count >= 15;
+                const maximum = count <= 128 && raw.length <= 1024;
+                document.getElementById("password-minimum").textContent = minimum ? "Met" : "Not met";
+                document.getElementById("password-maximum").textContent = maximum ? "Met" : "Not met";
+                password.setCustomValidity(minimum && maximum ? "" : "Choose a password with 15 to 128 characters.");
+            };
+            password.addEventListener("input", update);
+            update();
+        });
+        """;
+    private static final String TOKEN_PATTERN =
+            "[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}[.][A-Za-z0-9_-]{43}";
     private final IdentityBrowserActions actions;
     public IdentityJourneyFilter(IdentityBrowserActions actions){this.actions=Objects.requireNonNull(actions);}
     @Override protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response,FilterChain chain) throws ServletException,IOException {
         String path=request.getServletPath();if(path.equals("/auth/invitation") && !(actions instanceof IdentityInvitationActions)){chain.doFilter(request,response);return;}if(!FORMS.contains(path) || !(request.getMethod().equals("GET") || request.getMethod().equals("POST"))){chain.doFilter(request,response);return;}
         response.setHeader("Cache-Control","no-store");response.setHeader("Referrer-Policy","no-referrer");response.setHeader("X-Content-Type-Options","nosniff");
         try {
-            if(request.getMethod().equals("GET")){render(request,response,path);return;}
+            if(request.getMethod().equals("GET")){render(request,response,path,"",false);return;}
             if(!IdentityFormFilter.parsed(request))throw new IdentityActionException(IdentityActionException.Code.UNAVAILABLE);
             var source=IdentityLoginFilter.transportPeer(request.getRemoteAddr());
             boolean success=true;
@@ -64,27 +82,46 @@ public final class IdentityJourneyFilter extends OncePerRequestFilter {
             }else reject(response,400,"Action unavailable. Request a new link or check your credentials.");
         }catch(IdentityActionException failure){
             int status=switch(failure.code()){case PASSWORD_POLICY,REJECTED->400;case ACCESS_DENIED->403;case THROTTLED->429;case AUTHENTICATION_REQUIRED->401;case UNAVAILABLE->503;};
+            if(failure.code()==IdentityActionException.Code.PASSWORD_POLICY){
+                String token=Objects.toString(request.getParameter("token"),"");
+                if(path.equals("/auth/password") ||
+                        ((path.equals("/auth/verify") || path.equals("/auth/recover")) && token.matches(TOKEN_PATTERN))){
+                    response.setStatus(400);
+                    render(request,response,path,token,true);
+                    return;
+                }
+            }
             if(status==429)response.setHeader("Retry-After",Integer.toString(failure.retryAfterSeconds()));
             reject(response,status,failure.code()==IdentityActionException.Code.PASSWORD_POLICY?"Choose a password that meets the configured policy.":"Identity action unavailable");
         }catch(RuntimeException unavailable){reject(response,503,"Identity action unavailable");}
     }
-    private void render(HttpServletRequest request,HttpServletResponse response,String path) throws IOException {
+    private void render(HttpServletRequest request,HttpServletResponse response,String path,String retryToken,boolean retry) throws IOException {
         if(request.getQueryString()!=null){reject(response,400,"Identity form unavailable");return;}
         Object attribute=request.getAttribute(CsrfToken.class.getName());if(!(attribute instanceof CsrfToken csrf))throw new IdentityActionException(IdentityActionException.Code.UNAVAILABLE);
         boolean invitation=path.equals("/auth/invitation");boolean bearer=invitation || path.equals("/auth/verify") || path.equals("/auth/recover");boolean address=path.equals("/auth/register") || path.equals("/auth/recovery-request");
         String title=switch(path){case "/auth/register"->"Create your account";case "/auth/recovery-request"->"Request password recovery";case "/auth/verify"->"Confirm your email and choose a password";case "/auth/recover"->"Reset your password";case "/auth/invitation"->"Accept workspace invitation";default->"Change your password";};
-        response.setHeader("Content-Security-Policy","default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"+IdentityPageStyle.POLICY+(bearer?"; script-src 'sha256-"+digest()+"'":""));
+        boolean passwordForm=!invitation && !address;
+        boolean needsFragment=bearer && !retry;
+        String script=(needsFragment?SCRIPT:"")+(passwordForm?PASSWORD_SCRIPT:"");
+        response.setHeader("Content-Security-Policy","default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"+IdentityPageStyle.POLICY+(!script.isEmpty()?"; script-src 'sha256-"+digest(script)+"'":""));
         String fields=invitation?"":address?"<p><label for=\"address\">Email address</label><br><input id=\"address\" name=\"address\" type=\"email\" autocomplete=\"username\" maxlength=\"320\" required></p>":
             (path.equals("/auth/password")?"<p><label for=\"current\">Current password</label><br><input id=\"current\" name=\"currentPassword\" type=\"password\" autocomplete=\"current-password\" maxlength=\"2048\" required></p>":"")+
-            "<p><label for=\"password\">New password (15–128 characters)</label><br><input id=\"password\" name=\"password\" type=\"password\" autocomplete=\"new-password\" maxlength=\"2048\" required></p>";
-        if(bearer)fields="<input type=\"hidden\" id=\"action-token\" name=\"token\" value=\"\">"+fields;
+            "<p><label for=\"password\">New password (15–128 characters)</label><br><input id=\"password\" aria-describedby=\"password-rules\" name=\"password\" type=\"password\" autocomplete=\"new-password\" maxlength=\"2048\" required></p>";
+        if(passwordForm)fields+="""
+            <ul id="password-rules" aria-live="polite">
+              <li>At least 15 characters <strong id="password-minimum"></strong></li>
+              <li>At most 128 characters <strong id="password-maximum"></strong></li>
+            </ul>
+            <p>Common or compromised passwords may also be rejected when you continue.</p>
+            """;
+        if(bearer)fields="<input type=\"hidden\" id=\"action-token\" name=\"token\" value=\""+escape(retryToken)+"\">"+fields;
         response.setContentType("text/html;charset=UTF-8");
         response.getWriter().write("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>"+title+"</title>"+
-            (bearer?"<script>"+SCRIPT+"</script>":"")+IdentityPageStyle.ELEMENT+"</head><body><main><h1>"+title+"</h1><p id=\"action-message\">"+
-            (invitation?"Sign in with the intended verified address, then open this link again and explicitly accept. Opening the link alone changes nothing.":bearer?"Opening this page changes nothing. Choose your password and explicitly confirm.":"")+"</p><form method=\"post\" action=\""+escape(request.getContextPath()+path)+"\"><input type=\"hidden\" name=\""+escape(csrf.getParameterName())+"\" value=\""+escape(csrf.getToken())+"\">"+fields+
-            "<button id=\"confirm-action\" type=\"submit\""+(bearer?" disabled":"")+">Continue</button></form><p><a href=\""+escape(request.getContextPath()+"/identity/login")+"\">Sign in</a></p></main></body></html>");
+            (!script.isEmpty()?"<script>"+script+"</script>":"")+IdentityPageStyle.ELEMENT+"</head><body><main><h1>"+title+"</h1><p id=\"action-message\">"+
+            (invitation?"Sign in with the intended verified address, then open this link again and explicitly accept. Opening the link alone changes nothing.":bearer?"Opening this page changes nothing. Choose your password and explicitly confirm.":"")+"</p>"+(retry?"<p role=\"alert\">That password does not meet the password policy. Try a different password below.</p>":"")+"<form method=\"post\" action=\""+escape(request.getContextPath()+path)+"\"><input type=\"hidden\" name=\""+escape(csrf.getParameterName())+"\" value=\""+escape(csrf.getToken())+"\">"+fields+
+            "<button id=\"confirm-action\" type=\"submit\""+(needsFragment?" disabled":"")+">Continue</button></form><p><a href=\""+escape(request.getContextPath()+"/identity/login")+"\">Sign in</a></p></main></body></html>");
     }
-    private static String digest(){try{return Base64.getEncoder().encodeToString(MessageDigest.getInstance("SHA-256").digest(SCRIPT.getBytes(StandardCharsets.UTF_8)));}catch(NoSuchAlgorithmException impossible){throw new IllegalStateException("Identity page unavailable");}}
+    private static String digest(String script){try{return Base64.getEncoder().encodeToString(MessageDigest.getInstance("SHA-256").digest(script.getBytes(StandardCharsets.UTF_8)));}catch(NoSuchAlgorithmException impossible){throw new IllegalStateException("Identity page unavailable");}}
     static String escape(String value){return value.replace("&","&amp;").replace("\"","&quot;").replace("'","&#39;").replace("<","&lt;").replace(">","&gt;");}
     private static void reject(HttpServletResponse response,int status,String message) throws IOException {response.resetBuffer();response.setStatus(status);response.setContentType("text/plain;charset=UTF-8");response.getWriter().write(message);}
 }
