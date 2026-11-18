@@ -10,6 +10,10 @@ adapter WorkspacePages inbound mvc uses ListDocuments listDocuments, CreateDocum
     access authenticated;
     base "/";
     error view "workspace-error";
+    profile {
+        GET "/profile";
+        render "profile";
+    }
     workspace {
         GET "/workspace";
         execute listDocuments {}

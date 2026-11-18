@@ -50,14 +50,14 @@ public final class IdentityAccountFilter extends OncePerRequestFilter {
         Object attribute=request.getAttribute(CsrfToken.class.getName());if(!(attribute instanceof CsrfToken csrf))throw new IdentityAccountException(IdentityAccountException.Code.CONFIGURATION);
         StringBuilder html=new StringBuilder("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Workspaces</title>"+IdentityPageStyle.ELEMENT+"</head><body><main>");
         if(path.equals("/auth/accounts")){
-            html.append("<h1>Your workspaces</h1><ul>");for(var account:accounts.accounts()){
+            html.append("<h1>Your workspaces</h1><p>Choose where to work on your documents.</p><ul class=\"spaces\">");for(var account:accounts.accounts()){
                 String label=account.kind().equals("PERSONAL")?"Personal workspace":"Workspace "+account.account().asString().substring(0,8);
-                html.append("<li>").append(escape(label)).append(form(request,csrf,"/auth/account/select",Map.of("account",account.account().asString()),"Open workspace",""));
+                html.append("<li><strong>").append(escape(label)).append("</strong>").append(form(request,csrf,"/auth/account/select",Map.of("account",account.account().asString()),"Open workspace",""));
                 if(account.owner())html.append("<a href=\"").append(escape(request.getContextPath()+"/auth/account?account="+account.account().asString())).append("\">Manage members</a>");html.append("</li>");
             }html.append("</ul>").append(form(request,csrf,"/auth/account/create",Map.of(),"Create workspace",""));
             html.append("<p><a href=\"").append(escape(request.getContextPath()+"/auth/password")).append("\">Change password</a></p>");
-            html.append(form(request,csrf,"/identity/logout",Map.of(),"Sign out","")).append("<h2>End access</h2><p>Transfer ownership or close owned workspaces first.</p>")
-                .append(form(request,csrf,"/auth/identity/disable",Map.of(),"Disable my identity","")).append(form(request,csrf,"/auth/identity/close",Map.of(),"Close my identity",""));
+            html.append(form(request,csrf,"/identity/logout",Map.of(),"Sign out","")).append("<details><summary>Account closure and deactivation</summary><p>Transfer ownership or close owned workspaces first.</p>")
+                .append(form(request,csrf,"/auth/identity/disable",Map.of(),"Disable my identity","")).append(form(request,csrf,"/auth/identity/close",Map.of(),"Close my identity","")).append("</details>");
         }else{
             var account=accountId(request.getParameter("account"));var members=accounts.members(account);var pending=accounts.invitations(account);var available=accounts.availableRoles();
             html.append("<h1>Manage workspace members</h1><p>Available product roles: ").append(escape(String.join(", ",available))).append("</p><p>Separate multiple roles with commas. Product roles do not grant ownership.</p><table><thead><tr><th>Member</th><th>Ownership</th><th>Roles and actions</th></tr></thead><tbody>");

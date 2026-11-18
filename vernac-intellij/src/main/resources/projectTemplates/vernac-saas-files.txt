@@ -39,3 +39,4 @@ src/main/resources/templates/impressum.html
 src/main/resources/templates/home.html
 src/main/vernac/example/documentworkspace/web/public-pages.vernac
 src/main/resources/templates/workspace-style.html
+src/main/resources/templates/profile.html

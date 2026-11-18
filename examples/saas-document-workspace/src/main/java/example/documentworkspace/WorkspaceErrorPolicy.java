@@ -9,7 +9,7 @@ public final class WorkspaceErrorPolicy {
                 || error instanceof org.vernac.runtime.DomainValidationException
                 || error instanceof IllegalArgumentException
                 || InboundHttpErrors.defaultReply(error).status()==400)
-            return new InboundHttpErrors.Reply(409,"ACTION_UNAVAILABLE","Aktion nicht möglich. Bitte Eingaben, Tarif und verfügbares Limit prüfen.");
+            return new InboundHttpErrors.Reply(409,"ACTION_UNAVAILABLE","Check your input and the limits of your current plan, then try again.");
         return InboundHttpErrors.defaultReply(error);
     }
 }
