@@ -214,18 +214,18 @@ public final class BillingController {
                                 && identity.code() == IdentityAccountException.Code.UNAVAILABLE;
         String message =
                 denied
-                        ? "Kein Zugriff auf dieses Konto oder Dokument."
+                        ? "You do not have access to this workspace or document."
                         : unavailable
-                                ? "Abrechnung vorübergehend nicht verfügbar. Bitte später erneut"
-                                        + " öffnen."
+                                ? "Billing is temporarily unavailable. Please try again"
+                                        + " later."
                                 : failure instanceof InvoiceFailure invoice
                                                 && invoice.code()
                                                         == InvoiceFailure.Code
                                                                 .BILLING_PROFILE_REQUIRED
-                                        ? "Bitte zuerst die vollständige Rechnungsadresse"
-                                                + " speichern."
-                                        : "Aktion derzeit nicht möglich. Bitte Eingaben und den"
-                                                + " aktuellen Zahlungsstatus prüfen.";
+                                        ? "Please save your complete billing address"
+                                                + " first."
+                                        : "This action is currently unavailable. Check your details and the"
+                                                + " current payment status.";
         return ResponseEntity.status(denied ? 403 : unavailable ? 503 : 409)
                 .headers(headers())
                 .contentType(MediaType.TEXT_HTML)
