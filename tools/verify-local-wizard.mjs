@@ -69,6 +69,9 @@ try{
  await page.waitForURL('**/identity/login');await page.getByLabel('Email address').fill(address);await page.getByLabel('Password',{exact:true}).fill(password);
  response=page.waitForResponse(r=>r.request().method()==='POST');await page.getByRole('button',{name:'Sign in',exact:true}).click();assert.equal((await response).status(),303);await page.waitForURL('**/auth/accounts');
  await page.getByRole('button',{name:'Open workspace',exact:true}).first().click();await page.waitForURL('**/workspace');
+ await page.getByRole('link',{name:'Profile and workspaces'}).click();
+ await page.getByRole('heading',{name:'Your profile'}).waitFor();
+ await page.getByRole('link',{name:'Workspace dashboard'}).click();
  await page.getByLabel('Title',{exact:true}).fill('Wizard restart äöü');await page.getByLabel('Text',{exact:true}).fill('Persisted by the ordinary developer path');
  response=page.waitForResponse(r=>r.request().method()==='POST');await page.getByRole('button',{name:'Create document',exact:true}).click();assert.equal((await response).status(),303);await page.waitForURL('**/workspace');
  await page.getByText('Wizard restart äöü',{exact:true}).waitFor();assert.equal(await page.getByText('Wizard restart äöü',{exact:true}).count(),1);
