@@ -53,7 +53,10 @@ try{
  assert.equal(new URL(page.url()).pathname,'/identity/login');
  assert.equal(await page.locator('body').evaluate(body=>getComputedStyle(body).backgroundColor),'rgb(239, 245, 244)');
  await page.goBack();
- await page.getByRole('link',{name:'Register'}).click();await page.getByLabel('Email address').fill(address);
+ await page.getByRole('link',{name:'View plans'}).click();
+ await page.getByRole('heading',{name:'Choose your plan'}).waitFor();
+ assert.equal(await page.getByRole('link',{name:'Choose Pro'}).getAttribute('href'),'/billing');
+ await page.getByRole('link',{name:'Register for Free'}).click();await page.getByLabel('Email address').fill(address);
  let response=page.waitForResponse(r=>r.request().method()==='POST');await page.getByRole('button',{name:'Continue',exact:true}).click();assert.equal((await response).status(),202);
  await page.getByRole('heading',{name:'Check your inbox'}).waitFor();
  await page.getByText('Using the local demo?',{exact:true}).click();
@@ -69,9 +72,11 @@ try{
  await page.waitForURL('**/identity/login');await page.getByLabel('Email address').fill(address);await page.getByLabel('Password',{exact:true}).fill(password);
  response=page.waitForResponse(r=>r.request().method()==='POST');await page.getByRole('button',{name:'Sign in',exact:true}).click();assert.equal((await response).status(),303);await page.waitForURL('**/auth/accounts');
  await page.getByRole('button',{name:'Open workspace',exact:true}).first().click();await page.waitForURL('**/workspace');
- await page.getByRole('link',{name:'Profile and workspaces'}).click();
+ await page.getByRole('link',{name:'Settings'}).click();
  await page.getByRole('heading',{name:'Your profile'}).waitFor();
- await page.getByRole('link',{name:'Workspace dashboard'}).click();
+ await page.getByRole('link',{name:'Back to documents'}).click();
+ assert.equal(await page.getByRole('link',{name:'Plan and billing'}).count(),0);
+ await page.getByText('New document',{exact:true}).click();
  await page.getByLabel('Title',{exact:true}).fill('Wizard restart äöü');await page.getByLabel('Text',{exact:true}).fill('Persisted by the ordinary developer path');
  response=page.waitForResponse(r=>r.request().method()==='POST');await page.getByRole('button',{name:'Create document',exact:true}).click();assert.equal((await response).status(),303);await page.waitForURL('**/workspace');
  await page.getByText('Wizard restart äöü',{exact:true}).waitFor();assert.equal(await page.getByText('Wizard restart äöü',{exact:true}).count(),1);
