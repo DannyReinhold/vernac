@@ -22,6 +22,11 @@ final class IdentityPageStyle {
                    border: 1px solid #91aaa7; border-radius: .5rem; font: inherit; }
             button { padding: .75rem 1.25rem; border: 0; border-radius: .65rem;
                    background: #08675d; color: white; font: inherit; font-weight: 700; cursor: pointer; }
+            .spaces { list-style: none; padding: 0; }
+            .spaces li { display: grid; gap: .6rem; padding: 1rem; margin: .75rem 0; border: 1px solid #d6e5e2; border-radius: .8rem; }
+            details { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #d6e5e2; }
+            summary { cursor: pointer; font-weight: 650; }
+            code { overflow-wrap: anywhere; }
             button:disabled { opacity: .55; cursor: default; }
             :focus-visible { outline: 3px solid #38a799; outline-offset: 4px; }
             """;

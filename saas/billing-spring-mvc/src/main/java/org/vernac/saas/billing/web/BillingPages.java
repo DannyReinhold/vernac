@@ -27,8 +27,8 @@ public final class BillingPages {
             List<IdentityAccountActions.AccountView> accounts, String context, CsrfToken csrf) {
         var body =
                 new StringBuilder(
-                        "<h1>Abrechnung</h1><p>Tarif, Zahlungen und Rechnungen je Konto"
-                                + " verwalten.</p><ul>");
+                        "<h1>Billing</h1><p>Manage plans, payments and invoices"
+                                + " for each workspace.</p><ul>");
         for (var account : accounts)
             if (account.owner())
                 body.append("<li>")
@@ -38,14 +38,14 @@ public final class BillingPages {
                                                 + "/billing/accounts/"
                                                 + account.account().asString(),
                                         account.kind().equals("PERSONAL")
-                                                ? "Persönliches Konto"
-                                                : "Organisation · "
+                                                ? "Personal workspace"
+                                                : "Organization · "
                                                         + account.account()
                                                                 .asString()
                                                                 .substring(0, 8)))
                         .append("</li>");
         body.append("</ul><p>")
-                .append(link(context + "/auth/accounts", "Konten und Mitglieder"))
+                .append(link(context + "/auth/accounts", "Workspaces and members"))
                 .append("</p>");
         return shell(body.toString());
     }
@@ -53,26 +53,26 @@ public final class BillingPages {
     public String account(BillingSelfService.AccountPage model, String context, CsrfToken csrf) {
         String account = model.account().asString();
         var body =
-                new StringBuilder("<h1>Tarif und Abrechnung</h1><p>")
-                        .append(link(context + settings.productPath(), "Zur Anwendung"))
+                new StringBuilder("<h1>Plan and billing</h1><p>")
+                        .append(link(context + settings.productPath(), "Back to the application"))
                         .append(" · ")
-                        .append(link(context + "/billing", "Anderes Konto"))
+                        .append(link(context + "/billing", "Switch workspace"))
                         .append("</p>");
         if (model.subscription().isEmpty())
             body.append(
-                            "<section><h2>Mit Free starten</h2><p>Die Nutzung beginnt ohne"
-                                    + " Zahlungsdaten.</p>")
+                            "<section><h2>Start with Free</h2><p>Get started without"
+                                    + " payment details.</p>")
                     .append(
                             form(
                                     context,
                                     "/billing/start",
                                     csrf,
                                     hidden("account", account),
-                                    "Free aktivieren"))
+                                    "Activate Free"))
                     .append("</section>");
         else {
             var current = model.subscription().get();
-            body.append("<section><h2>Aktueller Tarif</h2><p><strong>")
+            body.append("<section><h2>Current plan</h2><p><strong>")
                     .append(escape(current.terms().plan().value()))
                     .append("</strong> · ")
                     .append(money(current.terms().price()))
@@ -83,16 +83,16 @@ public final class BillingPages {
                     .append(" · ")
                     .append(
                             current.renewal() == RenewalStatus.CANCELLED
-                                    ? "Verlängerung beendet"
-                                    : "Verlängerung aktiv")
-                    .append("</p><p>Aktueller Zeitraum: ")
+                                    ? "Renewal cancelled"
+                                    : "Renewal enabled")
+                    .append("</p><p>Current period: ")
                     .append(escape(current.period().start().toString()))
-                    .append(" bis ")
+                    .append(" to ")
                     .append(escape(current.period().end().toString()))
                     .append("</p>")
                     .append(benefits(current.terms()));
             if (!current.renewalTerms().equals(current.terms()))
-                body.append("<p>Ab dem nächsten Zeitraum: ")
+                body.append("<p>Next period: ")
                         .append(escape(current.renewalTerms().plan().value()))
                         .append(" · ")
                         .append(money(current.renewalTerms().price()))
@@ -103,49 +103,49 @@ public final class BillingPages {
                             "/billing/subscription",
                             csrf,
                             hidden("account", account) + hidden("action", "cancel"),
-                            "Verlängerung kündigen"));
+                            "Cancel renewal"));
             body.append(
                     form(
                             context,
                             "/billing/subscription",
                             csrf,
                             hidden("account", account) + hidden("action", "resume"),
-                            "Verlängerung fortsetzen"));
+                            "Resume renewal"));
             body.append(
                             form(
                                     context,
                                     "/billing/subscription",
                                     csrf,
                                     hidden("account", account) + hidden("action", "reopen"),
-                                    "Nach Ablauf mit Free neu beginnen"))
+                                    "Restart on Free after expiry"))
                     .append("</section>");
         }
         var buyer = model.buyer();
         var party = buyer.map(InvoiceBuyer::party);
         body.append(
-                "<section><h2>Rechnungsadresse</h2><p>Inländische Rechnungsadresse in Deutschland."
-                        + " Änderungen gelten für künftig ausgestellte Dokumente.</p>");
+                "<section><h2>Billing address</h2><p>Enter a billing address in Germany."
+                        + " Changes apply to future invoices.</p>");
         String fields =
                 hidden("account", account)
                         + input(
                                 "name",
-                                "Name / Unternehmen",
+                                "Name or company",
                                 party.map(p -> p.name().text()).orElse(""))
                         + input(
                                 "street",
-                                "Straße und Hausnummer",
+                                "Street and house number",
                                 party.map(p -> p.street().text()).orElse(""))
                         + input(
                                 "postalCode",
-                                "Postleitzahl",
+                                "Postal code",
                                 party.map(p -> p.postalCode().text()).orElse(""))
-                        + input("city", "Ort", party.map(p -> p.city().text()).orElse(""))
-                        + input("email", "E-Mail", buyer.map(b -> b.contact().encoded()).orElse(""));
-        body.append(form(context, "/billing/profile", csrf, fields, "Rechnungsadresse speichern"))
+                        + input("city", "City", party.map(p -> p.city().text()).orElse(""))
+                        + input("email", "Email", buyer.map(b -> b.contact().encoded()).orElse(""));
+        body.append(form(context, "/billing/profile", csrf, fields, "Save billing address"))
                 .append(
-                        "</section><section><h2>Verfügbare Tarife</h2><p>Alle Preise in EUR"
-                            + " einschließlich der vom Anbieter angewendeten Umsatzsteuer. Ein"
-                            + " bezahlter Wechsel wird erst nach bestätigter Zahlung wirksam.</p>");
+                        "</section><section><h2>Available plans</h2><p>Prices are in EUR"
+                            + " and include applicable VAT."
+                            + " Paid plan changes take effect after payment is confirmed.</p>");
         for (var offer : model.offers()) {
             String offerFields =
                     hidden("account", account)
@@ -166,16 +166,16 @@ public final class BillingPages {
                                 "/billing/subscription",
                                 csrf,
                                 offerFields + hidden("action", "schedule"),
-                                "Für nächsten Zeitraum vormerken"));
+                                "Schedule for next period"));
                 if (offer.price().value() > 0) {
-                    String choices = "<label>Zahlungsart <select name=\"profile\">";
+                    String choices = "<label>Payment method <select name=\"profile\">";
                     for (var payment : settings.payments())
                         choices +=
                                 "<option value=\""
                                         + escape(payment.profile().value())
                                         + "\">"
                                         + escape(payment.label())
-                                        + (payment.test() ? " · TEST / keine echte Zahlung" : "")
+                                        + (payment.test() ? " · TEST / no real payment" : "")
                                         + "</option>";
                     choices += "</select></label>";
                     body.append(
@@ -186,12 +186,12 @@ public final class BillingPages {
                                     offerFields
                                             + hidden("operation", UUID.randomUUID().toString())
                                             + choices,
-                                    "Zahlungspflichtig bestellen"));
+                                    "Order and pay"));
                 }
             }
             body.append("</article>");
         }
-        body.append("</section><section><h2>Zahlungen</h2><ul>");
+        body.append("</section><section><h2>Payments</h2><ul>");
         for (var order : model.orders())
             body.append("<li>")
                     .append(
@@ -216,8 +216,8 @@ public final class BillingPages {
                                     + account
                                     + "?afterOrder="
                                     + model.orders().getLast().id().asString(),
-                            "Weitere Zahlungen"));
-        body.append("</section><section><h2>Rechnungen und Korrekturen</h2><ul>");
+                            "More payments"));
+        body.append("</section><section><h2>Invoices and corrections</h2><ul>");
         for (var invoice : model.invoices()) {
             String id = invoice.id().asString();
             body.append("<li>")
@@ -225,8 +225,8 @@ public final class BillingPages {
                     .append(" · ")
                     .append(
                             invoice.content().kind() == InvoiceKind.CORRECTION
-                                    ? "Korrektur"
-                                    : "Rechnung")
+                                    ? "Correction"
+                                    : "Invoice")
                     .append(
                             invoice.content().environment() == InvoiceEnvironment.TEST
                                     ? " · TEST"
@@ -238,21 +238,21 @@ public final class BillingPages {
                         .append(link(context + "/billing/invoices/" + id, "PDF / ZUGFeRD"))
                         .append(" · ")
                         .append(link(context + "/billing/invoices/" + id + "/xml", "XML"));
-            else body.append(" · Dokument wird vorbereitet");
+            else body.append(" · Preparing document");
             body.append(
                             form(
                                     context,
                                     "/billing/invoice/retry",
                                     csrf,
                                     hidden("account", account) + hidden("invoice", id),
-                                    "Dokument erneut verarbeiten"))
+                                    "Retry document processing"))
                     .append(
                             form(
                                     context,
                                     "/billing/mail/retry",
                                     csrf,
                                     hidden("account", account) + hidden("invoice", id),
-                                    "Benachrichtigung erneut versuchen"))
+                                    "Retry notification"))
                     .append("</li>");
         }
         body.append("</ul>");
@@ -264,10 +264,10 @@ public final class BillingPages {
                                     + account
                                     + "?afterInvoice="
                                     + model.invoices().getLast().id().asString(),
-                            "Weitere Rechnungen"));
+                            "More invoices"));
         body.append(
-                "<p>Eine angenommene E-Mail ist kein Zustellnachweis. Dokumente bleiben hier"
-                        + " abrufbar.</p></section>");
+                "<p>Email acceptance does not confirm delivery. Your documents remain"
+                        + " available here.</p></section>");
         return shell(body.toString());
     }
 
@@ -276,68 +276,68 @@ public final class BillingPages {
         String account = model.account().asString();
         String fields = hidden("account", account) + hidden("order", order.id().asString());
         var body =
-                new StringBuilder("<h1>Zahlung</h1><p>")
+                new StringBuilder("<h1>Payment</h1><p>")
                         .append(escape(order.terms().plan().value()))
                         .append(" · ")
                         .append(money(order.terms().price()))
                         .append("</p><p>")
                         .append(paymentStatus(order.status()))
                         .append(
-                                "</p><p>Die Rückkehr vom Zahlungsanbieter bestätigt keine Zahlung."
-                                        + " Der Status wird anhand geprüfter Anbieterinformationen"
-                                        + " aktualisiert.</p>");
+                                "</p><p>Returning from checkout does not confirm payment."
+                                        + " We update the status once the provider"
+                                        + " confirms the outcome.</p>");
         if (order.checkout().isPresent())
             body.append("<p>")
-                    .append(link(order.checkout().get().encoded(), "Zahlung beim Anbieter öffnen"))
+                    .append(link(order.checkout().get().encoded(), "Open provider checkout"))
                     .append("</p>");
         if (order.status() == PaymentOrderStatus.REVIEW || order.reason() != PaymentReason.NONE)
             body.append(
-                    "<p>Diese Zahlung benötigt eine Prüfung. Bitte keinen weiteren Auftrag"
-                        + " auslösen, solange das Ergebnis unbekannt ist. Die vorhandene Zahlung"
-                        + " bleibt gespeichert.</p>");
+                    "<p>This payment needs review. Please wait for the outcome"
+                        + " before placing another order. The existing payment"
+                        + " remains on record.</p>");
         body.append(
                         form(
                                 context,
                                 "/billing/payment/retry",
                                 csrf,
                                 fields,
-                                "Fehlgeschlagenen Versuch erneut starten"))
+                                "Retry failed payment"))
                 .append(
                         form(
                                 context,
                                 "/billing/payment/close",
                                 csrf,
                                 fields,
-                                "Unbezahlten Auftrag schließen"));
+                                "Close unpaid order"));
         body.append(
-                        "<details><summary>Vorhandene Anbieterzahlung zuordnen</summary><p>Nur eine"
-                            + " bereits vorhandene Zahlungsreferenz prüfen. Hier wird keine neue"
-                            + " Zahlung ausgelöst.</p>")
+                        "<details><summary>Match an existing payment</summary><p>Verify an"
+                            + " existing payment reference. This will not initiate"
+                            + " a new payment.</p>")
                 .append(
                         form(
                                 context,
                                 "/billing/payment/reconcile",
                                 csrf,
-                                fields + input("remote", "Zahlungsreferenz", ""),
-                                "Referenz prüfen"))
+                                fields + input("remote", "Payment reference", ""),
+                                "Check reference"))
                 .append("</details><p>")
-                .append(link(context + "/billing/accounts/" + account, "Zur Abrechnung"))
+                .append(link(context + "/billing/accounts/" + account, "Back to billing"))
                 .append("</p>");
-        body.append("<p>").append(link(context + "/billing/accounts/" + account + "/payments/" + order.id().asString(), "Status aktualisieren")).append("</p>");
+        body.append("<p>").append(link(context + "/billing/accounts/" + account + "/payments/" + order.id().asString(), "Refresh status")).append("</p>");
         return shell(body.toString());
     }
 
     public String failure(String message) {
         return shell(
-                "<h1>Abrechnung</h1><p role=\"alert\">"
+                "<h1>Billing</h1><p role=\"alert\">"
                         + escape(message)
-                        + "</p><p>Bitte die vorherige Seite erneut öffnen.</p>");
+                        + "</p><p>Please reopen the previous page.</p>");
     }
 
     private String shell(String body) {
-        return "<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\"><meta"
+        return "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta"
                 + " name=\"viewport\""
-                + " content=\"width=device-width,initial-scale=1\"><title>Abrechnung · "
+                + " content=\"width=device-width,initial-scale=1\"><title>Billing · "
                 + escape(settings.applicationName())
                 + "</title><style>body{font:17px"
                 + " system-ui,sans-serif;line-height:1.5;background:#f5f7fa;color:#152637;margin:0}main{max-width:920px;margin:3rem"
@@ -404,8 +404,8 @@ public final class BillingPages {
 
     private static String interval(OfferTerms terms) {
         return switch (terms.interval()) {
-            case MONTHLY -> "Monat";
-            case YEARLY -> "Jahr";
+            case MONTHLY -> "month";
+            case YEARLY -> "year";
         };
     }
 
@@ -427,20 +427,20 @@ public final class BillingPages {
 
     private static String subscription(SubscriptionStatus status) {
         return switch (status) {
-            case ACTIVE -> "Aktiv";
-            case AWAITING_PAYMENT -> "Wartet auf Zahlung";
-            case SUSPENDED -> "Abgelaufen";
-            case ENDED -> "Beendet";
+            case ACTIVE -> "Active";
+            case AWAITING_PAYMENT -> "Awaiting payment";
+            case SUSPENDED -> "Expired";
+            case ENDED -> "Ended";
         };
     }
 
     private static String paymentStatus(PaymentOrderStatus status) {
         return switch (status) {
-            case OPEN -> "In Bearbeitung";
-            case PAID -> "Zahlung bestätigt, Aktivierung läuft";
-            case APPLIED -> "Aktiviert";
-            case CLOSED -> "Geschlossen";
-            case REVIEW -> "Prüfung erforderlich";
+            case OPEN -> "Processing";
+            case PAID -> "Payment confirmed, activation pending";
+            case APPLIED -> "Activated";
+            case CLOSED -> "Closed";
+            case REVIEW -> "Review required";
         };
     }
 }

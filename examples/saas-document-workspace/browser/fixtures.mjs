@@ -44,10 +44,10 @@ export async function register(context,app,address='owner@case.example.test'){
  expect((await context.request.get('/auth/accounts')).status()).toBe(401);await login(context,page,address);
  const account=await page.locator('form[action="/auth/account/select"] input[name="account"]').first().inputValue();
  await page.getByRole('button',{name:'Open workspace',exact:true}).first().click();await page.waitForURL('**/workspace');
- await expect(page.getByRole('heading',{name:'Deine Dokumente',exact:true})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Your documents',exact:true})).toBeVisible();
  return {context,page,account,address};
 }
-export async function billing(user){await user.page.goto('/billing/accounts/'+user.account);await expect(user.page.getByRole('heading',{name:'Tarif und Abrechnung',exact:true})).toBeVisible();}
+export async function billing(user){await user.page.goto('/billing/accounts/'+user.account);await expect(user.page.getByRole('heading',{name:'Plan and billing',exact:true})).toBeVisible();}
 export async function profile(user,name='Customer Snapshot'){await billing(user);const r=await post(user.context,user.page,'/billing/profile',{name,street:'Example 1',postalCode:'28199',city:'Bremen',email:user.address});expect(r.status()).toBe(303);}
 export async function checkout(user){await billing(user);const values=await form(user.page,'/billing/checkout');const response=await user.context.request.post('/billing/checkout',{form:values,maxRedirects:0});expect(response.status()).toBe(303);return {url:response.headers().location,id:response.headers().location.split('/').at(-1),values};}
 export async function paid(user,app){await profile(user);const order=await checkout(user);await app.until(f=>f.orders.find(o=>o.id===order.id)?.status==='APPLIED',{advance:30});await app.until(f=>f.invoices.some(i=>i.status==='READY'));return order;}

@@ -95,6 +95,7 @@ try{
  check((await recipient.request.get("/workspace")).status()===403,"revoked membership still selected product scope");
  check((await recipient.request.get("/auth/accounts")).status()===200,"membership removal incorrectly ended identity session");
  await ownerPage.goto("/auth/accounts");
+ await ownerPage.getByText("Account closure and deactivation",{exact:true}).click();
  check((await submit(ownerPage,"Disable my identity")).status()===409,"last-owner disable accepted");
  check((await owner.request.get("/auth/accounts")).status()===200,"last-owner rejection ended identity session");
  const recovery=await anonymous.newPage();await recovery.goto("/auth/recovery-request");

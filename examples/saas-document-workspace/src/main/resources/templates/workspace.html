@@ -1,22 +1,25 @@
 <!doctype html>
-<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Document Workspace</title>
 <style th:replace="~{workspace-style :: style}"></style>
 <main>
-<h1>Deine Dokumente</h1>
-<p><a href="/billing">Tarif und Abrechnung</a> · <a href="/auth/accounts">Konten und Mitglieder</a></p>
+<header><p class="eyebrow">Document Workspace</p><h1>Workspace dashboard</h1>
+<p><span th:text="${#lists.size(documents)}">0</span> documents in this workspace</p></header>
+<nav aria-label="Workspace"><a class="primary" href="#new-document">New document</a><a href="/profile">Profile and workspaces</a><a href="/billing">Plan and billing</a></nav>
+<section><h2>Your documents</h2>
+<p th:if="${#lists.isEmpty(documents)}">Your library is empty. Create your first document below.</p>
 <ul>
 <li th:each="doc : ${documents}">
 <strong th:text="${doc.title().text()}"></strong><p th:text="${doc.text().text()}"></p>
-<form method="post" th:action="@{/documents/export}"><input type="hidden" name="id" th:value="${doc.id().asString()}"><button>Als Text exportieren</button></form>
-<form method="post" th:action="@{/documents/delete}"><input type="hidden" name="id" th:value="${doc.id().asString()}"><button>Dokument löschen</button></form>
+<form method="post" th:action="@{/documents/export}"><input type="hidden" name="id" th:value="${doc.id().asString()}"><button class="secondary">Download as text</button></form>
+<form method="post" th:action="@{/documents/delete}"><input type="hidden" name="id" th:value="${doc.id().asString()}"><button class="danger">Delete document</button></form>
 </li>
-</ul>
-<h2>Neues Dokument</h2>
+</ul></section>
+<h2 id="new-document">New document</h2>
 <form method="post" th:action="@{/documents/create}">
-<p><label>Titel <input name="title" maxlength="120" required></label></p>
+<p><label>Title <input name="title" maxlength="120" required></label></p>
 <p><label>Text <textarea name="text" maxlength="10000" required></textarea></label></p>
-<button>Dokument anlegen</button>
+<button>Create document</button>
 </form>
 </main></html>

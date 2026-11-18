@@ -47,14 +47,17 @@ try{
  assert.ok([302,303,401,403].includes(protectedPage.status()),"anonymous workspace access must require login");
  await page.goto('/');
  assert.equal(await page.locator('body').evaluate(body=>getComputedStyle(body).backgroundColor),'rgb(239, 245, 244)');
- await page.getByRole('link',{name:'Impressum'}).click();
- await page.getByRole('link',{name:'Zur Startseite'}).click();
- await page.getByRole('link',{name:'Anmelden'}).click();
+ await page.getByRole('link',{name:'Legal notice'}).click();
+ await page.getByRole('link',{name:'Back to home'}).click();
+ await page.getByRole('link',{name:'Sign in'}).click();
  assert.equal(new URL(page.url()).pathname,'/identity/login');
  assert.equal(await page.locator('body').evaluate(body=>getComputedStyle(body).backgroundColor),'rgb(239, 245, 244)');
  await page.goBack();
- await page.getByRole('link',{name:'Registrieren'}).click();await page.getByLabel('Email address').fill(address);
+ await page.getByRole('link',{name:'Register'}).click();await page.getByLabel('Email address').fill(address);
  let response=page.waitForResponse(r=>r.request().method()==='POST');await page.getByRole('button',{name:'Continue',exact:true}).click();assert.equal((await response).status(),202);
+ await page.getByRole('heading',{name:'Check your inbox'}).waitFor();
+ await page.getByText('Using the local demo?',{exact:true}).click();
+ await page.getByText('./mvnw exec:java -Dexec.args=mail',{exact:true}).waitFor();
  let mail='';
  for(let i=0;i<30;i++){mail=await command(['exec:java','-Dexec.args=mail']);if(mail.includes('/auth/verify#'))break;await delay(200);}
  assert.ok(logs.includes('Local mail simulation outcome: ACCEPTED'),'the development log explains local mail');
@@ -66,8 +69,11 @@ try{
  await page.waitForURL('**/identity/login');await page.getByLabel('Email address').fill(address);await page.getByLabel('Password',{exact:true}).fill(password);
  response=page.waitForResponse(r=>r.request().method()==='POST');await page.getByRole('button',{name:'Sign in',exact:true}).click();assert.equal((await response).status(),303);await page.waitForURL('**/auth/accounts');
  await page.getByRole('button',{name:'Open workspace',exact:true}).first().click();await page.waitForURL('**/workspace');
- await page.getByLabel('Titel',{exact:true}).fill('Wizard restart äöü');await page.getByLabel('Text',{exact:true}).fill('Persisted by the ordinary developer path');
- response=page.waitForResponse(r=>r.request().method()==='POST');await page.getByRole('button',{name:'Dokument anlegen',exact:true}).click();assert.equal((await response).status(),303);await page.waitForURL('**/workspace');
+ await page.getByRole('link',{name:'Profile and workspaces'}).click();
+ await page.getByRole('heading',{name:'Your profile'}).waitFor();
+ await page.getByRole('link',{name:'Workspace dashboard'}).click();
+ await page.getByLabel('Title',{exact:true}).fill('Wizard restart äöü');await page.getByLabel('Text',{exact:true}).fill('Persisted by the ordinary developer path');
+ response=page.waitForResponse(r=>r.request().method()==='POST');await page.getByRole('button',{name:'Create document',exact:true}).click();assert.equal((await response).status(),303);await page.waitForURL('**/workspace');
  await page.getByText('Wizard restart äöü',{exact:true}).waitFor();assert.equal(await page.getByText('Wizard restart äöü',{exact:true}).count(),1);
  const exportForm=await page.locator('form[action="/documents/export"]').evaluate(form=>Object.fromEntries(new FormData(form)));
  for(let used=0;used<3;used++){

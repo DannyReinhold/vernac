@@ -40,7 +40,23 @@ public final class IdentityJourneyFilter extends OncePerRequestFilter {
                 default -> throw new IllegalStateException();
             }
             if(path.equals("/auth/register") || path.equals("/auth/recovery-request")){
-                response.setStatus(202);response.setContentType("text/plain;charset=UTF-8");response.getWriter().write("If the address is eligible, follow the instructions sent to it.");
+                response.setStatus(202);
+                response.setContentType("text/html;charset=UTF-8");
+                response.setHeader("Content-Security-Policy", "default-src 'none'; base-uri 'none'; frame-ancestors 'none'" + IdentityPageStyle.POLICY);
+                response.getWriter().write("""
+                        <!doctype html><html lang="en"><head><meta charset="utf-8">
+                        <meta name="viewport" content="width=device-width,initial-scale=1">
+                        <title>Check your inbox</title>%s</head><body><main>
+                        <h1>Check your inbox</h1>
+                        <p>If the address is eligible, follow the instructions sent to it.</p>
+                        <details><summary>Using the local demo?</summary>
+                        <p>The default local provider puts the message in a private preview. Leave the app running
+                        and run this command from a second terminal in your project.</p>
+                        <p>Windows<br><code>.\\mvnw.cmd exec:java "-Dexec.args=mail"</code></p>
+                        <p>macOS or Linux<br><code>./mvnw exec:java -Dexec.args=mail</code></p>
+                        <p>Open the link in the preview to choose your password.</p></details>
+                        <p><a href="%s">Return to sign in</a></p></main></body></html>
+                        """.formatted(IdentityPageStyle.ELEMENT, escape(request.getContextPath()+"/identity/login")));
             }else if(success && path.equals("/auth/invitation")){response.setStatus(303);response.setHeader("Location",request.getContextPath()+"/auth/accounts");
             }else if(success){
                 SecurityContextHolder.clearContext();var session=request.getSession(false);if(session!=null)try{session.invalidate();}catch(IllegalStateException alreadyInvalid){}
