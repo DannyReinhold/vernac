@@ -33,6 +33,26 @@ class InboundMvcContractTest {
     }
 
     @Test
+    void templateRouteAccessAppliesToTheDeclaredMethodAndPath() {
+        var source = """
+                namespace example;
+                adapter Pages inbound mvc {
+                    access public;
+                    home { GET "/"; render "home"; }
+                }
+                """;
+        var generated = compiler.compileSource(source).generatedFiles().toString();
+        assertTrue(generated.contains("HttpMethod.GET"));
+        assertTrue(generated.contains("permitAll()"));
+        var protectedPage = compiler.compileSource(source.replace("access public", "access authenticated"))
+                .generatedFiles().toString();
+        assertTrue(protectedPage.contains("getUserPrincipal()"));
+        assertFalse(protectedPage.contains("permitAll()"));
+        assertThrows(SemanticValidationException.class,
+                () -> compiler.compileSource(source.replace("GET", "POST")));
+    }
+
+    @Test
     void textAttachmentUsesADeclaredStringFieldAndAStaticFilename() {
         String endpoint = "download {GET \"/file\";execute read {} export \"note.txt\" from content;}";
         String source = adapter(endpoint).replace("value Text(String)", "value Text(String content)");

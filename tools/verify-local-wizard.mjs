@@ -43,6 +43,8 @@ try{
  const context=await browser.newContext({baseURL:'https://localhost:8443',ignoreHTTPSErrors:true});
  await start(context);
  const page=await context.newPage(),address='wizard-normal@example.test',password='Wizard normal passage 2026! Strong';
+ const protectedPage=await context.request.get("/workspace",{maxRedirects:0});
+ assert.ok([302,303,401,403].includes(protectedPage.status()),"anonymous workspace access must require login");
  await page.goto('/');
  await page.getByRole('link',{name:'Impressum'}).click();
  await page.getByRole('link',{name:'Zur Startseite'}).click();

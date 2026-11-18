@@ -31,6 +31,8 @@ final class MvcContracts {
 
     void validate(InboundHttpAdapterNode adapter) {
         if (!adapter.mvc()) {
+            if (adapter.accessMode().isPresent())
+                error(adapter.location(), "Access declarations require inbound mvc.");
             if (adapter.errorView().isPresent()
                     || adapter.endpoints().stream().anyMatch(e -> e.view().isPresent())
                     || adapter.errorRules().stream().anyMatch(r -> r.view().isPresent())
@@ -42,7 +44,7 @@ final class MvcContracts {
                         "Views, redirects and redisplay require inbound mvc, not inbound http.");
             return;
         }
-        if (adapter.errorView().isEmpty())
+        if (adapter.errorView().isEmpty() && adapter.endpoints().stream().anyMatch(e -> !e.dependency().isEmpty()))
             error(
                     adapter.location(),
                     "An MVC adapter requires error view \"template\"; for safe fallback"

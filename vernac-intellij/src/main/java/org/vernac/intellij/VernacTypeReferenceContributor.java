@@ -64,6 +64,17 @@ public final class VernacTypeReferenceContributor extends PsiReferenceContributo
             }
         }
         texts.put(path, host.getText());
+        List<PsiReference> result = new ArrayList<>();
+        for (var view : MvcTemplateReferences.find(root.get(), host.getText())) {
+            result.add(new PsiReferenceBase<VernacInjectionHost>(
+                    host, new TextRange(view.start(), view.end()), true) {
+                @Override
+                public PsiElement resolve() {
+                    var target = VirtualFileManager.getInstance().findFileByNioPath(view.target());
+                    return target == null ? null : PsiManager.getInstance(host.getProject()).findFile(target);
+                }
+            });
+        }
         try {
             ProgressManager.checkCanceled();
             var project =
@@ -105,7 +116,7 @@ public final class VernacTypeReferenceContributor extends PsiReferenceContributo
                     texts.put(source.path(), Files.readString(source.path()));
             }
             var origins = ModuleSources.locations(root.get(), modules);
-            List<PsiReference> result = new ArrayList<>();
+
             for (var reference : new VernacTypeReferences().build(project, path, texts)) {
                 ProgressManager.checkCanceled();
                 var origin = origins.get(reference.identity());
@@ -139,7 +150,7 @@ public final class VernacTypeReferenceContributor extends PsiReferenceContributo
             }
             return List.copyOf(result);
         } catch (IOException | SemanticValidationException unavailable) {
-            return List.of(); // No guessed target; LSP diagnostics/navigation remain available.
+            return List.copyOf(result);
         }
     }
 

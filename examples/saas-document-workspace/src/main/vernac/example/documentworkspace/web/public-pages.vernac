@@ -1,0 +1,16 @@
+namespace example.documentworkspace.web;
+
+// Visitors start here before registering or signing in.
+adapter PublicPages inbound mvc {
+    access public;
+
+    home {
+        GET "/";
+        render "home";
+    }
+
+    imprint {
+        GET "/impressum";
+        render "impressum";
+    }
+}
