@@ -21,7 +21,7 @@ public final class IdentityAccountFilter extends OncePerRequestFilter {
     private static Collection<String> roles(String text){try{if(text==null)throw new IllegalArgumentException();var values=text.isBlank()?List.<String>of():Arrays.stream(text.split(",",-1)).map(String::strip).toList();return RoleAssignments.decode(RoleAssignments.encode(values));}catch(RuntimeException invalid){throw new IdentityAccountException(IdentityAccountException.Code.INVALID_ROLES);}}
     @Override protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response,FilterChain chain)throws ServletException,IOException {
         String path=request.getServletPath();if(!(request.getMethod().equals("GET")&&PAGES.contains(path)) && !(request.getMethod().equals("POST")&&FORMS.contains(path))){chain.doFilter(request,response);return;}
-        response.setHeader("Cache-Control","no-store");response.setHeader("Referrer-Policy","no-referrer");response.setHeader("Content-Security-Policy","default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");response.setHeader("X-Content-Type-Options","nosniff");
+        response.setHeader("Cache-Control","no-store");response.setHeader("Referrer-Policy","no-referrer");response.setHeader("Content-Security-Policy","default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"+IdentityPageStyle.POLICY);response.setHeader("X-Content-Type-Options","nosniff");
         try{
             if(request.getMethod().equals("GET")){render(request,response,path);return;}
             if(!IdentityFormFilter.parsed(request))throw new IdentityAccountException(IdentityAccountException.Code.CONFIGURATION);
@@ -48,7 +48,7 @@ public final class IdentityAccountFilter extends OncePerRequestFilter {
     private static void reject(HttpServletResponse response,int status,String message)throws IOException{response.resetBuffer();response.setStatus(status);response.setContentType("text/plain;charset=UTF-8");response.getWriter().write(message);}
     private void render(HttpServletRequest request,HttpServletResponse response,String path)throws IOException {
         Object attribute=request.getAttribute(CsrfToken.class.getName());if(!(attribute instanceof CsrfToken csrf))throw new IdentityAccountException(IdentityAccountException.Code.CONFIGURATION);
-        StringBuilder html=new StringBuilder("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Workspaces</title></head><body><main>");
+        StringBuilder html=new StringBuilder("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Workspaces</title>"+IdentityPageStyle.ELEMENT+"</head><body><main>");
         if(path.equals("/auth/accounts")){
             html.append("<h1>Your workspaces</h1><ul>");for(var account:accounts.accounts()){
                 String label=account.kind().equals("PERSONAL")?"Personal workspace":"Workspace "+account.account().asString().substring(0,8);

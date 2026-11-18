@@ -20,7 +20,7 @@ public final class IdentityLoginPageFilter extends OncePerRequestFilter {
             chain.doFilter(request,response);return;
         }
         response.setHeader("Cache-Control","no-store");response.setHeader("Referrer-Policy","no-referrer");
-        response.setHeader("Content-Security-Policy","default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
+        response.setHeader("Content-Security-Policy","default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"+IdentityPageStyle.POLICY);
         response.setHeader("X-Content-Type-Options","nosniff");
         Object attribute=request.getAttribute(CsrfToken.class.getName());
         if(!(attribute instanceof CsrfToken csrf)) {
@@ -32,14 +32,14 @@ public final class IdentityLoginPageFilter extends OncePerRequestFilter {
         response.getWriter().write("""
                 <!doctype html>
                 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-                <title>Sign in</title></head><body><main><h1>Sign in</h1>
+                <title>Sign in</title>%s</head><body><main><h1>Sign in</h1>
                 <form method="post" action="%s">
                 <input type="hidden" name="%s" value="%s">
                 <input type="hidden" name="returnTo" value="%s">
                 <p><label for="address">Email address</label><br><input id="address" name="address" type="email" autocomplete="username" maxlength="320" required></p>
                 <p><label for="password">Password</label><br><input id="password" name="password" type="password" autocomplete="current-password" maxlength="2048" required></p>
                 <button type="submit">Sign in</button></form>%s</main></body></html>
-                """.formatted(escape(action),escape(csrf.getParameterName()),escape(csrf.getToken()),
+                """.formatted(IdentityPageStyle.ELEMENT,escape(action),escape(csrf.getParameterName()),escape(csrf.getToken()),
                         escape(returns.resolve(request.getParameter("returnTo"))),journeys?"<p><a href=\""+escape(request.getContextPath()+"/auth/register")+"\">Create an account</a> · <a href=\""+escape(request.getContextPath()+"/auth/recovery-request")+"\">Recover your password</a></p>":""));
     }
     private static String escape(String text) {

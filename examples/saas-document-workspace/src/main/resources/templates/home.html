@@ -1,5 +1,27 @@
 <!doctype html>
-<html lang="de">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Document Workspace</title></head>
-<body><main><h1>Document Workspace</h1><p>Dokumente im Team erstellen, verwalten und exportieren.</p><nav><a href="/identity/login">Anmelden</a> · <a href="/auth/register">Registrieren</a></nav><footer><a href="/impressum">Impressum</a></footer></main></body>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Document Workspace</title>
+  <style th:replace="~{workspace-style :: style}"></style>
+</head>
+<body><main>
+  <p class="eyebrow">Vernac · Document Workspace</p>
+  <h1>Ein Ort für eure Dokumente.</h1>
+  <p>Erstelle und verwalte Dokumente im Team und exportiere sie als Text.</p>
+  <nav aria-label="Konto">
+    <a class="primary" href="/auth/register">Registrieren</a>
+    <a href="/identity/login">Anmelden</a>
+  </nav>
+  <details>
+    <summary>Registrierung in der lokalen Demo</summary>
+    <ol>
+      <li>Registriere eine Testadresse, etwa <code>demo@example.test</code>.</li>
+      <li>Öffne ein zweites Terminal im Projekt und führe <code>./mvnw exec:java -Dexec.args=mail</code> aus. Unter Windows verwende <code>.\mvnw.cmd exec:java "-Dexec.args=mail"</code>.</li>
+      <li>Öffne den Bestätigungslink aus der lokalen Mailvorschau, wähle ein Passwort und melde dich an. Öffne anschließend deinen Workspace.</li>
+    </ol>
+  </details>
+  <footer><a href="/impressum">Impressum</a></footer>
+</main></body>
 </html>

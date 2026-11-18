@@ -45,7 +45,7 @@ final class AccountBrowserForms implements WebMvcConfigurer, HandlerInterceptor 
         response.setHeader("Referrer-Policy", "no-referrer");
         response.setHeader("X-Content-Type-Options", "nosniff");
         response.setHeader("Content-Security-Policy",
-                "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
+                "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
 
         if (request.getQueryString() != null && (contract.query().length == 0 || request.getMethod().equals("POST")))
             throw new IllegalArgumentException();

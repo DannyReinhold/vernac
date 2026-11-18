@@ -7,6 +7,9 @@ adapter BrevoMailProvider implements MailProvider {
  behavior {
   java uses { org.vernac.saas.mail.brevo.BrevoMailTransport transport; }
   public MailProviderMode mode() { return MailProviderMode.LIVE; }
-  public MailSubmission submit(OutboundMail mail) { return self.transport().submit(mail); }
+  public MailSubmission submit(OutboundMail mail) { var submission = self.transport().submit(mail);
+   System.getLogger("org.vernac.saas.mail.brevo").log(System.Logger.Level.INFO,
+       "Brevo mail submission outcome: {0}.", submission.acceptance());
+   return submission; }
  }
 }

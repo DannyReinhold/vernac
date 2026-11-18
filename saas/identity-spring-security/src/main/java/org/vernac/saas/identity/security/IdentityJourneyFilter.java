@@ -57,14 +57,14 @@ public final class IdentityJourneyFilter extends OncePerRequestFilter {
         Object attribute=request.getAttribute(CsrfToken.class.getName());if(!(attribute instanceof CsrfToken csrf))throw new IdentityActionException(IdentityActionException.Code.UNAVAILABLE);
         boolean invitation=path.equals("/auth/invitation");boolean bearer=invitation || path.equals("/auth/verify") || path.equals("/auth/recover");boolean address=path.equals("/auth/register") || path.equals("/auth/recovery-request");
         String title=switch(path){case "/auth/register"->"Create your account";case "/auth/recovery-request"->"Request password recovery";case "/auth/verify"->"Confirm your email and choose a password";case "/auth/recover"->"Reset your password";case "/auth/invitation"->"Accept workspace invitation";default->"Change your password";};
-        response.setHeader("Content-Security-Policy","default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"+(bearer?"; script-src 'sha256-"+digest()+"'":""));
+        response.setHeader("Content-Security-Policy","default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"+IdentityPageStyle.POLICY+(bearer?"; script-src 'sha256-"+digest()+"'":""));
         String fields=invitation?"":address?"<p><label for=\"address\">Email address</label><br><input id=\"address\" name=\"address\" type=\"email\" autocomplete=\"username\" maxlength=\"320\" required></p>":
             (path.equals("/auth/password")?"<p><label for=\"current\">Current password</label><br><input id=\"current\" name=\"currentPassword\" type=\"password\" autocomplete=\"current-password\" maxlength=\"2048\" required></p>":"")+
             "<p><label for=\"password\">New password (15–128 characters)</label><br><input id=\"password\" name=\"password\" type=\"password\" autocomplete=\"new-password\" maxlength=\"2048\" required></p>";
         if(bearer)fields="<input type=\"hidden\" id=\"action-token\" name=\"token\" value=\"\">"+fields;
         response.setContentType("text/html;charset=UTF-8");
         response.getWriter().write("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>"+title+"</title>"+
-            (bearer?"<script>"+SCRIPT+"</script>":"")+"</head><body><main><h1>"+title+"</h1><p id=\"action-message\">"+
+            (bearer?"<script>"+SCRIPT+"</script>":"")+IdentityPageStyle.ELEMENT+"</head><body><main><h1>"+title+"</h1><p id=\"action-message\">"+
             (invitation?"Sign in with the intended verified address, then open this link again and explicitly accept. Opening the link alone changes nothing.":bearer?"Opening this page changes nothing. Choose your password and explicitly confirm.":"")+"</p><form method=\"post\" action=\""+escape(request.getContextPath()+path)+"\"><input type=\"hidden\" name=\""+escape(csrf.getParameterName())+"\" value=\""+escape(csrf.getToken())+"\">"+fields+
             "<button id=\"confirm-action\" type=\"submit\""+(bearer?" disabled":"")+">Continue</button></form><p><a href=\""+escape(request.getContextPath()+"/identity/login")+"\">Sign in</a></p></main></body></html>");
     }
