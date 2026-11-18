@@ -28,13 +28,15 @@ class VernacSaasTemplateTest {
         assertTrue(Files.isRegularFile(root.resolve(".mvn/wrapper/maven-wrapper.properties")));
         assertTrue(Files.isRegularFile(root.resolve("src/main/java/de/rsas/kunden/workspace/WorkspaceConfiguration.java")));
         assertTrue(Files.readString(root.resolve(".gitignore")).contains(".local/"));
-        for (String path : new String[]{"acceptance_runtime.py", "upgrade_snapshot.py", "test_acceptance_gate.py",
+        for (String path : new String[]{
                 "browser/saas.spec.mjs", "browser/fixtures.mjs", "browser/reporter.cjs", "browser/playwright.config.mjs"})
             assertTrue(Files.isRegularFile(root.resolve(path)), path);
         String fixture = Files.readString(root.resolve("src/test/java/acceptance/support/AcceptanceApplication.java"));
         assertTrue(fixture.contains("import " + namespace + ".DemoApplication;"));
         assertFalse(Files.exists(root.resolve("src/main/java/acceptance")));
-        assertTrue(Files.readString(root.resolve("acceptance_runtime.py")).contains(namespace));
+        try (var files = Files.walk(root)) {
+            assertTrue(files.noneMatch(path -> path.toString().endsWith(".py")));
+        }
     }
     @Test void rolesBelongToTheGeneratedModelAndCanBeChangedIndependently() throws Exception {
         Path root=temporary.resolve("roles");
