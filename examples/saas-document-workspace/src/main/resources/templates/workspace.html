@@ -1,25 +1,51 @@
 <!doctype html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Document Workspace</title>
-<style th:replace="~{workspace-style :: style}"></style>
-<main>
-<header><p class="eyebrow">Document Workspace</p><h1>Workspace dashboard</h1>
-<p><span th:text="${#lists.size(documents)}">0</span> documents in this workspace</p></header>
-<nav aria-label="Workspace"><a class="primary" href="#new-document">New document</a><a href="/profile">Profile and workspaces</a><a href="/billing">Plan and billing</a></nav>
-<section><h2>Your documents</h2>
-<p th:if="${#lists.isEmpty(documents)}">Your library is empty. Create your first document below.</p>
-<ul>
-<li th:each="doc : ${documents}">
-<strong th:text="${doc.title().text()}"></strong><p th:text="${doc.text().text()}"></p>
-<form method="post" th:action="@{/documents/export}"><input type="hidden" name="id" th:value="${doc.id().asString()}"><button class="secondary">Download as text</button></form>
-<form method="post" th:action="@{/documents/delete}"><input type="hidden" name="id" th:value="${doc.id().asString()}"><button class="danger">Delete document</button></form>
-</li>
-</ul></section>
-<h2 id="new-document">New document</h2>
-<form method="post" th:action="@{/documents/create}">
-<p><label>Title <input name="title" maxlength="120" required></label></p>
-<p><label>Text <textarea name="text" maxlength="10000" required></textarea></label></p>
-<button>Create document</button>
-</form>
-</main></html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Documents · Document Workspace</title>
+  <style th:replace="~{workspace-style :: style}"></style>
+</head>
+<body class="application">
+  <header class="topbar">
+    <a class="brand" href="/workspace">Document Workspace</a>
+    <nav aria-label="Account"><a href="/profile">Settings</a></nav>
+  </header>
+  <main>
+    <header class="section-header">
+      <h1>Your documents</h1>
+      <p class="muted" th:text="|${#lists.size(documents)} in this workspace|">0 in this workspace</p>
+    </header>
+    <details class="composer">
+      <summary>New document</summary>
+      <form method="post" th:action="@{/documents/create}">
+        <p><label>Title <input name="title" maxlength="120" required></label></p>
+        <p><label>Text <textarea name="text" maxlength="10000" required></textarea></label></p>
+        <button>Create document</button>
+      </form>
+    </details>
+    <section aria-label="Document library">
+      <p class="empty-state" th:if="${#lists.isEmpty(documents)}">Your library is empty. Add a project note or brief to get started.</p>
+      <div class="document-list">
+        <details class="document" th:each="doc : ${documents}">
+          <summary th:text="${doc.title().text()}">Document title</summary>
+          <p class="document-text" th:text="${doc.text().text()}"></p>
+          <div class="document-actions">
+            <form method="post" th:action="@{/documents/export}">
+              <input type="hidden" name="id" th:value="${doc.id().asString()}">
+              <button class="secondary">Download as text</button>
+            </form>
+            <details class="delete-action">
+              <summary>Delete…</summary>
+              <form method="post" th:action="@{/documents/delete}">
+                <input type="hidden" name="id" th:value="${doc.id().asString()}">
+                <button class="danger">Delete document</button>
+              </form>
+            </details>
+          </div>
+        </details>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

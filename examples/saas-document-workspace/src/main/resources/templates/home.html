@@ -6,22 +6,44 @@
   <title>Document Workspace</title>
   <style th:replace="~{workspace-style :: style}"></style>
 </head>
-<body><main>
-  <p class="eyebrow">Vernac · Document Workspace</p>
-  <h1>A shared home for your documents.</h1>
-  <p>Write team notes, keep project documents together and download a text copy whenever you need one.</p>
-  <nav aria-label="Account">
-    <a class="primary" href="/auth/register">Register</a>
-    <a href="/identity/login">Sign in</a>
-  </nav>
-  <details>
-    <summary>Trying the local demo?</summary>
-    <ol>
-      <li>Register a test address such as <code>demo@example.test</code>.</li>
-      <li>In a second terminal in the project directory, run <code>./mvnw exec:java -Dexec.args=mail</code> . On Windows, run <code>.\mvnw.cmd exec:java "-Dexec.args=mail"</code>.</li>
-      <li>Open the verification link in the local mail preview, choose a password and sign in to your workspace.</li>
-    </ol>
-  </details>
-  <footer><a href="/impressum">Legal notice</a></footer>
-</main></body>
+<body class="landing">
+  <header class="topbar">
+    <a class="brand" href="/">Document Workspace</a>
+    <nav aria-label="Main navigation"><a href="#plans">Pricing</a><a href="/identity/login">Sign in</a></nav>
+  </header>
+  <main>
+    <section class="hero" aria-labelledby="intro">
+      <div>
+        <h1 id="intro">A shared home for your documents.</h1>
+        <p>Write and organize project notes in one workspace. Download any document as plain text whenever you need it.</p>
+        <a class="primary" href="#plans">View plans</a>
+      </div>
+      <div class="library-preview" aria-hidden="true">
+        <strong>Project library</strong>
+        <span>Project brief</span>
+        <span>Meeting notes</span>
+        <span>Launch checklist</span>
+      </div>
+    </section>
+    <section id="plans" aria-labelledby="pricing-title">
+      <h2 id="pricing-title">Choose your plan</h2>
+      <div class="plan-grid">
+        <article class="plan">
+          <h3>Free</h3>
+          <p class="price">€0 <small>/ month</small></p>
+          <p>Start a small collection of notes and try text export.</p>
+          <a class="primary" href="/auth/register">Register for Free</a>
+        </article>
+        <article class="plan">
+          <h3>Pro</h3>
+          <p class="price">€12 <small>/ month</small></p>
+          <p>Store more documents, write longer notes and export more often.</p>
+          <a class="primary" href="/billing">Choose Pro</a>
+          <p class="muted">New here? Create a Free account first, then upgrade in billing.</p>
+        </article>
+      </div>
+    </section>
+    <footer><a href="/impressum">Legal notice</a></footer>
+  </main>
+</body>
 </html>

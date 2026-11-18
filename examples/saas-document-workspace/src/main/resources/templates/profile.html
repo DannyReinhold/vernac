@@ -1,11 +1,29 @@
 <!doctype html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Profile · Document Workspace</title><style th:replace="~{workspace-style :: style}"></style></head>
-<body><main><nav><a href="/workspace">Workspace dashboard</a></nav>
-<h1>Your profile</h1>
-<h2>Sign-in and security</h2><p><a href="/auth/password">Change your password</a></p>
-<h2>Workspace membership</h2><p>Switch workspaces, manage members or review your account settings.</p>
-<a href="/auth/accounts">Manage workspaces and account</a>
-<h2>Subscription</h2><a href="/billing">View plan and billing</a>
-</main></body></html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Settings · Document Workspace</title>
+  <style th:replace="~{workspace-style :: style}"></style>
+</head>
+<body class="application">
+  <header class="topbar">
+    <a class="brand" href="/workspace">Document Workspace</a>
+    <nav aria-label="Workspace"><a href="/workspace">Back to documents</a></nav>
+  </header>
+  <main>
+    <h1>Settings</h1>
+    <section class="settings" aria-labelledby="profile-title">
+      <h2 id="profile-title">Your profile</h2>
+      <a href="/auth/password">Change your password</a>
+    </section>
+    <section class="settings" aria-labelledby="workspace-title">
+      <h2 id="workspace-title">Workspace settings</h2>
+      <ul class="settings-links">
+        <li><a href="/auth/accounts">Workspaces and members</a></li>
+        <li><a href="/billing">Plan and billing</a></li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>
