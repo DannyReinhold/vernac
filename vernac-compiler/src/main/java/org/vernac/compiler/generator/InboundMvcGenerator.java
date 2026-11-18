@@ -65,14 +65,18 @@ public final class InboundMvcGenerator {
         }
         for (var endpoint : adapter.endpoints()) {
             if (!endpoint.dependency().isEmpty()) continue;
-            type.addMethod(MethodSpec.methodBuilder(endpoint.name())
+            var page = MethodSpec.methodBuilder(endpoint.name())
                     .addModifiers(Modifier.PUBLIC)
                     .addAnnotation(AnnotationSpec.builder(annotation("GetMapping"))
                             .addMember("path", "$S", InboundResolver.join(adapter.base(), endpoint.route()))
                             .addMember("produces", "$S", "text/html")
                             .build())
-                    .returns(VIEW)
-                    .addStatement("var view = new $T($S)", VIEW, endpoint.view().orElseThrow().template())
+                    .returns(VIEW);
+            if (adapter.accessMode().orElse("").equals("authenticated")) {
+                page.addParameter(REQUEST, "request");
+                requirePrincipal(page);
+            }
+            type.addMethod(page.addStatement("var view = new $T($S)", VIEW, endpoint.view().orElseThrow().template())
                     .addStatement("view.setStatus($T.valueOf($L))",
                             ClassName.get("org.springframework.http", "HttpStatusCode"), endpoint.status())
                     .addStatement("return view")
@@ -170,10 +174,18 @@ public final class InboundMvcGenerator {
                 .build();
         var configuration = TypeSpec.classBuilder(adapter.name() + "Access")
                 .addAnnotation(ClassName.get("org.springframework.context.annotation", "Configuration"))
-                .addMethod(chain).build();
+                .addMethod(chain);
         var files = new ArrayList<>(controllers);
         files.add(file(pkg, configuration));
         return files;
+    }
+
+    private void requirePrincipal(MethodSpec.Builder method) {
+        method.beginControlFlow("if (request.getUserPrincipal() == null)")
+                .addStatement("throw new $T($T.UNAUTHORIZED)",
+                        ClassName.get("org.springframework.web.server", "ResponseStatusException"),
+                        ClassName.get("org.springframework.http", "HttpStatus"))
+                .endControlFlow();
     }
 
     private MethodSpec entry(
@@ -201,8 +213,9 @@ public final class InboundMvcGenerator {
                         .addModifiers(Modifier.PUBLIC)
                         .returns(VIEW)
                         .addAnnotation(mapping.build())
-                        .addParameter(REQUEST, "request")
-                        .addStatement("var inputs = $T.empty()", INPUTS)
+                        .addParameter(REQUEST, "request");
+        if (adapter.accessMode().orElse("").equals("authenticated")) requirePrincipal(method);
+        method.addStatement("var inputs = $T.empty()", INPUTS)
                         .beginControlFlow("try");
         method.addStatement("inputs = $T.capture(request, $L)", INPUTS, bindings(source.bindings()))
                 .addStatement("return __$N(inputs, request)", source.name())
