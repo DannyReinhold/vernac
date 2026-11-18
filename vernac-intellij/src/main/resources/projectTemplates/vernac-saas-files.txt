@@ -1,7 +1,6 @@
 .gitignore
 .mvn/wrapper/maven-wrapper.properties
 README.md
-acceptance_runtime.py
 browser/fixtures.mjs
 browser/package-lock.json
 browser/package.json
@@ -29,9 +28,6 @@ src/main/vernac/example/documentworkspace/usecases.vernac
 src/test/java/acceptance/support/AcceptanceApplication.java
 src/test/java/acceptance/support/AcceptanceConfiguration.java
 src/test/java/acceptance/support/AcceptanceControls.java
-test_acceptance_gate.py
-verify.py
-upgrade_snapshot.py
 vernac-application.vapplication
 src/main/java/example/documentworkspace/WorkspaceErrorPolicy.java
 src/main/resources/templates/workspace.html
