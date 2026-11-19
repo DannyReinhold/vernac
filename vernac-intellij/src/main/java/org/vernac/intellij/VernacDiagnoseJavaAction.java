@@ -4,7 +4,7 @@ package org.vernac.intellij;
 
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.application.*;
-import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.fileEditor.OpenFileDescriptor;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.testFramework.LightVirtualFile;
 import com.intellij.util.concurrency.AppExecutorUtil;
@@ -44,7 +44,7 @@ public final class VernacDiagnoseJavaAction extends AnAction {
                 .finishOnUiThread(ModalityState.defaultModalityState(), report -> {
                     var file = new LightVirtualFile("vernac-java-context.txt", report);
                     file.setWritable(false);
-                    FileEditorManager.getInstance(project).openFile(file, true);
+                    new OpenFileDescriptor(project, file).navigate(true);
                 })
                 .submit(AppExecutorUtil.getAppExecutorService());
     }

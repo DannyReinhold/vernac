@@ -105,8 +105,8 @@ public final class VernacShowDiagramAction extends AnAction implements DumbAware
                                                                         .refreshAndFindFileByPath(
                                                                                 page.toString());
                                                         if (generated != null)
-                                                            FileEditorManager.getInstance(project)
-                                                                    .openFile(generated, true);
+                                                            new OpenFileDescriptor(project, generated)
+                                                                    .navigate(true);
                                                     });
                                 } catch (com.intellij.openapi.progress.ProcessCanceledException e) {
                                     throw e;
