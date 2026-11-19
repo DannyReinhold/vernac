@@ -278,3 +278,21 @@ The JSON `inbound http` form continues to reject MVC-only clauses.
 External implementation targets also follow the 0.5.0
 [shared Java implementation resolution rules](implementation-contracts.md).
 Their mapping/error-handler calling convention is unchanged.
+
+## Endpoint access with Spring Security
+
+Both `inbound http` and `inbound mvc` accept an adapter-wide access policy
+after `base`. For example, an existing adapter exposing account routes can use
+`access authenticated;`. Every generated handler in that adapter then
+requires an authenticated Spring Security context before executing a usecase
+or rendering a view. Anonymous authentication tokens are denied. An adapter
+with `access public;` allows anonymous callers at the Vernac handler. Omitting
+`access` preserves the existing behavior.
+
+Add `spring-boot-starter-security` to the host application for authenticated
+adapters. The application's `SecurityFilterChain` supplies authentication and
+the authentication entry point. Configure public routes with `permitAll()`
+in that chain if the application's default rule requires authentication.
+For protected routes the chain can also require authentication at the request
+boundary. Its CSRF and other request rules apply independently of the
+Vernac declaration.

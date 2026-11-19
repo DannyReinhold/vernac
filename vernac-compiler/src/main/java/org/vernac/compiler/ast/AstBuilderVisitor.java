@@ -240,12 +240,16 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                         Optional.ofNullable(e.redirect).map(t -> errorString(t.getText(),toLocation(e))),
                         Optional.ofNullable(e.notice).map(t -> errorString(t.getText(),toLocation(e))),
                         Optional.ofNullable(e.absentView).map(t -> errorString(t.getText(),toLocation(e))))))).toList();
+        var access = ctx.accessMode == null ? InboundHttpAdapterNode.Access.UNSPECIFIED
+                : ctx.accessMode.getText().equals("public")
+                        ? InboundHttpAdapterNode.Access.PUBLIC
+                        : InboundHttpAdapterNode.Access.AUTHENTICATED;
         return new InboundHttpAdapterNode(toLocation(ctx), ctx.name.getText(), unquote(ctx.base.getText()),
                 ctx.dependencies.stream().map(this::adapterParameter).toList(), endpoints,
                 ctx.schemaDefinition().stream().map(this::visitSchemaDefinition).toList(),
                 ctx.mappingDefinition().stream().map(this::visitMappingDefinition).toList(),
                 inboundImplementation(ctx.inboundErrorPolicy()), inboundRules(ctx.inboundErrorPolicy()),
-                ctx.transport.getText().equals("mvc"), Optional.ofNullable(ctx.errorView).map(t -> errorString(t.getText(),toLocation(ctx))));
+                ctx.transport.getText().equals("mvc"), Optional.ofNullable(ctx.errorView).map(t -> errorString(t.getText(),toLocation(ctx))), access);
     }
 
     private Optional<String> inboundImplementation(VernacParser.InboundErrorPolicyContext policy) {
