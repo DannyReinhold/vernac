@@ -3,9 +3,9 @@ title: Vernac language reference
 ---
 # Vernac language reference
 
-This reference describes the **Vernac 0.5.1 language and generated API**. Use matching
-compiler and runtime versions. Source checkouts default to 0.5.1-SNAPSHOT;
-released consumers select matching 0.5.1 artifacts after publication. Obsolete experimental syntax is not supported.
+This reference describes the **Vernac 0.5.2 language and generated API**. Use matching
+compiler and runtime versions. Source checkouts default to 0.5.2-SNAPSHOT;
+released consumers select matching 0.5.2 artifacts after publication. Obsolete experimental syntax is not supported.
 The [specification index](specification/index.md) identifies the normative document
 for each rule. A discrepancy between implementation and contract is a defect to
 investigate, not permission to silently redefine the contract.
@@ -783,9 +783,9 @@ IntelliJ's Show Domain Diagram action includes unsaved source snapshots and open
 enable its Mermaid preview extension if needed. No rendered image or live model explorer
 is implied. See [the diagram tutorial](tutorials/domain-diagrams.md).
 
-### Vernac source debugging (0.5.1 tooling)
+### Vernac source debugging (0.5.2 tooling)
 
-The 0.5.1 plugin/compiler can map inline domain behavior breakpoints to original
+The 0.5.2 plugin/compiler can map inline domain behavior breakpoints to original
 Vernac lines using build-owned metadata. Build with debug line/local-variable information
 and use matching source/generated/runtime artifacts. This is not new DSL syntax and
 does not imply full debugger coverage or hot swap. See the [prototype scope](development/vernac-debugger-prototype.md)
@@ -796,7 +796,7 @@ method scope (`self`, arguments and locals). Breakpoint logging and suspension a
 standard IntelliJ options; see the [debugger walkthrough](https://github.com/DannyReinhold/vernac/blob/main/examples/debugger/README.md)
 for Evaluate Expression, conditions and non-suspending logpoints.
 
-A guided [debugging tutorial](tutorials/debugging.md) covers the 0.5.1
+A guided [debugging tutorial](tutorials/debugging.md) covers the 0.5.2
 integration and states its exact coverage. Inline usecase execute blocks, domain service
 operations and their private helpers also have mappings. User-authored require rules
 on VOs, entities, aggregates, usecases and services map their opening require line to
@@ -810,7 +810,7 @@ has no artificial breakpoint. Adapter-method preconditions remain unsupported by
 language contract. Debugging tooling does not
 change transaction, validation or asynchronous execution semantics.
 
-Expression editing is separate from runtime evaluation. The 0.5.1
+Expression editing is separate from runtime evaluation. The 0.5.2
 plugin routes expression requests to the verified Java scope of their Vernac line
 to address red variables and missing Ctrl+Space completion. Core expression editing
 and adapter/mapping debugging have been confirmed in the installed IDE. Runtime
@@ -824,7 +824,7 @@ expressions. Normal stepping skips only verified pure facade reads, not modifica
 wrappers, validators or callbacks. Contributor mode restores raw Java views and disables
 this filter. Native tree/Watch/stepping acceptance is separate from the JVM inspector test.
 
-The 0.5.1 plugin also supplies native PSI references for declared Vernac
+The 0.5.2 plugin also supplies native PSI references for declared Vernac
 types in DSL signatures/fields/imports/dependencies and repository aggregate targets.
 These use compiler namespace/import/export visibility and exact UTF-16 type-name
 ranges for native Ctrl-hover navigation feedback. Injected Java, strings and enum

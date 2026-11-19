@@ -34,10 +34,10 @@ generates and compiles Java sources. Editor diagnostics do not replace a success
 
 ## 1. Prepare your environment
 
-This guide describes the **0.5.1 plugin**. Match its compiler/runtime version, and
+This guide describes the **0.5.2 plugin**. Match its compiler/runtime version, and
 check the packaged descriptor for IDE compatibility.
 
-- Use a compatible IntelliJ IDEA installation. Vernac 0.5.1 requires build `262.10968.63` or later. The descriptor sets no maximum build.
+- Use a compatible IntelliJ IDEA installation. Vernac 0.5.2 requires build `262.10968.63` or later. The descriptor sets no maximum build.
 - Keep IntelliJ's Java and Maven plugins enabled. The plugin also requires IntelliJ's LSP support.
 - Register a JDK with Java 25 in **Project Structure → SDKs**. The wizard currently selects registered JDKs; it
   does not download a new JDK for you.
@@ -45,11 +45,11 @@ check the packaged descriptor for IDE compatibility.
 
 ### Released plugin versus a source build
 
-A 0.5.1 release plugin selects matching 0.5.1 Maven artifacts.
+A 0.5.2 release plugin selects matching 0.5.2 Maven artifacts.
 They are downloaded from Central; building the Vernac repository is unnecessary.
 Before that release is published, use the source-build route below instead.
 
-A development plugin built from this checkout uses **0.5.1-SNAPSHOT**. Install its
+A development plugin built from this checkout uses **0.5.2-SNAPSHOT**. Install its
 matching artifacts from the repository root first:
 
 ```shell
@@ -202,7 +202,7 @@ Suggestions track unsaved edits. Ambiguous names are not resolved arbitrarily.
 ### Hover information and navigation
 
 Hover over a reference such as `TaskId` to inspect its LSP information and vocabulary
-entry. With the **0.5.1 plugin**, hold **Ctrl** and move the mouse over
+entry. With the **0.5.2 plugin**, hold **Ctrl** and move the mouse over
 that type reference: native PSI references supply the type-name range and resolved
 declaration for IntelliJ's navigable-link highlighting. Click to navigate, or use
 **Ctrl+B** / **Go to Declaration**. The exact color and shortcut follow your IDE theme
@@ -379,10 +379,10 @@ Functional modules require explicit activation; type-only dependencies do not ne
 
 ## Debug inline behavior
 
-With the matching **0.5.1-SNAPSHOT** compiler and plugin, you can set breakpoints
+With the matching **0.5.2-SNAPSHOT** compiler and plugin, you can set breakpoints
 inside supported Vernac behavior bodies and inspect the live JVM state. Follow the
 [debugging tutorial](debugging.md) for a database-free example, expression evaluation,
-conditional breakpoints and logpoints. Use matching 0.5.1 release artifacts or the matching source-build instructions.
+conditional breakpoints and logpoints. Use matching 0.5.2 release artifacts or the matching source-build instructions.
 
 ### Vocabulary terms and embedded Java
 
@@ -399,7 +399,7 @@ context; these expressions are not Vernac type references.
 
 ### Server-rendered MVC adapters
 
-Vernac 0.5.1 accepts template-only GET routes and offers completion for `access`
+Vernac 0.5.2 accepts template-only GET routes and offers completion for `access`
 after `base` in HTTP and MVC adapters. The editor highlights the policy and
 completes `public` and `authenticated` as its values.
 

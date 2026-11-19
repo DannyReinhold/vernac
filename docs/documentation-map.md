@@ -7,9 +7,9 @@ You do not need to read everything in order. Choose the outcome you want below.
 Tutorials teach by doing; references help while writing; contracts settle exact
 semantics; development notes explain how the implementation works.
 
-**Version guide:** these pages describe the **0.5.1 release line**, including native
+**Version guide:** these pages describe the **0.5.2 release line**, including native
 debugging, MVC/starter support and live Java editor APIs. Match compiler/runtime and
-plugin versions. Source builds use **0.5.1-SNAPSHOT**; release builds select **0.5.1**.
+plugin versions. Source builds use **0.5.2-SNAPSHOT**; release builds select **0.5.2**.
 If that version is not published yet, use the matching source-build instructions.
 Historical release records are not the current feature reference.
 
