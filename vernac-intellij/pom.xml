@@ -96,6 +96,17 @@
             <artifactId>maven</artifactId>
             <version>${intellij.platform.version}</version>
             <scope>provided</scope>
+            <!-- IDE-owned runtime modules outside the Maven APIs used by Vernac. -->
+            <exclusions>
+                <exclusion>
+                    <groupId>com.jetbrains.intellij.repository</groupId>
+                    <artifactId>repository-search-common</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.jetbrains.intellij.grazie</groupId>
+                    <artifactId>grazie-core</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- Required by Kotlin-based IntelliJ APIs during compilation and native PSI tests.
              IntelliJ provides Kotlin at runtime; do not bundle it with the plugin. -->
