@@ -100,7 +100,7 @@
 ]]></description>
 
     <change-notes><![CDATA[
-<h3>Vernac 0.5.1</h3>
+<h3>Vernac 0.5.2</h3>
 <ul>
     <li>Render a Thymeleaf template directly from an MVC GET route with
         <code>render "about";</code>. Usecase-backed pages can still pass a model.</li>

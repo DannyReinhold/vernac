@@ -84,10 +84,10 @@ framework convention.
 
 ## Start with a passing test
 
-This documentation describes the **Vernac 0.5.1 language and API**. Use matching
+This documentation describes the **Vernac 0.5.2 language and API**. Use matching
 compiler, runtime and IntelliJ plugin versions; earlier releases do not support all
 constructs documented here. For a source checkout, the commands below build and install
-the version configured in its root POM (currently `0.5.1-SNAPSHOT`).
+the version configured in its root POM (currently `0.5.2-SNAPSHOT`).
 
 Use JDK 25 and Maven 3.9.x (release automation pins 3.9.16). Generated application code targets Java 21.
 From this repository, install the compiler and runtime, then try the minimal template:
@@ -177,15 +177,15 @@ from Maven or open its diagram directly from IntelliJ.
 
 ## Debug the business rule, in its source
 
-With the **0.5.1 compiler and plugin**, put a breakpoint inside an inline Vernac
+With the **0.5.2 compiler and plugin**, put a breakpoint inside an inline Vernac
 behavior and inspect the live JVM state without first finding its generated Java
 implementation. Step through the rule, inspect `self` and locals, evaluate Java
 expressions and use conditional breakpoints.
 
 The [debugging walkthrough](docs/tutorials/debugging.md) takes you through a
 small runnable example, including private helpers, handwritten Java transitions
-and logpoints. It explains the current coverage and limits. Use matching 0.5.1 release artifacts, or matching
-0.5.1-SNAPSHOT artifacts when building this source checkout.
+and logpoints. It explains the current coverage and limits. Use matching 0.5.2 release artifacts, or matching
+0.5.2-SNAPSHOT artifacts when building this source checkout.
 
 ## Contributing and reporting problems
 
