@@ -134,3 +134,25 @@ alongside compiler diagnostics and existing JSON inbound regressions.
 External implementation targets also follow the 0.5.0
 [shared Java implementation resolution rules](implementation-contracts.md).
 Their mapping/error-handler calling convention is unchanged.
+
+## Pages with a template only
+
+A GET page can render a template directly when it needs no application data.
+
+```vernac
+namespace example.web;
+
+adapter Information inbound mvc {
+    base "/";
+    about {
+        GET "/about";
+        render "about";
+    }
+}
+```
+
+With Spring Boot's Thymeleaf starter, place the template in
+`src/main/resources/templates/about.html`. The controller returns the logical
+view name through Spring MVC. A template-only route has no request bindings or
+model. An adapter consisting exclusively of template-only routes can omit
+`error view` when it also has no adapter-level error policy.

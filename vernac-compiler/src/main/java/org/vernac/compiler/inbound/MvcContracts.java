@@ -29,6 +29,17 @@ final class MvcContracts {
                         + " or redirect/forward expressions.");
     }
 
+    void validateTemplateOnlyRoute(InboundHttpAdapterNode adapter, InboundHttpAdapterNode.Endpoint endpoint) {
+        var view = endpoint.view();
+        if (!adapter.mvc() || !endpoint.verb().equals("GET")
+                || !endpoint.bindings().isEmpty() || endpoint.bodyType().isPresent()
+                || view.isEmpty() || view.get().redirect().isPresent()
+                || view.get().modelName().isPresent() || endpoint.absentStatus().isPresent()
+                || endpoint.errorImplementation().isPresent() || !endpoint.errorRules().isEmpty()) {
+            error(endpoint.location(), "A route without execute must be a plain MVC GET render.");
+        }
+    }
+
     void validate(InboundHttpAdapterNode adapter) {
         if (!adapter.mvc()) {
             if (adapter.errorView().isPresent()
@@ -42,7 +53,9 @@ final class MvcContracts {
                         "Views, redirects and redisplay require inbound mvc, not inbound http.");
             return;
         }
-        if (adapter.errorView().isEmpty())
+        if (adapter.errorView().isEmpty()
+                && (adapter.endpoints().stream().anyMatch(e -> !e.dependency().isEmpty())
+                        || !adapter.errorRules().isEmpty() || adapter.errorImplementation().isPresent()))
             error(
                     adapter.location(),
                     "An MVC adapter requires error view \"template\"; for safe fallback"

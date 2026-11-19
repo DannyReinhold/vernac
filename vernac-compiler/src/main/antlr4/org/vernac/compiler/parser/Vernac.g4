@@ -147,6 +147,7 @@ inboundHttpAdapterDefinition
     : 'adapter' name=typeName 'inbound' transport=('http' | 'mvc')
       ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
       '{' 'base' base=STRING_LITERAL ';'
+      ('access' accessMode=('public' | 'authenticated') ';')?
       ('error' 'view' errorView=STRING_LITERAL ';')?
       (inboundEndpoint | schemaDefinition | mappingDefinition)*
       inboundErrorPolicy? '}' ';'?
@@ -154,7 +155,7 @@ inboundHttpAdapterDefinition
 inboundEndpoint
     : name=methodName '{' verb=('GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE') route=STRING_LITERAL ';'
       inboundBinding* ('body' bodyType=type ';')?
-      'execute' dependency=variableName '{' mappingAssignment* '}'
+      ('execute' dependency=variableName '{' mappingAssignment* '}')?
       ('respond' status=INT_LITERAL (responseType=type 'using' responseMapping=methodName)? ';'
        | 'render' view=STRING_LITERAL ('model' modelName=variableName)? ('status' renderStatus=INT_LITERAL)? ';'
        | 'redirect' redirect=STRING_LITERAL ('message' notice=STRING_LITERAL)? ';')
@@ -347,7 +348,7 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
+    : 'access' | 'authenticated' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | IDENTIFIER
     | BOOLEAN_LITERAL
@@ -451,7 +452,7 @@ typeName
     ;
 
 methodName
-    : 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
+    : 'access' | 'authenticated' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'read' | 'modify' | 'load' | 'save'
@@ -462,7 +463,7 @@ methodName
     ;
 
 variableName
-    : 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'read' | 'modify'
+    : 'access' | 'authenticated' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'read' | 'modify'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'

@@ -227,7 +227,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                     return new InboundHttpAdapterNode.Binding(toLocation(b), b.kind.getText(), type, name,
                             b.externalName == null ? name : unquote(b.externalName.getText()),
                             Optional.ofNullable(b.defaultValue).map(t -> errorString(t.getText(),toLocation(b))), b.sensitive != null);
-                }).toList(), Optional.ofNullable(e.bodyType).map(this::toTypeNode), e.dependency.getText(),
+                }).toList(), Optional.ofNullable(e.bodyType).map(this::toTypeNode), e.dependency == null ? "" : e.dependency.getText(),
                 e.mappingAssignment().stream().map(a -> new MappingAssignmentNode(toLocation(a), a.target.getText(),
                         List.of(a.path.getText().split("\\.")), Optional.ofNullable(a.mapper).map(ParserRuleContext::getText))).toList(),
                 e.status != null ? httpStatus(e.status.getText()) : e.renderStatus != null ? httpStatus(e.renderStatus.getText()) : 200, Optional.ofNullable(e.responseType).map(this::toTypeNode),
@@ -240,12 +240,16 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                         Optional.ofNullable(e.redirect).map(t -> errorString(t.getText(),toLocation(e))),
                         Optional.ofNullable(e.notice).map(t -> errorString(t.getText(),toLocation(e))),
                         Optional.ofNullable(e.absentView).map(t -> errorString(t.getText(),toLocation(e))))))).toList();
+        var access = ctx.accessMode == null ? InboundHttpAdapterNode.Access.UNSPECIFIED
+                : ctx.accessMode.getText().equals("public")
+                        ? InboundHttpAdapterNode.Access.PUBLIC
+                        : InboundHttpAdapterNode.Access.AUTHENTICATED;
         return new InboundHttpAdapterNode(toLocation(ctx), ctx.name.getText(), unquote(ctx.base.getText()),
                 ctx.dependencies.stream().map(this::adapterParameter).toList(), endpoints,
                 ctx.schemaDefinition().stream().map(this::visitSchemaDefinition).toList(),
                 ctx.mappingDefinition().stream().map(this::visitMappingDefinition).toList(),
                 inboundImplementation(ctx.inboundErrorPolicy()), inboundRules(ctx.inboundErrorPolicy()),
-                ctx.transport.getText().equals("mvc"), Optional.ofNullable(ctx.errorView).map(t -> errorString(t.getText(),toLocation(ctx))));
+                ctx.transport.getText().equals("mvc"), Optional.ofNullable(ctx.errorView).map(t -> errorString(t.getText(),toLocation(ctx))), access);
     }
 
     private Optional<String> inboundImplementation(VernacParser.InboundErrorPolicyContext policy) {

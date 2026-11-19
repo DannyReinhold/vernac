@@ -14,6 +14,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -54,6 +61,23 @@ class InboundMvcExecutionTest {
                 execute {Probe.submit(text.string());}
             }
             usecase Maybe() returns Text? behavior {execute {return java.util.Optional.empty();}}
+            adapter Landing inbound mvc {
+                base "/info";
+                access public;
+                about { GET "/about"; render "about"; }
+            }
+            usecase PrivateAction() behavior { execute {} }
+            adapter PrivatePage inbound mvc {
+                base "/private";
+                access authenticated;
+                error view "problem";
+                account { GET "/account"; render "account"; }
+            }
+            adapter PrivateApi inbound http uses PrivateAction action {
+                base "/private";
+                access authenticated;
+                submit { POST "/submit"; execute action {} respond 204; }
+            }
             adapter Page inbound mvc uses Read reader, Submit submitter, Maybe maybe {
                 base "/";
                 error view "problem";
@@ -194,9 +218,22 @@ class InboundMvcExecutionTest {
                 loader.loadClass("mvc.adapter.inbound.http.PageErrors")
                         .getConstructors()[0]
                         .newInstance(controller);
+        Object landing = loader.loadClass("mvc.adapter.inbound.http.Landing")
+                .getConstructor().newInstance();
+        Object privatePage = loader.loadClass("mvc.adapter.inbound.http.PrivatePage")
+                .getConstructor().newInstance();
+        Object privatePageAdvice = loader.loadClass("mvc.adapter.inbound.http.PrivatePageErrors")
+                .getConstructors()[0].newInstance(privatePage);
+        Object privateAction = loader.loadClass("mvc.usecase.PrivateAction")
+                .getConstructors()[0].newInstance(events);
+        Object privateApi = loader.loadClass("mvc.adapter.inbound.http.PrivateApi")
+                .getConstructors()[0].newInstance(privateAction);
+        Object privateApiAdvice = loader.loadClass("mvc.adapter.inbound.http.PrivateApiErrors")
+                .getConstructor().newInstance();
         MockMvc web =
-                MockMvcBuilders.standaloneSetup(controller)
-                        .setControllerAdvice(advice)
+                MockMvcBuilders.standaloneSetup(controller, landing, privatePage, privateApi)
+                        .setControllerAdvice(advice, privatePageAdvice, privateApiAdvice)
+                        .addFilters(new ExceptionTranslationFilter(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                         .setViewResolvers(
                                 (name, locale) ->
                                         new View() {
@@ -246,6 +283,40 @@ class InboundMvcExecutionTest {
     private static InboundHttpErrors.Body error(MvcResult result) {
         return (InboundHttpErrors.Body)
                 Objects.requireNonNull(result.getModelAndView()).getModel().get("error");
+    }
+
+    @Test
+    void authenticatesMvcAndHttpThroughSpringSecurity() throws Exception {
+        try (var fixture = fixture()) {
+            var context = SecurityContextHolder.getContext();
+            fixture.web().perform(get("/private/account")).andExpect(status().isUnauthorized());
+
+            context.setAuthentication(new AnonymousAuthenticationToken("fixture", "anonymous",
+                    AuthorityUtils.createAuthorityList("ROLE_ANONYMOUS")));
+            fixture.web().perform(get("/info/about")).andExpect(status().isOk());
+            fixture.web().perform(get("/private/account")).andExpect(status().isUnauthorized());
+            fixture.web().perform(post("/private/submit")).andExpect(status().isUnauthorized());
+
+            SecurityContextHolder.getContext().setAuthentication(
+                    UsernamePasswordAuthenticationToken.authenticated("fixture", null,
+                            AuthorityUtils.createAuthorityList("ROLE_USER")));
+            fixture.web().perform(get("/private/account"))
+                    .andExpect(status().isOk())
+                    .andExpect(view().name("account"));
+            fixture.web().perform(post("/private/submit")).andExpect(status().isNoContent());
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void rendersTemplateWithoutCallingAUsecase() throws Exception {
+        try (var fixture = fixture()) {
+            fixture.web().perform(get("/info/about"))
+                    .andExpect(status().isOk())
+                    .andExpect(view().name("about"));
+            assertEquals(0, fixture.count("loads"));
+        }
     }
 
     @Test

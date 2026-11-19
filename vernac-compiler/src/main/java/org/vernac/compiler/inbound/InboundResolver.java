@@ -143,6 +143,10 @@ public final class InboundResolver {
                 else rootFields.add(new Field("body",body,false,false));
             }
             Type request=new Type("request:"+endpoint.name(),ClassName.get(Object.class),Kind.RESULT,null,null,null,false);resolver.register(request,rootFields);
+            if (endpoint.dependency().isEmpty()) {
+                mvc.validateTemplateOnlyRoute(adapter, endpoint);
+                continue;
+            }
             var dependency=dependencies.get(endpoint.dependency());
             if(dependency==null) {error(endpoint.location(),"Unknown usecase dependency: "+endpoint.dependency());continue;}
             Map<String,MappingAssignmentNode> supplied=new LinkedHashMap<>();
