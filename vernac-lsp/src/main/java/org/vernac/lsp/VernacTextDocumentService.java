@@ -26,7 +26,7 @@ public class VernacTextDocumentService implements TextDocumentService {
     private static final Set<String> DSL_KEYWORDS = Set.of(
             "term", "description", "example", "note", "GET", "POST", "PUT", "PATCH", "DELETE",
             "application", "activate", "bind", "to", "module", "export", "rejection", "integration", "invalid", "request", "validation", "found", "optimistic", "conflict", "domain", "when", "then", "otherwise", "default", "reject", "fail", "local", "remote", "unknown", "status",
-            "client", "base", "body", "response", "errors", "path", "query", "header",
+            "client", "base", "access", "authenticated", "body", "response", "errors", "path", "query", "header",
             "counted", "cursor", "offset", "counting", "where", "and", "or", "not", "order", "asc", "desc", "is", "absent", "present", "like", "contains", "starts", "ends", "with",
             "namespace", "package", "import", "as", "id",
             "aggregate", "value", "entity", "event", "recorded", "synchronous", "deferred", "service", "external", "schema",
@@ -46,6 +46,10 @@ public class VernacTextDocumentService implements TextDocumentService {
             "this", "throw", "throws", "transient", "try", "var", "void", "volatile", "while",
             "true", "false"
     );
+
+    private static final Pattern INBOUND_ACCESS_POSITION = Pattern.compile(
+            "(?:^|[;}] )adapter [^ ]+ inbound (?:http|mvc) (?:uses [^{};]+)?"
+                    + "\\{ base <string> ;(?: (access)(?: ([a-z]+))?| ([a-z]+))?$");
 
     private final VernacProjectDiagnostics projects;
 
@@ -224,6 +228,10 @@ public class VernacTextDocumentService implements TextDocumentService {
 
         List<CompletionItem> items = new ArrayList<>();
 
+        if (addInboundAccessCompletions(items, prefix)) {
+            return CompletableFuture.completedFuture(Either.forLeft(items));
+        }
+
         // Context A: After "for" in repositories -> Only aggregates
         if (prefix.matches("(?s).*\\brepository\\s+[\\p{L}\\p{N}\\p{M}_$]+\\s+for\\s+[\\p{L}\\p{N}\\p{M}_$]*$")) {
             addAggregateCompletions(items, content);
@@ -254,6 +262,32 @@ public class VernacTextDocumentService implements TextDocumentService {
         addTopLevelCompletions(items);
 
         return CompletableFuture.completedFuture(Either.forLeft(items));
+    }
+
+    private boolean addInboundAccessCompletions(List<CompletionItem> items, String prefix) {
+        var lexer = new VernacLexer(CharStreams.fromString(prefix));
+        lexer.removeErrorListeners();
+        var tokens = new StringJoiner(" ");
+        for (Token token = lexer.nextToken(); token.getType() != Token.EOF; token = lexer.nextToken()) {
+            if (token.getType() == VernacLexer.LINE_COMMENT
+                    && token.getStopIndex() + 1 == lexer.getInputStream().size()) return false;
+            if (token.getChannel() == Token.DEFAULT_CHANNEL) {
+                tokens.add(token.getType() == VernacLexer.STRING_LITERAL ? "<string>" : token.getText());
+            }
+        }
+        var position = INBOUND_ACCESS_POSITION.matcher(tokens.toString());
+        if (!position.find()) return false;
+        String keywordPrefix = position.group(3);
+        if (keywordPrefix != null && !"access".startsWith(keywordPrefix)) return false;
+        if (position.group(1) == null || prefix.endsWith("access")) {
+            addKeywordCompletion(items, "access", "access ${1|public,authenticated|};");
+        } else {
+            String modePrefix = position.group(2);
+            for (String mode : List.of("public", "authenticated")) {
+                if (modePrefix == null || mode.startsWith(modePrefix)) addKeywordCompletion(items, mode, mode);
+            }
+        }
+        return true;
     }
 
     private String getPrefixUpToCursor(String content, int lineIndex, int charIndex) {

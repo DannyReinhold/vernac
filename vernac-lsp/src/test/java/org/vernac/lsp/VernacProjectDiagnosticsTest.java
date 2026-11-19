@@ -55,6 +55,45 @@ class VernacProjectDiagnosticsTest {
     }
     List<Diagnostic> diagnostics(Path path) { return client.latest.get(path.toUri().toString()).getDiagnostics(); }
 
+    @Test
+    void inboundAccessCompletesOnlyAtTheAdapterPolicyAndHighlightsItsKeywords() throws Exception {
+        String adapter = "adapter Pages inbound mvc {base \"/\"; ";
+        Path model = file("pages", "pages", adapter
+                + "access authenticated; home {GET \"/\"; render \"home\";} }");
+        open(model);
+        assertTrue(diagnostics(model).isEmpty(), diagnostics(model).toString());
+        var document = new TextDocumentIdentifier(model.toUri().toString());
+        var service = server.getTextDocumentService();
+        var tokens = service.semanticTokensFull(new SemanticTokensParams(document)).join().getData();
+        String line = Files.readAllLines(model).get(1);
+        List<String> keywords = new ArrayList<>();
+        int tokenLine = 0, column = 0;
+        for (int i = 0; i < tokens.size(); i += 5) {
+            int deltaLine = tokens.get(i);
+            tokenLine += deltaLine;
+            column = deltaLine == 0 ? column + tokens.get(i + 1) : tokens.get(i + 1);
+            if (tokenLine == 1 && VernacLanguageServer.TOKEN_TYPES.get(tokens.get(i + 3))
+                    .equals(SemanticTokenTypes.Keyword)) {
+                keywords.add(line.substring(column, column + tokens.get(i + 2)));
+            }
+        }
+        assertTrue(keywords.containsAll(List.of("access", "authenticated")));
+
+        assertEquals(List.of("access"), completionsAtEnd(document, adapter + "acc", 2));
+        assertEquals(List.of("public", "authenticated"), completionsAtEnd(document, adapter + "access ", 3));
+        assertEquals(List.of("authenticated"), completionsAtEnd(document,
+                "adapter Api inbound http uses Find finder {base \"/\"; access aut", 4));
+        assertFalse(completionsAtEnd(document, adapter + "home {GET \"/\"; acc", 5).contains("access"));
+        assertFalse(completionsAtEnd(document, adapter + "access public; acc", 6).contains("access"));
+    }
+
+    private List<String> completionsAtEnd(TextDocumentIdentifier document, String line, int version) {
+        change(Path.of(java.net.URI.create(document.getUri())), "namespace pages;\n" + line, version);
+        return server.getTextDocumentService()
+                .completion(new CompletionParams(document, new Position(1, line.length())))
+                .join().getLeft().stream().map(CompletionItem::getLabel).toList();
+    }
+
     @Test void domainFieldAndContainmentErrorsAppearAndClearWhileEditing() throws Exception {
         Path model = file("model", "model", "id Key; entity Node[Key](String text);");
         open(model);
