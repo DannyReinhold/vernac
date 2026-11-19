@@ -227,7 +227,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                     return new InboundHttpAdapterNode.Binding(toLocation(b), b.kind.getText(), type, name,
                             b.externalName == null ? name : unquote(b.externalName.getText()),
                             Optional.ofNullable(b.defaultValue).map(t -> errorString(t.getText(),toLocation(b))), b.sensitive != null);
-                }).toList(), Optional.ofNullable(e.bodyType).map(this::toTypeNode), e.dependency.getText(),
+                }).toList(), Optional.ofNullable(e.bodyType).map(this::toTypeNode), e.dependency == null ? "" : e.dependency.getText(),
                 e.mappingAssignment().stream().map(a -> new MappingAssignmentNode(toLocation(a), a.target.getText(),
                         List.of(a.path.getText().split("\\.")), Optional.ofNullable(a.mapper).map(ParserRuleContext::getText))).toList(),
                 e.status != null ? httpStatus(e.status.getText()) : e.renderStatus != null ? httpStatus(e.renderStatus.getText()) : 200, Optional.ofNullable(e.responseType).map(this::toTypeNode),

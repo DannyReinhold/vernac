@@ -63,7 +63,11 @@ public final class InboundMvcGenerator {
             type.addMethod(entry(adapter, endpoint.source()));
             type.addMethod(loader(endpoint, mappings));
         }
-        type.addMethod(failure(adapter, project, pkg));
+        for (var endpoint : adapter.endpoints()) {
+            if (endpoint.dependency().isEmpty()) type.addMethod(entry(adapter, endpoint));
+        }
+        boolean handlesErrors = adapter.errorView().isPresent();
+        if (handlesErrors) type.addMethod(failure(adapter, project, pkg));
         BehaviorGenerator.addDebugFingerprint(type, file(pkg, type), unit, project);
         var advice =
                 TypeSpec.classBuilder(adapter.name() + "Errors")
@@ -114,7 +118,7 @@ public final class InboundMvcGenerator {
                         .build());
         var files = new ArrayList<JavaFile>();
         files.add(file(pkg, type));
-        files.add(file(pkg, advice));
+        if (handlesErrors) files.add(file(pkg, advice));
         if (!plan.schemas().isEmpty())
             files.add(new DtoGenerator().generate(adapter.name(), pkg + ".dto", plan.schemas()));
         if (!plan.mappings().isEmpty())
@@ -143,8 +147,15 @@ public final class InboundMvcGenerator {
                 MethodSpec.methodBuilder(source.name())
                         .addModifiers(Modifier.PUBLIC)
                         .returns(VIEW)
-                        .addAnnotation(mapping.build())
-                        .addParameter(REQUEST, "request")
+                        .addAnnotation(mapping.build());
+        if (source.dependency().isEmpty()) {
+            return method.addStatement("var view = new $T($S)", VIEW, source.view().orElseThrow().template())
+                    .addStatement("view.setStatus($T.valueOf($L))",
+                            ClassName.get("org.springframework.http", "HttpStatusCode"), source.status())
+                    .addStatement("return view")
+                    .build();
+        }
+        method.addParameter(REQUEST, "request")
                         .addStatement("var inputs = $T.empty()", INPUTS)
                         .beginControlFlow("try");
         method.addStatement("inputs = $T.capture(request, $L)", INPUTS, bindings(source.bindings()))

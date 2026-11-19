@@ -154,7 +154,7 @@ inboundHttpAdapterDefinition
 inboundEndpoint
     : name=methodName '{' verb=('GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE') route=STRING_LITERAL ';'
       inboundBinding* ('body' bodyType=type ';')?
-      'execute' dependency=variableName '{' mappingAssignment* '}'
+      ('execute' dependency=variableName '{' mappingAssignment* '}')?
       ('respond' status=INT_LITERAL (responseType=type 'using' responseMapping=methodName)? ';'
        | 'render' view=STRING_LITERAL ('model' modelName=variableName)? ('status' renderStatus=INT_LITERAL)? ';'
        | 'redirect' redirect=STRING_LITERAL ('message' notice=STRING_LITERAL)? ';')

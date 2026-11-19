@@ -54,6 +54,10 @@ class InboundMvcExecutionTest {
                 execute {Probe.submit(text.string());}
             }
             usecase Maybe() returns Text? behavior {execute {return java.util.Optional.empty();}}
+            adapter Landing inbound mvc {
+                base "/info";
+                about { GET "/about"; render "about"; }
+            }
             adapter Page inbound mvc uses Read reader, Submit submitter, Maybe maybe {
                 base "/";
                 error view "problem";
@@ -194,8 +198,10 @@ class InboundMvcExecutionTest {
                 loader.loadClass("mvc.adapter.inbound.http.PageErrors")
                         .getConstructors()[0]
                         .newInstance(controller);
+        Object landing = loader.loadClass("mvc.adapter.inbound.http.Landing")
+                .getConstructor().newInstance();
         MockMvc web =
-                MockMvcBuilders.standaloneSetup(controller)
+                MockMvcBuilders.standaloneSetup(controller, landing)
                         .setControllerAdvice(advice)
                         .setViewResolvers(
                                 (name, locale) ->
@@ -246,6 +252,16 @@ class InboundMvcExecutionTest {
     private static InboundHttpErrors.Body error(MvcResult result) {
         return (InboundHttpErrors.Body)
                 Objects.requireNonNull(result.getModelAndView()).getModel().get("error");
+    }
+
+    @Test
+    void rendersTemplateWithoutCallingAUsecase() throws Exception {
+        try (var fixture = fixture()) {
+            fixture.web().perform(get("/info/about"))
+                    .andExpect(status().isOk())
+                    .andExpect(view().name("about"));
+            assertEquals(0, fixture.count("loads"));
+        }
     }
 
     @Test
