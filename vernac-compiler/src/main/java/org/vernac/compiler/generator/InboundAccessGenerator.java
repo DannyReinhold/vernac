@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.vernac.compiler.generator;
 
-import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.MethodSpec;
+import com.palantir.javapoet.ClassName;
+import com.palantir.javapoet.MethodSpec;
 import org.vernac.compiler.ast.InboundHttpAdapterNode;
 
 final class InboundAccessGenerator {
