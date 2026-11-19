@@ -40,7 +40,7 @@
         <li>Automatic recognition of <code>.vernac</code> files</li>
         <li>Semantic highlighting</li>
         <li>Debug embedded Java in Vernac source: breakpoints, stepping, variables,
-        expression evaluation and completion, conditions and logpoints (0.5.0 development).</li>
+        expression evaluation and completion, conditions and logpoints.</li>
         <li>Syntax and semantic diagnostics</li>
         <li>Code completion and snippets</li>
         <li>Hover documentation</li>
@@ -100,6 +100,15 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>Vernac 0.5.1</h3>
+<ul>
+    <li>Render a Thymeleaf template directly from an MVC GET route with
+        <code>render "about";</code>. Usecase-backed pages can still pass a model.</li>
+    <li>Declare <code>access public;</code> or <code>access authenticated;</code>
+        for HTTP and MVC adapters. IntelliJ highlights and completes the access policy.</li>
+    <li>Requires IntelliJ build <code>262.10968.63</code> or later. The plugin
+        descriptor sets no maximum build.</li>
+</ul>
 <h3>Vernac 0.5.0 — Work in the model</h3>
 <p>Debug business behavior where you wrote it, use current model APIs before Java
 is generated, and start with a small working Spring Boot application.</p>

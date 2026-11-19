@@ -5,8 +5,8 @@ title: Practical questions about building with Vernac
 
 You have a model compiling. Now you want to understand its generated API, connect it
 to an application, or explain an unexpected result. Start with the situation closest
-to yours below. These answers describe Vernac **0.5.0**; source checkouts use matching
-**0.5.0-SNAPSHOT** artifacts for local development.
+to yours below. These answers describe Vernac **0.5.1**; source checkouts use matching
+**0.5.1-SNAPSHOT** artifacts for local development.
 
 New to the language? Follow [your first domain model](../tutorials/your-first-domain-model.md)
 first. For exact requirements, use the [specification](../specification/index.md).
@@ -71,7 +71,7 @@ you need it. [Start with the database-free example](../tutorials/your-first-doma
 
 ### Can I create a complete application instead of starting with a domain test?
 
-Yes, with the 0.5.0 plugin. **New Project → Vernac → Spring Boot Web
+Yes, with the 0.5.1 plugin. **New Project → Vernac → Spring Boot Web
 Application** creates a small task workspace with Thymeleaf, transactional Vernac
 usecases, PostgreSQL, Flyway migrations and a local Compose file. With Docker
 running, open `TasksApplication` and click **Run**, or run `spring-boot:run` in the
@@ -88,9 +88,10 @@ explains the files, tests, migration lifecycle and deployment boundaries.
 
 ### Do I have to write a Java controller to use Thymeleaf with Vernac?
 
-Not with the 0.5.0 MVC adapter. Declare `adapter ... inbound mvc`, explicit wire/form
+Vernac generates the controller. A template-only GET can use `render "about";`
+without a usecase. For a data-backed page, declare `adapter ... inbound mvc`, explicit wire/form
 bindings and a usecase call, then select `render "template" model result` or a local
-redirect. Vernac generates the Spring controller and scoped error handling. You
+redirect. Vernac also generates scoped error handling for usecase-backed adapters. You
 still own the HTML/CSS and Spring Security configuration.
 
 An invalid form can `redisplay` a named GET endpoint: its model is reloaded and
@@ -105,8 +106,8 @@ The IntelliJ plugin bundles its language server; it does not install the Maven
 compiler/runtime artifacts. Check the application's `vernac.version`, the Maven
 runner's JDK/settings and the selected Maven repository.
 
-A released 0.5.0 consumer downloads matching artifacts from Maven Central **after
-publication**. A source checkout using 0.5.0-SNAPSHOT requires a local installation:
+A released 0.5.1 consumer downloads matching artifacts from Maven Central **after
+publication**. A source checkout using 0.5.1-SNAPSHOT requires a local installation:
 run `mvn clean install` from the Vernac repository root with JDK 25. `verify` tests
 and packages artifacts but does not install them. Restarting IntelliJ also discards
 terminal-only environment settings. [Check the plugin setup](../tutorials/intellij-plugin.md).
@@ -529,7 +530,7 @@ live diagrams and clickable graph navigation are outside this first increment.
 
 ### Can I stop inside an inline Java behavior in a .vernac file?
 
-Yes, with matching **0.5.0** compiler and plugin artifacts, or matching SNAPSHOT builds. Build the application
+Yes, with matching **0.5.1** compiler and plugin artifacts, or matching SNAPSHOT builds. Build the application
 first, set a breakpoint on an executable statement or conversion in a supported
 Vernac block and start its normal Java debug configuration. The editor can stop in the
 Vernac source while the JVM supplies real arguments, locals and `self`. Breakpoints,

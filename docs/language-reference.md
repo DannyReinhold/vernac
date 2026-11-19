@@ -3,9 +3,9 @@ title: Vernac language reference
 ---
 # Vernac language reference
 
-This reference describes the **Vernac 0.5.0 language and generated API**. Use matching
-compiler and runtime versions. Source checkouts default to 0.5.0-SNAPSHOT;
-released consumers select matching 0.5.0 artifacts after publication. Obsolete experimental syntax is not supported.
+This reference describes the **Vernac 0.5.1 language and generated API**. Use matching
+compiler and runtime versions. Source checkouts default to 0.5.1-SNAPSHOT;
+released consumers select matching 0.5.1 artifacts after publication. Obsolete experimental syntax is not supported.
 The [specification index](specification/index.md) identifies the normative document
 for each rule. A discrepancy between implementation and contract is a defect to
 investigate, not permission to silently redefine the contract.
@@ -783,9 +783,9 @@ IntelliJ's Show Domain Diagram action includes unsaved source snapshots and open
 enable its Mermaid preview extension if needed. No rendered image or live model explorer
 is implied. See [the diagram tutorial](tutorials/domain-diagrams.md).
 
-### Vernac source debugging (0.5.0 tooling)
+### Vernac source debugging (0.5.1 tooling)
 
-The 0.5.0 plugin/compiler can map inline domain behavior breakpoints to original
+The 0.5.1 plugin/compiler can map inline domain behavior breakpoints to original
 Vernac lines using build-owned metadata. Build with debug line/local-variable information
 and use matching source/generated/runtime artifacts. This is not new DSL syntax and
 does not imply full debugger coverage or hot swap. See the [prototype scope](development/vernac-debugger-prototype.md)
@@ -796,7 +796,7 @@ method scope (`self`, arguments and locals). Breakpoint logging and suspension a
 standard IntelliJ options; see the [debugger walkthrough](https://github.com/DannyReinhold/vernac/blob/main/examples/debugger/README.md)
 for Evaluate Expression, conditions and non-suspending logpoints.
 
-A guided [debugging tutorial](tutorials/debugging.md) covers the 0.5.0
+A guided [debugging tutorial](tutorials/debugging.md) covers the 0.5.1
 integration and states its exact coverage. Inline usecase execute blocks, domain service
 operations and their private helpers also have mappings. User-authored require rules
 on VOs, entities, aggregates, usecases and services map their opening require line to
@@ -810,7 +810,7 @@ has no artificial breakpoint. Adapter-method preconditions remain unsupported by
 language contract. Debugging tooling does not
 change transaction, validation or asynchronous execution semantics.
 
-Expression editing is separate from runtime evaluation. The 0.5.0
+Expression editing is separate from runtime evaluation. The 0.5.1
 plugin routes expression requests to the verified Java scope of their Vernac line
 to address red variables and missing Ctrl+Space completion. Core expression editing
 and adapter/mapping debugging have been confirmed in the installed IDE. Runtime
@@ -824,7 +824,7 @@ expressions. Normal stepping skips only verified pure facade reads, not modifica
 wrappers, validators or callbacks. Contributor mode restores raw Java views and disables
 this filter. Native tree/Watch/stepping acceptance is separate from the JVM inspector test.
 
-The 0.5.0 plugin also supplies native PSI references for declared Vernac
+The 0.5.1 plugin also supplies native PSI references for declared Vernac
 types in DSL signatures/fields/imports/dependencies and repository aggregate targets.
 These use compiler namespace/import/export visibility and exact UTF-16 type-name
 ranges for native Ctrl-hover navigation feedback. Injected Java, strings and enum
@@ -844,9 +844,18 @@ The 0.5.0 New Project wizard offers a runnable Spring Boot Web Application, alon
 the minimal model and type-module templates. The web starter combines aggregates,
 paginated queries and usecases with a declarative inbound MVC adapter and Thymeleaf templates. See the [starter walkthrough](tutorials/spring-boot-starter.md).
 
-## Server-rendered inbound MVC (0.5.0)
+## Server-rendered inbound MVC
 
-Use `adapter Name inbound mvc uses ...` with `base`, a required `error view`, and
+A template-only GET endpoint can use `GET "/about"; render "about";` without
+`execute` or a model. An adapter with only template-only routes and no adapter
+error policy may omit `error view`.
+
+Both MVC and HTTP adapters accept `access public;` or `access authenticated;`
+after `base`. See [endpoint access with Spring Security](contracts/inbound-http.md#endpoint-access-with-spring-security)
+for the host application's filter chain requirements.
+
+For usecase-backed routes, use `adapter Name inbound mvc uses ...` with `base`,
+a required `error view`, and
 GET/POST endpoints. Wire bindings and `execute { parameter <- group.field; }` follow
 the JSON boundary's exact conversions. Add `form` scalar bindings, absent-only
 `default` values on non-optional query/form bindings, and `sensitive` before fields
