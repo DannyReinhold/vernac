@@ -7,11 +7,11 @@ Start with a passing domain test. Then follow a delivery operation through behav
 transactions, persistence, events and an external carrier. Each chapter answers a
 practical question; focused examples isolate details when the full system would distract.
 
-These tutorials describe **Vernac 0.5.2**. Use JDK 25 for the documented builds;
-generated application code targets Java 21. Released consumers use 0.5.2 artifacts
-from Maven Central after publication. Repository examples use 0.5.2-SNAPSHOT by
+These tutorials describe **Vernac 0.5.3**. Use JDK 25 for the documented builds;
+generated application code targets Java 21. Released consumers use 0.5.3 artifacts
+from Maven Central after publication. Repository examples use 0.5.3-SNAPSHOT by
 default: install matching local artifacts first, or select the release with
-`-Dvernac.version=0.5.2` after publication.
+`-Dvernac.version=0.5.3` after publication.
 Commands below include `mvn`; use the full command in the IntelliJ Maven run configuration used for these examples.
 In PowerShell, quote a complete dotted `-Dproperty=value` argument when necessary.
 
@@ -56,13 +56,13 @@ Already know DDD? Start at the first domain model or use the
 
 [Debug your business behavior where you wrote it](debugging.md) walks through
 breakpoints, stepping, variables, Java expressions, conditions and logpoints in a
-small database-free application. Use matching 0.5.2 compiler and plugin artifacts,
+small database-free application. Use matching 0.5.3 compiler and plugin artifacts,
 or the matching SNAPSHOT source build.
 
 ## Start with a real web application
 
 [From New Project to a working application](spring-boot-starter.md) creates a small
-Thymeleaf/PostgreSQL task workspace from the 0.5.2 wizard. It demonstrates a complete
+Thymeleaf/PostgreSQL task workspace from the 0.5.3 wizard. It demonstrates a complete
 browser-to-usecase-to-database path, local Compose, migrations and deployment configuration.
 The [MVC adapter tutorial](inbound-mvc.md) shows how to declare HTML pages, forms,
 redirects and safe error redisplay directly in Vernac.

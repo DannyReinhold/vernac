@@ -21,7 +21,8 @@ import java.util.concurrent.CompletableFuture;
 public final class VernacViewRenderer extends ClassRenderer {
     public VernacViewRenderer() {
         setEnabled(true);
-        setIsApplicableChecker(t -> CompletableFuture.completedFuture(isApplicable(t)));
+        // Keep the public isApplicable(Type) override below. The setter-based
+        // shortcut is an internal IntelliJ API rejected by Marketplace verification.
     }
 
     @Override
