@@ -2,7 +2,7 @@ package org.vernac.intellij;
 
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.fileEditor.OpenFileDescriptor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.startup.ProjectActivity;
 import com.intellij.openapi.util.Key;
@@ -74,8 +74,7 @@ public final class VernacProjectOpenActivity implements ProjectActivity {
                     .refreshAndFindFileByNioFile(modelPath);
 
             if (modelFile != null) {
-                FileEditorManager.getInstance(project)
-                        .openFile(modelFile, true);
+                new OpenFileDescriptor(project, modelFile).navigate(true);
             } else {
                 LOG.warn("Could not open initial Vernac model: " + modelPath);
             }
