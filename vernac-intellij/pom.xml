@@ -103,6 +103,10 @@
                     <artifactId>repository-search-common</artifactId>
                 </exclusion>
                 <exclusion>
+                    <groupId>com.jetbrains.intellij.repository</groupId>
+                    <artifactId>repository-search</artifactId>
+                </exclusion>
+                <exclusion>
                     <groupId>com.jetbrains.intellij.grazie</groupId>
                     <artifactId>grazie-core</artifactId>
                 </exclusion>
