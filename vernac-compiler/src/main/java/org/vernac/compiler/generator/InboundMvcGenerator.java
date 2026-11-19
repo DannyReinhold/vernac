@@ -93,8 +93,7 @@ public final class InboundMvcGenerator {
                                                 "this.controller = $T.requireNonNull(controller)",
                                                 Objects.class)
                                         .build());
-        advice.addMethod(
-                MethodSpec.methodBuilder("handle")
+        var handler = MethodSpec.methodBuilder("handle")
                         .addModifiers(Modifier.PUBLIC)
                         .returns(VIEW)
                         .addAnnotation(
@@ -102,8 +101,9 @@ public final class InboundMvcGenerator {
                                         .addMember("value", "$T.class", Exception.class)
                                         .build())
                         .addParameter(Exception.class, "error")
-                        .addParameter(REQUEST, "request")
-                        .addStatement(
+                        .addParameter(REQUEST, "request");
+        InboundAccessGenerator.preserveDenial(adapter, handler);
+        advice.addMethod(handler.addStatement(
                                 "var handler ="
                                     + " request.getAttribute($T.BEST_MATCHING_HANDLER_ATTRIBUTE)",
                                 ClassName.get("org.springframework.web.servlet", "HandlerMapping"))
@@ -148,6 +148,7 @@ public final class InboundMvcGenerator {
                         .addModifiers(Modifier.PUBLIC)
                         .returns(VIEW)
                         .addAnnotation(mapping.build());
+        InboundAccessGenerator.requireAuthentication(adapter, method);
         if (source.dependency().isEmpty()) {
             return method.addStatement("var view = new $T($S)", VIEW, source.view().orElseThrow().template())
                     .addStatement("view.setStatus($T.valueOf($L))",

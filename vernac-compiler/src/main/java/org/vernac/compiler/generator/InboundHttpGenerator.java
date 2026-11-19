@@ -38,6 +38,7 @@ public final class InboundHttpGenerator {
         var handler=MethodSpec.methodBuilder("handle").addModifiers(Modifier.PUBLIC)
                 .addAnnotation(AnnotationSpec.builder(spring("ExceptionHandler")).addMember("value","$T.class",Exception.class).build())
                 .returns(ParameterizedTypeName.get(RESPONSE,ERRORS.nestedClass("Body"))).addParameter(Exception.class,"error");
+        InboundAccessGenerator.preserveDenial(adapter, handler);
         boolean policies = !adapter.errorRules().isEmpty() || adapter.errorImplementation().isPresent()
                 || adapter.endpoints().stream().anyMatch(e -> !e.errorRules().isEmpty() || e.errorImplementation().isPresent());
         if (policies) {
@@ -97,6 +98,7 @@ public final class InboundHttpGenerator {
             ClassName body=ClassName.get(mappings.packageName().replace(".mapping",".dto"),adapter.name()+"Dtos",source.bodyType().get().name());
             method.addParameter(ParameterSpec.builder(body,"__body").addAnnotation(spring("RequestBody")).build());
         }
+        InboundAccessGenerator.requireAuthentication(adapter, method);
         method.beginControlFlow("try");index=0;
         for(var binding:source.bindings()) {
             Class<?> type=org.vernac.compiler.symbols.BuiltinTypes.find(binding.type().name()).orElseThrow();
