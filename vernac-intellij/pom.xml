@@ -15,7 +15,7 @@
         <maven.compiler.release>25</maven.compiler.release>
         <maven.compiler.source>25</maven.compiler.source>
         <maven.compiler.target>25</maven.compiler.target>
-        <intellij.platform.version>262.10968.63</intellij.platform.version>
+        <intellij.platform.version>261.24374.151</intellij.platform.version>
     </properties>
 
     <repositories>
