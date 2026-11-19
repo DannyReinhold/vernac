@@ -15,7 +15,7 @@
         <maven.compiler.release>25</maven.compiler.release>
         <maven.compiler.source>25</maven.compiler.source>
         <maven.compiler.target>25</maven.compiler.target>
-        <intellij.platform.version>261.24374.151</intellij.platform.version>
+        <intellij.platform.version>262.10968.63</intellij.platform.version>
     </properties>
 
     <repositories>
@@ -96,21 +96,6 @@
             <artifactId>maven</artifactId>
             <version>${intellij.platform.version}</version>
             <scope>provided</scope>
-            <!-- IDE-owned runtime modules outside the Maven APIs used by Vernac. -->
-            <exclusions>
-                <exclusion>
-                    <groupId>com.jetbrains.intellij.repository</groupId>
-                    <artifactId>repository-search-common</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.jetbrains.intellij.repository</groupId>
-                    <artifactId>repository-search</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.jetbrains.intellij.grazie</groupId>
-                    <artifactId>grazie-core</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <!-- Required by Kotlin-based IntelliJ APIs during compilation and native PSI tests.
              IntelliJ provides Kotlin at runtime; do not bundle it with the plugin. -->

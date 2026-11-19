@@ -8,10 +8,11 @@ that publication or Marketplace approval has already happened.
 
 ## IntelliJ compatibility
 
-Vernac 0.5.1 targets IntelliJ IDEA 2026.1.2 (build `261.24374.151`). Keep that
+Vernac 0.5.1 targets IntelliJ IDEA 2026.2 (build `262.10968.63`). Keep that
 minimum and the matching compile SDK stable. Raise the minimum only when an
 IDE API requirement or a verified incompatibility calls for it. The packaged
 descriptor declares `since-build` and omits `until-build`.
+The plugin uses the LSP integration API introduced in the 262 branch.
 
 ## Scope and one version input
 

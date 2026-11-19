@@ -122,7 +122,7 @@ class PluginDistributionIT {
                     .newDocumentBuilder().parse(new ByteArrayInputStream(pluginXml));
             var bounds = (org.w3c.dom.Element) xml.getElementsByTagName("idea-version").item(0);
             assertNotNull(bounds, "Packaged plugin must declare its minimum IDE build");
-            assertEquals("261.24374.151", bounds.getAttribute("since-build"));
+            assertEquals("262.10968.63", bounds.getAttribute("since-build"));
             assertFalse(bounds.hasAttribute("until-build"), "Packaged plugin must omit the upper IDE bound");
             String descriptor = new String(pluginXml,
                     java.nio.charset.StandardCharsets.UTF_8);
