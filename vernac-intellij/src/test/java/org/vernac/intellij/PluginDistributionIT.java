@@ -77,7 +77,7 @@ class PluginDistributionIT {
 
     @Test
     void includesPluginTemplateAndExecutableLanguageServer()
-            throws IOException {
+            throws Exception {
         Path distribution = Path.of(requiredProperty("vernac.plugin.zip"));
         String pluginJarName = requiredProperty("vernac.plugin.jar.name");
 
@@ -117,7 +117,14 @@ class PluginDistributionIT {
                 requireContent(plugin, entry);
             }
 
-            String descriptor = new String(requireContent(plugin, "META-INF/plugin.xml"),
+            byte[] pluginXml = requireContent(plugin, "META-INF/plugin.xml");
+            var xml = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+                    .newDocumentBuilder().parse(new ByteArrayInputStream(pluginXml));
+            var bounds = (org.w3c.dom.Element) xml.getElementsByTagName("idea-version").item(0);
+            assertNotNull(bounds, "Packaged plugin must declare its minimum IDE build");
+            assertEquals("262.10968.63", bounds.getAttribute("since-build"));
+            assertFalse(bounds.hasAttribute("until-build"), "Packaged plugin must omit the upper IDE bound");
+            String descriptor = new String(pluginXml,
                     java.nio.charset.StandardCharsets.UTF_8);
             assertTrue(descriptor.contains("<internalFileTemplate name=\"Vernac File\"/>"));
             assertTrue(descriptor.contains("<internalFileTemplate name=\"Vernac Getting Started\"/>"));

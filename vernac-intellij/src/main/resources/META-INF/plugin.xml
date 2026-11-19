@@ -246,7 +246,8 @@ See <a href="https://vernac.org/tutorials/what-is-ddd.html">What is DDD?</a> and
     </ul>
 ]]></change-notes>
 
-    <idea-version since-build="262.10968.63" until-build="262.*"/>
+    <!-- Keep the minimum aligned with the oldest IntelliJ SDK verified by the build. -->
+    <idea-version since-build="262.10968.63"/>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lsp</depends>
