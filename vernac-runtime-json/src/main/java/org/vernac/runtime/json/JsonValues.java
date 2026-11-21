@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.vernac.runtime.json;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.*;
-import com.fasterxml.jackson.databind.node.*;
+import tools.jackson.core.JsonParser;
+import tools.jackson.databind.*;
+import tools.jackson.databind.node.*;
 import java.io.IOException;
 import java.math.*;
 import java.time.*;
@@ -19,10 +19,10 @@ import org.vernac.runtime.ports.PatchField;
 public final class JsonValues {
     private JsonValues() { }
     /** Preserve decimal scale and floating signed zero without lossy double intermediates. */
-    public static JsonNode readTree(JsonParser parser) throws IOException {
+    public static JsonNode readTree(JsonParser parser) {
         return readTree(parser,"$");
     }
-    private static JsonNode readTree(JsonParser parser, String path) throws IOException {
+    private static JsonNode readTree(JsonParser parser, String path) {
         var token=parser.currentToken();
         if(token==null) token=parser.nextToken();
         if(token==null) throw new DtoContractException(path,"Expected JSON value");
@@ -30,8 +30,8 @@ public final class JsonValues {
         return switch(token) {
             case START_OBJECT -> {
                 var result=factory.objectNode();
-                while(parser.nextToken()!=com.fasterxml.jackson.core.JsonToken.END_OBJECT) {
-                    if(parser.currentToken()!=com.fasterxml.jackson.core.JsonToken.FIELD_NAME) throw new DtoContractException(path,"Expected JSON field");
+                while(parser.nextToken()!=tools.jackson.core.JsonToken.END_OBJECT) {
+                    if(parser.currentToken()!=tools.jackson.core.JsonToken.PROPERTY_NAME) throw new DtoContractException(path,"Expected JSON field");
                     String name=parser.currentName();
                     if(result.has(name)) throw new DtoContractException(path + "." + name,"Duplicate JSON field");
                     parser.nextToken();result.set(name,readTree(parser,path+"."+name));
@@ -40,19 +40,19 @@ public final class JsonValues {
             }
             case START_ARRAY -> {
                 var result=factory.arrayNode();
-                while(parser.nextToken()!=com.fasterxml.jackson.core.JsonToken.END_ARRAY) result.add(readTree(parser,path+"["+result.size()+"]"));
+                while(parser.nextToken()!=tools.jackson.core.JsonToken.END_ARRAY) result.add(readTree(parser,path+"["+result.size()+"]"));
                 yield result;
             }
-            case VALUE_STRING -> factory.textNode(parser.getText());
+            case VALUE_STRING -> factory.textNode(parser.getString());
             case VALUE_TRUE -> factory.booleanNode(true);
             case VALUE_FALSE -> factory.booleanNode(false);
             case VALUE_NULL -> factory.nullNode();
             case VALUE_NUMBER_INT -> factory.numberNode(parser.getBigIntegerValue());
             case VALUE_NUMBER_FLOAT -> {
                 BigDecimal decimal;
-                try { decimal=new BigDecimal(parser.getText()); }
+                try { decimal=new BigDecimal(parser.getString()); }
                 catch(NumberFormatException ex) { throw new DtoContractException(path,"Expected finite JSON number"); }
-                yield decimal.signum()==0 && parser.getText().startsWith("-") ? new NegativeZero(decimal) : new DecimalNode(decimal);
+                yield decimal.signum()==0 && parser.getString().startsWith("-") ? new NegativeZero(decimal) : new DecimalNode(decimal);
             }
             default -> throw new DtoContractException(path,"Expected JSON value");
         };
@@ -129,7 +129,7 @@ public final class JsonValues {
                 else result=v;
             } else {
                 if (!node.isTextual()) throw new IllegalArgumentException();
-                String v=node.textValue();
+                String v=node.stringValue();
                 if (type == String.class) result=v;
                 else if (type == Character.class || type == char.class) { if(v.length()!=1) throw new IllegalArgumentException(); result=v.charAt(0); }
                 else if (type == UUID.class) { result=UUID.fromString(v); if(!result.toString().equalsIgnoreCase(v)) throw new IllegalArgumentException(); }
@@ -152,7 +152,7 @@ public final class JsonValues {
                 else if (type == ZoneOffset.class) result=ZoneOffset.of(v);
                 else throw new IllegalArgumentException();
             }
-        } catch (IllegalArgumentException | ArithmeticException | DateTimeException ex) {
+        } catch (IllegalArgumentException | ArithmeticException | DateTimeException | tools.jackson.core.JacksonException ex) {
             throw new DtoContractException(path,"Expected " + type.getSimpleName() + " in its JSON representation");
         }
         return (T)result;

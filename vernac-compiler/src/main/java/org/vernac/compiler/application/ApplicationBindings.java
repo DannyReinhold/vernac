@@ -68,6 +68,7 @@ public final class ApplicationBindings {
     public static final String IMPORTS="META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports";
     public record Generated(List<JavaFile> files,Optional<String> configuration) { }
     public static Generated generate(ApplicationDefinition app,ResolvedProject project,List<ModuleDescriptor> modules,List<JavaFile> original,boolean publishing) {
+        if(publishing&&app.explicitAuthorization())throw new IllegalArgumentException("authorization explicit belongs to the consuming application, not a published module.");
         Set<String> bound=new TreeSet<>();app.bindings().forEach(b->bound.add(b.port()));
         Map<String,String> adapters=new TreeMap<>();
         for(var module:modules)for(var d:module.exports())if(d.kind().equals("OUTBOUND_ADAPTER")&&bound.contains(d.element()))adapters.put(d.identity(),d.javaName());
@@ -105,7 +106,7 @@ public final class ApplicationBindings {
                 files.add(JavaFile.builder(file.packageName(),builder.build()).indent("    ").skipJavaLangImports(true).build());
             } else files.add(file);
         }
-        if(app.bindings().isEmpty()&&app.activations().isEmpty())return new Generated(List.copyOf(files),Optional.empty());
+        if(app.bindings().isEmpty()&&app.activations().isEmpty()&&!app.explicitAuthorization())return new Generated(List.copyOf(files),Optional.empty());
         var owner=ClassName.get(app.name()+".configuration","__VernacApplication");
         var bindings=CodeBlock.builder().add("$T.of(\n",List.class);int index=0;
         for(var binding:app.bindings()) {
@@ -133,6 +134,7 @@ public final class ApplicationBindings {
                 .returns(BINDINGS)
                 .addParameter(ClassName.get("org.springframework.core.env","Environment"),"environment")
                 .addStatement("return $L",constructor.build()).build()).build();
+        if(app.explicitAuthorization())config=config.toBuilder().addMethod(ApplicationAccessAudit.method(project,modules)).build();
         files.add(JavaFile.builder(owner.packageName(),config).indent("    ").build());
         return new Generated(List.copyOf(files),Optional.of(owner.canonicalName()));
     }

@@ -36,7 +36,7 @@ public class SchemaMojo extends AbstractMojo {
     protected SchemaModel model(SchemaModel previous) throws Exception {
         if (!sourceDirectory.isDirectory()) throw new IllegalArgumentException("Vernac source root does not exist: " + sourceDirectory);
         java.util.Map<String, java.util.Map<String, String>> overrides = enumCodes == null ? java.util.Map.of()
-                : SchemaModel.JSON.readValue(Files.readString(enumCodes.toPath()), new com.fasterxml.jackson.core.type.TypeReference<>() { });
+                : SchemaModel.JSON.readValue(Files.readString(enumCodes.toPath()), new tools.jackson.core.type.TypeReference<>() { });
         var dependencies=ModuleClasspath.read(project);var resolved=new VernacCompiler().analyzeProject(sourceDirectory.toPath(),dependencies);
         var base=project!=null&&project.getBasedir()!=null?project.getBasedir().toPath():org.vernac.compiler.modules.ModuleArtifacts.projectDirectory(sourceDirectory.toPath());
         return new SchemaBuilder(resolved,previous,overrides,ModuleSchemaOptions.read(base,resolved,dependencies)).build();

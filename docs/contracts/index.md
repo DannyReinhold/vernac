@@ -1,6 +1,7 @@
 # Feature contracts
 
-For the **0.4.0 release and explicitly marked 0.5.0 development extensions**, feature contracts are the observable-API and runtime-semantics part of the
+Feature contracts define the observable API and runtime semantics. Development-only
+features are explicitly marked; use matching compiler/runtime versions. They form part of the
 [Vernac specification](../specification/index.md). That index provides the complete
 reading order and authority rules. Use the [language reference](../language-reference.md)
 for syntax and the [tutorials](../tutorials/index.md) for guided use.
@@ -13,8 +14,15 @@ Use the specification index for the full feature catalog. In this revision:
 
 ## Additional implemented feature contracts
 
+- [Aggregate field uniqueness](aggregate-uniqueness.md): aggregate-field requirements, derived PostgreSQL constraints, tenant scope, migrations and safe JDBC conflicts.
+
 - [Versioned modules](modules.md): versioned exports/imports, explicit activation, provider selection, independent migrations and module-owned events/HTTP entrypoints.
 
 - [Ubiquitous language](ubiquitous-language.md): namespaced terms, model association, hover, glossary output and exported-type documentation.
 
 - [Domain diagrams](domain-diagrams.md): resolved namespace graphs and shared Maven/IDE exports.
+
+- [Actor and authorization runtime foundation](usecase-authorization-runtime.md): implemented Java/Spring guard SPI; with the [permission/requires contract](usecase-authorization.md); [module authorization metadata](module-authorization.md) implemented; full SaaS integration still pending.
+
+- [Explicit application access audit](explicit-authorization.md): opt-in startup
+  detection of omitted requires clauses on registered local/module usecases.

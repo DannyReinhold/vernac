@@ -17,7 +17,7 @@ final class InboundAccessGenerator {
     private InboundAccessGenerator() {}
 
     static void requireAuthentication(InboundHttpAdapterNode adapter, MethodSpec.Builder method) {
-        if (adapter.access() != InboundHttpAdapterNode.Access.AUTHENTICATED) return;
+        if (!adapter.accessMode().orElse("").equals("authenticated")) return;
         method.beginControlFlow("if (!new $T().isAuthenticated($T.getContext().getAuthentication()))",
                         TRUST_RESOLVER, SECURITY_CONTEXT_HOLDER)
                 .addStatement("throw new $T($S)", AUTHENTICATION_REQUIRED, "Authentication required")
@@ -25,7 +25,7 @@ final class InboundAccessGenerator {
     }
 
     static void preserveDenial(InboundHttpAdapterNode adapter, MethodSpec.Builder handler) {
-        if (adapter.access() != InboundHttpAdapterNode.Access.AUTHENTICATED) return;
+        if (!adapter.accessMode().orElse("").equals("authenticated")) return;
         handler.beginControlFlow("if (error instanceof $T authenticationRequired)", AUTHENTICATION_REQUIRED)
                 .addStatement("throw authenticationRequired")
                 .endControlFlow();

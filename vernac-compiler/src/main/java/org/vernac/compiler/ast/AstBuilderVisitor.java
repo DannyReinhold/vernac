@@ -51,6 +51,8 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         if (ctx.outboundAdapterDefinition() != null) return visitOutboundAdapterDefinition(ctx.outboundAdapterDefinition());
         if (ctx.portDefinition() != null) return visitPortDefinition(ctx.portDefinition());
         if (ctx.repositoryDefinition() != null) return visitRepositoryDefinition(ctx.repositoryDefinition());
+        if (ctx.roleDefinition() != null) return visitRoleDefinition(ctx.roleDefinition());
+        if (ctx.permissionDefinition() != null) return visitPermissionDefinition(ctx.permissionDefinition());
         if (ctx.usecaseDefinition() != null) return visitUsecaseDefinition(ctx.usecaseDefinition());
         if (ctx.domainServiceDefinition() != null) return visitDomainServiceDefinition(ctx.domainServiceDefinition());
         if (ctx.listenerDefinition() != null) return visitListenerDefinition(ctx.listenerDefinition());
@@ -152,7 +154,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         }
 
         return new AggregateNode(toLocation(ctx), name, idDef, fields, validations,
-                behaviorMethods(ctx.behaviorBlock()), collections(ctx.collectionDefinition()), behaviorImports(ctx.behaviorBlock()));
+                behaviorMethods(ctx.behaviorBlock()), collections(ctx.collectionDefinition()), behaviorImports(ctx.behaviorBlock()), ctx.classification == null ? AggregateNode.Classification.UNSPECIFIED : ctx.classification.getText().equals("tenant") ? AggregateNode.Classification.TENANT : AggregateNode.Classification.GLOBAL);
     }
 
     @Override
@@ -234,22 +236,21 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 Optional.ofNullable(e.responseMapping).map(ParserRuleContext::getText),
                 Optional.ofNullable(e.absentStatus).map(t -> httpStatus(t.getText())),
                 inboundImplementation(e.inboundErrorPolicy()), inboundRules(e.inboundErrorPolicy()),
-                e.view == null && e.redirect == null && e.absentView == null ? Optional.empty() : Optional.of(new InboundHttpAdapterNode.View(
+                e.view == null && e.redirect == null && e.absentView == null && e.attachment == null ? Optional.empty() : Optional.of(new InboundHttpAdapterNode.View(
                         e.view == null ? "" : errorString(e.view.getText(),toLocation(e)),
                         Optional.ofNullable(e.modelName).map(ParserRuleContext::getText),
                         Optional.ofNullable(e.redirect).map(t -> errorString(t.getText(),toLocation(e))),
                         Optional.ofNullable(e.notice).map(t -> errorString(t.getText(),toLocation(e))),
-                        Optional.ofNullable(e.absentView).map(t -> errorString(t.getText(),toLocation(e))))))).toList();
-        var access = ctx.accessMode == null ? InboundHttpAdapterNode.Access.UNSPECIFIED
-                : ctx.accessMode.getText().equals("public")
-                        ? InboundHttpAdapterNode.Access.PUBLIC
-                        : InboundHttpAdapterNode.Access.AUTHENTICATED;
-        return new InboundHttpAdapterNode(toLocation(ctx), ctx.name.getText(), unquote(ctx.base.getText()),
+                        Optional.ofNullable(e.absentView).map(t -> errorString(t.getText(),toLocation(e))),
+                        Optional.ofNullable(e.attachment).map(t -> errorString(t.getText(),toLocation(e))),
+                        Optional.ofNullable(e.contentField).map(ParserRuleContext::getText))))).toList();
+        return new InboundHttpAdapterNode(toLocation(ctx), ctx.name.getText(), ctx.base == null ? "/" : unquote(ctx.base.getText()),
                 ctx.dependencies.stream().map(this::adapterParameter).toList(), endpoints,
                 ctx.schemaDefinition().stream().map(this::visitSchemaDefinition).toList(),
                 ctx.mappingDefinition().stream().map(this::visitMappingDefinition).toList(),
                 inboundImplementation(ctx.inboundErrorPolicy()), inboundRules(ctx.inboundErrorPolicy()),
-                ctx.transport.getText().equals("mvc"), Optional.ofNullable(ctx.errorView).map(t -> errorString(t.getText(),toLocation(ctx))), access);
+                ctx.transport.getText().equals("mvc"), Optional.ofNullable(ctx.errorView).map(t -> errorString(t.getText(),toLocation(ctx))),
+                Optional.ofNullable(ctx.accessMode).map(t -> t.getText()));
     }
 
     private Optional<String> inboundImplementation(VernacParser.InboundErrorPolicyContext policy) {
@@ -374,13 +375,13 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         return new SchemaNode(toLocation(ctx),ctx.name.getText(),ctx.strategy==null ? "exact" : ctx.strategy.getText(),fields);
     }
     private String decodeExternalName(String token, SourceLocation location) {
-        try { return new com.fasterxml.jackson.databind.ObjectMapper().readValue(token,String.class); }
-        catch(java.io.IOException ex) { throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(
+        try { return tools.jackson.databind.json.JsonMapper.builder().build().readValue(token,String.class); }
+        catch(tools.jackson.core.JacksonException ex) { throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(
                 org.vernac.compiler.analyzer.CompilerDiagnostic.error(location,"Invalid JSON field-name literal: use JSON string escapes."))); }
     }
     private FieldNode adapterParameter(VernacParser.ParameterContext p) {
         var type = toTypeNode(p.type());
-        return new FieldNode(toLocation(p),type,p.name == null ? org.vernac.language.VernacNames.defaultMemberName(type.name()) : p.name.getText(),p.isMut != null,p.name != null);
+        return new FieldNode(toLocation(p),type,p.name == null ? org.vernac.language.VernacNames.defaultMemberName(type.name()) : p.name.getText(),p.isMut != null,p.name != null, unique(p), reference(p));
     }
 
     @Override
@@ -432,6 +433,34 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         return fullBlock;
     }
 
+    private String reference(VernacParser.ParameterContext parameter) {
+        if(parameter.referenceTarget==null)return null;
+        if (!(parameter.getParent() instanceof VernacParser.ParameterListContext list)
+                || !(list.getParent() instanceof VernacParser.AggregateDefinitionContext))
+            throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(
+                org.vernac.compiler.analyzer.CompilerDiagnostic.error(toLocation(parameter),"references belongs only to aggregate root ID fields.")));
+        return parameter.referenceTarget.getText();
+    }
+
+    /** Structural modifier checks are shared by build and tolerant editor AST construction. */
+    private boolean unique(VernacParser.ParameterContext parameter) {
+        for (String modifier : List.of("unique", "mut")) {
+            long count = parameter.children.stream()
+                    .filter(org.antlr.v4.runtime.tree.TerminalNode.class::isInstance)
+                    .filter(child -> child.getText().equals(modifier)).count();
+            if (count > 1) throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(
+                    org.vernac.compiler.analyzer.CompilerDiagnostic.error(toLocation(parameter),
+                            "Duplicate field modifier '" + modifier + "'.")));
+        }
+        if (parameter.isUnique == null) return false;
+        if (!(parameter.getParent() instanceof VernacParser.ParameterListContext list)
+                || !(list.getParent() instanceof VernacParser.AggregateDefinitionContext))
+            throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(
+                    org.vernac.compiler.analyzer.CompilerDiagnostic.error(toLocation(parameter),
+                            "unique belongs only to aggregate root fields.")));
+        return true;
+    }
+
     private List<FieldNode> extractParameters(VernacParser.ParameterListContext ctx) {
         List<VernacParser.ParameterContext> params = ctx.parameter();
 
@@ -447,7 +476,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                         fieldName = org.vernac.language.VernacNames.defaultMemberName(type.name());
                     }
 
-                    return new FieldNode(toLocation(p), type, fieldName, isMut, p.name != null);
+                    return new FieldNode(toLocation(p), type, fieldName, isMut, p.name != null, unique(p), reference(p));
                 })
                 .toList();
     }
@@ -501,7 +530,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         List<FieldNode> dependencies=ctx.dependencies.stream().map(p -> {
             TypeNode t=toTypeNode(p.type());
             String name=p.name==null?org.vernac.language.VernacNames.defaultMemberName(t.name()):p.name.getText();
-            return new FieldNode(toLocation(p),t,name,p.getText().startsWith("mut"),p.name!=null);
+            return new FieldNode(toLocation(p),t,name,p.isMut != null,p.name!=null, unique(p), reference(p));
         }).toList();
         List<ValidationRuleNode> rules=ctx.validationBlock()==null?List.of():ctx.validationBlock().validationStatement().stream()
                 .map(v -> new ValidationRuleNode(toLocation(v),extractRawSource(v.condition),v.message==null?"":unquote(v.message.getText()))).toList();
@@ -518,14 +547,39 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 implementation=Optional.ofNullable(member.implementation).map(ParserRuleContext::getText); }
         }
         return new UseCaseNode(toLocation(ctx),ctx.name.getText(),inputs,rules,dependencies,
-                Optional.ofNullable(ctx.resultType).map(this::toTypeNode),results,imports,helpers,body,implementation,count);
+                Optional.ofNullable(ctx.resultType).map(this::toTypeNode),results,imports,helpers,body,implementation,count,Optional.ofNullable(ctx.requiresClause()).map(c -> authorization(c.authorizationRequirement())));
+    }
+
+    @Override public RoleNode visitRoleDefinition(VernacParser.RoleDefinitionContext ctx) {
+        return new RoleNode(toLocation(ctx), ctx.name.getText(), ctx.permissionRequirement().stream()
+                .map(p -> (AuthorizationNode.Permission) permission(p)).toList());
+    }
+    @Override public PermissionNode visitPermissionDefinition(VernacParser.PermissionDefinitionContext ctx) {
+        return new PermissionNode(toLocation(ctx), ctx.name.getText(), ctx.members.stream()
+                .map(m -> new EnumConstantNode(toLocation(m), m.getText())).toList());
+    }
+    private AuthorizationNode authorization(VernacParser.AuthorizationRequirementContext ctx) {
+        if (ctx.permissionRequirement() != null) return permission(ctx.permissionRequirement());
+        if (ctx.authorizationGroup() != null) return group(ctx.authorizationGroup());
+        return new AuthorizationNode.Mode(toLocation(ctx), ctx.getText().equals("authenticated"));
+    }
+    private AuthorizationNode permission(VernacParser.PermissionRequirementContext ctx) {
+        String name = ctx.key.getText(); int split = name.lastIndexOf('.');
+        return new AuthorizationNode.Permission(toLocation(ctx),
+                new TypeNode(toLocation(ctx.key), split < 0 ? name : name.substring(0, split), List.of(), false),
+                split < 0 ? "" : name.substring(split + 1), Optional.ofNullable(ctx.resource).map(ParserRuleContext::getText));
+    }
+    private AuthorizationNode group(VernacParser.AuthorizationGroupContext ctx) {
+        return new AuthorizationNode.Group(toLocation(ctx), ctx.kind.getText().equals("all"),
+                ctx.authorizationChild().stream().map(c -> c.permissionRequirement() != null
+                        ? permission(c.permissionRequirement()) : group(c.authorizationGroup())).toList());
     }
 
     public DomainServiceNode visitDomainServiceDefinition(VernacParser.DomainServiceDefinitionContext ctx) {
         var dependencies = ctx.dependencies.stream().map(p -> {
             var type = toTypeNode(p.type());
             var name = p.name == null ? org.vernac.language.VernacNames.defaultMemberName(type.name()) : p.name.getText();
-            return new FieldNode(toLocation(p), type, name, p.isMut != null, p.name != null);
+            return new FieldNode(toLocation(p), type, name, p.isMut != null, p.name != null, unique(p), reference(p));
         }).toList();
         var imports = ctx.javaImports() == null ? List.<JavaImportNode>of() : ctx.javaImports().qualifiedName().stream()
                 .map(n -> new JavaImportNode(toLocation(n), n.getText())).toList();
@@ -544,7 +598,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         var eventType = toTypeNode(ctx.eventType);
         var dependencies = ctx.dependencies.stream().map(p -> {
             var type = toTypeNode(p.type());
-            return new FieldNode(toLocation(p), type, p.name == null ? org.vernac.language.VernacNames.defaultMemberName(type.name()) : p.name.getText(), p.isMut != null, p.name != null);
+            return new FieldNode(toLocation(p), type, p.name == null ? org.vernac.language.VernacNames.defaultMemberName(type.name()) : p.name.getText(), p.isMut != null, p.name != null, unique(p), reference(p));
         }).toList();
         var imports = ctx.javaImports() == null ? List.<JavaImportNode>of() : ctx.javaImports().qualifiedName().stream().map(n -> new JavaImportNode(toLocation(n), n.getText())).toList();
         List<MethodNode> helpers = new ArrayList<>(); String body = ""; Optional<String> implementation = Optional.empty(); int count = 0;

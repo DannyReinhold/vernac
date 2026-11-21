@@ -8,8 +8,8 @@ IntelliJ integration lets you stop inside an inline `behavior`, inspect its argu
 and locals, step through the operation and evaluate ordinary Java expressions while
 working in the `.vernac` source.
 
-**Version:** use matching **0.5.3** compiler and plugin artifacts, or matching
-**0.5.3-SNAPSHOT** artifacts from a source checkout. Earlier plugin versions do not
+**Version:** use matching **0.5.0** compiler and plugin artifacts, or matching
+**0.5.4-SNAPSHOT** artifacts from a source checkout. Earlier plugin versions do not
 provide this debugger integration. Build the application before starting a debug session.
 
 ## A small example, with a real JVM behind it
@@ -156,7 +156,7 @@ breakpoint again.
 ### Check expression editing separately
 
 The expression editor and the runtime evaluator are separate IntelliJ mechanisms.
-The 0.5.3 plugin maps the requested Vernac source line to its
+The 0.5.0 plugin maps the requested Vernac source line to its
 verified generated Java scope for both Java and source-file expression requests.
 This addresses the reported red variables and missing completion; installed-IDE
 acceptance is still required and must not be inferred from successful evaluation.
@@ -604,7 +604,7 @@ conversion to the usecase's Label argument. The actual controller frame contains
 and argument locals keep their actual Java names. The debugger does not manufacture
 a domain `self` for a controller or rename its variables.
 
-The 0.5.3 MVC adapter uses the same argument mapping mechanism. A breakpoint on
+The 0.5.0 MVC adapter uses the same argument mapping mechanism. A breakpoint on
 `noteText <- form.text;` in an `execute` block stops in its generated conversion
 helper with the actual wire locals. A real-JVM regression test covers this path;
 HTML/template expressions remain the template engine’s tooling. See the

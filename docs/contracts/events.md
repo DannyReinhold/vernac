@@ -259,3 +259,85 @@ transaction. An application-provided JdbcEventWorker replaces the default worker
 A recorded-only application does not start polling and needs no delivery table.
 Graceful shutdown waits for the current work through Spring's lifecycle shutdown phase;
 forced termination is handled by lease recovery.
+
+## Tenant execution boundary (0.5.4 development)
+
+Recorded and deferred events can be published under a verified TenantContext with
+current generated storage. Publication captures origin from that context; application
+code still uses the ordinary event factory and `self.emit(event)`. It MUST NOT supply
+an origin/tenant argument as a substitute for trusted execution selection. Immediate
+listeners run in the publisher's existing transaction/context.
+
+Payload roots and every owned VO/collection table carry nullable `@tenantId` and a
+non-null `@scopeKey`. Schema format 3 and scope-qualified foreign keys protect both
+GLOBAL and tenant graphs. A deferred recipient row stores nullable `tenantId`: NULL
+means GLOBAL. Payloads and the initial recipient set commit with the publisher's
+business writes. Republishing an identity requires the same origin/payload and does
+not add newly registered receivers.
+
+### Internal origin and legacy storage boundaries (0.5.4 development)
+
+`EventOrigin` is internal runtime metadata, independent of business payload, factory
+arguments, DTOs, actor identity and permissions. Capture validates the synchronized
+transaction and pins a verified tenant. A stale pin without live selection is an
+error, never GLOBAL. Diagnostic string rendering redacts tenant identifiers.
+
+The `EventStorage` SPI declares `tenantDeliveryVersion() == 1` in current generated
+adapters and forwards origin through persist/load/verifyOrigin. Version 0 is the
+legacy GLOBAL-only default. Tenant publication through an older adapter fails with
+TENANT_EVENT_STORAGE_REBUILD_REQUIRED before calling it; the failed event context
+prevents commit. A tenant job whose active adapter lacks this capability is BLOCKED,
+without consuming a delivery attempt or loading payload. Rebuild the producer module
+and application; never silently reinterpret an old adapter as tenant-capable.
+
+The old JdbcEventStore constructor remains an explicit legacy GLOBAL path. Origin-aware
+storage validates table layout and uses exact scope/tenant predicates at every owned
+level. It rejects old/new adapter/database mismatches even on a bypassing connection.
+Tenant storage additionally verifies nonowner/NOBYPASSRLS privileges, ENABLE/FORCE RLS,
+the exact owned mixed-origin policy without extra policies, schema USAGE and payload
+SELECT/INSERT access. No unsafe schema CREATE/TRUNCATE permission is allowed. Binding
+uses the actual Spring JDBC transaction and transaction-local database setting, shared
+with aggregate repositories on the same DataSource. Construct generated infrastructure
+outside business transactions so its baseline connection can be verified.
+
+### Worker transactions and context lifetime
+
+A worker MUST enter without an ambient application transaction or tenant selection.
+It claims only control-plane routing metadata in an independent unscoped transaction.
+For a tenant claim it restores exactly that tenant before starting the processing
+transaction and loading payload. A GLOBAL claim takes the explicit unscoped path;
+it cannot inherit a surrounding tenant or a contaminated pooled session.
+
+The listener, nested REQUIRED usecases, local business writes and acknowledgement
+share the processing transaction. Storage rechecks the physical/context binding after
+the listener, before acknowledgement. ACK, block and failure writes match both the
+claim token and claimed origin; ACK also requires a live lease. A lost token/origin
+or lease rolls local effects back, preserving a replacement claim. Tenant scopes,
+pins and JDBC settings are cleared before independent failure bookkeeping. Runtime
+failures persist only safe classifications, not arbitrary exception messages, payloads,
+credentials, tenant identifiers or tokens. Control-plane SQL failures are sanitized.
+
+Each receiver retries independently; other due jobs may progress during backoff.
+Expired final attempts reach a terminal state. Restart uses persisted origin, not
+an in-memory request context. External side effects remain at-least-once and need
+idempotency/reconciliation. This adds neither strict per-tenant ordering nor a human
+permission snapshot. Tenant routing is not authentication or authorization; future
+actor/security policy integration remains a separate SaaS requirement.
+
+### Schema history and upgrades
+
+Existing payloads need reviewed `'GLOBAL'` backfills when acquiring format-3 metadata.
+The queue upgrade adds nullable `tenantId`; existing jobs remain GLOBAL. It never
+guesses historical tenant attribution. A new producer with recipients or a new worker
+rejects an unmigrated queue before payload writes/claims. Removing queue-origin
+metadata is unsupported even with force. Migration candidates retain responsibility
+notices and specific origin/deployment comments.
+
+Stop older workers and deploy matching rebuilt producer/application/runtime artifacts
+and reviewed migrations before enabling tenant publication. Older workers cannot be
+retroactively taught to recognize the new routing protocol. Existing global event
+modules retain normal dependency-first migrations and activation. Applied SQL/snapshots
+must not be rewritten. The developer/operator alone reviews, tests and approves data,
+ordering, grants, deployment compatibility and recovery. See the
+[schema guide](../development/event-origin-schema.md) and
+[worker tutorial](../tutorials/tenant-events.md).

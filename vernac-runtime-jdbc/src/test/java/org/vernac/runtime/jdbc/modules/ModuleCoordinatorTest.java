@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.jdbc.datasource.SimpleDriverDataSource;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import org.springframework.boot.autoconfigure.flyway.FlywayMigrationInitializer;
+import org.springframework.boot.flyway.autoconfigure.FlywayMigrationInitializer;
 import org.flywaydb.core.Flyway;
 import org.vernac.runtime.application.*;
 import org.vernac.runtime.persistence.SchemaDescription;
@@ -30,18 +30,44 @@ class ModuleCoordinatorTest {
     @Test void migratesAndValidatesDependenciesBeforeApplicationAndStopsOnFailure() {
         List<String> log=new ArrayList<>();var modules=List.of(module("required","one/table"),module("dependent","two/table"));
         class Work implements ModuleMigrationStrategy.Operations {
-            boolean fail;
+            boolean fail, unsafeRuntime;
             public void migrate(ModuleMigrationStrategy.Prepared module){log.add("migrate:"+module.module());if(fail&&module.module().equals("dependent"))throw new IllegalStateException("fixture failure");}
             public void validate(ModuleMigrationStrategy.Prepared module){log.add("validate:"+module.module());}
+            public void verifyRuntime(String owner, SchemaDescription schema){log.add("runtime:"+owner);if(unsafeRuntime)throw new IllegalStateException("fixture unsafe runtime");}
             public void migrateApplication(){log.add("application");}
             public void validateApplication(SchemaDescription schema,Set<String> owned){log.add("validate:application");}
         }
         var operations=new Work();ModuleMigrationStrategy.coordinate(modules,EMPTY,Set.of(),operations);
-        assertEquals(List.of("migrate:required","validate:required","migrate:dependent","validate:dependent","application","validate:application"),log);
+        assertEquals(List.of("migrate:required","validate:required","runtime:required","migrate:dependent","validate:dependent","runtime:dependent","application","validate:application","runtime:@application"),log);
         log.clear();operations.fail=true;assertThrows(IllegalStateException.class,()->ModuleMigrationStrategy.coordinate(modules,EMPTY,Set.of(),operations));
-        assertEquals(List.of("migrate:required","validate:required","migrate:dependent"),log);
+        assertEquals(List.of("migrate:required","validate:required","runtime:required","migrate:dependent"),log);
         log.clear();assertThrows(IllegalStateException.class,()->ModuleMigrationStrategy.coordinate(modules,EMPTY,Set.of("one/table"),operations));assertTrue(log.isEmpty());
+        operations.fail=false;operations.unsafeRuntime=true;
+        assertThrows(IllegalStateException.class,()->ModuleMigrationStrategy.coordinate(modules,EMPTY,Set.of(),operations));
+        assertEquals(List.of("migrate:required","validate:required","runtime:required"),log);
     }
+    @Test void eventOriginSchemaParticipatesInNormalGlobalMigrationOrdering() {
+        var event = new SchemaDescription.Table("events", "@event:Raised", "events.Raised", List.of(
+                new SchemaDescription.Column("@eventId", "UUID", false, "EventId", "events.Raised"),
+                new SchemaDescription.Column("@tenantId", "UUID", true, "event-tenant-id", "events.Raised"),
+                new SchemaDescription.Column("@scopeKey", "TEXT", false, "event-scope-key", "events.Raised")),
+                List.of("@eventId"), List.of(
+                new SchemaDescription.Constraint("@check:event-origin", "CHECK (\"@scopeKey\" = CASE WHEN \"@tenantId\" IS NULL THEN 'GLOBAL' ELSE 'TENANT:' || \"@tenantId\"::text END)"),
+                new SchemaDescription.Constraint("@unique:event-origin", "UNIQUE (\"@scopeKey\", \"@eventId\")")),
+                null, new SchemaDescription.EventIsolation("events.Raised", true));
+        var pending = new SchemaDescription(3, 1, List.of(event), Map.of());
+        var calls = new ArrayList<String>();
+        var operations = new ModuleMigrationStrategy.Operations() {
+            public void migrate(ModuleMigrationStrategy.Prepared module) {calls.add("migrate:"+module.module());}
+            public void validate(ModuleMigrationStrategy.Prepared module) {calls.add("validate:"+module.module());}
+            public void migrateApplication() {calls.add("application");}
+            public void validateApplication(SchemaDescription schema, Set<String> owned) {calls.add("validate:application");}
+        };
+        var producer = new ModuleMigrationStrategy.Prepared("events", "classpath:events", "history", pending, Set.of(event.identity()));
+        ModuleMigrationStrategy.coordinate(List.of(producer), EMPTY, Set.of(), operations);
+        assertEquals(List.of("migrate:events", "validate:events", "application", "validate:application"), calls);
+    }
+
     public static class Probe {
         static final AtomicBoolean ready=new AtomicBoolean();
         public Probe(){if(!ready.get())throw new IllegalStateException("Function started before migrations");}

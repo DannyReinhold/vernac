@@ -9,7 +9,7 @@ carrier integration. The business model lives in `.vernac` files. Java connects 
 to the browser and to the local carrier simulator.
 
 This is an independent example, **not a child module** of the Vernac reactor.
-It uses **Vernac 0.5.0-SNAPSHOT**, Java 21 output and the current JDK 25 build setup.
+It uses **Vernac 0.5.4-SNAPSHOT**, Java 21 output and the current JDK 25 build setup.
 
 ## Start
 
@@ -246,3 +246,20 @@ curl.exe -i -X POST http://localhost:8087/api/tours -H "Content-Type: applicatio
 The command prints the non-success response; inspect its JSON body for `code` and
 `message`. Omitting `capacity` instead produces the shared 400 / INVALID_REQUEST reply.
 These policies do not alter usecase transactions or publish exception messages.
+
+## Event storage upgrade in the 0.5.4 development baseline
+
+The committed `V20261112090000000__event_origin_schema.sql` migration adds explicit
+GLOBAL origin metadata to historical event payloads. Its reviewed backfill expressions
+are retained in `src/main/vernac-schema/event-origin-upgrade.json`; the earlier SQL and
+snapshots are unchanged. A normal Flyway startup applies the additional migration.
+Rebuild with matching current development artifacts before starting against this
+layout. The Flyway history schema is explicitly `public`, so changing the database
+username does not change the history location on restart. The example remains a global application; tenant routing is explained separately in
+the [tenant event tutorial](../../docs/tutorials/tenant-events.md).
+As always, you alone review, test and approve migrations before deployment.
+
+The subsequent `V20261112100000000__delivery_origin.sql` migration retains queued jobs
+as GLOBAL while adding the new nullable routing field. Stop older workers before
+admitting tenant publications in a tenant-enabled application; the standard demo keeps
+using GLOBAL and its earlier migration history is unchanged.

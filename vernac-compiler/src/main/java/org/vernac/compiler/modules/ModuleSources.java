@@ -14,7 +14,7 @@ public final class ModuleSources {
     public static Map<String,View> locations(Path root,List<ModuleDescriptor> modules) throws java.io.IOException {
         Path index=ModuleArtifacts.projectDirectory(root).resolve("target/vernac-module-sources.json");
         if(!Files.isRegularFile(index))return Map.of();
-        var attachments=ModuleDescriptor.JSON.readValue(Files.readString(index),new com.fasterxml.jackson.core.type.TypeReference<Map<String,String>>(){});
+        var attachments=ModuleDescriptor.JSON.readValue(Files.readString(index),new tools.jackson.core.type.TypeReference<Map<String,String>>(){});
         Map<String,View> result=new HashMap<>();
         for(var module:modules) {
             String attached=attachments.get(module.module());if(attached==null||!Files.isRegularFile(Path.of(attached)))continue;
@@ -29,7 +29,7 @@ public final class ModuleSources {
                     if(tree.namespaceDeclaration()==null||!tree.namespaceDeclaration().qualifiedName().getText().equals(namespace))continue;
                     ParserRuleContext token=null;
                     for(var top:tree.topLevelDeclaration()) {
-                        ParserRuleContext owner=top.idDeclaration()!=null?top.idDeclaration().name:top.valueDefinition()!=null?top.valueDefinition().name:top.portDefinition()!=null?top.portDefinition().name:top.outboundAdapterDefinition()!=null?top.outboundAdapterDefinition().name:top.entityDefinition()!=null?top.entityDefinition().name:top.aggregateDefinition()!=null?top.aggregateDefinition().name:top.repositoryDefinition()!=null?top.repositoryDefinition().name:top.usecaseDefinition()!=null?top.usecaseDefinition().name:top.domainServiceDefinition()!=null?top.domainServiceDefinition().name:top.eventDefinition()!=null?top.eventDefinition().name:null;
+                        ParserRuleContext owner=top.idDeclaration()!=null?top.idDeclaration().name:top.valueDefinition()!=null?top.valueDefinition().name:top.portDefinition()!=null?top.portDefinition().name:top.outboundAdapterDefinition()!=null?top.outboundAdapterDefinition().name:top.entityDefinition()!=null?top.entityDefinition().name:top.aggregateDefinition()!=null?top.aggregateDefinition().name:top.repositoryDefinition()!=null?top.repositoryDefinition().name:top.usecaseDefinition()!=null?top.usecaseDefinition().name:top.permissionDefinition()!=null?top.permissionDefinition().name:top.domainServiceDefinition()!=null?top.domainServiceDefinition().name:top.eventDefinition()!=null?top.eventDefinition().name:null;
                         if(owner==null && top.repositoryDefinition()!=null) {
                             var aggregate=top.repositoryDefinition().aggregateName;
                             if((aggregate.getText()+"Repository").equals(name))token=aggregate;

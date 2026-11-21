@@ -23,6 +23,10 @@
     </description>
 
     <dependencies>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-transaction</artifactId><scope>provided</scope></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-flyway</artifactId><scope>provided</scope></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-jdbc</artifactId><scope>provided</scope></dependency>
+        <dependency><groupId>org.postgresql</groupId><artifactId>postgresql</artifactId><scope>provided</scope></dependency>
         <dependency><groupId>org.flywaydb</groupId><artifactId>flyway-core</artifactId><scope>provided</scope></dependency>
         <dependency>
             <groupId>org.vernac</groupId>
@@ -54,7 +58,7 @@
         </dependency>
 
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
+            <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <scope>provided</scope>
         </dependency>

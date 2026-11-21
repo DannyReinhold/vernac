@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.2</version>
+        <version>4.1.2</version>
         <relativePath/>
     </parent>
     <groupId>example.modules</groupId>
@@ -14,7 +14,7 @@
     <packaging>pom</packaging>
     <properties>
         <java.version>21</java.version>
-        <vernac.version>0.5.3-SNAPSHOT</vernac.version>
+        <vernac.version>0.5.4-SNAPSHOT</vernac.version>
         <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
     <modules>

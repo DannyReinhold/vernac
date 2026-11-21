@@ -26,6 +26,29 @@ public final class MigrationPlanner {
     public Plan plan(SchemaModel before, SchemaModel after, Options options) {
         Map<String, Table> oldTables = index(before.tables(), Table::identity);
         Map<String, Table> newTables = index(after.tables(), Table::identity);
+        for (Table old : before.tables()) {
+            Table next = newTables.get(old.identity());
+            if (next != null && old.namespace().equals("vernac") && old.name().equals("@delivery")
+                    && old.columns().stream().anyMatch(c->c.codec().equals("delivery-tenant-id"))
+                    && next.columns().stream().noneMatch(c->c.name().equals("tenantId") && c.codec().equals("delivery-tenant-id")))
+                throw new IllegalArgumentException("EVENT DELIVERY ORIGIN REMOVAL is not implemented; force cannot discard queued tenant routing metadata.");
+            if (next != null && EventSchema.legacyUpgrade(old, next)) {
+                String key = next.identity() + "/" + EventSchema.SCOPE;
+                if (!"'GLOBAL'".equals(options.backfills().getOrDefault(key, "").trim())
+                        || options.backfills().containsKey(next.identity() + "/" + EventSchema.TENANT))
+                    throw new IllegalArgumentException("EVENT ORIGIN UPGRADE requires an explicit 'GLOBAL' SQL backfill for "
+                            + key + ". Historical tenant attribution cannot be inferred; force cannot bypass this review.");
+            }
+            if (next != null && !Objects.equals(old.tenantIsolation(), next.tenantIsolation())) {
+                String reason = old.tenantIsolation() == null
+                        ? "TENANT ASSIGNMENT REQUIRED: existing rows need an explicit reviewed tenant backfill"
+                        : next.tenantIsolation() == null
+                        ? "TENANT ISOLATION REMOVAL: formerly isolated tenants' data would become accessible through the unscoped repository"
+                        : "TENANT OWNERSHIP CHANGE: aggregate graph classification changed";
+                throw new IllegalArgumentException(reason + ": " + old.identity()
+                        + ". This classification transition is not implemented; force cannot bypass it. No candidate was generated.");
+            }
+        }
         List<String> risks = new ArrayList<>(), sql = new ArrayList<>(), drops = new ArrayList<>(), adds = new ArrayList<>();
         Set<String> usedBackfills = new HashSet<>(), usedConversions = new HashSet<>();
         // Retain unchanged constraints unless a dependent column changes its SQL
@@ -71,18 +94,22 @@ public final class MigrationPlanner {
                     String key = next.identity() + "/" + c.name();
                     String alter = "ALTER TABLE " + next.sqlName() + " ALTER COLUMN " + name(c.name());
                     if (previous == null) {
-                        sql.add("ALTER TABLE " + next.sqlName() + " ADD COLUMN " + name(c.name()) + " " + c.sqlType() + ";");
+                        if(next.namespace().equals("vernac") && next.name().equals("@delivery") && c.codec().equals("delivery-tenant-id"))
+                            sql.add("-- DELIVERY ORIGIN UPGRADE: existing queued jobs remain GLOBAL (NULL tenantId). No tenant attribution is inferred.\n"
+                                    +"-- Stop older workers before enabling tenant publication. Review deployment order and runtime role grants before applying.");
+                        sql.add("ALTER TABLE " + next.sqlName() + " ADD COLUMN " + name(c.name()) + " " + declaredType(c) + ";");
                         if (!c.nullable() || options.backfills().containsKey(key)) backfill(sql, next, c, key, options, usedBackfills);
                     } else {
-                        if (!previous.sqlType().equals(c.sqlType()) || !previous.codec().equals(c.codec())) {
+                        if (!previous.sqlType().equals(c.sqlType()) || !previous.codec().equals(c.codec()) || !Objects.equals(previous.collation(), c.collation())) {
                             String expression = options.conversions().get(key);
-                            if (expression == null && losslessWidening(previous, c)) {
-                                if (!previous.sqlType().equals(c.sqlType())) sql.add(alter + " TYPE " + c.sqlType() + ";");
+                            if (expression == null && (losslessWidening(previous, c)
+                                    || previous.sqlType().equals(c.sqlType()) && previous.codec().equals(c.codec()))) {
+                                if (!previous.sqlType().equals(c.sqlType()) || !Objects.equals(previous.collation(), c.collation())) sql.add(alter + " TYPE " + storageType(c) + ";");
                             } else {
                                 if (expression == null || expression.isBlank()) throw new IllegalArgumentException("Explicit SQL conversion required for " + key + "; force cannot invent it.");
                                 usedConversions.add(key);
                                 risks.add("Conversion of " + key + " may lose data.");
-                                sql.add(alter + " TYPE " + c.sqlType() + " USING (" + expression + ");");
+                                sql.add(alter + " TYPE " + storageType(c) + " USING (" + expression + ");");
                             }
                         }
                         if ((previous.nullable() && !c.nullable()) || options.backfills().containsKey(key)) backfill(sql, next, c, key, options, usedBackfills);
@@ -105,6 +132,15 @@ public final class MigrationPlanner {
         // UNIQUE targets first, foreign keys last; all tables/columns now exist.
         adds.sort(Comparator.comparingInt(statement -> statement.contains(" FOREIGN KEY (") ? 1 : 0));
         sql.addAll(adds);
+        for (Table next : after.tables()) {
+            Table old = oldTables.get(next.identity());
+            if (old == null) sql.addAll(TenantSchema.protectionSql(next));
+            if (old == null || EventSchema.legacyUpgrade(old, next)) {
+                if (old != null) sql.add("-- EVENT ORIGIN UPGRADE: reviewed historical rows remain GLOBAL. No tenant attribution is inferred.\n"
+                        + "-- You alone must verify provenance, deployment ordering and application compatibility before applying.");
+                sql.addAll(EventSchema.protectionSql(next));
+            }
+        }
         if (!risks.isEmpty() && !options.force()) throw new IllegalArgumentException("Potential data loss. Review these operations and use force only to continue candidate generation:\n" + String.join("\n", risks));
         String warnings = risks.isEmpty() ? "" : "-- WARNING: force bypasses generation safeguards only; it is no approval or guarantee.\n"
                 + risks.stream().map(r -> "-- " + r.replace('\n', ' ').replace('\r', ' ') + "\n").collect(Collectors.joining());
@@ -122,7 +158,7 @@ public final class MigrationPlanner {
             Map<String, Column> columns = index(next.columns(), Column::name);
             for (Column old : previous.columns()) {
                 Column current = columns.get(old.name());
-                if ((current == null || !old.sqlType().equals(current.sqlType()) || !old.codec().equals(current.codec()))
+                if ((current == null || !old.sqlType().equals(current.sqlType()) || !old.codec().equals(current.codec()) || !Objects.equals(old.collation(), current.collation()))
                         && constraint.clause().contains(name(old.name()))) return true;
             }
         }
@@ -142,7 +178,14 @@ public final class MigrationPlanner {
         if (from != null && to != null && to > from) return true;
         return Set.of("float:", "Float:").contains(old.codec()) && Set.of("double:", "Double:").contains(next.codec());
     }
-    private static String column(Column c) { return name(c.name()) + " " + c.sqlType() + (c.nullable() ? "" : " NOT NULL"); }
+    private static String declaredType(Column c) {
+        return c.collation() == null ? c.sqlType() : storageType(c);
+    }
+    private static String storageType(Column c) {
+        return c.sqlType() + (c.sqlType().equals("TEXT")
+                ? " COLLATE \"pg_catalog\".\"" + (c.collation() == null ? "default" : c.collation()) + "\"" : "");
+    }
+    private static String column(Column c) { return name(c.name()) + " " + declaredType(c) + (c.nullable() ? "" : " NOT NULL"); }
     private static String names(List<String> names) { return names.stream().map(SqlNames::name).collect(Collectors.joining(", ")); }
     private static <T> Map<String,T> index(List<T> values, Function<T,String> key) { return values.stream().collect(Collectors.toMap(key, Function.identity(), (a,b) -> { throw new IllegalArgumentException("Duplicate identity"); }, TreeMap::new)); }
 }

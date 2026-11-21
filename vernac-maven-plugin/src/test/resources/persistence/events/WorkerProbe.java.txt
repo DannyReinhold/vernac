@@ -30,7 +30,7 @@ public final class WorkerProbe {
  public static void run(DataSource data) throws Exception {
   var test=new WorkerProbe(data);
   test.successAndIndependentRetries(); test.parallelClaim(); test.expiredWorkerCannotCommit();
-  test.crashRecoveryAndExhaustion();test.missingListenerIsBlocked();test.automaticPolling();
+  test.crashRecoveryAndExhaustion();test.missingListenerIsBlocked();test.globalHandlerCannotCommitUnderATenantPin();test.automaticPolling();
  }
  EventHandler listener(String name,Consumer<DomainEvent> action) {
   return new EventHandler() {
@@ -115,6 +115,22 @@ public final class WorkerProbe {
  void missingListenerIsBlocked() {
   var event=publish(listener("removed",e->fail("not called")));
   assertTrue(worker(List.of()).runOnce());assertEquals("BLOCKED",status(event,"removed"));assertEquals(0,attempts(event));
+ }
+ void globalHandlerCannotCommitUnderATenantPin() {
+  var tenant=org.vernac.runtime.tenancy.TenantId.of(UUID.randomUUID());
+  var listener=listener("origin-change",e->{
+   try(var selected=org.vernac.runtime.tenancy.TenantContext.openVerified(tenant)) {
+    effect(e,"must roll back with changed origin");
+   }
+  });
+  var event=publish(listener);var worker=worker(List.of(listener));
+  assertTrue(worker.runOnce());assertEquals("PENDING",status(event,"origin-change"));assertEquals(0,effects(event));
+  assertTrue(org.vernac.runtime.tenancy.TenantContext.currentTenant().isEmpty());
+  assertTrue(org.vernac.runtime.tenancy.TenantContext.transactionTenant().isEmpty());
+  assertEquals(org.vernac.runtime.tenancy.TenancyException.class.getName(),jdbc.queryForObject(
+      "SELECT \"lastError\" FROM "+JOBS+" WHERE \"eventId\"=:id",Map.of("id",event.eventId().value()),String.class));
+  // Keep the retry out of later fixture scenarios.
+  jdbc.update("UPDATE "+JOBS+" SET status='FAILED' WHERE \"eventId\"=:id",Map.of("id",event.eventId().value()));
  }
  void automaticPolling() throws Exception {
   var delivered=new CountDownLatch(1);

@@ -12,7 +12,7 @@ import org.vernac.compiler.parser.VernacParser;
 /** One vocabulary model for diagnostics, module documentation, hover and glossary output. */
 public final class Vocabulary {
     private Vocabulary() { }
-    private static final com.fasterxml.jackson.databind.ObjectMapper JSON=new com.fasterxml.jackson.databind.ObjectMapper();
+    private static final tools.jackson.databind.ObjectMapper JSON=tools.jackson.databind.json.JsonMapper.builder().build();
     public record Key(String namespace,String name) { }
     public record Entry(String namespace,String name,String description,List<String> examples,List<String> notes,
                         String source,int line,int column) {
@@ -37,7 +37,7 @@ public final class Vocabulary {
         return Character.isWhitespace(first)||Character.isSpaceChar(first)||Character.isWhitespace(last)||Character.isSpaceChar(last);
     }
     private static String string(String token,SourceLocation at) {
-        try{return JSON.readValue(token,String.class);}catch(java.io.IOException e){fail(at,"Invalid vocabulary string: use JSON string escapes.");return "";}
+        try{return JSON.readValue(token,String.class);}catch(tools.jackson.core.JacksonException e){fail(at,"Invalid vocabulary string: use JSON string escapes.");return "";}
     }
     public static TermNode parse(String source,VernacParser.TermDefinitionContext term) {
         var at=new SourceLocation(source,term.getStart().getLine(),term.getStart().getCharPositionInLine()+1);
@@ -111,7 +111,7 @@ public final class Vocabulary {
             for(String example:term.examples())text.append("    example ").append(JSON.writeValueAsString(example)).append(";\n");
             for(String note:term.notes())text.append("    note ").append(JSON.writeValueAsString(note)).append(";\n");
             return text.append("}\n").toString();
-        }catch(java.io.IOException e){throw new IllegalStateException(e);}
+        }catch(tools.jackson.core.JacksonException e){throw new IllegalStateException(e);}
     }
     public static void write(Path directory,VernacProject project) throws java.io.IOException {
         var terms=entries(project);Files.createDirectories(directory);

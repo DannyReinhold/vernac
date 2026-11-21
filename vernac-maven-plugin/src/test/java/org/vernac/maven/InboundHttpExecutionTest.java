@@ -16,13 +16,13 @@ import org.springframework.http.MediaType;
 import org.vernac.compiler.pipeline.VernacCompiler;
 import org.vernac.runtime.events.EventHandler;
 import org.vernac.runtime.http.inbound.InboundHttpErrors;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class InboundHttpExecutionTest {
     @TempDir Path root;
-    private static final ObjectMapper JSON=new ObjectMapper();
+    private static final ObjectMapper JSON=tools.jackson.databind.json.JsonMapper.builder().build();
     private static final String MODEL="""
         namespace webdemo;
         id TaskId;
@@ -63,7 +63,7 @@ public class InboundHttpExecutionTest {
         Path input=root.resolve("model/webdemo/model.vernac");Files.createDirectories(input.getParent());Files.writeString(input,model);
         Path java=root.resolve("java"),classes=Files.createDirectories(root.resolve("classes"));
         new VernacCompiler().compileProject(root.resolve("model")).writeTo(java);
-        var args=new ArrayList<>(List.of("--release","21","-proc:none","-classpath",System.getProperty("java.class.path"),"-d",classes.toString()));
+        var args=new ArrayList<>(List.of("--release","21","-Xlint:deprecation,removal","-Werror","-proc:none","-classpath",System.getProperty("java.class.path"),"-d",classes.toString()));
         try(var files=Files.walk(java)){files.filter(p->p.toString().endsWith(".java")).map(Path::toString).forEach(args::add);}
         assertEquals(0,ToolProvider.getSystemJavaCompiler().run(null,null,null,args.toArray(String[]::new)),"Generated controller, Result mappings and codecs must compile");
         return new URLClassLoader(new URL[]{classes.toUri().toURL()},getClass().getClassLoader());
@@ -75,19 +75,19 @@ public class InboundHttpExecutionTest {
         Class<?> controller=loader.loadClass("webdemo.adapter.inbound.http."+adapter);
         Object bean=controller.getConstructor(types.toArray(Class<?>[]::new)).newInstance(beans.toArray());
         Object advice=loader.loadClass("webdemo.adapter.inbound.http."+adapter+"Errors").getConstructor().newInstance();
-        return MockMvcBuilders.standaloneSetup(bean).setControllerAdvice(advice).build();
+        return MockMvcBuilders.standaloneSetup(bean).setMessageConverters(JacksonMvcTestSupport.converter()).setControllerAdvice(advice).build();
     }
     @Test void requestsRunTheUsecaseAndMapDeclaredResultsAndAbsence() throws Exception {
         try(var code=compile(MODEL)) {
             MockMvc mvc=mvc(code,"Api","Create","Complete","Find","Fail");
             var response=mvc.perform(post("/api/tasks").contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"Test\",\"extra\":true}")).andReturn().getResponse();
             assertEquals(201,response.getStatus());var body=JSON.readTree(response.getContentAsString());
-            String id=body.get("id").asText();assertDoesNotThrow(()->UUID.fromString(id));assertEquals("Test",body.get("title").asText());assertFalse(body.has("note"));
+            String id=body.get("id").asString();assertDoesNotThrow(()->UUID.fromString(id));assertEquals("Test",body.get("title").asString());assertFalse(body.has("note"));
             assertEquals(204,mvc.perform(post("/api/tasks/"+id+"/complete")).andReturn().getResponse().getStatus());
             assertEquals(404,mvc.perform(get("/api/tasks/find").param("title","missing")).andReturn().getResponse().getStatus());
-            assertEquals("Found",JSON.readTree(mvc.perform(get("/api/tasks/find").param("title","Found")).andReturn().getResponse().getContentAsString()).get("text").asText());
+            assertEquals("Found",JSON.readTree(mvc.perform(get("/api/tasks/find").param("title","Found")).andReturn().getResponse().getContentAsString()).get("text").asString());
             var withNote=mvc.perform(post("/api/tasks").contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"Test\",\"note\":\"Remark\"}")).andReturn().getResponse();
-            assertEquals("Remark",JSON.readTree(withNote.getContentAsString()).get("note").asText());
+            assertEquals("Remark",JSON.readTree(withNote.getContentAsString()).get("note").asString());
         }
     }
     @Test void errorsRemainRecognizableWithoutExposingExceptionDetails() throws Exception {
@@ -121,7 +121,7 @@ public class InboundHttpExecutionTest {
             """;
         try(var code=compile(model)) {
             var response=mvc(code,"Custom","Fail").perform(get("/custom").param("title","domain")).andReturn().getResponse();
-            assertEquals(409,response.getStatus());assertEquals("CUSTOM_REJECTION",JSON.readTree(response.getContentAsString()).get("code").asText());
+            assertEquals(409,response.getStatus());assertEquals("CUSTOM_REJECTION",JSON.readTree(response.getContentAsString()).get("code").asString());
             assertTrue(response.getContentAsString().contains("call"));
         }
     }

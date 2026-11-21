@@ -32,6 +32,36 @@ class InboundMvcContractTest {
                 + "}";
     }
 
+    @Test
+    void templateRouteAccessAppliesToTheDeclaredMethodAndPath() {
+        var source = """
+                namespace example;
+                adapter Pages inbound mvc {
+                    access public;
+                    home { GET "/"; render "home"; }
+                }
+                """;
+        var generated = compiler.compileSource(source).generatedFiles().toString();
+        assertTrue(generated.contains("HttpMethod.GET"));
+        assertTrue(generated.contains("permitAll()"));
+        var protectedPage = compiler.compileSource(source.replace("access public", "access authenticated"))
+                .generatedFiles().toString();
+        assertTrue(protectedPage.contains("SecurityContextHolder"));
+        assertFalse(protectedPage.contains("permitAll()"));
+        assertThrows(SemanticValidationException.class,
+                () -> compiler.compileSource(source.replace("GET", "POST")));
+    }
+
+    @Test
+    void textAttachmentUsesADeclaredStringFieldAndAStaticFilename() {
+        String endpoint = "download {GET \"/file\";execute read {} export \"note.txt\" from content;}";
+        String source = adapter(endpoint).replace("value Text(String)", "value Text(String content)");
+        String generated = compiler.compileSource(source).generatedFiles().toString();
+        assertTrue(generated.contains("MvcResponses.attachment(\"note.txt\", __result.content())"));
+        assertThrows(SemanticValidationException.class, () -> compiler.compileSource(source.replace("note.txt", "../note.txt")));
+        assertThrows(SemanticValidationException.class, () -> compiler.compileSource(source.replace("from content", "from missing")));
+    }
+
     private static final String BOARD =
             "board {GET \"/\";execute read {} render \"board\" model page;}";
 

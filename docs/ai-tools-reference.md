@@ -12,6 +12,16 @@ application's requirements. It is a workflow reference, not additional syntax.
 
 </details>
 
+The supported application stack is Java/Spring Boot. Preserve its dependency
+injection, transaction, adapter and runtime integration; compiling a domain type or
+running a plain Java test does not verify a framework-independent application path.
+Do not replace Spring Boot with another framework based on the separation of Maven
+artifacts. See the [compiler architecture](development/compiler-architecture.md).
+
+For 0.5.4 source builds, follow the [Boot 4 migration requirements](development/spring-boot-4-baseline.md),
+including Jackson 3 generated DTO codecs and converters. Do not mix Security 7 with
+a Boot 3 application or select a Jackson 2 converter for these codecs.
+
 ## Locate the project and respect its configuration
 
 Run commands from the directory containing the application's POM. A standalone
@@ -35,7 +45,9 @@ mvn test
 The first command executes generation when the POM binds Vernac to that phase.
 The second also compiles generated and handwritten Java and runs configured tests.
 Inspect the actual result: skipped database tests are not successful database
-verification. A language-only check cannot validate arbitrary embedded Java.
+verification. See [local testing and skipped cases](development/local-testing.md)
+for prerequisites, Windows setup and separate browser suites.
+A language-only check cannot validate arbitrary embedded Java.
 An unresolvable embedded-Java class in IntelliJ may require a generation build
 and indexing of the generated source root; do not rewrite valid domain code to
 accommodate a broken editor inference.

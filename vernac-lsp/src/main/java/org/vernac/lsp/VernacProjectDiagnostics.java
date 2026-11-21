@@ -35,12 +35,20 @@ final class VernacProjectDiagnostics {
         folders.clear();
         if (params.getWorkspaceFolders() != null && !params.getWorkspaceFolders().isEmpty()) {
             params.getWorkspaceFolders().forEach(folder -> addFolder(folder.getUri()));
-        } else if (params.getRootUri() != null) {
+        } else {
+            initializeLegacyRoot(params);
+        }
+        workspaceBound = !folders.isEmpty();
+    }
+
+    /** LSP retains these deprecated wire fields for clients without workspaceFolders. */
+    @SuppressWarnings("deprecation")
+    private void initializeLegacyRoot(InitializeParams params) {
+        if (params.getRootUri() != null) {
             addFolder(params.getRootUri());
         } else if (params.getRootPath() != null) {
             folders.add(Path.of(params.getRootPath()).toAbsolutePath().normalize());
         }
-        workspaceBound = !folders.isEmpty();
     }
 
     synchronized void foldersChanged(DidChangeWorkspaceFoldersParams params) {
@@ -213,7 +221,7 @@ final class VernacProjectDiagnostics {
                         entry.getKey().toString().endsWith(".vapplication")
                             ? "Application definitions must be named vernac-application.vapplication and stored beside the Maven project's pom.xml."
                             : entry.getKey().toString().endsWith(".vmodule")
-                            ? "Module definitions must be named vernac-module.vmodule and stored beside the Maven project's pom.xml."
+                            ? "Place vernac-module.vmodule in its source namespace directory or beside the Maven project's pom.xml."
                             : "Place this file below a workspace src/main/vernac directory; its namespace must match the relative directory."));
             } else roots.add(root);
         }
@@ -237,7 +245,12 @@ final class VernacProjectDiagnostics {
         try {
             var project = new VernacProjectLoader().loadForAnalysis(root, snapshots, problems);
             project=org.vernac.compiler.modules.ModuleArtifacts.merge(project,org.vernac.compiler.modules.ModuleArtifacts.editorModules(root),problems);
-            var resolved=new ProjectTypeResolver().resolve(project);
+            Map<Path,String> configurationSnapshots=new LinkedHashMap<>();
+            open.forEach((path, document) -> {
+                if(root.equals(rootFor(path)) && (path.toString().endsWith(".vapplication") || path.toString().endsWith(".vmodule")))
+                    configurationSnapshots.put(path,document.text());
+            });
+            var resolved=new ProjectTypeResolver().resolve(project,configurationSnapshots);
             problems.addAll(resolved.diagnostics());
             Path application=org.vernac.compiler.modules.ModuleArtifacts.projectDirectory(root).resolve(org.vernac.compiler.application.ApplicationDefinition.FILE);
             var appSnapshot=open.get(application);
@@ -264,7 +277,7 @@ final class VernacProjectDiagnostics {
                     .add(problem("Could not analyze Vernac project: " + e.getMessage())));
             return;
         }
-        for (var diagnostic : problems) {
+        for (var diagnostic : problems.stream().distinct().toList()) {
             Path file = Path.of(diagnostic.location().sourceName()).toAbsolutePath().normalize();
             Diagnostic converted = problem(diagnostic.message());
             converted.setSeverity(diagnostic.severity() == CompilerDiagnostic.Severity.WARNING
@@ -302,8 +315,8 @@ final class VernacProjectDiagnostics {
                     && Files.isRegularFile(file.getParent().resolve("pom.xml")) ? file.getParent().resolve("src/main/vernac") : null;
         }
         if(file.getFileName().toString().endsWith(".vmodule")) {
-            return file.getFileName().toString().equals(org.vernac.compiler.modules.ModuleDefinition.FILE)
-                    && Files.isRegularFile(file.getParent().resolve("pom.xml")) ? file.getParent().resolve("src/main/vernac") : null;
+            if (!file.getFileName().toString().equals(org.vernac.compiler.modules.ModuleDefinition.FILE)) return null;
+            if (Files.isRegularFile(file.getParent().resolve("pom.xml"))) return file.getParent().resolve("src/main/vernac");
         }
         for (Path candidate = file.getParent(); candidate != null; candidate = candidate.getParent()) {
             if(candidate.endsWith(Path.of("target","vernac-module-contracts"))) return candidate.getParent().getParent().resolve("src/main/vernac");

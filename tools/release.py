@@ -52,6 +52,18 @@ REQUIRED_TESTS += ("EditorValueObjectsTest", "BehaviorJavaProjectionTest",
                    "VernacLiveShortNamesCacheTest", "VernacLiveValueTest")
 
 
+# 0.5.4 core backport acceptance.
+REQUIRED_TESTS += (
+    "VernacFormatterTest", "VernacFormattingServiceTest",
+    "ValueStringRepresentationTest", "VernacProjectDiagnosticsTest",
+    "UniqueAggregateFieldsTest", "UniqueFieldModuleTest", "UniqueFieldSymbolsTest",
+    "UniquePersistenceSchemaTest", "UniquePersistencePostgresTest", "UniqueModulePostgresTest",
+    "GlobalIdReferenceTest", "GlobalIdReferencePostgresTest", "RoleDeclarationsTest",
+    "TenantGeneratedPostgresTest", "TenantModuleActivationPostgresTest",
+    "TenantEventWorkerPostgresTest", "JdbcRootQueryTest",
+)
+
+
 def require(condition, message):
     if not condition:
         raise ValueError(message)

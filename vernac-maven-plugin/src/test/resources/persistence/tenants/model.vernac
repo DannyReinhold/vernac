@@ -1,0 +1,32 @@
+namespace tenantdemo;
+id InvoiceId;
+id StopId;
+id ParcelId;
+id AuditId;
+id CatalogId;
+id ArchiveId;
+value Title(String);
+value Tag(String) list Tags;
+value TagGroup(Tags) list TagGroups;
+entity Parcel[ParcelId](Title) set Parcels;
+entity Stop[StopId](mut Title title, mut Parcels parcels, Tags tags) behavior {
+    modify void rename(Title title) {self.title(title);}
+} list Stops;
+tenant aggregate Invoice[InvoiceId](Title title, mut Stops stops, mut Stops favorites, mut Stop? preferred, TagGroups groups) behavior {
+    modify void replace(Stops stops, Stops favorites, Stop? preferred) {
+        self.stops(stops); self.favorites(favorites); self.preferred(preferred);
+    }
+} list Invoices;
+tenant aggregate Audit[AuditId](Title) list Audits;
+global aggregate Catalog[CatalogId](Title) list Catalogs;
+global aggregate Archive[ArchiveId](Stop);
+repository InvoiceRepository for Invoice {
+    find Invoices all() order by title;
+    find Invoices either(Title first, Title second) where title = :first or title = :second order by title;
+    find offset Invoices counted() order by title, id counting;
+    find cursor Invoices following() order by title, id;
+    find Invoice? unique(Title title) where title = :title;
+}
+repository AuditRepository for Audit {find Audits all() order by title;}
+repository CatalogRepository for Catalog {find Catalogs all() order by title;}
+repository ArchiveRepository for Archive {}

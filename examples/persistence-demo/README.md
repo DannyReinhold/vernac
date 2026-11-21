@@ -289,3 +289,20 @@ is running. Inspect retries as real processing attempts. See the
 [debugging tutorial](../../docs/tutorials/debugging.md) for mapping scope and the
 separate database-free thread probe. The published 0.4.0 plugin does not include
 these development debugger capabilities.
+
+## Event storage upgrade in the 0.5.4 development baseline
+
+The committed `V20261112090000000__event_origin_schema.sql` migration adds explicit
+GLOBAL origin metadata to historical event payloads. Its reviewed backfill expressions
+are retained in `src/main/vernac-schema/event-origin-upgrade.json`; the earlier SQL and
+snapshots are unchanged. A normal Flyway startup applies the additional migration.
+Rebuild with matching current development artifacts before starting against this
+layout. The Flyway history schema is explicitly `public`, so changing the database
+username does not change the history location on restart. The example remains a global application; tenant routing is explained separately in
+the [tenant event tutorial](../../docs/tutorials/tenant-events.md).
+As always, you alone review, test and approve migrations before deployment.
+
+The subsequent `V20261112100000000__delivery_origin.sql` migration retains queued jobs
+as GLOBAL while adding the new nullable routing field. Stop older workers before
+admitting tenant publications in a tenant-enabled application; the standard demo keeps
+using GLOBAL and its earlier migration history is unchanged.

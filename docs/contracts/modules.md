@@ -5,7 +5,9 @@ port/adapter and service/usecase export contracts. Persistent producers package 
 matching schema/migration bundle, and consumers verify it before importing types.
 Persistent and nonpersistent functions support explicit runtime activation with
 coordinated histories. Module events, recorded payloads and synchronous/deferred receivers are supported.
-Internal inbound HTTP adapters support explicit module activation.
+Internal inbound HTTP adapters support explicit module activation. Current 0.6.0
+development tools add permission exports and preserved usecase access requirements;
+these require module-contracts-13.
 
 ## Purpose and boundaries
 
@@ -26,7 +28,8 @@ The project-level export file is `vernac-module.vmodule`, beside the Maven POM.
 It has a dedicated IDE file type and no namespace declaration. One Maven artifact
 contains one module definition. The producer supports IDs, VOs, enums, entities,
 aggregates, their collections, repositories, ports, outbound adapters, services and
-usecases and events. Internal synchronous/deferred listeners participate in activation.
+usecases and events, plus permission declarations in 0.5.4 development. Internal
+synchronous/deferred listeners participate in activation.
 Inbound HTTP adapters remain internal entrypoints; activate their module to expose routes.
 Persistent activation is explicit and coordinates isolated module histories before application migrations.
 
@@ -64,7 +67,8 @@ also be rejected even when their Java representations happen to look identical.
 Only explicitly exported definitions are importable by an external Vernac project.
 Initially exports enumerate individual definitions; wildcard exports are excluded.
 IDs, values, enums, collections, entities, aggregates, usecases, domain services,
-events, repositories, ports, adapters and listeners MAY be explicitly exported.
+events, repositories, ports, outbound adapters and permissions MAY be explicitly exported.
+Listeners and inbound adapters are internal runtime components, not callable exports.
 Exportability does not make every category an advisable integration boundary.
 
 Public values and usecases are recommended for encapsulated functional modules.
@@ -110,7 +114,7 @@ business validations; those execute in the module's compiled factories and behav
 Sources SHOULD be supplied in the matching Maven sources artifact. Source attachment
 availability MUST NOT affect compilation or type identity. Metadata and source paths
 MUST NOT contain absolute paths from the publisher's machine. The initial descriptor is `META-INF/vernac/module.json`, formatVersion 1 and
-contractVersion `module-contracts-9`. Source attachments use `vernac/<namespace path>/<file>`.
+contractVersion `module-contracts-13`. Source attachments use `vernac/<namespace path>/<file>`.
 Generated companion Java signatures are recorded with explicit field/method contracts.
 Descriptors include an independent runtime component/dependency plan. They contain no module migration instructions yet.
 
@@ -169,9 +173,11 @@ Stored expected contracts, not only hashes, are required for compatibility diagn
 A deterministic fingerprint describes each public contract. Equal fingerprints are
 an efficient unchanged-contract check. Different fingerprints MUST trigger a
 structured expected-versus-resolved comparison, not an unconditional rejection.
-The module-contracts-9 fingerprint is SHA-256 over a canonical JSON tuple containing
+The module-contracts-13 fingerprint is SHA-256 over a canonical JSON tuple containing
 identity, kind, Java name, ordered fields/constants, collection element/kind, sorted
-public behaviors and sorted generated Java-member contracts. Origin/source/version
+public behaviors, sorted generated Java-member contracts and ordered usecase authorization
+requirements. Permission key members are sorted; domain enum order remains significant.
+Origin/source/version
 information is outside that tuple.
 
 Fingerprint inputs include type identity/category, field types/names/optionality,
@@ -501,7 +507,7 @@ contract-only publication does not activate beans, adapters or migrations.
 Adding an abstract port operation is not treated like adding a uniquely named class
 behavior: existing implementors must be rebuilt/adapted. Public signature changes,
 including optionality, are structural changes. The current contract metadata version
-is `module-contracts-9`; earlier development descriptors must be rebuilt.
+is `module-contracts-13`; earlier development descriptors must be rebuilt.
 
 Adapter publication, configured selection, service/usecase activation and coordinated
 persistent histories are supported. Exporting PaymentProvider does not
@@ -511,7 +517,7 @@ make its producer an activated billing implementation.
 
 A producer MAY export outbound adapters. Their Java identity is
 `<namespace>.adapter.outbound.<Name>`; their implemented port and public operation
-contracts are included in `module-contracts-9` metadata. Required configuration keys
+contracts are included in `module-contracts-13` metadata. Required configuration keys
 are contract metadata, never property values. Local public types/ports require explicit
 exports; foreign contracts are recorded as dependency requirements, not re-exported.
 
@@ -577,7 +583,7 @@ The descriptor's `components` list is a separate wiring plan, not part of a publ
 definition fingerprint. Private helper changes and technical DI constructor changes
 therefore do not change the public API fingerprint. Public operation signatures and
 inline result fields remain compatibility inputs. Rebuild module artifacts to emit
-`module-contracts-9` metadata before consuming them with this compiler.
+`module-contracts-13` metadata before consuming them with this compiler.
 
 ## Module persistence bundle preparation (current)
 
@@ -613,7 +619,7 @@ All Maven schema/migration/check/compile goals use the module SQL source default
 For persistence packaging, module SQL MUST reside outside ordinary Maven resource
 roots; otherwise the same scripts could leak into the application's Flyway scan.
 
-The descriptor format is version 1, separate from `module-contracts-9`. It includes
+The descriptor format is version 1, separate from `module-contracts-13`. It includes
 canonical identities, ordered filenames, SHA-256 hashes of the exact SQL and snapshot
 bytes, the complete expected schema and its semantic fingerprint. Packaging MUST
 require that the reviewed source snapshot chain reaches the current compiler schema.
@@ -662,7 +668,7 @@ implementation rebuilds, just as adding abstract port operations does.
 The metadata's `element` field identifies a collection element, entity/aggregate ID,
 repository aggregate or implemented port according to definition kind. Field records
 include `mutable`; method records include `mode`. The producer emits
-`module-contracts-9`; earlier development module artifacts must be rebuilt.
+`module-contracts-13`; earlier development module artifacts must be rebuilt.
 
 Modules with repositories or a recorded migration history carry `persistent=true`.
 Publishing them MUST package and verify the current schema against their source
@@ -685,11 +691,36 @@ Vernac sources remain preferable when available. Inbound HTTP entrypoints partic
 ## Persistent startup coordination
 
 The JDBC starter supplies Flyway and PostgreSQL support. Persistent activation requires
-one shared application DataSource, a PlatformTransactionManager and Spring Boot's
-FlywayMigrationInitializer. Separate Flyway DataSources and competing custom
-FlywayMigrationStrategy beans are unsupported and MUST fail initialization.
+one application runtime DataSource, a PlatformTransactionManager and Spring Boot's
+FlywayMigrationInitializer. A separate Flyway DataSource is supported for the same
+PostgreSQL database instance. Competing custom FlywayMigrationStrategy beans remain
+unsupported and MUST fail initialization.
 
-Before executing SQL, the coordinator verifies all activated bundles, checksums,
+The runtime DataSource MUST remain the source for repositories and the application
+transaction manager. Every activated module history, application history and installed
+schema validation MUST use the DataSource supplied by the application Flyway
+configuration. No migration operation may fall back to runtime credentials merely
+because a module is being migrated. Normal Spring Boot spring.datasource.* and
+spring.flyway.* properties supply these connections; no new Vernac configuration
+syntax or per-module credentials are introduced.
+
+For distinct DataSources, a read-only preflight MUST compare PostgreSQL database name,
+database OID, server startup time and server address/port before migration execution.
+Mismatch or an unreadable identity MUST fail startup before history/schema writes.
+Connection objects MUST be closed after inspection. The new preflight errors MUST NOT
+retain driver causes or echo URLs, credentials or identity values. Normal Flyway
+migration diagnostics retain their existing behavior.
+
+Both connections MUST reach the same writer instance/address/port. Configure the same
+DB_URL for both, as in the tutorial; differing address families or writer endpoints
+are not normalized by preflight, even when they reach one server. Independent module databases,
+read replicas, XA and routing between database instances are outside this contract.
+Failover during preflight can cause a closed failure; retry startup after connection
+routing has stabilized. Existing configurations using one shared DataSource remain
+supported for unscoped persistence. Privilege provisioning, reviewed grants and
+migration approval remain the application operator's responsibility.
+
+Before executing migration SQL, the coordinator verifies all activated bundles, checksums,
 history chains and cross-owner table identities. Each module uses its own stable
 history schema. Required modules migrate and undergo structural schema validation
 before dependants; application migrations and validation follow. Dependent functional
@@ -728,7 +759,7 @@ event contract; this support makes no persistence or retry guarantee.
 Deferred module receivers MUST require the producer's EVENT_STORAGE component.
 Producer payload tables MUST be isolated from application-owned shared delivery tables.
 The application worker MUST start only after all required migrations and validation.
-Metadata contract version is module-contracts-9; prior development modules MUST be rebuilt.
+Metadata contract version is module-contracts-13; prior development modules MUST be rebuilt.
 
 ## Durable module event storage and delivery (current)
 
@@ -801,7 +832,7 @@ persistent modules, those modules' migrations finish before the entrypoint beans
 created. A non-web application may activate a module containing entrypoints if its
 classpath provides the transport dependencies; routes are available only in a servlet
 web application. Controller/advice component contracts require metadata version
-`module-contracts-9`; rebuild earlier development artifacts.
+`module-contracts-13`; rebuild earlier development artifacts.
 
 
 ## Dependency navigation and refresh
@@ -832,3 +863,97 @@ MUST NOT follow PostgreSQL's implicit `$user` search path: creation of the techn
 `vernac` event schema must not relocate history for a login also named `vernac`.
 Explicit Flyway history/schema configuration is preserved. This changes no domain
 table ownership and does not enable automatic baselining of an existing schema.
+
+## Tenant contracts and ownership-aware type imports (0.5.4 development)
+
+The metadata contract is `module-contracts-13`. Earlier descriptors MUST be rebuilt;
+the compiler MUST NOT assume that an older entity binary implements ownership-aware
+restoration. This is a development compiler contract change, not a silent upgrade
+of released module artifacts. The JSON container format remains version 1.
+
+Every exported definition carries `aggregateScope` and `entityOwnershipVersion`:
+
+| Definition | aggregateScope | entityOwnershipVersion |
+| --- | --- | --- |
+| Tenant aggregate | TENANT | 0 |
+| Ordinary/global aggregate | GLOBAL | 0 |
+| Generated entity | NONE | 1 |
+| Other definition | NONE | 0 |
+
+These values MUST participate in the structural fingerprint. A scope change in either
+direction MUST be incompatible and name the changed scope in the diagnostic. Ordinary
+and explicit global declarations have the same scope. Comments, private implementations
+and Maven versions remain outside the fingerprint as before. Entity ownership version 1
+requires the generated ownership accessor and technical restore factory in the public
+binary metadata; incomplete entities MUST be rejected before consumer generation.
+
+Import reconstruction and read-only IDE contract views MUST retain aggregate scope.
+A consumer's tenancy rule MUST NOT reinterpret a dependency. Imported entities MAY be
+contained in a local tenant aggregate, directly or through explicitly exported
+collections. The dependency classes MUST NOT be regenerated. Stored tenant provenance
+is supplied to the dependency's technical restoration factory; public reconstitution
+still has the previously documented unscoped/detached semantics.
+
+A type module has no repository or migration merely because it exports domain types.
+No activation or tenant selection follows from an import. When the consumer owns a
+repository for its own aggregate, its schema includes the entire owned graph, including
+imported entity tables and flattened external values. The consumer generates and reviews
+that migration. Import/export closure and transitive dependency rules are unchanged.
+
+## Persistent tenant module activation (0.5.4 development)
+
+Modules MAY publish tenant repositories and their owned schema graphs. Normal export
+closure, explicit activation, functional dependency ordering and separate migration
+histories apply. Private aggregates/entities are included in the persistence bundle
+and MUST NOT escape validation merely because they are not exported APIs.
+
+Runtime schema data MUST preserve format-2 tenant classification and reject incomplete
+discriminators, ambiguous roots and cross-graph owned foreign keys. Format-1 unscoped
+snapshot serialization/fingerprints MUST remain unchanged. The module contract remains
+module-contracts-13; persistence bundle/snapshot envelopes remain version 1.
+
+Format-3 event origin metadata is generated with matching GLOBAL/tenant storage bindings,
+while format-1/2 fingerprints remain stable. Global event modules participate in the
+normal migration/validation/activation order. Old/new adapter/table-layout mismatches
+MUST fail before payload SQL rather than reinterpret persisted data. This does not
+replace trusted tenant selection or authorization. Current generated version-1 event
+storage supports tenant publication and origin-restoring workers; older adapters remain
+GLOBAL-only and are rejected/blocked with a rebuild diagnostic for tenant work.
+Event payloads also serve GLOBAL applications. Their strict tenant role/policy checks
+run before tenant operations; activation alone does not classify the whole application
+as tenant-bound. See the [event schema and upgrade contract](../development/event-origin-schema.md).
+
+After migration and structural validation of each owner, the coordinator MUST verify
+its tenant tables through the runtime DataSource, before callable module components
+initialize. Checks include the exact owned policy, ENABLE/FORCE RLS, non-owner and
+non-bypassing runtime identity, absence of unsafe schema CREATE/TRUNCATE privileges,
+schema USAGE and all four normal repository DML privileges. A changed/extra policy or
+missing privilege MUST abort startup. Safe diagnostics identify the owner and retain
+the classified TenancyException cause without copying tenant values or driver details.
+
+The application and required modules MUST retain REQUIRED propagation on the same
+runtime transaction manager/DataSource. Activation MUST NOT create a tenant context
+or reinterpret global data. Trusted execution selection is required only when code
+reaches tenant storage. Immediate synchronous listeners retain that execution context.
+
+Additive tenant schema upgrades use reviewed independent histories/backfills, including
+consumer-owned flattened copies of external VOs. Migration credentials must intentionally
+authorize all affected rows. Earlier successful histories remain recorded on later
+failure; dependent application startup stops. Existing-table tenant/global conversion
+remains blocked even with force. Tenant event routing is implemented; tenant provisioning and full
+SaaS integration remain OPEN. See [the tenant module walkthrough](../tutorials/tenant-modules.md).
+
+
+## Permission and usecase access contracts
+
+Module-contracts-11 preserves permission declarations and ordered usecase requirements.
+The [module authorization contract](module-authorization.md) specifies explicit export
+closure, internal access-header inventories, functional dependency snapshots and
+security-review boundaries. These are data contracts, not grants or automatic
+activation. Rebuild older development artifacts with matching tools. Existing frozen
+SQL migrations and persistence snapshots MUST NOT be rewritten for this metadata change.
+
+Unique aggregate fields additionally use [schema format 4](aggregate-uniqueness.md)
+for explicit selected-column collation. Module history, fingerprints and activation
+validation retain the constraint/collation across restart; unchanged old snapshots
+retain their existing representation. The source metadata contract remains module-contracts-13.

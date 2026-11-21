@@ -1,12 +1,12 @@
 # Publishing a Vernac release
 
-These instructions prepare **0.5.3** from **main**. Source checkouts keep
-**0.5.3-SNAPSHOT**; the workflow selects the release version without changing every POM.
-The [release notes](releases/0.5.3.md) define the scope.
+These instructions prepare **0.5.4** from **main**. Source checkouts keep
+**0.5.4-SNAPSHOT**; the workflow selects the release version without changing every POM.
+The [release notes](releases/0.5.4.md) define the scope.
 
 ## IntelliJ compatibility
 
-Vernac 0.5.3 targets IntelliJ IDEA 2026.2 (build `262.10968.63`). Keep that
+Vernac 0.5.4 targets IntelliJ IDEA 2026.2 (build `262.10968.63`). Keep that
 minimum and the matching compile SDK stable. Raise the minimum only when an
 IDE API requirement or a verified incompatibility calls for it. The packaged
 descriptor declares `since-build` and omits `until-build`.
@@ -15,13 +15,13 @@ The plugin uses the LSP integration API introduced in the 262 branch.
 ## Scope and one version input
 
 `revision` in the root POM drives Maven modules, the IntelliJ ZIP and the dependency
-version inserted by the project wizard. A release invocation uses `-Drevision=0.5.3`;
+version inserted by the project wizard. A release invocation uses `-Drevision=0.5.4`;
 the development default is not changed by that invocation. The workflow supplies
-that argument; the source checkout defaults to 0.5.3-SNAPSHOT.
-You do not need to edit every module POM or pre-install a 0.5.3 release locally.
+that argument; the source checkout defaults to 0.5.4-SNAPSHOT.
+You do not need to edit every module POM or pre-install a 0.5.4 release locally.
 
 Standalone application examples generally use their own `vernac.version` property. Select
-`-Dvernac.version=0.5.3` to consume the release after publication. Their application
+`-Dvernac.version=0.5.4` to consume the release after publication. Their application
 version, often 0.1.0-SNAPSHOT, is independent and need not match Vernac.
 The type-modules source reactor instead inherits the root `revision`; build it with
 matching local artifacts, or override `revision` consistently across that reactor.
@@ -57,7 +57,7 @@ The established workflows remain manually dispatched:
 
 Neither workflow creates Git tags/GitHub Releases or publishes automatically on a
 push. Record the exact selected commit. A GitHub manual launcher must exist on the
-default branch. Use `main` for the 0.5.3 dry run and the real release.
+default branch. Use `main` for the 0.5.4 dry run and the real release.
 
 ### Existing secret configuration
 
@@ -95,14 +95,14 @@ flattened POMs and tutorial migration experiments out of the commit. Push the br
 ### 2. Run the dry run on main
 
 Open **Actions → Vernac Release → Run workflow**. Select `main`, enter
-`version = 0.5.3`, and leave **dry_run = true**.
+`version = 0.5.4`, and leave **dry_run = true**.
 
 The workflow builds and signs without uploading to Central or Marketplace. Its test
 gate rejects missing required suites and skipped/failed reactor reports, including
 PostgreSQL, HTTP inbound, documentation and plugin distribution checks.
 A green local build with skipped PostgreSQL tests cannot satisfy that gate.
 
-Download `vernac-plugin-0.5.3-<attempt>` from the run's artifacts. Install the inner
+Download `vernac-plugin-0.5.4-<attempt>` from the run's artifacts. Install the inner
 plugin ZIP, not GitHub's outer download archive. Keep release.json with it. Check:
 
 - Displayed version and IDE compatibility from the packaged plugin.xml.
@@ -125,14 +125,14 @@ the commit identity; record the final main commit and inspect its release run.
 After the dry run and remaining acceptance checks:
 
 1. Confirm the exact reviewed source commit on `main`.
-2. Run **Vernac Release** on main with **version = 0.5.3**, **dry_run = false**.
+2. Run **Vernac Release** on main with **version = 0.5.4**, **dry_run = false**.
 3. Existing release tags/visible Central versions are rejected; published coordinates
    are immutable. Do not try to replace them.
 4. When Central validation succeeds, open the **existing deployment** in the
    [Central Portal](https://central.sonatype.com/publishing/deployments), inspect the
    coordinates and choose Publish. `autoPublish=false` is deliberate.
 5. The plugin job waits up to 30 minutes for all eight coordinates. It then extracts
-   the archived template, selects 0.5.3, adds HTTP/JDBC dependencies and builds with
+   the archived template, selects 0.5.4, adds HTTP/JDBC dependencies and builds with
    a fresh Maven repository. Local installs cannot conceal missing Central artifacts.
 6. Only after that succeeds does it submit the original ZIP to Marketplace Stable.
    Upload acceptance is not JetBrains approval. Verify the listing and installation
@@ -146,7 +146,7 @@ deployment before another real run. If it is Published, never redeploy that vers
 
 If Central takes longer than the wait window, the fresh-consumer check has a temporary
 failure, or Marketplace rejects submission, inspect both services first. Then run
-**Publish IntelliJ Plugin**, supplying version **0.5.3**, the original release **run ID**,
+**Publish IntelliJ Plugin**, supplying version **0.5.4**, the original release **run ID**,
 and original candidate **attempt** from its summary.
 
 Use dry_run=true for provenance checks; dry_run=false waits for Central, checks the
@@ -165,19 +165,19 @@ After publication and consumption verification, tag the **exact real-release com
 For the coordinated Maven/plugin release, follow the existing v0.2.0 convention:
 
 ```text
-git tag -a v0.5.3 RELEASE_COMMIT_SHA -m "Release Vernac 0.5.3"
-git push origin v0.5.3
+git tag -a v0.5.4 RELEASE_COMMIT_SHA -m "Release Vernac 0.5.4"
+git push origin v0.5.4
 ```
 
 Replace RELEASE_COMMIT_SHA with the recorded SHA. Create one GitHub Release from
-v0.5.3 using the reviewed [notes](releases/0.5.3.md). Attach the original plugin ZIP
+v0.5.4 using the reviewed [notes](releases/0.5.4.md). Attach the original plugin ZIP
 and release.json. Include actual verification outcomes and Marketplace status.
 Never move an existing published tag. Historical separate maven-v/plugin-v tags
 remain valid; use those when a distribution intentionally has a different source
 commit or release version.
 
 Only afterward create the next development branch and change root revision plus
-standalone/template vernac.version defaults together to the next agreed SNAPSHOT version. Make that a separate commit. Published 0.5.3
+standalone/template vernac.version defaults together to the next agreed SNAPSHOT version. Make that a separate commit. Published 0.5.4
 reference pages can stay anchored to the release until a new language revision is
 prepared; do not declare a future release complete by editing a status paragraph.
 
@@ -191,7 +191,7 @@ passphrases in GnuPG's agent. Never place them in the POM or command line.
 Record a clean source SHA, run the complete acceptance checks, then build/sign:
 
 ```text
-mvn -Prelease -Drevision=0.5.3 -pl vernac-runtime-http,vernac-runtime-jdbc,vernac-jdbc-spring-boot-starter,vernac-maven-plugin -am -Dgpg.keyname=YOUR_SIGNING_KEY_FINGERPRINT clean verify
+mvn -Prelease -Drevision=0.5.4 -pl vernac-runtime-http,vernac-runtime-jdbc,vernac-jdbc-spring-boot-starter,vernac-maven-plugin -am -Dgpg.keyname=YOUR_SIGNING_KEY_FINGERPRINT clean verify
 ```
 
 Check main/source/Javadoc JARs, their `.asc` files and flattened publication POMs
@@ -202,11 +202,11 @@ at the Portal; publication is still manual. Do not run this if the workflow has
 already uploaded the release. Record the deployment ID and status.
 
 After publication, consume the basic template from a separate directory with
-`vernac.version=0.5.3` and a fresh Maven repository; inspect downloads from Central.
+`vernac.version=0.5.4` and a fresh Maven repository; inspect downloads from Central.
 Also verify HTTP/JDBC starter consumption. The workflow performs that combined check.
 
-For local plugin builds use `mvn -Drevision=0.5.3 -pl vernac-intellij -am clean verify`.
-Retain and test `vernac-intellij/target/vernac-intellij-0.5.3-plugin.zip`. Publish
+For local plugin builds use `mvn -Drevision=0.5.4 -pl vernac-intellij -am clean verify`.
+Retain and test `vernac-intellij/target/vernac-intellij-0.5.4-plugin.zip`. Publish
 matching Maven artifacts first so newly created projects can resolve dependencies.
 Keep the Marketplace ID stable; normal updates reuse the existing listing.
 

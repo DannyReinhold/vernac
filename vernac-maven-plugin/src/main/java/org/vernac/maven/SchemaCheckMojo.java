@@ -93,12 +93,14 @@ public final class SchemaCheckMojo extends SchemaMojo {
         String prefix = "SELECT n.nspname, t.relname, ";
         String from = " FROM pg_class t JOIN pg_namespace n ON n.oid=t.relnamespace ";
         collect(c, owned, result, prefix + "'TABLE:' || t.relkind::text || ':' || t.relrowsecurity || ':' || t.relforcerowsecurity || ':' || t.relpersistence::text" + from + "WHERE t.relkind IN ('r','p')");
-        collect(c, owned, result, prefix + "'COLUMN:' || a.attname || ':' || format_type(a.atttypid,a.atttypmod) || ':' || a.attnotnull || ':' || COALESCE(pg_get_expr(d.adbin,d.adrelid),'') || ':' || a.attidentity::text || ':' || a.attgenerated::text"
+        collect(c, owned, result, prefix + "'COLUMN:' || a.attname || ':' || format_type(a.atttypid,a.atttypmod) || ':' || a.attnotnull || ':' || COALESCE(pg_get_expr(d.adbin,d.adrelid),'') || ':' || a.attidentity::text || ':' || a.attgenerated::text || ':' || CASE WHEN a.attcollation=0 THEN '' ELSE (SELECT cn.nspname || '.' || co.collname FROM pg_collation co JOIN pg_namespace cn ON cn.oid=co.collnamespace WHERE co.oid=a.attcollation) END"
                 + from + "JOIN pg_attribute a ON a.attrelid=t.oid LEFT JOIN pg_attrdef d ON d.adrelid=t.oid AND d.adnum=a.attnum WHERE a.attnum>0 AND NOT a.attisdropped AND t.relkind IN ('r','p')");
         collect(c, owned, result, prefix + "'CONSTRAINT:' || k.conname || ':' || pg_get_constraintdef(k.oid) || ':' || k.convalidated"
                 + from + "JOIN pg_constraint k ON k.conrelid=t.oid");
         collect(c, owned, result, prefix + "'INDEX:' || pg_get_indexdef(i.indexrelid)" + from + "JOIN pg_index i ON i.indrelid=t.oid");
         collect(c, owned, result, prefix + "'TRIGGER:' || pg_get_triggerdef(g.oid)" + from + "JOIN pg_trigger g ON g.tgrelid=t.oid WHERE NOT g.tgisinternal");
+        collect(c, owned, result, prefix + "'POLICY:' || p.policyname || ':' || p.permissive || ':' || p.roles::text || ':' || p.cmd || ':' || COALESCE(p.qual,'') || ':' || COALESCE(p.with_check,'')"
+                + from + "JOIN pg_policies p ON p.schemaname=n.nspname AND p.tablename=t.relname");
         return result;
     }
     private static void collect(Connection c, Set<String> owned, Set<String> rows, String sql) throws SQLException {

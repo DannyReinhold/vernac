@@ -20,6 +20,15 @@ class ApplicationDefinitionTest {
         assertNull(app.bindings().getFirst().adapter());
         app.requireBuildSupport();
     }
+    @Test void authorizationAuditIsExplicitIndependentOfTenancyAndApplicationOnly() {
+        var app=parse("application example.shop {authorization explicit;}");
+        assertTrue(app.explicitAuthorization());assertFalse(app.explicitTenancy());
+        assertFalse(parse("application example.shop {tenancy explicit;}").explicitAuthorization());
+        assertTrue(parse("application example.shop {tenancy explicit; authorization explicit;}").explicitAuthorization());
+        assertFalse(new ApplicationDefinition("app",List.of(),List.of(),true).explicitAuthorization());
+        assertThrows(SemanticValidationException.class,()->parse("application example.shop {authorization explicit; authorization explicit;}"));
+        assertThrows(SemanticValidationException.class,()->org.vernac.compiler.modules.ModuleDefinition.parse(root.resolve("module.vmodule"),"module example.library {authorization explicit;}"));
+    }
     @Test void rejectsMalformedDuplicatesAndBlankKeys() {
         for(String body:List.of("activate example.billing; activate example.billing;",
                 "bind example.Payment to example.One; bind example.Payment from configuration \"key\";",
@@ -29,7 +38,7 @@ class ApplicationDefinitionTest {
     }
     @Test void checksActualPortImplementationAndPreservesContextualKeywords() throws Exception {
         Path source=root.resolve("example/model.vernac");Files.createDirectories(source.getParent());
-        Files.writeString(source,"namespace example; port Payment { void pay(); } port Other { void pay(); } adapter Provider implements Payment { behavior { public void pay() {} } } value Application(String); value Holder(String activate); ");
+        Files.writeString(source,"namespace example; port Payment { void pay(); } port Other { void pay(); } adapter Provider implements Payment { behavior { public void pay() {} } } value Application(String); value Holder(String activate, String authorization); ");
         var resolved=new VernacCompiler().analyzeProject(root,List.of());
         assertTrue(parse("application example.shop {bind example.Payment to example.Provider;}").diagnostics(resolved,List.of()).isEmpty());
         assertTrue(parse("application example.shop {bind example.Other to example.Provider;}").diagnostics(resolved,List.of()).stream().anyMatch(d->d.message().contains("implements")));

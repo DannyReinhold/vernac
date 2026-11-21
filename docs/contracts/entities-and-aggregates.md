@@ -50,6 +50,10 @@ Aggregates cannot be contained, directly or through collections. Reference anoth
 aggregate through its id, or an id collection. Collections of aggregates may still be
 declared and used outside domain containment, for example as query results.
 
+Aggregate fields may additionally declare [`unique`](aggregate-uniqueness.md), including
+an omitted field name. A repository generates PostgreSQL enforcement with the
+aggregate's global/tenant scope; object construction performs no cross-instance query.
+
 `mut` permits replacing the field value/reference. It does not make the field optional.
 A field without `mut` cannot be replaced, but a contained entity can still change through
 its public behavior. Immutable collection membership does not imply immutable elements.
@@ -224,3 +228,16 @@ format. Identity-only equality and hashing remain unchanged.
 Navigation to a technical access **type** stays in Java. Navigation to domain types and
 source-backed getters/behavior methods, including `self.field()` in injected Java,
 continues to target Vernac. Private implementation companions are not redirected.
+
+## Explicit unscoped aggregates (0.5.4 development)
+
+global aggregate is an explicit spelling of the existing unscoped aggregate.
+It changes neither factories nor generated schema. Projects can require explicit
+classification through tenancy explicit in .vapplication or .vmodule.
+See [explicit persistence classification](explicit-tenancy.md) for exact scope,
+editor behavior and tenant-bound persistence. tenant aggregate adds technical
+ownership and scoped JDBC behavior without changing public business factory
+arguments, equality or Read/Write/Access views. Generated entity implementations keep
+technical ownership outside those views; public manual entity reconstruction remains
+unscoped, while trusted JDBC reconstruction preserves the stored boundary.
+See [integration limits](../development/tenant-persistence-integration.md).

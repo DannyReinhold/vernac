@@ -94,6 +94,8 @@ final class VernacProjectSymbols {
                     add(path,namespace,top.outboundAdapterDefinition().name,TypeSymbol.Kind.OUTBOUND_ADAPTER);
                 } else if (top.portDefinition() != null) {
                     add(path, namespace, top.portDefinition().name, TypeSymbol.Kind.PORT);
+                } else if (top.permissionDefinition() != null) {
+                    add(path, namespace, top.permissionDefinition().name, TypeSymbol.Kind.PERMISSION);
                 } else if (top.usecaseDefinition() != null) {
                     add(path, namespace, top.usecaseDefinition().name, TypeSymbol.Kind.USE_CASE);
                 } else if (top.domainServiceDefinition() != null) {
@@ -119,7 +121,9 @@ final class VernacProjectSymbols {
         while(start>0) {int cp=text.codePointBefore(start);if(!Character.isJavaIdentifierPart(cp)&&cp!='.')break;start-=Character.charCount(cp);}
         String before=text.substring(0,start).stripTrailing(),prefix=text.substring(start,point);
         java.util.stream.Stream<String> names;
-        if(before.endsWith("activate")) {
+        if(before.endsWith("tenancy")||before.endsWith("authorization")) {
+            names=java.util.stream.Stream.of("explicit;");
+        } else if(before.endsWith("activate")) {
             names=modules.stream().filter(org.vernac.compiler.modules.ModuleDescriptor::activatable).map(org.vernac.compiler.modules.ModuleDescriptor::module);
         } else if(before.endsWith("bind")) {
             names=declarations.stream().filter(d->d.kind()==TypeSymbol.Kind.PORT).map(d->d.identity().qualifiedName());
@@ -129,7 +133,7 @@ final class VernacProjectSymbols {
             names=declarations.stream().filter(d->d.kind()==TypeSymbol.Kind.OUTBOUND_ADAPTER)
                     .filter(d->port!=null&&adapterPort(d).filter(port::equals).isPresent()).map(d->d.identity().qualifiedName());
         } else {
-            names=java.util.stream.Stream.of("activate", "bind");
+            names=java.util.stream.Stream.of("activate", "bind", "tenancy explicit;", "authorization explicit;");
             if(!before.endsWith("{")&&!before.endsWith(";"))return List.of();
         }
         Range range=new Range(position(text,start),at);
@@ -171,7 +175,14 @@ final class VernacProjectSymbols {
     List<CompletionItem> moduleComplete(String text,Position at) {
         int point=offset(text,at),start=point;
         while(start>0) {int cp=text.codePointBefore(start);if(!Character.isJavaIdentifierPart(cp)&&cp!='.')break;start-=Character.charCount(cp);}
-        if(!text.substring(0,start).stripTrailing().endsWith("export"))return List.of();
+        String before=text.substring(0,start).stripTrailing();
+        if(!before.endsWith("export")) {
+            String prefix=text.substring(start,point);
+            List<String> words=before.endsWith("tenancy")?List.of("explicit;")
+                    :before.endsWith("{")||before.endsWith(";")?List.of("export","tenancy explicit;"):List.of();
+            Range range=new Range(position(text,start),at);
+            return words.stream().filter(w->w.startsWith(prefix)).map(w->{var item=new CompletionItem(w);item.setTextEdit(Either.forLeft(new TextEdit(range,w)));return item;}).toList();
+        }
         String prefix=text.substring(start,point);Range range=new Range(position(text,start),at);
         return declarations.stream().filter(d->d.sourceFile().startsWith(root) && !d.sourceFile().toString().contains(".module-contracts"))
             .filter(d->d.kind()!=TypeSymbol.Kind.LISTENER && d.kind()!=TypeSymbol.Kind.INBOUND_HTTP_ADAPTER)
@@ -226,6 +237,38 @@ final class VernacProjectSymbols {
         if (file == null) return List.of();
         int cursor = offset(file.text(), position);
         if(cursor<0)return List.of();
+        int pointInCodePoints = file.text().codePointCount(0, cursor);
+        for (var top : file.tree().topLevelDeclaration()) {
+            var adapter = top.inboundHttpAdapterDefinition();
+            if (adapter == null || !"mvc".equals(adapter.transport.getText())) continue;
+            for (var endpoint : adapter.inboundEndpoint()) {
+                var token = endpoint.view;
+                if (token == null || pointInCodePoints <= token.getStartIndex()
+                        || pointInCodePoints > token.getStopIndex()) continue;
+                int start = utf16(file.text(), token.getStartIndex() + 1);
+                int end = utf16(file.text(), token.getStopIndex());
+                var range = new Range(position(file.text(), start), position(file.text(), end));
+                var templates = org.vernac.compiler.modules.ModuleArtifacts.projectDirectory(root)
+                        .resolve("src/main/resources/templates");
+                if (!java.nio.file.Files.isDirectory(templates)) return List.of();
+                try (var paths = java.nio.file.Files.walk(templates)) {
+                    return paths.filter(java.nio.file.Files::isRegularFile)
+                            .map(templates::relativize)
+                            .map(p -> p.toString().replace(java.io.File.separatorChar, '/'))
+                            .filter(p -> p.endsWith(".html"))
+                            .map(p -> p.substring(0, p.length() - 5))
+                            .filter(p -> p.startsWith(file.text().substring(start, cursor)))
+                            .sorted().map(name -> {
+                                var item = new CompletionItem(name);
+                                item.setKind(CompletionItemKind.File);
+                                item.setTextEdit(Either.forLeft(new TextEdit(range, name)));
+                                return item;
+                            }).toList();
+                } catch (java.io.IOException unavailable) {
+                    return List.of();
+                }
+            }
+        }
         if(excluded(file,cursor))return List.of();
         int termPoint=file.text().codePointCount(0,cursor);
         for(var top:file.tree().topLevelDeclaration())if(top.termDefinition()!=null&&contains(top.termDefinition(),termPoint)) {
@@ -249,6 +292,15 @@ final class VernacProjectSymbols {
         List<VernacParser.QualifiedNameContext> contexts = new ArrayList<>();
         // Match by the injected token's code-point offset, not by text alone.
         int marker = file.text().codePointCount(0, start);
+        var authorization=authorizationReference(probe,marker);
+        if(authorization!=null) {
+            Range range=new Range(position(file.text(),start),position(file.text(),end));
+            return authorizationChoices(path,file,authorization,prefix).keySet().stream().filter(n->n.startsWith(prefix)).map(n->{
+                var item=new CompletionItem(n);item.setKind(authorization.resource()?CompletionItemKind.Variable:CompletionItemKind.EnumMember);
+                item.setDetail(authorization.resource()?"Required nominal usecase input":"Permission key; does not grant access");
+                item.setTextEdit(Either.forLeft(new TextEdit(range,n)));return item;
+            }).toList();
+        }
         var inbound = inboundChoices(path,file,probe,marker,prefix);
         if(inbound!=null) {
             Range range=new Range(position(file.text(),start),position(file.text(),end));
@@ -365,18 +417,73 @@ final class VernacProjectSymbols {
             choices.remove("EventId");choices.put("list","Technical collection");
             localSchemas(context).forEach(d->{if(d.name!=null)choices.put(d.name.getText(),"Adapter-local DTO");});
         }
+        if (!importing && context.getParent().getParent() instanceof VernacParser.ParameterContext field
+                && field.getParent() instanceof VernacParser.ParameterListContext parameters
+                && parameters.getParent() instanceof VernacParser.AggregateDefinitionContext) {
+            if (field.isUnique == null) choices.putIfAbsent("unique", "Aggregate field modifier");
+            if (field.isMut == null) choices.putIfAbsent("mut", "Aggregate field modifier");
+        }
         Range range = new Range(position(file.text(), start), position(file.text(), end));
         List<CompletionItem> result = new ArrayList<>();
         choices.forEach((name, detail) -> {
             if (name.startsWith(prefix)) {
                 var item = new CompletionItem(name);
-                item.setKind(name.endsWith(".*") ? CompletionItemKind.Module : CompletionItemKind.Class);
+                item.setKind(detail.equals("Aggregate field modifier") ? CompletionItemKind.Keyword
+                        : name.endsWith(".*") ? CompletionItemKind.Module : CompletionItemKind.Class);
                 item.setDetail(detail);
                 item.setTextEdit(Either.forLeft(new TextEdit(range, name)));
                 result.add(item);
             }
         });
         return result;
+    }
+
+    private record AuthorizationReference(ParserRuleContext name,boolean resource,VernacParser.UsecaseDefinitionContext operation) {}
+    private static AuthorizationReference authorizationReference(ParseTree tree,int point) {
+        List<AuthorizationReference> found=new ArrayList<>();
+        walk(tree,n->{if(n instanceof VernacParser.PermissionRequirementContext p) {
+            ParserRuleContext name=contains(p.resource,point)?p.resource:contains(p.key,point)?p.key:null;
+            if(name==null)return;
+            for(var parent=p.getParent();parent!=null;parent=parent.getParent())
+                if(parent instanceof VernacParser.RoleDefinitionContext) {found.add(new AuthorizationReference(name,false,null));break;}
+                else if(parent instanceof VernacParser.UsecaseDefinitionContext operation) {found.add(new AuthorizationReference(name,name==p.resource,operation));break;}
+        }});
+        return found.size()==1?found.getFirst():null;
+    }
+    private TypeSymbol permissionSymbol(Parsed file,String name) {
+        var scope=new FileTypeScope(file.unit(),index,namespaces);
+        if(scope.hasErrors()||!index.problems().isEmpty())return null;
+        var type=scope.resolve(name,file.unit().location()).type().orElse(null);
+        return type instanceof ResolvedType.Declared d && d.symbol().kind()==TypeSymbol.Kind.PERMISSION?d.symbol():null;
+    }
+    private Map<String,Location> authorizationChoices(Path path,Parsed file,AuthorizationReference reference,String prefix) {
+        Map<String,Location> choices=new TreeMap<>();
+        if(reference.resource()) {
+            var inputs=reference.operation().inputs;
+            if(inputs==null)return choices;
+            var scope=new FileTypeScope(file.unit(),index,namespaces);
+            if(scope.hasErrors()||!index.problems().isEmpty())return choices;
+            for(var input:inputs.parameter()) {
+                if(input.paramType==null||input.paramType.isOptional!=null)continue;
+                var type=scope.resolve(input.paramType.rawType.getText(),file.unit().location()).type().orElse(null);
+                if(type instanceof ResolvedType.Declared d && Set.of(TypeSymbol.Kind.ID,TypeSymbol.Kind.VALUE_OBJECT,TypeSymbol.Kind.ENUM).contains(d.symbol().kind()))
+                    choices.put(parameterName(input),queryLocation(path,file,input.name==null?input.paramType.rawType.qualifiedNameSegment().getLast():input.name));
+            }
+            return choices;
+        }
+        for(var symbol:declarations) if(symbol.kind()==TypeSymbol.Kind.PERMISSION) {
+            String typeName=prefix.contains(".")
+                ?(symbol.identity().qualifiedName().startsWith(prefix)?symbol.identity().qualifiedName():prefix.substring(0,prefix.lastIndexOf('.')))
+                :symbol.identity().name();
+            if(!symbol.equals(permissionSymbol(file,typeName)))continue;
+            var source=files.get(symbol.sourceFile());if(source==null)continue;
+            for(var top:source.tree().topLevelDeclaration()) {
+                var permission=top.permissionDefinition();
+                if(permission==null||permission.name==null||!permission.name.getText().equals(symbol.identity().name()))continue;
+                for(var member:permission.members) choices.put(typeName+"."+member.getText(),queryLocation(symbol.sourceFile(),source,member));
+            }
+        }
+        return choices;
     }
 
     private TermView termAt(Path path,Position at) {
@@ -390,6 +497,24 @@ final class VernacProjectSymbols {
         var direct=termAt(path,at);
         if(direct!=null)return org.vernac.compiler.vocabulary.Vocabulary.markdown(direct.entry());
         var current=files.get(path);
+        if (current != null) {
+            int point = current.text().codePointCount(0, offset(current.text(), at));
+            for (var top : current.tree().topLevelDeclaration()) {
+                var aggregate = top.aggregateDefinition();
+                if (aggregate == null || aggregate.parameterList() == null) continue;
+                for (var field : aggregate.parameterList().parameter()) {
+                    if (field.isUnique == null) continue;
+                    boolean onModifier = point >= field.isUnique.getStartIndex() && point <= field.isUnique.getStopIndex();
+                    if (onModifier || (field.name != null && contains(field.name, point))) {
+                        String scope = aggregate.classification != null && aggregate.classification.getText().equals("tenant")
+                                ? "within each tenant" : "across instances of this aggregate";
+                        return "**Unique aggregate field** `" + parameterName(field) + "`\n\n"
+                                + "Domain requirement: unique " + scope + ". No in-memory cross-instance validation. "
+                                + "Persistence generates a database unique constraint; conflicts roll back the writer transaction.";
+                    }
+                }
+            }
+        }
         if (current!=null) {
             int point=current.text().codePointCount(0,offset(current.text(),at));
             List<VernacParser.InboundErrorRuleContext> rules=new ArrayList<>();
@@ -398,6 +523,24 @@ final class VernacProjectSymbols {
                 var rule=rules.getFirst();var adapter=inboundAncestor(rule);
                 if (adapter!=null) for (var endpoint:adapter.inboundEndpoint()) if(endpoint.name.getText().equals(rule.reload.getText()))
                     return "**MVC page loader** `"+endpoint.name.getText()+"`\n\nReloads the GET endpoint and restores permitted form inputs. The failed POST is not repeated.";
+            }
+        }
+        if(current!=null) {
+            int point=current.text().codePointCount(0,offset(current.text(),at));
+            var authorization=authorizationReference(current.tree(),point);
+            if(authorization!=null) {
+                String name=authorization.name().getText();
+                if(authorization.resource()) {
+                    if(!authorizationChoices(path,current,authorization,name).containsKey(name))return "";
+                    return "**Authorization resource** `"+name+"`\n\nRequired nominal usecase input passed to the policy. It is not an ownership grant.";
+                }
+                int dot=name.lastIndexOf('.');var permission=dot<0?null:permissionSymbol(current,name.substring(0,dot));
+                if(permission!=null) {
+                    var term=terms.get(new org.vernac.compiler.vocabulary.Vocabulary.Key(permission.identity().namespace(),permission.identity().name()));
+                    return "**PERMISSION** `"+permission.identity().qualifiedName()+"`\n\n"+
+                        (authorizationChoices(path,current,authorization,name).containsKey(name)?"Key `"+name+"`; " + (authorization.operation()==null ? "included in this application role." : "checked when this usecase is reached."):"Choose a declared permission member.")+
+                        (term==null?"":"\n\n"+org.vernac.compiler.vocabulary.Vocabulary.markdown(term.entry()));
+                }
             }
         }
         TypeSymbol symbol=declarations.stream().filter(d->d.sourceFile().equals(path)&&declarationRanges.containsKey(d)
@@ -423,7 +566,26 @@ final class VernacProjectSymbols {
         }
         int offset = offset(file.text(), position);
         if (offset < 0) return List.of();
+        for (var view : org.vernac.compiler.tooling.MvcTemplateReferences.find(root, file.text())) {
+            if (offset >= view.start() && offset < view.end()) {
+                var start = new Position(0, 0);
+                return List.of(new Location(view.target().toUri().toString(), new Range(start, start)));
+            }
+        }
         int point = file.text().codePointCount(0, offset);
+        var authorization=authorizationReference(file.tree(),point);
+        if(authorization!=null) {
+            String key=authorization.name().getText();
+            var choices=authorizationChoices(path,file,authorization,key);
+            if(!authorization.resource() && authorization.name() instanceof VernacParser.QualifiedNameContext q) {
+                var parts=q.qualifiedNameSegment();
+                if(parts.size()>1 && point<parts.getLast().getStart().getStartIndex()) {
+                    var symbol=permissionSymbol(file,parts.subList(0,parts.size()-1).stream().map(ParseTree::getText).collect(java.util.stream.Collectors.joining(".")));
+                    return symbol==null?List.of():List.of(location(symbol));
+                }
+            }
+            return choices.containsKey(key)?List.of(choices.get(key)):List.of();
+        }
         int inboundStart=offset;
         while(inboundStart>0 && nameCharacter(file.text().codePointBefore(inboundStart)))inboundStart-=Character.charCount(file.text().codePointBefore(inboundStart));
         var inbound=inboundChoices(path,file,file.tree(),point,file.text().substring(inboundStart,offset));
@@ -566,7 +728,7 @@ final class VernacProjectSymbols {
         for(var n=assignment.getParent();n!=null;n=n.getParent())if(n instanceof VernacParser.InboundEndpointContext e){endpoint=e;break;}
         if(hit==assignment.target) {
             if(mapping!=null)return inboundFields(path,file,adapter,mapping.targetType,List.of(),"");
-            var usecase=endpoint==null?null:inboundUsecase(file,adapter,endpoint.dependency.getText());
+            var usecase=endpoint==null || endpoint.dependency==null?null:inboundUsecase(file,adapter,endpoint.dependency.getText());
             if(usecase!=null && usecase.inputs!=null)for(var p:usecase.inputs.parameter())result.put(parameterName(p),queryLocation(pathForUsecase(usecase),files.get(pathForUsecase(usecase)),p));
             return result;
         }

@@ -7,11 +7,11 @@ Start with a passing domain test. Then follow a delivery operation through behav
 transactions, persistence, events and an external carrier. Each chapter answers a
 practical question; focused examples isolate details when the full system would distract.
 
-These tutorials describe **Vernac 0.5.3**. Use JDK 25 for the documented builds;
-generated application code targets Java 21. Released consumers use 0.5.3 artifacts
-from Maven Central after publication. Repository examples use 0.5.3-SNAPSHOT by
+These tutorials describe **Vernac 0.5.0**. Use JDK 25 for the documented builds;
+generated application code targets Java 21. Released consumers use 0.5.0 artifacts
+from Maven Central after publication. Repository examples use 0.5.4-SNAPSHOT by
 default: install matching local artifacts first, or select the release with
-`-Dvernac.version=0.5.3` after publication.
+`-Dvernac.version=0.5.0` after publication.
 Commands below include `mvn`; use the full command in the IntelliJ Maven run configuration used for these examples.
 In PowerShell, quote a complete dotted `-Dproperty=value` argument when necessary.
 
@@ -56,13 +56,13 @@ Already know DDD? Start at the first domain model or use the
 
 [Debug your business behavior where you wrote it](debugging.md) walks through
 breakpoints, stepping, variables, Java expressions, conditions and logpoints in a
-small database-free application. Use matching 0.5.3 compiler and plugin artifacts,
+small database-free application. Use matching 0.5.0 compiler and plugin artifacts,
 or the matching SNAPSHOT source build.
 
 ## Start with a real web application
 
 [From New Project to a working application](spring-boot-starter.md) creates a small
-Thymeleaf/PostgreSQL task workspace from the 0.5.3 wizard. It demonstrates a complete
+Thymeleaf/PostgreSQL task workspace from the 0.5.0 wizard. It demonstrates a complete
 browser-to-usecase-to-database path, local Compose, migrations and deployment configuration.
 The [MVC adapter tutorial](inbound-mvc.md) shows how to declare HTML pages, forms,
 redirects and safe error redisplay directly in Vernac.
@@ -106,3 +106,29 @@ The chapter explains explicit activation, provider selection, dependency navigat
 [Run the persistent module lifecycle](https://github.com/DannyReinhold/vernac/blob/main/examples/persistent-modules/README.md):
 call two persistent modules from an application, then upgrade their shared value
 with reviewed backfills while retaining existing data. Its separate API module and durable event receivers demonstrate the same activation graph.
+
+## 0.5.4 development: shared-database tenant persistence
+
+[Keep each tenant's notes private](tenant-persistence.md) explains local tenant/global
+aggregate classification, reviewed migrations, separate database roles and trusted
+execution selection. This chapter requires development artifacts and explicitly
+identifies module, event and SaaS provisioning work that is not complete yet.
+
+[Run tenant-aware modules together](tenant-modules.md) follows a producer and consumer
+through publication, explicit activation, separated database roles, REQUIRED transactions
+and additive shared-value migrations. Runtime policy drift and failed startup are part
+of the walkthrough. [Deliver events in their publishing tenant](tenant-events.md)
+extends this foundation with durable worker routing; SaaS provisioning remains future work.
+
+[Deliver domain events in the tenant that published them](tenant-events.md) follows
+publication, restricted database roles, queue upgrades, retries and worker context cleanup.
+
+
+## 0.5.4 development: declarative access requirements
+
+[Put access requirements beside the operation](usecase-authorization.md) introduces
+named permissions, requires, generated guards and Spring actor/policy integration.
+Local and module contracts are implemented. Continue with
+[Carry access requirements across module boundaries](module-authorization.md) for
+publication, activation and upgrades. The complete SaaS identity/role/plan system remains
+in progress. Use matching development artifacts.

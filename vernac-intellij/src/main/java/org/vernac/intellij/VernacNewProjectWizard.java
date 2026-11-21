@@ -71,8 +71,7 @@ public final class VernacNewProjectWizard
         private final JBTextField artifactIdField = new JBTextField();
         private final JBTextField groupIdField = new JBTextField("org.example");
         private final JBTextField packageField = new JBTextField("org.example.tasks");
-        private final JComboBox<VernacProjectTemplate.ProjectKind> kindField =
-                new JComboBox<>(VernacProjectTemplate.ProjectKind.values());
+        private final ButtonGroup projectKinds = new ButtonGroup();
         private final JComboBox<Sdk> jdkField = new JComboBox<>();
         private String lastSuggestedArtifactId;
 
@@ -100,9 +99,11 @@ public final class VernacNewProjectWizard
                 return Unit.INSTANCE;
             });
 
-            kindField.setSelectedItem(VernacProjectTemplate.ProjectKind.SPRING_BOOT_APPLICATION);
-            kindField.setToolTipText("Web application: real UI, PostgreSQL, Flyway, local Compose; minimal and module projects need no Docker.");
             configureJdkSelection();
+        }
+
+        private VernacProjectTemplate.ProjectKind selectedKind() {
+            return VernacProjectTemplate.ProjectKind.valueOf(projectKinds.getSelection().getActionCommand());
         }
 
         private static boolean isSupportedJdk(Sdk sdk) {
@@ -147,7 +148,7 @@ public final class VernacNewProjectWizard
         private ValidationInfo validatePackage(JBTextField field) {
             String value = field.getText().strip();
 
-            if (kindField.getSelectedItem() == VernacProjectTemplate.ProjectKind.TYPE_MODULE
+            if (selectedKind() == VernacProjectTemplate.ProjectKind.TYPE_MODULE
                     && !value.contains(".")) {
                 return new ValidationInfo("Use a qualified namespace with at least two segments for a type module.", field);
             }
@@ -213,8 +214,17 @@ public final class VernacNewProjectWizard
 
         @Override
         public void setupUI(Panel builder) {
+            JPanel choices = new JPanel();
+            choices.setLayout(new BoxLayout(choices, BoxLayout.Y_AXIS));
+            for (var kind : VernacProjectTemplate.ProjectKind.values()) {
+                var button = new JRadioButton(kind.toString());
+                button.setActionCommand(kind.name());
+                projectKinds.add(button);
+                choices.add(button);
+                button.setSelected(kind == VernacProjectTemplate.ProjectKind.SPRING_BOOT_APPLICATION);
+            }
             builder.row("Project kind:", row -> {
-                row.cell(kindField);
+                row.cell(choices);
                 return Unit.INSTANCE;
             });
 
@@ -269,7 +279,7 @@ public final class VernacNewProjectWizard
                         groupIdField.getText().strip(),
                         artifactIdField.getText().strip(),
                         packageField.getText().strip(),
-                        (VernacProjectTemplate.ProjectKind) kindField.getSelectedItem()
+                        selectedKind()
                 );
 
                 Path pomPath = projectDirectory.resolve("pom.xml");

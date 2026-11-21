@@ -85,6 +85,7 @@ public class VernacCompiler {
                     new BehaviorGenerator().generate(com.palantir.javapoet.ClassName.get(source.unit().namespace() + ".domain", value.name()),
                             value.methods(), value.javaImports(), source.unit(), project).ifPresent(files::add);
                 }
+                if (definition instanceof PermissionNode permission) files.add(AuthorizationGenerator.permission(permission, source.unit().namespace()));
                 if (definition instanceof EventNode e) files.addAll(eventGenerator.generate(e,source.unit(),project));
                 if (definition instanceof ListenerNode l) files.addAll(listenerGenerator.generate(l,source.unit(),project));
                 if (definition instanceof UseCaseNode u) files.addAll(useCaseGenerator.generate(u,source.unit(),project));

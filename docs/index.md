@@ -144,9 +144,9 @@ See the **AI‑specific language reference**:
 
 ## Version and prerequisites
 
-These pages describe the **Vernac 0.5.3 language and API**.
-Source checkouts default to **0.5.3-SNAPSHOT**. Released consumers select matching
-**0.5.3** artifacts after publication; older versions do not support all features below.
+These pages describe the **Vernac 0.5.4 language and API**.
+Source checkouts default to **0.5.4-SNAPSHOT**. Released consumers select matching
+**0.5.4** artifacts after publication; older versions do not support all features below.
 Use JDK 25 to build the repository; generated applications target Java 21.  
 Persistence examples use PostgreSQL 17.
 
@@ -202,15 +202,15 @@ from Maven or open its diagram directly from IntelliJ.
 
 ## Debug the business rule, in its source
 
-With the **0.5.3 compiler and plugin**, put a breakpoint inside an inline Vernac
+With the **0.5.4 compiler and plugin**, put a breakpoint inside an inline Vernac
 behavior and inspect the live JVM state without first finding its generated Java
 implementation. Step through the rule, inspect `self` and locals, evaluate Java
 expressions and use conditional breakpoints.
 
 The [debugging walkthrough](tutorials/debugging.md) takes you through a
 small runnable example, including private helpers, handwritten Java transitions
-and logpoints. It explains the current coverage and limits. Use matching 0.5.3 release artifacts, or matching
-0.5.3-SNAPSHOT artifacts when building this source checkout.
+and logpoints. It explains the current coverage and limits. Use matching 0.5.4 release artifacts, or matching
+0.5.4-SNAPSHOT artifacts when building this source checkout.
 
 ### Server-rendered applications
 
