@@ -1,0 +1,3 @@
+# Published migrations and schema history are checked against stored checksums.
+**/migration/V*__*.sql text eol=lf
+**/vernac-schema/history/V*__*.json text eol=lf

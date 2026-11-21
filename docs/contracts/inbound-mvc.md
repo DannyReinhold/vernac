@@ -156,3 +156,12 @@ With Spring Boot's Thymeleaf starter, place the template in
 view name through Spring MVC. A template-only route has no request bindings or
 model. An adapter consisting exclusively of template-only routes can omit
 `error view` when it also has no adapter-level error policy.
+
+## Text downloads
+
+A usecase-backed route can return a UTF-8 text attachment with
+`export "report.txt" from content;`. The named result field provides the text.
+The browser receives an attachment response instead of a rendered view.
+
+IntelliJ completes the logical template names and opens their HTML files from a
+`render` declaration.

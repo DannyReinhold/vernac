@@ -4,8 +4,11 @@
 
 Implemented in the project compiler, JDBC runtime and LSP. PostgreSQL integration
 tests are opt-in and must be run against the supported PostgreSQL deployment.
-Existing `byId`, `save` and `delete` remain available. Custom JDBC searches,
-pagination and query projections remain deferred.
+Existing `byId`, `save` and `delete` remain available. Declarative offset/cursor
+[pagination](pagination.md) is also implemented. Handwritten Java helpers can use the
+explicit [generated JDBC extension capability](repository-extensions.md), which retains
+canonical hydration, scope and return guards. General query projections and repository
+behavior/implemented-by declarations remain deferred; no new DSL syntax is required.
 
 ## Declaration and result contract
 
@@ -43,7 +46,8 @@ version is not a query field in this increment.
   more than one gives a technical `NonUniqueQueryResultException` .
   Include repository and method in the diagnostic; do not expose parameter values.
 - This cardinality expectation is not a uniqueness constraint and cannot prevent
-  concurrent inserts. Unique modelling and schema constraints are a separate feature.
+  concurrent inserts. The [`unique` aggregate-field marker](aggregate-uniqueness.md) is a separate
+  domain/persistence feature that generates atomic database enforcement.
 - `byId` retains its existing missing-aggregate exception contract.
 - No non-optional singleton custom query in the initial increment.
 - Collections must already be declared for the searched aggregate. Do not generate
@@ -93,8 +97,8 @@ For optional sort values, absence is always last, for ascending and descending
 order. Direction defaults to ascending. A singleton result does not accept ordering:
 it must diagnose multiple matches rather than hide them by choosing the first.
 
-No pagination API is introduced yet. A later limit must count aggregate roots,
-not joined entity rows, and address ties explicitly.
+The supported [pagination contract](pagination.md) counts aggregate roots rather than
+joined entity rows and requires the appropriate ordering/tie rules.
 
 ## Equality contract
 
@@ -280,3 +284,8 @@ including under `not`. Only true matches are returned. To include absent referen
 write `reference is absent or not (reference = :value)`. `not (reference is absent)`
 is equivalent to `reference is present`. Grouping changes neither result cardinality
 nor sorting rules. Values remain bound parameters. No schema migration is needed.
+
+For a text field marked unique, comparisons and ordering inherit the explicit C
+column collation from the [uniqueness mapping](aggregate-uniqueness.md). Other text
+fields keep their ordinary column collation; do not infer Java String ordering for
+every Unicode spelling.

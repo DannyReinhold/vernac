@@ -14,21 +14,26 @@ import java.util.stream.Collectors;
 /** Resolves imports and VO field references without recursively following declarations. */
 public final class ProjectTypeResolver {
     public ResolvedProject resolve(VernacProject project) {
-        return resolve(project, true);
+        return resolve(project, true, Map.of());
     }
 
     /** Read-only partial type information for editor APIs; never a generation entrypoint. */
     public ResolvedProject resolveForAnalysis(VernacProject project) {
-        return resolve(project, false);
+        return resolve(project, false, Map.of());
     }
 
-    private ResolvedProject resolve(VernacProject project, boolean strict) {
+    public ResolvedProject resolve(VernacProject project, Map<Path, String> configurationSnapshots) {
+        return resolve(project, true, configurationSnapshots);
+    }
+
+    private ResolvedProject resolve(VernacProject project, boolean strict, Map<Path, String> configurationSnapshots) {
         Set<String> namespaces = project.sources().stream().map(source -> source.unit().namespace())
                 .collect(Collectors.toCollection(TreeSet::new));
         Map<Path, FileTypeScope> scopes = new LinkedHashMap<>();
         List<CompilerDiagnostic> diagnostics = new ArrayList<>();
+        var modules = new org.vernac.compiler.modules.SourceModules(project, configurationSnapshots, diagnostics);
         for (var source : project.sources()) {
-            var scope = new FileTypeScope(source.unit(), project.symbols(), namespaces);
+            var scope = new FileTypeScope(source.unit(), modules.visibleFrom(source.unit().namespace()), namespaces);
             scopes.put(source.path(), scope);
             diagnostics.addAll(scope.diagnostics());
         }
@@ -68,6 +73,7 @@ public final class ProjectTypeResolver {
             }
             for (var definition : source.unit().definitions()) {
                 diagnostics.addAll(ValidationContracts.validate(definition, source.unit().namespace(), project));
+                if (definition instanceof PermissionNode permission) new AuthorizationContracts().declaration(permission, diagnostics);
                 if (definition instanceof UseCaseNode usecase && validScope)
                     new UseCaseContracts().validate(usecase, scope, fieldTypes, diagnostics, project, source.unit().namespace());
                 if (definition instanceof PortNode port && validScope)
@@ -150,7 +156,10 @@ public final class ProjectTypeResolver {
                 diagnostics.addAll(BehaviorImports.validateLowered(source.unit().namespace(), value.name(), value.methods(), fieldTypes));
             }
         }
+        diagnostics.addAll(org.vernac.compiler.tenancy.TenancyContracts.validate(project, scopes, configurationSnapshots));
         diagnostics.addAll(new ContainmentValidator().validate(project, fieldTypes));
+        diagnostics.addAll(new UniqueFields().validate(project, fieldTypes));
+        diagnostics.addAll(new GlobalIdReferences().validate(project,scopes,fieldTypes));
         var queries = new org.vernac.compiler.query.QueryResolver(project, fieldTypes, diagnostics).resolve(project, scopes);
         Set<String> invalidSources=diagnostics.stream().filter(d -> d.severity()==CompilerDiagnostic.Severity.ERROR)
             .map(d -> d.location().sourceName()).collect(java.util.stream.Collectors.toSet());
@@ -173,10 +182,11 @@ public final class ProjectTypeResolver {
             if (definition instanceof InboundHttpAdapterNode adapter && !invalidSources.contains(source.path().toString()))
                 inboundAdapters.put(adapter,new org.vernac.compiler.inbound.InboundResolver(project,fieldTypes,diagnostics,inboundRoutes)
                         .resolve(adapter,source.unit().namespace(),scopes.get(source.path())));
+        new RoleDeclarations().validate(project, scopes, diagnostics);
         if (strict) failOnErrors(diagnostics);
         List<TypeSymbol> deferred = namespaces.stream().flatMap(namespace -> project.symbols().inNamespace(namespace).stream())
                 .filter(symbol -> switch (symbol.kind()) {
-                    case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, REPOSITORY, USE_CASE, DOMAIN_SERVICE, EVENT, LISTENER, PORT, OUTBOUND_ADAPTER, INBOUND_HTTP_ADAPTER -> false;
+                    case PERMISSION, ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, REPOSITORY, USE_CASE, DOMAIN_SERVICE, EVENT, LISTENER, PORT, OUTBOUND_ADAPTER, INBOUND_HTTP_ADAPTER -> false;
                     default -> true;
                 }).toList();
         return new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries, schemas, mappings, restOperations, inboundAdapters);

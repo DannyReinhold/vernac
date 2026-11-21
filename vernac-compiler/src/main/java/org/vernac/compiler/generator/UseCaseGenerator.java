@@ -48,6 +48,18 @@ public final class UseCaseGenerator {
             bean.addField(type,f.name(),Modifier.PRIVATE,Modifier.FINAL);
             constructor.addParameter(type,f.name()).addStatement("this.$N = $T.requireNonNull($N)",f.name(),Objects.class,f.name());
         }
+        if (AuthorizationGenerator.guarded(u)) {
+            bean.addField(org.vernac.runtime.authorization.AuthorizationGuard.class, "__vernacAuthorization", Modifier.PRIVATE, Modifier.FINAL);
+            constructor.addParameter(org.vernac.runtime.authorization.AuthorizationGuard.class, "__vernacAuthorization")
+                    .addStatement("this.__vernacAuthorization = $T.requireNonNull(__vernacAuthorization)", Objects.class);
+        }
+        if (u.authorization().isPresent() && !AuthorizationGenerator.guarded(u)) {
+            TypeName authorizationProvider = ParameterizedTypeName.get(ClassName.get("org.springframework.beans.factory", "ObjectProvider"),
+                    ClassName.get(org.vernac.runtime.authorization.AuthorizationGuard.class));
+            bean.addField(authorizationProvider, "__vernacAuthorization", Modifier.PRIVATE, Modifier.FINAL);
+            constructor.addParameter(authorizationProvider, "__vernacAuthorization")
+                    .addStatement("this.__vernacAuthorization = $T.requireNonNull(__vernacAuthorization)", Objects.class);
+        }
         bean.addMethod(constructor.build());
         TypeName returns=returnType(u,project,owner);
         if(!u.resultFields().isEmpty()) bean.addType(result(u,project,owner));
@@ -64,6 +76,14 @@ public final class UseCaseGenerator {
             if(!f.type().isOptional()) execute.addStatement("$T.requireNonNull($N, $S)",DomainChecks.class,f.name(),u.name()+"."+f.name());
             bridge.addParameter(parameter(f.type(),project,owner),f.name()); names.add(f.name());
             call.add(CodeBlock.of("$N",f.name()));
+        }
+        if (AuthorizationGenerator.guarded(u))
+            execute.beginControlFlow("try (var __vernacInvocation = this.__vernacAuthorization.enter($S, $L))",
+                    unit.namespace() + "." + u.name(), AuthorizationGenerator.requirement(u.authorization().orElseThrow(), u, project));
+        else if (u.authorization().isPresent()) {
+            execute.addStatement("var __vernacGuard = this.__vernacAuthorization.getIfAvailable()");
+            execute.beginControlFlow("try (var __vernacInvocation = __vernacGuard == null ? null : __vernacGuard.enter($S, $L))",
+                    unit.namespace() + "." + u.name(), AuthorizationGenerator.requirement(u.authorization().orElseThrow(), u, project));
         }
         List<JavaFile> files=new ArrayList<>();
         if(!u.validations().isEmpty()) {
@@ -92,6 +112,7 @@ public final class UseCaseGenerator {
         var invocation=CodeBlock.of("$T.execute($L)",companion,CodeBlock.join(call,", "));
         if(returns.equals(TypeName.VOID)) execute.addStatement("$L",invocation);
         else execute.addStatement("return $T.requireResult($L, $S)",BehaviorContractException.class,invocation,owner.canonicalName()+".execute");
+        if (u.authorization().isPresent()) execute.endControlFlow();
         execute.endControlFlow();
         bean.addMethod(execute.build());
         bean.addType(accessView.build());

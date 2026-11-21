@@ -60,10 +60,10 @@ records are transport objects, separate from the domain `Archive` interface.
 In Java, including a test or runner:
 
 ```java
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import example.integration.adapter.outbound.dto.LocalArchiveDtos.DocumentResponse;
 
-var json = new ObjectMapper();
+var json = JsonMapper.builder().build();
 var response = json.readValue("""
         {
           "document_id": "doc-7",

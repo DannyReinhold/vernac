@@ -171,3 +171,14 @@ Repeated collections need distinct names. A single page does not create a Result
 No variant inference, implicit aggregate projection or extra isolation is introduced.
 See [the pagination contract](pagination.md) for precise types, transport shapes,
 counts, cursor binding and transaction limits.
+
+
+## Declarative authorization (0.5.4 local application addition)
+
+The optional requires clause follows returns and precedes uses/validates/behavior.
+Named permission declarations, public/authenticated modes, ordered all/any groups and
+required typed resource inputs generate the [authorization entry boundary](usecase-authorization.md).
+Mandatory-null checks precede it; validates and the implementation follow it. Existing
+usecases without a clause retain their API/behavior. Module publication of the new
+contracts is rejected until security metadata support lands; identity/roles/plans and
+the SaaS exposure audit remain OPEN.

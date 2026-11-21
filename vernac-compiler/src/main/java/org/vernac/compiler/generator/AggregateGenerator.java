@@ -77,6 +77,7 @@ public class AggregateGenerator {
         classBuilder.addMethod(buildCreateFactory(node, selfType, idType, idFieldName));
 
         classBuilder.addMethod(buildReconstituteFactory(node, selfType, idType, idFieldName));
+        if(node.tenant()) classBuilder.addMethod(buildReconstituteFactory(node,selfType,idType,idFieldName,true));
 
         classBuilder.addAnnotation(org.jspecify.annotations.NullMarked.class);
         new DomainAccessGenerator().addTo(classBuilder, MutableDomain.of(node).orElseThrow(), selfType, project);
@@ -136,7 +137,8 @@ public class AggregateGenerator {
 
         constructor.addParameter(Instant.class, "createdAt");
         constructor.addParameter(Instant.class, "updatedAt");
-        constructor.addParameter(long.class, "version");
+        if(node.tenant()) constructor.addParameter(org.vernac.runtime.PersistenceState.class,"__vernacState");
+        else constructor.addParameter(long.class, "version");
 
         constructor.addStatement("this.$N = $T.requireNonNull($N, $S)", idFieldName,
                 org.vernac.runtime.DomainChecks.class, idFieldName, node.name() + ".id");
@@ -152,7 +154,8 @@ public class AggregateGenerator {
 
         constructor.addStatement("this.createdAt = $T.requireNonNull(createdAt, $S)", Objects.class, "createdAt must not be null");
         constructor.addStatement("this.updatedAt = $T.requireNonNull(updatedAt, $S)", Objects.class, "updatedAt must not be null");
-        constructor.addStatement("this.persistenceState = new $T(version)", org.vernac.runtime.PersistenceState.class);
+        if(node.tenant()) constructor.addStatement("this.persistenceState = __vernacState");
+        else constructor.addStatement("this.persistenceState = new $T(version)", org.vernac.runtime.PersistenceState.class);
 
         constructor.addStatement("validate()");
 
@@ -180,7 +183,7 @@ public class AggregateGenerator {
         String now = "__vernacNow";
         passArgs.add(now);
         passArgs.add(now);
-        passArgs.add("0L");
+        passArgs.add(node.tenant() ? "org.vernac.runtime.PersistenceState.newTenantAggregate()" : "0L");
 
         create.addStatement("$T $N = $T.now()", Instant.class, now, Instant.class);
         create.addStatement("$T $N = $T.create()", idType, idFieldName, idType);
@@ -190,7 +193,10 @@ public class AggregateGenerator {
     }
 
     private MethodSpec buildReconstituteFactory(AggregateNode node, ClassName selfType, TypeName idType, String idFieldName) {
-        MethodSpec.Builder reconstitute = MethodSpec.methodBuilder("reconstitute")
+        return buildReconstituteFactory(node,selfType,idType,idFieldName,false);
+    }
+    private MethodSpec buildReconstituteFactory(AggregateNode node, ClassName selfType, TypeName idType, String idFieldName, boolean trusted) {
+        MethodSpec.Builder reconstitute = MethodSpec.methodBuilder(trusted ? "__vernacRestore" : "reconstitute")
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .returns(selfType)
                 .addParameter(idType, idFieldName);
@@ -214,7 +220,10 @@ public class AggregateGenerator {
 
         passArgs.add("createdAt");
         passArgs.add("updatedAt");
-        passArgs.add("version");
+        if(trusted) reconstitute.addParameter(org.vernac.runtime.tenancy.TenantOwnership.class,"__vernacOwnership");
+        passArgs.add(node.tenant() ? trusted
+                ? "org.vernac.runtime.PersistenceState.restoredTenant(version, __vernacOwnership.tenant().orElseThrow())"
+                : "org.vernac.runtime.PersistenceState.detachedTenant(version)" : "version");
 
         reconstitute.addStatement("return new $T(" + String.join(", ", passArgs) + ")", selfType);
         return reconstitute.build();

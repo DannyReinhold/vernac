@@ -1,10 +1,10 @@
 # Vernac: self-contained reference for AI code generation
 
-Language baseline: **Vernac 0.5.3**. Source checkouts default to 0.5.3-SNAPSHOT.
+Language baseline: **Vernac 0.5.4**. Source checkouts default to 0.5.4-SNAPSHOT.
 
 For MVC routes that only select a template, use `GET "/about"; render "about";`
 inside an endpoint without an `execute` clause. In both HTTP and MVC adapters,
-`access public;` and `access authenticated;` follow `base` and apply to the
+`access public;` and `access authenticated;` can appear before or after `base` and apply to the
 whole adapter. See the [HTTP access contract](contracts/inbound-http.md#endpoint-access-with-spring-security).
 
 Multiple attached collections require the 0.5.0 compiler/runtime/tooling described
@@ -15,6 +15,21 @@ do not assume a development feature is available in an older published compiler.
 
 For build commands, migration candidate generation and verification, also provide
 the companion [AI tools reference](ai-tools-reference.md).
+
+### Language changes in 0.5.4
+
+- Use `unique LoginKey` on a required aggregate field to enforce uniqueness in
+  PostgreSQL. Name inference still applies. See [supported field types and scope](contracts/aggregate-uniqueness.md).
+- Use `AccountId account references Account` for an immutable nominal ID reference
+  between global repository-backed roots in one artifact. See [reference constraints](contracts/global-id-references.md).
+- A value-object behavior may define `public String toString()` to control its
+  representation. Generated value equality and persistence still use its fields.
+- Use `global aggregate` and `tenant aggregate` with [explicit tenancy](contracts/explicit-tenancy.md).
+  Configure ownership and the restricted PostgreSQL role at the application boundary.
+- Declare `permission` keys, `role` definitions and usecase `requires` clauses as
+  specified in the [authorization contract](contracts/usecase-authorization.md).
+- Custom queries can use the [JDBC extension API](contracts/repository-extensions.md)
+  from handwritten Java. MVC can [return UTF-8 attachments](contracts/inbound-mvc.md#text-downloads).
 
 ## 1. Instruction to the code-generating assistant
 
@@ -1491,9 +1506,9 @@ IntelliJ's Show Domain Diagram action includes unsaved source snapshots and open
 enable its Mermaid preview extension if needed. No rendered image or live model explorer
 is implied. See [the diagram tutorial](tutorials/domain-diagrams.md).
 
-### Vernac source debugging (0.5.3 tooling)
+### Vernac source debugging (0.5.4 tooling)
 
-The 0.5.3 plugin/compiler can map inline domain behavior breakpoints to original
+The 0.5.4 plugin/compiler can map inline domain behavior breakpoints to original
 Vernac lines using build-owned metadata. Build with debug line/local-variable information
 and use matching source/generated/runtime artifacts. This is not new DSL syntax and
 does not imply full debugger coverage or hot swap. See the [prototype scope](development/vernac-debugger-prototype.md)
@@ -1504,7 +1519,7 @@ method scope (`self`, arguments and locals). Breakpoint logging and suspension a
 standard IntelliJ options; see the [debugger walkthrough](https://github.com/DannyReinhold/vernac/blob/main/examples/debugger/README.md)
 for Evaluate Expression, conditions and non-suspending logpoints.
 
-A guided [debugging tutorial](tutorials/debugging.md) covers the 0.5.3
+A guided [debugging tutorial](tutorials/debugging.md) covers the 0.5.4
 integration and states its exact coverage. Inline usecase execute blocks, domain service
 operations and their private helpers also have mappings. User-authored require rules
 on VOs, entities, aggregates, usecases and services map their opening require line to
@@ -1518,7 +1533,7 @@ has no artificial breakpoint. Adapter-method preconditions remain unsupported by
 language contract. Debugging tooling does not
 change transaction, validation or asynchronous execution semantics.
 
-Expression editing is separate from runtime evaluation. The 0.5.3
+Expression editing is separate from runtime evaluation. The 0.5.4
 plugin routes expression requests to the verified Java scope of their Vernac line
 to address red variables and missing Ctrl+Space completion. Core expression editing
 and adapter/mapping debugging have been confirmed in the installed IDE. Runtime
@@ -1532,7 +1547,7 @@ expressions. Normal stepping skips only verified pure facade reads, not modifica
 wrappers, validators or callbacks. Contributor mode restores raw Java views and disables
 this filter. Native tree/Watch/stepping acceptance is separate from the JVM inspector test.
 
-The 0.5.3 plugin also supplies native PSI references for declared Vernac
+The 0.5.4 plugin also supplies native PSI references for declared Vernac
 types in DSL signatures/fields/imports/dependencies and repository aggregate targets.
 These use compiler namespace/import/export visibility and exact UTF-16 type-name
 ranges for native Ctrl-hover navigation feedback. Injected Java, strings and enum
@@ -1548,7 +1563,7 @@ unknown classes do not get guessed links. Java bodies retain injected-Java
 resolution. This editor support does not expand the permitted DSL type set or
 provide cross-language renaming.
 
-The 0.5.3 IntelliJ wizard can scaffold a Spring Boot Web Application with Thymeleaf,
+The 0.5.4 IntelliJ wizard can scaffold a Spring Boot Web Application with Thymeleaf,
 PostgreSQL, local-profile Compose startup and matching initial SQL/schema history.
 It uses ordinary Vernac aggregates, paginated repositories and usecases, with a
 declarative inbound MVC adapter generating the controller and scoped error advice.

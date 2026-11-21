@@ -32,7 +32,7 @@ class EventModuleSymbolsTest {
         Files.writeString(root.resolve("target/vernac-module-index.json"),ModuleDescriptor.JSON.writeValueAsString(List.of(module)));
         Path source=root.resolve("src/main/vernac/app/model.vernac");Files.createDirectories(source.getParent());
         String text="namespace app; import events.Changed; synchronous listener Local on Changed behavior {execute {}}";Files.writeString(source,text);
-        var projects=new VernacProjectDiagnostics();var params=new InitializeParams();params.setRootUri(root.toUri().toString());projects.initialize(params);projects.open(source.toUri().toString(),text,1);
+        var projects=new VernacProjectDiagnostics();var params=new InitializeParams();params.setWorkspaceFolders(List.of(new WorkspaceFolder(root.toUri().toString(), "test")));projects.initialize(params);projects.open(source.toUri().toString(),text,1);
         var at=new Position(0,text.lastIndexOf("Changed")+2);var target=projects.definition(source.toUri().toString(),at).getFirst();
         assertTrue(Files.readString(Path.of(java.net.URI.create(target.getUri()))).contains("event Changed(events.Name name)"));
         assertTrue(projects.complete(source.toUri().toString(),at).stream().anyMatch(c->c.getLabel().equals("Changed")));

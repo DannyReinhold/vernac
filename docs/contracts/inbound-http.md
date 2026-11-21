@@ -1,5 +1,11 @@
 # HTTP inbound adapter contract
 
+For 0.5.4 source builds, Spring integration uses Boot 4.1.2. Generated codecs remain
+Jackson 3: Boot 4 applications use `spring-boot-jackson` and the default Jackson 3
+converter; standalone MVC uses `JacksonJsonHttpMessageConverter`.
+See the [platform migration](../development/spring-boot-4-baseline.md). Jackson 3 support
+for these generated codecs is not implied by the Boot upgrade.
+
 Status: normative contract for HTTP inbound adapters, including 0.4.0 error policies. The application usecase is the
 inbound operation contract; this slice adds no duplicate inbound port interface.
 
@@ -282,7 +288,7 @@ Their mapping/error-handler calling convention is unchanged.
 ## Endpoint access with Spring Security
 
 Both `inbound http` and `inbound mvc` accept an adapter-wide access policy
-after `base`. For example, an existing adapter exposing account routes can use
+before or after `base`. For example, an existing adapter exposing account routes can use
 `access authenticated;`. Every generated handler in that adapter then
 requires an authenticated Spring Security context before executing a usecase
 or rendering a view. Anonymous authentication tokens are denied. An adapter
@@ -293,6 +299,6 @@ Add `spring-boot-starter-security` to the host application for authenticated
 adapters. The application's `SecurityFilterChain` supplies authentication and
 the authentication entry point. Configure public routes with `permitAll()`
 in that chain if the application's default rule requires authentication.
-For protected routes the chain can also require authentication at the request
+Public MVC adapters additionally generate a route-scoped security chain. For protected routes the chain can also require authentication at the request
 boundary. Its CSRF and other request rules apply independently of the
 Vernac declaration.

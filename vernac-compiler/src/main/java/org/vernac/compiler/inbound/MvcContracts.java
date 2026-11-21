@@ -29,17 +29,6 @@ final class MvcContracts {
                         + " or redirect/forward expressions.");
     }
 
-    void validateTemplateOnlyRoute(InboundHttpAdapterNode adapter, InboundHttpAdapterNode.Endpoint endpoint) {
-        var view = endpoint.view();
-        if (!adapter.mvc() || !endpoint.verb().equals("GET")
-                || !endpoint.bindings().isEmpty() || endpoint.bodyType().isPresent()
-                || view.isEmpty() || view.get().redirect().isPresent()
-                || view.get().modelName().isPresent() || endpoint.absentStatus().isPresent()
-                || endpoint.errorImplementation().isPresent() || !endpoint.errorRules().isEmpty()) {
-            error(endpoint.location(), "A route without execute must be a plain MVC GET render.");
-        }
-    }
-
     void validate(InboundHttpAdapterNode adapter) {
         if (!adapter.mvc()) {
             if (adapter.errorView().isPresent()
@@ -53,9 +42,7 @@ final class MvcContracts {
                         "Views, redirects and redisplay require inbound mvc, not inbound http.");
             return;
         }
-        if (adapter.errorView().isEmpty()
-                && (adapter.endpoints().stream().anyMatch(e -> !e.dependency().isEmpty())
-                        || !adapter.errorRules().isEmpty() || adapter.errorImplementation().isPresent()))
+        if (adapter.errorView().isEmpty() && adapter.endpoints().stream().anyMatch(e -> !e.dependency().isEmpty()))
             error(
                     adapter.location(),
                     "An MVC adapter requires error view \"template\"; for safe fallback"
@@ -108,6 +95,9 @@ final class MvcContracts {
                                                     + " path; external targets and dynamic"
                                                     + " placeholders are forbidden.");
                                     }
+                                } else if (reply.attachment().isPresent()) {
+                                    if (!reply.attachment().get().matches("[A-Za-z0-9][A-Za-z0-9_-]{0,100}\\.txt"))
+                                        error(endpoint.location(), "Text exports require a simple .txt filename.");
                                 } else {
                                     view(endpoint.location(), reply.template());
                                     if (endpoint.status() == 204 || endpoint.status() == 205)
@@ -177,7 +167,7 @@ final class MvcContracts {
             boolean optional) {
         if (endpoint.view().isEmpty()) return;
         var reply = endpoint.view().get();
-        if (reply.redirect().isEmpty() && (result != null) != reply.modelName().isPresent())
+        if (reply.attachment().isEmpty() && reply.redirect().isEmpty() && (result != null) != reply.modelName().isPresent())
             error(
                     endpoint.location(),
                     result == null
@@ -206,6 +196,7 @@ final class MvcContracts {
                         || !target.get().source().verb().equals("GET")
                         || target.get().source().view().isEmpty()
                         || target.get().source().view().get().redirect().isPresent()
+                        || target.get().source().view().get().attachment().isPresent()
                         || target.get().source().view().get().absentView().isPresent()) {
                     error(
                             rule.location(),

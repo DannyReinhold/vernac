@@ -65,6 +65,16 @@ public final class ProjectSymbolIndex {
         symbols=original.symbols;namespaces=original.namespaces;problems=original.problems;hiddenTypes=Map.copyOf(hidden);
     }
     public ProjectSymbolIndex withHiddenTypes(Map<String,String> hidden) {return new ProjectSymbolIndex(this,hidden);}
+    /** Local declarations stay visible inside their own source module. */
+    public ProjectSymbolIndex withoutDeclarations(Map<String,String> internal) {
+        if (internal.isEmpty()) return this;
+        var visible = new ProjectSymbolIndex(symbols.values().stream()
+                .filter(symbol -> !internal.containsKey(symbol.identity().qualifiedName())).toList());
+        var hidden = new HashMap<>(hiddenTypes);
+        hidden.putAll(internal);
+        return visible.withHiddenTypes(hidden);
+    }
+
     public Optional<String> hiddenOwner(String identity) {return Optional.ofNullable(hiddenTypes.get(identity));}
 
     /** Exact Vernac identity lookup. Unknown and invalid declarations have no symbol. */

@@ -49,6 +49,7 @@ public final class ModuleArtifacts {
     }
     public static VernacProject merge(VernacProject local,List<ModuleDescriptor> modules,List<CompilerDiagnostic> issues) {
         if(modules.isEmpty())return local;
+        ModuleContracts.checkDependencies(modules);
         List<VernacSourceFile> sources=new ArrayList<>(local.sources());
         for(var module:modules) {
             Map<String,List<Definition>> namespaces=new TreeMap<>();
@@ -60,10 +61,11 @@ public final class ModuleArtifacts {
                     var collections=entry.getValue().stream().filter(c->c.kind().equals("COLLECTION")&&c.element().equals(d.identity())).map(c->new CollectionDefinitionNode(at,CollectionDefinitionNode.Kind.valueOf(c.collectionKind()),Optional.of(simple(c.identity())),methods(c.methods(),at),List.of())).toList();
                     if(d.kind().equals("ID"))definitions.add(new IdDeclarationNode(at,simple(d.identity()),collections));
                     else if(d.kind().equals("VALUE_OBJECT")||d.kind().equals("ENUM"))definitions.add(new ValueObjectNode(at,simple(d.identity()),fields(d.fields(),at),d.constants().stream().map(c->new EnumConstantNode(at,c)).toList(),List.of(),methods(d.methods(),at),collections,List.of()));
+                    else if(d.kind().equals("PERMISSION")) definitions.add(new PermissionNode(at,simple(d.identity()),d.constants().stream().map(c->new EnumConstantNode(at,c)).toList()));
                     else if(d.kind().equals("ENTITY")||d.kind().equals("AGGREGATE")) {
                         var id=new IdReferenceNode(at,new TypeNode(at,d.element()));
                         if(d.kind().equals("ENTITY"))definitions.add(new EntityNode(at,simple(d.identity()),id,fields(d.fields(),at),List.of(),methods(d.methods(),at),collections,List.of()));
-                        else definitions.add(new AggregateNode(at,simple(d.identity()),id,fields(d.fields(),at),List.of(),methods(d.methods(),at),collections,List.of()));
+                        else definitions.add(new AggregateNode(at,simple(d.identity()),id,fields(d.fields(),at),List.of(),methods(d.methods(),at),collections,List.of(), d.aggregateScope().equals("TENANT") ? AggregateNode.Classification.TENANT : AggregateNode.Classification.GLOBAL));
                     }
                     else if(d.kind().equals("REPOSITORY")) {
                         List<RepositoryMethodNode> queries=d.methods().stream().filter(m->!Set.of("byId","save","delete").contains(m.name())).map(m->new RepositoryMethodNode(at,type(m.returns(),at),m.name(),fields(m.parameters(),at),List.of(),List.of(),null,m.mode().equals("CURSOR_QUERY")?RepositoryMethodNode.Pagination.CURSOR:m.mode().contains("OFFSET_QUERY")?RepositoryMethodNode.Pagination.OFFSET:RepositoryMethodNode.Pagination.NONE,m.mode().equals("COUNTED_OFFSET_QUERY"))).toList();
@@ -76,7 +78,7 @@ public final class ModuleArtifacts {
                     else if(d.kind().equals("USE_CASE")) {
                         var execute=d.methods().stream().filter(m->m.name().equals("execute")).findFirst().orElseThrow();
                         Optional<TypeNode> returns=execute.returns().name().equals("void")||execute.returns().name().equals("@result")?Optional.empty():Optional.of(type(execute.returns(),at));
-                        definitions.add(new UseCaseNode(at,simple(d.identity()),fields(execute.parameters(),at),List.of(),List.of(),returns,fields(d.fields(),at),List.of(),List.of(),"throw new UnsupportedOperationException();",Optional.empty(),1));
+                        definitions.add(new UseCaseNode(at,simple(d.identity()),fields(execute.parameters(),at),List.of(),List.of(),returns,fields(d.fields(),at),List.of(),List.of(),"throw new UnsupportedOperationException();",Optional.empty(),1,ModuleAuthorization.decode(d.authorization(),at)));
                     }
                     else throw new IllegalArgumentException("Unsupported type-module definition: "+d.identity());
                 }
@@ -93,7 +95,7 @@ public final class ModuleArtifacts {
         }
         return new VernacProject(merged.sourceRoot(),merged.sources(),merged.symbols().withHiddenTypes(hidden));
     }
-    private static List<FieldNode> fields(List<Field> source,SourceLocation at) {return source.stream().map(f->new FieldNode(at,type(f.type(),at),f.name(),f.mutable())).toList();}
+    private static List<FieldNode> fields(List<Field> source,SourceLocation at) {return source.stream().map(f->new FieldNode(at,type(f.type(),at),f.name(),f.mutable(),true,f.unique(),f.referenceTarget())).toList();}
     private static TypeNode type(Type source,SourceLocation at) {return new TypeNode(at,source.name(),List.of(),source.optional(),TypeNode.PageKind.valueOf(source.pageKind()));}
     private static List<MethodNode> methods(List<Method> source,SourceLocation at) {return source.stream().map(m->new MethodNode(at,"public",type(m.returns(),at),m.name(),fields(m.parameters(),at),"throw new UnsupportedOperationException();",Optional.empty(),MethodNode.Mode.valueOf(m.mode()))).toList();}
     private static String namespace(String name) {return name.substring(0,name.lastIndexOf('.'));}
@@ -107,7 +109,7 @@ public final class ModuleArtifacts {
     public static List<ModuleDescriptor> editorModules(Path sourceRoot) throws IOException {
         Path file=projectDirectory(sourceRoot).resolve("target/vernac-module-index.json");
         if(!Files.isRegularFile(file))return List.of();
-        var modules=JSON.readValue(Files.readString(file),new com.fasterxml.jackson.core.type.TypeReference<List<ModuleDescriptor>>(){});
+        var modules=JSON.readValue(Files.readString(file),new tools.jackson.core.type.TypeReference<List<ModuleDescriptor>>(){});
         ModuleContracts.checkDependencies(modules);return modules;
     }
     /** A navigation view, not a producer file and never compiler input. */
@@ -124,6 +126,8 @@ public final class ModuleArtifacts {
             if(!c.dependencies().isEmpty())text.append(" requires ").append(String.join(", ",c.dependencies()));
             text.append("\n");
         });
+        for(var access:module.usecaseAccess()) text.append("// Access ").append(access.identity()).append(": ")
+                .append(access.requirement().mode().equals("OMITTED")?"requires omitted": "requires "+ModuleAuthorization.source(access.requirement())).append("\n");
         if(module.persistent())text.append("// Persistent owner: isolated module Flyway history; activation is required.\n");
         return text.toString();
     }
@@ -149,30 +153,37 @@ public final class ModuleArtifacts {
         for(var term:module.vocabulary())if(term.namespace().equals(namespace))text.append(org.vernac.compiler.vocabulary.Vocabulary.source(term));
         for(var d:module.exports()) if(namespace(d.identity()).equals(namespace)&&!d.kind().equals("COLLECTION")) {
             if(d.kind().equals("ENTITY")||d.kind().equals("AGGREGATE")) {
+                if (d.kind().equals("AGGREGATE")) text.append(d.aggregateScope().toLowerCase(Locale.ROOT)).append(" ");
                 text.append(d.kind().toLowerCase(Locale.ROOT)).append(" ").append(simple(d.identity())).append("[").append(d.element()).append("](")
-                    .append(d.fields().stream().map(f->(f.mutable()?"mut ":"")+typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(")");
+                    .append(d.fields().stream().map(f->(f.unique()?"unique ":"")+(f.mutable()?"mut ":"")+typeText(f.type())+" "+f.name()+(f.referenceTarget()==null?"":" references "+f.referenceTarget())).collect(java.util.stream.Collectors.joining(", "))).append(")");
                 if(!d.methods().isEmpty()) {
-                    text.append(" behavior {\n");for(var m:d.methods())text.append("    ").append(m.mode().toLowerCase(Locale.ROOT)).append(" ").append(typeText(m.returns())).append(" ").append(m.name()).append("(").append(m.parameters().stream().map(f->typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(") { throw new UnsupportedOperationException(); }\n");text.append("}");
+                    text.append(" behavior {\n");for(var m:d.methods())text.append("    ").append(m.mode().toLowerCase(Locale.ROOT)).append(" ").append(typeText(m.returns())).append(" ").append(m.name()).append("(").append(m.parameters().stream().map(f->typeText(f.type())+" "+f.name()+(f.referenceTarget()==null?"":" references "+f.referenceTarget())).collect(java.util.stream.Collectors.joining(", "))).append(") { throw new UnsupportedOperationException(); }\n");text.append("}");
                 }
                 appendCollections(text,module,d.identity());
                 text.append(";\n");continue;
             }
             if(d.kind().equals("REPOSITORY")) {
                 text.append("repository ").append(simple(d.identity())).append(" for ").append(d.element()).append(" {\n    // Public query signatures only; predicates and ordering belong to the compiled module.\n");
-                for(var m:d.methods())if(!Set.of("byId","save","delete").contains(m.name()))text.append("    find ").append(m.mode().equals("CURSOR_QUERY")?"cursor ":m.mode().contains("OFFSET_QUERY")?"offset ":"").append(typeText(m.returns())).append(" ").append(m.name()).append("(").append(m.parameters().stream().map(f->typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(")").append(m.mode().equals("COUNTED_OFFSET_QUERY")?" counting":"").append(";\n");
+                for(var m:d.methods())if(!Set.of("byId","save","delete").contains(m.name()))text.append("    find ").append(m.mode().equals("CURSOR_QUERY")?"cursor ":m.mode().contains("OFFSET_QUERY")?"offset ":"").append(typeText(m.returns())).append(" ").append(m.name()).append("(").append(m.parameters().stream().map(f->typeText(f.type())+" "+f.name()+(f.referenceTarget()==null?"":" references "+f.referenceTarget())).collect(java.util.stream.Collectors.joining(", "))).append(")").append(m.mode().equals("COUNTED_OFFSET_QUERY")?" counting":"").append(";\n");
                 text.append("}\n");continue;
             }
             if(d.kind().equals("DOMAIN_SERVICE")) {
                 text.append("service ").append(simple(d.identity())).append(" behavior {\n");
                 for(var method:d.methods())text.append(" public ").append(typeText(method.returns())).append(" ").append(method.name()).append("(")
-                    .append(method.parameters().stream().map(f->typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(") {throw new UnsupportedOperationException();}\n");
+                    .append(method.parameters().stream().map(f->typeText(f.type())+" "+f.name()+(f.referenceTarget()==null?"":" references "+f.referenceTarget())).collect(java.util.stream.Collectors.joining(", "))).append(") {throw new UnsupportedOperationException();}\n");
                 text.append("}\n");continue;
+            }
+            if(d.kind().equals("PERMISSION")) {
+                text.append("permission ").append(simple(d.identity())).append(" { ")
+                    .append(d.constants().stream().map(c->c+";").collect(java.util.stream.Collectors.joining(" "))).append(" }\n");continue;
             }
             if(d.kind().equals("USE_CASE")) {
                 var execute=d.methods().stream().filter(m->m.name().equals("execute")).findFirst().orElseThrow();
-                text.append("usecase ").append(simple(d.identity())).append("(").append(execute.parameters().stream().map(f->typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(")");
-                if(!d.fields().isEmpty())text.append(" returns (").append(d.fields().stream().map(f->typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(")");
+                text.append("usecase ").append(simple(d.identity())).append("(").append(execute.parameters().stream().map(f->typeText(f.type())+" "+f.name()+(f.referenceTarget()==null?"":" references "+f.referenceTarget())).collect(java.util.stream.Collectors.joining(", "))).append(")");
+                if(!d.fields().isEmpty())text.append(" returns (").append(d.fields().stream().map(f->typeText(f.type())+" "+f.name()+(f.referenceTarget()==null?"":" references "+f.referenceTarget())).collect(java.util.stream.Collectors.joining(", "))).append(")");
                 else if(!execute.returns().name().equals("void"))text.append(" returns ").append(typeText(execute.returns()));
+                String authorization=ModuleAuthorization.source(d.authorization());
+                if(!authorization.isEmpty())text.append(" requires ").append(authorization);
                 text.append(" behavior {execute {throw new UnsupportedOperationException();}}\n");continue;
             }
             if(d.kind().equals("OUTBOUND_ADAPTER")) {
@@ -186,7 +197,7 @@ public final class ModuleArtifacts {
                 text.append("} }\n");continue;
             }
             if(d.kind().equals("EVENT")) {
-                text.append(Boolean.parseBoolean(d.javaMembers().get("@recorded"))?"recorded event ":"event ").append(simple(d.identity())).append("(").append(d.fields().stream().map(f->typeText(f.type())+" "+f.name()).collect(java.util.stream.Collectors.joining(", "))).append(");\n");continue;
+                text.append(Boolean.parseBoolean(d.javaMembers().get("@recorded"))?"recorded event ":"event ").append(simple(d.identity())).append("(").append(d.fields().stream().map(f->typeText(f.type())+" "+f.name()+(f.referenceTarget()==null?"":" references "+f.referenceTarget())).collect(java.util.stream.Collectors.joining(", "))).append(");\n");continue;
             }
             if(d.kind().equals("PORT")) {
                 text.append("port ").append(simple(d.identity())).append(" {\n");

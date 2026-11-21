@@ -71,7 +71,7 @@ class TaskWebTest {
         web.perform(post("/tasks").contentType("application/x-www-form-urlencoded").param("title", "Without token"))
                 .andExpect(status().isForbidden());
         web.perform(post("/tasks").contentType("application/x-www-form-urlencoded").with(csrf()).param("title", " "))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(
                         content()
                                 .string(
@@ -85,7 +85,7 @@ class TaskWebTest {
         web.perform(get("/").param("page", "2"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Page 2 of 2")));
-        web.perform(get("/").param("page", "0")).andExpect(status().isUnprocessableEntity());
+        web.perform(get("/").param("page", "0")).andExpect(status().isUnprocessableContent());
         web.perform(post("/tasks/" + UUID.randomUUID() + "/complete").with(csrf()))
                 .andExpect(status().isNotFound());
     }

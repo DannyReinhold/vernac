@@ -1,6 +1,6 @@
 package showcase.integration;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -17,7 +17,7 @@ public final class CarrierSimulator implements AutoCloseable {
   }
 
   public CarrierSimulator(int port) throws java.io.IOException {
-    var json = new ObjectMapper();
+    var json = tools.jackson.databind.json.JsonMapper.builder().build();
     server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
     server.createContext(
         "/quotes",
@@ -30,7 +30,7 @@ public final class CarrierSimulator implements AutoCloseable {
                     ? Map.of("error", "temporary carrier outage")
                     : Map.of(
                         "quoteId",
-                        "LOCAL-" + request.path("destination").asText(),
+                        "LOCAL-" + request.path("destination").asString(),
                         "price",
                         Map.of(
                             "amount",

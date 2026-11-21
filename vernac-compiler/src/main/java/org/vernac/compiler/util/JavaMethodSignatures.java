@@ -3,6 +3,7 @@
 package org.vernac.compiler.util;
 
 import org.vernac.compiler.ast.FieldNode;
+import org.vernac.compiler.ast.MethodNode;
 import org.vernac.compiler.ast.TypeNode;
 import org.vernac.compiler.symbols.JavaTypeNames;
 import org.vernac.compiler.symbols.ResolvedType;
@@ -16,6 +17,11 @@ import java.util.stream.Stream;
  */
 public final class JavaMethodSignatures {
     private JavaMethodSignatures() {}
+
+    /** Identifies the Object representation signature; return/visibility legality is validated separately. */
+    public static boolean isToStringSignature(MethodNode method) {
+        return method.name().equals("toString") && method.parameters().isEmpty();
+    }
 
     public static String parameter(TypeNode type, Map<TypeNode, ResolvedType> types) {
         var resolved = types.get(type);

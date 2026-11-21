@@ -33,6 +33,21 @@ class VernacProjectSymbolsTest {
         return new VernacProjectSymbols(root, files).definition(path, at(path, beforeLastCharacter));
     }
 
+    @Test void renderNavigatesToTheTemplateInTheSameProject(
+            @org.junit.jupiter.api.io.TempDir Path project) throws Exception {
+        Path sources = project.resolve("src/main/vernac");
+        Path page = sources.resolve("example/pages.vernac");
+        Path target = project.resolve("src/main/resources/templates/home.html");
+        java.nio.file.Files.createDirectories(target.getParent());
+        java.nio.file.Files.writeString(target, "<h1>Home</h1>");
+        String text = "namespace example; adapter Pages inbound mvc { access public; "
+                + "home { GET \"/\"; render \"home\"; } }";
+        var symbols = new VernacProjectSymbols(sources, Map.of(page, text));
+        var at = new Position(0, text.lastIndexOf("home") + 1);
+        assertTrue(symbols.complete(page, at).stream().anyMatch(item -> item.getLabel().equals("home")));
+        assertEquals(target.toUri().toString(), symbols.definition(page, at).getFirst().getUri());
+    }
+
     @Test void completionKeepsEarlierDeclarationsWhenTheCurrentDeclarationIsIncomplete() {
         var current = file("model", "editing", "value Count(int); value View(Cou");
         assertTrue(labels(current, "View(Cou").contains("Count"));

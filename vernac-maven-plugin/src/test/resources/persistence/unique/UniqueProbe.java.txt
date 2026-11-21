@@ -1,0 +1,133 @@
+package uniquedemo;
+
+import uniquedemo.domain.*;
+import uniquedemo.adapter.outbound.jdbc.*;
+import org.vernac.runtime.persistence.UniqueConstraintViolationException;
+import org.vernac.runtime.tenancy.*;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.*;
+import org.springframework.transaction.support.*;
+import org.springframework.dao.*;
+import javax.sql.DataSource;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.Supplier;
+import static org.junit.jupiter.api.Assertions.*;
+
+public final class UniqueProbe {
+    static final TenantId A=TenantId.of(UUID.fromString("00000000-0000-4000-8000-000000000001"));
+    static final TenantId B=TenantId.of(UUID.fromString("00000000-0000-4000-8000-000000000002"));
+    static final String SECRET="private-login-key@example.invalid";
+    static final class App implements AutoCloseable {
+        final AnnotationConfigApplicationContext context=new AnnotationConfigApplicationContext();
+        final TransactionTemplate tx;
+        final JdbcClaimRepository claims;
+        final JdbcScopedClaimRepository scoped;
+        App(DataSource data) {
+            context.registerBean(DataSource.class,()->data);
+            context.registerBean(NamedParameterJdbcTemplate.class,()->new NamedParameterJdbcTemplate(data));
+            context.registerBean(PlatformTransactionManager.class,()->new DataSourceTransactionManager(data));
+            context.registerBean(JdbcClaimRepository.class,()->new JdbcClaimRepository(context.getBean(NamedParameterJdbcTemplate.class)));
+            context.registerBean(JdbcScopedClaimRepository.class,()->new JdbcScopedClaimRepository(context.getBean(NamedParameterJdbcTemplate.class)));
+            context.refresh();tx=new TransactionTemplate(context.getBean(PlatformTransactionManager.class));
+            claims=context.getBean(JdbcClaimRepository.class);scoped=context.getBean(JdbcScopedClaimRepository.class);
+        }
+        <T> T write(Supplier<T> action){return tx.execute(status->action.get());}
+        <T> T in(TenantId tenant,Supplier<T> action){try(var scope=TenantContext.openVerified(tenant)){return write(action);}}
+        public void close(){context.close();}
+    }
+    static Claim claim(String key){return Claim.create(Key.of(key),Note.of("unchanged delivery spelling"));}
+    static void safe(UniqueConstraintViolationException failure,String aggregate,String field) {
+        assertEquals(aggregate,failure.aggregate());assertEquals(field,failure.field());
+        assertNull(failure.getCause());assertEquals(0,failure.getSuppressed().length);
+        assertFalse(failure.toString().contains(SECRET));assertFalse(failure.toString().contains(A.value().toString()));
+        assertThrows(IllegalStateException.class,()->failure.initCause(new IllegalStateException(SECRET)));
+        failure.addSuppressed(new IllegalStateException(SECRET));assertEquals(0,failure.getSuppressed().length);
+    }
+    public static void lifecycle(DataSource one,DataSource two,DataSource owner) {
+        try(var a=new App(one);var b=new App(two)) {
+            var original=a.write(()->a.claims.save(claim(SECRET)));
+            safe(assertThrows(UniqueConstraintViolationException.class,()->b.write(()->b.claims.save(claim(SECRET)))),"uniquedemo.Claim","key");
+            assertEquals(original.id(),b.write(()->b.claims.forKey(Key.of(SECRET)).orElseThrow()).id());
+            var other=a.write(()->a.claims.save(claim("other")));
+            assertThrows(UniqueConstraintViolationException.class,()->a.write(()->{
+                var current=a.claims.byId(other.id());current.changeKey(Key.of(SECRET));return a.claims.save(current);
+            }));
+            assertEquals("other",b.write(()->b.claims.byId(other.id())).key().encoded());
+            b.write(()->b.claims.save(b.claims.byId(original.id()))); // same root/key remains legal
+            a.tx.executeWithoutResult(status->{a.claims.save(claim("rolled-back"));status.setRollbackOnly();});
+            assertTrue(b.write(()->b.claims.forKey(Key.of("rolled-back"))).isEmpty());
+            b.write(()->b.claims.save(claim("rolled-back"))); // fresh object; rollback did not repair the old object
+        }
+        try(var restarted=new App(two)) {assertEquals(3,restarted.write(()->restarted.claims.all()).size());}
+    }
+    public static void rollbackAndBoundaries(DataSource one,DataSource two,DataSource owner) {
+        try(var a=new App(one);var b=new App(two)) {
+            a.write(()->a.claims.save(claim(SECRET)));
+            assertThrows(UnexpectedRollbackException.class,()->a.tx.executeWithoutResult(status->{
+                a.claims.save(claim("partial-write"));
+                safe(assertThrows(UniqueConstraintViolationException.class,()->a.claims.save(claim(SECRET))),"uniquedemo.Claim","key");
+            }));
+            assertTrue(b.write(()->b.claims.forKey(Key.of("partial-write"))).isEmpty());
+            assertThrows(IllegalTransactionStateException.class,()->a.claims.save(claim("unbound")));
+            var readOnly=new TransactionTemplate(a.context.getBean(PlatformTransactionManager.class));readOnly.setReadOnly(true);
+            assertThrows(IllegalTransactionStateException.class,()->readOnly.execute(status->a.claims.save(claim("read-only"))));
+            assertEquals(1,readOnly.execute(status->a.claims.all()).size());
+            assertThrows(IllegalTransactionStateException.class,()->b.write(()->a.claims.save(claim("wrong-writer"))));
+            assertEquals(1,b.write(()->b.claims.all()).size());
+        }
+    }
+    public static void tenantScopeAndExactText(DataSource one,DataSource two,DataSource owner) {
+        try(var a=new App(one);var b=new App(two)) {
+            try(var c=owner.getConnection();var sql=c.createStatement()) {
+                sql.execute("CREATE COLLATION uniquedemo.fold (provider=icu, locale='und-u-ks-level1', deterministic=false)");
+                try(var rows=sql.executeQuery("SELECT 'Alice' COLLATE uniquedemo.fold = 'alice'")){rows.next();assertTrue(rows.getBoolean(1));}
+            } catch(Exception failure){throw new AssertionError(failure);}
+            for(String key:List.of("Alice", "alice", "álice", "a\u0301lice"))a.write(()->a.claims.save(claim(key)));
+            assertEquals(4,b.write(()->b.claims.all()).size());
+            a.in(A,()->a.scoped.save(ScopedClaim.create(Key.of(SECRET),Note.of("A"))));
+            b.in(B,()->b.scoped.save(ScopedClaim.create(Key.of(SECRET),Note.of("B"))));
+            safe(assertThrows(UniqueConstraintViolationException.class,()->b.in(A,()->b.scoped.save(ScopedClaim.create(Key.of(SECRET),Note.of("attacker"))))),"uniquedemo.ScopedClaim","key");
+            assertEquals(1,a.in(A,()->a.scoped.all()).size());assertEquals(1,b.in(B,()->b.scoped.all()).size());
+            assertEquals("A",a.in(A,()->a.scoped.forKey(Key.of(SECRET)).orElseThrow()).note().encoded());
+        }
+    }
+    static boolean attempt(App app,Claim row,CountDownLatch start) throws Exception {
+        start.await();try{app.write(()->app.claims.save(row));return true;}
+        catch(UniqueConstraintViolationException conflict){safe(conflict,"uniquedemo.Claim","key");return false;}
+    }
+    public static void races(DataSource one,DataSource two,DataSource owner) throws Exception {
+        try(var a=new App(one);var b=new App(two);var pool=Executors.newFixedThreadPool(2)) {
+            var barrier=new CountDownLatch(1);
+            var first=pool.submit(()->attempt(a,claim(SECRET),barrier));
+            var second=pool.submit(()->attempt(b,claim(SECRET),barrier));barrier.countDown();
+            assertEquals(1,(first.get(20,TimeUnit.SECONDS)?1:0)+(second.get(20,TimeUnit.SECONDS)?1:0));
+            assertEquals(1,a.write(()->a.claims.all()).size());
+            var existing=a.write(()->a.claims.save(claim("update-before")));existing.changeKey(Key.of("update-target"));
+            var updateStart=new CountDownLatch(1);
+            var update=pool.submit(()->attempt(a,existing,updateStart));
+            var insert=pool.submit(()->attempt(b,claim("update-target"),updateStart));updateStart.countDown();
+            assertEquals(1,(update.get(20,TimeUnit.SECONDS)?1:0)+(insert.get(20,TimeUnit.SECONDS)?1:0));
+            assertTrue(b.write(()->b.claims.forKey(Key.of("update-target"))).isPresent());
+        }
+    }
+    public static void nonmatchingAndOversizedFailures(DataSource one,DataSource two,DataSource owner) throws Exception {
+        try(var a=new App(one)) {
+            var original=a.write(()->a.claims.save(claim(SECRET)));
+            var sameId=Claim.reconstitute(original.id(),Key.of("different"),Note.of("different"),original.createdAt(),original.updatedAt(),0);
+            assertThrows(DuplicateKeyException.class,()->a.write(()->a.claims.save(sameId)));
+            byte[] random=new byte[12000];new Random(73189).nextBytes(random);
+            String huge=SECRET+Base64.getEncoder().encodeToString(random);
+            var failure=assertThrows(DataAccessResourceFailureException.class,()->a.write(()->a.claims.save(claim(huge))));
+            assertNull(failure.getCause());assertFalse(failure.toString().contains(SECRET));
+            assertEquals(1,a.write(()->a.claims.all()).size());
+            try(var c=owner.getConnection();var sql=c.createStatement()) {
+                String role;try(var r=one.getConnection();var s=r.createStatement();var rows=s.executeQuery("SELECT current_user")){rows.next();role=rows.getString(1);}
+                sql.execute("REVOKE SELECT ON uniquedemo.\"Claim\" FROM "+role);
+                assertThrows(DataAccessException.class,()->a.write(()->a.claims.all()));
+            }
+        }
+    }
+}

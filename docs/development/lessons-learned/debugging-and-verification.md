@@ -143,3 +143,27 @@ file and probe logs within the test's temporary directory. Test paths containing
 spaces and launch with a classpath exceeding Windows' command-line limit; Linux
 alone will otherwise hide the original failure. See the
 [Java launcher reference](https://docs.oracle.com/en/java/javase/25/docs/specs/man/java.html).
+
+
+## Preserve Marketplace fixes in development branches
+
+A plugin hotfix is incomplete if the fix is absent from the next development line.
+Vernac 0.5.2 removed the internal ClassRenderer.setIsApplicableChecker call from
+Read/Access view rendering, but the 0.6.0 branch still contained it. The compatible
+implementation retains the public isApplicable(Type) override and does not install
+the internal checker. Marketplace approval of an older ZIP proves nothing about
+the bytecode in the next candidate.
+
+The focused regression guard checks compiled renderer code and every plugin class
+in the packaged ZIP for the rejected method symbol. A deliberately rejected
+test-only renderer proves the guard detects the historical call; no test classes
+are shipped. The existing JVM/JDI inspector test continues to exercise stored-view
+inspection. These checks run in a dedicated pull-request workflow and are required
+by the release-test inventory.
+
+This conservative symbol guard covers this specific regression, including a
+reflective lookup by name. It is not a general internal-API analyzer or the full
+JetBrains Plugin Verifier. Before releasing, run the full verifier against the
+exact candidate and supported IDE builds, review internal-API/compatibility results
+and keep the report with release evidence. Compilation and Marketplace approval
+of a previous release are not substitutes.

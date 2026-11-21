@@ -32,6 +32,7 @@ public final class JdbcRepositoryGenerator {
                 .addAnnotation(ClassName.get("org.springframework.stereotype","Repository"))
                 .addAnnotation(AnnotationSpec.builder(ClassName.get("org.springframework.transaction.annotation","Transactional"))
                         .addMember("propagation","$T.MANDATORY",ClassName.get("org.springframework.transaction.annotation","Propagation")).build());
+        if(plan.aggregate().tenant()) adapter.addAnnotation(ClassName.get("org.springframework.boot.sql.init.dependency","DependsOnDatabaseInitialization"));
         currentAdapter=adapter; bindingNumber=0;
         TypeName storeType=ParameterizedTypeName.get(STORE,aggregate);
         adapter.addField(storeType,"store",Modifier.PRIVATE,Modifier.FINAL);
@@ -45,6 +46,11 @@ public final class JdbcRepositoryGenerator {
             adapter.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC).addParameter(JDBC,"jdbc")
                     .addParameter(int.class,"maximumPageSize").addStatement("this(jdbc, maximumPageSize, $S)", "").build());
         }
+        List<CodeBlock> uniqueBindings = plan.aggregate().fields().stream().filter(FieldNode::isUnique)
+                .map(field -> CodeBlock.of("new $T.UniqueConstraint($S, $S, $S, $S, $S)", M,
+                        SqlNames.physical(plan.aggregateNamespace()), SqlNames.physical(plan.aggregate().name()),
+                        SqlNames.physical(SchemaBuilder.uniqueName(plan.aggregate().name(),field.name())),
+                        plan.aggregateNamespace()+"."+plan.aggregate().name(), field.name())).toList();
         var constructor=MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC)
                 .addAnnotation(ClassName.get("org.springframework.beans.factory.annotation", "Autowired"))
                 .addParameter(JDBC,"jdbc")
@@ -58,7 +64,7 @@ public final class JdbcRepositoryGenerator {
         adapter.addMethod(constructor
                 .addStatement("$T.of(1).checkMaximum(maximumPageSize)", ClassName.get("org.vernac.runtime.pagination", "PageSize"))
                 .addStatement("this.maximumPageSize = maximumPageSize")
-                .addStatement("this.store = new $T<>(jdbc, $T.class, rootMapping(), entityMappings(), tables())",STORE,aggregate).build());
+                .addStatement("this.store = new $T<>(jdbc, $T.class, rootMapping(), entityMappings(), tables(), $L)",STORE,aggregate,list(uniqueBindings)).build());
         adapter.addMethod(MethodSpec.methodBuilder("byId").addAnnotation(Override.class).addModifiers(Modifier.PUBLIC).returns(aggregate).addParameter(id,"id")
                 .addStatement("return store.byId(id.value())").build());
         adapter.addMethod(MethodSpec.methodBuilder("save").addAnnotation(Override.class).addModifiers(Modifier.PUBLIC).returns(aggregate).addParameter(aggregate,"aggregate")
@@ -66,16 +72,26 @@ public final class JdbcRepositoryGenerator {
                 .addStatement("return aggregate").build());
         adapter.addMethod(MethodSpec.methodBuilder("delete").addAnnotation(Override.class).addModifiers(Modifier.PUBLIC).addParameter(aggregate,"aggregate")
                 .addStatement("store.delete(aggregate)").build());
+        ClassName extensionSource=ClassName.get("org.vernac.runtime.jdbc","JdbcRepositoryExtensionSource");
+        ClassName extensionAccess=ClassName.get("org.vernac.runtime.jdbc","JdbcRepositoryAccess");
+        adapter.addSuperinterface(ParameterizedTypeName.get(extensionSource,aggregate,id));
+        adapter.addMethod(MethodSpec.methodBuilder("jdbcExtensions").addAnnotation(Override.class).addModifiers(Modifier.PUBLIC)
+                .addAnnotation(AnnotationSpec.builder(ClassName.get("org.springframework.transaction.annotation","Transactional"))
+                        .addMember("propagation","$T.SUPPORTS",ClassName.get("org.springframework.transaction.annotation","Propagation")).build())
+                .returns(ParameterizedTypeName.get(extensionAccess,aggregate,id))
+                .addStatement("return store.extensions(($T id) -> id.value(), maximumPageSize, $S)",id,schema.fingerprint()).build());
         queryMethods(plan, adapter);
         List<CodeBlock> entities=new ArrayList<>(),tables=new ArrayList<>();
         for(var relation:plan.relations()) {
             var table=relation.table();
             List<CodeBlock> columns=table.columns().stream().map(c->CodeBlock.of("new $T.Column($S, $S)",M,SqlNames.physical(c.name()),c.sqlType())).toList();
-            tables.add(CodeBlock.of("new $T.Table($S, $S, $L, $L, $L)",M,table.sqlName(),relation.predicate(),relation.depth(),list(columns),strings(table.primaryKey())));
+            tables.add(table.tenantIsolation()==null
+                    ?CodeBlock.of("new $T.Table($S, $S, $L, $L, $L)",M,table.sqlName(),relation.predicate(),relation.depth(),list(columns),strings(table.primaryKey()))
+                    :CodeBlock.of("new $T.Table($S, $S, $L, $L, $L, true)",M,table.sqlName(),relation.predicate(),relation.depth(),list(columns),strings(table.primaryKey())));
             if(table.primaryKey().equals(List.of("id"))) {
                 adapter.addMethod(MethodSpec.methodBuilder("rootMapping").addModifiers(Modifier.PRIVATE,Modifier.STATIC).returns(M.nestedClass("Domain"))
                         .addStatement("return $L",domain(relation,aggregate,id,true)).build());
-            } else if(table.primaryKey().equals(List.of("@aggregateId","id"))) {
+            } else if(table.primaryKey().stream().filter(k->!k.equals("@tenantId")).toList().equals(List.of("@aggregateId","id"))) {
                 var symbol=project.project().symbols().find(table.origin()).orElseThrow();
                 EntityNode node=null;
                 for(var source:project.project().sources()) for(var def:source.unit().definitions())
@@ -124,7 +140,7 @@ public final class JdbcRepositoryGenerator {
                 .returns(ParameterizedTypeName.get(ClassName.get(List.class),M.nestedClass("Table"))).addStatement("return $L",list(tables)).build());
         adapter.addField(ParameterizedTypeName.get(store,event),"store",Modifier.PRIVATE,Modifier.FINAL);
         adapter.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC).addParameter(JDBC,"jdbc")
-                .addStatement("this.store = new $T<>(jdbc, $T.class, $S, mapping(), tables())",store,event,plan.namespace()+"."+plan.event().name()).build());
+                .addStatement("this.store = $T.withOriginSchema(jdbc, $T.class, $S, mapping(), tables())",store,event,plan.namespace()+"."+plan.event().name()).build());
         adapter.addMethod(MethodSpec.methodBuilder("eventType").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(String.class)
                 .addStatement("return $S",plan.namespace()+"."+plan.event().name()).build());
         adapter.addMethod(MethodSpec.methodBuilder("listenerId").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(String.class)
@@ -137,6 +153,16 @@ public final class JdbcRepositoryGenerator {
                 .addStatement("store.persist(($T) event, listenerIds)",event).build());
         adapter.addMethod(MethodSpec.methodBuilder("load").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(event).addParameter(eventId,"id")
                 .addStatement("return store.load(id)").build());
+        var origin=ClassName.get("org.vernac.runtime.events","EventOrigin");
+        adapter.addMethod(MethodSpec.methodBuilder("tenantDeliveryVersion").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
+                .returns(int.class).addStatement("return 1").build());
+        adapter.addMethod(MethodSpec.methodBuilder("verifyOrigin").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
+                .addParameter(origin,"origin").addStatement("store.verifyOrigin(origin)").build());
+        adapter.addMethod(MethodSpec.methodBuilder("persist").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
+                .addParameter(org.vernac.runtime.DomainEvent.class,"event").addParameter(ParameterizedTypeName.get(List.class,String.class),"listenerIds")
+                .addParameter(origin,"origin").addStatement("store.persist(($T) event, listenerIds, origin)",event).build());
+        adapter.addMethod(MethodSpec.methodBuilder("load").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
+                .returns(event).addParameter(eventId,"id").addParameter(origin,"origin").addStatement("return store.load(id, origin)").build());
         return JavaFile.builder(plan.namespace()+".adapter.outbound.jdbc.event",adapter.build()).indent("    ").skipJavaLangImports(true).build();
     }
     private void queryMethods(StoragePlan plan, TypeSpec.Builder adapter) {
@@ -226,6 +252,13 @@ public final class JdbcRepositoryGenerator {
             args.add(CodeBlock.of("($T) values[$L]",java.time.Instant.class,n));
             args.add(CodeBlock.of("($T) values[$L]",java.time.Instant.class,n+1));
             args.add(CodeBlock.of("($T) values[$L]",Long.class,n+2));
+        }
+        boolean externalEntity=!root && project.project().symbols().find(relation.table().origin())
+                .map(symbol->project.project().sources().stream().anyMatch(source->source.external()&&source.path().equals(symbol.sourceFile()))).orElse(false);
+        if(!root && !externalEntity || relation.table().tenantIsolation()!=null) {
+            var restored=new ArrayList<>(args);restored.add(CodeBlock.of("ownership"));
+            return CodeBlock.of("new $T.Domain($S, value -> (($T) value).id().value(), $L, (id, values) -> $T.reconstitute($L), (id, values, ownership) -> $T.__vernacRestore($L))",
+                    M,relation.table().sqlName(),owner,list(fields),owner,CodeBlock.join(args,", "),owner,CodeBlock.join(restored,", "));
         }
         return CodeBlock.of("new $T.Domain($S, value -> (($T) value).id().value(), $L, (id, values) -> $T.reconstitute($L))",
                 M,relation.table().sqlName(),owner,list(fields),owner,CodeBlock.join(args,", "));

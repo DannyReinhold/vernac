@@ -28,6 +28,9 @@ class RepositoryBindingTest {
         assertTrue(generated.contains("import model.domain.Root;"));
         assertTrue(generated.contains("Root.@entity:model.Item"));
         assertTrue(generated.contains("Propagation.MANDATORY"));
+        assertTrue(generated.contains("JdbcRepositoryExtensionSource<Root, RootId>"));
+        assertTrue(generated.contains("JdbcRepositoryAccess<Root, RootId> jdbcExtensions()"));
+        assertTrue(generated.contains("Propagation.SUPPORTS"));
         assertFalse(generated.contains("PostgresSchemaUtils"));
     }
     @Test void singleSourceEntryPointAlsoUsesReviewedRepositoryBindings() {

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.vernac.runtime.json.pagination;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.JsonNodeFactory;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;

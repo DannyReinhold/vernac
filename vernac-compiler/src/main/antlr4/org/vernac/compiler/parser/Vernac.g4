@@ -3,13 +3,18 @@ grammar Vernac;
 applicationDefinition
     : 'application' name=qualifiedName '{' applicationEntry* '}' EOF
     ;
+tenancyDeclaration : 'tenancy' 'explicit' ';' ;
+authorizationDeclaration : 'authorization' 'explicit' ';' ;
+
 applicationEntry
-    : 'activate' moduleName=qualifiedName ';'
+    : tenancyDeclaration
+    | authorizationDeclaration
+    | 'activate' moduleName=qualifiedName ';'
     | 'bind' port=qualifiedName ('to' adapter=qualifiedName | 'from' 'configuration' property=STRING_LITERAL) ';'
     ;
 
 moduleDefinition
-    : 'module' name=qualifiedName '{' moduleExport* '}' EOF
+    : 'module' name=qualifiedName '{' (moduleExport | tenancyDeclaration)* '}' EOF
     ;
 moduleExport : 'export' exportedType=qualifiedName ';' ;
 
@@ -40,6 +45,8 @@ topLevelDeclaration
     | outboundAdapterDefinition
     | repositoryDefinition
     | usecaseDefinition
+    | permissionDefinition
+    | roleDefinition
     | domainServiceDefinition
     | listenerDefinition
     ;
@@ -109,7 +116,7 @@ eventDefinition
 // 3. Aggregates & Entities
 // ==========================================
 aggregateDefinition
-    : 'aggregate' name=typeName '[' idReference ']' '(' parameterList? ')'
+    : classification=('global' | 'tenant')? 'aggregate' name=typeName '[' idReference ']' '(' parameterList? ')'
       ( 'validates' validationBlock )?
       behaviorBlock?
       (collectionDefinition (',' collectionDefinition)*)?
@@ -146,8 +153,8 @@ outboundAdapterDefinition
 inboundHttpAdapterDefinition
     : 'adapter' name=typeName 'inbound' transport=('http' | 'mvc')
       ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
-      '{' 'base' base=STRING_LITERAL ';'
-      ('access' accessMode=('public' | 'authenticated') ';')?
+      '{' ('base' base=STRING_LITERAL ';' ('access' accessMode=('public' | 'authenticated') ';')?
+          | 'access' accessMode=('public' | 'authenticated') ';' ('base' base=STRING_LITERAL ';')?)?
       ('error' 'view' errorView=STRING_LITERAL ';')?
       (inboundEndpoint | schemaDefinition | mappingDefinition)*
       inboundErrorPolicy? '}' ';'?
@@ -157,6 +164,7 @@ inboundEndpoint
       inboundBinding* ('body' bodyType=type ';')?
       ('execute' dependency=variableName '{' mappingAssignment* '}')?
       ('respond' status=INT_LITERAL (responseType=type 'using' responseMapping=methodName)? ';'
+       | 'export' attachment=STRING_LITERAL 'from' contentField=variableName ';'
        | 'render' view=STRING_LITERAL ('model' modelName=variableName)? ('status' renderStatus=INT_LITERAL)? ';'
        | 'redirect' redirect=STRING_LITERAL ('message' notice=STRING_LITERAL)? ';')
       ('on' 'absent' ('respond' absentStatus=INT_LITERAL
@@ -283,9 +291,25 @@ repositoryOrder
 // ==========================================
 // 6. Use Cases
 // ==========================================
+permissionDefinition
+    : 'permission' name=typeName '{' (members+=qualifiedNameSegment ';')* '}' ';'?
+    ;
+roleDefinition : 'role' name=qualifiedName '{' (permissionRequirement ';')* '}' ';'? ;
+requiresClause : 'requires' authorizationRequirement ;
+authorizationRequirement
+    : 'public'
+    | 'authenticated'
+    | permissionRequirement
+    | authorizationGroup
+    ;
+permissionRequirement : 'permission' key=qualifiedName ('on' resource=variableName)? ;
+authorizationGroup : kind=('all' | 'any') '{' authorizationChild* '}' ;
+authorizationChild : permissionRequirement ';' | authorizationGroup ;
+
 usecaseDefinition
     : 'usecase' name=typeName '(' inputs=parameterList? ')'
       ('returns' (resultType=pageType | '(' results=resultParameterList ')'))?
+      requiresClause?
       ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
       ('validates' validationBlock)?
       'behavior' '{' javaImports? usecaseBehaviorMember* '}' ';'?
@@ -327,7 +351,7 @@ parameterList
     ;
 
 parameter
-    : (isMut='mut')? paramType=type (name=variableName)?
+    : (isMut='mut' | isUnique='unique')* paramType=type (name=variableName)? ('references' referenceTarget=qualifiedName)?
     ;
 
 type
@@ -348,7 +372,9 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'access' | 'authenticated' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
+    : 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
+    | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
+    | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | IDENTIFIER
     | BOOLEAN_LITERAL
@@ -448,11 +474,13 @@ argumentList
 // Spezifische Namens-Kategorien
 // ==========================================
 typeName
-    : IDENTIFIER
+    : IDENTIFIER | 'unique' | 'references'
     ;
 
 methodName
-    : 'access' | 'authenticated' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
+    : 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
+    | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
+    | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'read' | 'modify' | 'load' | 'save'
@@ -463,7 +491,9 @@ methodName
     ;
 
 variableName
-    : 'access' | 'authenticated' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'read' | 'modify'
+    : 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
+    | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
+    | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'read' | 'modify'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'

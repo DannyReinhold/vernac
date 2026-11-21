@@ -15,7 +15,7 @@ import org.springframework.context.annotation.*;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.*;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
-import org.springframework.boot.autoconfigure.flyway.*;
+import org.springframework.boot.flyway.autoconfigure.*;
 import org.flywaydb.core.Flyway;
 import org.vernac.compiler.modules.*;
 import org.vernac.compiler.persistence.*;
@@ -26,112 +26,60 @@ import org.vernac.runtime.jdbc.modules.ModuleMigrationStrategy;
 import org.vernac.runtime.persistence.SchemaDescription;
 import static org.junit.jupiter.api.Assertions.*;
 
-class ModuleMigrationPostgresTest {
-    @TempDir Path root;
-    private record Published(ModuleDescriptor descriptor,SchemaModel schema,Path sql) { }
-    @Configuration(proxyBeanMethods=false) @EnableTransactionManagement public static class Transactions { }
-    private final List<Path> javaSources=new ArrayList<>();private final List<ModuleDescriptor> descriptors=new ArrayList<>();
-    private Path resources;
-    private boolean upgraded,durable;
-    private Published publish(String folder,String text,String exports) throws Exception {
-        Path sourceRoot=root.resolve(folder+"/src/main/vernac"),source=sourceRoot.resolve("db/"+folder+"/model.vernac");Files.createDirectories(source.getParent());Files.writeString(source,text);
-        if(durable && folder.equals("required"))text=text.replace("event Started(RootId);","recorded event Started(RootId);\ndeferred listener AuditStarted on Started uses RootRepository behavior {execute {self.rootRepository().byId(event.rootId());}} ");
-        if(durable && folder.equals("dependent"))text=text.replace("namespace db.dependent;","namespace db.dependent; import db.required.Started;")+"\ndeferred listener DeliverStarted on Started uses ReceiptRepository behavior {java imports {org.vernac.maven.ModuleDeferredEventProbe;} execute {self.receiptRepository().save(Receipt.create(Name.of(\"delivered\")));ModuleDeferredEventProbe.afterWrite();}}";
-        if (upgraded) text=text.replace("value Name(String text, String? alias);", "value Name(String text, String? alias, String origin);");
-        Files.writeString(source,text);
-        Files.writeString(root.resolve(folder+"/vernac-module.vmodule"),"module example."+folder+" {"+exports+"}");
-        var compiler=new VernacCompiler();var resolved=compiler.analyzeProject(sourceRoot,descriptors);var generated=compiler.generate(resolved,SchemaModel.empty(),Map.of());
-        var files=ApplicationBindings.generate(new org.vernac.compiler.application.ApplicationDefinition("internal",List.of(),List.of()),resolved,descriptors,generated.generatedFiles(),true).files();
-        Path java=root.resolve(folder+"/java");for(var file:files)file.writeTo(java);javaSources.add(java);
-        var descriptor=ModuleContracts.publish(ModuleDefinition.parse(root.resolve(folder+"/vernac-module.vmodule"),"module example."+folder+" {"+exports+"}"),resolved,files,"example",folder,"1",descriptors);
-        var model=new SchemaBuilder(resolved,SchemaModel.empty()).build();Path history=root.resolve(folder+"/history"),sql=root.resolve(folder+"/migration");
-        appendHistory(history,sql,model);
-        bundle(folder,model,history,sql);descriptors.add(descriptor);return new Published(descriptor,model,sql);
-    }
-    private void bundle(String module,SchemaModel model,Path history,Path sql) throws Exception {
-        var bundle=ModulePersistence.prepare("example."+module,model,history,sql);ModulePersistence.verify(bundle.descriptor(),bundle.resources());
-        for(var entry:bundle.resources().entrySet()){Path target=resources.resolve(entry.getKey());Files.createDirectories(target.getParent());Files.write(target,entry.getValue());}
-    }
-    private void appendHistory(Path history,Path sql,SchemaModel next) throws Exception {
-        var chain=new SchemaHistory(history,sql);var previous=chain.read();
-        Map<String,String> backfills=new TreeMap<>();
-        if(upgraded)for(var table:next.tables())for(var column:table.columns())
-            if(column.name().endsWith(".origin"))backfills.put(table.identity()+"/"+column.name(),"'LEGACY'");
-        chain.append(upgraded?"20261013220100000":"20261013210000000",upgraded?"add_origin":"initial",previous,next,
-            new MigrationPlanner().plan(previous,next,new MigrationPlanner.Options(false,backfills,Map.of())));
-    }
-    private List<Published> fixtures() throws Exception {
-        resources=Files.createDirectories(root.resolve("classes"));
-        var first=publish("required","""
-            namespace db.required;
-            id RootId; id ChildId; value Name(String text, String? alias);
-            entity Child[ChildId](Name) list Children;
-            aggregate Root[RootId](Name, Children);
-            repository RootRepository for Root {}
-            event Started(RootId);
-            synchronous listener CheckStarted on Started uses RootRepository behavior {
-                execute {
-                    if (self.rootRepository().byId(event.rootId()).name().text().equals("reject"))
-                        throw new org.vernac.runtime.DomainValidationException("Synchronous receiver rejected the root");
+class ModuleMigrationPostgresTest extends ModuleMigrationFixture {
+    @Test @EnabledIfEnvironmentVariable(named="VERNAC_PG_TEST_URL", matches=".+")
+    void bootUsesSeparateMigrationCredentialsAndRestrictedRuntimeRepositories() throws Exception {
+        fixtures();
+        database(migrations -> {
+            RuntimeLogin runtime = provisionRuntime(migrations);
+            try (var code = new URLClassLoader(new java.net.URL[]{resources.toUri().toURL()}, getClass().getClassLoader())) {
+                for (int restart = 0; restart < 2; restart++) boot(migrations, runtime, code).run(context -> {
+                    assertNull(context.getStartupFailure(), () -> String.valueOf(context.getStartupFailure()));
+                    var runtimeSource = context.getBean(javax.sql.DataSource.class);
+                    try (var connection = runtimeSource.getConnection(); var sql = connection.createStatement()) {
+                        try (var identity = sql.executeQuery("SELECT current_user")) {
+                            assertTrue(identity.next()); assertEquals(runtime.role(), identity.getString(1));
+                        }
+                        assertThrows(SQLException.class, () -> sql.execute("CREATE TABLE public.runtime_must_not_create(id int)"));
+                        assertThrows(SQLException.class, () -> sql.executeQuery("SELECT * FROM public.flyway_schema_history"));
+                    }
+                    var name = code.loadClass("db.required.domain.Name");
+                    var submit = context.getBean("db.dependent.Submit");
+                    submit.getClass().getMethod("execute", name).invoke(submit,
+                            name.getMethod("of", String.class).invoke(null, "separate credentials"));
+                    assertSame(runtimeSource, context.getBean(NamedParameterJdbcTemplate.class).getJdbcTemplate().getDataSource());
+                    assertNotSame(runtimeSource, context.getBean(Flyway.class).getConfiguration().getDataSource());
+                });
+                assertEquals(2, count(migrations, "SELECT count(*) FROM \"db.required\".\"Root\""));
+                assertEquals(2, count(migrations, "SELECT count(*) FROM \"db.dependent\".\"Receipt\""));
+                assertEquals(3, count(migrations, "SELECT count(*) FROM information_schema.tables WHERE table_name='flyway_schema_history'"));
+                assertEquals(0, count(migrations, "SELECT count(*) FROM pg_tables WHERE tableowner='" + runtime.role() + "'"));
+            } finally {
+                try (var connection = migrations.getConnection(); var sql = connection.createStatement()) {
+                    sql.execute("DROP OWNED BY " + runtime.role()); sql.execute("DROP ROLE " + runtime.role());
                 }
             }
-            usecase Start(Name) returns RootId uses RootRepository rootRepository behavior {
-                execute {var root=Root.create(name,Children.empty());self.rootRepository().save(root);self.emit(Started.create(root.id()));return root.id();}
+        });
+    }
+
+    @Test @EnabledIfEnvironmentVariable(named="VERNAC_PG_TEST_URL", matches=".+")
+    void differentMigrationDatabaseFailsBeforeAnyHistoryOrSchemaIsWritten() throws Exception {
+        fixtures();
+        database(runtime -> database(migrations -> {
+            try (var code = new URLClassLoader(new java.net.URL[]{resources.toUri().toURL()}, getClass().getClassLoader());
+                 var context = context(runtime, migrations, code)) {
+                var error = assertThrows(RuntimeException.class, context::refresh);
+                Throwable cause = error;
+                while (cause.getCause() != null) cause = cause.getCause();
+                assertTrue(cause.getMessage().contains("same PostgreSQL database instance"));
             }
-            ""","export db.required.RootId;export db.required.Name;export db.required.Start;export db.required.Started;");
-        var second=publish("dependent","""
-            namespace db.dependent;
-            import db.required.Name; import db.required.RootId; import db.required.Start;
-            id ReceiptId; aggregate Receipt[ReceiptId](Name);
-            repository ReceiptRepository for Receipt {}
-            usecase Submit(Name) returns RootId uses Start start, ReceiptRepository receiptRepository behavior {
-                execute {var id=self.start().execute(name);self.receiptRepository().save(Receipt.create(name));return id;}
+            for (var source : List.of(runtime, migrations)) {
+                assertEquals(0, count(source, "SELECT count(*) FROM information_schema.tables WHERE table_name='flyway_schema_history' OR table_schema IN ('db.required','db.dependent','db.application')"));
+                assertEquals(0, source.transactions.get());
             }
-            usecase Reject(Name) uses Start start, ReceiptRepository receiptRepository behavior {
-                execute {self.start().execute(name);self.receiptRepository().save(Receipt.create(name));throw new IllegalStateException("fixture rollback");}
-            }
-            ""","export db.dependent.Submit;export db.dependent.Reject;");
-        ModuleContracts.checkDependencies(descriptors);
-        Path appSource=root.resolve("app/src/main/vernac/db/application/model.vernac");Files.createDirectories(appSource.getParent());
-        Files.writeString(appSource,"namespace db.application; import db.required.Name; id ApplicationId; aggregate Application[ApplicationId](Name); repository ApplicationRepository for Application {}");
-        var compiler=new VernacCompiler();var app=new SchemaBuilder(compiler.analyzeProject(root.resolve("app/src/main/vernac"),descriptors),SchemaModel.empty(),Map.of(),new SchemaBuilder.Options(false,durable)).build();
-        appendHistory(root.resolve("app/history"),resources.resolve("db/migration"),app);
-        ModuleDescriptor.write(resources.resolve("application-schema.json"),Map.of("schema",app,"ownedTables",app.tables().stream().map(t->SqlNames.physical(t.namespace())+"/"+SqlNames.physical(t.name())).toList()));
-        var arguments=new ArrayList<>(List.of("--release","21","-proc:none","-classpath",System.getProperty("java.class.path"),"-d",resources.toString()));
-        for(Path java:javaSources)try(var paths=Files.walk(java)){paths.filter(p->p.toString().endsWith(".java")).map(Path::toString).forEach(arguments::add);}
-        assertEquals(0,ToolProvider.getSystemJavaCompiler().run(null,null,null,arguments.toArray(String[]::new)));
-        SchemaDescription runtime=SchemaModel.JSON.readValue(first.schema().json(),SchemaDescription.class);assertEquals(first.schema().fingerprint(),ModuleMigrationStrategy.fingerprint(runtime));
-        return List.of(first,second);
+        }));
     }
-    private AnnotationConfigApplicationContext context(CountingSource source,URLClassLoader code) throws Exception {
-        var context=new AnnotationConfigApplicationContext();context.setClassLoader(code);context.register(Transactions.class);
-        context.registerBean("dataSource",javax.sql.DataSource.class,()->source);context.registerBean("transactionManager",DataSourceTransactionManager.class,()->new DataSourceTransactionManager(source));
-        context.registerBean("jdbc",NamedParameterJdbcTemplate.class,()->new NamedParameterJdbcTemplate(source));
-        List<ActivationPlan.Node> nodes=new ArrayList<>();Map<String,Class<?>> functions=new TreeMap<>();
-        for(var descriptor:descriptors)for(var component:descriptor.components()){var node=new ActivationPlan.Node(component.identity(),descriptor.module(),component.kind(),component.javaName(),component.dependencies(),descriptor.persistent());nodes.add(node);functions.put(node.identity(),code.loadClass(node.javaName()));}
-        context.addBeanFactoryPostProcessor(new AdapterBindings(context.getEnvironment(),List.of(),Map.of(),nodes,List.of("example.dependent"),List.of(),functions,"application-schema.json"));
-        context.registerBean("flywayInitializer",FlywayMigrationInitializer.class,()->new FlywayMigrationInitializer(Flyway.configure(code).dataSource(source).locations("classpath:db/migration").load(),context.getBean(AdapterBindings.STRATEGY,FlywayMigrationStrategy.class)));
-        return context;
-    }
-    private interface Exercise {void run(CountingSource source) throws Exception;}
-    private void database(Exercise exercise) throws Exception {
-        String url=System.getenv("VERNAC_PG_TEST_URL");Properties credentials=new Properties();
-        if(System.getenv("VERNAC_PG_TEST_USER")!=null)credentials.setProperty("user",System.getenv("VERNAC_PG_TEST_USER"));if(System.getenv("VERNAC_PG_TEST_PASSWORD")!=null)credentials.setProperty("password",System.getenv("VERNAC_PG_TEST_PASSWORD"));
-        String database="vernac_modules_"+UUID.randomUUID().toString().replace("-","");
-        try(var admin=DriverManager.getConnection(url,credentials)) {
-            try(var statement=admin.createStatement()){statement.execute("CREATE DATABASE "+database);}
-            try{exercise.run(new CountingSource(SchemaCheckMojo.databaseUrl(url,database),credentials));}
-            finally{try(var statement=admin.createStatement()){statement.execute("DROP DATABASE "+database+" WITH (FORCE)");}}
-        }
-    }
-    private static final class CountingSource extends AbstractDataSource {
-        private final String url;private final Properties credentials;private String searchPath;final AtomicInteger transactions=new AtomicInteger();
-        CountingSource(String url,Properties credentials){this.url=url;this.credentials=credentials;}
-        public Connection getConnection() throws SQLException {return wrap(DriverManager.getConnection(url,credentials));}
-        public Connection getConnection(String user,String password) throws SQLException{return wrap(DriverManager.getConnection(url,user,password));}
-        private Connection wrap(Connection connection) throws SQLException {if(searchPath!=null)try(var statement=connection.createStatement()){statement.execute("SET search_path TO "+searchPath);}return (Connection)java.lang.reflect.Proxy.newProxyInstance(getClass().getClassLoader(),new Class<?>[]{Connection.class},(p,m,a)->{if(m.getName().equals("setAutoCommit")&&Boolean.FALSE.equals(a[0]))transactions.incrementAndGet();try{return m.invoke(connection,a);}catch(java.lang.reflect.InvocationTargetException e){throw e.getCause();}});}
-    }
-    private static long count(CountingSource source,String sql) throws Exception {try(var c=source.getConnection();var s=c.createStatement();var rows=s.executeQuery(sql)){rows.next();return rows.getLong(1);}}
+
     @Test void fixtureModulesCompileAndShareTheRuntimeFingerprintContract() throws Exception {
         var models=fixtures();assertEquals(2,models.size());
         assertTrue(Files.isRegularFile(resources.resolve("db/dependent/usecase/Submit.class")));

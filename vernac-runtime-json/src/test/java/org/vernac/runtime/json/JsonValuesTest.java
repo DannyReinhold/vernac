@@ -5,7 +5,7 @@ import java.math.*;
 import java.time.*;
 import java.util.*;
 import org.junit.jupiter.api.Test;
-import com.fasterxml.jackson.core.JsonFactory;
+import tools.jackson.core.json.JsonFactory;
 import static org.junit.jupiter.api.Assertions.*;
 class JsonValuesTest {
     @Test void everyApprovedScalarHasAnExactJavaRoundtrip() throws Exception {

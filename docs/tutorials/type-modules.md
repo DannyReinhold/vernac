@@ -31,7 +31,7 @@ The example library has three identities serving different purposes:
 
 | Identity | Example | Purpose |
 | --- | --- | --- |
-| Maven artifact | `org.vernac:vernac-example-shared-values:0.5.3-SNAPSHOT` | Select and distribute a compiled version |
+| Maven artifact | `org.vernac:vernac-example-shared-values:0.5.4-SNAPSHOT` | Select and distribute a compiled version |
 | Logical module | `example.shared.values` | Identify the module and its contracts in diagnostics |
 | Vernac type | `example.shared.Money` | Name the type in an import and in the model |
 
@@ -415,7 +415,7 @@ A port interface owns no beans or tables and requires no activation. Its inclusi
 in a contract module does not mean functional-module activation is available. The separate `providers` artifact now exports two local fixture implementations
 selected by the application binding. This is adapter selection, not activation of
 a whole billing implementation with usecases, repositories and migrations. Rebuild existing
-module JARs after this compiler update (`module-contracts-9` metadata).
+module JARs after this compiler update (`module-contracts-13` metadata).
 
 ## Run profile-driven selection
 
@@ -616,8 +616,36 @@ Add the Vernac JDBC Spring Boot starter and the module Maven dependencies. Confi
 your application's usual `spring.datasource` connection and keep application migrations
 in `classpath:db/migration`. Do not add module SQL directories to `spring.flyway.locations`:
 the coordinator selects them from verified module bundles. Keep Flyway enabled and
-provide the application transaction manager. Separate `spring.flyway.url` connections
-and a custom FlywayMigrationStrategy are not supported by this integration.
+provide the application transaction manager. A separate `spring.flyway.url` connection
+is supported when it reaches the same PostgreSQL writer database. A custom
+FlywayMigrationStrategy remains unsupported: Vernac owns module migration ordering.
+
+For separate migration and runtime roles, use the same database URL with different
+credentials:
+
+```yaml
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_RUNTIME_USER}
+    password: ${DB_RUNTIME_PASSWORD}
+  flyway:
+    url: ${DB_URL}
+    user: ${DB_MIGRATION_USER}
+    password: ${DB_MIGRATION_PASSWORD}
+```
+
+All module histories and the application history use the Flyway credentials; repositories
+and REQUIRED usecase transactions use the runtime credentials. Vernac checks that the
+connections reach the same database instance before migration writes. Keep module SQL
+locations out of spring.flyway.locations even when the credentials differ.
+
+Provision runtime USAGE/DML grants on the intended domain schemas/tables yourself, with
+reviewed deployment SQL or default privileges as appropriate. The runtime role needs no
+DDL rights or access to Flyway history tables. Generated migration candidates do not
+create roles or grant permissions automatically. Never give repositories the migration
+DataSource to work around missing grants. Review migrations and operational privileges
+before deployment; the generated candidate remains your responsibility.
 
 Explicitly activate the module in your existing `.vapplication` file. Functional
 dependencies participate transitively; a type import alone does not activate a module.
@@ -679,7 +707,7 @@ transitively, while merely knowing another module's event does not activate the 
 Use this mode only for immediate transactional participation. Deferred module delivery and recorded storage are now supported. The producer owns
 the prepared payload; the application owns shared delivery jobs. The runnable example
 also shows two deferred recipients and a deliberate first-attempt rollback/retry. Metadata
-is module-contracts-9, so rebuild all producers and consumers after updating the tools.
+is module-contracts-13, so rebuild all producers and consumers after updating the tools.
 
 
 ## Add a module-owned HTTP API
@@ -699,3 +727,18 @@ Follow [the executable HTTP walkthrough](https://github.com/DannyReinhold/vernac
 to start the servlet profile and try a request. Its transport and validation failures
 use the API producer's declarative error policy. The application adds the HTTP runtime
 and Spring MVC explicitly. Activation does not configure authentication or authorization.
+
+## Tenant-aware type contracts in 0.5.4 development
+
+Current development tools publish module-contracts-13 metadata. Rebuild earlier module
+artifacts and consumers together. Imported tenant/global aggregates retain their scope;
+imported entities carry the ownership-aware restoration contract needed by a local tenant
+repository. Type imports do not activate modules or establish a tenant selection.
+See [reuse an entity from a type module](tenant-persistence.md#reuse-an-entity-from-a-type-module)
+for a producer and consumer example.
+
+A module's own tenant repository is supported through explicit activation and runtime
+RLS/privilege verification. Follow [the tenant module walkthrough](tenant-modules.md)
+for publication, separate credentials, transactions and shared-VO upgrades. The global
+persistent-module walkthrough above retains its existing behavior. Durable tenant event
+routing and full SaaS provisioning remain in progress.

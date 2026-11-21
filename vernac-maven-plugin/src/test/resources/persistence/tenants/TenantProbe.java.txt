@@ -1,0 +1,293 @@
+package tenantdemo;
+import tenantdemo.domain.*;
+import tenantdemo.adapter.outbound.jdbc.*;
+import org.vernac.runtime.*;
+import org.vernac.runtime.tenancy.*;
+import org.vernac.runtime.pagination.*;
+import org.vernac.runtime.jdbc.*;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.support.*;
+import org.springframework.dao.OptimisticLockingFailureException;
+import javax.sql.DataSource;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.Supplier;
+import static org.junit.jupiter.api.Assertions.*;
+
+public final class TenantProbe {
+    static final TenantId A=TenantId.of(UUID.fromString("00000000-0000-4000-8000-000000000001"));
+    static final TenantId B=TenantId.of(UUID.fromString("00000000-0000-4000-8000-000000000002"));
+    static final String KEY=Base64.getEncoder().encodeToString(new byte[32]);
+    static <T> T in(TenantId tenant,TransactionTemplate tx,Supplier<T> action) {
+        try(var selected=TenantContext.openVerified(tenant)){return tx.execute(status->action.get());}
+    }
+    static Invoice empty(String title){return Invoice.create(Title.of(title),Stops.empty(),Stops.empty(),null,TagGroups.empty());}
+    static TransactionTemplate tx(DataSource data){return new TransactionTemplate(new DataSourceTransactionManager(data));}
+    static JdbcInvoiceRepository invoices(DataSource data){return new JdbcInvoiceRepository(new NamedParameterJdbcTemplate(data),1000,KEY);}
+
+    public static void lifecycle(DataSource data) {
+        var jdbc=new NamedParameterJdbcTemplate(data);var tx=tx(data);var invoices=invoices(data);
+        var audits=new JdbcAuditRepository(jdbc);var catalogs=new JdbcCatalogRepository(jdbc);
+        tx.executeWithoutResult(s->catalogs.save(Catalog.create(Title.of("global"))));
+        assertTrue(TenantContext.currentTenant().isEmpty());
+        assertThrows(TenancyException.class,()->tx.execute(s->invoices.all()));
+        var first=in(A,tx,()->{
+            var parcel=Parcel.create(Title.of("parcel"));
+            var stop=Stop.create(Title.of("stop"),Parcels.of(parcel),Tags.of(Tag.of("tag")));
+            var other=Stop.create(Title.of("other"),Parcels.of(parcel),Tags.empty());
+            var groups=TagGroups.of(TagGroup.of(Tags.of(Tag.of("x"),Tag.of("y"))),TagGroup.of(Tags.of(Tag.of("z"))));
+            var root=Invoice.create(Title.of("A-1"),Stops.of(stop,stop,other),Stops.of(stop),stop,groups);
+            invoices.save(root);invoices.save(empty("shared"));
+            audits.save(Audit.create(Title.of("same transaction")));
+            assertEquals(1,audits.all().size()); // two coordinators, same physical transaction
+            assertEquals(1,catalogs.all().size()); // still unscoped inside a tenant transaction
+            return root;
+        });
+        var foreign=in(B,tx,()->{var result=invoices.save(empty("B-1"));invoices.save(empty("shared"));return result;});
+        var loaded=in(A,tx,()->{
+            assertEquals(2,invoices.all().size());
+            assertEquals(1,invoices.either(Title.of("A-1"),Title.of("B-1")).size());
+            assertTrue(invoices.unique(Title.of("B-1")).isEmpty());
+            assertTrue(invoices.unique(Title.of("shared")).isPresent());
+            assertThrows(AggregateNotFoundException.class,()->invoices.byId(foreign.id()));
+            var root=invoices.byId(first.id());
+            assertSame(root.stops().get(0),root.stops().get(1));
+            assertSame(root.stops().get(0),root.favorites().get(0));
+            assertSame(root.stops().get(0),root.preferred().orElseThrow());
+            assertSame(root.stops().get(0).parcels().stream().findFirst().orElseThrow(),root.stops().get(2).parcels().stream().findFirst().orElseThrow());
+            assertEquals(2,root.groups().get(0).tags().size());
+            assertEquals("z",root.groups().get(1).tags().get(0).string());
+            var fromQuery=invoices.all().get(0);
+            assertEquals(2,fromQuery.groups().get(0).tags().size()); // batched nested VO collections
+            assertSame(fromQuery.stops().get(0),fromQuery.preferred().orElseThrow());
+            root.stops().get(0).rename(Title.of("changed"));
+            invoices.save(root);
+            return root;
+        });
+        in(A,tx,()->{assertEquals("changed",invoices.byId(first.id()).stops().get(0).title().string());return true;});
+        var page=in(A,tx,()->invoices.counted().page(OffsetRequest.ofPage(1,1)));
+        assertEquals(2,page.totalElements());assertEquals(1,page.items().size());
+        var token=in(A,tx,()->invoices.following().page(CursorRequest.first(1)).nextCursor().orElseThrow());
+        in(A,tx,()->{assertEquals(1,invoices.following().page(CursorRequest.after(token,1)).items().size());return true;});
+        in(B,tx,()->{assertEquals(2,invoices.counted().page(OffsetRequest.ofPage(1,1)).totalElements());
+            assertThrows(InvalidCursorException.class,()->invoices.following().page(CursorRequest.after(token,1)));return true;});
+        assertThrows(TenancyException.class,()->in(B,tx,()->invoices.save(loaded)));
+        assertThrows(TenancyException.class,()->in(B,tx,()->{
+            var root=Invoice.create(Title.of("foreign child"),Stops.of(loaded.stops().get(0)),Stops.empty(),null,TagGroups.empty());
+            return invoices.save(root);
+        }));
+        assertThrows(TenancyException.class,()->in(B,tx,()->{
+            var stop=Stop.create(Title.of("new B stop"),Parcels.of(loaded.stops().get(0).parcels().stream().findFirst().orElseThrow()),Tags.empty());
+            return invoices.save(Invoice.create(Title.of("foreign subentity"),Stops.of(stop),Stops.empty(),null,TagGroups.empty()));
+        }));
+        var archives=new JdbcArchiveRepository(jdbc);
+        assertThrows(TenancyException.class,()->tx.execute(status->archives.save(Archive.create(loaded.stops().get(0)))));
+        var global=tx.execute(status->archives.save(Archive.create(Stop.create(Title.of("global stop"),Parcels.empty(),Tags.empty()))));
+        var globalChild=tx.execute(status->archives.byId(global.id()).stop());
+        assertThrows(TenancyException.class,()->in(A,tx,()->invoices.save(
+                Invoice.create(Title.of("global child"),Stops.of(globalChild),Stops.empty(),null,TagGroups.empty()))));
+        var unassigned=empty("created outside selection");
+        assertTrue(unassigned.persistenceState().ownership().tenant().isEmpty());
+        in(A,tx,()->{invoices.save(unassigned);invoices.delete(unassigned);return true;});
+        assertThrows(TenancyException.class,()->in(B,tx,()->invoices.save(unassigned)));
+        var reset=in(A,tx,()->invoices.byId(first.id()));
+        reset.persistenceState().version(0);
+        assertThrows(TenancyException.class,()->in(A,tx,()->invoices.save(reset)));
+        var stale=in(A,tx,()->invoices.byId(first.id()));
+        in(A,tx,()->{invoices.save(invoices.byId(first.id()));return true;});
+        assertThrows(OptimisticLockingFailureException.class,()->in(A,tx,()->invoices.save(stale)));
+        var rolledBack=in(A,tx,()->empty("rolled back"));
+        assertThrows(IllegalStateException.class,()->in(A,tx,()->{invoices.save(rolledBack);throw new IllegalStateException("rollback fixture");}));
+        assertThrows(TenancyException.class,()->in(B,tx,()->invoices.save(rolledBack)));
+        assertThrows(TenancyException.class,()->in(A,tx,()->invoices.save(Invoice.reconstitute(InvoiceId.create(),
+                Title.of("manual"),Stops.empty(),Stops.empty(),null,TagGroups.empty(),java.time.Instant.now(),java.time.Instant.now(),0))));
+        in(A,tx,()->{
+            var root=invoices.byId(first.id());
+            var keep=root.stops().get(2);
+            root.replace(Stops.of(keep),Stops.empty(),null);
+            invoices.save(root);
+            assertEquals(1,invoices.byId(root.id()).stops().get(0).parcels().size()); // shared subentity survives
+            root.replace(Stops.empty(),Stops.empty(),null);invoices.save(root);
+            invoices.delete(invoices.byId(root.id()));
+            assertThrows(AggregateNotFoundException.class,()->invoices.byId(root.id()));
+            return true;
+        });
+        in(B,tx,()->{assertEquals(2,invoices.all().size());return true;});
+        assertTrue(TenantContext.currentTenant().isEmpty());assertTrue(TenantContext.transactionTenant().isEmpty());
+    }
+
+    public static void parallel(DataSource data) throws Exception {
+        var invoices=invoices(data);var tx=tx(data);
+        var a=in(A,tx,()->invoices.save(empty("A")));
+        var b=in(B,tx,()->invoices.save(empty("B")));
+        var barrier=new CyclicBarrier(2);
+        try(var executor=Executors.newFixedThreadPool(2)) {
+            List<Future<?>> futures=new ArrayList<>();
+            for(var tenant:List.of(A,B)) futures.add(executor.submit(()->{
+                in(tenant,tx,()->{
+                    var roots=invoices.all();assertEquals(1,roots.size());
+                    assertEquals(tenant.equals(A)?"A":"B",roots.get(0).title().string());
+                    try{barrier.await(10,TimeUnit.SECONDS);}catch(Exception e){throw new RuntimeException(e);}
+                    var root=roots.get(0);
+                    root.replace(Stops.of(Stop.create(Title.of("parallel"),Parcels.empty(),Tags.empty())),Stops.empty(),null);
+                    invoices.save(root);return true;
+                });
+                assertTrue(TenantContext.currentTenant().isEmpty());assertTrue(TenantContext.transactionTenant().isEmpty());
+            }));
+            for(var future:futures) future.get(20,TimeUnit.SECONDS);
+        }
+        assertEquals(1,in(A,tx,()->invoices.byId(a.id())).stops().size());
+        assertEquals(1,in(B,tx,()->invoices.byId(b.id())).stops().size());
+        var racing=new CyclicBarrier(2);
+        try(var executor=Executors.newFixedThreadPool(2)) {
+            List<Future<Boolean>> attempts=new ArrayList<>();
+            for(int i=0;i<2;i++) attempts.add(executor.submit(()->{
+                boolean won;
+                try {
+                    in(A,tx,()->{
+                        var root=invoices.byId(a.id());
+                        try{racing.await(10,TimeUnit.SECONDS);}catch(Exception e){throw new RuntimeException(e);}
+                        root.replace(Stops.of(Stop.create(Title.of("race"),Parcels.empty(),Tags.empty())),Stops.empty(),null);
+                        invoices.save(root);return true;
+                    });
+                    won=true;
+                } catch(OptimisticLockingFailureException expected) {won=false;}
+                assertTrue(TenantContext.currentTenant().isEmpty());assertTrue(TenantContext.transactionTenant().isEmpty());
+                return won;
+            }));
+            assertNotEquals(attempts.get(0).get(20,TimeUnit.SECONDS),attempts.get(1).get(20,TimeUnit.SECONDS));
+        }
+        assertEquals(3,in(A,tx,()->invoices.byId(a.id())).persistenceState().version());
+        assertEquals(2,in(B,tx,()->invoices.byId(b.id())).persistenceState().version());
+    }
+
+    public static void seed(DataSource data) {
+        var repository=invoices(data);var tx=tx(data);
+        in(A,tx,()->repository.save(empty("A")));
+        in(B,tx,()->repository.save(empty("B")));
+    }
+    public static void policies(DataSource data,DataSource admin) {
+        var jdbc=new org.springframework.jdbc.core.JdbcTemplate(admin);
+        assertThrows(TenancyException.class,()->invoices(admin));
+        var unsafePool=new org.springframework.jdbc.datasource.DelegatingDataSource(data) {
+            @Override public java.sql.Connection getConnection() throws java.sql.SQLException {
+                var connection=super.getConnection();connection.setAutoCommit(false);return connection;
+            }
+        };
+        assertThrows(TenancyException.class,()->invoices(unsafePool));
+        var existing=invoices(data);var tx=tx(data);
+        var stored=in(B,tx,()->existing.save(empty("collision source")));
+        var collision=in(A,tx,()->empty("collision target"));
+        jdbc.update("UPDATE tenantdemo.\"Invoice\" SET id=? WHERE id=?",collision.id().value(),stored.id().value());
+        var conflict=assertThrows(OptimisticLockingFailureException.class,()->in(A,tx,()->existing.save(collision)));
+        assertNull(conflict.getCause());
+        assertFalse(conflict.toString().contains(A.asString()));
+        assertFalse(conflict.toString().contains(B.asString()));
+        jdbc.execute("ALTER POLICY \"@tenant\" ON \"tenantdemo\".\"Invoice\" USING (true) WITH CHECK (true)");
+        assertThrows(TenancyException.class,()->invoices(data));
+        assertThrows(TenancyException.class,()->in(A,tx,()->existing.all()));
+    }
+    static JdbcRootQuery allRoots(){return JdbcRootQuery.of("SELECT id FROM tenantdemo.\"Invoice\"",Map.of());}
+    public static void extensions(DataSource data) {
+        var repository=invoices(data);var tx=tx(data);var access=repository.jdbcExtensions();
+        assertThrows(TenancyException.class,()->tx.execute(status->access.count(allRoots())));
+        try(var selected=TenantContext.openVerified(A)){assertThrows(TenancyException.class,()->access.count(allRoots()));}
+        var first=in(A,tx,()->{
+            var parcel=Parcel.create(Title.of("parcel"));var stop=Stop.create(Title.of("stop"),Parcels.of(parcel),Tags.of(Tag.of("tag")));
+            var second=Stop.create(Title.of("second"),Parcels.of(parcel),Tags.empty());
+            var root=repository.save(Invoice.create(Title.of("A"),Stops.of(stop,stop,second),Stops.of(stop),stop,TagGroups.of(TagGroup.of(Tags.of(Tag.of("nested"))))));
+            repository.save(empty("A-second"));repository.save(empty("A-third"));return root;
+        });
+        var foreign=in(B,tx,()->repository.save(empty("B")));
+        in(A,tx,()->{
+            assertEquals(3L,access.count(allRoots()));assertTrue(access.exists(allRoots()));
+            var root=access.single(read->read.byId(first.id()));assertEquals(first.persistenceState().version(),root.persistenceState().version());
+            assertSame(root.stops().get(0),root.stops().get(1));assertSame(root.stops().get(0),root.preferred().orElseThrow());
+            assertSame(root.stops().get(0).parcels().stream().findFirst().orElseThrow(),root.stops().get(2).parcels().stream().findFirst().orElseThrow());
+            assertEquals("nested",root.groups().get(0).tags().get(0).string());
+            assertTrue(access.optional(read->read.optional(foreign.id())).isEmpty());assertTrue(access.optional(read->read.optional(first.id())).isPresent());
+            var roots=access.list(read->read.roots(allRoots()));assertEquals(3,roots.size());
+            assertEquals(3,access.set(read->new LinkedHashSet<>(read.roots(allRoots()))).size());
+            assertEquals(3,access.collection(read->Invoices.of(read.roots(allRoots()))).size());
+            assertTrue(access.page(read->read.offset(allRoots(),OffsetRequest.ofPage(1,1),Invoices::of)).hasNext());
+            var page=access.page(read->read.countedOffset(allRoots(),OffsetRequest.ofPage(1,1),Invoices::of));assertEquals(3,page.totalElements());assertTrue(page.hasNext());
+            assertEquals(0,access.page(read->read.countedOffset(allRoots(),OffsetRequest.ofPage(20,1),Invoices::of)).items().size());
+            var cursor=access.page(read->read.cursor(allRoots(),CursorRequest.first(1),Invoices::of,JdbcCursorCodec.configured(KEY)));
+            assertEquals(1,cursor.items().size());assertTrue(cursor.nextCursor().isPresent());
+            assertEquals(1,access.page(read->read.cursor(allRoots(),cursor.nextRequest().orElseThrow(),Invoices::of,JdbcCursorCodec.configured(KEY))).items().size());
+            assertThrows(TenancyException.class,()->{try(var wrong=TenantContext.openVerified(B)){access.count(allRoots());}});
+            return true;
+        });
+        var cursor=in(A,tx,()->access.page(read->read.cursor(allRoots(),CursorRequest.first(1),Invoices::of,JdbcCursorCodec.configured(KEY))).nextCursor().orElseThrow());
+        assertThrows(InvalidCursorException.class,()->in(B,tx,()->access.page(read->read.cursor(allRoots(),CursorRequest.after(cursor,1),Invoices::of,JdbcCursorCodec.configured(KEY)))));
+        assertEquals(1L,in(B,tx,()->access.count(allRoots())).longValue());
+    }
+    @org.springframework.context.annotation.Configuration(proxyBeanMethods=false)
+    @org.springframework.transaction.annotation.EnableTransactionManagement(proxyTargetClass=false)
+    public static class ExtensionTransactions {}
+    public static void extensionProxy(DataSource data) {
+        try(var context=new org.springframework.context.annotation.AnnotationConfigApplicationContext()) {
+            context.setClassLoader(TenantProbe.class.getClassLoader());
+            context.register(ExtensionTransactions.class);
+            context.registerBean(javax.sql.DataSource.class,()->data);
+            context.registerBean(org.springframework.transaction.PlatformTransactionManager.class,()->new DataSourceTransactionManager(data));
+            context.registerBean("extensionRepository",JdbcInvoiceRepository.class,()->invoices(data));context.refresh();
+            Object bean=context.getBean("extensionRepository");assertTrue(org.springframework.aop.support.AopUtils.isJdkDynamicProxy(bean));
+            @SuppressWarnings("unchecked") var source=(JdbcRepositoryExtensionSource<Invoice,InvoiceId>)bean;
+            var access=source.jdbcExtensions(); // Factory is valid outside a business transaction.
+            assertThrows(org.springframework.transaction.IllegalTransactionStateException.class,()->((InvoiceRepository)bean).all());
+            assertEquals(0L,in(A,tx(data),()->access.count(allRoots())).longValue());
+        }
+    }
+    public static void extensionGuards(DataSource data) {
+        var repository=invoices(data);var access=repository.jdbcExtensions();var tx=tx(data);
+        var stored=in(A,tx,()->repository.save(empty("A")));var foreign=in(B,tx,()->{var value=repository.save(empty("B"));return repository.byId(value.id());});
+        in(A,tx,()->{
+            var fresh=empty("new");var time=java.time.Instant.now();var detached=Invoice.reconstitute(InvoiceId.create(),Title.of("detached"),Stops.empty(),Stops.empty(),null,TagGroups.empty(),time,time,1);
+            for(var invalid:List.of(foreign,fresh,detached)) {
+                assertThrows(RepositoryExtensionException.class,()->access.single(read->invalid));
+                assertThrows(RepositoryExtensionException.class,()->access.optional(read->Optional.of(invalid)));
+                assertThrows(RepositoryExtensionException.class,()->access.list(read->List.of(invalid)));
+                assertThrows(RepositoryExtensionException.class,()->access.set(read->Set.of(invalid)));
+                assertThrows(RepositoryExtensionException.class,()->access.collection(read->Invoices.of(invalid)));
+                assertThrows(RepositoryExtensionException.class,()->access.page(read->read.countedOffset(allRoots(),OffsetRequest.ofPage(1,1),items->Invoices.of(invalid))));
+            }
+            assertEquals(TenantOwnership.Origin.NEW,fresh.persistenceState().ownership().origin());assertEquals(0,fresh.persistenceState().version());
+            assertEquals(TenantOwnership.Origin.DETACHED,detached.persistenceState().ownership().origin());assertTrue(detached.persistenceState().ownership().tenant().isEmpty());
+            assertThrows(RepositoryExtensionException.class,()->access.single(read->{var root=read.byId(stored.id());root.replace(Stops.of(Stop.create(Title.of("new child"),Parcels.empty(),Tags.empty())),Stops.empty(),null);return root;}));
+            assertThrows(RepositoryExtensionException.class,()->access.list(read->{var root=read.byId(stored.id());return List.of(root,root);}));
+            var escaped=new java.util.concurrent.atomic.AtomicReference<JdbcRepositoryAccess.Read<Invoice,InvoiceId>>();
+            access.optional(read->{escaped.set(read);return Optional.empty();});
+            assertEquals(RepositoryExtensionException.Code.SCOPE_EXPIRED,assertThrows(RepositoryExtensionException.class,()->escaped.get().byId(stored.id())).code());
+            var other=new TransactionTemplate(new DataSourceTransactionManager(data));other.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+            assertThrows(RepositoryExtensionException.class,()->access.single(read->other.execute(status->read.byId(stored.id()))));
+            return true;
+        });
+        var failure=assertThrows(TenancyException.class,()->in(A,tx,()->access.count(JdbcRootQuery.of("SELECT nonexistent_sensitive_field FROM tenantdemo.\"Invoice\"",Map.of("secret","sensitive fixture")))));
+        assertNull(failure.getCause());assertFalse(failure.toString().contains("sensitive"));
+        var wrong=new org.springframework.jdbc.datasource.DelegatingDataSource(data);var wrongAccess=invoices(wrong).jdbcExtensions();
+        assertThrows(TenancyException.class,()->in(A,tx,()->wrongAccess.count(allRoots())));
+    }
+    public static void extensionPool(DataSource data) throws Exception {
+        try(var pool=new com.zaxxer.hikari.HikariDataSource()) {
+            pool.setDataSource(data);pool.setMaximumPoolSize(2);pool.setMinimumIdle(0);pool.setConnectionTimeout(3000);
+            var repository=invoices(pool);var access=repository.jdbcExtensions();var tx=tx(pool);
+            var first=in(A,tx,()->repository.save(empty("A")));in(A,tx,()->repository.save(empty("A2")));in(B,tx,()->repository.save(empty("B")));
+            var start=new CyclicBarrier(4);
+            try(var workers=Executors.newFixedThreadPool(4)) {
+                var results=new ArrayList<Future<Boolean>>();
+                for(int n=0;n<4;n++){var tenant=n%2==0?A:B;long expected=n%2==0?2:1;
+                    results.add(workers.submit(()->{start.await(10,TimeUnit.SECONDS);for(int round=0;round<10;round++)assertEquals(expected,in(tenant,tx,()->access.count(allRoots())).longValue());assertTrue(TenantContext.currentTenant().isEmpty());assertTrue(TenantContext.transactionTenant().isEmpty());return true;}));
+                }
+                for(var result:results)assertTrue(result.get(30,TimeUnit.SECONDS));
+            }
+            var stale=in(A,tx,()->access.single(read->read.byId(first.id())));
+            in(A,tx,()->{var root=access.single(read->read.byId(first.id()));root.replace(Stops.of(Stop.create(Title.of("updated"),Parcels.empty(),Tags.empty())),Stops.empty(),null);access.save(root);return true;});
+            assertThrows(OptimisticLockingFailureException.class,()->in(A,tx,()->access.save(stale)));
+            in(A,tx,()->{var root=access.single(read->read.byId(first.id()));assertEquals("updated",root.stops().get(0).title().string());access.delete(root);return true;});
+            assertEquals(1L,in(A,tx,()->access.count(allRoots())).longValue());
+        }
+    }
+
+}

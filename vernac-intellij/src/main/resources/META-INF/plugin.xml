@@ -42,6 +42,7 @@
         <li>Debug embedded Java in Vernac source: breakpoints, stepping, variables,
         expression evaluation and completion, conditions and logpoints.</li>
         <li>Syntax and semantic diagnostics</li>
+        <li>Reformat Vernac models and application/module definitions while preserving embedded Java and comments.</li>
         <li>Code completion and snippets</li>
         <li>Hover documentation</li>
         <li>Go to Declaration for definitions within Vernac</li>
@@ -100,6 +101,12 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>Vernac 0.5.4</h3>
+<ul>
+    <li>Format Vernac source with Reformat Code, complete MVC template names and navigate to their HTML files.</li>
+    <li>Declare unique aggregate fields, global ID references and typed usecase permissions.</li>
+    <li>Use repository extensions, tenant-aware persistence and Spring Boot 4 with Jackson 3.</li>
+</ul>
 <h3>Vernac 0.5.3</h3>
 <ul>
     <li>Render a Thymeleaf template directly from an MVC GET route with
@@ -265,6 +272,7 @@ See <a href="https://vernac.org/tutorials/what-is-ddd.html">What is DDD?</a> and
     <depends>com.intellij.java</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <formattingService implementation="org.vernac.intellij.VernacFormattingService"/>
         <debugger.codeFragmentFactory implementation="org.vernac.intellij.debug.VernacCodeFragmentFactory"/>
         <debugger.codeFragmentFactory implementation="org.vernac.intellij.debug.VernacSourceCodeFragmentFactory"/>
         <debugger.nodeRenderer implementation="org.vernac.intellij.debug.VernacViewRenderer"/>

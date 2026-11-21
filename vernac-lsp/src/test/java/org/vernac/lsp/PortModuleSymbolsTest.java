@@ -22,7 +22,7 @@ class PortModuleSymbolsTest {
         Files.writeString(root.resolve("target/vernac-module-index.json"),ModuleDescriptor.JSON.writeValueAsString(List.of(module)));
         Path model=root.resolve("src/main/vernac/consumer/model.vernac");Files.createDirectories(model.getParent());
         String text="namespace consumer; import provider.api.PaymentProvider; adapter Noop implements PaymentProvider {behavior {public void ping() {}}}";Files.writeString(model,text);
-        var projects=new VernacProjectDiagnostics();var params=new InitializeParams();params.setRootUri(root.toUri().toString());projects.initialize(params);projects.open(model.toUri().toString(),text,1);
+        var projects=new VernacProjectDiagnostics();var params=new InitializeParams();params.setWorkspaceFolders(List.of(new WorkspaceFolder(root.toUri().toString(), "test")));projects.initialize(params);projects.open(model.toUri().toString(),text,1);
         Position at=new Position(0,text.lastIndexOf("PaymentProvider")+3);
         var target=projects.definition(model.toUri().toString(),at).getFirst();
         assertTrue(Files.readString(Path.of(java.net.URI.create(target.getUri()))).contains("port PaymentProvider"));

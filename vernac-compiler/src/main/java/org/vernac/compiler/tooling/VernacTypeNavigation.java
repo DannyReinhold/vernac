@@ -93,7 +93,7 @@ public final class VernacTypeNavigation {
 
     private boolean reviewed(TypeSymbol.Kind kind) {
         return switch (kind) {
-            case ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, USE_CASE, DOMAIN_SERVICE, EVENT, LISTENER, PORT, OUTBOUND_ADAPTER, INBOUND_HTTP_ADAPTER -> true;
+            case PERMISSION, ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, USE_CASE, DOMAIN_SERVICE, EVENT, LISTENER, PORT, OUTBOUND_ADAPTER, INBOUND_HTTP_ADAPTER -> true;
             default -> false;
         };
     }
@@ -129,6 +129,7 @@ public final class VernacTypeNavigation {
             }
             if (syntax.eventDefinition() != null) name=syntax.eventDefinition().name;
             if (syntax.listenerDefinition() != null) name=syntax.listenerDefinition().name;
+            if (syntax.permissionDefinition() != null) name=syntax.permissionDefinition().name;
             if (syntax.usecaseDefinition() != null) name=syntax.usecaseDefinition().name;
             if (syntax.domainServiceDefinition() != null) name=syntax.domainServiceDefinition().name;
             if (syntax.portDefinition() != null) name=syntax.portDefinition().name;
@@ -146,6 +147,12 @@ public final class VernacTypeNavigation {
                 if (member.isEmpty()) return target(source.path(), text, symbol.identity().name(), name.getStart(), name.getStop());
                 var key = member.get();
                 if (key.enumConstant()) {
+                    if (definition instanceof PermissionNode && syntax.permissionDefinition() != null) {
+                        for (var constant : syntax.permissionDefinition().members)
+                            if (constant.getText().equals(key.name()))
+                                return target(source.path(), text, key.name(), constant.getStart(), constant.getStop());
+                        return Optional.empty();
+                    }
                     if (!(definition instanceof ValueObjectNode value) || !value.isEnum()) return Optional.empty();
                     var constants = syntax.valueDefinition().enumConstantList();
                     if (constants == null) return Optional.empty();

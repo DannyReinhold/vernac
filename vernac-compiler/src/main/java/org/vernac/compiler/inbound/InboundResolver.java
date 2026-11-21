@@ -144,7 +144,14 @@ public final class InboundResolver {
             }
             Type request=new Type("request:"+endpoint.name(),ClassName.get(Object.class),Kind.RESULT,null,null,null,false);resolver.register(request,rootFields);
             if (endpoint.dependency().isEmpty()) {
-                mvc.validateTemplateOnlyRoute(adapter, endpoint);
+                var reply = endpoint.view();
+                if (!adapter.mvc() || !endpoint.verb().equals("GET")
+                        || !endpoint.bindings().isEmpty() || endpoint.bodyType().isPresent()
+                        || reply.isEmpty() || reply.get().template().isEmpty()
+                        || reply.get().modelName().isPresent() || reply.get().absentView().isPresent()
+                        || endpoint.absentStatus().isPresent() || endpoint.errorImplementation().isPresent()
+                        || !endpoint.errorRules().isEmpty())
+                    error(endpoint.location(), "A route without execute must be a plain MVC GET render.");
                 continue;
             }
             var dependency=dependencies.get(endpoint.dependency());
@@ -181,7 +188,13 @@ public final class InboundResolver {
                         || !response.input().identity().equals(result.identity()) || !response.target().identity().equals(responseType.identity()))
                     error(endpoint.location(),"Response requires a local DTO and a mapping from the exact declared usecase result.");
             } else if(result!=null && !adapter.mvc())error(endpoint.location(),"A value-returning usecase requires an explicit response mapping.");
-            if (adapter.mvc()) mvc.result(endpoint, result, optional);
+            if (adapter.mvc()) {
+                mvc.result(endpoint, result, optional);
+                var content = endpoint.view().flatMap(InboundHttpAdapterNode.View::contentField);
+                if (content.isPresent() && (result == null || resolver.fields(result).stream().noneMatch(field ->
+                        field.name().equals(content.get()) && !field.optional() && field.type().identity().equals("java.lang.String"))))
+                    error(endpoint.location(), "Text exports require a non-optional String field on the usecase result.");
+            }
             if(optional && endpoint.absentStatus().isEmpty() && !adapter.mvc())error(endpoint.location(),"Optional usecase results require on absent respond <status>.");
             if(endpoint.absentStatus().isPresent() && (!optional || !(adapter.mvc() ? Set.of(404,410) : Set.of(204,404,410)).contains(endpoint.absentStatus().get())))
                 error(endpoint.location(),adapter.mvc() ? "Absent MVC views require an optional usecase result and status 404 or 410." : "Absent response requires an optional usecase result and status 204, 404 or 410.");

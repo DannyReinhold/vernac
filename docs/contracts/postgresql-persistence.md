@@ -210,6 +210,12 @@ one surrounding usecase transaction. Failed writes do not restore in-memory stat
 
 ## Structural constraints and migrations
 
+The [`unique` aggregate-field marker](aggregate-uniqueness.md) generates an owned
+UNIQUE constraint, tenant-qualified where applicable. Selected TEXT columns explicitly
+use pg_catalog.C collation. Schema format 4 records collation without changing old
+snapshot bytes; schema-check and module activation validate it. See the feature contract
+for supported scalar representations, migration review and sanitized JDBC conflict handling.
+
 Constraints enforce a reconstructable representation, not arbitrary `validates`
 expressions from the domain. Required top-level columns rely on NOT NULL. Optional
 multi-column scalars enforce all-present/all-absent. Optional VOs retain absence

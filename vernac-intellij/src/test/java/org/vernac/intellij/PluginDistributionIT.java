@@ -112,6 +112,7 @@ class PluginDistributionIT {
                     "META-INF/plugin.xml",
                     "vernac-version.txt",
                     "org/vernac/intellij/VernacNewProjectWizard.class",
+                    "org/vernac/intellij/VernacFormattingService.class",
                     "org/vernac/intellij/VernacProjectTemplate.class",
                     "org/vernac/intellij/VernacSpringBootTemplate.class",
                     "org/vernac/intellij/VernacProjectOpenActivity.class",
@@ -133,15 +134,19 @@ class PluginDistributionIT {
                 requireContent(plugin, entry);
             }
 
-            byte[] pluginXml = requireContent(plugin, "META-INF/plugin.xml");
-            var xml = javax.xml.parsers.DocumentBuilderFactory.newInstance()
-                    .newDocumentBuilder().parse(new ByteArrayInputStream(pluginXml));
-            var bounds = (org.w3c.dom.Element) xml.getElementsByTagName("idea-version").item(0);
-            assertNotNull(bounds, "Packaged plugin must declare its minimum IDE build");
-            assertEquals("262.10968.63", bounds.getAttribute("since-build"));
-            assertFalse(bounds.hasAttribute("until-build"), "Packaged plugin must omit the upper IDE bound");
-            String descriptor = new String(pluginXml,
+            assertFalse(plugin.keySet().stream().anyMatch(entry -> entry.contains("node_modules/") || entry.contains("/.local/")));
+
+            String descriptor = new String(requireContent(plugin, "META-INF/plugin.xml"),
                     java.nio.charset.StandardCharsets.UTF_8);
+            var xml = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+                    .newDocumentBuilder().parse(new ByteArrayInputStream(
+                            requireContent(plugin, "META-INF/plugin.xml")));
+            var compatibility = (org.w3c.dom.Element) xml.getElementsByTagName("idea-version").item(0);
+            assertNotNull(compatibility, "Packaged plugin must declare IDE compatibility");
+            assertEquals("262.10968.63", compatibility.getAttribute("since-build"),
+                    "Do not exclude the supported baseline without compatibility evidence");
+            assertEquals("", compatibility.getAttribute("until-build"),
+                    "The packaged plugin must admit the next announced IntelliJ branch");
             assertTrue(descriptor.contains("<internalFileTemplate name=\"Vernac File\"/>"));
             assertTrue(descriptor.contains("<internalFileTemplate name=\"Vernac Getting Started\"/>"));
             assertTrue(descriptor.contains("implementation=\"org.vernac.intellij.VernacFileTemplateHandler\""));
@@ -182,6 +187,7 @@ class PluginDistributionIT {
             requireContent(compiler, "org/vernac/compiler/tooling/VernacTypeNavigation.class");
             requireContent(compiler, "org/vernac/compiler/pipeline/GeneratedSourceOwnership.class");
             requireContent(compiler, "org/vernac/compiler/parser/VernacParser.class");
+            requireContent(compiler, "org/vernac/compiler/format/VernacFormatter.class");
             requireContent(compiler, "org/vernac/language/VernacNames.class");
             for (String artifact : List.of("antlr4-runtime", "vernac-runtime", "javapoet", "jspecify")) {
                 assertTrue(zip.stream().anyMatch(e -> e.getName().startsWith("vernac-intellij/lib/" + artifact + "-")

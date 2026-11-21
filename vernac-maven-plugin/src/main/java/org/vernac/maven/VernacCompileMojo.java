@@ -66,7 +66,7 @@ public class VernacCompileMojo extends AbstractMojo {
     }
     private java.util.Map<String,java.util.Map<String,String>> enumOverrides() throws java.io.IOException {
         return enumCodes == null ? java.util.Map.of() : org.vernac.compiler.persistence.SchemaModel.JSON.readValue(
-                java.nio.file.Files.readString(enumCodes.toPath()),new com.fasterxml.jackson.core.type.TypeReference<>() { });
+                java.nio.file.Files.readString(enumCodes.toPath()),new tools.jackson.core.type.TypeReference<>() { });
     }
 
     @Override
@@ -106,6 +106,14 @@ public class VernacCompileMojo extends AbstractMojo {
             var schemaOptions=resolved==null?new org.vernac.compiler.persistence.SchemaBuilder.Options(false,false):ModuleSchemaOptions.read(base,resolved,dependencies);
             VernacProjectCompilationResult result=resolved==null?new VernacProjectCompilationResult(List.of(),List.of())
                     :compiler.generate(resolved,previousSchema(),enumOverrides(),schemaOptions);
+            if (project != null && resolved != null) {
+                if (Files.exists(base.resolve("src/main/resources").resolve(org.vernac.compiler.pipeline.RoleDeclarations.RESOURCE)))
+                    throw new IOException("Role catalog resource is owned by Vernac; remove the handwritten META-INF/vernac/roles.json file.");
+                Path roles = base.resolve("target/generated-resources/vernac-roles");
+                ModuleDescriptor.write(roles.resolve(org.vernac.compiler.pipeline.RoleDeclarations.RESOURCE),
+                        new org.vernac.compiler.pipeline.RoleDeclarations().catalog(resolved));
+                Resource roleResource = new Resource(); roleResource.setDirectory(roles.toString()); project.addResource(roleResource);
+            }
             Path resources=base.resolve("target/generated-resources/vernac-module");
             Path descriptor=resources.resolve(ModuleDescriptor.RESOURCE);
             if(Files.isRegularFile(manifest)&&applicationDefinition!=null&&(!applicationDefinition.bindings().isEmpty()||!applicationDefinition.activations().isEmpty()))
@@ -135,7 +143,7 @@ public class VernacCompileMojo extends AbstractMojo {
                     var bundle=ModulePersistence.prepare(published.module(),expected,sourceHistory,sql);
                     ModulePersistence.verify(bundle.descriptor(),bundle.resources());
                     ModulePersistenceResources.write(project,base.resolve("target/generated-resources/vernac-module-persistence"),bundle);
-                    if(!published.persistent())published=new ModuleDescriptor(published.formatVersion(),published.contractVersion(),published.module(),published.groupId(),published.artifactId(),published.version(),published.exports(),published.externalContracts(),published.internalTypes(),published.components(),true);
+                    if(!published.persistent())published=published.withPersistentHistory();
                 }
 
             }

@@ -18,7 +18,7 @@ public record InboundHttpAdapterNode(
         List<ErrorRule> errorRules,
         boolean mvc,
         Optional<String> errorView,
-        Access access)
+        Optional<String> accessMode)
         implements TopLevelDefinition {
     public InboundHttpAdapterNode(
             SourceLocation location,
@@ -42,17 +42,17 @@ public record InboundHttpAdapterNode(
                 errorRules,
                 false,
                 Optional.empty(),
-                Access.UNSPECIFIED);
+                Optional.empty());
     }
-
-    public enum Access { UNSPECIFIED, PUBLIC, AUTHENTICATED }
 
     public record View(
             String template,
             Optional<String> modelName,
             Optional<String> redirect,
             Optional<String> notice,
-            Optional<String> absentView) {}
+            Optional<String> absentView,
+            Optional<String> attachment,
+            Optional<String> contentField) {}
 
     public record ErrorView(Optional<String> template, Optional<String> reload) {}
 

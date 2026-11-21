@@ -15,9 +15,9 @@ import static org.vernac.compiler.dto.ResolvedSchema.*;
 /** Generates immutable transport records with explicitly scoped strict Jackson codecs. */
 public final class DtoGenerator {
     private static final ClassName JSON = ClassName.get("org.vernac.runtime.json","JsonValues");
-    private static final ClassName NODE = ClassName.get("com.fasterxml.jackson.databind","JsonNode");
-    private static final ClassName OBJECT = ClassName.get("com.fasterxml.jackson.databind.node","ObjectNode");
-    private static ClassName jackson(String name) { return ClassName.get("com.fasterxml.jackson.databind",name); }
+    private static final ClassName NODE = ClassName.get("tools.jackson.databind","JsonNode");
+    private static final ClassName OBJECT = ClassName.get("tools.jackson.databind.node","ObjectNode");
+    private static ClassName jackson(String name) { return ClassName.get("tools.jackson.databind",name); }
 
     public JavaFile generate(OutboundAdapterNode adapter, CompilationUnitNode unit, List<ResolvedSchema> schemas) {
         return generate(adapter.name(), unit.namespace() + ".adapter.outbound.dto", schemas);
@@ -61,9 +61,9 @@ public final class DtoGenerator {
         }
         factory.addStatement("return new $T($L)",own,CodeBlock.join(args,", "));
         return TypeSpec.recordBuilder(own.simpleName()).addModifiers(Modifier.PUBLIC,Modifier.STATIC).addAnnotation(NullMarked.class)
-                .addAnnotation(AnnotationSpec.builder(ClassName.get("com.fasterxml.jackson.databind.annotation","JsonDeserialize"))
+                .addAnnotation(AnnotationSpec.builder(ClassName.get("tools.jackson.databind.annotation","JsonDeserialize"))
                         .addMember("using","$T.class",readerName(holder,own.simpleName())).build())
-                .addAnnotation(AnnotationSpec.builder(ClassName.get("com.fasterxml.jackson.databind.annotation","JsonSerialize"))
+                .addAnnotation(AnnotationSpec.builder(ClassName.get("tools.jackson.databind.annotation","JsonSerialize"))
                         .addMember("using","$T.class",writerName(holder,own.simpleName())).build())
                 .recordConstructor(ctor.build()).addMethod(factory.build()).build();
     }
@@ -91,21 +91,21 @@ public final class DtoGenerator {
         }
         read.addStatement("return $T.of($L)",own,CodeBlock.join(args,",\n"));
         var deserialize=MethodSpec.methodBuilder("deserialize").addAnnotation(Override.class).addModifiers(Modifier.PUBLIC).returns(own)
-                .addParameter(ClassName.get("com.fasterxml.jackson.core","JsonParser"),"parser")
-                .addParameter(jackson("DeserializationContext"),"context").addException(java.io.IOException.class)
+                .addParameter(ClassName.get("tools.jackson.core","JsonParser"),"parser")
+                .addParameter(jackson("DeserializationContext"),"context")
                 .beginControlFlow("try").addStatement("return read($T.readTree(parser), $S)",JSON,"$")
                 .nextControlFlow("catch ($T ex)",ClassName.get("org.vernac.runtime.json","DtoContractException"))
-                .addStatement("throw $T.from(parser, ex.getMessage(), ex)",jackson("JsonMappingException")).endControlFlow();
+                .addStatement("throw $T.from(parser, ex.getMessage(), ex)",jackson("DatabindException")).endControlFlow();
         var nullValue=MethodSpec.methodBuilder("getNullValue").addAnnotation(Override.class).addModifiers(Modifier.PUBLIC).returns(own)
                 .addParameter(jackson("DeserializationContext"),"context")
                 .addStatement("throw new $T($S, $S)",ClassName.get("org.vernac.runtime.json","DtoContractException"),"$","Expected JSON object");
         return TypeSpec.classBuilder(reader.simpleName()).addModifiers(Modifier.PUBLIC,Modifier.STATIC,Modifier.FINAL)
-                .superclass(ParameterizedTypeName.get(jackson("JsonDeserializer"),own)).addMethod(read.build()).addMethod(deserialize.build()).addMethod(nullValue.build()).build();
+                .superclass(ParameterizedTypeName.get(jackson("ValueDeserializer"),own)).addMethod(read.build()).addMethod(deserialize.build()).addMethod(nullValue.build()).build();
     }
     private TypeSpec writer(ResolvedSchema schema,ClassName holder) {
         ClassName own=holder.nestedClass(schema.source().name());
         var write=MethodSpec.methodBuilder("write").addModifiers(Modifier.PRIVATE,Modifier.STATIC).returns(OBJECT).addParameter(own,"value")
-                .addStatement("var object = $T.instance.objectNode()",ClassName.get("com.fasterxml.jackson.databind.node","JsonNodeFactory"));
+                .addStatement("var object = $T.instance.objectNode()",ClassName.get("tools.jackson.databind.node","JsonNodeFactory"));
         for(var field:schema.fields()) {
             CodeBlock getter=CodeBlock.of("value.$N()",field.source().name());
             if(field.source().patch()) {
@@ -121,11 +121,11 @@ public final class DtoGenerator {
         }
         write.addStatement("return object");
         var serialize=MethodSpec.methodBuilder("serialize").addAnnotation(Override.class).addModifiers(Modifier.PUBLIC).returns(void.class)
-                .addParameter(own,"value").addParameter(ClassName.get("com.fasterxml.jackson.core","JsonGenerator"),"generator")
-                .addParameter(jackson("SerializerProvider"),"provider").addException(java.io.IOException.class)
+                .addParameter(own,"value").addParameter(ClassName.get("tools.jackson.core","JsonGenerator"),"generator")
+                .addParameter(jackson("SerializationContext"),"provider")
                 .addStatement("generator.writeTree(write(value))");
         return TypeSpec.classBuilder(writerName(holder,own.simpleName()).simpleName()).addModifiers(Modifier.PUBLIC,Modifier.STATIC,Modifier.FINAL)
-                .superclass(ParameterizedTypeName.get(jackson("JsonSerializer"),own)).addMethod(write.build()).addMethod(serialize.build()).build();
+                .superclass(ParameterizedTypeName.get(jackson("ValueSerializer"),own)).addMethod(write.build()).addMethod(serialize.build()).build();
     }
     private TypeName raw(Shape shape,ClassName holder) {
         if(shape instanceof Scalar s)return TypeName.get(s.javaType());

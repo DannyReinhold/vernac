@@ -13,7 +13,7 @@ public final class VernacInjectionHost extends ASTWrapperPsiElement implements P
     @Override public PsiReference @NotNull [] getReferences() {
         return com.intellij.psi.impl.source.resolve.reference.ReferenceProvidersRegistry.getReferencesFromProviders(this);
     }
-    @Override public boolean isValidHost() { return true; }
+    @Override public boolean isValidHost() { return getContainingFile().getOriginalFile().getName().endsWith(".vernac"); }
     @Override public @NotNull PsiLanguageInjectionHost updateText(@NotNull String text) {
         var replacement = PsiFileFactory.getInstance(getProject()).createFileFromText(
                 "behavior.vernac", VernacFileType.INSTANCE, text);

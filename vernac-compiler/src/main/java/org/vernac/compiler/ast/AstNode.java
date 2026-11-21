@@ -7,6 +7,7 @@ public sealed interface AstNode permits
         CompilationUnitNode, TermNode,
         ImportNode, JavaImportNode,
         TopLevelDefinition,
+        AuthorizationNode,
         CollectionDefinitionNode,
         IdReferenceNode,
         FieldNode,

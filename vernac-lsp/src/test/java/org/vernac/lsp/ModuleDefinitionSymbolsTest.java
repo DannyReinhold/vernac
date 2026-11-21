@@ -18,7 +18,7 @@ class ModuleDefinitionSymbolsTest {
         String manifest="module demo.values { export demo.Name; }";
         assertTrue(symbols.moduleComplete(manifest,new Position(0,manifest.indexOf("demo.Name")+6)).stream().anyMatch(c->c.getLabel().equals("demo.Name")));
         assertEquals(source.toUri().toString(),symbols.moduleDefinition(manifest,new Position(0,manifest.indexOf("demo.Name")+6)).getFirst().getUri());
-        var projects=new VernacProjectDiagnostics();var params=new InitializeParams();params.setRootUri(root.toUri().toString());projects.initialize(params);
+        var projects=new VernacProjectDiagnostics();var params=new InitializeParams();params.setWorkspaceFolders(List.of(new WorkspaceFolder(root.toUri().toString(), "test")));projects.initialize(params);
         List<PublishDiagnosticsParams> published=new ArrayList<>();projects.connect(new org.eclipse.lsp4j.services.LanguageClient(){
             public void telemetryEvent(Object o){}public void publishDiagnostics(PublishDiagnosticsParams p){published.add(p);}public void showMessage(MessageParams p){}public java.util.concurrent.CompletableFuture<MessageActionItem> showMessageRequest(ShowMessageRequestParams p){return java.util.concurrent.CompletableFuture.completedFuture(null);}public void logMessage(MessageParams p){}
         });
@@ -31,7 +31,7 @@ class ModuleDefinitionSymbolsTest {
         var descriptor=ModuleContracts.publish(ModuleDefinition.parse(root.resolve("producer/manifest.vmodule"),"module lib.values {export lib.values.Name;}"),resolved,generated.generatedFiles(),"org.example","values","1",List.of());
         Files.writeString(root.resolve("pom.xml"),"<project/>");Files.createDirectories(root.resolve("target"));Files.writeString(root.resolve("target/vernac-module-index.json"),ModuleDescriptor.JSON.writeValueAsString(List.of(descriptor)));
         Path local=root.resolve("src/main/vernac/app/model.vernac");Files.createDirectories(local.getParent());String text="namespace app; import lib.values.Name; value Local(Name);";Files.writeString(local,text);
-        var projects=new VernacProjectDiagnostics();var params=new InitializeParams();params.setRootUri(root.toUri().toString());projects.initialize(params);projects.open(local.toUri().toString(),text,1);
+        var projects=new VernacProjectDiagnostics();var params=new InitializeParams();params.setWorkspaceFolders(List.of(new WorkspaceFolder(root.toUri().toString(), "test")));projects.initialize(params);projects.open(local.toUri().toString(),text,1);
         var target=projects.definition(local.toUri().toString(),new Position(0,text.lastIndexOf("Name")+1));assertFalse(target.isEmpty());
         assertTrue(target.getFirst().getUri().contains("target/vernac-module-contracts"));
         assertTrue(Files.readString(Path.of(java.net.URI.create(target.getFirst().getUri()))).contains("Dependency contract view"));

@@ -32,6 +32,15 @@ public final class MvcResponses {
         return response;
     }
 
+    public static ModelAndView attachment(String filename, String text) {
+        var disposition = ContentDisposition.attachment().filename(filename).build();
+        return new ModelAndView((org.springframework.web.servlet.View) (model, request, response) -> {
+            response.setContentType("text/plain;charset=UTF-8");
+            response.setHeader(HttpHeaders.CONTENT_DISPOSITION, disposition.toString());
+            response.getOutputStream().write(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        });
+    }
+
     public static ModelAndView absent(String template, int status, MvcInputs inputs) {
         var response = view(template, status, null, null, inputs);
         response.addObject(
@@ -42,6 +51,8 @@ public final class MvcResponses {
 
     public static ModelAndView error(
             String template, InboundHttpErrors.Reply reply, MvcInputs inputs, Exception error) {
+        var authorization = InboundHttpErrors.authorizationReply(error);
+        if (authorization.isPresent()) return authorizationError(template, authorization.get());
         if (reply.status() >= 500)
             Logger.getLogger(MvcResponses.class.getName())
                     .log(Level.SEVERE, "MVC inbound failure", error);
@@ -56,6 +67,8 @@ public final class MvcResponses {
             MvcInputs inputs,
             String fallback,
             Exception original) {
+        var authorization = InboundHttpErrors.authorizationReply(original);
+        if (authorization.isPresent()) return authorizationError(fallback, authorization.get());
         try {
             var response = Objects.requireNonNull(loader.get());
             response.setStatus(HttpStatusCode.valueOf(reply.status()));
@@ -77,6 +90,15 @@ public final class MvcResponses {
                         500, "INTERNAL_ERROR", "The operation could not be completed."),
                 inputs,
                 error);
+    }
+
+    private static ModelAndView authorizationError(String template, InboundHttpErrors.Reply reply) {
+        if (reply.status() >= 500) Logger.getLogger(MvcResponses.class.getName())
+                .log(Level.SEVERE, "Authorization failure: {0}", reply.code());
+        var response = new ModelAndView(template);
+        response.setStatus(HttpStatusCode.valueOf(reply.status()));
+        response.addObject("error", new InboundHttpErrors.Body(reply.code(), reply.message()));
+        return response; // No loader, echoed inputs or previously supplied model data.
     }
 
     public static ModelAndView redirect(

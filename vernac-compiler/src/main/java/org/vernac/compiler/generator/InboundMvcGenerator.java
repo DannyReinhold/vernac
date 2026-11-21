@@ -64,10 +64,26 @@ public final class InboundMvcGenerator {
             type.addMethod(loader(endpoint, mappings));
         }
         for (var endpoint : adapter.endpoints()) {
-            if (endpoint.dependency().isEmpty()) type.addMethod(entry(adapter, endpoint));
+            if (!endpoint.dependency().isEmpty()) continue;
+            var page = MethodSpec.methodBuilder(endpoint.name())
+                    .addModifiers(Modifier.PUBLIC)
+                    .addAnnotation(AnnotationSpec.builder(annotation("GetMapping"))
+                            .addMember("path", "$S", InboundResolver.join(adapter.base(), endpoint.route()))
+                            .addMember("produces", "$S", "text/html")
+                            .build())
+                    .returns(VIEW);
+            InboundAccessGenerator.requireAuthentication(adapter, page);
+            type.addMethod(page.addStatement("var view = new $T($S)", VIEW, endpoint.view().orElseThrow().template())
+                    .addStatement("view.setStatus($T.valueOf($L))",
+                            ClassName.get("org.springframework.http", "HttpStatusCode"), endpoint.status())
+                    .addStatement("return view")
+                    .build());
         }
-        boolean handlesErrors = adapter.errorView().isPresent();
-        if (handlesErrors) type.addMethod(failure(adapter, project, pkg));
+        if (plan.endpoints().isEmpty()) {
+            BehaviorGenerator.addDebugFingerprint(type, file(pkg, type), unit, project);
+            return withAccess(adapter, pkg, List.of(file(pkg, type)));
+        }
+        type.addMethod(failure(adapter, project, pkg));
         BehaviorGenerator.addDebugFingerprint(type, file(pkg, type), unit, project);
         var advice =
                 TypeSpec.classBuilder(adapter.name() + "Errors")
@@ -93,7 +109,8 @@ public final class InboundMvcGenerator {
                                                 "this.controller = $T.requireNonNull(controller)",
                                                 Objects.class)
                                         .build());
-        var handler = MethodSpec.methodBuilder("handle")
+        var handler =
+                MethodSpec.methodBuilder("handle")
                         .addModifiers(Modifier.PUBLIC)
                         .returns(VIEW)
                         .addAnnotation(
@@ -118,7 +135,7 @@ public final class InboundMvcGenerator {
                         .build());
         var files = new ArrayList<JavaFile>();
         files.add(file(pkg, type));
-        if (handlesErrors) files.add(file(pkg, advice));
+        files.add(file(pkg, advice));
         if (!plan.schemas().isEmpty())
             files.add(new DtoGenerator().generate(adapter.name(), pkg + ".dto", plan.schemas()));
         if (!plan.mappings().isEmpty())
@@ -130,7 +147,35 @@ public final class InboundMvcGenerator {
                                     unit,
                                     project,
                                     plan.mappings()));
-        return List.copyOf(files);
+        return withAccess(adapter, pkg, files);
+    }
+
+    private List<JavaFile> withAccess(InboundHttpAdapterNode adapter, String pkg, List<JavaFile> controllers) {
+        if (adapter.endpoints().isEmpty() || !adapter.accessMode().orElse("").equals("public")) return controllers;
+        var matcher = ClassName.get("org.springframework.security.web.servlet.util.matcher", "PathPatternRequestMatcher");
+        var combined = ClassName.get("org.springframework.security.web.util.matcher", "OrRequestMatcher");
+        var routes = CodeBlock.builder();
+        for (var endpoint : adapter.endpoints()) {
+            if (endpoint != adapter.endpoints().getFirst()) routes.add(", ");
+            routes.add("$T.withDefaults().matcher($T.$L, $S)", matcher,
+                    ClassName.get("org.springframework.http", "HttpMethod"), endpoint.verb(),
+                    InboundResolver.join(adapter.base(), endpoint.route()));
+        }
+        var chain = MethodSpec.methodBuilder("publicRoutesFor" + adapter.name())
+                .addAnnotation(ClassName.get("org.springframework.context.annotation", "Bean"))
+                .addAnnotation(AnnotationSpec.builder(ClassName.get("org.springframework.core.annotation", "Order"))
+                        .addMember("value", "0").build())
+                .returns(ClassName.get("org.springframework.security.web", "SecurityFilterChain"))
+                .addParameter(ClassName.get("org.springframework.security.config.annotation.web.builders", "HttpSecurity"), "http")
+                .addException(Exception.class)
+                .addStatement("return http.securityMatcher(new $T($L)).authorizeHttpRequests(r -> r.anyRequest().permitAll()).build()", combined, routes.build())
+                .build();
+        var configuration = TypeSpec.classBuilder(adapter.name() + "Access")
+                .addAnnotation(ClassName.get("org.springframework.context.annotation", "Configuration"))
+                .addMethod(chain);
+        var files = new ArrayList<>(controllers);
+        files.add(file(pkg, configuration));
+        return files;
     }
 
     private MethodSpec entry(
@@ -140,24 +185,27 @@ public final class InboundMvcGenerator {
                         .addMember(
                                 "path", "$S", InboundResolver.join(adapter.base(), source.route()))
                         .addMember("method", "$T.$L", annotation("RequestMethod"), source.verb())
-                        .addMember("produces", "$S", "text/html");
+                        .addMember("produces", "$S", source.view().flatMap(InboundHttpAdapterNode.View::attachment).isPresent()
+                                ? "text/plain" : "text/html");
         if (source.bindings().stream().anyMatch(b -> b.kind().equals("form")))
             mapping.addMember("consumes", "$S", "application/x-www-form-urlencoded");
+        var contract = AnnotationSpec.builder(ClassName.get("org.vernac.runtime.http.inbound", "MvcFormContract"));
+        for (var binding : source.bindings()) {
+            if (binding.kind().equals("form") || binding.kind().equals("query"))
+                contract.addMember(binding.kind(), "$S", binding.externalName());
+            if (source.view().flatMap(InboundHttpAdapterNode.View::attachment).isPresent()
+                    && binding.kind().equals("form") && binding.type().name().equals("UUID"))
+                contract.addMember("canonicalUuids", "$S", binding.externalName());
+        }
         var method =
                 MethodSpec.methodBuilder(source.name())
+                        .addAnnotation(contract.build())
                         .addModifiers(Modifier.PUBLIC)
                         .returns(VIEW)
-                        .addAnnotation(mapping.build());
+                        .addAnnotation(mapping.build())
+                        .addParameter(REQUEST, "request");
         InboundAccessGenerator.requireAuthentication(adapter, method);
-        if (source.dependency().isEmpty()) {
-            return method.addStatement("var view = new $T($S)", VIEW, source.view().orElseThrow().template())
-                    .addStatement("view.setStatus($T.valueOf($L))",
-                            ClassName.get("org.springframework.http", "HttpStatusCode"), source.status())
-                    .addStatement("return view")
-                    .build();
-        }
-        method.addParameter(REQUEST, "request")
-                        .addStatement("var inputs = $T.empty()", INPUTS)
+        method.addStatement("var inputs = $T.empty()", INPUTS)
                         .beginControlFlow("try");
         method.addStatement("inputs = $T.capture(request, $L)", INPUTS, bindings(source.bindings()))
                 .addStatement("return __$N(inputs, request)", source.name())
@@ -265,7 +313,10 @@ public final class InboundMvcGenerator {
                                 source.absentStatus().orElseThrow())
                         .endControlFlow();
         }
-        if (view.redirect().isPresent())
+        if (view.attachment().isPresent())
+            method.addStatement("return $T.attachment($S, $L.$N())", RESPONSES, view.attachment().get(),
+                    optional ? "__result.orElseThrow()" : "__result", view.contentField().orElseThrow());
+        else if (view.redirect().isPresent())
             method.addStatement(
                     "return $T.redirect($S, $L, $L, request)",
                     RESPONSES,
@@ -296,6 +347,10 @@ public final class InboundMvcGenerator {
                         .addParameter(INPUTS, "inputs")
                         .addParameter(Exception.class, "error")
                         .addParameter(REQUEST, "request")
+                        .beginControlFlow("if ($T.authorizationReply(error).isPresent())", ERRORS)
+                        .addStatement("return $T.error($S, $T.defaultReply(error), inputs, error)",
+                                RESPONSES, adapter.errorView().orElseThrow(), ERRORS)
+                        .endControlFlow()
                         .beginControlFlow("try");
         for (var endpoint : adapter.endpoints())
             if (!endpoint.errorRules().isEmpty() || endpoint.errorImplementation().isPresent()) {
