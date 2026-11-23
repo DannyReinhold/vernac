@@ -20,6 +20,14 @@ and Spring infrastructure without hidden framework magic.
 
 ---
 
+## Why the name Vernac?
+
+Vernac takes its name from *vernacular language*, the everyday language
+people use in a particular place or community. In Domain-Driven Design, that
+idea shows up as the *ubiquitous language*: the vocabulary domain experts
+and developers build together. Vernac brings that vocabulary into the code,
+so the terms people use to discuss the work also appear in the software model.
+
 ## Small project. Clear domain. Less boilerplate.
 
 You do not need a large team or microservices to benefit from Domain-Driven Design.
