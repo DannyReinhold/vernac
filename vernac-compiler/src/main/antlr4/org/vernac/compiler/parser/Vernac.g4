@@ -35,6 +35,7 @@ termEntry : kind=('description' | 'example' | 'note') text=STRING_LITERAL ';' ;
 
 topLevelDeclaration
     : termDefinition
+    | webViewDefinition
     | idDeclaration
     | valueDefinition
     | eventDefinition
@@ -159,14 +160,32 @@ inboundHttpAdapterDefinition
       (inboundEndpoint | schemaDefinition | mappingDefinition)*
       inboundErrorPolicy? '}' ';'?
     ;
+webViewDefinition
+    : 'view' name=typeName '(' webViewParameter? ')' '{' 'page' title=STRING_LITERAL ('layout' layout=variableName)? ('theme' theme=STRING_LITERAL)? '{' webViewElement* '}' '}'
+    | component='component' name=typeName '(' webViewParameter ')' webViewGroup
+    ;
+webViewParameter : modelType=pageType name=variableName ;
+webViewElement
+    : 'include' componentName=typeName '(' path=qualifiedName ')' ';'
+    | 'heading' literal=STRING_LITERAL ';'
+    | 'text' (literal=STRING_LITERAL | path=qualifiedName) ';'
+    | 'list' path=qualifiedName 'as' item=variableName webViewGroup ('empty' webViewGroup)?
+    | 'form' 'submit' adapter=typeName '.' endpoint=methodName '{' webFormElement* '}'
+    ;
+webViewGroup : '{' webViewElement* '}' ;
+webFormElement
+    : 'textField' field=variableName 'label' literal=STRING_LITERAL ';'
+    | 'button' literal=STRING_LITERAL ('variant' variant=variableName)? ';'
+    ;
+
 inboundEndpoint
     : name=methodName '{' verb=('GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE') route=STRING_LITERAL ';'
       inboundBinding* ('body' bodyType=type ';')?
       ('execute' dependency=variableName '{' mappingAssignment* '}')?
       ('respond' status=INT_LITERAL (responseType=type 'using' responseMapping=methodName)? ';'
        | 'export' attachment=STRING_LITERAL 'from' contentField=variableName ';'
-       | 'render' view=STRING_LITERAL ('model' modelName=variableName)? ('status' renderStatus=INT_LITERAL)? ';'
-       | 'redirect' redirect=STRING_LITERAL ('message' notice=STRING_LITERAL)? ';')
+       | 'render' (view=STRING_LITERAL | generatedView=typeName) ('model' modelName=variableName ('as' viewModelType=type 'using' viewModelMapping=methodName)?)? ('status' renderStatus=INT_LITERAL)? ';'
+       | 'redirect' (redirect=STRING_LITERAL | redirectEndpoint=methodName) ('message' notice=STRING_LITERAL)? ';')
       ('on' 'absent' ('respond' absentStatus=INT_LITERAL
        | 'render' absentView=STRING_LITERAL 'status' absentStatus=INT_LITERAL) ';')? inboundErrorPolicy? '}'
     ;
@@ -374,7 +393,7 @@ qualifiedName
 qualifiedNameSegment
     : 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
-    | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
+    | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | IDENTIFIER
     | BOOLEAN_LITERAL
@@ -480,7 +499,7 @@ typeName
 methodName
     : 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
-    | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
+    | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'read' | 'modify' | 'load' | 'save'
@@ -493,7 +512,7 @@ methodName
 variableName
     : 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
-    | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'read' | 'modify'
+    | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant' | 'read' | 'modify'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'

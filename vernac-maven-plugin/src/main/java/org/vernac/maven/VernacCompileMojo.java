@@ -203,6 +203,18 @@ public class VernacCompileMojo extends AbstractMojo {
             result.diagnostics().forEach(diagnostic -> getLog().warn(diagnostic.toString()));
             Files.createDirectories(outputPath);
             result.writeTo(outputPath);
+            if (project != null) {
+                var templates = resolved == null ? java.util.Map.<String, String>of() : resolved.webTemplates();
+                String buildDirectory = project.getBuild().getDirectory();
+                Path build = buildDirectory == null ? base.resolve("target") : Path.of(buildDirectory);
+                Path views = build.resolve("generated-resources/vernac-views");
+                writeWebTemplates(views, templates);
+                if (!templates.isEmpty()) {
+                    Resource resource = new Resource();
+                    resource.setDirectory(views.toString());
+                    project.addResource(resource);
+                }
+            }
             getLog().info("Successfully generated " + result.generatedFiles().size() + " Java source file(s).");
         } catch (IllegalArgumentException e) {
             throw new MojoFailureException("Invalid Vernac module contract: "+e.getMessage(),e);
@@ -222,6 +234,26 @@ public class VernacCompileMojo extends AbstractMojo {
     // For unit tests and direct instantiation
     public void setSourceDirectory(File sourceDirectory) {
         this.sourceDirectory = sourceDirectory;
+    }
+
+    private void writeWebTemplates(Path resources, java.util.Map<String, String> templates) throws IOException {
+        Path generated = resources.resolve("templates/vernac-generated");
+        String output = project.getBuild().getOutputDirectory();
+        Path packaged = output == null ? null : Path.of(output).resolve("templates/vernac-generated");
+        if (Files.isDirectory(generated)) {
+            try (var files = Files.walk(generated)) {
+                for (Path entry : files.sorted(java.util.Comparator.reverseOrder()).toList()) {
+                    if (packaged != null && Files.isRegularFile(entry))
+                        Files.deleteIfExists(packaged.resolve(generated.relativize(entry)));
+                    Files.delete(entry);
+                }
+            }
+        }
+        for (var template : templates.entrySet()) {
+            Path target = resources.resolve("templates").resolve(template.getKey());
+            Files.createDirectories(target.getParent());
+            Files.writeString(target, template.getValue());
+        }
     }
 
     public void setOutputDirectory(File outputDirectory) {

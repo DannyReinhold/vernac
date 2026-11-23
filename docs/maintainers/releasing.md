@@ -1,7 +1,7 @@
 # Publishing a Vernac release
 
 These instructions prepare **0.5.4** from **main**. Source checkouts keep
-**0.5.4-SNAPSHOT**; the workflow selects the release version without changing every POM.
+**0.6.0-SNAPSHOT**; the workflow selects the release version without changing every POM.
 The [release notes](releases/0.5.4.md) define the scope.
 
 ## IntelliJ compatibility
@@ -17,7 +17,7 @@ The plugin uses the LSP integration API introduced in the 262 branch.
 `revision` in the root POM drives Maven modules, the IntelliJ ZIP and the dependency
 version inserted by the project wizard. A release invocation uses `-Drevision=0.5.4`;
 the development default is not changed by that invocation. The workflow supplies
-that argument; the source checkout defaults to 0.5.4-SNAPSHOT.
+that argument; the source checkout defaults to 0.6.0-SNAPSHOT.
 You do not need to edit every module POM or pre-install a 0.5.4 release locally.
 
 Standalone application examples generally use their own `vernac.version` property. Select

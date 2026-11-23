@@ -92,3 +92,44 @@ adapter TaskWeb inbound mvc uses ReadTasks, CreateTask, CompleteTask, ReopenTask
             "TASK_CHANGED" "Someone else updated this task. Refresh the board before trying again.";
     }
 }
+
+component TaskRow(TaskCard task) {
+    text task.taskTitle;
+}
+
+view TaskOverview(counted offset TaskCards tasks) {
+    page "Task overview" layout declarativeWorkspace theme "/app.css" {
+        heading "Tasks";
+        list tasks as task {
+            include TaskRow(task);
+        } empty {
+            text "A fresh page.";
+        }
+        form submit DeclarativeTaskWeb.create {
+            textField title label "New task";
+            button "Add task" variant primary;
+        }
+    }
+}
+
+adapter DeclarativeTaskWeb inbound mvc uses ReadTasks, CreateTask {
+    base "/declarative";
+    error view "problem";
+
+    overview {
+        GET "/";
+        query int page default "1";
+        execute readTasks { pageNumber <- query.page; }
+        render TaskOverview model tasks;
+    }
+    create {
+        POST "/";
+        form String title;
+        execute createTask { taskTitle <- form.title; }
+        redirect overview message "Task added.";
+        errors {
+            when validation then redisplay overview status 422
+                "INVALID_TASK_TITLE" "Give your task a meaningful title (1–120 characters).";
+        }
+    }
+}

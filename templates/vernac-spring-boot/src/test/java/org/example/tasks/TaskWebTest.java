@@ -90,6 +90,27 @@ class TaskWebTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void declarativeViewRendersTheGeneratedFormAndReloadsOnValidation() throws Exception {
+        web.perform(get("/declarative"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("A fresh page.")))
+                .andExpect(content().string(containsString("action=\"/declarative\"")))
+                .andExpect(content().string(containsString("name=\"_csrf\"")));
+        web.perform(post("/declarative").contentType("application/x-www-form-urlencoded").param("title", "Without token"))
+                .andExpect(status().isForbidden());
+        web.perform(post("/declarative").contentType("application/x-www-form-urlencoded").with(csrf()).param("title", " "))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(content().string(containsString("Give your task a meaningful title")));
+        web.perform(post("/declarative").contentType("application/x-www-form-urlencoded").with(csrf()).param("title", "<em>Review</em>"))
+                .andExpect(status().isSeeOther())
+                .andExpect(redirectedUrl("/declarative"));
+        web.perform(get("/declarative"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("&lt;em&gt;Review&lt;/em&gt;")))
+                .andExpect(content().string(not(containsString("<em>Review</em>"))));
+    }
+
     @Configuration(proxyBeanMethods = false)
     @EnableWebMvc
     @EnableWebSecurity
@@ -110,6 +131,16 @@ class TaskWebTest {
         }
 
         @Bean TaskWebErrors taskWebErrors(TaskWeb web) { return new TaskWebErrors(web); }
+
+        @Bean
+        DeclarativeTaskWeb declarativeTaskWeb(ObjectProvider<EventHandler> events, MemoryTasks tasks) {
+            return new DeclarativeTaskWeb(new ReadTasks(events, tasks), new CreateTask(events, tasks));
+        }
+
+        @Bean
+        DeclarativeTaskWebErrors declarativeTaskWebErrors(DeclarativeTaskWeb web) {
+            return new DeclarativeTaskWebErrors(web);
+        }
 
         @Bean
         SpringResourceTemplateResolver templates() {

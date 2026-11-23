@@ -502,3 +502,35 @@ input::placeholder {
     transition:background .15s ease;
   }
 }
+
+.declarativeWorkspace {
+  width:min(42rem, calc(100% - 2rem));
+  margin:clamp(2rem, 10vw, 6rem) auto;
+}
+.declarativeWorkspace ul {
+  padding-inline-start:1.25rem;
+}
+.declarativeWorkspace li + li {
+  margin-top:.75rem;
+}
+.declarativeWorkspace form {
+  display:flex;
+  gap:.75rem;
+  align-items:end;
+  flex-wrap:wrap;
+}
+.declarativeWorkspace label {
+  display:grid;
+  gap:.35rem;
+  flex:1 1 14rem;
+}
+.declarativeWorkspace input {
+  width:100%;
+  border:1px solid var(--line);
+  border-radius:.5rem;
+  padding:.75rem;
+}
+.declarativeWorkspace [role="alert"] {
+  border-inline-start:.2rem solid #a62d24;
+  padding-inline-start:.8rem;
+}

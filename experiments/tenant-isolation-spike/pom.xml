@@ -7,7 +7,7 @@
     <name>Tenant isolation feasibility spike (test-only)</name>
     <properties>
         <maven.compiler.release>21</maven.compiler.release>
-        <vernac.version>0.5.4-SNAPSHOT</vernac.version>
+        <vernac.version>0.6.0-SNAPSHOT</vernac.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.deploy.skip>true</maven.deploy.skip>
     </properties>

@@ -42,6 +42,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     }
 
     public TopLevelDefinition toTopLevelDefinition(VernacParser.TopLevelDeclarationContext ctx) {
+        if (ctx.webViewDefinition() != null) return webView(ctx.webViewDefinition());
         if (ctx.idDeclaration() != null) return visitIdDeclaration(ctx.idDeclaration());
         if (ctx.valueDefinition() != null) return visitValueDefinition(ctx.valueDefinition());
         if (ctx.aggregateDefinition() != null) return visitAggregateDefinition(ctx.aggregateDefinition());
@@ -57,6 +58,41 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         if (ctx.domainServiceDefinition() != null) return visitDomainServiceDefinition(ctx.domainServiceDefinition());
         if (ctx.listenerDefinition() != null) return visitListenerDefinition(ctx.listenerDefinition());
         return null;
+    }
+
+    private WebViewNode webView(VernacParser.WebViewDefinitionContext ctx) {
+        return new WebViewNode(toLocation(ctx), ctx.name.getText(),
+                Optional.ofNullable(ctx.webViewParameter()).map(parameter -> new FieldNode(
+                        toLocation(parameter), toTypeNode(parameter.modelType), parameter.name.getText())),
+                ctx.component != null, ctx.title == null ? "" : errorString(ctx.title.getText(), toLocation(ctx)),
+                Optional.ofNullable(ctx.layout).map(ParserRuleContext::getText),
+                Optional.ofNullable(ctx.theme).map(token -> errorString(token.getText(), toLocation(ctx))),
+                (ctx.webViewGroup() == null ? ctx.webViewElement() : ctx.webViewGroup().webViewElement())
+                        .stream().map(this::webElement).toList());
+    }
+
+    private WebViewNode.Element webElement(VernacParser.WebViewElementContext ctx) {
+        var location = toLocation(ctx);
+        if (ctx.componentName != null) {
+            return new WebViewNode.Include(location, ctx.componentName.getText(), ctx.path.getText());
+        }
+        if (ctx.adapter != null) {
+            return new WebViewNode.Form(location, ctx.adapter.getText(), ctx.endpoint.getText(),
+                    ctx.webFormElement().stream().map(field -> new WebViewNode.Control(
+                            toLocation(field), Optional.ofNullable(field.field).map(ParserRuleContext::getText),
+                            errorString(field.literal.getText(), toLocation(field)),
+                            Optional.ofNullable(field.variant).map(ParserRuleContext::getText))).toList());
+        }
+        if (ctx.item != null) {
+            var groups = ctx.children.stream().filter(VernacParser.WebViewGroupContext.class::isInstance)
+                    .map(VernacParser.WebViewGroupContext.class::cast)
+                    .map(group -> group.webViewElement().stream().map(this::webElement).toList()).toList();
+            return new WebViewNode.Repeat(location, ctx.path.getText(), ctx.item.getText(), groups.getFirst(),
+                    groups.size() == 2 ? groups.getLast() : List.of());
+        }
+        return new WebViewNode.Text(location, ctx.getStart().getText().equals("heading"),
+                Optional.ofNullable(ctx.literal).map(token -> errorString(token.getText(), location)),
+                Optional.ofNullable(ctx.path).map(ParserRuleContext::getText));
     }
 
     @Override
@@ -232,18 +268,11 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 }).toList(), Optional.ofNullable(e.bodyType).map(this::toTypeNode), e.dependency == null ? "" : e.dependency.getText(),
                 e.mappingAssignment().stream().map(a -> new MappingAssignmentNode(toLocation(a), a.target.getText(),
                         List.of(a.path.getText().split("\\.")), Optional.ofNullable(a.mapper).map(ParserRuleContext::getText))).toList(),
-                e.status != null ? httpStatus(e.status.getText()) : e.renderStatus != null ? httpStatus(e.renderStatus.getText()) : 200, Optional.ofNullable(e.responseType).map(this::toTypeNode),
-                Optional.ofNullable(e.responseMapping).map(ParserRuleContext::getText),
+                e.status != null ? httpStatus(e.status.getText()) : e.renderStatus != null ? httpStatus(e.renderStatus.getText()) : 200, Optional.ofNullable(e.viewModelType == null ? e.responseType : e.viewModelType).map(this::toTypeNode),
+                Optional.ofNullable(e.viewModelMapping == null ? e.responseMapping : e.viewModelMapping).map(ParserRuleContext::getText),
                 Optional.ofNullable(e.absentStatus).map(t -> httpStatus(t.getText())),
                 inboundImplementation(e.inboundErrorPolicy()), inboundRules(e.inboundErrorPolicy()),
-                e.view == null && e.redirect == null && e.absentView == null && e.attachment == null ? Optional.empty() : Optional.of(new InboundHttpAdapterNode.View(
-                        e.view == null ? "" : errorString(e.view.getText(),toLocation(e)),
-                        Optional.ofNullable(e.modelName).map(ParserRuleContext::getText),
-                        Optional.ofNullable(e.redirect).map(t -> errorString(t.getText(),toLocation(e))),
-                        Optional.ofNullable(e.notice).map(t -> errorString(t.getText(),toLocation(e))),
-                        Optional.ofNullable(e.absentView).map(t -> errorString(t.getText(),toLocation(e))),
-                        Optional.ofNullable(e.attachment).map(t -> errorString(t.getText(),toLocation(e))),
-                        Optional.ofNullable(e.contentField).map(ParserRuleContext::getText))))).toList();
+                inboundView(ctx, e))).toList();
         return new InboundHttpAdapterNode(toLocation(ctx), ctx.name.getText(), ctx.base == null ? "/" : unquote(ctx.base.getText()),
                 ctx.dependencies.stream().map(this::adapterParameter).toList(), endpoints,
                 ctx.schemaDefinition().stream().map(this::visitSchemaDefinition).toList(),
@@ -251,6 +280,45 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 inboundImplementation(ctx.inboundErrorPolicy()), inboundRules(ctx.inboundErrorPolicy()),
                 ctx.transport.getText().equals("mvc"), Optional.ofNullable(ctx.errorView).map(t -> errorString(t.getText(),toLocation(ctx))),
                 Optional.ofNullable(ctx.accessMode).map(t -> t.getText()));
+    }
+
+    private Optional<InboundHttpAdapterNode.View> inboundView(
+            VernacParser.InboundHttpAdapterDefinitionContext adapter, VernacParser.InboundEndpointContext endpoint) {
+        if (endpoint.view == null && endpoint.generatedView == null && endpoint.redirect == null
+                && endpoint.redirectEndpoint == null && endpoint.absentView == null && endpoint.attachment == null)
+            return Optional.empty();
+        var location = toLocation(endpoint);
+        String template = endpoint.view == null ? "" : errorString(endpoint.view.getText(), location);
+        if (endpoint.generatedView != null) {
+            var unit = (VernacParser.CompilationUnitContext) adapter.getParent().getParent();
+            template = WebViewNode.template(unit.namespaceDeclaration().qualifiedName().getText(),
+                    endpoint.generatedView.getText());
+        }
+        var redirect = endpoint.redirectEndpoint == null
+                ? Optional.ofNullable(endpoint.redirect).map(t -> errorString(t.getText(), location))
+                : Optional.of(resolveMvcRedirect(adapter, endpoint.redirectEndpoint.getText(), location));
+        return Optional.of(new InboundHttpAdapterNode.View(template,
+                Optional.ofNullable(endpoint.modelName).map(ParserRuleContext::getText), redirect,
+                Optional.ofNullable(endpoint.notice).map(t -> errorString(t.getText(), location)),
+                Optional.ofNullable(endpoint.absentView).map(t -> errorString(t.getText(), location)),
+                Optional.ofNullable(endpoint.attachment).map(t -> errorString(t.getText(), location)),
+                Optional.ofNullable(endpoint.contentField).map(ParserRuleContext::getText),
+                endpoint.generatedView != null));
+    }
+
+    private String resolveMvcRedirect(VernacParser.InboundHttpAdapterDefinitionContext adapter,
+                                      String name, SourceLocation location) {
+        var target = adapter.inboundEndpoint().stream().filter(endpoint -> endpoint.name.getText().equals(name))
+                .findFirst().orElse(null);
+        if (target == null || !target.verb.getText().equals("GET")
+                || target.inboundBinding().stream().anyMatch(binding -> binding.kind.getText().equals("path")
+                        || binding.defaultValue == null && !toTypeNode(binding.valueType).isOptional())) {
+            throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(
+                    org.vernac.compiler.analyzer.CompilerDiagnostic.error(location,
+                            "A named redirect requires a GET endpoint with no required inputs: " + name)));
+        }
+        return org.vernac.compiler.inbound.InboundResolver.join(
+                adapter.base == null ? "/" : unquote(adapter.base.getText()), unquote(target.route.getText()));
     }
 
     private Optional<String> inboundImplementation(VernacParser.InboundErrorPolicyContext policy) {

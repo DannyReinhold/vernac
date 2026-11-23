@@ -23,9 +23,10 @@ public record ResolvedProject(VernacProject project,
                               Map<org.vernac.compiler.ast.OutboundAdapterNode,List<org.vernac.compiler.dto.ResolvedSchema>> schemas,
                               Map<org.vernac.compiler.ast.OutboundAdapterNode,List<org.vernac.compiler.mapping.ResolvedMapping>> mappings,
                               Map<org.vernac.compiler.ast.MethodNode, org.vernac.compiler.rest.ResolvedRestOperation> restOperations,
-                              Map<org.vernac.compiler.ast.InboundHttpAdapterNode,org.vernac.compiler.inbound.ResolvedInbound> inboundAdapters) {
+                              Map<org.vernac.compiler.ast.InboundHttpAdapterNode,org.vernac.compiler.inbound.ResolvedInbound> inboundAdapters,
+                              Map<String, String> webTemplates) {
     public ResolvedProject(VernacProject project, Map<Path, FileTypeScope> scopes, Map<TypeNode, ResolvedType> types, List<CompilerDiagnostic> diagnostics, List<TypeSymbol> deferredTypes) {
-        this(project, scopes, types, diagnostics, deferredTypes, Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
+        this(project, scopes, types, diagnostics, deferredTypes, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
     }
     public ResolvedProject {
         Objects.requireNonNull(project);
@@ -38,6 +39,7 @@ public record ResolvedProject(VernacProject project,
         mappings = Map.copyOf(mappings);
         restOperations = Map.copyOf(restOperations);
         inboundAdapters = Map.copyOf(inboundAdapters);
+        webTemplates = Map.copyOf(webTemplates);
     }
 
     public ResolvedType typeOf(TypeNode fieldType) {

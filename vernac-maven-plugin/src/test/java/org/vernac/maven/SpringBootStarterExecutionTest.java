@@ -26,9 +26,16 @@ class SpringBootStarterExecutionTest {
     @Test
     void actualStarterSourcesCompileAndItsDomainAndHtmlTestsExecute() throws Exception {
         Path template = Path.of("../templates/vernac-spring-boot");
-        var generated = new VernacCompiler().compileProject(template.resolve("src/main/vernac"));
+        var compiler = new VernacCompiler();
+        var project = compiler.analyzeProject(template.resolve("src/main/vernac"));
+        var generated = compiler.generate(project, org.vernac.compiler.persistence.SchemaModel.empty(), Map.of());
         Path java = temporary.resolve("java"), classes = temporary.resolve("classes");
         Files.createDirectories(classes);
+        for (var entry : project.webTemplates().entrySet()) {
+            Path resource = classes.resolve("templates").resolve(entry.getKey());
+            Files.createDirectories(resource.getParent());
+            Files.writeString(resource, entry.getValue());
+        }
         List<String> sources = new ArrayList<>();
         for (var file : generated.generatedFiles()) {
             Path source =
@@ -83,9 +90,9 @@ class SpringBootStarterExecutionTest {
             var listener = new SummaryGeneratingListener();
             LauncherFactory.create().execute(request, listener);
             var summary = listener.getSummary();
-            assertEquals(7, summary.getTestsFoundCount());
+            assertEquals(8, summary.getTestsFoundCount());
             assertEquals(
-                    7,
+                    summary.getTestsFoundCount(),
                     summary.getTestsSucceededCount(),
                     () ->
                             summary.getFailures().stream()

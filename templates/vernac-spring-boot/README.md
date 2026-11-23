@@ -189,3 +189,7 @@ Run `clean compile` in the project's Maven window once, then start the applicati
 again. The generated `TaskWeb` controller should exist under
 `target/generated-sources/vernac`. A native IDE build alone does not execute the
 Vernac Maven goal. Keep the Run configuration's Build step enabled.
+
+Open `/declarative` to see a task list and create form rendered from a Vernac
+`view`. It uses the same task usecases as the board. The view, row component and
+form bindings are in `src/main/vernac/org/example/tasks/tasks.vernac`.

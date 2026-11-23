@@ -1,6 +1,6 @@
 # Vernac: self-contained reference for AI code generation
 
-Language baseline: **Vernac 0.5.4**. Source checkouts default to 0.5.4-SNAPSHOT.
+Language baseline: **Vernac 0.5.4**. Source checkouts default to 0.6.0-SNAPSHOT.
 
 For MVC routes that only select a template, use `GET "/about"; render "about";`
 inside an endpoint without an `execute` clause. In both HTTP and MVC adapters,
