@@ -238,7 +238,7 @@ final class VernacProjectSymbols {
         int cursor = offset(file.text(), position);
         if(cursor<0)return List.of();
         int pointInCodePoints = file.text().codePointCount(0, cursor);
-        var viewReference = webReference(file, pointInCodePoints);
+        var viewReference = webReference(file, pointInCodePoints, true);
         if (viewReference != null) {
             return webChoices(path, file, viewReference).keySet().stream().sorted().map(name -> {
                 var item = new CompletionItem(name);
@@ -581,7 +581,7 @@ final class VernacProjectSymbols {
             }
         }
         int point = file.text().codePointCount(0, offset);
-        var viewReference = webReference(file, point);
+        var viewReference = webReference(file, point, false);
         if (viewReference != null) {
             var target = webChoices(path, file, viewReference).get(viewReference.name().getText());
             return target == null ? List.of() : List.of(target);
@@ -1053,21 +1053,26 @@ final class VernacProjectSymbols {
     }
     private record WebReference(ParserRuleContext name, ParserRuleContext owner) {}
 
-    private WebReference webReference(Parsed file, int point) {
+    private WebReference webReference(Parsed file, int point, boolean completion) {
         var references = new ArrayList<WebReference>();
         walk(file.tree(), node -> {
             if (node instanceof VernacParser.InboundEndpointContext endpoint) {
-                if (contains(endpoint.generatedView, point))
+                if (webContains(endpoint.generatedView, point, completion))
                     references.add(new WebReference(endpoint.generatedView, endpoint));
-                if (contains(endpoint.redirectEndpoint, point))
+                if (webContains(endpoint.redirectEndpoint, point, completion))
                     references.add(new WebReference(endpoint.redirectEndpoint, endpoint));
             } else if (node instanceof VernacParser.WebViewElementContext element) {
                 for (var name : Arrays.asList(element.componentName, element.adapter, element.endpoint)) {
-                    if (contains(name, point)) references.add(new WebReference(name, element));
+                    if (webContains(name, point, completion)) references.add(new WebReference(name, element));
                 }
             }
         });
         return references.isEmpty() ? null : references.getFirst();
+    }
+
+    private static boolean webContains(ParserRuleContext name, int point, boolean completion) {
+        return contains(name, point) || completion && name != null && name.getStop() != null
+                && point == name.getStop().getStopIndex() + 1;
     }
 
     private Map<String, Location> webChoices(Path path, Parsed file, WebReference reference) {
@@ -1087,10 +1092,10 @@ final class VernacProjectSymbols {
             if (!candidate.unit().namespace().equals(file.unit().namespace())) continue;
             for (var top : candidate.tree().topLevelDeclaration()) {
                 var view = top.webViewDefinition();
-                if (view != null && view.name != null && (view.component != null)
-                        == (element != null && reference.name() == element.componentName)) {
-                    if (element == null || reference.name() == element.componentName)
-                        choices.put(view.name.getText(), queryLocation(entry.getKey(), candidate, view.name));
+                if (view != null && view.name != null
+                        && (element == null && view.component == null
+                            || element != null && reference.name() == element.componentName && view.component != null)) {
+                    choices.put(view.name.getText(), queryLocation(entry.getKey(), candidate, view.name));
                 }
                 var adapter = top.inboundHttpAdapterDefinition();
                 if (element == null || element.adapter == null || adapter == null || adapter.name == null
