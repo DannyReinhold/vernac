@@ -279,7 +279,10 @@ public final class WebViews {
             String name = binding.externalName();
             html.append("<label>").append(escape(control.label())).append("<input type=\"")
                     .append(binding.sensitive() ? "password" : "text").append("\" name=\"").append(name).append('"');
-            if (!binding.sensitive()) html.append(" th:value=\"${inputs['form.").append(binding.name()).append("']}\"");
+            if (!binding.sensitive()) {
+                html.append(" th:value=\"${inputs == null ? null : inputs['form.")
+                        .append(binding.name()).append("']}\"");
+            }
             if (!binding.type().isOptional() && binding.defaultValue().isEmpty()) html.append(" required");
             html.append("></label>\n");
         }
