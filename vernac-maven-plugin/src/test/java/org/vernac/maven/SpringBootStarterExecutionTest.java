@@ -90,7 +90,7 @@ class SpringBootStarterExecutionTest {
             var listener = new SummaryGeneratingListener();
             LauncherFactory.create().execute(request, listener);
             var summary = listener.getSummary();
-            assertEquals(8, summary.getTestsFoundCount());
+            assertEquals(7, summary.getTestsFoundCount());
             assertEquals(
                     summary.getTestsFoundCount(),
                     summary.getTestsSucceededCount(),

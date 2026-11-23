@@ -85,7 +85,7 @@ aggregates; the read usecase projects them to values before passing results to t
 UI. No database connection or lazy-loaded object escapes into a template.
 
 Open `tasks.vernac` and inspect both the `Task` behavior and the `TaskWeb inbound mvc`
-adapter. Then open `templates/board.html`. The request bindings, usecase argument
+adapter and the `TaskOverview` view in the same Vernac file. The request bindings, usecase argument
 conversions, view/redirect decisions and error redisplay are all declared in Vernac.
 The generated controller lives under `target`, not in handwritten application code.
 Spring Security configuration remains a small Java infrastructure class.

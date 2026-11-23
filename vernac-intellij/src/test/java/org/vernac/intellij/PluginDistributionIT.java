@@ -174,7 +174,7 @@ class PluginDistributionIT {
                     "src/main/vernac/org/example/tasks/tasks.vernac",
                     "src/main/java/org/example/tasks/TasksApplication.java",
                     "src/main/java/org/example/tasks/adapter/inbound/web/WebSecurity.java",
-                    "src/main/resources/templates/board.html", "src/main/resources/static/app.css",
+                    "src/main/resources/static/app.css",
                     "src/main/resources/application.yaml", "src/main/resources/application-local.yaml",
                     "src/test/java/org/example/tasks/TaskWebTest.java", "src/test/java/org/example/tasks/TaskPersistenceIT.java")) {
                 requireContent(plugin, "projectTemplates/vernac-spring-boot/" + templateFile);

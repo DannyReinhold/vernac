@@ -122,7 +122,12 @@ public final class WebViews {
         }
         for (var source : project.project().sources()) for (var definition : source.unit().definitions()) {
             if (!(definition instanceof InboundHttpAdapterNode adapter) || source.external()) continue;
+            adapter.errorView().ifPresent(name -> checkErrorView(name, adapter.location()));
+            for (var rule : adapter.errorRules()) rule.view().flatMap(InboundHttpAdapterNode.ErrorView::template)
+                    .ifPresent(name -> checkErrorView(name, rule.location()));
             for (var endpoint : adapter.endpoints()) {
+                for (var rule : endpoint.errorRules()) rule.view().flatMap(InboundHttpAdapterNode.ErrorView::template)
+                        .ifPresent(name -> checkErrorView(name, rule.location()));
                 endpoint.view().ifPresent(reply -> {
                     if (!reply.generated()) return;
                     var view = declared.get(reply.template());
@@ -134,6 +139,13 @@ public final class WebViews {
             }
         }
         return Map.copyOf(templates);
+    }
+
+    private void checkErrorView(String name, SourceLocation location) {
+        if (!name.startsWith(WebViewNode.TEMPLATE_PREFIX)) return;
+        var view = declared.get(name);
+        if (view == null || view.component() || view.model().isPresent())
+            error(location, "An MVC error view requires a declared page without a model: " + name);
     }
 
     private void elements(StringBuilder html, List<WebViewNode.Element> elements, String namespace,
@@ -204,12 +216,60 @@ public final class WebViews {
                         error(include.location(), "Cyclic view component " + include.component());
                     }
                 }
-                case WebViewNode.Form form -> {
-                    if (repeated) error(form.location(), "Forms inside repeated elements require row-specific binding.");
-                    else form(html, form, namespace);
+                case WebViewNode.Conditional conditional -> {
+                    var value = expression(conditional.path(), conditional.location(), model, mapping);
+                    if (value == null) continue;
+                    var symbol = value.type().symbol();
+                    boolean hasConstant = symbol != null
+                            && symbol.kind() == org.vernac.compiler.symbols.TypeSymbol.Kind.ENUM
+                            && project.project().sources().stream()
+                                    .filter(source -> source.unit().namespace().equals(symbol.identity().namespace()))
+                                    .flatMap(source -> source.unit().valueObjects().stream())
+                                    .filter(type -> type.name().equals(symbol.identity().name()))
+                                    .flatMap(type -> type.enumConstants().stream())
+                                    .anyMatch(constant -> constant.name().equals(conditional.constant()));
+                    if (!hasConstant) {
+                        error(conditional.location(), "A view condition requires a declared enum constant.");
+                        continue;
+                    }
+                    html.append("<div th:if=\"${").append(value.java())
+                            .append(".name() == '").append(conditional.constant()).append("'}\">\n");
+                    elements(html, conditional.body(), namespace, mapping, model, repeated);
+                    html.append("</div>\n");
                 }
+                case WebViewNode.Pagination paging -> pagination(html, paging, model, mapping);
+                case WebViewNode.Link link -> {
+                    if (!staticRoute(link.route())) error(link.location(), "A link requires a static application path.");
+                    else html.append("<a th:href=\"@{").append(link.route()).append("}\">")
+                            .append(escape(link.label())).append("</a>\n");
+                }
+                case WebViewNode.Form form -> form(html, form, namespace, model, mapping);
             }
         }
+    }
+
+    private void pagination(StringBuilder html, WebViewNode.Pagination paging, Map<String, Expression> model,
+                            MappingResolver mapping) {
+        var value = expression(paging.path(), paging.location(), model, mapping);
+        if (value == null) return;
+        if (value.type().kind() != Kind.PAGE || value.type().pageTransport()
+                || value.type().pageKind() != TypeNode.PageKind.COUNTED_OFFSET || !staticRoute(paging.route())) {
+            error(paging.location(), "Pagination requires a counted offset model and a static application path.");
+            return;
+        }
+        String page = value.java() + ".pageNumber().orElseThrow()";
+        String total = value.java() + ".totalPages()";
+        html.append("<nav aria-label=\"Pages\" th:if=\"${").append(total).append(" > 1}\">")
+                .append("<a rel=\"prev\" th:if=\"${").append(page).append(" > 1}\" th:href=\"@{")
+                .append(paging.route()).append("(page=${").append(page).append(" - 1})}\">Previous</a> ")
+                .append("<span th:text=\"${'Page ' + ").append(page).append(" + ' of ' + ").append(total)
+                .append("}\"></span> ")
+                .append("<a rel=\"next\" th:if=\"${").append(value.java()).append(".hasNext()}\" th:href=\"@{")
+                .append(paging.route()).append("(page=${").append(page).append(" + 1})}\">Next</a></nav>\n");
+    }
+
+    private static boolean staticRoute(String route) {
+        return route.matches("/[A-Za-z0-9/_-]*") && !route.contains("//");
     }
 
     private record Binding(InboundHttpAdapterNode adapter, ResolvedInbound plan, ResolvedInbound.Endpoint endpoint) {}
@@ -238,7 +298,8 @@ public final class WebViews {
         return new Expression(java.toString(), type);
     }
 
-    private void form(StringBuilder html, WebViewNode.Form form, String namespace) {
+    private void form(StringBuilder html, WebViewNode.Form form, String namespace,
+                      Map<String, Expression> model, MappingResolver mapping) {
         var adapter = project.project().sources().stream()
                 .filter(source -> source.unit().namespace().equals(namespace))
                 .flatMap(source -> source.unit().definitions().stream())
@@ -256,12 +317,37 @@ public final class WebViews {
             return;
         }
         String route = InboundResolver.join(adapter.base(), endpoint.route());
-        if (!route.matches("/[A-Za-z0-9/_-]*")
-                || endpoint.bindings().stream().anyMatch(b -> !b.kind().equals("form") && !b.type().isOptional() && b.defaultValue().isEmpty())) {
-            error(form.location(), "A form action requires a static route and self-contained request bindings.");
+        if (!staticRoute(route.replaceAll("\\{[A-Za-z_][A-Za-z0-9_]*}", "x"))
+                || endpoint.bindings().stream().anyMatch(b -> !Set.of("path", "form").contains(b.kind())
+                        && !b.type().isOptional() && b.defaultValue().isEmpty())) {
+            error(form.location(), "A form action requires a local route and self-contained request bindings.");
             return;
         }
-        html.append("<form method=\"post\" th:action=\"@{").append(route).append("}\">\n");
+        Map<String, String> pathValues = new LinkedHashMap<>();
+        for (var assignment : form.paths()) {
+            var binding = endpoint.bindings().stream()
+                    .filter(b -> b.kind().equals("path") && b.name().equals(assignment.target()))
+                    .findFirst().orElse(null);
+            if (binding == null || pathValues.containsKey(binding.externalName())) {
+                error(assignment.location(), "Unknown or duplicate form path binding " + assignment.target());
+                continue;
+            }
+            var value = expression(assignment.path().getFirst(), assignment.location(), model, mapping);
+            var target = mapping.resolveType(binding.type());
+            if (value == null || target == null) continue;
+            if (!value.type().identity().equals(target.identity())) {
+                error(assignment.location(), "Form path value must match " + binding.type().name());
+                continue;
+            }
+            pathValues.put(binding.externalName(), binding.externalName() + "=${" + value.java() + "}");
+        }
+        if (endpoint.bindings().stream().anyMatch(b -> b.kind().equals("path") && !pathValues.containsKey(b.externalName()))) {
+            error(form.location(), "The form must bind every route parameter.");
+            return;
+        }
+        html.append("<form method=\"post\" th:action=\"@{").append(route);
+        if (!pathValues.isEmpty()) html.append('(').append(String.join(",", pathValues.values())).append(')');
+        html.append("}\">\n");
         Set<String> fields = new HashSet<>();
         for (var control : form.controls()) {
             if (control.field().isEmpty()) {

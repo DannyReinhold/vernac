@@ -50,6 +50,7 @@ class TaskWebTest {
         web.perform(get("/"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("A fresh page.")))
+                .andExpect(content().string(containsString("action=\"/tasks\"")))
                 .andExpect(content().string(containsString("name=\"_csrf\"")));
         web.perform(post("/tasks").contentType("application/x-www-form-urlencoded").with(csrf()).param("title", "<em>A small win</em>"))
                 .andExpect(status().is3xxRedirection());
@@ -60,7 +61,8 @@ class TaskWebTest {
         var id = repository.tasks.keySet().iterator().next();
         web.perform(post("/tasks/" + id.asString() + "/complete").with(csrf()))
                 .andExpect(status().is3xxRedirection());
-        web.perform(get("/")).andExpect(content().string(containsString("Completed")));
+        web.perform(get("/")).andExpect(content().string(containsString("Completed")))
+                .andExpect(content().string(containsString("action=\"/tasks/" + id.asString() + "/reopen\"")));
         web.perform(post("/tasks/" + id.asString() + "/reopen").with(csrf()))
                 .andExpect(status().is3xxRedirection());
         web.perform(get("/")).andExpect(content().string(containsString("Ready when you are")));
@@ -87,28 +89,8 @@ class TaskWebTest {
                 .andExpect(content().string(containsString("Page 2 of 2")));
         web.perform(get("/").param("page", "0")).andExpect(status().isUnprocessableContent());
         web.perform(post("/tasks/" + UUID.randomUUID() + "/complete").with(csrf()))
-                .andExpect(status().isNotFound());
-    }
-
-    @Test
-    void declarativeViewRendersTheGeneratedFormAndReloadsOnValidation() throws Exception {
-        web.perform(get("/declarative"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("A fresh page.")))
-                .andExpect(content().string(containsString("action=\"/declarative\"")))
-                .andExpect(content().string(containsString("name=\"_csrf\"")));
-        web.perform(post("/declarative").contentType("application/x-www-form-urlencoded").param("title", "Without token"))
-                .andExpect(status().isForbidden());
-        web.perform(post("/declarative").contentType("application/x-www-form-urlencoded").with(csrf()).param("title", " "))
-                .andExpect(status().isUnprocessableContent())
-                .andExpect(content().string(containsString("Give your task a meaningful title")));
-        web.perform(post("/declarative").contentType("application/x-www-form-urlencoded").with(csrf()).param("title", "<em>Review</em>"))
-                .andExpect(status().isSeeOther())
-                .andExpect(redirectedUrl("/declarative"));
-        web.perform(get("/declarative"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("&lt;em&gt;Review&lt;/em&gt;")))
-                .andExpect(content().string(not(containsString("<em>Review</em>"))));
+                .andExpect(status().isNotFound())
+                .andExpect(content().string(containsString("Back to the board")));
     }
 
     @Configuration(proxyBeanMethods = false)
@@ -131,16 +113,6 @@ class TaskWebTest {
         }
 
         @Bean TaskWebErrors taskWebErrors(TaskWeb web) { return new TaskWebErrors(web); }
-
-        @Bean
-        DeclarativeTaskWeb declarativeTaskWeb(ObjectProvider<EventHandler> events, MemoryTasks tasks) {
-            return new DeclarativeTaskWeb(new ReadTasks(events, tasks), new CreateTask(events, tasks));
-        }
-
-        @Bean
-        DeclarativeTaskWebErrors declarativeTaskWebErrors(DeclarativeTaskWeb web) {
-            return new DeclarativeTaskWebErrors(web);
-        }
 
         @Bean
         SpringResourceTemplateResolver templates() {

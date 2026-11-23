@@ -63,7 +63,8 @@ the binding. Page and component declarations resolve by name in their namespace.
 
 - **Lists.** Use `list tasks as task { include TaskRow(task); } empty { text "No tasks."; }`.
   The source can be a value collection or a paginated value collection.
-- **Forms.** A form resolves to a named MVC POST endpoint with a static route.
+- **Forms.** A form resolves to a named MVC POST endpoint. Bind route parameters with
+  `path id <- task.taskId.value;` inside the form.
   A field uses the endpoint's binding name. The generated input uses its declared
   external name. Sensitive fields render as password inputs and are never
   repopulated. Spring MVC and Thymeleaf integrate the form with Spring Security's
@@ -77,7 +78,8 @@ the binding. Page and component declarations resolve by name in their namespace.
   resources. Text bindings are escaped on render. Existing quoted template
   references continue to work for custom views and error pages.
 
-The Spring Boot starter includes a working page at `/declarative`. It reads a
-page of task cards, renders an empty state and creates a task through an ordinary
-HTML form. Its web test covers the rendered page, CSRF, validation redisplay,
+The Spring Boot starter renders its board at `/` from Vernac. It shows a page of
+task cards with `pagination tasks at "/";`. Enum conditions select which row
+action to display. The adapter uses `error view TaskProblem;` to render a
+model-free Vernac page on errors. Its web test covers the rendered page, CSRF, validation redisplay,
 redirect and escaped output.

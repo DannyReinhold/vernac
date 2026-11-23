@@ -76,8 +76,17 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         if (ctx.componentName != null) {
             return new WebViewNode.Include(location, ctx.componentName.getText(), ctx.path.getText());
         }
+        if (ctx.conditional != null)
+            return new WebViewNode.Conditional(location, ctx.path.getText(), ctx.constant.getText(),
+                    ctx.webViewGroup().getFirst().webViewElement().stream().map(this::webElement).toList());
+        if (ctx.pagination != null)
+            return new WebViewNode.Pagination(location, ctx.path.getText(), errorString(ctx.route.getText(), location));
+        if (ctx.link != null)
+            return new WebViewNode.Link(location, errorString(ctx.literal.getText(), location), errorString(ctx.route.getText(), location));
         if (ctx.adapter != null) {
             return new WebViewNode.Form(location, ctx.adapter.getText(), ctx.endpoint.getText(),
+                    ctx.webPathBinding().stream().map(binding -> new MappingAssignmentNode(toLocation(binding),
+                            binding.field.getText(), List.of(binding.value.getText()), Optional.empty())).toList(),
                     ctx.webFormElement().stream().map(field -> new WebViewNode.Control(
                             toLocation(field), Optional.ofNullable(field.field).map(ParserRuleContext::getText),
                             errorString(field.literal.getText(), toLocation(field)),
@@ -278,7 +287,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 ctx.schemaDefinition().stream().map(this::visitSchemaDefinition).toList(),
                 ctx.mappingDefinition().stream().map(this::visitMappingDefinition).toList(),
                 inboundImplementation(ctx.inboundErrorPolicy()), inboundRules(ctx.inboundErrorPolicy()),
-                ctx.transport.getText().equals("mvc"), Optional.ofNullable(ctx.errorView).map(t -> errorString(t.getText(),toLocation(ctx))),
+                ctx.transport.getText().equals("mvc"), viewTemplate(ctx.errorView, ctx.generatedError, ctx),
                 Optional.ofNullable(ctx.accessMode).map(t -> t.getText()));
     }
 
@@ -338,11 +347,19 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 selector.category == null ? "" : selector.category.getText(), httpStatus(rule.status.getText()),
                 Optional.ofNullable(rule.code).map(t -> errorString(t.getText(), toLocation(rule))),
                 Optional.ofNullable(rule.message).map(t -> errorString(t.getText(), toLocation(rule))),
-                rule.view == null && rule.reload == null ? Optional.empty() : Optional.of(new InboundHttpAdapterNode.ErrorView(
-                        Optional.ofNullable(rule.view).map(t -> errorString(t.getText(),toLocation(rule))),
+                rule.view == null && rule.generatedView == null && rule.reload == null ? Optional.empty() : Optional.of(new InboundHttpAdapterNode.ErrorView(
+                        viewTemplate(rule.view, rule.generatedView, rule),
                         Optional.ofNullable(rule.reload).map(ParserRuleContext::getText))));
         }).toList();
     }
+    private Optional<String> viewTemplate(Token literal, ParserRuleContext name, ParserRuleContext owner) {
+        if (name == null) return Optional.ofNullable(literal).map(t -> errorString(t.getText(), toLocation(owner)));
+        ParserRuleContext root = owner;
+        while (root.getParent() != null) root = root.getParent();
+        var unit = (VernacParser.CompilationUnitContext) root;
+        return Optional.of(WebViewNode.template(unit.namespaceDeclaration().qualifiedName().getText(), name.getText()));
+    }
+
     private int httpStatus(String value) {
         try { return Integer.parseInt(value); }
         catch (NumberFormatException invalid) { return -1; }

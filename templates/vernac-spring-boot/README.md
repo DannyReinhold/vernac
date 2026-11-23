@@ -77,7 +77,7 @@ flowchart TD
 | --- | --- |
 | `src/main/vernac/org/example/tasks/tasks.vernac` | Terms, values, aggregate, repository queries, usecases and MVC endpoints |
 | `adapter TaskWeb inbound mvc` inside `tasks.vernac` | Request bindings, typed usecase calls, views, redirects and safe redisplay |
-| `src/main/resources/templates/board.html` | Server-rendered UI, escaped task titles and POST forms |
+| `TaskOverview` and `TaskProblem` in `tasks.vernac` | Generated board, task actions, pagination and error page |
 | `src/main/resources/static/app.css` | Responsive layout using local assets and system fonts |
 | `src/main/java/org/example/tasks/adapter/inbound/web/WebSecurity.java` | Public routes, CSRF protection and response headers |
 | `src/main/resources/db/migration/` | Flyway SQL; applied at startup |
@@ -189,7 +189,3 @@ Run `clean compile` in the project's Maven window once, then start the applicati
 again. The generated `TaskWeb` controller should exist under
 `target/generated-sources/vernac`. A native IDE build alone does not execute the
 Vernac Maven goal. Keep the Run configuration's Build step enabled.
-
-Open `/declarative` to see a task list and create form rendered from a Vernac
-`view`. It uses the same task usecases as the board. The view, row component and
-form bindings are in `src/main/vernac/org/example/tasks/tasks.vernac`.
