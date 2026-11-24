@@ -4,6 +4,11 @@ Status: **planning, not implemented contracts**. Updated 2026-10-14 after the 0.
 release. This records priorities and design questions, not a commitment to ship every
 item in 0.5.0. Existing contracts remain authoritative.
 
+The next two release plans set the implementation order for views, tests and the
+fast application build. Each lists dependencies, user-visible acceptance cases
+and the evidence required at release. [0.6.0 views and tests](release-0.6.0.md) ·
+[0.7.0 incremental builds and interpreted behaviors](release-0.7.0.md)
+
 ## Immediate focus: language and developer experience
 
 1. Deep IntelliJ integration: cross-language rename/refactoring, usage search,

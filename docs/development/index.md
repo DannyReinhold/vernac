@@ -38,6 +38,8 @@ For a guide across all documentation, use the [documentation map](../documentati
 
 ## Current priorities
 
+- [0.6.0 implementation plan](release-0.6.0.md) covers acceptance of the wizard views, typed Vernac scenarios and test runners with in-memory ports and PostgreSQL.
+- [0.7.0 implementation plan](release-0.7.0.md) covers interpreted behaviors, incremental builds, affected tests and the daemon used by the CLI, IDE and agents.
 - [Platform roadmap](platform-roadmap.md): IDE depth, language consistency, standard
   adapters, Kafka replication, HTML fragment composition and the separate SaaS project.
 
