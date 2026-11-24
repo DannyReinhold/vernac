@@ -70,6 +70,7 @@ class VernacProjectDiagnosticsTest {
                 """;
         open(scenario, source);
         assertTrue(diagnostics(scenario).isEmpty(), diagnostics(scenario).toString());
+        assertEquals(model.toUri().toString(), definition(scenario, 4, source.split("\n")[4].indexOf("OPEN")).getFirst().getUri());
 
         change(scenario, source.replace("equals Status.OPEN", "equals true"), 2);
         assertTrue(diagnostics(scenario).stream().anyMatch(d -> d.getMessage().contains("Expected model.Status")));

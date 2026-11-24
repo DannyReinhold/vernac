@@ -74,14 +74,18 @@ public final class VernacScenarioCompiler {
     }
 
     /** Checks the same source snapshots used for generation without writing generated files. */
-    public void validate(Map<String, String> sources, ResolvedProject main) {
-        compile(sources, main);
+    public List<Reference> validate(Map<String, String> sources, ResolvedProject main) {
+        return compile(sources, main).references();
     }
 
-    private record Compilation(JavaFile bridge, int caseCount) { }
+    /** A source reference and its resolved model declaration, with a code-point width. */
+    public record Reference(SourceLocation source, int width, SourceLocation declaration) { }
+
+    private record Compilation(JavaFile bridge, int caseCount, List<Reference> references) { }
 
     private Compilation compile(Map<String, String> sources, ResolvedProject main) {
         var bridge = TypeSpec.classBuilder(BRIDGE);
+        List<Reference> references = new ArrayList<>();
         Set<String> suites = new HashSet<>();
         Set<String> cases = new HashSet<>();
         Map<String, TopLevelDefinition> definitions = new HashMap<>();
@@ -127,11 +131,12 @@ public final class VernacScenarioCompiler {
                         throw error(location(source, scenario.name), VernacNames.invalidNameMessage(scenarioName));
                     String id = suiteId + "." + scenarioName;
                     if (!cases.add(id)) throw error(location(source, scenario), "Duplicate scenario '" + id + "'");
-                    bridge.addMethod(new Scenario(source, id, scope, main, definitions).compile(scenario));
+                    bridge.addMethod(new Scenario(source, id, scope, main, definitions, references).compile(scenario));
                 }
             }
         }
-        return new Compilation(JavaFile.builder(PACKAGE, bridge.build()).indent("    ").build(), cases.size());
+        return new Compilation(JavaFile.builder(PACKAGE, bridge.build()).indent("    ").build(),
+                cases.size(), List.copyOf(references));
     }
 
     private record Expression(CodeBlock code, ResolvedType type, boolean optional) {
@@ -141,7 +146,7 @@ public final class VernacScenarioCompiler {
     }
 
     private record Scenario(String source, String id, FileTypeScope scope, ResolvedProject main,
-                            Map<String, TopLevelDefinition> definitions) {
+                            Map<String, TopLevelDefinition> definitions, List<Reference> references) {
         MethodSpec compile(TestScenarioContext scenario) {
             var method = MethodSpec.methodBuilder(id.replace("$", "$s").replace(".", "$d"))
                     .addAnnotation(ClassName.get("org.junit.jupiter.api", "Test"))
@@ -173,6 +178,7 @@ public final class VernacScenarioCompiler {
                             .filter(candidate -> candidate.name().equals(action) && "public".equals(candidate.accessModifier()))
                             .findFirst()
                             .orElseThrow(() -> error(location(source, step.action), "Unknown public behavior '" + action + "'"));
+                    reference(step.action, target.location());
                     var args = arguments(step, step.testArguments(), target.parameters(), fixtures);
                     method.addStatement("$L.$L($L)", receiver.code(), action, args);
                 } else if (statement instanceof TestAssertionContext assertion) {
@@ -203,7 +209,8 @@ public final class VernacScenarioCompiler {
         private Expression expression(TestExpressionContext value, Map<String, Expression> fixtures) {
             if (value.literal != null) return literal(value);
             if (value.factory != null) {
-                var type = resolve(value.factory.getText(), value);
+                var type = resolve(value.factory.getText(), value.factory);
+                reference(value.factory, type.symbol().location());
                 var definition = definition(type);
                 var factory = switch (definition) {
                     case AggregateNode ignored -> "create";
@@ -216,14 +223,17 @@ public final class VernacScenarioCompiler {
                         arguments(value, value.testArguments(), fields(definition), fixtures)), type);
             }
 
-            var names = value.reference.qualifiedNameSegment().stream().map(ParserRuleContext::getText).toList();
+            var parts = value.reference.qualifiedNameSegment();
+            var names = parts.stream().map(ParserRuleContext::getText).toList();
             var fixture = fixtures.get(names.getFirst());
             if (fixture != null) {
                 var result = fixture;
-                for (String field : names.subList(1, names.size())) {
+                for (var part : parts.subList(1, parts.size())) {
+                    String field = part.getText();
                     var definition = definition(result.type());
                     TypeNode type = result.optional() ? null : fieldType(definition, field);
-                    if (type == null) throw error(location(source, value), "Unknown field '" + field + "'");
+                    if (type == null) throw error(location(source, part), "Unknown field '" + field + "'");
+                    reference(part, type.location());
                     result = new Expression(CodeBlock.of("$L.$L()", result.code(), field),
                             main.typeOf(type), type.isOptional());
                 }
@@ -233,10 +243,20 @@ public final class VernacScenarioCompiler {
             if (names.size() == 1) throw error(location(source, value), "Unknown fixture '" + names.getFirst() + "'");
             var type = resolve(String.join(".", names.subList(0, names.size() - 1)), value);
             String member = names.getLast();
-            if (!(definition(type) instanceof ValueObjectNode enumeration)
-                    || enumeration.enumConstants().stream().noneMatch(constant -> constant.name().equals(member)))
-                throw error(location(source, value), "Unknown enum member '" + value.getText() + "'");
+            if (!(definition(type) instanceof ValueObjectNode enumeration))
+                throw error(location(source, value), "Expected an enum member or a fixture field path");
+            var constant = enumeration.enumConstants().stream()
+                    .filter(candidate -> candidate.name().equals(member))
+                    .findFirst()
+                    .orElseThrow(() -> error(location(source, parts.getLast()), "Unknown enum member '" + value.getText() + "'"));
+            reference(parts.getLast(), constant.location());
             return new Expression(CodeBlock.of("$L.$L", JavaTypeNames.canonicalName(type), member), type);
+        }
+
+        private void reference(ParserRuleContext node, SourceLocation declaration) {
+            int width = node.getStop().getStopIndex() - node.getStart().getStartIndex() + 1;
+            if (node.getStart().getLine() == node.getStop().getLine())
+                references.add(new Reference(location(source, node), width, declaration));
         }
 
         private Expression literal(TestExpressionContext value) {

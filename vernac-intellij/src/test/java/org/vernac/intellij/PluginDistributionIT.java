@@ -162,6 +162,7 @@ class PluginDistributionIT {
                     ".gitignore",
                     ".gitattributes",
                     "src/main/vernac/org/example/tasks/tasks.vernac",
+                    "src/test/vernac/org/example/tasks/task-lifecycle.vernac",
                     "src/test/java/org/example/tasks/TaskTest.java"
             )) {
                 requireContent(
@@ -172,6 +173,7 @@ class PluginDistributionIT {
 
             for (String templateFile : List.of("pom.xml", "README.md", "compose.yaml", "Dockerfile", ".gitignore", ".dockerignore",
                     "src/main/vernac/org/example/tasks/tasks.vernac",
+                    "src/test/vernac/org/example/tasks/task-lifecycle.vernac",
                     "src/main/java/org/example/tasks/TasksApplication.java",
                     "src/main/java/org/example/tasks/adapter/inbound/web/WebSecurity.java",
                     "src/main/resources/static/app.css",

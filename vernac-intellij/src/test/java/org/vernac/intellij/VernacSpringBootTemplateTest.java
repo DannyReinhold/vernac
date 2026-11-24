@@ -59,6 +59,14 @@ class VernacSpringBootTemplateTest {
                 "Small wins & friends", pom.getElementsByTagName("name").item(0).getTextContent());
         String pomText = Files.readString(root.resolve("pom.xml"));
         assertTrue(pomText.contains("spring-boot-starter-thymeleaf"));
+        assertTrue(pomText.contains("<goal>test-compile</goal>"));
+        Path testRoot = root.resolve("src/test/vernac");
+        String scenario = Files.readString(
+                testRoot.resolve(namespace.replace('.', '/') + "/task-lifecycle.vernac"));
+        assertTrue(scenario.contains("namespace " + namespace + ";"));
+        var scenarioCompiler = new org.vernac.compiler.pipeline.VernacScenarioCompiler();
+        assertEquals(1, scenarioCompiler.generate(testRoot, scenarioCompiler.discover(testRoot),
+                resolved, root.resolve("target/generated-test-sources/vernac")));
         assertTrue(
                 pomText.contains(
                         "<vernac.version>"

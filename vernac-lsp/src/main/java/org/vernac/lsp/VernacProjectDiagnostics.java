@@ -6,7 +6,9 @@ import org.eclipse.lsp4j.*;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.vernac.compiler.analyzer.CompilerDiagnostic;
 import org.vernac.compiler.analyzer.SemanticValidationException;
+import org.vernac.compiler.ast.SourceLocation;
 import org.vernac.compiler.pipeline.ProjectTypeResolver;
+import org.vernac.compiler.pipeline.ResolvedProject;
 import org.vernac.compiler.pipeline.VernacProjectLoader;
 import org.vernac.compiler.pipeline.VernacScenarioCompiler;
 
@@ -22,6 +24,7 @@ final class VernacProjectDiagnostics {
     private final Set<Path> folders = new LinkedHashSet<>();
     private final Set<String> published = new LinkedHashSet<>();
     private final Map<Path, VernacProjectSymbols> symbolSnapshots = new HashMap<>();
+    private final Map<Path, List<VernacScenarioCompiler.Reference>> scenarioReferences = new HashMap<>();
     private final Map<Path,List<String>> moduleInputStamps=new HashMap<>();
     private final Map<Path,Map<String,Location>> moduleLocations=new HashMap<>();
     private LanguageClient client;
@@ -31,6 +34,7 @@ final class VernacProjectDiagnostics {
 
     synchronized void initialize(InitializeParams params) {
         symbolSnapshots.clear();
+        scenarioReferences.clear();
         moduleLocations.clear();
         moduleInputStamps.clear();
         folders.clear();
@@ -80,6 +84,8 @@ final class VernacProjectDiagnostics {
     }
 
     synchronized List<Location> definition(String uri, Position position) {
+        Path file = path(uri);
+        if (scenarioReferences.containsKey(file)) return scenarioDefinition(open.get(file), file, position);
         var symbols = symbols(uri);
         if(uri.endsWith(".vapplication"))return symbols==null?List.of():symbols.applicationDefinition(text(uri),position,moduleLocations.getOrDefault(rootFor(path(uri)),Map.of()));
         return symbols == null ? List.of() : uri.endsWith(".vmodule") ? symbols.moduleDefinition(text(uri),position) : symbols.definition(path(uri), position);
@@ -211,6 +217,7 @@ final class VernacProjectDiagnostics {
     /** Save/watch notifications reread disk while preserving all open editor snapshots. */
     synchronized void refresh() {
         symbolSnapshots.clear();
+        scenarioReferences.clear();
         moduleLocations.clear();
         moduleInputStamps.clear();
         Map<String, List<Diagnostic>> diagnostics = new LinkedHashMap<>();
@@ -304,8 +311,8 @@ final class VernacProjectDiagnostics {
         }
     }
 
-    private void analyzeScenarios(Path mainRoot, org.vernac.compiler.pipeline.ResolvedProject main,
-                                  List<CompilerDiagnostic> problems) throws IOException {
+    private void analyzeScenarios(Path mainRoot, ResolvedProject main, List<CompilerDiagnostic> problems)
+            throws IOException {
         Path testRoot = mainRoot.getParent().getParent().resolve("test/vernac");
         var compiler = new VernacScenarioCompiler();
         Map<String, String> tests = new TreeMap<>();
@@ -318,10 +325,44 @@ final class VernacProjectDiagnostics {
                 tests.put(file.toString(), document.text());
         });
         try {
-            compiler.validate(tests, main);
+            for (var reference : compiler.validate(tests, main)) {
+                Path file = Path.of(reference.source().sourceName());
+                scenarioReferences.computeIfAbsent(file, ignored -> new ArrayList<>()).add(reference);
+            }
         } catch (SemanticValidationException e) {
             problems.addAll(e.diagnostics());
         }
+    }
+
+    private List<Location> scenarioDefinition(Document document, Path file, Position position) {
+        try {
+            String source = document == null ? Files.readString(file) : document.text();
+            for (var reference : scenarioReferences.getOrDefault(file, List.of())) {
+                if (reference.source().line() - 1 != position.getLine()) continue;
+                var start = scenarioPosition(source, reference.source(), 0);
+                var end = scenarioPosition(source, reference.source(), reference.width());
+                if (start == null || end == null || position.getCharacter() < start.getCharacter()
+                        || position.getCharacter() >= end.getCharacter()) continue;
+                var declaration = reference.declaration();
+                Path target = Path.of(declaration.sourceName());
+                if (!target.isAbsolute() || (!open.containsKey(target) && !Files.isRegularFile(target))) continue;
+                String text = open.containsKey(target) ? open.get(target).text() : Files.readString(target);
+                var at = scenarioPosition(text, declaration, 0);
+                if (at != null) return List.of(new Location(uri(target), new Range(at, at)));
+            }
+        } catch (IOException | InvalidPathException ignored) {
+            // A declaration may no longer be available between editor refreshes.
+        }
+        return List.of();
+    }
+
+    private static Position scenarioPosition(String source, SourceLocation location, int advance) {
+        String[] lines = source.split("\n", -1);
+        int line = location.line() - 1;
+        int column = location.column() - 1 + advance;
+        if (line < 0 || line >= lines.length || column < 0
+                || column > lines[line].codePointCount(0, lines[line].length())) return null;
+        return new Position(line, lines[line].offsetByCodePoints(0, column));
     }
 
     private String uri(Path path) {
