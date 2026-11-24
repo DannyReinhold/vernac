@@ -1,16 +1,16 @@
 # Vernac Basic Example
 
-A small domain model and a Java test to help you get started with Vernac.
+A small domain model with an executable Vernac scenario and a Java test.
 
 No database, Docker, or running Spring application is required.
 
 ## Requirements
 
-- JDK 25 (the generated application targets Java 21).
+- JDK 21 or newer for this example. Use JDK 25 to build Vernac itself.
 - Internet access for the initial download of Maven and dependencies.
 
 <!-- vernac-dependency-note:start -->
-This example uses Vernac `0.5.4-SNAPSHOT`. Install the matching artifacts
+This example uses Vernac `0.6.0-SNAPSHOT`. Install the matching artifacts
 in your local Maven repository first by running `mvn clean install`
 from the Vernac repository root with the JDK required by that build.
 <!-- vernac-dependency-note:end -->
@@ -35,7 +35,9 @@ Linux or macOS:
 ```
 
 The build generates Java classes from `src/main/vernac/org/example/tasks/tasks.vernac`
-and runs `TaskTest`.
+and runs `TaskTest` and the scenario under `src/test/vernac`. The scenario checks the
+task ID and status across a behavior call. Change the expected status after
+`complete()` and rerun the build to see the failing Vernac source line.
 
 ## Explore the Model
 
