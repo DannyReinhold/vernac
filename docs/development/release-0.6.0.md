@@ -16,6 +16,10 @@ rendered-MVC and opt-in persistence tests. Vernac test declarations, test discov
 work for this release. [View tutorial](../tutorials/declarative-views.md) ·
 [Task board source at the planning baseline](https://github.com/DannyReinhold/vernac/tree/db264bd0a41cfacfd96814a164fd11e18ccc1c64/templates/vernac-spring-boot)
 
+The first domain scenario increment covers test source discovery, separate compilation, typed
+fixtures, behavior calls and value assertions in both wizard task models.
+[Domain scenario tutorial](../tutorials/domain-scenarios.md)
+
 ## Two applications of the test language
 
 1. **The wizard task board** is the user-facing acceptance project. Keep its familiar create, complete and

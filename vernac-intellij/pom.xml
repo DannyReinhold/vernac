@@ -146,6 +146,7 @@
                     <include>.gitattributes</include>
                     <include>src/main/vernac/**</include>
                     <include>src/test/java/**</include>
+                    <include>src/test/vernac/**</include>
                 </includes>
             </resource>
             <resource>

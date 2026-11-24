@@ -8,6 +8,7 @@ import org.vernac.compiler.analyzer.CompilerDiagnostic;
 import org.vernac.compiler.analyzer.SemanticValidationException;
 import org.vernac.compiler.pipeline.ProjectTypeResolver;
 import org.vernac.compiler.pipeline.VernacProjectLoader;
+import org.vernac.compiler.pipeline.VernacScenarioCompiler;
 
 import java.io.IOException;
 import java.net.URI;
@@ -115,7 +116,8 @@ final class VernacProjectDiagnostics {
                 }
             }
             open.forEach((source, document) -> {
-                if (root.equals(rootFor(source)) && source.toString().endsWith(".vernac")) texts.put(source, document.text());
+                if (root.equals(rootFor(source)) && source.startsWith(root) && source.toString().endsWith(".vernac"))
+                    texts.put(source, document.text());
             });
             Set<Path> external=new HashSet<>();
             Map<String,Location> moduleTargets=new HashMap<>();
@@ -222,7 +224,7 @@ final class VernacProjectDiagnostics {
                             ? "Application definitions must be named vernac-application.vapplication and stored beside the Maven project's pom.xml."
                             : entry.getKey().toString().endsWith(".vmodule")
                             ? "Place vernac-module.vmodule in its source namespace directory or beside the Maven project's pom.xml."
-                            : "Place this file below a workspace src/main/vernac directory; its namespace must match the relative directory."));
+                            : "Place this file below a workspace src/main/vernac or src/test/vernac directory."));
             } else roots.add(root);
         }
         for (Path root : roots) analyze(root, diagnostics);
@@ -252,6 +254,8 @@ final class VernacProjectDiagnostics {
             });
             var resolved=new ProjectTypeResolver().resolve(project,configurationSnapshots);
             problems.addAll(resolved.diagnostics());
+            if (problems.stream().noneMatch(diagnostic -> diagnostic.severity() == CompilerDiagnostic.Severity.ERROR))
+                analyzeScenarios(root, resolved, problems);
             Path application=org.vernac.compiler.modules.ModuleArtifacts.projectDirectory(root).resolve(org.vernac.compiler.application.ApplicationDefinition.FILE);
             var appSnapshot=open.get(application);
             if(appSnapshot!=null||Files.isRegularFile(application)) {
@@ -300,6 +304,26 @@ final class VernacProjectDiagnostics {
         }
     }
 
+    private void analyzeScenarios(Path mainRoot, org.vernac.compiler.pipeline.ResolvedProject main,
+                                  List<CompilerDiagnostic> problems) throws IOException {
+        Path testRoot = mainRoot.getParent().getParent().resolve("test/vernac");
+        var compiler = new VernacScenarioCompiler();
+        Map<String, String> tests = new TreeMap<>();
+        for (Path file : compiler.discover(testRoot)) {
+            var document = open.get(file);
+            tests.put(file.toString(), document == null ? Files.readString(file) : document.text());
+        }
+        open.forEach((file, document) -> {
+            if (file.startsWith(testRoot) && mainRoot.equals(rootFor(file)) && file.toString().endsWith(".vernac"))
+                tests.put(file.toString(), document.text());
+        });
+        try {
+            compiler.validate(tests, main);
+        } catch (SemanticValidationException e) {
+            problems.addAll(e.diagnostics());
+        }
+    }
+
     private String uri(Path path) {
         Document document = open.get(path);
         return document == null ? path.toUri().toString() : document.uri();
@@ -321,6 +345,8 @@ final class VernacProjectDiagnostics {
         for (Path candidate = file.getParent(); candidate != null; candidate = candidate.getParent()) {
             if(candidate.endsWith(Path.of("target","vernac-module-contracts"))) return candidate.getParent().getParent().resolve("src/main/vernac");
             if (candidate.endsWith(Path.of("src", "main", "vernac"))) return candidate;
+            if (candidate.endsWith(Path.of("src", "test", "vernac")))
+                return candidate.getParent().getParent().resolve("main/vernac");
         }
         return null;
     }

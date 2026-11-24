@@ -118,6 +118,11 @@ class VernacProjectTemplateTest {
                 "src/test/java/org/example/tasks/TaskTest.java"
         )));
 
+        String scenario = Files.readString(
+                project.resolve("src/test/vernac/de/rsas/taskmanager/task-lifecycle.vernac"));
+        assertTrue(scenario.contains("namespace de.rsas.taskmanager;"));
+        assertTrue(generatedPom.contains("<goal>test-compile</goal>"));
+
         String readme = Files.readString(project.resolve("README.md"));
         assertTrue(readme.contains("de.rsas.demo:task-service"));
         assertTrue(readme.contains(
@@ -231,6 +236,7 @@ class VernacProjectTemplateTest {
         String model = Files.readString(module.resolve("src/main/vernac/org/example/values/tasks.vernac"));
         assertFalse(model.contains("aggregate"));
         assertFalse(Files.exists(module.resolve("src/test/java/org/example/values/TaskTest.java")));
+        assertFalse(Files.exists(module.resolve("src/test/vernac")));
         var definition = org.vernac.compiler.modules.ModuleDefinition.parse(
                 module.resolve("vernac-module.vmodule"), Files.readString(module.resolve("vernac-module.vmodule")));
         var project = new org.vernac.compiler.pipeline.VernacCompiler()

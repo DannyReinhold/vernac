@@ -25,6 +25,7 @@ public final class VernacProjectTemplate {
             ".gitignore",
             ".gitattributes",
             "src/main/vernac/org/example/tasks/tasks.vernac",
+            "src/test/vernac/org/example/tasks/task-lifecycle.vernac",
             "src/test/java/org/example/tasks/TaskTest.java"
     );
 
@@ -84,7 +85,7 @@ public final class VernacProjectTemplate {
                 );
             }
 
-            if (kind == ProjectKind.TYPE_MODULE && relativePath.endsWith("TaskTest.java")) continue;
+            if (kind == ProjectKind.TYPE_MODULE && relativePath.startsWith("src/test/")) continue;
 
             byte[] content;
 
@@ -425,6 +426,11 @@ public final class VernacProjectTemplate {
         if (templatePath.startsWith(modelRoot)) {
             return "src/main/vernac/" + basePackage.replace('.', '/')
                     + "/" + templatePath.substring(modelRoot.length());
+        }
+        String scenarioRoot = "src/test/vernac/org/example/tasks/";
+        if (templatePath.startsWith(scenarioRoot)) {
+            return "src/test/vernac/" + basePackage.replace('.', '/')
+                    + "/" + templatePath.substring(scenarioRoot.length());
         }
         String testRoot = "src/test/java/org/example/tasks/";
 

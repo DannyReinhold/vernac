@@ -55,6 +55,34 @@ class VernacProjectDiagnosticsTest {
     }
     List<Diagnostic> diagnostics(Path path) { return client.latest.get(path.toUri().toString()).getDiagnostics(); }
 
+    @Test
+    void scenarioDiagnosticsFollowUnsavedTestAndModelEdits() throws Exception {
+        Path model = file("model", "status", "value Status = OPEN | DONE;");
+        Path scenario = directory.resolve("src/test/vernac/model/scenarios.vernac");
+        String source = """
+                namespace model;
+                suite Lifecycle {
+                    scenario opens {
+                        given status = Status.OPEN;
+                        expect status equals Status.OPEN;
+                    }
+                }
+                """;
+        open(scenario, source);
+        assertTrue(diagnostics(scenario).isEmpty(), diagnostics(scenario).toString());
+
+        change(scenario, source.replace("equals Status.OPEN", "equals true"), 2);
+        assertTrue(diagnostics(scenario).stream().anyMatch(d -> d.getMessage().contains("Expected model.Status")));
+        change(scenario, source, 3);
+        assertTrue(diagnostics(scenario).isEmpty(), diagnostics(scenario).toString());
+
+        open(model, "namespace model; value Status = DONE;");
+        assertTrue(diagnostics(scenario).stream().anyMatch(d -> d.getMessage().contains("Unknown enum member")));
+        assertTrue(diagnostics(model).isEmpty(), diagnostics(model).toString());
+        change(model, Files.readString(model), 2);
+        assertTrue(diagnostics(scenario).isEmpty(), diagnostics(scenario).toString());
+    }
+
     @Test void domainFieldAndContainmentErrorsAppearAndClearWhileEditing() throws Exception {
         Path model = file("model", "model", "id Key; entity Node[Key](String text);");
         open(model);
