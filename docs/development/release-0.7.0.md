@@ -141,8 +141,11 @@ The execution session now passes the checked production model and selected JUnit
 executor call. It advances its comparison baseline only after the backend reports a pass for every
 selected case. An incomplete report, a skipped test or a failed run cannot establish a new baseline.
 Opaque input changes invalidate the old baseline even if the attempted run fails. The in-process
-test backend exercises this contract. A production backend for warm application classes and
-scenario execution remains open.
+test backend exercises this contract. An optional in-process JUnit executor now compiles generated
+Java with the Java 21 target, runs the selected Jupiter scenarios in the same process and isolates
+each generated revision in a dedicated classloader. Its caller supplies the dependency classpath
+and the Jupiter engine. It rebuilds generated classes for each nonempty run. Host source builds,
+warm class reuse, and integration-profile acceptance remain open.
 
 ## Daemon, editor and agent protocol
 
