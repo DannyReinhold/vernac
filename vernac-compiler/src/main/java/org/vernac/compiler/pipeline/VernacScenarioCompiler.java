@@ -108,9 +108,31 @@ public final class VernacScenarioCompiler {
      * Callers must account for transitive effects, Java fixtures and other opaque inputs.
      */
     public List<ScenarioReferences> inspect(Map<String, String> sources, ResolvedProject main) {
+        return catalog(sources, main).references();
+    }
+
+    Catalog catalog(Map<String, String> sources, ResolvedProject main) {
         var inventory = new ArrayList<ScenarioReferences>();
-        compile(sources, main, null, true, null, inventory);
-        return List.copyOf(inventory);
+        var compiled = compile(new java.util.TreeMap<>(sources), main, null, true, null, inventory);
+        // The bridge and inventory share the compiler's scenario order.
+        var methods = new LinkedHashMap<String, MethodSpec>();
+        for (int index = 0; index < inventory.size(); index++)
+            methods.put(inventory.get(index).id(), compiled.bridge().typeSpec().methodSpecs().get(index));
+        return new Catalog(List.copyOf(inventory), Map.copyOf(methods));
+    }
+
+    record Catalog(List<ScenarioReferences> references, Map<String, MethodSpec> methods) {
+        JavaFile bridge(Set<String> ids, String profile) {
+            var bridge = TypeSpec.classBuilder(BRIDGE);
+            var missing = new java.util.TreeSet<>(ids);
+            for (var test : references) {
+                if (includesProfile(profile, test.profile()) && missing.remove(test.id()))
+                    bridge.addMethod(methods.get(test.id()));
+            }
+            if (!missing.isEmpty())
+                throw error(SourceLocation.UNKNOWN, "Vernac scenarios not found in the selected profiles: " + missing);
+            return JavaFile.builder(PACKAGE, bridge.build()).indent("    ").build();
+        }
     }
 
     public record ScenarioReferences(String id, String profile, SourceLocation location, boolean usesJavaFixture,

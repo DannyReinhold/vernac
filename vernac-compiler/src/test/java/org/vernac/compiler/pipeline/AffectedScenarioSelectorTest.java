@@ -25,6 +25,60 @@ class AffectedScenarioSelectorTest {
     @TempDir Path root;
 
     @Test
+    void generatedAffectedTestsFindTheSameFailureAsTheFullSuite() throws Exception {
+        var counter = Path.of("app/counter.vernac");
+        var sources = new VersionedSources(root, Map.of(counter, "namespace app; value Counter(int);",
+                Path.of("app/label.vernac"), "namespace app; value Label(String);"));
+        var tests = Map.of("checks.vernac", """
+                namespace app;
+                suite Checks {
+                    scenario counter { given counter = Counter(1); expect counter.intValue equals 1; }
+                    scenario label { given label = Label("ok"); expect label.string equals "ok"; }
+                }
+                """);
+        var initial = sources.snapshot();
+        var session = new ScenarioPlanningSession(root, Map.of(), List.of());
+        var baseline = session.plan(Optional.empty(), new ScenarioPlanningSession.Inputs(initial, tests), false, null);
+        assertEquals(Map.of("app$dChecks$dcounter", true, "app$dChecks$dlabel", true), run(baseline, initial));
+
+        var changed = sources.apply(0, List.of(new VersionedSources.Put(counter,
+                "namespace app; value Counter(int) validates { require self intValue > 1 else TooSmall. };")));
+        var inputs = new ScenarioPlanningSession.Inputs(changed, tests);
+        var affected = session.plan(Optional.of(baseline.target()), inputs, false, null);
+        var all = session.plan(Optional.empty(), inputs, false, null);
+        assertEquals(List.of(new Selection("app.Checks.counter", CHANGED_DEPENDENCY)), affected.selected());
+        assertEquals(Map.of("app$dChecks$dcounter", false), run(affected, changed));
+        assertEquals(Map.of("app$dChecks$dcounter", false, "app$dChecks$dlabel", true), run(all, changed));
+    }
+
+    private Map<String, Boolean> run(ScenarioPlanningSession.Plan plan, VersionedSources.Snapshot sources)
+            throws Exception {
+        var project = new ProjectTypeResolver().resolve(new VernacProjectLoader().openSession(root)
+                .loadSnapshot(sources.sources()));
+        var files = new java.util.ArrayList<>(new VernacCompiler()
+                .generate(project, org.vernac.compiler.persistence.SchemaModel.empty(), Map.of()).generatedFiles());
+        var bridge = plan.testBridge();
+        files.add(bridge);
+        var compilation = org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(files);
+        org.junit.jupiter.api.Assertions.assertTrue(compilation.success(), compilation.diagnostics().toString());
+        var generated = compilation.loadClass(bridge.packageName() + "." + bridge.typeSpec().name());
+        var constructor = generated.getDeclaredConstructor();
+        constructor.setAccessible(true);
+        var outcomes = new java.util.HashMap<String, Boolean>();
+        for (var method : generated.getDeclaredMethods()) {
+            if (!method.isAnnotationPresent(Test.class)) continue;
+            method.setAccessible(true);
+            try {
+                method.invoke(constructor.newInstance());
+                outcomes.put(method.getName(), true);
+            } catch (java.lang.reflect.InvocationTargetException failure) {
+                outcomes.put(method.getName(), false);
+            }
+        }
+        return outcomes;
+    }
+
+    @Test
     void plansFromCapturedSourceChangesAndKeepsTheVerifiedBaselineExplicit() throws Exception {
         var path = Path.of("app/counter.vernac");
         var sources = new VersionedSources(root, Map.of(path, "namespace app; value Counter(int);"));

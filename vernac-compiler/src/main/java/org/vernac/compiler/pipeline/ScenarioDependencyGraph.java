@@ -10,6 +10,7 @@ import org.vernac.compiler.symbols.ResolvedType;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.List;
 import java.util.Set;
 
 /** Derives the portion of the source graph that the compiler can certify as complete. */
@@ -19,9 +20,13 @@ public final class ScenarioDependencyGraph {
     public static AffectedScenarioSelector.Revision inspect(ResolvedProject project, Map<String, String> testSources) {
         if (project.diagnostics().stream().anyMatch(d -> d.severity() == CompilerDiagnostic.Severity.ERROR))
             throw new IllegalArgumentException("Scenario dependency analysis requires a successfully resolved model");
-        var cases = new VernacScenarioCompiler().inspect(testSources, project);
+        return derive(project, testSources.keySet(), new VernacScenarioCompiler().inspect(testSources, project));
+    }
+
+    static AffectedScenarioSelector.Revision derive(ResolvedProject project, Set<String> testSources,
+            List<VernacScenarioCompiler.ScenarioReferences> cases) {
         var graph = new LinkedHashMap<String, Set<String>>();
-        testSources.keySet().forEach(source -> graph.put(source, Set.of()));
+        testSources.forEach(source -> graph.put(source, Set.of()));
         for (var source : project.project().sources()) {
             String path = source.path().toString();
             // A production file with opaque dependencies must remain uncertified.

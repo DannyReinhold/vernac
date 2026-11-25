@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.vernac.compiler.pipeline;
 
+import com.palantir.javapoet.JavaFile;
 import org.vernac.compiler.analyzer.CompilerDiagnostic;
 import org.vernac.compiler.analyzer.SemanticValidationException;
 import org.vernac.compiler.modules.ModuleDescriptor;
@@ -26,13 +27,15 @@ public final class ScenarioPlanningSession {
         private final Inputs inputs;
         private final String profile;
         private final AffectedScenarioSelector.Revision dependencies;
+        private final VernacScenarioCompiler.Catalog catalog;
 
         private Prepared(ScenarioPlanningSession session, Inputs inputs, String profile,
-                         AffectedScenarioSelector.Revision dependencies) {
+                         AffectedScenarioSelector.Revision dependencies, VernacScenarioCompiler.Catalog catalog) {
             this.session = session;
             this.inputs = inputs;
             this.profile = profile;
             this.dependencies = dependencies;
+            this.catalog = catalog;
         }
 
         public long revision() { return inputs.main().revision(); }
@@ -40,6 +43,13 @@ public final class ScenarioPlanningSession {
 
     public record Plan(Prepared target, List<AffectedScenarioSelector.Selection> selected) {
         public Plan { selected = List.copyOf(selected); }
+
+        /** Emits the selected JUnit methods from this plan's already validated scenario sources. */
+        public JavaFile testBridge() {
+            var ids = selected.stream().map(AffectedScenarioSelector.Selection::id)
+                    .collect(java.util.stream.Collectors.toUnmodifiableSet());
+            return target.catalog.bridge(ids, target.profile);
+        }
     }
 
     private final WorkspaceCheckSession checks;
@@ -56,8 +66,10 @@ public final class ScenarioPlanningSession {
         var check = checks.check(target.main());
         if (check.diagnostics().stream().anyMatch(d -> d.severity() == CompilerDiagnostic.Severity.ERROR))
             throw new SemanticValidationException(check.diagnostics());
-        var dependencies = ScenarioDependencyGraph.inspect(check.project().orElseThrow(), target.tests());
-        var prepared = new Prepared(this, target, profile, dependencies);
+        var resolved = check.project().orElseThrow();
+        var catalog = new VernacScenarioCompiler().catalog(target.tests(), resolved);
+        var dependencies = ScenarioDependencyGraph.derive(resolved, target.tests().keySet(), catalog.references());
+        var prepared = new Prepared(this, target, profile, dependencies, catalog);
 
         var previous = baseline.filter(candidate -> candidate.session == this && Objects.equals(candidate.profile, profile));
         var changed = new HashSet<String>();

@@ -132,7 +132,10 @@ two checked workspace revisions with the derived graph and verifies that an unre
 excluded. A planning session now compares exact production and test source snapshots and returns
 case IDs and reasons for the target revision. The caller supplies a verified baseline from the
 same session and profile. A foreign or mismatched baseline selects the full profile. Broader
-dependency extraction and the connection to the warm runner remain open.
+dependency extraction and the connection to the warm runner remain open. A plan can now
+materialize its selected JUnit methods from the same checked scenario texts without parsing
+the tests again. The regression suite compiles and executes both the affected and full lists
+after a validation edit and checks that both expose the same failing scenario.
 
 ## Daemon, editor and agent protocol
 
