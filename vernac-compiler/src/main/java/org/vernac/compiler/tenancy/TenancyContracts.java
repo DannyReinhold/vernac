@@ -23,12 +23,17 @@ public final class TenancyContracts {
     /** Editor configuration snapshots override disk without changing build behavior. */
     public static List<CompilerDiagnostic> validate(VernacProject project, Map<java.nio.file.Path, FileTypeScope> scopes,
                                                   Map<java.nio.file.Path, String> snapshots) {
+        return validate(project, scopes, snapshots, true);
+    }
+
+    public static List<CompilerDiagnostic> validate(VernacProject project, Map<java.nio.file.Path, FileTypeScope> scopes,
+                                                  Map<java.nio.file.Path, String> snapshots, boolean includeDisk) {
         var base = ModuleArtifacts.projectDirectory(project.sourceRoot());
         List<CompilerDiagnostic> diagnostics = new ArrayList<>();
         boolean explicit = false;
         for (String name : List.of(ApplicationDefinition.FILE, ModuleDefinition.FILE)) {
             var path = base.resolve(name);
-            if (!snapshots.containsKey(path) && !Files.exists(path, java.nio.file.LinkOption.NOFOLLOW_LINKS)) continue;
+            if (!snapshots.containsKey(path) && (!includeDisk || !Files.exists(path, java.nio.file.LinkOption.NOFOLLOW_LINKS))) continue;
             try {
                 String text = snapshots.containsKey(path) ? snapshots.get(path) : Files.readString(path);
                 boolean selected = name.equals(ApplicationDefinition.FILE)

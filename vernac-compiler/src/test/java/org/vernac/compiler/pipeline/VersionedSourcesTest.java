@@ -48,4 +48,42 @@ class VersionedSourcesTest {
                 loader.loadSnapshot(initial.sources()).symbols().find("app.OldId").orElseThrow().sourceFile());
         assertSame(third, workspace.apply(2, List.of(new VersionedSources.Put(model, original))));
     }
+
+    @Test
+    void checksTheRequestedRevisionEvenAfterADifferentRevisionWasChecked() throws Exception {
+        var path = Path.of("app/model.vernac");
+        String valid = "namespace app; value Title(String);";
+        var sources = new VersionedSources(root, Map.of(path, valid));
+        var session = new WorkspaceCheckSession(root, Map.of(), List.of());
+        var initial = sources.snapshot();
+        assertTrue(session.check(initial).diagnostics().isEmpty());
+        assertTrue(session.check(initial).reusedCheck());
+
+        var invalid = sources.apply(0, List.of(new VersionedSources.Put(path,
+                "namespace app; value Title(MissingType);")));
+        var failure = session.check(invalid);
+        assertEquals(1L, failure.revision());
+        assertFalse(failure.diagnostics().isEmpty());
+        assertTrue(session.check(invalid).reusedCheck());
+
+        var syntax = sources.apply(1, List.of(new VersionedSources.Put(path, "namespace app; value ;")));
+        assertTrue(session.check(syntax).project().isEmpty());
+        assertFalse(session.check(syntax).diagnostics().isEmpty());
+        assertTrue(session.check(initial).diagnostics().isEmpty());
+        assertEquals(0L, session.check(initial).revision());
+    }
+
+
+    @Test
+    void usesCapturedModuleConfigurationInsteadOfReadingDisk() throws Exception {
+        var path = Path.of("app/model.vernac");
+        var module = root.resolve("app/vernac-module.vmodule");
+        Files.createDirectories(module.getParent());
+        Files.writeString(module, "module app { export app.Missing; }");
+        var snapshot = new VersionedSources(root, Map.of(path, "namespace app; value Title(String);")).snapshot();
+        assertTrue(new WorkspaceCheckSession(root, Map.of(), List.of()).check(snapshot).diagnostics().isEmpty());
+        assertFalse(new WorkspaceCheckSession(root, Map.of(module, Files.readString(module)), List.of())
+                .check(snapshot).diagnostics().isEmpty());
+    }
+
 }
