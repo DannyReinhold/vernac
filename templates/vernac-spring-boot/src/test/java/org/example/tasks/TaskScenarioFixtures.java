@@ -3,7 +3,7 @@ package org.example.tasks;
 import org.example.tasks.usecase.CreateTask;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.mock.web.MockServletContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -12,7 +12,7 @@ import org.vernac.runtime.events.EventHandler;
 
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
-@Configuration(proxyBeanMethods = false)
+@TestConfiguration(proxyBeanMethods = false)
 public class TaskScenarioFixtures {
     static final class Board implements AutoCloseable {
         private final AnnotationConfigWebApplicationContext web = new AnnotationConfigWebApplicationContext();
