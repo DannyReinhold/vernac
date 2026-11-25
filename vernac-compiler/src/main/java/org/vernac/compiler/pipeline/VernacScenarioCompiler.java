@@ -92,7 +92,7 @@ public final class VernacScenarioCompiler {
             String source = "src/test/vernac/" + root.relativize(path).toString().replace('\\', '/');
             texts.put(source, Files.readString(path));
         }
-        var compiled = compile(texts, main, profile, false, caseIds);
+        var compiled = compile(texts, main, profile, false, caseIds, null);
         if (caseIds == null && profile != null && compiled.caseCount() == 0)
             throw error(new SourceLocation(root.toString(), 0, 0), "No Vernac scenarios match profile '" + profile + "'");
         GeneratedSourceWriter.write(List.of(compiled.bridge()), output);
@@ -101,7 +101,21 @@ public final class VernacScenarioCompiler {
 
     /** Checks the same source snapshots used for generation without writing generated files. */
     public List<Reference> validate(Map<String, String> sources, ResolvedProject main) {
-        return compile(sources, main, null, true, null).references();
+        return compile(sources, main, null, true, null, null).references();
+    }
+
+    /** Models the direct references reported by scenario validation, including other profiles.
+     * Callers must account for transitive effects, Java fixtures and other opaque inputs.
+     */
+    public List<ScenarioReferences> inspect(Map<String, String> sources, ResolvedProject main) {
+        var inventory = new ArrayList<ScenarioReferences>();
+        compile(sources, main, null, true, null, inventory);
+        return List.copyOf(inventory);
+    }
+
+    public record ScenarioReferences(String id, String profile, SourceLocation location,
+                                     List<Reference> directReferences) {
+        public ScenarioReferences { directReferences = List.copyOf(directReferences); }
     }
 
     /** A source reference and its resolved model declaration, with a code-point width. */
@@ -109,7 +123,7 @@ public final class VernacScenarioCompiler {
 
     private record Compilation(JavaFile bridge, int caseCount, List<Reference> references) { }
 
-    private Compilation compile(Map<String, String> sources, ResolvedProject main, String selectedProfile, boolean allProfiles, Set<String> caseIds) {
+    private Compilation compile(Map<String, String> sources, ResolvedProject main, String selectedProfile, boolean allProfiles, Set<String> caseIds, List<ScenarioReferences> inventory) {
         var bridge = TypeSpec.classBuilder(BRIDGE);
         List<Reference> references = new ArrayList<>();
         Set<String> suites = new HashSet<>();
@@ -148,7 +162,12 @@ public final class VernacScenarioCompiler {
                         throw error(location(source, scenario.name), VernacNames.invalidNameMessage(scenarioName));
                     String id = suiteId + "." + scenarioName;
                     if (!cases.add(id)) throw error(location(source, scenario), "Duplicate scenario '" + id + "'");
+                    int firstReference = references.size();
                     var test = new Scenario(source, id, scope, main, model.definitions(), references, configuration, profile).compile(scenario);
+                    if (inventory != null) {
+                        inventory.add(new ScenarioReferences(id, profile, location(source, scenario),
+                                references.subList(firstReference, references.size())));
+                    }
                     if (selected && (remaining == null || remaining.remove(id))) {
                         bridge.addMethod(test);
                         executed++;

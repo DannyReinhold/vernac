@@ -32,6 +32,22 @@ class VernacScenarioCompilerTest {
             """;
 
     @Test
+    void reportsDirectReferencesPerScenarioWithoutMixingCases() throws IOException {
+        var text = SCENARIO.replace("scenario completes {",
+                "scenario independent { expect true equals true; } scenario completes {");
+        var main = mainModel();
+        var inventory = compiler.inspect(java.util.Map.of("tasks.vernac", text), main);
+        assertEquals(java.util.List.of("example.tests.Tasks.independent", "example.tests.Tasks.completes"),
+                inventory.stream().map(VernacScenarioCompiler.ScenarioReferences::id).toList());
+        assertTrue(inventory.getFirst().directReferences().isEmpty());
+        var task = inventory.getLast();
+        assertEquals("domain", task.profile());
+        assertEquals("tasks.vernac", task.location().sourceName());
+        assertTrue(task.directReferences().stream()
+                .anyMatch(reference -> reference.declaration().sourceName().endsWith("tasks.vernac")));
+    }
+
+    @Test
     void emitsOnlyRequestedScenariosAndRejectsUnknownIds() throws IOException {
         var main = mainModel();
         var root = Files.createDirectories(project.resolve("src/test/vernac"));
