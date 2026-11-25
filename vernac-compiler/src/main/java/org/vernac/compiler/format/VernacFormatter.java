@@ -8,7 +8,7 @@ import org.vernac.compiler.parser.*;
 
 /** Whitespace-only file formatter. The parser identifies Java islands; the lexer guards every token. */
 public final class VernacFormatter {
-    public enum Kind { MODEL, APPLICATION, MODULE }
+    public enum Kind { MODEL, APPLICATION, MODULE, TEST }
     private VernacFormatter() {}
     public static String format(String source) {return format(source,Kind.MODEL);}
     public static String format(String source,Kind kind) {
@@ -16,7 +16,7 @@ public final class VernacFormatter {
         var listener=new BaseErrorListener(){@Override public void syntaxError(Recognizer<?,?> r,Object token,int line,int column,String message,RecognitionException e){errors[0]++;}};
         var lexer=new VernacLexer(CharStreams.fromString(source));lexer.removeErrorListeners();lexer.addErrorListener(listener);
         var stream=new CommonTokenStream(lexer);var parser=new VernacParser(stream);parser.removeErrorListeners();parser.addErrorListener(listener);
-        ParseTree tree=switch(kind){case MODEL->parser.compilationUnit();case APPLICATION->parser.applicationDefinition();case MODULE->parser.moduleDefinition();};
+        ParseTree tree=switch(kind){case MODEL->parser.compilationUnit();case APPLICATION->parser.applicationDefinition();case MODULE->parser.moduleDefinition();case TEST->parser.testCompilationUnit();};
         stream.fill();if(errors[0]!=0)return source;
         List<Token> tokens=stream.getTokens();Map<Integer,Integer> java=new HashMap<>();Set<Integer> declarations=new HashSet<>(), members=new HashSet<>(), angles=new HashSet<>();
         walk(tree,tokens,java,declarations,members,angles);
@@ -70,7 +70,8 @@ public final class VernacFormatter {
             if(start>=0&&end<tokens.size()&&tokens.get(start).getText().equals("{")&&tokens.get(end).getText().equals("}"))java.put(start,end);
             return;
         }
-        if(tree instanceof VernacParser.TopLevelDeclarationContext declaration)declarations.add(declaration.getStop().getTokenIndex());
+        if(tree instanceof VernacParser.TopLevelDeclarationContext || tree instanceof VernacParser.TestSuiteContext)
+            declarations.add(((ParserRuleContext) tree).getStop().getTokenIndex());
         if(tree instanceof VernacParser.NamespaceDeclarationContext declaration)declarations.add(declaration.getStop().getTokenIndex());
         for(int i=0;i<tree.getChildCount();i++)walk(tree.getChild(i),tokens,java,declarations,members,angles);
     }

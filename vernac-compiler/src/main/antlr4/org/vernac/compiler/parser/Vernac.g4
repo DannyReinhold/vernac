@@ -22,6 +22,37 @@ compilationUnit
     : namespaceDeclaration importDeclaration* topLevelDeclaration* EOF
     ;
 
+testCompilationUnit
+    : namespaceDeclaration importDeclaration* testSuite+ EOF
+    ;
+
+testSuite
+    : 'suite' name=typeName '{' testScenario+ '}'
+    ;
+
+testScenario
+    : 'scenario' name=methodName '{' testStep* testAssertion (testStep | testAssertion)* '}'
+    ;
+
+testStep
+    : 'given' fixture=variableName '=' value=testExpression ';'
+    | 'when' receiver=variableName '.' action=methodName '(' testArguments? ')' ';'
+    ;
+
+testAssertion
+    : 'expect' actual=testExpression ('equals' expected=testExpression | 'is' presence=('present' | 'absent')) ';'
+    ;
+
+testArguments
+    : testExpression (',' testExpression)*
+    ;
+
+testExpression
+    : factory=qualifiedName '(' testArguments? ')'
+    | literal=(STRING_LITERAL | INT_LITERAL | BOOLEAN_LITERAL | 'true' | 'false')
+    | reference=qualifiedName
+    ;
+
 namespaceDeclaration
     : 'namespace' qualifiedName ';'
     ;
@@ -395,7 +426,8 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
+    : 'suite' | 'scenario' | 'given' | 'expect' | 'equals'
+    | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
     | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
@@ -501,7 +533,8 @@ typeName
     ;
 
 methodName
-    : 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
+    : 'suite' | 'scenario' | 'given' | 'expect' | 'equals'
+    | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
     | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
@@ -514,7 +547,8 @@ methodName
     ;
 
 variableName
-    : 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
+    : 'suite' | 'scenario' | 'given' | 'expect' | 'equals'
+    | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
     | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant' | 'read' | 'modify'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'

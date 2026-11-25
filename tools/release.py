@@ -64,6 +64,10 @@ REQUIRED_TESTS += (
 )
 
 
+# 0.6.0 test source parsing, type checking and generation.
+REQUIRED_TESTS += ("VernacScenarioCompilerTest",)
+
+
 def require(condition, message):
     if not condition:
         raise ValueError(message)

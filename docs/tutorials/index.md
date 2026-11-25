@@ -52,6 +52,8 @@ Already know DDD? Start at the first domain model or use the
 
 9. [See the architecture](domain-diagrams.md): a namespace diagram, vocabulary and export for documentation.
 
+[Test a domain behavior in Vernac](domain-scenarios.md) follows the task lifecycle in the 0.6.0 wizard project.
+
 ## Debug the business rule
 
 [Debug your business behavior where you wrote it](debugging.md) walks through
