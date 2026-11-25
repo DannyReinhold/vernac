@@ -206,6 +206,35 @@ def audit_tests():
     summary("Release tests passed, including required PostgreSQL, modules, pagination, plugin, vocabulary, diagrams and HTTP/documentation suites; no skipped tests in reactor module reports.")
 
 
+WORKSPACE_CASES = {
+    "default": (
+        "PermittedDeletion.deletesAndEmits",
+        "DeniedDeletion.preservesStateAndEmitsNothing",
+        "EditorView.authorizedActionIsVisible",
+        "ReaderView.hiddenActionAndDirectPostAreDenied",
+    ),
+    "postgres": (
+        "CommittedDeletion.removalAndEventAreCommitted",
+        "DeniedTransaction.rejectionDoesNotWrite",
+        "FailedDelivery.failureRollsBackRemovalAndEvent",
+    ),
+}
+
+
+def audit_workspace_scenarios(directory):
+    for profile, cases in WORKSPACE_CASES.items():
+        report = directory / profile / "TEST-org.vernac.generated.VernacScenariosTest.xml"
+        require(report.is_file(), f"Missing workspace scenario report for {profile}: {report}")
+        suite = ET.parse(report).getroot()
+        executed = {case.get("name") for case in suite.findall("testcase")
+                    if all(case.find(tag) is None for tag in ("failure", "error", "skipped"))}
+        required = {("example.documents." + case).replace(".", "$d") for case in cases}
+        require(required <= executed, f"Missing successful workspace cases for {profile}: {sorted(required - executed)}")
+        require(all(int(suite.get(key, "0")) == 0 for key in ("failures", "errors", "skipped")),
+                f"Workspace scenario failures, errors or skips in {report}")
+    summary("All required Document Workspace scenarios passed in the default and postgres profiles.")
+
+
 def consumer(directory, release, output):
     """Use the packaged template, including its actual source/tests, with fresh Central dependencies."""
     release = version(release)
@@ -266,7 +295,7 @@ def upload(directory, release, run_id, attempt):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("version", "modules", "candidate", "provenance", "central", "unpublished", "tests", "consumer", "upload"))
+    parser.add_argument("command", choices=("version", "modules", "candidate", "provenance", "central", "unpublished", "tests", "workspace-scenarios", "consumer", "upload"))
     parser.add_argument("--version", default=os.environ.get("RELEASE_VERSION", ""))
     parser.add_argument("--directory", type=Path, default=Path("release-candidate"))
     parser.add_argument("--run-id", default=os.environ.get("SOURCE_RUN_ID", ""))
@@ -280,6 +309,7 @@ def main():
     elif args.command == "version": print(version(args.version))
     elif args.command == "candidate": candidate(args.version, args.directory)
     elif args.command == "tests": audit_tests()
+    elif args.command == "workspace-scenarios": audit_workspace_scenarios(args.directory)
     elif args.command == "central": central(args.version, args.timeout)
     elif args.command == "unpublished": central(args.version, 0, True)
     elif args.command == "consumer": consumer(args.directory, args.version, args.output)

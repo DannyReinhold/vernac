@@ -22,6 +22,9 @@ contains a complete model. For an introduction, follow the [tutorials](tutorials
 
 </details>
 
+In the 0.6.0 development line, `src/test/vernac` contains executable
+[suites and scenarios](tutorials/domain-scenarios.md) with the domain, MVC and PostgreSQL profiles.
+
 ## Files, namespaces and imports
 
 The conventional source root is `src/main/vernac`. Files are UTF-8, end in `.vernac`,

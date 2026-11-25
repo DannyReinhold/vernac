@@ -108,6 +108,27 @@ jobs:
       - name: Require release test execution
         run: python3 tools/release.py tests
 
+      - name: Verify and archive the Document Workspace scenarios
+        shell: bash
+        run: |
+          set -euo pipefail
+          report=examples/document-workspace-scenarios/target/surefire-reports/TEST-org.vernac.generated.VernacScenariosTest.xml
+          evidence="${RUNNER_TEMP}/vernac-scenario-reports"
+          mkdir -p "$evidence/default" "$evidence/postgres"
+          cp "$report" "$evidence/default/"
+          rm "$report"
+          mvn -B -ntp -Drevision="$RELEASE_VERSION" -pl examples/document-workspace-scenarios -am \
+            -Dvernac.testProfile=postgres -Dtest=VernacScenariosTest -Dsurefire.failIfNoSpecifiedTests=false test
+          cp "$report" "$evidence/postgres/"
+          python3 tools/release.py workspace-scenarios --directory "$evidence"
+
+      - name: Archive scenario test reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: vernac-scenario-tests-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/vernac-scenario-reports/
+          if-no-files-found: error
+
       - name: Prepare plugin candidate
         id: candidate
         shell: bash

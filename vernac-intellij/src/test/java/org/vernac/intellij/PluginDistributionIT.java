@@ -178,6 +178,8 @@ class PluginDistributionIT {
                     "src/main/java/org/example/tasks/adapter/inbound/web/WebSecurity.java",
                     "src/main/resources/static/app.css",
                     "src/main/resources/application.yaml", "src/main/resources/application-local.yaml",
+                    "src/test/vernac/org/example/tasks/task-views.vernac",
+                    "src/test/java/org/example/tasks/TaskScenarioFixtures.java",
                     "src/test/java/org/example/tasks/TaskWebTest.java", "src/test/java/org/example/tasks/TaskPersistenceIT.java")) {
                 requireContent(plugin, "projectTemplates/vernac-spring-boot/" + templateFile);
             }

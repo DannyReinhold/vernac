@@ -16,9 +16,13 @@ rendered-MVC and opt-in persistence tests. Vernac test declarations, test discov
 work for this release. [View tutorial](../tutorials/declarative-views.md) ·
 [Task board source at the planning baseline](https://github.com/DannyReinhold/vernac/tree/db264bd0a41cfacfd96814a164fd11e18ccc1c64/templates/vernac-spring-boot)
 
-The first domain scenario increment covers test source discovery, separate compilation, typed
-fixtures, behavior calls and value assertions in both wizard task models.
-[Domain scenario tutorial](../tutorials/domain-scenarios.md)
+The executable test sources are in both wizard templates and in
+`examples/document-workspace-scenarios`. The wizard runs the domain and rendered
+MVC scenarios with the default Maven test lifecycle. The Document Workspace
+uses the same permission evaluator for its projected action and command guard.
+Its `postgres` profile verifies persisted state after successful, denied and
+rolled-back commands. Release verification checks the named cases in both
+profile reports. [Scenario tutorial](../tutorials/domain-scenarios.md)
 
 ## Two applications of the test language
 

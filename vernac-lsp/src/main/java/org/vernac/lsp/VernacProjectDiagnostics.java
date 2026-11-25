@@ -24,6 +24,7 @@ final class VernacProjectDiagnostics {
     private final Set<Path> folders = new LinkedHashSet<>();
     private final Set<String> published = new LinkedHashSet<>();
     private final Map<Path, VernacProjectSymbols> symbolSnapshots = new HashMap<>();
+    private final Map<Path, ResolvedProject> scenarioModels = new HashMap<>();
     private final Map<Path, List<VernacScenarioCompiler.Reference>> scenarioReferences = new HashMap<>();
     private final Map<Path,List<String>> moduleInputStamps=new HashMap<>();
     private final Map<Path,Map<String,Location>> moduleLocations=new HashMap<>();
@@ -35,6 +36,7 @@ final class VernacProjectDiagnostics {
     synchronized void initialize(InitializeParams params) {
         symbolSnapshots.clear();
         scenarioReferences.clear();
+        scenarioModels.clear();
         moduleLocations.clear();
         moduleInputStamps.clear();
         folders.clear();
@@ -74,6 +76,9 @@ final class VernacProjectDiagnostics {
     }
 
     synchronized List<CompletionItem> complete(String uri, Position position) {
+        Path document = path(uri);
+        var model = scenarioModels.get(document);
+        if (model != null && open.containsKey(document)) return scenarioCompletions(open.get(document), model, position);
         var symbols = symbols(uri);
         if(uri.endsWith(".vapplication"))return symbols==null?List.of():applicationComplete(uri,position,symbols);
         return symbols == null ? List.of() : uri.endsWith(".vmodule") ? symbols.moduleComplete(text(uri),position) : symbols.complete(path(uri), position);
@@ -218,6 +223,7 @@ final class VernacProjectDiagnostics {
     synchronized void refresh() {
         symbolSnapshots.clear();
         scenarioReferences.clear();
+        scenarioModels.clear();
         moduleLocations.clear();
         moduleInputStamps.clear();
         Map<String, List<Diagnostic>> diagnostics = new LinkedHashMap<>();
@@ -324,6 +330,7 @@ final class VernacProjectDiagnostics {
             if (file.startsWith(testRoot) && mainRoot.equals(rootFor(file)) && file.toString().endsWith(".vernac"))
                 tests.put(file.toString(), document.text());
         });
+        tests.keySet().forEach(file -> scenarioModels.put(Path.of(file), main));
         try {
             for (var reference : compiler.validate(tests, main)) {
                 Path file = Path.of(reference.source().sourceName());
@@ -332,6 +339,28 @@ final class VernacProjectDiagnostics {
         } catch (SemanticValidationException e) {
             problems.addAll(e.diagnostics());
         }
+    }
+
+    private List<CompletionItem> scenarioCompletions(Document document, ResolvedProject model, Position position) {
+        String text = document.text();
+        int lineStart = 0;
+        for (int line = 0; line < position.getLine(); line++) {
+            int newline = text.indexOf('\n', lineStart);
+            if (newline < 0) return List.of();
+            lineStart = newline + 1;
+        }
+        int offset = lineStart + position.getCharacter();
+        int lineEnd = text.indexOf('\n', lineStart);
+        if (offset < lineStart || offset > (lineEnd < 0 ? text.length() : lineEnd)) return List.of();
+        var completion = new VernacScenarioCompiler().complete(document.uri(), text, offset, model);
+        if (completion.candidates().isEmpty() || completion.start() < lineStart) return List.of();
+        var range = new Range(new Position(position.getLine(), completion.start() - lineStart), position);
+        return completion.candidates().stream().map(candidate -> {
+            var item = new CompletionItem(candidate);
+            item.setKind(CompletionItemKind.Reference);
+            item.setTextEdit(org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft(new TextEdit(range, candidate)));
+            return item;
+        }).toList();
     }
 
     private List<Location> scenarioDefinition(Document document, Path file, Position position) {

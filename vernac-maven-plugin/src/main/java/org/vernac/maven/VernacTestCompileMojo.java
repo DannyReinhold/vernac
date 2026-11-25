@@ -41,6 +41,9 @@ public final class VernacTestCompileMojo extends AbstractMojo {
     @Parameter(property = "vernac.skip", defaultValue = "false")
     private boolean skip;
 
+    @Parameter(property = "vernac.testProfile")
+    private String profile;
+
     @Parameter(property = "maven.test.skip", defaultValue = "false")
     private boolean skipTestCompilation;
 
@@ -56,9 +59,9 @@ public final class VernacTestCompileMojo extends AbstractMojo {
                     ? new ResolvedProject(new VernacProject(sourceDirectory.toPath(), List.of(),
                             new ProjectSymbolIndex(List.of())), Map.of(), Map.of(), List.of(), List.of())
                     : new VernacCompiler().analyzeProject(sourceDirectory.toPath(), ModuleClasspath.read(project));
-            int count = compiler.generate(root, sources, main, output);
+            int count = compiler.generate(root, sources, main, output, profile);
             project.addTestCompileSourceRoot(output.toString());
-            getLog().info("Discovered " + count + " Vernac scenario(s) in the domain profile.");
+            getLog().info("Selected " + count + " Vernac scenario(s) for " + (profile == null ? "the default profiles" : profile) + ".");
         } catch (SemanticValidationException e) {
             throw new MojoFailureException(e.getMessage(), e);
         } catch (IOException e) {

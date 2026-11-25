@@ -1,0 +1,26 @@
+namespace example.documents;
+
+suite PermittedDeletion using example.documents.WorkspaceFixtures.Editor {
+    scenario deletesAndEmits {
+        when document = invoke AddDocument(DocumentTitle("Minutes"));
+        when before = invoke HasDocument(document);
+        expect before equals DocumentPresence.PRESENT;
+        when invoke DeleteDocument(document);
+        when remaining = invoke HasDocument(document);
+        expect remaining equals DocumentPresence.ABSENT;
+        expect emitted DocumentDeleted count 1;
+        expect emitted DocumentDeleted with documentId equals document count 1;
+        expect calls to DocumentStore.delete count 1;
+    }
+}
+
+suite DeniedDeletion using example.documents.WorkspaceFixtures.Reader {
+    scenario preservesStateAndEmitsNothing {
+        when document = invoke AddDocument(DocumentTitle("Minutes"));
+        when invoke DeleteDocument(document) is ACCESS_DENIED;
+        when remaining = invoke HasDocument(document);
+        expect remaining equals DocumentPresence.PRESENT;
+        expect emitted DocumentDeleted count 0;
+        expect calls to DocumentStore.delete count 0;
+    }
+}

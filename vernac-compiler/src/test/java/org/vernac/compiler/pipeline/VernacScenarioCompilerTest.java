@@ -69,6 +69,68 @@ class VernacScenarioCompilerTest {
     }
 
     @Test
+    void bindsBehaviorResultsAndChecksDomainValidation() throws IOException {
+        var main = mainModel();
+        var root = Files.createDirectories(project.resolve("src/test/vernac"));
+        var source = root.resolve("tasks.vernac");
+        var output = project.resolve("target/generated-test-sources/vernac");
+        Files.writeString(source, SCENARIO.replace("when task.complete();", """
+                when task.complete();
+                when current = task.currentStatus();
+                expect current equals Status.DONE;
+                expect Title(" ") is invalid;
+                """));
+        assertEquals(1, compiler.generate(root, compiler.discover(root), main, output));
+        var bridge = Files.readString(output.resolve("org/vernac/generated/VernacScenariosTest.java"));
+        assertTrue(bridge.contains("var fixture$current = fixture$task.currentStatus()"), bridge);
+        assertTrue(bridge.contains("assertThrows(DomainValidationException.class"), bridge);
+
+        Files.writeString(source, SCENARIO.replace("when task.complete();", "when result = task.complete();"));
+        assertDiagnostic(root, output, main, "tasks.vernac:7:", "does not return a value");
+    }
+
+    @Test
+    void completesFieldsAndUsecasesBeforeTheStatementIsFinished() throws IOException {
+        var main = mainModel();
+        String prefix = """
+                namespace example.tests;
+                import example.domain.*;
+                suite Tasks using example.tests.Configuration {
+                    scenario opens {
+                        given task = Task(Title("Try Vernac"), Status.OPEN);
+                """;
+        String fields = prefix + "expect task.st";
+        var field = compiler.complete("draft.vernac", fields, fields.length(), main);
+        assertEquals(java.util.List.of("task.status"), field.candidates());
+        assertEquals("task.st", fields.substring(field.start()));
+        String usecases = prefix + "when result = invoke Cur";
+        assertEquals(java.util.List.of("CurrentStatus"),
+                compiler.complete("draft.vernac", usecases, usecases.length(), main).candidates());
+    }
+
+    @Test
+    void profileSelectionRejectsAnEmptyRunAndRetiresPreviouslySelectedMethods() throws IOException {
+        var main = mainModel();
+        var root = Files.createDirectories(project.resolve("src/test/vernac"));
+        var source = root.resolve("tasks.vernac");
+        var output = project.resolve("target/generated-test-sources/vernac");
+        Files.writeString(source, SCENARIO + """
+                suite Persistence profile postgres using example.tests.Configuration {
+                    scenario committed { expect true equals true; }
+                }
+                """);
+        assertEquals(1, compiler.generate(root, compiler.discover(root), main, output));
+        var bridge = output.resolve("org/vernac/generated/VernacScenariosTest.java");
+        assertFalse(Files.readString(bridge).contains("committed"));
+        assertEquals(1, compiler.generate(root, compiler.discover(root), main, output, "postgres"));
+        assertTrue(Files.readString(bridge).contains("committed"));
+        assertFalse(Files.readString(bridge).contains("completes"));
+        var failure = assertThrows(SemanticValidationException.class,
+                () -> compiler.generate(root, compiler.discover(root), main, output, "mvc"));
+        assertTrue(failure.getMessage().contains("No Vernac scenarios match profile 'mvc'"));
+    }
+
+    @Test
     void formatsScenariosIdempotently() {
         String compact = "namespace example.tests; suite Tasks{scenario waits{expect true equals true;}}";
         String formatted = VernacFormatter.format(compact, VernacFormatter.Kind.TEST);
@@ -98,10 +160,12 @@ class VernacScenarioCompilerTest {
         Files.writeString(directory.resolve("tasks.vernac"), """
                 namespace example.domain;
                 id TaskId;
-                value Title(String);
+                value Title(String) validates { require(!self.string().isBlank(), "Blank title"); };
                 value Status = OPEN | DONE;
+                usecase CurrentStatus() returns Status behavior { execute { return Status.OPEN; } }
                 aggregate Task[TaskId](Title title, mut Status) behavior {
                     modify void complete() { self.status(Status.DONE); }
+                    read Status currentStatus() { return self.status(); }
                 };
                 """);
         return new VernacCompiler().analyzeProject(root);

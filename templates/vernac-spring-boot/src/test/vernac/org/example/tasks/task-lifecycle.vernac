@@ -13,4 +13,8 @@ suite TaskLifecycle {
         expect task.id equals originalId;
         expect task.taskStatus equals TaskStatus.OPEN;
     }
+
+    scenario rejectsBlankTitle {
+        expect TaskTitle(" ") is invalid;
+    }
 }

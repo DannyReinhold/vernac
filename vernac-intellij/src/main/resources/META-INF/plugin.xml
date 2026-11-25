@@ -101,6 +101,12 @@
 ]]></description>
 
     <change-notes><![CDATA[
+<h3>Vernac 0.6.0</h3>
+<ul>
+  <li>Declare typed MVC pages, components and forms in Vernac. The Spring Boot wizard includes a generated task board.</li>
+  <li>Write executable scenarios for domain behaviors, Spring usecases and rendered MVC actions. Maven runs them alongside Java tests.</li>
+  <li>Format scenarios and navigate or complete references to the model from the editor.</li>
+</ul>
 <h3>Vernac 0.5.4</h3>
 <ul>
     <li>Format Vernac source with Reformat Code, complete MVC template names and navigate to their HTML files.</li>
