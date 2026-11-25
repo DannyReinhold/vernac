@@ -44,7 +44,7 @@ public final class DomainAccessGenerator {
                         .initializer("$T.accessGuard()", BehaviorModification.class).build());
         access.addMethod(MethodSpec.methodBuilder("emit").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class)
                 .addParameter(org.vernac.runtime.DomainEvent.class,"event").addStatement("this.guard.run()")
-                .addStatement("$T.emit(event)",org.vernac.runtime.events.EventContext.class).build());
+                .addStatement("$T.emit(event)",BehaviorModification.class).build());
         forwardGetter(read, getter("id", ResolvedJavaTypes.javaType(project.typeOf(model.id().type())), false), owner, "id");
         for (var field : model.fields()) {
             forwardGetter(read, getter(field.name(), type(field, project), field.type().isOptional()), owner, field.name());
@@ -55,8 +55,9 @@ public final class DomainAccessGenerator {
                     setter.addStatement("$T.requireNonNull($N, $S)", org.vernac.runtime.DomainChecks.class,
                             field.name(), owner.simpleName() + "." + field.name());
                 setter.beginControlFlow("if (!($L))", sameValue(field, owner, project))
-                        .addStatement("$L.this.$N = $N", owner.simpleName(), field.name(), field.name());
-                setter.addStatement("$T.changed($L.this)", BehaviorModification.class, owner.simpleName());
+                        .addStatement("$T.stage($L.this, $S, $N, __vernacValue -> $L.this.$N = __vernacValue)",
+                                BehaviorModification.class, owner.simpleName(), field.name(), field.name(),
+                                owner.simpleName(), field.name());
                 setter.endControlFlow();
                 access.addMethod(setter.build());
             }
@@ -88,7 +89,8 @@ public final class DomainAccessGenerator {
     }
 
     private CodeBlock sameValue(FieldNode field, ClassName owner, ResolvedProject project) {
-        CodeBlock previous = CodeBlock.of("$L.this.$N", owner.simpleName(), field.name());
+        CodeBlock previous = CodeBlock.of("$T.read($L.this, $S, $L.this.$N)",
+                BehaviorModification.class, owner.simpleName(), field.name(), owner.simpleName(), field.name());
         if (project.typeOf(field.type()) instanceof org.vernac.compiler.symbols.ResolvedType.Declared declared) {
             if (declared.symbol().kind() == org.vernac.compiler.symbols.TypeSymbol.Kind.ENTITY)
                 return CodeBlock.of("$L == $N", previous, field.name());

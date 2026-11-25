@@ -155,11 +155,13 @@ are shallow and do not provide a purity/security boundary.
 
 ### Failure semantics
 
-A body or final-validation exception prevents timestamp publication for the scope.
-The previous timestamp remains, but field mutations already performed remain too.
-Abort the use case and discard the affected in-memory graph. Database rollback does
-not restore Java objects. Generated write views expire at scope exit and cannot be used
+Generated writes and event intents are staged until the outermost modification validates.
+A body or final-validation exception discards the candidate, retaining existing field values,
+child identities and timestamps. A nested body exception invalidates the outer modification
+even if its caller catches it. Generated write views expire at scope exit and cannot be used
 from another thread or during validation. The objects themselves are not thread-safe.
+Event delivery follows successful state publication. Database rollback and external side
+effects have their own lifecycles.
 
 ### Technical version access
 
@@ -196,12 +198,12 @@ and overrides are defined by the persistence contract.
 Compiler tests cover factories, optional overloads, id generation, enum/domain fields,
 containment cycles across namespaces and id back-references. Generated-Java execution
 tests cover reconstruction, no-op and nested modification timing, failed validation,
-retained changes, entity replacement, and technical version access. Runtime tests verify
+discarded candidate changes, entity replacement, and technical version access. Runtime tests verify
 callback ordering and scope cleanup. LSP tests verify live diagnostics and their removal.
 
 Persistence and events have separate contracts for schema generation, mappings,
 migrations, transactions and delivery. Deep aggregate ownership enforcement remains
-a separate design topic. The candidate-state design remains postponed; see
+a separate design topic. See
 [the planning record](../development/entity-behavior-and-change-contexts.md).
 
 ## Generated API layout and readability

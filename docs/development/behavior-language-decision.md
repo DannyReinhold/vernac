@@ -7,7 +7,7 @@ title: Choosing a surface syntax for interpreted Vernac behaviors
 **Selected direction.** Vernac uses Smalltalk-style keyword messages for domain calls and conventional
 operators for arithmetic, comparisons and short-circuit Boolean expressions. Behaviors, validations and
 scenarios share the expression grammar. `require`, `match`, `when` and `expect` express control flow and
-test intent explicitly. The precise declaration syntax and optional matching rules remain part of B1.
+test intent explicitly. The precise declaration syntax remains part of B1.
 
 A keyword selector comprises all its parts. `document moveFrom: inbox to: archive` names
 `moveFrom:to:`. Unary messages associate left to right, so `document owner email` first reads the owner.
@@ -22,9 +22,23 @@ expect (task status == Status DONE && task title string != "");
 ```
 
 Scenario predicates currently support fixture paths, enum members, scalar literals, integer arithmetic
-and comparisons, value equality and Boolean operators. The surrounding suite and fixture syntax stays
-compatible with 0.6. Native behavior bodies, validation rules, keyword dispatch and optional matching
-still require compiler and interpreter integration.
+and comparisons, value equality, Boolean operators and optional matching:
+
+```vernac
+expect (match result {
+    present title => title string == "Try Vernac"
+    absent => false
+});
+```
+
+The match subject is evaluated once. Only the selected branch runs, the payload binding is available
+only in the present branch, and both branches must agree on result type and optionality.
+A scenario can also call a declared behavior with `when (document moveFrom: inbox to: archive);`.
+For existing JVM-backed behaviors, the first keyword matches the method name and subsequent
+keywords match parameter names in order. `expect` can call declared read behaviors, while
+`when` also allows modify behaviors. The surrounding suite and fixture syntax stays compatible
+with 0.6. Native behavior bodies and validation rules still require compiler and interpreter
+integration.
 
 ## Alternatives considered
 

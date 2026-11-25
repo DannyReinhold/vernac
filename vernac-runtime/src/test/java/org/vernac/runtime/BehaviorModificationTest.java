@@ -33,6 +33,34 @@ class BehaviorModificationTest {
         BehaviorModification.run(owner, () -> {}, times::add, () -> BehaviorModification.changed(owner));
         assertThat(times).hasSize(1);
     }
+    @Test void aCaughtNestedFailureDiscardsCandidateWritesAndEventIntents() {
+        var parent = new Object();
+        var child = new Object();
+        var writes = new ArrayList<String>();
+        var timestamps = new ArrayList<Instant>();
+        var rejection = new DomainValidationException("child");
+        var event = new DomainEvent() {
+            @Override public EventId eventId() { throw new AssertionError("Event reached delivery"); }
+            @Override public Instant occurredAt() { throw new AssertionError("Event reached delivery"); }
+        };
+        assertThatThrownBy(() -> BehaviorModification.run(parent, () -> {}, timestamps::add, () -> {
+            BehaviorModification.stage(parent, "field", "candidate", writes::add);
+            try {
+                BehaviorModification.run(child, () -> {}, timestamps::add, () -> {
+                    BehaviorModification.stage(child, "field", "child candidate", writes::add);
+                    BehaviorModification.emit(event);
+                    throw rejection;
+                });
+            } catch (DomainValidationException handled) {
+                assertThat(handled).isSameAs(rejection);
+            }
+        })).isInstanceOf(IllegalStateException.class).hasCause(rejection);
+        assertThat(writes).isEmpty();
+        assertThat(timestamps).isEmpty();
+        assertThat(BehaviorModification.read(parent, "field", "committed")).isEqualTo("committed");
+        assertThat(BehaviorModification.read(child, "field", "committed child")).isEqualTo("committed child");
+    }
+
     @Test void noOpAndClosedViewsNeverPublishChanges() {
         Object owner = new Object(); Runnable[] guard = new Runnable[1]; List<Instant> times = new ArrayList<>();
         BehaviorModification.run(owner, () -> {}, times::add, () -> guard[0] = BehaviorModification.accessGuard());

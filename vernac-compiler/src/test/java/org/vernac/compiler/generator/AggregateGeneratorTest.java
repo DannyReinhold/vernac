@@ -48,7 +48,7 @@ class AggregateGeneratorTest {
                 .contains("private final ProjectName name;")
                 .contains("private Money budget;")
                 .contains("public void budget(Money budget)")
-                .contains("BehaviorModification.changed(Project.this)")
+                .contains("BehaviorModification.stage(Project.this, \"budget\"")
                 .contains("public void assignBudget(Money newBudget)")
                 .contains("public ProjectId id()")
                 .contains("public Instant createdAt()")
@@ -79,7 +79,7 @@ class AggregateGeneratorTest {
                 """);
         String code=result.generatedFiles().stream().map(Object::toString).reduce("",String::concat);
         assertThat(code).contains("public void rename(ProjectName newName)", "self.name(newName)",
-                "self.emit(ProjectRenamed.create(self.id(), newName))", "EventContext.emit(event)")
+                "self.emit(ProjectRenamed.create(self.id(), newName))", "BehaviorModification.emit(event)")
                 .doesNotContain("registerEvent", "pullDomainEvents", "domainEvents");
         var compiled=org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(result.generatedFiles());
         assertThat(compiled.success()).withFailMessage(compiled.diagnostics().toString()).isTrue();
@@ -103,9 +103,9 @@ class AggregateGeneratorTest {
                 .contains("public static Customer create(CustomerName customerName, CustomerName customAlias)")
                 .contains("public static Customer reconstitute(CustomerId id, CustomerName customerName, CustomerName customAlias, Instant createdAt, Instant updatedAt, long version)")
                 .contains("public void customAlias(CustomerName customAlias) {")
-                .contains("Customer.this.customAlias = customAlias;")
+                .contains("Customer.this.customAlias = __vernacValue")
                 .contains("public CustomerName customerName() { return this.customerName; }")
-                .contains("public CustomerName customAlias() { return this.customAlias; }");
+                .contains("public CustomerName customAlias() { return BehaviorModification.read(this, \"customAlias\", this.customAlias); }");
     }
 
     @Test

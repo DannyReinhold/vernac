@@ -106,11 +106,16 @@ public final class KeywordExpressionParser {
 
         @Override
         public KeywordExpression visitKeywordPrimary(KeywordPrimaryContext ctx) {
+            if (ctx.subject != null) {
+                var binding = new Name(location(ctx.binding.start), ctx.binding.getText());
+                return new Match(location(ctx.start), visit(ctx.subject), binding,
+                        visit(ctx.onPresent), visit(ctx.onAbsent));
+            }
             if (ctx.variableName() != null) {
                 return new Name(location(ctx.start), ctx.getText());
             }
-            if (ctx.keywordExpression() != null) {
-                return visit(ctx.keywordExpression());
+            if (!ctx.keywordExpression().isEmpty()) {
+                return visit(ctx.keywordExpression(0));
             }
             var kind = ctx.STRING_LITERAL() != null ? Literal.Kind.STRING
                     : ctx.INT_LITERAL() != null ? Literal.Kind.INTEGER

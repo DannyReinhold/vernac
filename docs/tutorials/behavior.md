@@ -152,12 +152,12 @@ entity Counter[CounterId](mut Count count) validates {
 Generate Java before trying completion on the new access interfaces in IntelliJ.
 The field setter is not part of the public Counter API; Java callers use `counter.increment()`.
 
-Modifications currently change objects directly. Validation runs on successful completion
-of the outermost synchronous modify call, including nested modify receivers. If validation
-or behavior throws, changes are **not rolled back**. Discard the affected objects after failure.
+Generated writes are staged. Validation reads the complete candidate at the end of the
+outermost synchronous modify call, including changes to nested receivers. A failed behavior
+or validation leaves the original object graph unchanged.
 Read access is shallow: child entity getters do not yet provide deep read-only views.
 
-For the complete design, limitations, and deferred candidate-state mechanism, see
+For the original design discussion, see
 [Entity behavior and change contexts](../development/entity-behavior-and-change-contexts.md).
 
 Validation expressions use `self.field()` through a separate read view. The owner’s

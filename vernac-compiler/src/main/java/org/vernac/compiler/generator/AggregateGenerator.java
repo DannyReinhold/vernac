@@ -243,13 +243,16 @@ public class AggregateGenerator {
         MethodSpec.Builder getter = MethodSpec.methodBuilder(field.name())
                 .addModifiers(Modifier.PUBLIC);
 
+        CodeBlock value = field.isMutable()
+                ? CodeBlock.of("$T.read(this, $S, this.$N)", org.vernac.runtime.BehaviorModification.class,
+                        field.name(), field.name())
+                : CodeBlock.of("this.$N", field.name());
         if (field.type().isOptional()) {
-            TypeName optionalType = ParameterizedTypeName.get(ClassName.get(Optional.class), baseType);
-            getter.returns(optionalType);
-            getter.addStatement("return $T.ofNullable(this.$N)", Optional.class, field.name());
+            getter.returns(ParameterizedTypeName.get(ClassName.get(Optional.class), baseType));
+            getter.addStatement("return $T.ofNullable($L)", Optional.class, value);
         } else {
             getter.returns(baseType);
-            getter.addStatement("return this.$N", field.name());
+            getter.addStatement("return $L", value);
         }
 
         return getter.build();

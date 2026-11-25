@@ -60,9 +60,9 @@ creation and reconstitution also validate. For modifications, validation still o
 on successful return from the outermost nested modify scope. Intermediate field writes
 are not individually checked by these rules.
 
-There is **no rollback**. Writes occur on the original objects. A failed rule or behavior
-can leave them changed and invalid; callers should abort and discard the affected graph.
-This patch changes access to validation state, not mutation isolation or persistence.
+Validation reads the candidate state from the current modification scope. A failed rule
+or behavior discards staged writes and leaves the original field values in place.
+Database transaction rollback remains a separate boundary.
 
 ## Limits of read access
 

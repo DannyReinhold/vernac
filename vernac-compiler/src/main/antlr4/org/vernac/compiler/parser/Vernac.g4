@@ -39,6 +39,7 @@ testStep
     | 'when' 'request' endpoint=qualifiedName '(' (testBinding (',' testBinding)*)? ')' (csrf='csrf')? ';'
     | 'when' (result=variableName '=')? 'invoke' operation=qualifiedName '(' testArguments? ')'
         ('is' authorizationFailure=qualifiedNameSegment)? ';'
+    | 'when' (result=variableName '=')? '(' keywordAction=keywordExpression ')' ';'
     | 'when' (result=variableName '=')? receiver=variableName '.' action=methodName '(' testArguments? ')' ';'
     ;
 
@@ -439,7 +440,7 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
+    : 'match' | 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
     | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
     | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant'
@@ -541,7 +542,10 @@ keywordPrefix : ('!' | '-') keywordPrefix | unaryMessage ;
 unaryMessage : keywordPrimary keywordSelectorPart* ;
 keywordSelectorPart : methodName | 'emit' | 'from' ;
 keywordPrimary
-    : variableName
+    : 'match' subject=keywordExpression '{'
+      'present' binding=variableName '=>' onPresent=keywordExpression ','?
+      'absent' '=>' onAbsent=keywordExpression '}'
+    | variableName
     | STRING_LITERAL
     | INT_LITERAL
     | DECIMAL_LITERAL
@@ -569,11 +573,11 @@ argumentList
 // Spezifische Namens-Kategorien
 // ==========================================
 typeName
-    : IDENTIFIER | 'unique' | 'references'
+    : 'match' | IDENTIFIER | 'unique' | 'references'
     ;
 
 methodName
-    : 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
+    : 'match' | 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
     | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
     | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant'
@@ -587,7 +591,7 @@ methodName
     ;
 
 variableName
-    : 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
+    : 'match' | 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
     | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
     | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant' | 'read' | 'modify'

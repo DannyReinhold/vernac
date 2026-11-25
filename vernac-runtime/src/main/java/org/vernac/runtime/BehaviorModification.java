@@ -3,16 +3,16 @@
 package org.vernac.runtime;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
+import org.vernac.runtime.events.EventContext;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/** Synchronous direct-mutation boundary, NOT a transaction. Discard objects after failure.
- * Nested modify calls validate at the successful outermost return. Timestamps are published
- * only after all validations succeed. This does not establish aggregate ownership.
- */
+/** Synchronous candidate state for generated modify calls on the current thread. */
 @NullMarked
 public final class BehaviorModification {
     private static final ThreadLocal<Scope> CURRENT = new ThreadLocal<>();
@@ -42,20 +42,58 @@ public final class BehaviorModification {
         try {
             T result = body.get();
             if (outermost) {
+                if (scope.nestedFailure != null)
+                    throw new IllegalStateException("A nested Vernac modification failed", scope.nestedFailure);
                 scope.validating = true;
                 for (int i = scope.entries.size() - 1; i >= 0; i--) scope.entries.get(i).validation.run();
+                for (Entry participant : scope.entries)
+                    for (var write : participant.writes.values()) write.publish().run();
                 // One timestamp shared by all changed participants, after the final validation.
                 if (scope.entries.stream().anyMatch(e -> e.changed)) {
                     Instant now = Instant.now();
                     for (Entry e : scope.entries) if (e.changed) e.afterChange.accept(now);
                 }
+                if (!scope.events.isEmpty()) {
+                    // Listeners run after publication and may start their own modification.
+                    scope.active = false;
+                    CURRENT.remove();
+                    for (DomainEvent event : scope.events) EventContext.emit(event);
+                }
             }
             return result;
+        } catch (RuntimeException | Error failure) {
+            if (!outermost && scope.nestedFailure == null) scope.nestedFailure = failure;
+            throw failure;
         } finally {
             scope.stack.removeLast();
             if (outermost) { scope.active = false; CURRENT.remove(); }
         }
     }
+
+    /** Reads a candidate during behavior and validation, or the committed value otherwise. */
+    @SuppressWarnings("unchecked") // The generated getter and setter share the same field type and key.
+    public static <T extends @Nullable Object> T read(Object owner, String field, T committed) {
+        var scope = CURRENT.get();
+        var entry = scope == null ? null : scope.owners.get(owner);
+        var write = entry == null ? null : entry.writes.get(field);
+        return write == null ? committed : (T) write.value();
+    }
+
+    /** Stages a generated field assignment and retains the owner instance for publication. */
+    public static <T extends @Nullable Object> void stage(Object owner, String field, T value, Consumer<T> publish) {
+        changed(owner);
+        var scope = CURRENT.get();
+        scope.owners.get(owner).writes.put(field, new Write(value, () -> publish.accept(value)));
+    }
+
+    public static void emit(DomainEvent event) {
+        var scope = CURRENT.get();
+        if (scope == null || scope.validating || !scope.active)
+            throw new IllegalStateException("No writable Vernac modification context for event");
+        scope.events.add(event);
+    }
+
+    private record Write(@Nullable Object value, Runnable publish) { }
 
     /** Called after an effective write. Active enclosing modify calls observe descendant changes. */
     public static void changed(Object owner) {
@@ -78,6 +116,7 @@ public final class BehaviorModification {
     private static final class Entry {
         final Runnable validation;
         final Consumer<Instant> afterChange;
+        final LinkedHashMap<String, Write> writes = new LinkedHashMap<>();
         boolean changed;
         Entry(Runnable validation, Consumer<Instant> afterChange) { this.validation = validation; this.afterChange = afterChange; }
     }
@@ -85,6 +124,8 @@ public final class BehaviorModification {
         final IdentityHashMap<Object, Entry> owners = new IdentityHashMap<>();
         final ArrayList<Entry> entries = new ArrayList<>();
         final ArrayList<Entry> stack = new ArrayList<>();
+        final ArrayList<DomainEvent> events = new ArrayList<>();
+        @Nullable Throwable nestedFailure;
         boolean active = true;
         boolean validating;
     }

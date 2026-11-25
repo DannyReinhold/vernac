@@ -282,6 +282,8 @@ public final class VernacScenarioCompiler {
                     request(method, fixtures, step, ++response);
                 } else if (statement instanceof TestStepContext step && step.operation != null) {
                     invoke(method, fixtures, step);
+                } else if (statement instanceof TestStepContext step && step.keywordAction != null) {
+                    keywordAction(method, fixtures, step);
                 } else if (statement instanceof TestStepContext step) {
                     behavior(method, fixtures, step);
                 } else if (statement instanceof TestAssertionContext assertion) {
@@ -396,6 +398,7 @@ public final class VernacScenarioCompiler {
             for (var step : current.testStep()) {
                 if (step.fixture != null) bind(scratch, fixtures, step.fixture, expression(step.value, fixtures));
                 else if (step.operation != null) invoke(scratch, fixtures, step);
+                else if (step.keywordAction != null) keywordAction(scratch, fixtures, step);
                 else if (step.receiver != null) behavior(scratch, fixtures, step);
             }
 
@@ -700,9 +703,78 @@ public final class VernacScenarioCompiler {
                     yield new Expression(CodeBlock.of("($L($L))", prefix.operator(), operand.code()), operand.type());
                 }
                 case KeywordExpression.Binary binary -> predicateBinary(binary, fixtures);
-                case KeywordExpression.Message message -> throw error(message.location(),
-                        "Keyword calls are not supported in scenario predicates yet");
+                case KeywordExpression.Match match -> predicateMatch(match, fixtures);
+                case KeywordExpression.Message message -> keywordCall(message, fixtures, MethodNode.Mode.READ);
             };
+        }
+
+        private void keywordAction(MethodSpec.Builder method, Map<String, Expression> fixtures,
+                                   TestStepContext step) {
+            var action = KeywordExpressionParser.build(source, step.keywordAction);
+            if (!(action instanceof KeywordExpression.Message message))
+                throw error(action.location(), "Expected a keyword message in the action");
+            var invocation = keywordCall(message, fixtures, MethodNode.Mode.MODIFY);
+            if (step.result == null) {
+                method.addStatement("$L", invocation.code());
+            } else {
+                if (invocation.type() instanceof ResolvedType.VoidReturn)
+                    throw error(location(source, step.result), "The action does not return a value");
+                bind(method, fixtures, step.result, invocation);
+            }
+        }
+
+        private Expression keywordCall(KeywordExpression.Message message, Map<String, Expression> fixtures,
+                                       MethodNode.Mode allowedMode) {
+            var receiver = predicateExpression(message.receiver(), fixtures);
+            String name = message.parts().getFirst().name();
+            var candidates = receiver.optional() ? List.<MethodNode>of() : methods(definition(receiver.type()));
+            var matches = candidates.stream()
+                    .filter(candidate -> candidate.accessModifier().equals("public") && candidate.name().equals(name))
+                    .filter(candidate -> candidate.mode() == MethodNode.Mode.READ || candidate.mode() == allowedMode)
+                    .filter(candidate -> candidate.parameters().size() == message.parts().size())
+                    .filter(candidate -> java.util.stream.IntStream.range(1, message.parts().size()).allMatch(
+                            index -> message.parts().get(index).name().equals(candidate.parameters().get(index).name())))
+                    .toList();
+            if (matches.size() != 1)
+                throw error(message.location(), "Expected one accessible behavior for selector '" + message.selector() + "'");
+            var target = matches.getFirst();
+            var arguments = new ArrayList<CodeBlock>();
+            for (int index = 0; index < message.parts().size(); index++) {
+                var part = message.parts().get(index);
+                var parameter = target.parameters().get(index);
+                var argument = predicateExpression(part.argument(), fixtures);
+                var expected = main.typeOf(parameter.type());
+                if (!argument.type().equals(expected) || argument.optional())
+                    throw error(part.argument().location(), "Expected " + describe(expected, false)
+                            + ", got " + describe(argument.type(), argument.optional()));
+                references.add(new Reference(part.location(), part.name().codePointCount(0, part.name().length()),
+                        index == 0 ? target.location() : parameter.location()));
+                arguments.add(argument.code());
+            }
+            var type = main.typeOf(target.returnType());
+            if (type instanceof ResolvedType.VoidReturn && allowedMode == MethodNode.Mode.READ)
+                throw error(message.location(), "A predicate message must return a value");
+            return new Expression(CodeBlock.of("$L.$L($L)", receiver.code(), name, CodeBlock.join(arguments, ", ")),
+                    type, target.returnType().isOptional());
+        }
+
+        private Expression predicateMatch(KeywordExpression.Match match, Map<String, Expression> fixtures) {
+            var subject = predicateExpression(match.subject(), fixtures);
+            if (!subject.optional()) throw error(match.subject().location(), "Match requires an optional value");
+            String binding = match.binding().name();
+            if (!VernacNames.isIdentifier(binding) || fixtures.containsKey(binding))
+                throw error(match.binding().location(), "Invalid or duplicate match binding '" + binding + "'");
+
+            var branchFixtures = new HashMap<>(fixtures);
+            String parameter = fixtureName(binding);
+            branchFixtures.put(binding, new Expression(CodeBlock.of("$L", parameter), subject.type()));
+            var present = predicateExpression(match.onPresent(), branchFixtures);
+            var absent = predicateExpression(match.onAbsent(), fixtures);
+            if (!present.type().equals(absent.type()) || present.optional() != absent.optional())
+                throw error(match.onAbsent().location(), "Expected " + describe(present.type(), present.optional())
+                        + ", got " + describe(absent.type(), absent.optional()));
+            return new Expression(CodeBlock.of("$L.map($L -> $L).orElseGet(() -> $L)",
+                    subject.code(), parameter, present.code(), absent.code()), present.type(), present.optional());
         }
 
         private Expression predicateRead(KeywordExpression.UnaryMessage message, Map<String, Expression> fixtures) {

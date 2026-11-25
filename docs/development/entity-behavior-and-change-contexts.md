@@ -1,6 +1,7 @@
 # Entity behavior, access views, and possible change contexts
 
-Status: **access views implemented; candidate states deliberately deferred**.
+Status: **0.6 design record.** The 0.7 candidate-state contract is described in
+[Entities and aggregates](../contracts/entities-and-aggregates.md#failure-semantics).
 Decision date: 2026-10-08.
 
 This document records both the current implementation and the design explored before it.

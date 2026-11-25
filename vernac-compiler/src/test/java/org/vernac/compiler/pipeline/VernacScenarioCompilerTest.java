@@ -73,6 +73,50 @@ class VernacScenarioCompilerTest {
     }
 
     @Test
+    void matchesOptionalValuesAndChecksBothBranchTypes() throws IOException {
+        var main = mainModel();
+        var root = Files.createDirectories(project.resolve("src/test/vernac"));
+        var source = root.resolve("tasks.vernac");
+        var output = project.resolve("target/generated-test-sources/vernac");
+        var scenario = SCENARIO.replace("expect task.status equals Status.DONE;", """
+                when result = task.maybeTitle();
+                expect (match result {
+                    present title => title string == "Try Vernac"
+                    absent => false
+                });
+                """);
+        Files.writeString(source, scenario);
+
+        assertEquals(1, compiler.generate(root, compiler.discover(root), main, output));
+        var java = Files.readString(output.resolve("org/vernac/generated/VernacScenariosTest.java"));
+        assertTrue(java.contains("fixture$result.map(fixture$title ->"), java);
+        assertTrue(java.contains(".orElseGet(() -> false)"), java);
+
+        Files.writeString(source, scenario.replace("absent => false", "absent => 0"));
+        assertDiagnostic(root, output, main, "tasks.vernac:12:", "Expected boolean, got int");
+        Files.writeString(source, scenario.replace("match result", "match task"));
+        assertDiagnostic(root, output, main, "tasks.vernac:10:", "Match requires an optional value");
+    }
+
+    @Test
+    void linksKeywordSelectorsAndRestrictsModificationToWhen() throws IOException {
+        var main = mainModel();
+        var root = Files.createDirectories(project.resolve("src/test/vernac"));
+        var source = root.resolve("tasks.vernac");
+        var output = project.resolve("target/generated-test-sources/vernac");
+        var scenario = SCENARIO.replace("when task.complete();", "when (task changeFrom: Status OPEN to: Status DONE);");
+        Files.writeString(source, scenario);
+
+        assertEquals(1, compiler.generate(root, compiler.discover(root), main, output));
+        var java = Files.readString(output.resolve("org/vernac/generated/VernacScenariosTest.java"));
+        assertTrue(java.contains("fixture$task.changeFrom(example.domain.domain.Status.OPEN, example.domain.domain.Status.DONE)"), java);
+        Files.writeString(source, scenario.replace("when (task changeFrom", "expect (task changeFrom"));
+        assertDiagnostic(root, output, main, "tasks.vernac:7:", "accessible behavior for selector 'changeFrom:to:'");
+        Files.writeString(source, scenario.replace("to:", "destination:"));
+        assertDiagnostic(root, output, main, "tasks.vernac:7:", "accessible behavior for selector 'changeFrom:destination:'");
+    }
+
+    @Test
     void diagnosesWrongTypesUnknownBehaviorsAndDuplicateCasesAtTheirSource() throws IOException {
         var main = mainModel();
         var root = Files.createDirectories(project.resolve("src/test/vernac"));
@@ -186,7 +230,11 @@ class VernacScenarioCompilerTest {
                 usecase CurrentStatus() returns Status behavior { execute { return Status.OPEN; } }
                 aggregate Task[TaskId](Title title, mut Status) behavior {
                     modify void complete() { self.status(Status.DONE); }
+                    modify void changeFrom(Status previous, Status to) {
+                        if (self.status() == previous) self.status(to);
+                    }
                     read Status currentStatus() { return self.status(); }
+                    read Title? maybeTitle() { return Optional.of(self.title()); }
                 };
                 """);
         return new VernacCompiler().analyzeProject(root);
