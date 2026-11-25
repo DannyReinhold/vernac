@@ -148,6 +148,7 @@ nativeBehaviorStatement
     : 'require' predicate=keywordExpression 'else' rejection=typeName '.'
     | 'return' result=keywordExpression '.'
     | receiver=variableName target=variableName '=' assigned=keywordExpression '.'
+    | send=keywordExpression '.'
     ;
 
 validationBlock

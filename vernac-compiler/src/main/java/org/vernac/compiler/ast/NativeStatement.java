@@ -5,5 +5,6 @@ package org.vernac.compiler.ast;
 public sealed interface NativeStatement {
     record Require(KeywordExpression predicate, String rejection) implements NativeStatement { }
     record Assign(SourceLocation location, String field, KeywordExpression value) implements NativeStatement { }
+    record Send(KeywordExpression expression) implements NativeStatement { }
     record Return(KeywordExpression value) implements NativeStatement { }
 }

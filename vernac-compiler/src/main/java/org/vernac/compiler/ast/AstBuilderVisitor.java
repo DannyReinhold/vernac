@@ -201,6 +201,8 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 statements.add(new NativeStatement.Require(keyword(statement.predicate), statement.rejection.getText()));
             } else if (statement.result != null) {
                 statements.add(new NativeStatement.Return(keyword(statement.result)));
+            } else if (statement.send != null) {
+                statements.add(new NativeStatement.Send(keyword(statement.send)));
             } else {
                 if (!statement.receiver.getText().equals("self")) {
                     throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(

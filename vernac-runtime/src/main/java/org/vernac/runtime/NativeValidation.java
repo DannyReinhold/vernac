@@ -4,6 +4,8 @@ package org.vernac.runtime;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /** Executable expression nodes used by compiler-checked native state rules. */
@@ -17,6 +19,27 @@ public final class NativeValidation {
 
     /** Per-call inputs for a native domain behavior. Expression nodes remain reusable. */
     public record Invocation<S>(S self, List<Object> arguments) { }
+
+    public record MatchInput<S>(S outer, Object value) { }
+
+    public static <S> Expression<S> match(Expression<S> subject, Expression<MatchInput<S>> present,
+                                           Expression<S> absent) {
+        return context -> {
+            var value = (Optional<?>) subject.evaluate(context);
+            return value.isPresent() ? present.evaluate(new MatchInput<>(context, value.orElseThrow()))
+                    : absent.evaluate(context);
+        };
+    }
+
+    public static <S> Expression<S> call(List<Expression<S>> arguments,
+                                              BiFunction<S, List<Object>, Object> target) {
+        var inputs = List.copyOf(arguments);
+        return context -> {
+            var values = new java.util.ArrayList<>(inputs.size());
+            for (var input : inputs) values.add(input.evaluate(context));
+            return target.apply(context, values);
+        };
+    }
 
     public static <S> Expression<S> literal(Object value) {
         return self -> value;

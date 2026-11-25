@@ -64,8 +64,12 @@ modify void renameTo(DocumentTitle title) vernac {
 
 Native bodies currently support `require … else …`, assignments to mutable `self` fields and a
 final value return. They use the same expression evaluator as state rules. The existing JVM
-method signatures and modification boundary still apply. Native use-case bodies, keyword sends
-inside native bodies and validation rules, and optional matching inside native code remain open.
+method signatures and modification boundary still apply. Native bodies and state rules can match
+optional field values and call declared read methods on `self` using keyword messages. The
+present branch can read fields from a bound value object. A native modification can send
+a keyword message to another modify method on `self` as a statement. It joins the enclosing
+modification and validates at the outer boundary. Native use-case bodies, port calls and
+explicit event sends from native code remain open.
 
 ## Alternatives considered
 

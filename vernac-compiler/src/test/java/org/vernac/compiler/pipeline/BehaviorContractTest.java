@@ -141,6 +141,88 @@ public class BehaviorContractTest {
         assertTrue(invalid.getMessage().contains("Only modify behaviors"));
     }
 
+    @Test void nativeMatchSupportsNestedBindingsAndEvaluatesOnlyTheSelectedBranch() throws Exception {
+        String model = """
+                id ScheduleId;
+                value Day(int);
+                aggregate Schedule[ScheduleId](Day? first, Day? second) validates {
+                    require match self first {
+                        present day => day intValue > 0
+                        absent => true
+                    } else InvalidFirstDay.
+                } behavior {
+                    read int combined(int fallback) vernac {
+                        return match self first {
+                            present firstDay => match self second {
+                                present secondDay => firstDay intValue + secondDay intValue
+                                absent => firstDay intValue + fallback
+                            }
+                            absent => 10 / fallback
+                        }.
+                    }
+                };
+                """;
+        var output = compile(model);
+        var day = output.loadClass("behavior.tests.domain.Day");
+        var schedule = output.loadClass("behavior.tests.domain.Schedule");
+        var create = schedule.getMethod("create", day, day);
+        var combined = schedule.getMethod("combined", int.class);
+        var four = day.getMethod("of", int.class).invoke(null, 4);
+        var six = day.getMethod("of", int.class).invoke(null, 6);
+        assertEquals(10, combined.invoke(create.invoke(null, four, six), 0));
+        assertEquals(7, combined.invoke(create.invoke(null, four, null), 3));
+        assertEquals(5, combined.invoke(create.invoke(null, null, six), 2));
+
+        var incompatible = assertThrows(SemanticValidationException.class,
+                () -> generate(model.replace("10 / fallback", "false")));
+        assertTrue(incompatible.getMessage().contains("Match alternatives must have the same type"));
+        var outOfScope = assertThrows(SemanticValidationException.class,
+                () -> generate(model.replace("10 / fallback", "firstDay intValue")));
+        assertTrue(outOfScope.getMessage().contains("Unknown native binding 'firstDay'"));
+    }
+
+    @Test void nativeKeywordMessagesCallReadBehaviorsInRulesAndBodies() throws Exception {
+        String model = """
+                id ReservationId;
+                value Seats(int);
+                aggregate Reservation[ReservationId](mut Seats booked) validates {
+                    require (self totalWith: 0 factor: 1) <= 9 else TooManySeats.
+                } behavior {
+                    read int totalWith(int extra, int factor) vernac {
+                        return (self booked intValue + extra) * factor.
+                    }
+                    read int withBonus(int factor) vernac {
+                        return self totalWith: 1 factor: factor.
+                    }
+                    modify void changeTo(Seats seats) vernac {
+                        self setTo: seats.
+                    }
+                    modify void setTo(Seats seats) vernac {
+                        self booked = seats.
+                    }
+                };
+                """;
+        var output = compile(model);
+        var seats = output.loadClass("behavior.tests.domain.Seats");
+        var reservation = output.loadClass("behavior.tests.domain.Reservation");
+        var four = seats.getMethod("of", int.class).invoke(null, 4);
+        var ten = seats.getMethod("of", int.class).invoke(null, 10);
+        var instance = reservation.getMethod("create", seats).invoke(null, four);
+        assertEquals(10, reservation.getMethod("withBonus", int.class).invoke(instance, 2));
+        var failure = assertThrows(InvocationTargetException.class,
+                () -> reservation.getMethod("changeTo", seats).invoke(instance, ten));
+        assertEquals("TooManySeats",
+                assertInstanceOf(org.vernac.runtime.NativeValidation.Rejection.class, failure.getCause()).code());
+        assertSame(four, reservation.getMethod("booked").invoke(instance));
+        var eight = seats.getMethod("of", int.class).invoke(null, 8);
+        reservation.getMethod("changeTo", seats).invoke(instance, eight);
+        assertSame(eight, reservation.getMethod("booked").invoke(instance));
+
+        var badSend = assertThrows(SemanticValidationException.class,
+                () -> generate(model.replace("self totalWith: 1 factor: factor", "self changeTo: self booked")));
+        assertTrue(badSend.getMessage().contains("readable behavior for selector 'changeTo:'"));
+    }
+
     @Test void javaImportsCannotReplaceModelOrBuiltinTypes() {
         for (String model : new String[]{
                 "value Name(String); value Other(String) behavior { java imports { foreign.Name; } };",

@@ -22,18 +22,20 @@ public final class NativeValidationCompiler {
     private final TopLevelDefinition owner;
     private final ResolvedProject project;
     private final List<FieldNode> parameters;
-    private final CodeBlock receiver;
+    private final List<Binding> bindings;
+    private final boolean invocation;
 
     NativeValidationCompiler(TopLevelDefinition owner, ResolvedProject project) {
-        this(owner, project, List.of(), CodeBlock.of("context"));
+        this(owner, project, List.of(), List.of(), false);
     }
 
     private NativeValidationCompiler(TopLevelDefinition owner, ResolvedProject project,
-                                     List<FieldNode> parameters, CodeBlock receiver) {
+                                     List<FieldNode> parameters, List<Binding> bindings, boolean invocation) {
         this.owner = owner;
         this.project = project;
         this.parameters = parameters;
-        this.receiver = receiver;
+        this.bindings = bindings;
+        this.invocation = invocation;
     }
 
     public static List<CompilerDiagnostic> diagnostics(ResolvedProject project) {
@@ -48,12 +50,7 @@ public final class NativeValidationCompiler {
                     case EventNode event -> event.validations();
                     default -> List.<ValidationRuleNode>of();
                 };
-                var methods = switch (definition) {
-                    case ValueObjectNode value -> value.methods();
-                    case EntityNode entity -> entity.methods();
-                    case AggregateNode aggregate -> aggregate.methods();
-                    default -> List.<MethodNode>of();
-                };
+                var methods = methods(definition);
                 for (var method : methods) {
                     if (method.nativeBody().isEmpty()) continue;
                     try {
@@ -84,7 +81,7 @@ public final class NativeValidationCompiler {
     static void emitBody(MethodSpec.Builder implementation, TypeSpec.Builder companion, ClassName ownerType,
                          TopLevelDefinition owner, MethodNode method, int index, ResolvedProject project) {
         checkNativeMethod(owner, method);
-        var compiler = new NativeValidationCompiler(owner, project, method.parameters(), CodeBlock.of("context.self()"));
+        var compiler = new NativeValidationCompiler(owner, project, method.parameters(), List.of(), true);
         var receiver = BehaviorGenerator.receiver(ownerType, method);
         var invocation = ParameterizedTypeName.get(ClassName.get(NativeValidation.Invocation.class), receiver);
         var expressionType = ParameterizedTypeName.get(ClassName.get(NativeValidation.Expression.class), invocation);
@@ -116,6 +113,14 @@ public final class NativeValidationCompiler {
                     implementation.addStatement("self.$N(($T) $N.evaluate(__vernacInvocation))",
                             field.name(), ResolvedJavaTypes.javaType(type), name);
                 }
+                case NativeStatement.Send send -> {
+                    if (method.mode() != MethodNode.Mode.MODIFY)
+                        throw error(at, "Only modify behaviors may send modification messages");
+                    if (!(send.expression() instanceof KeywordExpression.Message message))
+                        throw error(at, "Expected a keyword message");
+                    addProgram(companion, expressionType, name, compiler.call(message, MethodNode.Mode.MODIFY).program());
+                    implementation.addStatement("$N.evaluate(__vernacInvocation)", name);
+                }
                 case NativeStatement.Return result -> {
                     if (returns instanceof ResolvedType.VoidReturn)
                         throw error(at, "Void native behavior cannot return a value");
@@ -134,6 +139,7 @@ public final class NativeValidationCompiler {
         return switch (statement) {
             case NativeStatement.Require rule -> rule.predicate().location();
             case NativeStatement.Assign assignment -> assignment.location();
+            case NativeStatement.Send send -> send.expression().location();
             case NativeStatement.Return result -> result.value().location();
         };
     }
@@ -172,12 +178,12 @@ public final class NativeValidationCompiler {
         return switch (expression) {
             case KeywordExpression.Literal literal -> literal(literal);
             case KeywordExpression.Name name -> {
-                int index = java.util.stream.IntStream.range(0, parameters.size())
-                        .filter(i -> parameters.get(i).name().equals(name.name())).findFirst()
-                        .orElseThrow(() -> error(name, "Unknown native parameter '" + name.name() + "'"));
-                yield new Typed(CodeBlock.of("$T.access(context -> context.arguments().get($L))",
-                        NativeValidation.class, index), project.typeOf(parameters.get(index).type()), false);
+                var binding = binding(name);
+                yield new Typed(CodeBlock.of("$T.access(context -> $L)", NativeValidation.class, binding.code()),
+                        binding.type(), false);
             }
+            case KeywordExpression.Match match -> match(match);
+            case KeywordExpression.Message message -> call(message, MethodNode.Mode.READ);
             case KeywordExpression.UnaryMessage message -> {
                 var read = read(message);
                 yield new Typed(CodeBlock.of("$T.access(context -> $L)", NativeValidation.class, read.code()),
@@ -191,7 +197,98 @@ public final class NativeValidationCompiler {
                         prefix.operator(), result.program()), expected, false);
             }
             case KeywordExpression.Binary binary -> binary(binary);
-            default -> throw error(expression, "Expected a literal, read-only self field or operator");
+        };
+    }
+
+    private record Binding(String name, ResolvedType type) { }
+
+    private record Local(CodeBlock code, ResolvedType type) { }
+
+    private Local binding(KeywordExpression.Name name) {
+        for (int index = bindings.size() - 1; index >= 0; index--) {
+            var binding = bindings.get(index);
+            if (binding.name().equals(name.name())) {
+                var scope = context(bindings.size() - 1 - index);
+                return new Local(CodeBlock.of("$L.value()", scope), binding.type());
+            }
+        }
+        for (int index = 0; index < parameters.size(); index++) {
+            var parameter = parameters.get(index);
+            if (parameter.name().equals(name.name())) {
+                return new Local(CodeBlock.of("$L.arguments().get($L)", context(bindings.size()), index),
+                        project.typeOf(parameter.type()));
+            }
+        }
+        throw error(name, "Unknown native binding '" + name.name() + "'");
+    }
+
+    private static String context(int depth) {
+        return "context" + ".outer()".repeat(depth);
+    }
+
+    private Typed match(KeywordExpression.Match expression) {
+        var optional = resolve(expression.subject());
+        if (!optional.optional()) throw error(expression.subject(), "Match requires an optional value");
+        String name = expression.binding().name();
+        if (name.equals("self") || !org.vernac.language.VernacNames.isIdentifier(name)
+                || parameters.stream().anyMatch(parameter -> parameter.name().equals(name))
+                || bindings.stream().anyMatch(binding -> binding.name().equals(name))) {
+            throw error(expression.binding(), "Invalid or duplicate match binding '" + name + "'");
+        }
+        var nested = new java.util.ArrayList<>(bindings);
+        nested.add(new Binding(name, optional.type()));
+        var present = new NativeValidationCompiler(owner, project, parameters, nested, invocation)
+                .resolve(expression.onPresent());
+        var absent = resolve(expression.onAbsent());
+        if (!present.type().equals(absent.type()) || present.optional() != absent.optional())
+            throw error(expression.onAbsent(), "Match alternatives must have the same type and optionality");
+        return new Typed(CodeBlock.of("$T.match($L, $L, $L)", NativeValidation.class,
+                optional.program(), present.program(), absent.program()), present.type(), present.optional());
+    }
+
+    private Typed call(KeywordExpression.Message message, MethodNode.Mode effect) {
+        if (!(message.receiver() instanceof KeywordExpression.Name name) || !name.name().equals("self"))
+            throw error(message, "Native keyword sends currently require self as receiver");
+        String selector = message.parts().getFirst().name();
+        var candidates = methods(owner).stream()
+                .filter(method -> method.mode() == effect && method.accessModifier().equals("public"))
+                .filter(method -> method.name().equals(selector) && method.parameters().size() == message.parts().size())
+                .filter(method -> java.util.stream.IntStream.range(1, message.parts().size()).allMatch(
+                        i -> method.parameters().get(i).name().equals(message.parts().get(i).name())))
+                .toList();
+        if (candidates.size() != 1)
+            throw error(message, "Expected one " + (effect == MethodNode.Mode.READ ? "readable" : "modifying")
+                    + " behavior for selector '" + message.selector() + "'");
+        var method = candidates.getFirst();
+        var result = project.typeOf(method.returnType());
+        boolean nothing = result instanceof ResolvedType.VoidReturn;
+        if (nothing && effect == MethodNode.Mode.READ)
+            throw error(message, "Native keyword read must return a value");
+        var programs = new java.util.ArrayList<CodeBlock>();
+        var arguments = new java.util.ArrayList<CodeBlock>();
+        for (int i = 0; i < message.parts().size(); i++) {
+            var parameter = method.parameters().get(i);
+            var expected = project.typeOf(parameter.type());
+            programs.add(compileValue(message.parts().get(i).argument(), expected));
+            arguments.add(CodeBlock.of("($T) values.get($L)", ResolvedJavaTypes.javaType(expected), i));
+        }
+        var invocation = CodeBlock.of("$L.$N($L)", self(), method.name(), CodeBlock.join(arguments, ", "));
+        var lambdaBody = nothing ? CodeBlock.of("{ $L; return true; }", invocation) : invocation;
+        return new Typed(CodeBlock.of("$T.call($T.of($L), (context, values) -> $L)",
+                NativeValidation.class, List.class, CodeBlock.join(programs, ", "), lambdaBody),
+                result, method.returnType().isOptional());
+    }
+
+    private CodeBlock self() {
+        return CodeBlock.of("$L$L", context(bindings.size()), invocation ? ".self()" : "");
+    }
+
+    private static List<MethodNode> methods(TopLevelDefinition definition) {
+        return switch (definition) {
+            case ValueObjectNode value -> value.methods();
+            case EntityNode entity -> entity.methods();
+            case AggregateNode aggregate -> aggregate.methods();
+            default -> List.of();
         };
     }
 
@@ -225,27 +322,35 @@ public final class NativeValidationCompiler {
         CodeBlock target;
         TopLevelDefinition definition;
         if (expression.receiver() instanceof KeywordExpression.Name name && name.name().equals("self")) {
-            target = receiver;
-
+            target = self();
             definition = owner;
+        } else if (expression.receiver() instanceof KeywordExpression.Name name) {
+            var local = binding(name);
+            definition = readValueType(expression, local.type());
+            target = CodeBlock.of("(($T) $L)", ResolvedJavaTypes.javaType(local.type()), local.code());
         } else if (expression.receiver() instanceof KeywordExpression.UnaryMessage parent) {
             var read = read(parent);
-            // Traversing an entity would expose an opaque object rather than its validation view.
-            if (read.field().type().isOptional()
-                    || !(project.typeOf(read.field().type()) instanceof ResolvedType.Declared declared))
-                throw error(expression, "Expected a non-optional value object for a nested field read");
-            definition = project.project().sources().stream()
-                    .filter(source -> source.unit().namespace().equals(declared.symbol().identity().namespace()))
-                    .flatMap(source -> source.unit().valueObjects().stream())
-                    .filter(value -> value.name().equals(declared.symbol().identity().name()))
-                    .findFirst().orElseThrow(() -> error(expression, "Expected a value object for a nested field read"));
+            if (read.field().type().isOptional()) throw error(expression, "Match an optional value before reading its fields");
+            definition = readValueType(expression, project.typeOf(read.field().type()));
             target = read.code();
         } else {
-            throw error(expression, "Validation fields must be read through self");
+            throw error(expression, "Expected self or a readable value");
         }
         var field = fields(definition).stream().filter(f -> f.name().equals(expression.selector()))
                 .findFirst().orElseThrow(() -> error(expression, "Unknown readable field '" + expression.selector() + "'"));
         return new Read(CodeBlock.of("$L.$N()", target, field.name()), field);
+    }
+
+    private TopLevelDefinition readValueType(KeywordExpression expression, ResolvedType type) {
+        // Traversing a nested entity would expose an opaque object rather than its validation view.
+        if (type instanceof ResolvedType.Declared declared) {
+            return project.project().sources().stream()
+                    .filter(source -> source.unit().namespace().equals(declared.symbol().identity().namespace()))
+                    .flatMap(source -> source.unit().valueObjects().stream())
+                    .filter(value -> value.name().equals(declared.symbol().identity().name()))
+                    .findFirst().orElseThrow(() -> error(expression, "Expected a value object for a nested field read"));
+        }
+        throw error(expression, "Expected a value object for a nested field read");
     }
 
     private static List<FieldNode> fields(TopLevelDefinition owner) {
