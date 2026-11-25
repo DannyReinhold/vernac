@@ -27,7 +27,7 @@ testCompilationUnit
     ;
 
 testSuite
-    : 'suite' name=typeName '{' testScenario+ '}'
+    : 'suite' name=typeName ('profile' profileName=qualifiedNameSegment)? ('using' configuration=qualifiedName)? '{' testScenario+ '}'
     ;
 
 testScenario
@@ -36,11 +36,23 @@ testScenario
 
 testStep
     : 'given' fixture=variableName '=' value=testExpression ';'
+    | 'when' 'request' endpoint=qualifiedName '(' (testBinding (',' testBinding)*)? ')' (csrf='csrf')? ';'
+    | 'when' (result=variableName '=')? 'invoke' operation=qualifiedName '(' testArguments? ')'
+        ('is' authorizationFailure=qualifiedNameSegment)? ';'
     | 'when' (result=variableName '=')? receiver=variableName '.' action=methodName '(' testArguments? ')' ';'
     ;
 
+testBinding
+    : name=variableName '=' value=testExpression
+    ;
+
 testAssertion
-    : 'expect' actual=testExpression ('equals' expected=testExpression | 'is' outcome=('present' | 'absent' | 'invalid')) ';'
+    : 'expect' 'status' responseStatus=INT_LITERAL ';'
+    | 'expect' 'body' 'contains' responseText=STRING_LITERAL ';'
+    | 'expect' 'action' actionEndpoint=qualifiedName '(' (testBinding (',' testBinding)*)? ')' 'is' actionPresence=('present' | 'absent') ';'
+    | 'expect' 'emitted' eventType=qualifiedName ('with' eventField=variableName 'equals' eventValue=testExpression)? 'count' eventCount=INT_LITERAL ';'
+    | 'expect' 'calls' 'to' portMethod=qualifiedName 'count' portCount=INT_LITERAL ';'
+    | 'expect' actual=testExpression ('equals' expected=testExpression | 'is' outcome=('present' | 'absent' | 'invalid')) ';'
     ;
 
 testArguments
@@ -426,7 +438,7 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'suite' | 'scenario' | 'given' | 'expect' | 'equals'
+    : 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
     | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
     | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant'
@@ -533,7 +545,7 @@ typeName
     ;
 
 methodName
-    : 'suite' | 'scenario' | 'given' | 'expect' | 'equals'
+    : 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
     | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
     | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant'
@@ -547,7 +559,7 @@ methodName
     ;
 
 variableName
-    : 'suite' | 'scenario' | 'given' | 'expect' | 'equals'
+    : 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
     | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
     | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant' | 'read' | 'modify'

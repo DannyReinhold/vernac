@@ -112,6 +112,11 @@ and exercises real generated usecases with a **test-only in-memory repository**:
 create, complete, reopen, invalid input, escaping, CSRF and pagination. It does not
 claim to verify JDBC or transactions. No Docker is needed for these tests.
 
+`task-views.vernac` exercises the generated board, verifies actions for individual
+rows, and checks CSRF and validation feedback through Spring MVC. Run
+`./mvnw -Dvernac.testProfile=mvc -Dtest=VernacScenariosTest test` to run just those
+Vernac view scenarios.
+
 ## Check real persistence
 
 Create a separate disposable PostgreSQL database, set `DB_URL`, `DB_USERNAME` and

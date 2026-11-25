@@ -31,6 +31,8 @@ final class VernacSpringBootTemplate {
                     "src/main/resources/static/app.css",
                     "src/main/resources/static/favicon.svg",
                     "src/test/vernac/org/example/tasks/task-lifecycle.vernac",
+                    "src/test/vernac/org/example/tasks/task-views.vernac",
+                    "src/test/java/org/example/tasks/TaskScenarioFixtures.java",
                     "src/test/java/org/example/tasks/TaskTest.java",
                     "src/test/java/org/example/tasks/TaskConfigurationTest.java",
                     "src/test/java/org/example/tasks/TaskWebTest.java",

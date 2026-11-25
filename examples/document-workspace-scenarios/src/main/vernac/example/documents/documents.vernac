@@ -1,0 +1,96 @@
+namespace example.documents;
+
+id DocumentId;
+value DocumentTitle(String);
+value DocumentPresence = PRESENT | ABSENT;
+aggregate Document[DocumentId](DocumentTitle);
+
+permission DocumentPermissions { DELETE; }
+recorded event DocumentDeleted(DocumentId);
+value DeletionCount(int);
+
+port DocumentStore {
+    void save(DocumentId, DocumentTitle);
+    DocumentPresence contains(DocumentId);
+    void delete(DocumentId);
+}
+
+usecase AddDocument(DocumentTitle) returns DocumentId uses DocumentStore behavior {
+    execute {
+        var document = Document.create(documentTitle);
+        self.documentStore().save(document.id(), document.documentTitle());
+        return document.id();
+    }
+}
+
+usecase HasDocument(DocumentId) returns DocumentPresence uses DocumentStore behavior {
+    execute { return self.documentStore().contains(documentId); }
+}
+
+usecase DeleteDocument(DocumentId) requires permission DocumentPermissions.DELETE on documentId
+        uses DocumentStore behavior {
+    execute {
+        self.documentStore().delete(documentId);
+        self.emit(DocumentDeleted.create(documentId));
+    }
+}
+
+port DocumentAudit {
+    DeletionCount deletions(DocumentId);
+}
+
+usecase RecordedDeletions(DocumentId) returns DeletionCount uses DocumentAudit behavior {
+    execute { return self.documentAudit().deletions(documentId); }
+}
+
+value DeleteVisibility = VISIBLE | HIDDEN;
+value DocumentCard(DocumentId, DeleteVisibility);
+
+port DocumentAccess {
+    DeleteVisibility deleteVisibility(DocumentId);
+}
+
+usecase ShowDocument(DocumentId) returns DocumentCard uses DocumentAccess behavior {
+    execute { return DocumentCard.of(documentId, self.documentAccess().deleteVisibility(documentId)); }
+}
+
+adapter DocumentWeb inbound mvc uses ShowDocument, DeleteDocument {
+    base "/documents";
+    error view DocumentProblem;
+    show {
+        GET "/{id}";
+        path UUID id;
+        execute showDocument { documentId <- path.id; }
+        render DocumentPage model document;
+    }
+    delete {
+        POST "/{id}/delete";
+        path UUID id;
+        execute deleteDocument { documentId <- path.id; }
+        render DocumentRemoved;
+    }
+}
+
+view DocumentPage(DocumentCard document) {
+    page "Document workspace" {
+        heading "Document workspace";
+        when document.deleteVisibility is VISIBLE {
+            form submit DocumentWeb.delete {
+                path id <- document.documentId.value;
+                button "Delete";
+            }
+        }
+    }
+}
+
+view DocumentRemoved() {
+    page "Document removed" {
+        heading "Document removed";
+    }
+}
+
+view DocumentProblem() {
+    page "Document unavailable" {
+        heading "Document unavailable";
+    }
+}

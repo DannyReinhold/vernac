@@ -16,6 +16,9 @@ do not assume a development feature is available in an older published compiler.
 For build commands, migration candidate generation and verification, also provide
 the companion [AI tools reference](ai-tools-reference.md).
 
+In the 0.6.0 development line, `src/test/vernac` contains executable
+[suites and scenarios](tutorials/domain-scenarios.md) with the domain, MVC and PostgreSQL profiles.
+
 ### Language changes in 0.5.4
 
 - Use `unique LoginKey` on a required aggregate field to enforce uniqueness in

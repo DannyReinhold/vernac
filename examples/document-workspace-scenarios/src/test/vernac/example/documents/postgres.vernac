@@ -1,0 +1,34 @@
+namespace example.documents;
+
+suite CommittedDeletion profile postgres using example.documents.PostgresFixtures.Editor {
+    scenario removalAndEventAreCommitted {
+        when document = invoke AddDocument(DocumentTitle("Committed"));
+        when invoke DeleteDocument(document);
+        when remaining = invoke HasDocument(document);
+        expect remaining equals DocumentPresence.ABSENT;
+        when storedEvents = invoke RecordedDeletions(document);
+        expect storedEvents equals DeletionCount(1);
+    }
+}
+
+suite DeniedTransaction profile postgres using example.documents.PostgresFixtures.Reader {
+    scenario rejectionDoesNotWrite {
+        when document = invoke AddDocument(DocumentTitle("Denied"));
+        when invoke DeleteDocument(document) is ACCESS_DENIED;
+        when remaining = invoke HasDocument(document);
+        expect remaining equals DocumentPresence.PRESENT;
+        when storedEvents = invoke RecordedDeletions(document);
+        expect storedEvents equals DeletionCount(0);
+    }
+}
+
+suite FailedDelivery profile postgres using example.documents.PostgresFixtures.FailingDelivery {
+    scenario failureRollsBackRemovalAndEvent {
+        when document = invoke AddDocument(DocumentTitle("Rolled back"));
+        when invoke DeleteDocument(document) is invalid;
+        when remaining = invoke HasDocument(document);
+        expect remaining equals DocumentPresence.PRESENT;
+        when storedEvents = invoke RecordedDeletions(document);
+        expect storedEvents equals DeletionCount(0);
+    }
+}

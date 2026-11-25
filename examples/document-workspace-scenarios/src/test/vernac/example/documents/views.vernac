@@ -1,0 +1,32 @@
+namespace example.documents;
+
+suite EditorView profile mvc using example.documents.DocumentWebFixtures.Editor {
+    scenario authorizedActionIsVisible {
+        when document = invoke AddDocument(DocumentTitle("Minutes"));
+        when request DocumentWeb.show(id = document);
+        expect status 200;
+        expect action DocumentWeb.delete(id = document) is present;
+        when request DocumentWeb.delete(id = document);
+        expect status 200;
+        expect body contains "Document removed";
+        when remaining = invoke HasDocument(document);
+        expect remaining equals DocumentPresence.ABSENT;
+        expect emitted DocumentDeleted count 1;
+        expect calls to DocumentStore.delete count 1;
+    }
+}
+
+suite ReaderView profile mvc using example.documents.DocumentWebFixtures.Reader {
+    scenario hiddenActionAndDirectPostAreDenied {
+        when document = invoke AddDocument(DocumentTitle("Minutes"));
+        when request DocumentWeb.show(id = document);
+        expect status 200;
+        expect action DocumentWeb.delete(id = document) is absent;
+        when request DocumentWeb.delete(id = document);
+        expect status 403;
+        when remaining = invoke HasDocument(document);
+        expect remaining equals DocumentPresence.PRESENT;
+        expect emitted DocumentDeleted count 0;
+        expect calls to DocumentStore.delete count 0;
+    }
+}

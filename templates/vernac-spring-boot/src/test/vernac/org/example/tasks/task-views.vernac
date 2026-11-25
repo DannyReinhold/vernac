@@ -1,0 +1,37 @@
+namespace org.example.tasks;
+
+suite TaskViews profile mvc using org.example.tasks.TaskScenarioFixtures {
+    scenario rendersActionsForTheSelectedRow {
+        when request TaskWeb.board();
+        expect status 200;
+        expect body contains "A fresh page.";
+        when target = invoke CreateTask(TaskTitle("<em>Try Vernac</em>"));
+        when other = invoke CreateTask(TaskTitle("Another task"));
+        when request TaskWeb.board();
+        expect body contains "&lt;em&gt;Try Vernac&lt;/em&gt;";
+        expect action TaskWeb.complete(id = target) is present;
+        expect action TaskWeb.reopen(id = target) is absent;
+        when request TaskWeb.complete(id = target) csrf;
+        when request TaskWeb.board();
+        expect action TaskWeb.complete(id = target) is absent;
+        expect action TaskWeb.reopen(id = target) is present;
+        expect action TaskWeb.complete(id = other) is present;
+        expect action TaskWeb.reopen(id = other) is absent;
+        when request TaskWeb.reopen(id = target) csrf;
+        when request TaskWeb.board();
+        expect action TaskWeb.complete(id = target) is present;
+    }
+
+    scenario redisplaysValidationAndRejectsMissingCsrf {
+        when request TaskWeb.create(title = " ");
+        expect status 403;
+        when request TaskWeb.create(title = " ") csrf;
+        expect status 422;
+        expect body contains "Give your task a meaningful title";
+        expect body contains "A fresh page.";
+        when request TaskWeb.create(title = "Valid title") csrf;
+        when request TaskWeb.board();
+        expect status 200;
+        expect body contains "Valid title";
+    }
+}
