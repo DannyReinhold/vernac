@@ -9,7 +9,20 @@ public record UseCaseNode(SourceLocation location, String name,
         List<FieldNode> parameters, List<ValidationRuleNode> validations,
         List<FieldNode> injections, Optional<TypeNode> resultType, List<FieldNode> resultFields,
         List<JavaImportNode> javaImports, List<MethodNode> methods,
-        String bodyCode, Optional<String> implementation, int executeCount, Optional<AuthorizationNode> authorization) implements TopLevelDefinition {
+        String bodyCode, Optional<String> implementation, int executeCount, Optional<AuthorizationNode> authorization,
+        List<NativeStatement> nativeBody) implements TopLevelDefinition {
+    public UseCaseNode {
+        nativeBody = List.copyOf(nativeBody);
+    }
+
+    public UseCaseNode(SourceLocation location, String name, List<FieldNode> parameters,
+            List<ValidationRuleNode> validations, List<FieldNode> injections, Optional<TypeNode> resultType,
+            List<FieldNode> resultFields, List<JavaImportNode> javaImports, List<MethodNode> methods,
+            String bodyCode, Optional<String> implementation, int executeCount, Optional<AuthorizationNode> authorization) {
+        this(location, name, parameters, validations, injections, resultType, resultFields, javaImports,
+                methods, bodyCode, implementation, executeCount, authorization, List.of());
+    }
+
     public UseCaseNode(SourceLocation location, String name, List<FieldNode> parameters,
             List<ValidationRuleNode> validations, List<FieldNode> injections, Optional<TypeNode> resultType,
             List<FieldNode> resultFields, List<JavaImportNode> javaImports, List<MethodNode> methods,

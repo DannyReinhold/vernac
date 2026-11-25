@@ -223,6 +223,32 @@ public class BehaviorContractTest {
         assertTrue(badSend.getMessage().contains("readable behavior for selector 'changeTo:'"));
     }
 
+    @Test void nativeExecuteChecksPortAndEventContractsBeforeGeneration() {
+        String model = """
+                id ItemId;
+                value Title(String);
+                port Inventory { void remove(ItemId); }
+                event Removed(ItemId);
+                usecase Remove(ItemId, Title) uses Inventory behavior {
+                    execute vernac {
+                        inventory remove: itemId.
+                        events emit: (Removed itemId: itemId).
+                    }
+                }
+                """;
+        assertFalse(generate(model).generatedFiles().isEmpty());
+
+        var badPort = assertThrows(SemanticValidationException.class,
+                () -> generate(model.replace("remove: itemId", "remove: title")));
+        assertTrue(badPort.getMessage().contains("Expression does not match"));
+        var wrongEventField = assertThrows(SemanticValidationException.class,
+                () -> generate(model.replace("Removed itemId:", "Removed title:")));
+        assertTrue(wrongEventField.getMessage().contains("Event selector must name each declared field in order"));
+        var notAnEvent = assertThrows(SemanticValidationException.class,
+                () -> generate(model.replace("(Removed itemId: itemId)", "itemId")));
+        assertTrue(notAnEvent.getMessage().contains("Expected a Vernac event"));
+    }
+
     @Test void javaImportsCannotReplaceModelOrBuiltinTypes() {
         for (String model : new String[]{
                 "value Name(String); value Other(String) behavior { java imports { foreign.Name; } };",

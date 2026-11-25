@@ -135,7 +135,9 @@ public final class UseCaseGenerator {
         if(!u.resultFields().isEmpty()) implementation.addJavadoc("@see $T\n",owner.nestedClass("Result"));
         var bodies=new StringBuilder(u.bodyCode());u.methods().forEach(m -> bodies.append("\n").append(m.bodyCode()));
         new BehaviorGenerator().addBodyImports(implementation,owner,u.javaImports(),unit,project,bodies.toString());
-        if(u.implementation().isPresent()) {
+        if (!u.nativeBody().isEmpty()) {
+            NativeValidationCompiler.emitUseCase(bridge, implementation, access, u, project);
+        } else if(u.implementation().isPresent()) {
             String target=org.vernac.compiler.util.JavaImplementations.resolve(u.implementation().get(),u.javaImports(),owner.packageName());
             bridge.addStatement(returns.equals(TypeName.VOID)?"$L.execute($L)":"return $L.execute($L)",target,String.join(", ",names));
         } else bridge.addCode("$L\n",u.bodyCode());

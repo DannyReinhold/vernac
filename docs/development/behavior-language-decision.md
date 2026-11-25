@@ -68,8 +68,22 @@ method signatures and modification boundary still apply. Native bodies and state
 optional field values and call declared read methods on `self` using keyword messages. The
 present branch can read fields from a bound value object. A native modification can send
 a keyword message to another modify method on `self` as a statement. It joins the enclosing
-modification and validates at the outer boundary. Native use-case bodies, port calls and
-explicit event sends from native code remain open.
+modification and validates at the outer boundary.
+
+A use case can use the same native syntax for an operation with declared ports and event effects:
+
+```vernac
+execute vernac {
+    documentStore delete: documentId.
+    events emit: (DocumentDeleted documentId: documentId).
+}
+```
+
+Port selectors are resolved against the declared dependency. An event constructor names its fields
+in declaration order. The existing generated Use Case entry point still establishes authorization,
+the transaction and event delivery. Native execute currently supports non-optional inputs and
+a single non-optional result or void. Local declarations, direct aggregate sends from a Use Case,
+and generated compound results are open.
 
 ## Alternatives considered
 

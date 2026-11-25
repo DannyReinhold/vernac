@@ -667,6 +667,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         List<JavaImportNode> imports=ctx.javaImports()==null?List.of():ctx.javaImports().qualifiedName().stream()
                 .map(n -> new JavaImportNode(toLocation(n),n.getText())).toList();
         List<MethodNode> helpers=new ArrayList<>(); String body=""; Optional<String> implementation=Optional.empty(); int count=0;
+        List<NativeStatement> nativeBody = List.of();
         for(var member:ctx.usecaseBehaviorMember()) {
             if(member.behaviorMethod()!=null) {
                 var m=member.behaviorMethod();
@@ -675,10 +676,12 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                         m.name.getText(),m.parameterList()==null?List.of():extractParameters(m.parameterList()),
                         m.rawJavaBlock()==null?"":extractRawSource(m.rawJavaBlock()),Optional.ofNullable(m.implementation).map(ParserRuleContext::getText)));
             } else { count++; body=member.rawJavaBlock()==null?"":extractRawSource(member.rawJavaBlock());
-                implementation=Optional.ofNullable(member.implementation).map(ParserRuleContext::getText); }
+                implementation=Optional.ofNullable(member.implementation).map(ParserRuleContext::getText);
+                nativeBody = nativeBody(member.nativeBehaviorBody());
+            }
         }
         return new UseCaseNode(toLocation(ctx),ctx.name.getText(),inputs,rules,dependencies,
-                Optional.ofNullable(ctx.resultType).map(this::toTypeNode),results,imports,helpers,body,implementation,count,Optional.ofNullable(ctx.requiresClause()).map(c -> authorization(c.authorizationRequirement())));
+                Optional.ofNullable(ctx.resultType).map(this::toTypeNode),results,imports,helpers,body,implementation,count,Optional.ofNullable(ctx.requiresClause()).map(c -> authorization(c.authorizationRequirement())), nativeBody);
     }
 
     @Override public RoleNode visitRoleDefinition(VernacParser.RoleDefinitionContext ctx) {
@@ -738,7 +741,12 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 rejectNativeHelper(m);
                 helpers.add(new MethodNode(toLocation(m), m.visibility == null ? "public" : m.visibility.getText(), toTypeNode(m.returnType), m.name.getText(),
                     m.parameterList() == null ? List.of() : extractParameters(m.parameterList()), m.rawJavaBlock() == null ? "" : extractRawSource(m.rawJavaBlock()), Optional.ofNullable(m.implementation).map(ParserRuleContext::getText)));
-            } else { count++; body = member.rawJavaBlock() == null ? "" : extractRawSource(member.rawJavaBlock()); implementation = Optional.ofNullable(member.implementation).map(ParserRuleContext::getText); }
+            } else {
+                if (member.nativeBehaviorBody() != null)
+                    throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(
+                            org.vernac.compiler.analyzer.CompilerDiagnostic.error(toLocation(member),
+                                    "Native execute currently requires a use case")));
+                count++; body = member.rawJavaBlock() == null ? "" : extractRawSource(member.rawJavaBlock()); implementation = Optional.ofNullable(member.implementation).map(ParserRuleContext::getText); }
         }
         var operation = new UseCaseNode(toLocation(ctx), ctx.name.getText(), List.of(new FieldNode(toLocation(ctx), eventType, "event")), List.of(), dependencies,
                 Optional.empty(), List.of(), imports, helpers, body, implementation, count);

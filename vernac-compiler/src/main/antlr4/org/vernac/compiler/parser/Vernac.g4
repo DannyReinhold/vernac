@@ -393,7 +393,7 @@ usecaseDefinition
       'behavior' '{' javaImports? usecaseBehaviorMember* '}' ';'?
     ;
 usecaseBehaviorMember
-    : 'execute' ('{' rawJavaBlock '}' | 'implemented' 'by' implementation=qualifiedName ';')
+    : 'execute' ('{' rawJavaBlock '}' | 'implemented' 'by' implementation=qualifiedName ';' | nativeBehaviorBody)
     | behaviorMethod
     ;
 
