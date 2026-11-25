@@ -41,6 +41,7 @@ final class ValidationContracts {
         if (definition instanceof EventNode) members.addAll(List.of("eventId","occurredAt"));
         if (!value) members.addAll(List.of("id", "createdAt", "updatedAt", "version"));
         for (var rule : rules) {
+            if (rule.nativeRule().isPresent()) continue;
             var lexer = new VernacLexer(CharStreams.fromString(rule.condition())); lexer.removeErrorListeners();
             var parser = new VernacParser(new CommonTokenStream(lexer)); parser.removeErrorListeners();
             Set<String> bare = new LinkedHashSet<>(); collect(parser.expression(), members, bare);

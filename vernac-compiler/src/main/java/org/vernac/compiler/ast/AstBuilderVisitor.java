@@ -23,6 +23,23 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     }
 
 
+    private ValidationRuleNode stateValidation(VernacParser.ValidationStatementContext rule) {
+        if (rule.predicate == null) return javaValidation(rule);
+        var predicate = org.vernac.compiler.pipeline.KeywordExpressionParser.build(sourceName, rule.predicate);
+        return new ValidationRuleNode(toLocation(rule), extractRawSource(rule.predicate), "",
+                Optional.of(new ValidationRuleNode.NativeRule(predicate, rule.rejection.getText())));
+    }
+
+    private ValidationRuleNode javaValidation(VernacParser.ValidationStatementContext rule) {
+        if (rule.condition == null) {
+            throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(
+                    org.vernac.compiler.analyzer.CompilerDiagnostic.error(toLocation(rule),
+                            "Native validation requires a value, entity, aggregate or event declaration")));
+        }
+        return new ValidationRuleNode(toLocation(rule), extractRawSource(rule.condition),
+                rule.message == null ? "" : unquote(rule.message.getText()));
+    }
+
     @Override
     public CompilationUnitNode visitCompilationUnit(VernacParser.CompilationUnitContext ctx) {
         String namespace = ctx.namespaceDeclaration().qualifiedName().getText();
@@ -132,9 +149,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         List<ValidationRuleNode> validations = new ArrayList<>();
         if (ctx.validationBlock() != null) {
             for (VernacParser.ValidationStatementContext valCtx : ctx.validationBlock().validationStatement()) {
-                String condition = extractRawSource(valCtx.condition);
-                String message = valCtx.message != null ? unquote(valCtx.message.getText()) : "";
-                validations.add(new ValidationRuleNode(toLocation(valCtx), condition, message));
+                validations.add(stateValidation(valCtx));
             }
         }
 
@@ -192,9 +207,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         List<ValidationRuleNode> validations = new ArrayList<>();
         if (ctx.validationBlock() != null) {
             for (VernacParser.ValidationStatementContext valCtx : ctx.validationBlock().validationStatement()) {
-                String condition = extractRawSource(valCtx.condition);
-                String message = valCtx.message != null ? unquote(valCtx.message.getText()) : "";
-                validations.add(new ValidationRuleNode(toLocation(valCtx), condition, message));
+                validations.add(stateValidation(valCtx));
             }
         }
 
@@ -217,9 +230,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         List<ValidationRuleNode> validations = new ArrayList<>();
         if (ctx.validationBlock() != null) {
             for (VernacParser.ValidationStatementContext valCtx : ctx.validationBlock().validationStatement()) {
-                String condition = extractRawSource(valCtx.condition);
-                String message = valCtx.message != null ? unquote(valCtx.message.getText()) : "";
-                validations.add(new ValidationRuleNode(toLocation(valCtx), condition, message));
+                validations.add(stateValidation(valCtx));
             }
         }
 
@@ -255,7 +266,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         return new EventNode(toLocation(ctx), ctx.name.getText(), ctx.recorded != null,
                 ctx.parameterList() == null ? List.of() : extractParameters(ctx.parameterList()),
                 ctx.validationBlock() == null ? List.of() : ctx.validationBlock().validationStatement().stream()
-                    .map(v -> new ValidationRuleNode(toLocation(v), extractRawSource(v.condition), v.message == null ? "" : unquote(v.message.getText()))).toList());
+                    .map(this::stateValidation).toList());
     }
 
     @Override
@@ -377,8 +388,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                     m.rawJavaBlock() == null ? "" : extractRawSource(m.rawJavaBlock()),
                     Optional.ofNullable(m.implementation).map(ParserRuleContext::getText)),
                 m.validationBlock() == null ? List.of() : m.validationBlock().validationStatement().stream()
-                    .map(v -> new ValidationRuleNode(toLocation(v), extractRawSource(v.condition),
-                        v.message == null ? "" : unquote(v.message.getText()))).toList())).toList();
+                    .map(this::javaValidation).toList())).toList();
         var configuration = ctx.configurationBlock() == null ? List.<AdapterConfigurationNode>of() :
             ctx.configurationBlock().configurationEntry().stream().map(c -> new AdapterConfigurationNode(
                 toLocation(c), c.configType.getText(), c.name.getText(), unquote(c.property.getText()))).toList();
@@ -618,7 +628,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             return new FieldNode(toLocation(p),t,name,p.isMut != null,p.name!=null, unique(p), reference(p));
         }).toList();
         List<ValidationRuleNode> rules=ctx.validationBlock()==null?List.of():ctx.validationBlock().validationStatement().stream()
-                .map(v -> new ValidationRuleNode(toLocation(v),extractRawSource(v.condition),v.message==null?"":unquote(v.message.getText()))).toList();
+                .map(this::javaValidation).toList();
         List<JavaImportNode> imports=ctx.javaImports()==null?List.of():ctx.javaImports().qualifiedName().stream()
                 .map(n -> new JavaImportNode(toLocation(n),n.getText())).toList();
         List<MethodNode> helpers=new ArrayList<>(); String body=""; Optional<String> implementation=Optional.empty(); int count=0;
@@ -674,8 +684,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                         m.rawJavaBlock() == null ? "" : extractRawSource(m.rawJavaBlock()),
                         Optional.ofNullable(m.implementation).map(ParserRuleContext::getText)),
                 m.validationBlock() == null ? List.of() : m.validationBlock().validationStatement().stream()
-                        .map(v -> new ValidationRuleNode(toLocation(v), extractRawSource(v.condition),
-                                v.message == null ? "" : unquote(v.message.getText()))).toList())).toList();
+                        .map(this::javaValidation).toList())).toList();
         return new DomainServiceNode(toLocation(ctx), ctx.name.getText(), dependencies, imports, methods);
     }
 

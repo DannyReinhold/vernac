@@ -3,7 +3,11 @@ namespace example.documents;
 id DocumentId;
 value DocumentTitle(String);
 value DocumentPresence = PRESENT | ABSENT;
-aggregate Document[DocumentId](DocumentTitle);
+aggregate Document[DocumentId](mut DocumentTitle) validates {
+    require self documentTitle string != "" else EmptyDocumentTitle.
+} behavior {
+    modify void renameTo(DocumentTitle title) { self.documentTitle(title); }
+};
 
 permission DocumentPermissions { DELETE; }
 recorded event DocumentDeleted(DocumentId);

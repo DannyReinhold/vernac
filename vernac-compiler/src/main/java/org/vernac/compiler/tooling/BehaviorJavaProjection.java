@@ -140,10 +140,12 @@ public final class BehaviorJavaProjection {
         List<Fragment> fragments = new ArrayList<>();
         for (var rule : context.validationStatement()) {
             var expression = rule.condition;
+            if (expression == null) continue;
             fragments.add(new Fragment(offset(text, expression.getStart().getStartIndex()),
                     offset(text, expression.getStop().getStopIndex() + 1),
                     (fragments.isEmpty() ? header.toString() : "") + "if (", ") {}\n"));
         }
+        if (fragments.isEmpty()) return;
         var last = fragments.removeLast();
         fragments.add(new Fragment(last.start(), last.end(), last.prefix(), last.suffix() + "}\n}\n"));
         result.add(new Block(owner + "Validation", fragments));

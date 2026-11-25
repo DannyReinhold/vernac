@@ -39,7 +39,7 @@ testStep
     | 'when' 'request' endpoint=qualifiedName '(' (testBinding (',' testBinding)*)? ')' (csrf='csrf')? ';'
     | 'when' (result=variableName '=')? 'invoke' operation=qualifiedName '(' testArguments? ')'
         ('is' authorizationFailure=qualifiedNameSegment)? ';'
-    | 'when' (result=variableName '=')? '(' keywordAction=keywordExpression ')' ';'
+    | 'when' (result=variableName '=')? '(' keywordAction=keywordExpression ')' ('rejects' expectedRejection=typeName)? ';'
     | 'when' (result=variableName '=')? receiver=variableName '.' action=methodName '(' testArguments? ')' ';'
     ;
 
@@ -148,6 +148,7 @@ validationBlock
 
 validationStatement
     : 'require' '(' condition=expression (',' message=STRING_LITERAL)? ')' ';'
+    | 'require' predicate=keywordExpression 'else' rejection=typeName ('.' | ';')
     ;
 
 // ==========================================
@@ -440,7 +441,7 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'match' | 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
+    : 'rejects' | 'match' | 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
     | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
     | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant'
@@ -573,11 +574,11 @@ argumentList
 // Spezifische Namens-Kategorien
 // ==========================================
 typeName
-    : 'match' | IDENTIFIER | 'unique' | 'references'
+    : 'rejects' | 'match' | IDENTIFIER | 'unique' | 'references'
     ;
 
 methodName
-    : 'match' | 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
+    : 'rejects' | 'match' | 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
     | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
     | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant'
@@ -591,7 +592,7 @@ methodName
     ;
 
 variableName
-    : 'match' | 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
+    : 'rejects' | 'match' | 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
     | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
     | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant' | 'read' | 'modify'

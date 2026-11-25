@@ -24,3 +24,13 @@ suite DeniedDeletion using example.documents.WorkspaceFixtures.Reader {
         expect calls to DocumentStore.delete count 0;
     }
 }
+
+
+suite DocumentTitleRules {
+    scenario rejectedRenameKeepsTheStoredTitle {
+        given document = Document(DocumentTitle("Minutes"));
+        given emptyTitle = DocumentTitle("");
+        when (document renameTo: emptyTitle) rejects EmptyDocumentTitle;
+        expect (document documentTitle string == "Minutes");
+    }
+}

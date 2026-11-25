@@ -112,6 +112,10 @@ class VernacScenarioCompilerTest {
         assertTrue(java.contains("fixture$task.changeFrom(example.domain.domain.Status.OPEN, example.domain.domain.Status.DONE)"), java);
         Files.writeString(source, scenario.replace("when (task changeFrom", "expect (task changeFrom"));
         assertDiagnostic(root, output, main, "tasks.vernac:7:", "accessible behavior for selector 'changeFrom:to:'");
+        Files.writeString(source, scenario.replace("Status DONE);", "Status DONE) rejects InvalidChange;"));
+        assertEquals(1, compiler.generate(root, compiler.discover(root), main, output));
+        assertTrue(Files.readString(output.resolve("org/vernac/generated/VernacScenariosTest.java"))
+                .contains("assertEquals(\"InvalidChange\", Assertions.assertThrows(NativeValidation.Rejection.class"));
         Files.writeString(source, scenario.replace("to:", "destination:"));
         assertDiagnostic(root, output, main, "tasks.vernac:7:", "accessible behavior for selector 'changeFrom:destination:'");
     }

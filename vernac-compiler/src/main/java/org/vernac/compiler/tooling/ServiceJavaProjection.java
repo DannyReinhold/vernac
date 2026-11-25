@@ -38,7 +38,7 @@ final class ServiceJavaProjection {
                 }
                 if (node.validationBlock() != null) {
                     List<Fragment> rules = new ArrayList<>();
-                    for (var rule : node.validationBlock().validationStatement()) helper.add(rules, rule.condition, text, "if (", ") {}\n");
+                    for (var rule : node.validationBlock().validationStatement()) if (rule.condition != null) helper.add(rules, rule.condition, text, "if (", ") {}\n");
                     helper.close(blocks, service.name() + "Validation" + i, rules,
                             classHeader.replace("EditorBehavior", "EditorValidation") + "static void validate(" + access + ".Input" + i + " self) {\n", "}\n}\n");
                 }

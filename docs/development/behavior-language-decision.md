@@ -37,8 +37,23 @@ A scenario can also call a declared behavior with `when (document moveFrom: inbo
 For existing JVM-backed behaviors, the first keyword matches the method name and subsequent
 keywords match parameter names in order. `expect` can call declared read behaviors, while
 `when` also allows modify behaviors. The surrounding suite and fixture syntax stays compatible
-with 0.6. Native behavior bodies and validation rules still require compiler and interpreter
-integration.
+with 0.6.
+
+Values, entities, aggregates and events can declare a native state rule:
+
+```vernac
+validates {
+    require self start intValue <= self finish intValue else InvertedDates.
+}
+```
+
+The compiler checks that state reads use the read interface and that the predicate yields a
+Boolean. The runtime evaluates the compiled predicate against the candidate state. A false
+predicate raises a domain validation exception with code `InvertedDates`. A scenario can
+assert that code with `when (booking moveFrom: start to: finish) rejects InvertedDates;`.
+Native state rules currently support field paths, integer arithmetic, equality and Boolean
+operators. Native behavior bodies, keyword calls within validation rules and optional matching
+within validation rules remain open.
 
 ## Alternatives considered
 

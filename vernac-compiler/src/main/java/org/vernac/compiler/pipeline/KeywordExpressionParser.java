@@ -22,7 +22,7 @@ public final class KeywordExpressionParser {
         return build(sourceName, tree.keywordExpression());
     }
 
-    static KeywordExpression build(String sourceName, KeywordExpressionContext expression) {
+    public static KeywordExpression build(String sourceName, KeywordExpressionContext expression) {
         return new Builder(sourceName).visit(expression);
     }
 

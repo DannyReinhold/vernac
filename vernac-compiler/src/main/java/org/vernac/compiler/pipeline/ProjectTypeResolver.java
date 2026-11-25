@@ -190,6 +190,8 @@ public final class ProjectTypeResolver {
                 }).toList();
         var partial = new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries,
                 schemas, mappings, restOperations, inboundAdapters, Map.of());
+        if (diagnostics.stream().noneMatch(diagnostic -> diagnostic.severity() == CompilerDiagnostic.Severity.ERROR))
+            diagnostics.addAll(org.vernac.compiler.generator.NativeValidationCompiler.diagnostics(partial));
         var webTemplates = new WebViews(partial, diagnostics).compile();
         if (strict) failOnErrors(diagnostics);
         return new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries, schemas,

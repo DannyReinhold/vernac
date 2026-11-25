@@ -67,6 +67,41 @@ public class BehaviorContractTest {
         }
     }
 
+    @Test void nativeValidationReadsTheCandidateAndRejectsByCode() throws Exception {
+        var output = compile("""
+                id BookingId;
+                value Day(int);
+                aggregate Booking[BookingId](mut Day start, mut Day finish) validates {
+                    require self start intValue <= self finish intValue else InvertedDates.
+                    require self start intValue == 0 || 12 / self start intValue >= 1 else OutsideWindow.
+                } behavior {
+                    modify void move(Day start, Day finish) { self.start(start); self.finish(finish); }
+                };
+                """);
+        var day = output.loadClass("behavior.tests.domain.Day");
+        var booking = output.loadClass("behavior.tests.domain.Booking");
+        var zero = day.getMethod("of", int.class).invoke(null, 0);
+        var two = day.getMethod("of", int.class).invoke(null, 2);
+        var five = day.getMethod("of", int.class).invoke(null, 5);
+        var instance = booking.getMethod("create", day, day).invoke(null, zero, two);
+        booking.getMethod("move", day, day).invoke(instance, five, five);
+        var failure = assertThrows(InvocationTargetException.class,
+                () -> booking.getMethod("move", day, day).invoke(instance, five, two));
+        var rejection = assertInstanceOf(org.vernac.runtime.NativeValidation.Rejection.class, failure.getCause());
+        assertEquals("InvertedDates", rejection.code());
+        assertSame(five, booking.getMethod("finish").invoke(instance));
+    }
+
+    @Test void nativeValidationRejectsUnknownFieldsAndNonBooleanPredicates() {
+        for (var predicate : java.util.List.of("self missing == 0", "self intValue + 1",
+                "self change: 1")) {
+            var failure = assertThrows(SemanticValidationException.class, () -> generate("""
+                    value Count(int) validates { require %s else InvalidCount. };
+                    """.formatted(predicate)));
+            assertEquals("<memory>", failure.diagnostics().getFirst().location().sourceName());
+        }
+    }
+
     @Test void javaImportsCannotReplaceModelOrBuiltinTypes() {
         for (String model : new String[]{
                 "value Name(String); value Other(String) behavior { java imports { foreign.Name; } };",

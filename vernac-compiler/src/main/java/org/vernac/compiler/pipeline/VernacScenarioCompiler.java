@@ -714,7 +714,13 @@ public final class VernacScenarioCompiler {
             if (!(action instanceof KeywordExpression.Message message))
                 throw error(action.location(), "Expected a keyword message in the action");
             var invocation = keywordCall(message, fixtures, MethodNode.Mode.MODIFY);
-            if (step.result == null) {
+            if (step.expectedRejection != null) {
+                if (step.result != null)
+                    throw error(location(source, step.result), "A rejected action cannot bind a result");
+                method.addStatement("$T.assertEquals($S, $T.assertThrows($T.class, () -> $L, statement).code(), statement)",
+                        ASSERTIONS, step.expectedRejection.getText(), ASSERTIONS,
+                        org.vernac.runtime.NativeValidation.Rejection.class, invocation.code());
+            } else if (step.result == null) {
                 method.addStatement("$L", invocation.code());
             } else {
                 if (invocation.type() instanceof ResolvedType.VoidReturn)

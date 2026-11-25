@@ -44,7 +44,7 @@ final class UseCaseJavaProjection {
             close(blocks,u.name(),fragments,header.toString());
             if(validation!=null) {
                 List<Fragment> validations=new ArrayList<>();
-                for(var v:validation.validationStatement()) add(validations,v.condition,text,"if (",") {}\n");
+                for(var v:validation.validationStatement()) if (v.condition != null) add(validations,v.condition,text,"if (",") {}\n");
                 close(blocks,u.name()+"Validation",validations,header.toString().replace("__VernacEditorBehavior_","__VernacEditorValidation_")+"static void validate("+pkg+".access."+u.name()+"Read self) {\n", "}\n}\n");
             }
             return blocks;

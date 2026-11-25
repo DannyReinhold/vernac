@@ -115,7 +115,7 @@ public class VernacCompiler {
         var owner = com.palantir.javapoet.ClassName.get(unit.namespace() + ".domain", value.name());
         var files = new ArrayList<JavaFile>();
         files.add(new ValueReadGenerator().generate(value, owner, project));
-        new ValidationGenerator().generate(owner, value.validations(), value.javaImports(), unit, project).ifPresent(files::add);
+        new ValidationGenerator().generate(owner, value, value.validations(), value.javaImports(), unit, project).ifPresent(files::add);
         return files;
     }
 
@@ -126,7 +126,7 @@ public class VernacCompiler {
         var owner = com.palantir.javapoet.ClassName.get(unit.namespace() + ".domain", model.name());
         files.addAll(new DomainAccessGenerator().interfaces(model, owner, project));
         var rules = model.definition() instanceof EntityNode e ? e.validations() : ((AggregateNode) model.definition()).validations();
-        new ValidationGenerator().generate(owner, rules, model.imports(), unit, project).ifPresent(files::add);
+        new ValidationGenerator().generate(owner, model.definition(), rules, model.imports(), unit, project).ifPresent(files::add);
         new BehaviorGenerator().generate(owner, model.methods(), model.imports(), unit, project).ifPresent(files::add);
         return files;
     }

@@ -3,10 +3,17 @@
 
 package org.vernac.compiler.ast;
 
-import java.util.List;
+import java.util.Optional;
 
 public record ValidationRuleNode(
         SourceLocation location,
         String condition,
-        String message
-) implements AstNode {}
+        String message,
+        Optional<NativeRule> nativeRule
+) implements AstNode {
+    public ValidationRuleNode(SourceLocation location, String condition, String message) {
+        this(location, condition, message, Optional.empty());
+    }
+
+    public record NativeRule(KeywordExpression predicate, String rejection) { }
+}
