@@ -125,8 +125,11 @@ both graphs so that removal of an old edge cannot hide a dependency. Missing dep
 and Java fixtures widen selection. An opaque change or the absence of a baseline selects the full
 requested profile. Results include the reason for each selected case.
 
-Graph construction from compiler inputs and the connection from selection to the warm runner
-remain open. The selector and the existing explicit scenario filter can be tested independently.
+Graph construction now certifies plain ID and value declarations and follows resolved value field
+types to their source files. Files with behavior, validation, collections or other opaque declarations
+remain uncertified and trigger a conservative fallback when reached. The compiler test combines
+two checked workspace revisions with the derived graph and verifies that an unrelated scenario is
+excluded. Broader dependency extraction and the connection to the warm runner remain open.
 
 ## Daemon, editor and agent protocol
 

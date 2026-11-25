@@ -3,6 +3,9 @@
 package org.vernac.compiler.pipeline;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.vernac.compiler.ast.SourceLocation;
 import org.vernac.compiler.pipeline.AffectedScenarioSelector.Graph;
 import org.vernac.compiler.pipeline.AffectedScenarioSelector.Revision;
@@ -19,6 +22,41 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.vernac.compiler.pipeline.AffectedScenarioSelector.Reason.*;
 
 class AffectedScenarioSelectorTest {
+    @TempDir Path root;
+
+    @Test
+    void derivesFieldEdgesFromRealCompilerOutput() throws Exception {
+        var namespace = Files.createDirectories(root.resolve("app"));
+        var title = Files.writeString(namespace.resolve("title.vernac"), "namespace app; value Title(String);");
+        Files.writeString(namespace.resolve("summary.vernac"), "namespace app; value Summary(Title title);");
+        Files.writeString(namespace.resolve("counter.vernac"), "namespace app; value Counter(int);");
+        var tests = Map.of("src/test/vernac/app/checks.vernac", """
+                namespace app;
+                suite Checks {
+                    scenario summary {
+                        given title = Title("hello");
+                        given summary = Summary(title);
+                        expect summary.title equals title;
+                    }
+                    scenario counter {
+                        given counter = Counter(1);
+                        expect counter.intValue equals 1;
+                    }
+                }
+                """);
+        var session = new WorkspaceCheckSession(root, Map.of(), List.of());
+        var inputs = new VersionedSources(root, Map.of(title, Files.readString(title),
+                namespace.resolve("summary.vernac"), "namespace app; value Summary(Title title);",
+                namespace.resolve("counter.vernac"), "namespace app; value Counter(int);"));
+        var before = ScenarioDependencyGraph.inspect(session.check(inputs.snapshot()).project().orElseThrow(), tests);
+        var changed = inputs.apply(0, List.of(new VersionedSources.Put(title,
+                "namespace app; value Title(String) validates { require self string != \"\" else BlankTitle. };")));
+        var after = ScenarioDependencyGraph.inspect(session.check(changed).project().orElseThrow(), tests);
+        assertEquals(Set.of(title.toString()), before.graph().dependencies().get(namespace.resolve("summary.vernac").toString()));
+        assertEquals(List.of(new Selection("app.Checks.summary", CHANGED_DEPENDENCY)),
+                AffectedScenarioSelector.select(Optional.of(before), after, Set.of(title.toString()), false, null));
+    }
+
     @Test
     void followsBothGraphsAndTerminatesOnCycles() {
         var cases = List.of(scenario("dependent", "domain", false, "entry"),
