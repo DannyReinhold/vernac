@@ -161,8 +161,8 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 toLocation(ctx),
                 name,
                 fields,
-                enumConstants,
-                validations,
+                List.copyOf(enumConstants),
+                List.copyOf(validations),
                 voMethods,
                 collections,
                 behaviorImports(ctx.behaviorBlock())
@@ -249,7 +249,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             }
         }
 
-        return new AggregateNode(toLocation(ctx), name, idDef, fields, validations,
+        return new AggregateNode(toLocation(ctx), name, idDef, fields, List.copyOf(validations),
                 behaviorMethods(ctx.behaviorBlock()), collections(ctx.collectionDefinition()), behaviorImports(ctx.behaviorBlock()), ctx.classification == null ? AggregateNode.Classification.UNSPECIFIED : ctx.classification.getText().equals("tenant") ? AggregateNode.Classification.TENANT : AggregateNode.Classification.GLOBAL);
     }
 
@@ -272,7 +272,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             }
         }
 
-        return new EntityNode(toLocation(ctx), name, idDef, fields, validations,
+        return new EntityNode(toLocation(ctx), name, idDef, fields, List.copyOf(validations),
                 behaviorMethods(ctx.behaviorBlock()), collections(ctx.collectionDefinition()), behaviorImports(ctx.behaviorBlock()));
     }
 
@@ -290,13 +290,13 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             methods.add(new RepositoryMethodNode(
                     toLocation(findCtx), toTypeNode(findCtx.returnType), findCtx.name.getText(),
                     findCtx.parameterList() == null ? List.of() : extractParameters(findCtx.parameterList()),
-                    predicates, findCtx.repositoryOrder().stream().map(o -> new RepositoryMethodNode.Order(
+                    List.copyOf(predicates), findCtx.repositoryOrder().stream().map(o -> new RepositoryMethodNode.Order(
                             toLocation(o), o.field.getText(), o.direction != null && o.direction.getText().equals("desc"))).toList(),
                     condition, findCtx.pagination == null ? RepositoryMethodNode.Pagination.NONE
                             : RepositoryMethodNode.Pagination.valueOf(findCtx.pagination.getText().toUpperCase(java.util.Locale.ROOT)),
                     findCtx.counting != null));
         }
-        return new RepositoryNode(toLocation(ctx), name, aggregateName, methods);
+        return new RepositoryNode(toLocation(ctx), name, aggregateName, List.copyOf(methods));
     }
 
     @Override
@@ -440,7 +440,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             methods = http.operations().stream().map(o -> new ServiceMethodNode(o.method(), List.of())).toList();
         }
         return new OutboundAdapterNode(toLocation(ctx),ctx.name.getText(),toTypeNode(ctx.portType),
-                dependencies,technical,imports,methods,ctx.schemaDefinition().stream().map(this::visitSchemaDefinition).toList(),
+                dependencies,List.copyOf(technical),imports,methods,ctx.schemaDefinition().stream().map(this::visitSchemaDefinition).toList(),
                 ctx.mappingDefinition().stream().map(this::visitMappingDefinition).toList(), rest, configuration);
     }
     private RestAdapterNode rest(VernacParser.RestBlockContext ctx) {
@@ -684,7 +684,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             }
         }
         return new UseCaseNode(toLocation(ctx),ctx.name.getText(),inputs,rules,dependencies,
-                Optional.ofNullable(ctx.resultType).map(this::toTypeNode),results,imports,helpers,body,implementation,count,Optional.ofNullable(ctx.requiresClause()).map(c -> authorization(c.authorizationRequirement())), nativeBody);
+                Optional.ofNullable(ctx.resultType).map(this::toTypeNode),results,imports,List.copyOf(helpers),body,implementation,count,Optional.ofNullable(ctx.requiresClause()).map(c -> authorization(c.authorizationRequirement())), nativeBody);
     }
 
     @Override public RoleNode visitRoleDefinition(VernacParser.RoleDefinitionContext ctx) {
@@ -752,7 +752,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 count++; body = member.rawJavaBlock() == null ? "" : extractRawSource(member.rawJavaBlock()); implementation = Optional.ofNullable(member.implementation).map(ParserRuleContext::getText); }
         }
         var operation = new UseCaseNode(toLocation(ctx), ctx.name.getText(), List.of(new FieldNode(toLocation(ctx), eventType, "event")), List.of(), dependencies,
-                Optional.empty(), List.of(), imports, helpers, body, implementation, count);
+                Optional.empty(), List.of(), imports, List.copyOf(helpers), body, implementation, count);
         return new ListenerNode(toLocation(ctx), ctx.name.getText(), ctx.deliveryMode.getText().equals("deferred"), eventType, operation);
     }
     private RepositoryMethodNode.Expression queryExpression(VernacParser.RepositoryExpressionContext ctx,

@@ -4,11 +4,15 @@ package org.vernac.compiler.pipeline;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.vernac.compiler.analyzer.CompilerDiagnostic;
 import org.vernac.compiler.analyzer.SemanticValidationException;
+import org.vernac.compiler.persistence.SchemaModel;
 import org.vernac.compiler.symbols.TypeSymbol;
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 class VernacProjectLoaderTest {
@@ -19,6 +23,78 @@ class VernacProjectLoaderTest {
         Path path = root.resolve(relativePath);
         Files.createDirectories(path.getParent());
         return Files.writeString(path, source);
+    }
+
+    @Test
+    void reusesExactSourcesAndMatchesTheCleanCompilerThroughEditsAndMembershipChanges() throws IOException {
+        var model = write("example/model.vernac", "namespace example; value Summary(Title title);");
+        var values = write("example/values.vernac", "namespace example; value Title(String);");
+        var loader = new VernacProjectLoader();
+        var session = loader.openSession(root);
+
+        var initial = session.load(Map.of());
+        assertEquals(new VernacProjectLoader.ParseStatistics(2, 0), session.statistics());
+        assertEquals(generated(loader.load(root)), generated(initial));
+
+        var updated = Map.of(values, "namespace example;\nvalue Title(int);");
+        var edited = session.load(updated);
+        assertEquals(new VernacProjectLoader.ParseStatistics(1, 1), session.statistics());
+        assertSame(initial.sources().stream().filter(file -> file.path().equals(model)).findFirst().orElseThrow().unit(),
+                edited.sources().stream().filter(file -> file.path().equals(model)).findFirst().orElseThrow().unit());
+        assertEquals(generated(loader.load(root, updated)), generated(edited));
+
+        var broken = Map.of(values, "namespace example; value ;");
+        var cleanError = assertThrows(SemanticValidationException.class, () -> loader.load(root, broken));
+        for (int repeat = 0; repeat < 2; repeat++) {
+            var cachedError = assertThrows(SemanticValidationException.class, () -> session.load(broken));
+            assertEquals(cleanError.diagnostics(), cachedError.diagnostics());
+            assertEquals(new VernacProjectLoader.ParseStatistics(1 - repeat, 1 + repeat), session.statistics());
+        }
+
+        Files.delete(values);
+        var missing = session.load(Map.of());
+        var expected = assertThrows(SemanticValidationException.class, () -> generated(loader.load(root)));
+        assertEquals(expected.diagnostics(),
+                assertThrows(SemanticValidationException.class, () -> generated(missing)).diagnostics());
+        assertEquals(new VernacProjectLoader.ParseStatistics(0, 1), session.statistics());
+
+        var renamed = root.resolve("example/renamed.vernac");
+        Files.writeString(renamed, updated.get(values));
+        var repaired = session.load(Map.of());
+        assertEquals(new VernacProjectLoader.ParseStatistics(1, 1), session.statistics());
+        assertEquals(generated(loader.load(root)), generated(repaired));
+    }
+
+    @Test
+    void keepsEditorRecoveryAndClientOverlaysSeparate() throws IOException {
+        var model = write("example/model.vernac", "namespace example; value Title(String);");
+        var loader = new VernacProjectLoader();
+        var editor = loader.openSession(root);
+        var otherClient = loader.openSession(root);
+        var broken = Map.of(model, "namespace example; value Title(int); value ;");
+
+        var cleanDiagnostics = new ArrayList<CompilerDiagnostic>();
+        var clean = loader.loadForAnalysis(root, broken, cleanDiagnostics);
+        for (int repeat = 0; repeat < 2; repeat++) {
+            var diagnostics = new ArrayList<CompilerDiagnostic>();
+            var recovered = editor.loadForAnalysis(broken, diagnostics);
+            assertEquals(clean.sources(), recovered.sources());
+            assertEquals(cleanDiagnostics, diagnostics);
+            assertEquals(new VernacProjectLoader.ParseStatistics(1 - repeat, repeat), editor.statistics());
+        }
+
+        assertThrows(SemanticValidationException.class, () -> editor.load(broken));
+        assertEquals(new VernacProjectLoader.ParseStatistics(1, 0), editor.statistics());
+        assertEquals(generated(loader.load(root)), generated(otherClient.load(Map.of())));
+        assertEquals(new VernacProjectLoader.ParseStatistics(1, 0), otherClient.statistics());
+        var restored = editor.loadForAnalysis(Map.of(), new ArrayList<>());
+        assertEquals(generated(loader.load(root)), generated(restored));
+    }
+
+    private List<String> generated(VernacProject project) {
+        var resolved = new ProjectTypeResolver().resolve(project);
+        return compiler.generate(resolved, SchemaModel.empty(), Map.of()).generatedFiles().stream()
+                .map(Object::toString).toList();
     }
 
     @Test

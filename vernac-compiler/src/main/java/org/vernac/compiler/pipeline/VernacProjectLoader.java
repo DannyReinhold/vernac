@@ -21,7 +21,7 @@ public final class VernacProjectLoader {
     /** Open editor snapshots override disk contents; unsaved new files are included. */
     public VernacProject load(Path sourceRoot, Map<Path, String> snapshots) throws IOException {
         List<CompilerDiagnostic> diagnostics = new ArrayList<>();
-        VernacProject project = loadSources(sourceRoot, snapshots, diagnostics, false);
+        VernacProject project = loadSources(sourceRoot, snapshots, diagnostics, false, null).project();
         if (!diagnostics.isEmpty()) throw new SemanticValidationException(diagnostics);
         return project;
     }
@@ -29,11 +29,57 @@ public final class VernacProjectLoader {
     /** Collects source errors while retaining complete declarations for editor analysis. */
     public VernacProject loadForAnalysis(Path sourceRoot, Map<Path, String> snapshots,
                                         List<CompilerDiagnostic> diagnostics) throws IOException {
-        return loadSources(sourceRoot, snapshots, diagnostics, true);
+        return loadSources(sourceRoot, snapshots, diagnostics, true, null).project();
     }
 
-    private VernacProject loadSources(Path sourceRoot, Map<Path, String> snapshots,
-            List<CompilerDiagnostic> diagnostics, boolean editorRecovery) throws IOException {
+    /** Opens a bounded parse session. Use a separate session for each client's source overlays. */
+    public ParseSession openSession(Path sourceRoot) {
+        return new ParseSession(sourceRoot.toAbsolutePath().normalize());
+    }
+
+    public record ParseStatistics(int parsed, int reused) { }
+
+    public final class ParseSession {
+        private final Path sourceRoot;
+        private Map<Path, ParsedSource> strict = Map.of();
+        private Map<Path, ParsedSource> editor = Map.of();
+        private ParseStatistics statistics = new ParseStatistics(0, 0);
+
+        private ParseSession(Path sourceRoot) {
+            this.sourceRoot = sourceRoot;
+        }
+
+        public synchronized VernacProject load(Map<Path, String> snapshots) throws IOException {
+            var diagnostics = new ArrayList<CompilerDiagnostic>();
+            var revision = loadSources(sourceRoot, snapshots, diagnostics, false, strict);
+            strict = revision.entries();
+            statistics = revision.statistics();
+            if (!diagnostics.isEmpty()) throw new SemanticValidationException(diagnostics);
+            return revision.project();
+        }
+
+        public synchronized VernacProject loadForAnalysis(Map<Path, String> snapshots,
+                                                            List<CompilerDiagnostic> diagnostics) throws IOException {
+            var revision = loadSources(sourceRoot, snapshots, diagnostics, true, editor);
+            editor = revision.entries();
+            statistics = revision.statistics();
+            return revision.project();
+        }
+
+        public synchronized ParseStatistics statistics() {
+            return statistics;
+        }
+    }
+
+    private record ParsedSource(String text, Optional<CompilationUnitNode> unit,
+                                List<CompilerDiagnostic> diagnostics) { }
+
+    private record ParseRevision(VernacProject project, Map<Path, ParsedSource> entries,
+                                 ParseStatistics statistics) { }
+
+    private ParseRevision loadSources(Path sourceRoot, Map<Path, String> snapshots,
+            List<CompilerDiagnostic> diagnostics, boolean editorRecovery, Map<Path, ParsedSource> previous)
+            throws IOException {
         Path root = sourceRoot.toAbsolutePath().normalize();
         Map<Path, String> overlays = new TreeMap<>();
         for (var entry : snapshots.entrySet()) {
@@ -55,24 +101,40 @@ public final class VernacProjectLoader {
             }
         }
         List<VernacSourceFile> sources = new ArrayList<>();
-        var parser = new VernacSourceParser();
-        var editorParser = new EditorSourceParser();
+        Map<Path, ParsedSource> entries = previous == null ? null : new HashMap<>();
+        int reused = 0;
         for (Path path : paths) {
-            try {
-                String text = overlays.containsKey(path) ? overlays.get(path) : Files.readString(path);
-                var parsed = editorRecovery
-                        ? editorParser.analyze(path.toString(), text, diagnostics).map(EditorSourceParser.Analysis::unit)
-                        : Optional.of(parser.parse(path.toString(), text));
-                if (parsed.isPresent()) {
-                    var unit = parsed.get();
-                    sources.add(new VernacSourceFile(path, unit));
-                    validateNamespace(root, path, unit, diagnostics);
-                }
-            } catch (SemanticValidationException e) {
-                diagnostics.addAll(e.diagnostics());
+            String text = overlays.containsKey(path) ? overlays.get(path) : Files.readString(path);
+            var parsed = previous == null ? null : previous.get(path);
+            if (parsed != null && parsed.text().equals(text)) {
+                reused++;
+            } else {
+                parsed = parse(path, text, editorRecovery);
+            }
+            if (entries != null) entries.put(path, parsed);
+            diagnostics.addAll(parsed.diagnostics());
+            if (parsed.unit().isPresent()) {
+                var unit = parsed.unit().orElseThrow();
+                sources.add(new VernacSourceFile(path, unit));
+                validateNamespace(root, path, unit, diagnostics);
             }
         }
-        return index(root, sources, diagnostics);
+        var project = index(root, sources, diagnostics);
+        return new ParseRevision(project, entries == null ? Map.of() : Map.copyOf(entries),
+                new ParseStatistics(paths.size() - reused, reused));
+    }
+
+    private static ParsedSource parse(Path path, String text, boolean editorRecovery) {
+        var diagnostics = new ArrayList<CompilerDiagnostic>();
+        Optional<CompilationUnitNode> unit = Optional.empty();
+        try {
+            unit = editorRecovery
+                    ? new EditorSourceParser().analyze(path.toString(), text, diagnostics).map(EditorSourceParser.Analysis::unit)
+                    : Optional.of(new VernacSourceParser().parse(path.toString(), text));
+        } catch (SemanticValidationException failure) {
+            diagnostics.addAll(failure.diagnostics());
+        }
+        return new ParsedSource(text, unit, List.copyOf(diagnostics));
     }
 
     /** Indexes parsed snapshots; filesystem layout is checked by load, not by this method. */

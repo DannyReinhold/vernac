@@ -103,6 +103,20 @@ kind, a new dependency edge that cannot be bounded, or an unreadable cache as a 
 enclosing unit and its consumers. Track such fallbacks by cause so the next optimization targets an
 observed cost.
 
+### Implemented parse reuse
+
+The loader has an explicit parse session per source root and client. It reuses a file's parsed
+unit and syntax diagnostics when its normalized path and effective text match the previous request.
+Editor recovery and strict parsing keep separate entries. Each request rediscovers source membership,
+rebuilds the symbol index, and resolves the project again. Removed files are dropped, and a renamed
+file is parsed at its new path so diagnostics get the correct source coordinates.
+
+The Language Server uses one session per active source root and drops it when the root is no longer
+being analyzed. The clean loader remains available for comparison. Regression tests replay a changed
+overlay, a syntax error, deletion and repair and compare the resulting diagnostics and generated
+sources against the clean path. Parse counts show reuse at this stage. The warm 500 ms p95 release
+gate covers the full patch-to-test result and remains to be measured.
+
 ## Daemon, editor and agent protocol
 
 Use a local daemon per isolated workspace/worktree and compatible toolchain. Reuse the existing LSP
