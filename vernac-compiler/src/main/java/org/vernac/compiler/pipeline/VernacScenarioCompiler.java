@@ -160,15 +160,7 @@ public final class VernacScenarioCompiler {
                 String message = location(source, statement) + " [" + id + "]";
                 method.addStatement("statement = $S", message);
                 if (statement instanceof TestStepContext step && step.fixture != null) {
-                    String fixture = step.fixture.getText();
-                    if (!VernacNames.isIdentifier(fixture))
-                        throw error(location(source, step.fixture), VernacNames.invalidNameMessage(fixture));
-                    if (fixtures.containsKey(fixture))
-                        throw error(location(source, step.fixture), "Duplicate fixture '" + fixture + "'");
-                    var value = expression(step.value, fixtures);
-                    CodeBlock name = CodeBlock.of("$L", fixtureName(fixture));
-                    method.addStatement("var $L = $L", name, value.code());
-                    fixtures.put(fixture, new Expression(name, value.type(), value.optional()));
+                    bind(method, fixtures, step.fixture, expression(step.value, fixtures));
                 } else if (statement instanceof TestStepContext step) {
                     var receiver = fixtures.get(step.receiver.getText());
                     if (receiver == null)
@@ -180,7 +172,16 @@ public final class VernacScenarioCompiler {
                             .orElseThrow(() -> error(location(source, step.action), "Unknown public behavior '" + action + "'"));
                     reference(step.action, target.location());
                     var args = arguments(step, step.testArguments(), target.parameters(), fixtures);
-                    method.addStatement("$L.$L($L)", receiver.code(), action, args);
+                    var invocation = CodeBlock.of("$L.$L($L)", receiver.code(), action, args);
+                    if (step.result == null) {
+                        method.addStatement("$L", invocation);
+                    } else {
+                        var resultType = main.typeOf(target.returnType());
+                        if (resultType instanceof ResolvedType.VoidReturn)
+                            throw error(location(source, step.result), "Behavior '" + action + "' does not return a value");
+                        bind(method, fixtures, step.result,
+                                new Expression(invocation, resultType, target.returnType().isOptional()));
+                    }
                 } else if (statement instanceof TestAssertionContext assertion) {
                     var actual = expression(assertion.actual, fixtures);
                     if (assertion.expected != null) {
@@ -188,8 +189,13 @@ public final class VernacScenarioCompiler {
                         requireType(assertion.expected, expected, actual.type(), actual.optional());
                         method.addStatement("$T.assertEquals((Object) $L, (Object) $L, statement)",
                                 ASSERTIONS, expected.code(), actual.code());
+                    } else if (assertion.outcome.getText().equals("invalid")) {
+                        if (assertion.actual.factory == null)
+                            throw error(location(source, assertion.actual), "Expected a constructor in an invalid-value assertion");
+                        method.addStatement("$T.assertThrows($T.class, () -> $L, statement)",
+                                ASSERTIONS, org.vernac.runtime.DomainValidationException.class, actual.code());
                     } else {
-                        boolean present = assertion.presence.getText().equals("present");
+                        boolean present = assertion.outcome.getText().equals("present");
                         if (actual.optional()) {
                             method.addStatement("$T.$L($L.isPresent(), statement)", ASSERTIONS,
                                     present ? "assertTrue" : "assertFalse", actual.code());
@@ -204,6 +210,18 @@ public final class VernacScenarioCompiler {
                     .addStatement("throw new $T(statement, failure)", AssertionError.class)
                     .endControlFlow();
             return method.build();
+        }
+
+        private void bind(MethodSpec.Builder method, Map<String, Expression> fixtures,
+                          ParserRuleContext binding, Expression value) {
+            String fixture = binding.getText();
+            if (!VernacNames.isIdentifier(fixture))
+                throw error(location(source, binding), VernacNames.invalidNameMessage(fixture));
+            if (fixtures.containsKey(fixture))
+                throw error(location(source, binding), "Duplicate fixture '" + fixture + "'");
+            CodeBlock name = CodeBlock.of("$L", fixtureName(fixture));
+            method.addStatement("var $L = $L", name, value.code());
+            fixtures.put(fixture, new Expression(name, value.type(), value.optional()));
         }
 
         private Expression expression(TestExpressionContext value, Map<String, Expression> fixtures) {

@@ -11,4 +11,8 @@ suite TaskLifecycle {
         expect task.status equals Status.COMPLETED;
         expect task.title.string equals "Try Vernac";
     }
+
+    scenario rejectsBlankTitle {
+        expect Title(" ") is invalid;
+    }
 }

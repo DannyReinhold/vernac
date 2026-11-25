@@ -65,7 +65,7 @@ class VernacSpringBootTemplateTest {
                 testRoot.resolve(namespace.replace('.', '/') + "/task-lifecycle.vernac"));
         assertTrue(scenario.contains("namespace " + namespace + ";"));
         var scenarioCompiler = new org.vernac.compiler.pipeline.VernacScenarioCompiler();
-        assertEquals(1, scenarioCompiler.generate(testRoot, scenarioCompiler.discover(testRoot),
+        assertEquals(2, scenarioCompiler.generate(testRoot, scenarioCompiler.discover(testRoot),
                 resolved, root.resolve("target/generated-test-sources/vernac")));
         assertTrue(
                 pomText.contains(

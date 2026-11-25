@@ -31,9 +31,10 @@ suite TaskLifecycle {
 
 - `given` binds a fixture or captures a value for later assertions. Aggregate and entity constructors
   call the generated `create` factory. Value constructors call `of`.
-- `when` invokes a public behavior on a previously bound fixture.
+- `when` invokes a public behavior on a previously bound fixture. Use `when result = task.readStatus();` to bind the result of a behavior that returns a value.
 - `expect` compares two values of the same type or checks presence. A dotted fixture path reads
   its fields. Capture a field before a mutation when you need to compare its previous value.
+- `expect TaskTitle(" ") is invalid;` requires the generated constructor to throw a domain validation exception.
 - A scenario can use types in its namespace and import types from other namespaces. It supports
   enum members, strings, integers and booleans as inputs. Test declarations are visible only
   during test compilation.

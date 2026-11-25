@@ -36,11 +36,11 @@ testScenario
 
 testStep
     : 'given' fixture=variableName '=' value=testExpression ';'
-    | 'when' receiver=variableName '.' action=methodName '(' testArguments? ')' ';'
+    | 'when' (result=variableName '=')? receiver=variableName '.' action=methodName '(' testArguments? ')' ';'
     ;
 
 testAssertion
-    : 'expect' actual=testExpression ('equals' expected=testExpression | 'is' presence=('present' | 'absent')) ';'
+    : 'expect' actual=testExpression ('equals' expected=testExpression | 'is' outcome=('present' | 'absent' | 'invalid')) ';'
     ;
 
 testArguments
