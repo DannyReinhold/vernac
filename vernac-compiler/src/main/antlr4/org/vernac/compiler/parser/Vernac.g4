@@ -47,7 +47,8 @@ testBinding
     ;
 
 testAssertion
-    : 'expect' 'status' responseStatus=INT_LITERAL ';'
+    : 'expect' '(' predicate=keywordExpression ')' ';'
+    | 'expect' 'status' responseStatus=INT_LITERAL ';'
     | 'expect' 'body' 'contains' responseText=STRING_LITERAL ';'
     | 'expect' 'action' actionEndpoint=qualifiedName '(' (testBinding (',' testBinding)*)? ')' 'is' actionPresence=('present' | 'absent') ';'
     | 'expect' 'emitted' eventType=qualifiedName ('with' eventField=variableName 'equals' eventValue=testExpression)? 'count' eventCount=INT_LITERAL ';'
@@ -521,6 +522,33 @@ expression
     | '!' expression
     | expression '.' variableName ( '(' argumentList? ')' )?
     | primaryExpression
+    ;
+
+// Shared expression grammar for opt-in interpreted Vernac.
+keywordExpressionInput : keywordExpression EOF ;
+
+keywordExpression
+    : keywordDisjunction (keywordSelectorPart ':' keywordDisjunction)*
+    ;
+
+keywordDisjunction : keywordConjunction ('||' keywordConjunction)* ;
+keywordConjunction : keywordEquality ('&&' keywordEquality)* ;
+keywordEquality : keywordComparison (('==' | '!=') keywordComparison)* ;
+keywordComparison : keywordSum (('<' | '<=' | '>' | '>=') keywordSum)* ;
+keywordSum : keywordProduct (('+' | '-') keywordProduct)* ;
+keywordProduct : keywordPrefix (('*' | '/' | '%') keywordPrefix)* ;
+keywordPrefix : ('!' | '-') keywordPrefix | unaryMessage ;
+unaryMessage : keywordPrimary keywordSelectorPart* ;
+keywordSelectorPart : methodName | 'emit' | 'from' ;
+keywordPrimary
+    : variableName
+    | STRING_LITERAL
+    | INT_LITERAL
+    | DECIMAL_LITERAL
+    | BOOLEAN_LITERAL
+    | 'true'
+    | 'false'
+    | '(' keywordExpression ')'
     ;
 
 primaryExpression

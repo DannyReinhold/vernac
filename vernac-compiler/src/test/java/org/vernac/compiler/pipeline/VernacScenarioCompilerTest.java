@@ -52,6 +52,27 @@ class VernacScenarioCompilerTest {
     }
 
     @Test
+    void compilesTypedExpressionAssertionsAlongsideExistingAssertions() throws IOException {
+        var main = mainModel();
+        var root = Files.createDirectories(project.resolve("src/test/vernac"));
+        var source = root.resolve("tasks.vernac");
+        var output = project.resolve("target/generated-test-sources/vernac");
+        var scenario = SCENARIO.replace("expect task.status equals Status.DONE;",
+                "expect (task status == Status DONE && 2 * 3 + 1 >= 7);");
+        Files.writeString(source, scenario);
+
+        assertEquals(1, compiler.generate(root, compiler.discover(root), main, output));
+        var java = Files.readString(output.resolve("org/vernac/generated/VernacScenariosTest.java"));
+        assertTrue(java.contains("Objects.equals(fixture$task.status(), example.domain.domain.Status.DONE)"), java);
+        assertTrue(java.contains("((2 * 3) + 1) >= 7"), java);
+
+        Files.writeString(source, scenario.replace("Status DONE", "\"DONE\""));
+        assertDiagnostic(root, output, main, "tasks.vernac:9:", "Expected example.domain.Status, got java.lang.String");
+        Files.writeString(source, scenario.replace("task status == Status DONE && 2 * 3 + 1 >= 7", "task status"));
+        assertDiagnostic(root, output, main, "tasks.vernac:9:", "Expected boolean, got example.domain.Status");
+    }
+
+    @Test
     void diagnosesWrongTypesUnknownBehaviorsAndDuplicateCasesAtTheirSource() throws IOException {
         var main = mainModel();
         var root = Files.createDirectories(project.resolve("src/test/vernac"));

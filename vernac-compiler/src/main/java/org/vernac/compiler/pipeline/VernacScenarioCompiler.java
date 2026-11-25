@@ -22,6 +22,7 @@ import org.vernac.compiler.ast.FieldNode;
 import org.vernac.compiler.ast.ImportNode;
 import org.vernac.compiler.ast.MethodNode;
 import org.vernac.compiler.ast.SourceLocation;
+import org.vernac.compiler.ast.KeywordExpression;
 import org.vernac.compiler.ast.TopLevelDefinition;
 import org.vernac.compiler.ast.TypeNode;
 import org.vernac.compiler.ast.ValueObjectNode;
@@ -300,6 +301,13 @@ public final class VernacScenarioCompiler {
                                 ? CodeBlock.of("$L.get()", portCalls.get(assertion.portMethod.getText()).counter())
                                 : eventCount(assertion, observations.get(assertion.eventType.getText()), fixtures);
                         method.addStatement("$T.assertEquals((long) $L, (long) $L, statement)", ASSERTIONS, count, observedCount);
+                        continue;
+                    }
+                    if (assertion.predicate != null) {
+                        var predicate = KeywordExpressionParser.build(source, assertion.predicate);
+                        var result = predicateExpression(predicate, fixtures);
+                        requireScalar(predicate, result, boolean.class);
+                        method.addStatement("$T.assertTrue($L, statement)", ASSERTIONS, result.code());
                         continue;
                     }
                     var actual = expression(assertion.actual, fixtures);
@@ -675,6 +683,95 @@ public final class VernacScenarioCompiler {
             CodeBlock name = CodeBlock.of("$L", fixtureName(fixture));
             method.addStatement("var $L = $L", name, value.code());
             fixtures.put(fixture, new Expression(name, value.type(), value.optional()));
+        }
+
+        private Expression predicateExpression(KeywordExpression expression, Map<String, Expression> fixtures) {
+            return switch (expression) {
+                case KeywordExpression.Name name -> {
+                    var fixture = fixtures.get(name.name());
+                    if (fixture == null) throw error(name.location(), "Unknown fixture '" + name.name() + "'");
+                    yield fixture;
+                }
+                case KeywordExpression.Literal literal -> predicateLiteral(literal);
+                case KeywordExpression.UnaryMessage message -> predicateRead(message, fixtures);
+                case KeywordExpression.Prefix prefix -> {
+                    var operand = predicateExpression(prefix.operand(), fixtures);
+                    requireScalar(prefix.operand(), operand, prefix.operator().equals("!") ? boolean.class : int.class);
+                    yield new Expression(CodeBlock.of("($L($L))", prefix.operator(), operand.code()), operand.type());
+                }
+                case KeywordExpression.Binary binary -> predicateBinary(binary, fixtures);
+                case KeywordExpression.Message message -> throw error(message.location(),
+                        "Keyword calls are not supported in scenario predicates yet");
+            };
+        }
+
+        private Expression predicateRead(KeywordExpression.UnaryMessage message, Map<String, Expression> fixtures) {
+            String member = message.selector();
+            if (message.receiver() instanceof KeywordExpression.Name name && !fixtures.containsKey(name.name())) {
+                var lookup = scope.resolve(name.name(), name.location());
+                if (lookup.type().orElse(null) instanceof ResolvedType.Declared type
+                        && definition(type) instanceof ValueObjectNode enumeration && enumeration.isEnum()) {
+                    var constant = enumeration.enumConstants().stream()
+                            .filter(candidate -> candidate.name().equals(member)).findFirst()
+                            .orElseThrow(() -> error(message.location(), "Unknown enum member '" + member + "'"));
+                    references.add(new Reference(message.location(), member.codePointCount(0, member.length()),
+                            constant.location()));
+                    return new Expression(CodeBlock.of("$L.$L", JavaTypeNames.canonicalName(type), member), type);
+                }
+            }
+            var receiver = predicateExpression(message.receiver(), fixtures);
+            var field = receiver.optional() ? null : fieldType(definition(receiver.type()), member);
+            if (field == null) throw error(message.location(), "Unknown readable field '" + member + "'");
+            references.add(new Reference(message.location(), member.codePointCount(0, member.length()), field.location()));
+            return new Expression(CodeBlock.of("$L.$L()", receiver.code(), member),
+                    main.typeOf(field), field.isOptional());
+        }
+
+        private Expression predicateBinary(KeywordExpression.Binary binary, Map<String, Expression> fixtures) {
+            var left = predicateExpression(binary.left(), fixtures);
+            var right = predicateExpression(binary.right(), fixtures);
+            String operator = binary.operator();
+            var bool = new ResolvedType.Builtin(boolean.class);
+            if (operator.equals("==") || operator.equals("!=")) {
+                if (!left.type().equals(right.type()) || left.optional() != right.optional())
+                    throw error(binary.right().location(), "Expected " + describe(left.type(), left.optional())
+                            + ", got " + describe(right.type(), right.optional()));
+                return new Expression(CodeBlock.of("($L$T.equals($L, $L))", operator.equals("!=") ? "!" : "",
+                        java.util.Objects.class, left.code(), right.code()), bool);
+            }
+            if (operator.equals("&&") || operator.equals("||")) {
+                requireScalar(binary.left(), left, boolean.class);
+                requireScalar(binary.right(), right, boolean.class);
+                return new Expression(CodeBlock.of("($L $L $L)", left.code(), operator, right.code()), bool);
+            }
+            requireScalar(binary.left(), left, int.class);
+            requireScalar(binary.right(), right, int.class);
+            var resultType = Set.of("<", "<=", ">", ">=").contains(operator) ? bool : left.type();
+            return new Expression(CodeBlock.of("($L $L $L)", left.code(), operator, right.code()), resultType);
+        }
+
+        private Expression predicateLiteral(KeywordExpression.Literal literal) {
+            String spelling = literal.spelling();
+            try {
+                return switch (literal.kind()) {
+                    case STRING -> new Expression(CodeBlock.of("$S",
+                            spelling.substring(1, spelling.length() - 1).translateEscapes()),
+                            new ResolvedType.Builtin(String.class));
+                    case INTEGER -> new Expression(CodeBlock.of("$L", Integer.parseInt(spelling)),
+                            new ResolvedType.Builtin(int.class));
+                    case BOOLEAN -> new Expression(CodeBlock.of("$L", spelling), new ResolvedType.Builtin(boolean.class));
+                    case DECIMAL -> throw error(literal.location(), "Decimal literals are not supported in scenario predicates yet");
+                };
+            } catch (IllegalArgumentException failure) {
+                throw error(literal.location(), "Invalid test literal '" + spelling + "'");
+            }
+        }
+
+        private void requireScalar(KeywordExpression at, Expression actual, Class<?> javaType) {
+            var expected = new ResolvedType.Builtin(javaType);
+            if (!actual.type().equals(expected) || actual.optional())
+                throw error(at.location(), "Expected " + describe(expected, false)
+                        + ", got " + describe(actual.type(), actual.optional()));
         }
 
         private Expression expression(TestExpressionContext value, Map<String, Expression> fixtures) {

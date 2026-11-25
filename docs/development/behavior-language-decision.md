@@ -4,14 +4,29 @@ title: Choosing a surface syntax for interpreted Vernac behaviors
 
 # Choosing a surface syntax for interpreted behaviors
 
-**The syntax decision is open.** The proposed starting point is typed receiver calls with dot notation,
-named arguments where they clarify domain intent, and the existing Vernac vocabulary for operations and
-effects. Smalltalk-style keyword messages are a second prototype worth trying with real domain sentences.
-Both candidates also support a Smalltalk-like editing experience in the daemon. Change an operation, send
-it to a fixture object and immediately inspect the outcome. The implementation target in both cases is a
-Vernac interpreter with an explicit JVM boundary. [Milestone B1](release-0.7.0.md#implementation-sequence)
+**Selected direction.** Vernac uses Smalltalk-style keyword messages for domain calls and conventional
+operators for arithmetic, comparisons and short-circuit Boolean expressions. Behaviors, validations and
+scenarios share the expression grammar. `require`, `match`, `when` and `expect` express control flow and
+test intent explicitly. The precise declaration syntax and optional matching rules remain part of B1.
 
-## Compare the same operation
+A keyword selector comprises all its parts. `document moveFrom: inbox to: archive` names
+`moveFrom:to:`. Unary messages associate left to right, so `document owner email` first reads the owner.
+Unary sends bind before prefix operators, then multiplication, addition, comparisons, equality, logical
+AND and logical OR. Keyword sends bind last. Parentheses delimit nested keyword sends and allow their
+results to be operands of other expressions.
+
+The first implementation parses these expressions and exposes read-only scenario predicates:
+
+```vernac
+expect (task status == Status DONE && task title string != "");
+```
+
+Scenario predicates currently support fixture paths, enum members, scalar literals, integer arithmetic
+and comparisons, value equality and Boolean operators. The surrounding suite and fixture syntax stays
+compatible with 0.6. Native behavior bodies, validation rules, keyword dispatch and optional matching
+still require compiler and interpreter integration.
+
+## Alternatives considered
 
 A document moves between folders. Both arguments have type `FolderId`, so seeing which is the source
 matters. The three **syntax specimens** illustrate proposals for B1. Give every candidate the same
@@ -71,27 +86,16 @@ This probes readability and recovery for nested calls.
 | JVM contracts | Map each resolved operation unambiguously to the existing JVM-facing member conventions. Verify overloads after erasure, optional/null handling and stable public names. Compile a handwritten Java caller and a delegated provider against the bridges. Document the effect of renaming a public argument label or selector. |
 | Compatibility and tools | Require an explicit marker for new bodies. Existing inline Java and `implemented by` continue through their declared paths. Preserve the 0.6 assertion grammar and its meaning. Resolve before interpretation and track member and source spans for diagnostics, LSP, formatter and debugging. |
 
-## B1 decision procedure
+## B1 conformance work
 
-1. Freeze a small common corpus with independent expected values from 0.6. Cover the document move, task
-   completion/reopen, document access and deletion, a read projection, nested invariant rejection and one
-   failed port operation. Annotate the expected writes, effects and source locations. Include one illegal
-   use of each capability. Implement a bounded parser/lowering prototype for each leading spelling against
-   the same small evaluator.
-2. Have reviewers read equivalent diffs and describe the intended domain action, order of effects and
-   failure outcome. Try a parameter rename, a swapped folder argument and an incomplete call in IntelliJ.
-   Have an agent repair the same incorrect call using only the diagnostic and its source. Capture
-   examples, diagnostic ranges, completion results and changes to the 0.6 corpus. A positional call with
-   swapped same-typed arguments is a useful review probe even when it type-checks.
-3. Compare domain readability, learnability from existing Vernac, parser ambiguity/precedence, error
-   recovery, JVM bridge stability, compatibility and impact on tooling. Verify both leading candidates
-   lower equivalent programs to the same typed operations. Measure parse/check latency on the same edits.
-   Revisit bytecode generation only in the performance workstream if a measured execution bottleneck
-   warrants it.
-4. Record the chosen spelling, opt-in and migration rules, worked use-case and test examples, precedence
-   rules and rejected alternatives in the language decision record. Prefer the dot/named form if both read
-   equally well and its tooling/interop costs are lower. A demonstrated readability advantage with
-   predictable tooling is a reason to select keyword messages. Only the selected grammar advances to B2.
+1. Cover document move, task completion/reopening, document access and deletion, a read projection,
+   nested invariant rejection and a failed port operation. Record expected writes, effects and source
+   locations, including one illegal use of each capability.
+2. Verify incomplete selector completion, whole-selector rename and diagnostics for a swapped folder
+   argument. Keep JVM names stable through the explicit bridge and check call sites in generated and
+   handwritten code.
+3. Measure parse/check latency on the same edits as the baseline. Record the final opt-in and migration
+   rules and link runnable examples to the conformance cases.
 
 The 0.6.0 release can settle fixture, assertion and observation semantics while this spelling decision
 stays open. The 0.7.0 specification should link the final choice to conformance cases shared by the CLI,
