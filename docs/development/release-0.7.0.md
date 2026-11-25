@@ -140,6 +140,32 @@ checks should provide a run ID so a CPU runner can finish them between model cal
 compares equivalent CLI, IDE and MCP requests and disconnects an agent mid-run before retrieving its
 result.
 
+### Structured model operations for agents
+
+Use the compiler's resolved model for `describe_type`. Address declarations by qualified Vernac
+identity and return fields, declared methods, access mode, parameter and return types, and source
+locations. A read should use an existing resolved snapshot. It should identify that snapshot and
+surface unresolved types when the snapshot is partial. It needs no file reload or compile by itself.
+
+Start with `describe_type`, `preview_add_value_field`, and `preview_create_aggregate`.
+The aggregate operation proposes a declaration and, when requested, its ID declaration. It takes
+the namespace and target source explicitly. The field operation proposes one insertion and preserves
+surrounding text. The compiler now provides the type description, field insertion preview and
+new aggregate source primitives. The field preview rejects stale source content and both preview
+outputs can be checked through an ordinary parse session. MCP transport, revision assignment
+and checked application of the batch are still pending.
+
+Structured changes should produce the same versioned source edit batch as direct editor changes.
+Return the preview with the base revision, reject conflicts, and apply related edits atomically.
+Run the same diagnostics, invalidation and affected-test selection regardless of which operation
+created the patch. Keep ordinary text patches available for operations that span multiple constructs.
+A field insertion changes the value type's signature and may affect constructors, validations,
+serialized forms, schemas and consumers. Selection must widen to those dependents where applicable.
+Batch several intended changes before checking to avoid repeated semantic work.
+
+Measure model-read round trips separately from preview and from patch-to-test latency. A quick
+symbol lookup or a cheap edit preview does not establish the 500 ms p95 target for the full workflow.
+
 ## Standalone build tool
 
 | Proposed command | Contract to implement and test |
