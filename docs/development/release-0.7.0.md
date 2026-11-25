@@ -163,6 +163,26 @@ owned outputs before exposing a new revision. Pass a hand-written Java delegate,
 an application `.vapplication` and a schema/migration resource through both Maven and CLI consumer builds.
 Check that public signatures, observable HTTP behavior and migration inputs agree.
 
+## Maven baseline for the Document Workspace
+
+Run the first B0 workload with a full JDK 21 and Maven 3.9.16 from the repository root.
+
+```sh
+python3 tools/benchmark-maven.py \
+  --dependency-cache "Existing local Maven cache, downloads allowed" \
+  --output ../vernac-maven-baseline
+```
+
+The runner uses a temporary detached worktree at the pinned 0.6.0 baseline revision. It measures a
+clean reactor test build, an unchanged second build, a view edit and the restoration of that view.
+The edit changes the removal page text and must fail only
+`EditorView.authorizedActionIsVisible`. Restoring the view must pass all four default scenarios.
+Each sample covers Maven process startup through result reporting. The JSON records wall time,
+individual scenario times, source sizes and hashes, the profile and the toolchain. Maven logs
+and JUnit reports are saved alongside it. The baseline uses the caller's Maven dependency cache
+throughout and includes downloads if the cache needs them. For a comparison, record the initial cache
+state and reuse it across equivalent runs.
+
 ## Performance acceptance
 
 Measure the interval seen by a local agent client, from submitting changed source until the complete
