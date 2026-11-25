@@ -129,7 +129,10 @@ Graph construction now certifies plain ID and value declarations and follows res
 types to their source files. Files with behavior, validation, collections or other opaque declarations
 remain uncertified and trigger a conservative fallback when reached. The compiler test combines
 two checked workspace revisions with the derived graph and verifies that an unrelated scenario is
-excluded. Broader dependency extraction and the connection to the warm runner remain open.
+excluded. A planning session now compares exact production and test source snapshots and returns
+case IDs and reasons for the target revision. The caller supplies a verified baseline from the
+same session and profile. A foreign or mismatched baseline selects the full profile. Broader
+dependency extraction and the connection to the warm runner remain open.
 
 ## Daemon, editor and agent protocol
 

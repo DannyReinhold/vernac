@@ -25,6 +25,42 @@ class AffectedScenarioSelectorTest {
     @TempDir Path root;
 
     @Test
+    void plansFromCapturedSourceChangesAndKeepsTheVerifiedBaselineExplicit() throws Exception {
+        var path = Path.of("app/counter.vernac");
+        var sources = new VersionedSources(root, Map.of(path, "namespace app; value Counter(int);"));
+        var testPath = "checks.vernac";
+        var tests = Map.of(testPath, """
+                namespace app;
+                suite Checks {
+                    scenario counter { given counter = Counter(1); expect counter.intValue equals 1; }
+                }
+                """);
+        var session = new ScenarioPlanningSession(root, Map.of(), List.of());
+        var initial = new ScenarioPlanningSession.Inputs(sources.snapshot(), tests);
+        var plan = session.plan(Optional.empty(), initial, false, null);
+        assertEquals(List.of(new Selection("app.Checks.counter", NO_BASELINE)), plan.selected());
+        var baseline = Optional.of(plan.target());
+
+        var change = sources.apply(0, List.of(new VersionedSources.Put(path,
+                "namespace app; value Counter(int) validates { require self intValue > 0 else Negative. };")));
+        var edited = new ScenarioPlanningSession.Inputs(change, tests);
+        assertEquals(List.of(new Selection("app.Checks.counter", CHANGED_DEPENDENCY)),
+                session.plan(baseline, edited, false, null).selected());
+        assertEquals(List.of(new Selection("app.Checks.counter", CHANGED_DEPENDENCY)),
+                session.plan(baseline, edited, false, null).selected());
+        assertEquals(List.of(new Selection("app.Checks.counter", NEW_OR_CHANGED_CASE)),
+                session.plan(baseline, new ScenarioPlanningSession.Inputs(initial.main(),
+                        Map.of(testPath, tests.get(testPath).replace("equals 1", "equals 2"))), false, null).selected());
+        assertEquals(List.of(), session.plan(baseline, initial, false, null).selected());
+
+        assertEquals(List.of(new Selection("app.Checks.counter", NO_BASELINE)),
+                session.plan(baseline, initial, false, "domain").selected());
+        var otherSession = new ScenarioPlanningSession(root, Map.of(), List.of());
+        assertEquals(List.of(new Selection("app.Checks.counter", NO_BASELINE)),
+                otherSession.plan(baseline, initial, false, null).selected());
+    }
+
+    @Test
     void derivesFieldEdgesFromRealCompilerOutput() throws Exception {
         var namespace = Files.createDirectories(root.resolve("app"));
         var title = Files.writeString(namespace.resolve("title.vernac"), "namespace app; value Title(String);");
