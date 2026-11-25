@@ -249,6 +249,80 @@ public class BehaviorContractTest {
         assertTrue(notAnEvent.getMessage().contains("Expected a Vernac event"));
     }
 
+    @Test void nativeUseCaseLoadsChangesAndSavesAnAggregateWithACompoundResult() throws Exception {
+        String model = """
+                id BookingId;
+                value Day(int);
+                aggregate Booking[BookingId](mut Day start, mut Day finish) behavior {
+                    modify void moveFrom(Day previous, Day to) vernac {
+                        require self start == previous else StaleBooking.
+                        self start = to.
+                        require self start intValue <= self finish intValue else InvertedDates.
+                    }
+                };
+                repository Bookings for Booking {}
+                usecase Move(BookingId, Day previous, Day destination)
+                        returns (Day oldStart, Day newStart) uses Bookings behavior {
+                    execute vernac {
+                        let booking = bookings byId: bookingId.
+                        let oldStart = booking start.
+                        booking moveFrom: previous to: destination.
+                        bookings save: booking.
+                        return Result oldStart: oldStart newStart: booking start.
+                    }
+                }
+                """;
+        var generated = generate(model).generatedFiles().stream()
+                .filter(file -> !file.packageName().endsWith(".adapter.outbound.jdbc")).toList();
+        var output = InMemoryJavaCompiler.compile(generated);
+        assertTrue(output.success(), output.diagnostics().toString());
+        var bookingType = output.loadClass("behavior.tests.domain.Booking");
+        var idType = output.loadClass("behavior.tests.domain.BookingId");
+        var dayType = output.loadClass("behavior.tests.domain.Day");
+        var portType = output.loadClass("behavior.tests.domain.Bookings");
+        var useCaseType = output.loadClass("behavior.tests.usecase.Move");
+        var first = dayType.getMethod("of", int.class).invoke(null, 1);
+        var next = dayType.getMethod("of", int.class).invoke(null, 2);
+        var end = dayType.getMethod("of", int.class).invoke(null, 3);
+        var booking = bookingType.getMethod("create", dayType, dayType).invoke(null, first, end);
+        var id = bookingType.getMethod("id").invoke(booking);
+        var calls = new java.util.ArrayList<String>();
+        var port = java.lang.reflect.Proxy.newProxyInstance(output.classLoader(), new Class<?>[]{portType},
+                (proxy, method, arguments) -> switch (method.getName()) {
+                    case "byId" -> {
+                        assertSame(id, arguments[0]);
+                        calls.add("byId");
+                        yield booking;
+                    }
+                    case "save" -> {
+                        assertSame(booking, arguments[0]);
+                        calls.add("save");
+                        yield booking;
+                    }
+                    default -> throw new AssertionError(method.getName());
+                });
+        var handlers = new org.springframework.beans.factory.support.DefaultListableBeanFactory()
+                .getBeanProvider(org.vernac.runtime.events.EventHandler.class);
+        var useCase = useCaseType.getConstructor(org.springframework.beans.factory.ObjectProvider.class, portType)
+                .newInstance(handlers, port);
+        var execute = useCaseType.getMethod("execute", idType, dayType, dayType);
+        var result = execute.invoke(useCase, id, first, next);
+        assertSame(first, result.getClass().getMethod("oldStart").invoke(result));
+        assertSame(next, result.getClass().getMethod("newStart").invoke(result));
+        var rejected = assertThrows(InvocationTargetException.class, () -> execute.invoke(useCase, id, first, end));
+        assertEquals("StaleBooking",
+                assertInstanceOf(org.vernac.runtime.NativeValidation.Rejection.class, rejected.getCause()).code());
+        assertEquals(java.util.List.of("byId", "save", "byId"), calls);
+        assertSame(next, bookingType.getMethod("start").invoke(booking));
+
+        var duplicate = assertThrows(SemanticValidationException.class,
+                () -> generate(model.replace("let oldStart", "let booking")));
+        assertTrue(duplicate.getMessage().contains("duplicate native binding"));
+        var wrongResult = assertThrows(SemanticValidationException.class,
+                () -> generate(model.replace("Result oldStart:", "Result oldDay:")));
+        assertTrue(wrongResult.getMessage().contains("Result selector must name each declared field"));
+    }
+
     @Test void javaImportsCannotReplaceModelOrBuiltinTypes() {
         for (String model : new String[]{
                 "value Name(String); value Other(String) behavior { java imports { foreign.Name; } };",

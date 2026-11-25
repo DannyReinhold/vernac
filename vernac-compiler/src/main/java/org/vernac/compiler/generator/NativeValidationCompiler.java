@@ -24,18 +24,21 @@ public final class NativeValidationCompiler {
     private final ResolvedProject project;
     private final List<FieldNode> parameters;
     private final List<Binding> bindings;
+    private final List<LocalSlot> locals;
     private final boolean invocation;
 
     NativeValidationCompiler(TopLevelDefinition owner, ResolvedProject project) {
-        this(owner, project, List.of(), List.of(), false);
+        this(owner, project, List.of(), List.of(), List.of(), false);
     }
 
     private NativeValidationCompiler(TopLevelDefinition owner, ResolvedProject project,
-                                     List<FieldNode> parameters, List<Binding> bindings, boolean invocation) {
+                                     List<FieldNode> parameters, List<Binding> bindings, List<LocalSlot> locals,
+                                     boolean invocation) {
         this.owner = owner;
         this.project = project;
         this.parameters = parameters;
         this.bindings = bindings;
+        this.locals = locals;
         this.invocation = invocation;
     }
 
@@ -92,33 +95,37 @@ public final class NativeValidationCompiler {
         checkNativeMethod(owner, method);
         emit(implementation, companion, BehaviorGenerator.receiver(ownerType, method), owner,
                 method.parameters(), method.nativeBody(), method.mode() == MethodNode.Mode.MODIFY,
-                project.typeOf(method.returnType()), method.location(), index, project);
+                project.typeOf(method.returnType()), null, method.location(), index, project);
     }
 
     static void emitUseCase(MethodSpec.Builder implementation, TypeSpec.Builder companion, ClassName receiver,
                             UseCaseNode useCase, ResolvedProject project) {
-        if (!useCase.resultFields().isEmpty()
-                || useCase.resultType().map(TypeNode::isOptional).orElse(false)
+        if (useCase.resultType().map(TypeNode::isOptional).orElse(false)
                 || useCase.parameters().stream().anyMatch(parameter -> parameter.type().isOptional())) {
-            throw error(useCase.location(), "Native execute currently requires non-optional inputs and a single result or void");
+            throw error(useCase.location(), "Native execute currently requires non-optional inputs and result");
         }
         var result = useCase.resultType().map(project::typeOf).orElseGet(ResolvedType.VoidReturn::new);
+        var compoundResult = useCase.resultFields().isEmpty() ? null
+                : ClassName.get(receiver.packageName().substring(0, receiver.packageName().lastIndexOf('.')),
+                        useCase.name(), "Result");
         emit(implementation, companion, receiver, useCase, useCase.parameters(), useCase.nativeBody(),
-                true, result, useCase.location(), 0, project);
+                true, result, compoundResult, useCase.location(), 0, project);
     }
 
     private static void emit(MethodSpec.Builder implementation, TypeSpec.Builder companion, ClassName receiver,
                              TopLevelDefinition owner, List<FieldNode> parameters, List<NativeStatement> body,
-                             boolean canModify, ResolvedType returns, SourceLocation location, int index,
+                             boolean canModify, ResolvedType returns, ClassName compoundResult, SourceLocation location, int index,
                              ResolvedProject project) {
         if (parameters.stream().anyMatch(p -> p.name().equals("__vernacInvocation")))
             throw error(location, "Reserved native parameter '__vernacInvocation'");
-        var compiler = new NativeValidationCompiler(owner, project, parameters, List.of(), true);
+        var locals = new java.util.ArrayList<LocalSlot>();
+        var compiler = new NativeValidationCompiler(owner, project, parameters, List.of(), locals, true);
         var invocation = ParameterizedTypeName.get(ClassName.get(NativeValidation.Invocation.class), receiver);
         var expressionType = ParameterizedTypeName.get(ClassName.get(NativeValidation.Expression.class), invocation);
         var arguments = parameters.stream().map(FieldNode::name).collect(java.util.stream.Collectors.joining(", "));
-        implementation.addStatement("var __vernacInvocation = new $T(self, $T.of($L))",
-                invocation, List.class, arguments);
+        long localCount = body.stream().filter(NativeStatement.Let.class::isInstance).count();
+        implementation.addStatement("var __vernacInvocation = new $T(self, $T.of($L), $L)",
+                invocation, List.class, arguments, localCount);
         int step = 0;
         boolean returned = false;
         for (var statement : body) {
@@ -126,6 +133,16 @@ public final class NativeValidationCompiler {
             if (returned) throw error(at, "Native statement after return");
             String name = "nativeBehavior" + index + "Step" + step++;
             switch (statement) {
+                case NativeStatement.Let let -> {
+                    compiler.checkBindingName(let.name());
+                    var value = compiler.resolve(let.value());
+                    if (value.type() instanceof ResolvedType.VoidReturn)
+                        throw error(let.value(), "A local binding requires a value");
+                    addProgram(companion, expressionType, name, value.program());
+                    implementation.addStatement("__vernacInvocation.bind($L, $N.evaluate(__vernacInvocation))",
+                            locals.size(), name);
+                    locals.add(new LocalSlot(let.name().name(), value.type(), value.optional()));
+                }
                 case NativeStatement.Require rule -> {
                     addProgram(companion, expressionType, name, compiler.compile(rule.predicate()));
                     implementation.beginControlFlow("if (!(boolean) $N.evaluate(__vernacInvocation))", name)
@@ -152,21 +169,28 @@ public final class NativeValidationCompiler {
                     implementation.addStatement("$N.evaluate(__vernacInvocation)", name);
                 }
                 case NativeStatement.Return result -> {
-                    if (returns instanceof ResolvedType.VoidReturn)
-                        throw error(at, "Void native behavior cannot return a value");
-                    addProgram(companion, expressionType, name, compiler.compileValue(result.value(), returns));
-                    implementation.addStatement("return ($T) $N.evaluate(__vernacInvocation)",
-                            ResolvedJavaTypes.javaType(returns), name);
+                    if (compoundResult != null) {
+                        var program = compiler.compileResult(result.value(), (UseCaseNode) owner, compoundResult);
+                        addProgram(companion, expressionType, name, program);
+                        implementation.addStatement("return ($T) $N.evaluate(__vernacInvocation)", compoundResult, name);
+                    } else {
+                        if (returns instanceof ResolvedType.VoidReturn)
+                            throw error(at, "Void native behavior cannot return a value");
+                        addProgram(companion, expressionType, name, compiler.compileValue(result.value(), returns));
+                        implementation.addStatement("return ($T) $N.evaluate(__vernacInvocation)",
+                                ResolvedJavaTypes.javaType(returns), name);
+                    }
                     returned = true;
                 }
             }
         }
-        if (!returned && !(returns instanceof ResolvedType.VoidReturn))
+        if (!returned && (compoundResult != null || !(returns instanceof ResolvedType.VoidReturn)))
             throw error(location, "Native behavior must return a value");
     }
 
     private static SourceLocation statementLocation(NativeStatement statement) {
         return switch (statement) {
+            case NativeStatement.Let let -> let.name().location();
             case NativeStatement.Require rule -> rule.predicate().location();
             case NativeStatement.Assign assignment -> assignment.location();
             case NativeStatement.Send send -> send.expression().location();
@@ -184,6 +208,19 @@ public final class NativeValidationCompiler {
     private static void addProgram(TypeSpec.Builder companion, TypeName type, String name, CodeBlock code) {
         companion.addField(FieldSpec.builder(type, name, Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
                 .initializer(code).build());
+    }
+
+    private CodeBlock compileResult(KeywordExpression result, UseCaseNode useCase, ClassName resultType) {
+        if (!(result instanceof KeywordExpression.Message message)
+                || !(message.receiver() instanceof KeywordExpression.Name name) || !name.name().equals("Result"))
+            throw error(result, "A compound result must be returned using a Result keyword constructor");
+        if (!useCase.resultFields().stream().map(FieldNode::name).toList()
+                .equals(message.parts().stream().map(KeywordExpression.KeywordPart::name).toList()))
+            throw error(result, "Result selector must name each declared field in order");
+        var arguments = arguments(message, useCase.resultFields());
+        return CodeBlock.of("$T.call($T.of($L), (context, values) -> $T.of($L))",
+                NativeValidation.class, List.class, CodeBlock.join(arguments.programs(), ", "),
+                resultType, arguments.values());
     }
 
     private CodeBlock compileValue(KeywordExpression value, ResolvedType expected) {
@@ -208,7 +245,7 @@ public final class NativeValidationCompiler {
             case KeywordExpression.Name name -> {
                 var binding = binding(name);
                 yield new Typed(CodeBlock.of("$T.access(context -> $L)", NativeValidation.class, binding.code()),
-                        binding.type(), false);
+                        binding.type(), binding.optional());
             }
             case KeywordExpression.Match match -> match(match);
             case KeywordExpression.Message message -> call(message, MethodNode.Mode.READ);
@@ -230,24 +267,48 @@ public final class NativeValidationCompiler {
 
     private record Binding(String name, ResolvedType type) { }
 
-    private record Local(CodeBlock code, ResolvedType type) { }
+    private record LocalSlot(String name, ResolvedType type, boolean optional) { }
+
+    private record Local(CodeBlock code, ResolvedType type, boolean optional) { }
 
     private Local binding(KeywordExpression.Name name) {
         for (int index = bindings.size() - 1; index >= 0; index--) {
             var binding = bindings.get(index);
             if (binding.name().equals(name.name())) {
                 var scope = context(bindings.size() - 1 - index);
-                return new Local(CodeBlock.of("$L.value()", scope), binding.type());
+                return new Local(CodeBlock.of("$L.value()", scope), binding.type(), false);
             }
         }
         for (int index = 0; index < parameters.size(); index++) {
             var parameter = parameters.get(index);
             if (parameter.name().equals(name.name())) {
                 return new Local(CodeBlock.of("$L.arguments().get($L)", context(bindings.size()), index),
-                        project.typeOf(parameter.type()));
+                        project.typeOf(parameter.type()), false);
+            }
+        }
+        for (int index = 0; index < locals.size(); index++) {
+            var local = locals.get(index);
+            if (local.name().equals(name.name())) {
+                return new Local(CodeBlock.of("$L.local($L)", context(bindings.size()), index),
+                        local.type(), local.optional());
             }
         }
         throw error(name, "Unknown native binding '" + name.name() + "'");
+    }
+
+    private boolean hasBinding(String name) {
+        return parameters.stream().anyMatch(parameter -> parameter.name().equals(name))
+                || bindings.stream().anyMatch(binding -> binding.name().equals(name))
+                || locals.stream().anyMatch(local -> local.name().equals(name));
+    }
+
+    private void checkBindingName(KeywordExpression.Name binding) {
+        String name = binding.name();
+        if (name.equals("self") || !org.vernac.language.VernacNames.isIdentifier(name) || hasBinding(name)
+                || owner instanceof UseCaseNode useCase && (name.equals("events")
+                        || useCase.injections().stream().anyMatch(field -> field.name().equals(name)))) {
+            throw error(binding, "Invalid or duplicate native binding '" + name + "'");
+        }
     }
 
     private static String context(int depth) {
@@ -257,15 +318,10 @@ public final class NativeValidationCompiler {
     private Typed match(KeywordExpression.Match expression) {
         var optional = resolve(expression.subject());
         if (!optional.optional()) throw error(expression.subject(), "Match requires an optional value");
-        String name = expression.binding().name();
-        if (name.equals("self") || !org.vernac.language.VernacNames.isIdentifier(name)
-                || parameters.stream().anyMatch(parameter -> parameter.name().equals(name))
-                || bindings.stream().anyMatch(binding -> binding.name().equals(name))) {
-            throw error(expression.binding(), "Invalid or duplicate match binding '" + name + "'");
-        }
+        checkBindingName(expression.binding());
         var nested = new java.util.ArrayList<>(bindings);
-        nested.add(new Binding(name, optional.type()));
-        var present = new NativeValidationCompiler(owner, project, parameters, nested, invocation)
+        nested.add(new Binding(expression.binding().name(), optional.type()));
+        var present = new NativeValidationCompiler(owner, project, parameters, nested, locals, invocation)
                 .resolve(expression.onPresent());
         var absent = resolve(expression.onAbsent());
         if (!present.type().equals(absent.type()) || present.optional() != absent.optional())
@@ -278,7 +334,12 @@ public final class NativeValidationCompiler {
         if (owner instanceof UseCaseNode useCase) return applicationCall(useCase, message, effect);
         if (!(message.receiver() instanceof KeywordExpression.Name name) || !name.name().equals("self"))
             throw error(message, "Native keyword sends currently require self as receiver");
-        var candidates = methods(owner).stream()
+        return domainCall(owner, self(), message, effect);
+    }
+
+    private Typed domainCall(TopLevelDefinition receiver, CodeBlock target, KeywordExpression.Message message,
+                             MethodNode.Mode effect) {
+        var candidates = methods(receiver).stream()
                 .filter(method -> method.mode() == effect && method.accessModifier().equals("public"))
                 .filter(method -> selectorMatches(method.name(), method.parameters(), message))
                 .toList();
@@ -291,7 +352,7 @@ public final class NativeValidationCompiler {
         if (nothing && effect == MethodNode.Mode.READ)
             throw error(message, "Native keyword read must return a value");
         var args = arguments(message, method.parameters());
-        var invocation = CodeBlock.of("$L.$N($L)", self(), method.name(), args.values());
+        var invocation = CodeBlock.of("$L.$N($L)", target, method.name(), args.values());
         var lambdaBody = nothing ? CodeBlock.of("{ $L; return true; }", invocation) : invocation;
         return callProgram(args.programs(), lambdaBody, result, method.returnType().isOptional());
     }
@@ -299,6 +360,15 @@ public final class NativeValidationCompiler {
     private Typed applicationCall(UseCaseNode useCase, KeywordExpression.Message message, MethodNode.Mode effect) {
         if (!(message.receiver() instanceof KeywordExpression.Name name))
             throw error(message, "Native execute calls require a named port or event receiver");
+        if (hasBinding(name.name())) {
+            var local = binding(name);
+            if (local.optional() || !(local.type() instanceof ResolvedType.Declared declared)
+                    || declared.symbol().kind() != TypeSymbol.Kind.AGGREGATE
+                    || !(definition(declared) instanceof AggregateNode aggregate))
+                throw error(name, "Expected a non-optional aggregate receiver");
+            return domainCall(aggregate, CodeBlock.of("(($T) $L)", ResolvedJavaTypes.javaType(declared),
+                    local.code()), message, effect);
+        }
         var injected = useCase.injections().stream().filter(field -> field.name().equals(name.name())).findFirst();
         if (injected.isEmpty() && name.name().equals("events") && message.selector().equals("emit:")) {
             if (effect != MethodNode.Mode.MODIFY) throw error(message, "Event emission must be a statement");
@@ -312,9 +382,13 @@ public final class NativeValidationCompiler {
         }
         if (injected.isPresent()) {
             var type = project.typeOf(injected.orElseThrow().type());
-            if (!(type instanceof ResolvedType.Declared declared) || declared.symbol().kind() != TypeSymbol.Kind.PORT
-                    || !(definition(declared) instanceof PortNode port))
-                throw error(message, "Native execute currently supports declared ports as dependencies");
+            if (!(type instanceof ResolvedType.Declared declared))
+                throw error(message, "Native execute requires a declared port or repository dependency");
+            var dependency = definition(declared);
+            if (dependency instanceof RepositoryNode repository)
+                return repositoryCall(name, message, effect, repository);
+            if (!(dependency instanceof PortNode port))
+                throw error(message, "Native execute requires a declared port or repository dependency");
             var targets = port.methods().stream().filter(method -> selectorMatches(method.name(),
                     method.parameters(), message)).toList();
             if (targets.size() != 1) throw error(message, "Unknown port selector '" + message.selector() + "'");
@@ -327,8 +401,7 @@ public final class NativeValidationCompiler {
             if (nothing) send = CodeBlock.of("{ $L; return true; }", send);
             return callProgram(args.programs(), send, result, selected.returnType().isOptional());
         }
-        var scope = project.project().sources().stream().filter(s -> s.unit().definitions().contains(useCase))
-                .findFirst().map(s -> project.scopes().get(s.path())).orElseThrow();
+        var scope = scopeFor(useCase);
         var candidate = scope.resolve(name.name(), name.location()).type().orElse(null);
         if (candidate instanceof ResolvedType.Declared declared && declared.symbol().kind() == TypeSymbol.Kind.EVENT
                 && definition(declared) instanceof EventNode event) {
@@ -339,7 +412,34 @@ public final class NativeValidationCompiler {
             return callProgram(args.programs(), CodeBlock.of("$T.create($L)",
                     ResolvedJavaTypes.javaType(declared), args.values()), declared, false);
         }
-        throw error(name, "Unknown native port or event receiver '" + name.name() + "'");
+        throw error(name, "Unknown native dependency or event receiver '" + name.name() + "'");
+    }
+
+    private Typed repositoryCall(KeywordExpression.Name name, KeywordExpression.Message message,
+                                 MethodNode.Mode effect, RepositoryNode repository) {
+        String selector = message.selector();
+        if (!Set.of("byId:", "save:", "delete:").contains(selector))
+            throw error(message, "Unknown native repository selector '" + selector + "'");
+        var scope = scopeFor(repository);
+        var type = scope.resolve(repository.aggregateName(), repository.location()).type().orElse(null);
+        if (!(type instanceof ResolvedType.Declared aggregateType)
+                || !(definition(aggregateType) instanceof AggregateNode aggregate))
+            throw error(message, "Repository aggregate is unavailable in this compilation");
+        boolean delete = selector.equals("delete:");
+        if (delete && effect == MethodNode.Mode.READ)
+            throw error(message, "Repository deletion must be a statement");
+        var expected = selector.equals("byId:") ? project.typeOf(aggregate.idDefinition().type()) : aggregateType;
+        var parameter = compileValue(message.parts().getFirst().argument(), expected);
+        var send = CodeBlock.of("$L.$N().$N(($T) values.get(0))", self(), name.name(),
+                message.parts().getFirst().name(), ResolvedJavaTypes.javaType(expected));
+        if (delete) send = CodeBlock.of("{ $L; return true; }", send);
+        return callProgram(List.of(parameter), send,
+                delete ? new ResolvedType.VoidReturn() : aggregateType, false);
+    }
+
+    private org.vernac.compiler.symbols.FileTypeScope scopeFor(TopLevelDefinition definition) {
+        return project.project().sources().stream().filter(s -> s.unit().definitions().contains(definition))
+                .findFirst().map(s -> project.scopes().get(s.path())).orElseThrow();
     }
 
     private TopLevelDefinition definition(ResolvedType.Declared type) {
@@ -347,7 +447,9 @@ public final class NativeValidationCompiler {
         return project.project().sources().stream().filter(s -> s.unit().namespace().equals(identity.namespace()))
                 .flatMap(s -> s.unit().definitions().stream()).filter(node -> switch (node) {
                     case PortNode port -> port.name().equals(identity.name());
+                    case RepositoryNode repository -> repository.name().equals(identity.name());
                     case EventNode event -> event.name().equals(identity.name());
+                    case AggregateNode aggregate -> aggregate.name().equals(identity.name());
                     default -> false;
                 }).findFirst().orElse(null);
     }
@@ -419,11 +521,20 @@ public final class NativeValidationCompiler {
         CodeBlock target;
         TopLevelDefinition definition;
         if (expression.receiver() instanceof KeywordExpression.Name name && name.name().equals("self")) {
+            if (owner instanceof UseCaseNode)
+                throw error(expression, "Use case inputs are named directly and dependencies use keyword messages");
             target = self();
             definition = owner;
         } else if (expression.receiver() instanceof KeywordExpression.Name name) {
             var local = binding(name);
-            definition = readValueType(expression, local.type());
+            if (local.optional()) throw error(expression, "Match an optional value before reading its fields");
+            if (owner instanceof UseCaseNode && local.type() instanceof ResolvedType.Declared declared
+                    && declared.symbol().kind() == TypeSymbol.Kind.AGGREGATE
+                    && definition(declared) instanceof AggregateNode aggregate) {
+                definition = aggregate;
+            } else {
+                definition = readValueType(expression, local.type());
+            }
             target = CodeBlock.of("(($T) $L)", ResolvedJavaTypes.javaType(local.type()), local.code());
         } else if (expression.receiver() instanceof KeywordExpression.UnaryMessage parent) {
             var read = read(parent);

@@ -81,9 +81,24 @@ execute vernac {
 
 Port selectors are resolved against the declared dependency. An event constructor names its fields
 in declaration order. The existing generated Use Case entry point still establishes authorization,
-the transaction and event delivery. Native execute currently supports non-optional inputs and
-a single non-optional result or void. Local declarations, direct aggregate sends from a Use Case,
-and generated compound results are open.
+the transaction and event delivery. Use `let` to evaluate an expression once and keep its
+typed result for later statements. A declared repository supports `byId:`, `save:` and
+`delete:`; a loaded aggregate can receive its declared read and modify messages.
+
+```vernac
+execute vernac {
+    let booking = bookings byId: bookingId.
+    let oldStart = booking start.
+    booking moveFrom: previous to: destination.
+    bookings save: booking.
+    return Result oldStart: oldStart newStart: booking start.
+}
+```
+
+A compound result uses the generated `Result` contract. Its keyword parts must name the
+declared fields in order. Native execute currently requires non-optional inputs and accepts
+void, a non-optional single result, or a compound result with supplied field values.
+Custom repository queries are outside the initial native repository interface.
 
 ## Alternatives considered
 

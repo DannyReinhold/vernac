@@ -145,7 +145,8 @@ behaviorMethod
 nativeBehaviorBody : 'vernac' '{' nativeBehaviorStatement+ '}' ;
 
 nativeBehaviorStatement
-    : 'require' predicate=keywordExpression 'else' rejection=typeName '.'
+    : 'let' local=variableName '=' initializer=keywordExpression '.'
+    | 'require' predicate=keywordExpression 'else' rejection=typeName '.'
     | 'return' result=keywordExpression '.'
     | receiver=variableName target=variableName '=' assigned=keywordExpression '.'
     | send=keywordExpression '.'
@@ -450,7 +451,7 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'vernac' | 'rejects' | 'match' | 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
+    : 'let' | 'vernac' | 'rejects' | 'match' | 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
     | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
     | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant'
@@ -583,11 +584,11 @@ argumentList
 // Spezifische Namens-Kategorien
 // ==========================================
 typeName
-    : 'vernac' | 'rejects' | 'match' | IDENTIFIER | 'unique' | 'references'
+    : 'let' | 'vernac' | 'rejects' | 'match' | IDENTIFIER | 'unique' | 'references'
     ;
 
 methodName
-    : 'vernac' | 'rejects' | 'match' | 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
+    : 'let' | 'vernac' | 'rejects' | 'match' | 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
     | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
     | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant'
@@ -601,7 +602,7 @@ methodName
     ;
 
 variableName
-    : 'vernac' | 'rejects' | 'match' | 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
+    : 'let' | 'vernac' | 'rejects' | 'match' | 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
     | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
     | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant' | 'read' | 'modify'

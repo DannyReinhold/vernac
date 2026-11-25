@@ -18,7 +18,38 @@ public final class NativeValidation {
     }
 
     /** Per-call inputs for a native domain behavior. Expression nodes remain reusable. */
-    public record Invocation<S>(S self, List<Object> arguments) { }
+    public static final class Invocation<S> {
+        private static final Object[] NO_LOCALS = {};
+        private final S self;
+        private final List<Object> arguments;
+        private final Object[] locals;
+
+        public Invocation(S self, List<Object> arguments) {
+            this(self, arguments, 0);
+        }
+
+        public Invocation(S self, List<Object> arguments, int localCount) {
+            this.self = self;
+            this.arguments = arguments;
+            this.locals = localCount == 0 ? NO_LOCALS : new Object[localCount];
+        }
+
+        public S self() {
+            return self;
+        }
+
+        public List<Object> arguments() {
+            return arguments;
+        }
+
+        public void bind(int index, Object value) {
+            locals[index] = Objects.requireNonNull(value);
+        }
+
+        public Object local(int index) {
+            return Objects.requireNonNull(locals[index]);
+        }
+    }
 
     public record MatchInput<S>(S outer, Object value) { }
 

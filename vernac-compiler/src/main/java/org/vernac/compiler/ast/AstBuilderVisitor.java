@@ -197,7 +197,10 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         if (body == null) return List.of();
         var statements = new ArrayList<NativeStatement>();
         for (var statement : body.nativeBehaviorStatement()) {
-            if (statement.predicate != null) {
+            if (statement.local != null) {
+                var name = new KeywordExpression.Name(toLocation(statement.local), statement.local.getText());
+                statements.add(new NativeStatement.Let(name, keyword(statement.initializer)));
+            } else if (statement.predicate != null) {
                 statements.add(new NativeStatement.Require(keyword(statement.predicate), statement.rejection.getText()));
             } else if (statement.result != null) {
                 statements.add(new NativeStatement.Return(keyword(statement.result)));
