@@ -182,7 +182,40 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 method.parameterList() == null ? List.of() : extractParameters(method.parameterList()),
                 method.rawJavaBlock() == null ? "" : extractRawSource(method.rawJavaBlock()),
                 Optional.ofNullable(method.implementation).map(ParserRuleContext::getText),
-                method.effect == null ? MethodNode.Mode.DEFAULT : MethodNode.Mode.valueOf(method.effect.getText().toUpperCase(java.util.Locale.ROOT)))).toList();
+                method.effect == null ? MethodNode.Mode.DEFAULT : MethodNode.Mode.valueOf(method.effect.getText().toUpperCase(java.util.Locale.ROOT)),
+                nativeBody(method.nativeBehaviorBody()))).toList();
+    }
+
+    private void rejectNativeHelper(VernacParser.BehaviorMethodContext method) {
+        if (method.nativeBehaviorBody() != null)
+            throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(
+                    org.vernac.compiler.analyzer.CompilerDiagnostic.error(toLocation(method),
+                            "Native behavior currently requires an entity or aggregate")));
+    }
+
+    private List<NativeStatement> nativeBody(VernacParser.NativeBehaviorBodyContext body) {
+        if (body == null) return List.of();
+        var statements = new ArrayList<NativeStatement>();
+        for (var statement : body.nativeBehaviorStatement()) {
+            if (statement.predicate != null) {
+                statements.add(new NativeStatement.Require(keyword(statement.predicate), statement.rejection.getText()));
+            } else if (statement.result != null) {
+                statements.add(new NativeStatement.Return(keyword(statement.result)));
+            } else {
+                if (!statement.receiver.getText().equals("self")) {
+                    throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(
+                            org.vernac.compiler.analyzer.CompilerDiagnostic.error(toLocation(statement.receiver),
+                                    "Native assignments must target a mutable self field")));
+                }
+                statements.add(new NativeStatement.Assign(toLocation(statement.target), statement.target.getText(),
+                        keyword(statement.assigned)));
+            }
+        }
+        return List.copyOf(statements);
+    }
+
+    private KeywordExpression keyword(VernacParser.KeywordExpressionContext expression) {
+        return org.vernac.compiler.pipeline.KeywordExpressionParser.build(sourceName, expression);
     }
 
     private List<CollectionDefinitionNode> collections(List<VernacParser.CollectionDefinitionContext> contexts) {
@@ -635,6 +668,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         for(var member:ctx.usecaseBehaviorMember()) {
             if(member.behaviorMethod()!=null) {
                 var m=member.behaviorMethod();
+                rejectNativeHelper(m);
                 helpers.add(new MethodNode(toLocation(m),m.visibility==null?"public":m.visibility.getText(),toTypeNode(m.returnType),
                         m.name.getText(),m.parameterList()==null?List.of():extractParameters(m.parameterList()),
                         m.rawJavaBlock()==null?"":extractRawSource(m.rawJavaBlock()),Optional.ofNullable(m.implementation).map(ParserRuleContext::getText)));
@@ -699,6 +733,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         for (var member : ctx.usecaseBehaviorMember()) {
             if (member.behaviorMethod() != null) {
                 var m = member.behaviorMethod();
+                rejectNativeHelper(m);
                 helpers.add(new MethodNode(toLocation(m), m.visibility == null ? "public" : m.visibility.getText(), toTypeNode(m.returnType), m.name.getText(),
                     m.parameterList() == null ? List.of() : extractParameters(m.parameterList()), m.rawJavaBlock() == null ? "" : extractRawSource(m.rawJavaBlock()), Optional.ofNullable(m.implementation).map(ParserRuleContext::getText)));
             } else { count++; body = member.rawJavaBlock() == null ? "" : extractRawSource(member.rawJavaBlock()); implementation = Optional.ofNullable(member.implementation).map(ParserRuleContext::getText); }

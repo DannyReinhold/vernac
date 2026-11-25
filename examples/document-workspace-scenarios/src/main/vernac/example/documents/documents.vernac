@@ -6,7 +6,9 @@ value DocumentPresence = PRESENT | ABSENT;
 aggregate Document[DocumentId](mut DocumentTitle) validates {
     require self documentTitle string != "" else EmptyDocumentTitle.
 } behavior {
-    modify void renameTo(DocumentTitle title) { self.documentTitle(title); }
+    modify void renameTo(DocumentTitle title) vernac {
+        self documentTitle = title.
+    }
 };
 
 permission DocumentPermissions { DELETE; }

@@ -102,6 +102,45 @@ public class BehaviorContractTest {
         }
     }
 
+    @Test void nativeModifyAndReadRunThroughExistingJvmMethods() throws Exception {
+        var model = """
+                id BookingId;
+                value Day(int);
+                aggregate Booking[BookingId](mut Day start, mut Day finish) behavior {
+                    modify int move(Day oldStart, Day nextStart, Day nextFinish) vernac {
+                        require self start == oldStart else StaleStart.
+                        self start = nextStart.
+                        self finish = nextFinish.
+                        require self start intValue <= self finish intValue else InvertedDates.
+                        return self finish intValue - self start intValue.
+                    }
+                    read int duration(int offset) vernac {
+                        return self finish intValue - self start intValue + offset.
+                    }
+                };
+                """;
+        var output = compile(model);
+        var booking = output.loadClass("behavior.tests.domain.Booking");
+        var day = output.loadClass("behavior.tests.domain.Day");
+        var of = day.getMethod("of", int.class);
+        var first = of.invoke(null, 1);
+        var third = of.invoke(null, 3);
+        var fifth = of.invoke(null, 5);
+        var instance = booking.getMethod("create", day, day).invoke(null, first, of.invoke(null, 2));
+        var move = booking.getMethod("move", day, day, day);
+        assertEquals(2, move.invoke(instance, first, third, fifth));
+        assertEquals(12, booking.getMethod("duration", int.class).invoke(instance, 10));
+        var failure = assertThrows(InvocationTargetException.class, () -> move.invoke(instance, third, of.invoke(null, 8), of.invoke(null, 7)));
+        assertEquals("InvertedDates",
+                assertInstanceOf(org.vernac.runtime.NativeValidation.Rejection.class, failure.getCause()).code());
+        assertSame(third, booking.getMethod("start").invoke(instance));
+        assertSame(fifth, booking.getMethod("finish").invoke(instance));
+        var invalid = assertThrows(SemanticValidationException.class,
+                () -> generate(model.replace("read int duration(int offset) vernac {",
+                        "read int duration(int offset) vernac { self start = offset.")));
+        assertTrue(invalid.getMessage().contains("Only modify behaviors"));
+    }
+
     @Test void javaImportsCannotReplaceModelOrBuiltinTypes() {
         for (String model : new String[]{
                 "value Name(String); value Other(String) behavior { java imports { foreign.Name; } };",

@@ -168,7 +168,7 @@ public final class BehaviorJavaProjection {
         for (int i = 0; i < methods.size(); i++) {
             var method = methods.get(i);
             var syntax = context.behaviorMethod(i);
-            if (method.implementation().isPresent()) continue;
+            if (method.implementation().isPresent() || !method.nativeBody().isEmpty()) continue;
             String returnType = javaType(scope, method.returnType(), true);
             if (returnType == null) return;
             List<String> parameters = new ArrayList<>();

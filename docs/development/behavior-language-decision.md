@@ -52,8 +52,20 @@ Boolean. The runtime evaluates the compiled predicate against the candidate stat
 predicate raises a domain validation exception with code `InvertedDates`. A scenario can
 assert that code with `when (booking moveFrom: start to: finish) rejects InvertedDates;`.
 Native state rules currently support field paths, integer arithmetic, equality and Boolean
-operators. Native behavior bodies, keyword calls within validation rules and optional matching
-within validation rules remain open.
+operators.
+
+Entity and aggregate methods can opt into native execution with a `vernac` body:
+
+```vernac
+modify void renameTo(DocumentTitle title) vernac {
+    self documentTitle = title.
+}
+```
+
+Native bodies currently support `require … else …`, assignments to mutable `self` fields and a
+final value return. They use the same expression evaluator as state rules. The existing JVM
+method signatures and modification boundary still apply. Native use-case bodies, keyword sends
+inside native bodies and validation rules, and optional matching inside native code remain open.
 
 ## Alternatives considered
 

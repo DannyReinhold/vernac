@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.vernac.runtime;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -13,6 +14,9 @@ public final class NativeValidation {
     public interface Expression<S> {
         Object evaluate(S self);
     }
+
+    /** Per-call inputs for a native domain behavior. Expression nodes remain reusable. */
+    public record Invocation<S>(S self, List<Object> arguments) { }
 
     public static <S> Expression<S> literal(Object value) {
         return self -> value;

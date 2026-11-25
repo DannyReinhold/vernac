@@ -13,9 +13,20 @@ public record MethodNode(
         List<FieldNode> parameters,
         String bodyCode,
         java.util.Optional<String> implementation,
-        Mode mode
+        Mode mode,
+        List<NativeStatement> nativeBody
 ) implements AstNode {
     public enum Mode { DEFAULT, READ, MODIFY }
+
+    public MethodNode {
+        nativeBody = List.copyOf(nativeBody);
+    }
+
+    public MethodNode(SourceLocation location, String accessModifier, TypeNode returnType,
+                      String name, List<FieldNode> parameters, String bodyCode,
+                      java.util.Optional<String> implementation, Mode mode) {
+        this(location, accessModifier, returnType, name, parameters, bodyCode, implementation, mode, List.of());
+    }
 
     public MethodNode(SourceLocation location, String accessModifier, TypeNode returnType,
                       String name, List<FieldNode> parameters, String bodyCode, java.util.Optional<String> implementation) {
