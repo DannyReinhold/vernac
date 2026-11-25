@@ -140,6 +140,11 @@ checks should provide a run ID so a CPU runner can finish them between model cal
 compares equivalent CLI, IDE and MCP requests and disconnects an agent mid-run before retrieving its
 result.
 
+The compiler now has an in-memory source revision store for atomic create, replace, move and
+delete batches. A stale base reports the current revision. A retained snapshot can be parsed
+independently of later changes on disk or in the client. Daemon transport, retention limits
+and request replay are separate milestones.
+
 ### Structured model operations for agents
 
 Use the compiler's resolved model for `describe_type`. Address declarations by qualified Vernac
@@ -162,6 +167,13 @@ created the patch. Keep ordinary text patches available for operations that span
 A field insertion changes the value type's signature and may affect constructors, validations,
 serialized forms, schemas and consumers. Selection must widen to those dependents where applicable.
 Batch several intended changes before checking to avoid repeated semantic work.
+
+Cover arbitrary source constructs through a small shared interface: inspect or navigate by
+semantic identity where one exists, locate syntax by revision and range otherwise, and submit
+versioned source edits. Add typed refactorings where the compiler can maintain references or
+enforce a useful contract. Common operations can use convenience tools. Avoid one transport
+tool per grammar production: some constructs have no stable semantic ID, and an internal AST
+should be free to evolve independently of the tool contract.
 
 Measure model-read round trips separately from preview and from patch-to-test latency. A quick
 symbol lookup or a cheap edit preview does not establish the 500 ms p95 target for the full workflow.

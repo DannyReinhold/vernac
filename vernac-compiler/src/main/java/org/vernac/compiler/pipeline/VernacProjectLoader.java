@@ -21,7 +21,7 @@ public final class VernacProjectLoader {
     /** Open editor snapshots override disk contents; unsaved new files are included. */
     public VernacProject load(Path sourceRoot, Map<Path, String> snapshots) throws IOException {
         List<CompilerDiagnostic> diagnostics = new ArrayList<>();
-        VernacProject project = loadSources(sourceRoot, snapshots, diagnostics, false, null).project();
+        VernacProject project = loadSources(sourceRoot, snapshots, diagnostics, false, null, true).project();
         if (!diagnostics.isEmpty()) throw new SemanticValidationException(diagnostics);
         return project;
     }
@@ -29,7 +29,7 @@ public final class VernacProjectLoader {
     /** Collects source errors while retaining complete declarations for editor analysis. */
     public VernacProject loadForAnalysis(Path sourceRoot, Map<Path, String> snapshots,
                                         List<CompilerDiagnostic> diagnostics) throws IOException {
-        return loadSources(sourceRoot, snapshots, diagnostics, true, null).project();
+        return loadSources(sourceRoot, snapshots, diagnostics, true, null, true).project();
     }
 
     /** Opens a bounded parse session. Use a separate session for each client's source overlays. */
@@ -50,8 +50,17 @@ public final class VernacProjectLoader {
         }
 
         public synchronized VernacProject load(Map<Path, String> snapshots) throws IOException {
+            return loadStrict(snapshots, true);
+        }
+
+        /** Loads a complete source snapshot. Absent paths are deletions and disk is not consulted. */
+        public synchronized VernacProject loadSnapshot(Map<Path, String> sources) throws IOException {
+            return loadStrict(sources, false);
+        }
+
+        private VernacProject loadStrict(Map<Path, String> snapshots, boolean includeDisk) throws IOException {
             var diagnostics = new ArrayList<CompilerDiagnostic>();
-            var revision = loadSources(sourceRoot, snapshots, diagnostics, false, strict);
+            var revision = loadSources(sourceRoot, snapshots, diagnostics, false, strict, includeDisk);
             strict = revision.entries();
             statistics = revision.statistics();
             if (!diagnostics.isEmpty()) throw new SemanticValidationException(diagnostics);
@@ -60,7 +69,7 @@ public final class VernacProjectLoader {
 
         public synchronized VernacProject loadForAnalysis(Map<Path, String> snapshots,
                                                             List<CompilerDiagnostic> diagnostics) throws IOException {
-            var revision = loadSources(sourceRoot, snapshots, diagnostics, true, editor);
+            var revision = loadSources(sourceRoot, snapshots, diagnostics, true, editor, true);
             editor = revision.entries();
             statistics = revision.statistics();
             return revision.project();
@@ -78,8 +87,8 @@ public final class VernacProjectLoader {
                                  ParseStatistics statistics) { }
 
     private ParseRevision loadSources(Path sourceRoot, Map<Path, String> snapshots,
-            List<CompilerDiagnostic> diagnostics, boolean editorRecovery, Map<Path, ParsedSource> previous)
-            throws IOException {
+            List<CompilerDiagnostic> diagnostics, boolean editorRecovery, Map<Path, ParsedSource> previous,
+            boolean includeDisk) throws IOException {
         Path root = sourceRoot.toAbsolutePath().normalize();
         Map<Path, String> overlays = new TreeMap<>();
         for (var entry : snapshots.entrySet()) {
@@ -89,11 +98,11 @@ public final class VernacProjectLoader {
             }
             overlays.put(path, entry.getValue());
         }
-        if (!Files.isDirectory(root) && (Files.exists(root) || overlays.isEmpty())) {
+        if (includeDisk && !Files.isDirectory(root) && (Files.exists(root) || overlays.isEmpty())) {
             throw new IOException("Vernac source root is not a directory: " + root);
         }
         Set<Path> paths = new TreeSet<>(overlays.keySet());
-        if (Files.isDirectory(root)) {
+        if (includeDisk && Files.isDirectory(root)) {
             try (var files = Files.walk(root)) {
                 files.filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
                         .filter(path -> path.getFileName().toString().endsWith(".vernac"))
