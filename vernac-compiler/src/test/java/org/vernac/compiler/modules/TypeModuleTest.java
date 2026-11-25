@@ -17,6 +17,38 @@ class TypeModuleTest {
         var generated=compiler.generate(project,SchemaModel.empty(),Map.of());
         return ModuleContracts.publish(ModuleDefinition.parse(root.resolve("producer/vernac-module.vmodule"),"module lib.values {"+exports+"}"),project,generated.generatedFiles(),"org.example","values",version,List.of());
     }
+    @Test void editorIndexAcceptsLegacyFieldsInsideExternalContracts() throws Exception {
+        var provider = publish("namespace lib.values; value Name(String);", "export lib.values.Name;", "1");
+        var requirement = new ModuleDescriptor.Requirement(provider.module(), provider.groupId(),
+                provider.artifactId(), provider.version(), provider.exports());
+        var consumer = new ModuleDescriptor(1, ModuleDescriptor.CONTRACT, "consumer.types", "org.example",
+                "consumer", "1", List.of(), List.of(requirement));
+
+        var index = ModuleDescriptor.JSON.valueToTree(List.of(consumer, provider));
+        var legacyField = (tools.jackson.databind.node.ObjectNode) index.get(0).get("externalContracts")
+                .get(0).get("definitions").get(0).get("fields").get(0);
+        assertFalse(legacyField.remove("unique").asBoolean());
+
+        var source = root.resolve("src/main/vernac");
+        var target = root.resolve("target/vernac-module-index.json");
+        ModuleDescriptor.write(target, index);
+        assertEquals(List.of(consumer, provider), ModuleArtifacts.editorModules(source));
+
+        legacyField.putNull("unique");
+        ModuleDescriptor.write(target, index);
+        assertEquals(List.of(consumer, provider), ModuleArtifacts.editorModules(source));
+    }
+
+    @Test void fieldMetadataKeepsExplicitUniquenessAndRequiredMutability() {
+        var field = new ModuleDescriptor.Field("name", new ModuleDescriptor.Type("String", false), true, true);
+        var json = (tools.jackson.databind.node.ObjectNode) ModuleDescriptor.JSON.valueToTree(field);
+        assertTrue(json.get("unique").asBoolean());
+        assertEquals(field, ModuleDescriptor.JSON.treeToValue(json, ModuleDescriptor.Field.class));
+        json.remove("mutable");
+        assertThrows(tools.jackson.databind.exc.MismatchedInputException.class,
+                () -> ModuleDescriptor.JSON.treeToValue(json, ModuleDescriptor.Field.class));
+    }
+
     @Test void fallbackContractViewsPreserveSeveralCollectionsAndFunctionalSignatures() throws Exception {
         var descriptor=publish("""
             namespace lib.values;

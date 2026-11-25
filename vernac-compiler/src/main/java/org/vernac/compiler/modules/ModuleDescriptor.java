@@ -3,6 +3,8 @@
 package org.vernac.compiler.modules;
 
 import java.util.*;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import tools.jackson.databind.ObjectMapper;
 import org.vernac.compiler.ast.*;
 
@@ -41,6 +43,17 @@ public record ModuleDescriptor(int formatVersion,String contractVersion,String m
         public Field(String name,Type type,boolean mutable,boolean unique){this(name,type,mutable,unique,null);}
         public Field(String name,Type type){this(name,type,false,false);}
         public Field(String name,Type type,boolean mutable){this(name,type,mutable,false);}
+
+        /** Descriptors written before uniqueness was introduced have no unique property. */
+        @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
+        public static Field read(
+                @JsonProperty("name") String name,
+                @JsonProperty("type") Type type,
+                @JsonProperty("mutable") boolean mutable,
+                @JsonProperty("unique") Boolean unique,
+                @JsonProperty("referenceTarget") String referenceTarget) {
+            return new Field(name, type, mutable, Boolean.TRUE.equals(unique), referenceTarget);
+        }
     }
     public record Method(String name,Type returns,List<Field> parameters,String mode) {
         public Method(String name,Type returns,List<Field> parameters){this(name,returns,parameters,"DEFAULT");}
