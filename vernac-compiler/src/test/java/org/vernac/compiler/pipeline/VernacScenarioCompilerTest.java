@@ -32,6 +32,25 @@ class VernacScenarioCompilerTest {
             """;
 
     @Test
+    void emitsOnlyRequestedScenariosAndRejectsUnknownIds() throws IOException {
+        var main = mainModel();
+        var root = Files.createDirectories(project.resolve("src/test/vernac"));
+        var source = Files.writeString(root.resolve("tasks.vernac"),
+                SCENARIO.replace("scenario completes {", "scenario other { expect true equals true; } scenario completes {"));
+        var output = project.resolve("target/generated-test-sources/vernac");
+        var bridge = output.resolve("org/vernac/generated/VernacScenariosTest.java");
+        var ids = java.util.Set.of("example.tests.Tasks.completes");
+        assertEquals(2, compiler.generate(root, java.util.List.of(source), main, output));
+        assertEquals(1, compiler.generateSelected(root, java.util.List.of(source), main, output, null, ids));
+        assertFalse(Files.readString(bridge).contains("Tasks.other"));
+        assertThrows(SemanticValidationException.class,
+                () -> compiler.generateSelected(root, java.util.List.of(source), main, output, "mvc", ids));
+        assertThrows(SemanticValidationException.class,
+                () -> compiler.generateSelected(root, java.util.List.of(source), main, output, null,
+                        java.util.Set.of("example.tests.Tasks.missing")));
+    }
+
+    @Test
     void generatesNamedTestsAgainstMainDeclarationsAndRetiresDeletedCases() throws IOException {
         var main = mainModel();
         var tests = Files.createDirectories(project.resolve("src/test/vernac/example/tests"));

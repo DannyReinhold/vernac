@@ -99,3 +99,17 @@ The Document Workspace example includes a disposable PostgreSQL fixture for a
 committed deletion and event, a refused command and rollback after an injected
 listener failure. The [release plan](../development/release-0.6.0.md) lists the
 acceptance matrix.
+
+
+## Run scenarios by identity
+
+Pass a comma-separated list of fully qualified scenario IDs to the Vernac Maven plugin. A scenario ID
+consists of its namespace, suite name and scenario name. This command selects a single case:
+
+```sh
+mvn -pl examples/document-workspace-scenarios -am -Dvernac.testCases=example.documents.ReaderView.hiddenActionAndDirectPostAreDenied -Dtest=VernacScenariosTest -Dsurefire.failIfNoSpecifiedTests=false test
+```
+
+The compiler validates the scenario sources and emits JUnit methods for the selected cases. The selection
+is restricted to the active Vernac test profiles. An unknown ID or an ID outside those profiles fails
+test generation.

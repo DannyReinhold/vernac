@@ -77,17 +77,23 @@ public final class VernacScenarioCompiler {
     }
 
     public int generate(Path root, List<Path> sources, ResolvedProject main, Path output, String profile) throws IOException {
+        return generateSelected(root, sources, main, output, profile, null);
+    }
+
+    /** Emits only the requested case IDs in the selected profile. A null selection keeps the full profile. */
+    public int generateSelected(Path root, List<Path> sources, ResolvedProject main, Path output,
+                                String profile, Set<String> caseIds) throws IOException {
         // Retain the bridge after the last case is removed so an incremental build overwrites
         // the existing test class instead of allowing Surefire to run a stale case.
-        if (sources.isEmpty() && profile == null && !Files.exists(output.resolve(GeneratedSourceWriter.MANIFEST))) return 0;
+        if (sources.isEmpty() && profile == null && caseIds == null && !Files.exists(output.resolve(GeneratedSourceWriter.MANIFEST))) return 0;
 
         Map<String, String> texts = new LinkedHashMap<>();
         for (Path path : sources) {
             String source = "src/test/vernac/" + root.relativize(path).toString().replace('\\', '/');
             texts.put(source, Files.readString(path));
         }
-        var compiled = compile(texts, main, profile, false);
-        if (profile != null && compiled.caseCount() == 0)
+        var compiled = compile(texts, main, profile, false, caseIds);
+        if (caseIds == null && profile != null && compiled.caseCount() == 0)
             throw error(new SourceLocation(root.toString(), 0, 0), "No Vernac scenarios match profile '" + profile + "'");
         GeneratedSourceWriter.write(List.of(compiled.bridge()), output);
         return compiled.caseCount();
@@ -95,7 +101,7 @@ public final class VernacScenarioCompiler {
 
     /** Checks the same source snapshots used for generation without writing generated files. */
     public List<Reference> validate(Map<String, String> sources, ResolvedProject main) {
-        return compile(sources, main, null, true).references();
+        return compile(sources, main, null, true, null).references();
     }
 
     /** A source reference and its resolved model declaration, with a code-point width. */
@@ -103,11 +109,12 @@ public final class VernacScenarioCompiler {
 
     private record Compilation(JavaFile bridge, int caseCount, List<Reference> references) { }
 
-    private Compilation compile(Map<String, String> sources, ResolvedProject main, String selectedProfile, boolean allProfiles) {
+    private Compilation compile(Map<String, String> sources, ResolvedProject main, String selectedProfile, boolean allProfiles, Set<String> caseIds) {
         var bridge = TypeSpec.classBuilder(BRIDGE);
         List<Reference> references = new ArrayList<>();
         Set<String> suites = new HashSet<>();
         Set<String> cases = new HashSet<>();
+        var remaining = caseIds == null ? null : new java.util.TreeSet<>(caseIds);
         int executed = 0;
         var model = model(main);
         for (var entry : sources.entrySet()) {
@@ -142,13 +149,15 @@ public final class VernacScenarioCompiler {
                     String id = suiteId + "." + scenarioName;
                     if (!cases.add(id)) throw error(location(source, scenario), "Duplicate scenario '" + id + "'");
                     var test = new Scenario(source, id, scope, main, model.definitions(), references, configuration, profile).compile(scenario);
-                    if (selected) {
+                    if (selected && (remaining == null || remaining.remove(id))) {
                         bridge.addMethod(test);
                         executed++;
                     }
                 }
             }
         }
+        if (remaining != null && !remaining.isEmpty())
+            throw error(SourceLocation.UNKNOWN, "Vernac scenarios not found in the selected profiles: " + remaining);
         return new Compilation(JavaFile.builder(PACKAGE, bridge.build()).indent("    ").build(),
                 executed, List.copyOf(references));
     }

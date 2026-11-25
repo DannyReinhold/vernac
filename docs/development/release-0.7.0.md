@@ -178,6 +178,14 @@ should be free to evolve independently of the tool contract.
 Measure model-read round trips separately from preview and from patch-to-test latency. A quick
 symbol lookup or a cheap edit preview does not establish the 500 ms p95 target for the full workflow.
 
+### Versioned language help
+
+Expose the bundled [AI Language Reference](../ai-language-reference.md) and selected [FAQs](../faq/index.md)
+through read-only MCP resources. Give each section a stable key and identify its Vernac version in the
+response. Offer a small search operation for clients that discover help through tools, returning matching
+section titles and links. Use the published documentation as the source for both the bundle and search
+index. Keep help separate from workspace inspection so asking about syntax does not trigger compilation.
+
 ## Standalone build tool
 
 | Proposed command | Contract to implement and test |
