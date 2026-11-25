@@ -25,20 +25,25 @@ public final class ScenarioPlanningSession {
     public static final class Prepared {
         private final ScenarioPlanningSession session;
         private final Inputs inputs;
+        private final ResolvedProject project;
         private final String profile;
         private final AffectedScenarioSelector.Revision dependencies;
         private final VernacScenarioCompiler.Catalog catalog;
 
         private Prepared(ScenarioPlanningSession session, Inputs inputs, String profile,
-                         AffectedScenarioSelector.Revision dependencies, VernacScenarioCompiler.Catalog catalog) {
+                         AffectedScenarioSelector.Revision dependencies, VernacScenarioCompiler.Catalog catalog,
+                         ResolvedProject project) {
             this.session = session;
             this.inputs = inputs;
             this.profile = profile;
             this.dependencies = dependencies;
             this.catalog = catalog;
+            this.project = project;
         }
 
         public long revision() { return inputs.main().revision(); }
+
+        public ResolvedProject project() { return project; }
     }
 
     public record Plan(Prepared target, List<AffectedScenarioSelector.Selection> selected) {
@@ -69,7 +74,7 @@ public final class ScenarioPlanningSession {
         var resolved = check.project().orElseThrow();
         var catalog = new VernacScenarioCompiler().catalog(target.tests(), resolved);
         var dependencies = ScenarioDependencyGraph.derive(resolved, target.tests().keySet(), catalog.references());
-        var prepared = new Prepared(this, target, profile, dependencies, catalog);
+        var prepared = new Prepared(this, target, profile, dependencies, catalog, resolved);
 
         var previous = baseline.filter(candidate -> candidate.session == this && Objects.equals(candidate.profile, profile));
         var changed = new HashSet<String>();

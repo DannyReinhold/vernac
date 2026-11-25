@@ -25,6 +25,66 @@ class AffectedScenarioSelectorTest {
     @TempDir Path root;
 
     @Test
+    void executionSessionRetriesFailuresAndOnlyAdvancesAfterCompleteSuccess() throws Exception {
+        var counter = Path.of("app/counter.vernac");
+        var sources = new VersionedSources(root, Map.of(counter, "namespace app; value Counter(int);"));
+        var tests = Map.of("checks.vernac", """
+                namespace app;
+                suite Checks {
+                    scenario counter { given counter = Counter(1); expect counter.intValue equals 1; }
+                }
+                """);
+        var calls = new java.util.concurrent.atomic.AtomicInteger();
+        var runner = new ScenarioRunSession(new ScenarioPlanningSession(root, Map.of(), List.of()), request -> {
+            calls.incrementAndGet();
+            Map<String, Boolean> results;
+            try {
+                results = run(request.project(), request.bridge());
+            } catch (Exception failure) {
+                throw new java.io.IOException("Could not execute generated tests", failure);
+            }
+            return Map.of("app.Checks.counter", results.get("app$dChecks$dcounter")
+                    ? ScenarioRunSession.Outcome.PASSED : ScenarioRunSession.Outcome.FAILED);
+        }, null);
+
+        var original = new ScenarioPlanningSession.Inputs(sources.snapshot(), tests);
+        assertEquals(ScenarioRunSession.Outcome.PASSED, runner.run(original, false).outcomes().get("app.Checks.counter"));
+        assertEquals(List.of(), runner.run(original, false).selected());
+        var rejected = sources.apply(0, List.of(new VersionedSources.Put(counter,
+                "namespace app; value Counter(int) validates { require self intValue > 1 else TooSmall. };")));
+        var bad = new ScenarioPlanningSession.Inputs(rejected, tests);
+        for (int retry = 0; retry < 2; retry++) {
+            var run = runner.run(bad, false);
+            assertEquals(rejected.revision(), run.revision());
+            assertEquals(ScenarioRunSession.Outcome.FAILED, run.outcomes().get("app.Checks.counter"));
+        }
+        assertEquals(List.of(), runner.run(original, false).selected());
+        assertEquals(3, calls.get());
+    }
+
+    @Test
+    void aPartialRunCannotBecomeABaseline() throws Exception {
+        var counter = Path.of("app/counter.vernac");
+        var sources = new VersionedSources(root, Map.of(counter, "namespace app; value Counter(int);"));
+        var inputs = new ScenarioPlanningSession.Inputs(sources.snapshot(), Map.of("checks.vernac", """
+                namespace app;
+                suite Checks { scenario counter { expect true equals true; } }
+                """));
+        var status = new java.util.concurrent.atomic.AtomicInteger();
+        var runner = new ScenarioRunSession(new ScenarioPlanningSession(root, Map.of(), List.of()), request ->
+                switch (status.getAndIncrement()) {
+                    case 0, 3 -> Map.of("app.Checks.counter", ScenarioRunSession.Outcome.PASSED);
+                    case 1 -> Map.of();
+                    default -> Map.of("app.Checks.counter", ScenarioRunSession.Outcome.SKIPPED);
+                }, null);
+        runner.run(inputs, false);
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> runner.run(inputs, true));
+        assertEquals(ScenarioRunSession.Outcome.SKIPPED, runner.run(inputs, false).outcomes().get("app.Checks.counter"));
+        assertEquals(ScenarioRunSession.Outcome.PASSED, runner.run(inputs, false).outcomes().get("app.Checks.counter"));
+        assertEquals(List.of(), runner.run(inputs, false).selected());
+    }
+
+    @Test
     void generatedAffectedTestsFindTheSameFailureAsTheFullSuite() throws Exception {
         var counter = Path.of("app/counter.vernac");
         var sources = new VersionedSources(root, Map.of(counter, "namespace app; value Counter(int);",
@@ -55,9 +115,12 @@ class AffectedScenarioSelectorTest {
             throws Exception {
         var project = new ProjectTypeResolver().resolve(new VernacProjectLoader().openSession(root)
                 .loadSnapshot(sources.sources()));
+        return run(project, plan.testBridge());
+    }
+
+    private Map<String, Boolean> run(ResolvedProject project, com.palantir.javapoet.JavaFile bridge) throws Exception {
         var files = new java.util.ArrayList<>(new VernacCompiler()
                 .generate(project, org.vernac.compiler.persistence.SchemaModel.empty(), Map.of()).generatedFiles());
-        var bridge = plan.testBridge();
         files.add(bridge);
         var compilation = org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(files);
         org.junit.jupiter.api.Assertions.assertTrue(compilation.success(), compilation.diagnostics().toString());

@@ -137,6 +137,13 @@ materialize its selected JUnit methods from the same checked scenario texts with
 the tests again. The regression suite compiles and executes both the affected and full lists
 after a validation edit and checks that both expose the same failing scenario.
 
+The execution session now passes the checked production model and selected JUnit bridge to one
+executor call. It advances its comparison baseline only after the backend reports a pass for every
+selected case. An incomplete report, a skipped test or a failed run cannot establish a new baseline.
+Opaque input changes invalidate the old baseline even if the attempted run fails. The in-process
+test backend exercises this contract. A production backend for warm application classes and
+scenario execution remains open.
+
 ## Daemon, editor and agent protocol
 
 Use a local daemon per isolated workspace/worktree and compatible toolchain. Reuse the existing LSP
