@@ -117,6 +117,17 @@ overlay, a syntax error, deletion and repair and compare the resulting diagnosti
 sources against the clean path. Parse counts show reuse at this stage. The warm 500 ms p95 release
 gate covers the full patch-to-test result and remains to be measured.
 
+### Scenario selection
+
+The compiler exposes scenario IDs, profiles, Java fixture usage and resolved direct references.
+The selector can use source dependency graphs for the previous and current revisions. It follows
+both graphs so that removal of an old edge cannot hide a dependency. Missing dependency information
+and Java fixtures widen selection. An opaque change or the absence of a baseline selects the full
+requested profile. Results include the reason for each selected case.
+
+Graph construction from compiler inputs and the connection from selection to the warm runner
+remain open. The selector and the existing explicit scenario filter can be tested independently.
+
 ## Daemon, editor and agent protocol
 
 Use a local daemon per isolated workspace/worktree and compatible toolchain. Reuse the existing LSP

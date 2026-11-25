@@ -113,7 +113,7 @@ public final class VernacScenarioCompiler {
         return List.copyOf(inventory);
     }
 
-    public record ScenarioReferences(String id, String profile, SourceLocation location,
+    public record ScenarioReferences(String id, String profile, SourceLocation location, boolean usesJavaFixture,
                                      List<Reference> directReferences) {
         public ScenarioReferences { directReferences = List.copyOf(directReferences); }
     }
@@ -155,7 +155,7 @@ public final class VernacScenarioCompiler {
                     throw error(location(source, suite.profileName), "Unknown scenario profile '" + profile + "'");
                 if (!profile.equals("domain") && configuration == null)
                     throw error(location(source, suite), "Profile '" + profile + "' requires a suite test configuration");
-                boolean selected = allProfiles || (selectedProfile == null ? !profile.equals("postgres") : selectedProfile.equals(profile));
+                boolean selected = allProfiles || includesProfile(selectedProfile, profile);
                 for (var scenario : suite.testScenario()) {
                     String scenarioName = scenario.name.getText();
                     if (!VernacNames.isIdentifier(scenarioName))
@@ -165,7 +165,7 @@ public final class VernacScenarioCompiler {
                     int firstReference = references.size();
                     var test = new Scenario(source, id, scope, main, model.definitions(), references, configuration, profile).compile(scenario);
                     if (inventory != null) {
-                        inventory.add(new ScenarioReferences(id, profile, location(source, scenario),
+                        inventory.add(new ScenarioReferences(id, profile, location(source, scenario), configuration != null,
                                 references.subList(firstReference, references.size())));
                     }
                     if (selected && (remaining == null || remaining.remove(id))) {
@@ -179,6 +179,10 @@ public final class VernacScenarioCompiler {
             throw error(SourceLocation.UNKNOWN, "Vernac scenarios not found in the selected profiles: " + remaining);
         return new Compilation(JavaFile.builder(PACKAGE, bridge.build()).indent("    ").build(),
                 executed, List.copyOf(references));
+    }
+
+    static boolean includesProfile(String selectedProfile, String scenarioProfile) {
+        return selectedProfile == null ? !scenarioProfile.equals("postgres") : selectedProfile.equals(scenarioProfile);
     }
 
     private record Model(Map<String, TopLevelDefinition> definitions, Set<String> namespaces) { }
