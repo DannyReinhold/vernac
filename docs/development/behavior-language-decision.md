@@ -21,7 +21,7 @@ The first implementation parses these expressions and exposes read-only scenario
 expect (task status == Status DONE && task title string != "");
 ```
 
-Scenario predicates currently support fixture paths, enum members, scalar literals, integer arithmetic
+Scenario predicates currently support fixture paths, enum members, scalar literals, integer and decimal arithmetic
 and comparisons, value equality, Boolean operators and optional matching:
 
 ```vernac
@@ -51,7 +51,7 @@ The compiler checks that state reads use the read interface and that the predica
 Boolean. The runtime evaluates the compiled predicate against the candidate state. A false
 predicate raises a domain validation exception with code `InvertedDates`. A scenario can
 assert that code with `when (booking moveFrom: start to: finish) rejects InvertedDates;`.
-Native state rules currently support field paths, integer arithmetic, equality and Boolean
+Native state rules currently support field paths, integer and decimal arithmetic, equality and Boolean
 operators.
 
 Entity and aggregate methods can opt into native execution with a `vernac` body:
@@ -99,6 +99,87 @@ A compound result uses the generated `Result` contract. Its keyword parts must n
 declared fields in order. Native execute currently requires non-optional inputs and accepts
 void, a non-optional single result, or a compound result with supplied field values.
 Custom repository queries are outside the initial native repository interface.
+
+## Calculation coverage
+
+Use decimal literals such as `0.19` for `BigDecimal` arithmetic in behaviors, validations and scenario
+predicates. Use the same numeric type for both operands. Decimal operators include negation, `+`, `-`,
+`*`, `/`, `%` and ordering. Decimal `==` compares numeric values, so `0.30 == 0.3` is true. Division
+is exact. A zero divisor or a non-terminating decimal quotient raises an arithmetic error. A scenario
+can use decimals in fixture constructors and compare a computed result using `expect (…)`.
+
+```vernac
+read BigDecimal totalFor(BigDecimal quantity, BigDecimal discount) vernac {
+    let net = self price amount * quantity - discount.
+    require net >= 0.0 && quantity > 0.0 else InvalidTotal.
+    return net + net * 0.19.
+}
+```
+
+An `int` can enter a decimal calculation explicitly with `asDecimal`. Use
+`roundedTo:mode:` with an integer scale and a `RoundingMode` constant to round a result. Use
+`dividedBy:scale:mode:` when the quotient needs rounding. These selectors are available
+in behavior expressions, validations and scenario predicates.
+
+```vernac
+read BigDecimal roundedTotalFor(int quantity, TaxRate taxRate) vernac {
+    let net = self price amount * quantity asDecimal.
+    let rate = (taxRate == TaxRate REDUCED) ifTrue: 0.07 ifFalse: 0.19.
+    return (net + net * rate) roundedTo: 2 mode: RoundingMode HALF_UP.
+}
+
+expect ((1.0 dividedBy: 3.0 scale: 2 mode: RoundingMode HALF_UP) == 0.33);
+```
+
+`ifTrue:ifFalse:` is a Boolean expression message. The runtime evaluates the condition once
+and evaluates only the selected alternative. Both alternatives must have the same type and
+optionality. A comparison against an enum member can supply the condition. The branch result
+can be used as a local value, a message argument, a validation result or a return value.
+
+Use `LocalDate fromIso:` to parse a calendar date, `plusDays:` to move a calendar deadline, and
+`daysUntil:` to calculate the signed distance in days as an `int`. For elapsed time, construct a
+`Duration` with `ofDays:` and combine durations with `plus:` or `minus:`. A day in a `Duration`
+is 24 hours. A `LocalDate` carries no time zone.
+
+```vernac
+let issued = LocalDate fromIso: "2024-02-28".
+let due = issued plusDays: 30.
+require (issued daysUntil: due) == 30 else InvalidTerms.
+```
+
+Declared domain lists and sets support `select:`, `sumBy:` and `anySatisfy:` with a typed expression
+block. The binding before `|` names the current element and is scoped to the block. `select:` keeps
+the declared collection type. `sumBy:` accepts an `int` or `BigDecimal` result and uses zero for an
+empty collection. `anySatisfy:` stops at the first matching element. The filtering and matching blocks
+require a Boolean result. Blocks in these queries are read-only expressions.
+
+```vernac
+let taxable = lines select: [line | line taxable && line amount >= threshold].
+return taxable sumBy: [line | line amount].
+```
+
+Use `if` in a native body to choose a block of statements. The condition must be a non-optional
+Boolean. The runtime evaluates it once and runs only the selected block. Locals declared in a
+branch end at the closing brace. Read behaviors keep their existing effect restrictions, and
+assignments and modify messages in a branch participate in the enclosing modification boundary.
+For a value-returning behavior, every path must return a value. An optional `else` supplies the
+statements for the false branch.
+
+```vernac
+if approved {
+    self replaceWith: requestedSeats.
+} else {
+    require self seats count > 0 else ApprovalRequired.
+}
+```
+
+Use `collect:into:` to map a domain list or set into a declared target collection. The block must
+return a non-optional value of the target element type. A target list keeps encounter order and
+duplicates. A target set applies its usual equality and deduplication rules.
+
+```vernac
+return lines collect: [line | line unitPrice] into: Prices.
+```
 
 ## Alternatives considered
 

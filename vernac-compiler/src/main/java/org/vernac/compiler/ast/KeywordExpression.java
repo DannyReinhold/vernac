@@ -25,6 +25,8 @@ public sealed interface KeywordExpression extends AstNode {
     record Match(SourceLocation location, KeywordExpression subject, Name binding,
                  KeywordExpression onPresent, KeywordExpression onAbsent) implements KeywordExpression { }
 
+    record Block(SourceLocation location, Name binding, KeywordExpression body) implements KeywordExpression { }
+
     record KeywordPart(SourceLocation location, String name, KeywordExpression argument) { }
 
     record Message(SourceLocation location, KeywordExpression receiver, List<KeywordPart> parts)

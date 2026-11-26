@@ -106,6 +106,10 @@ public final class KeywordExpressionParser {
 
         @Override
         public KeywordExpression visitKeywordPrimary(KeywordPrimaryContext ctx) {
+            if (ctx.blockBinding != null) {
+                var binding = new Name(location(ctx.blockBinding.start), ctx.blockBinding.getText());
+                return new KeywordExpression.Block(location(ctx.start), binding, visit(ctx.blockBody));
+            }
             if (ctx.subject != null) {
                 var binding = new Name(location(ctx.binding.start), ctx.binding.getText());
                 return new Match(location(ctx.start), visit(ctx.subject), binding,

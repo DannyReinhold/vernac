@@ -194,9 +194,12 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     }
 
     private List<NativeStatement> nativeBody(VernacParser.NativeBehaviorBodyContext body) {
-        if (body == null) return List.of();
+        return body == null ? List.of() : nativeStatements(body.nativeBehaviorStatement());
+    }
+
+    private List<NativeStatement> nativeStatements(List<VernacParser.NativeBehaviorStatementContext> contexts) {
         var statements = new ArrayList<NativeStatement>();
-        for (var statement : body.nativeBehaviorStatement()) {
+        for (var statement : contexts) {
             if (statement.local != null) {
                 var name = new KeywordExpression.Name(toLocation(statement.local), statement.local.getText());
                 statements.add(new NativeStatement.Let(name, keyword(statement.initializer)));
@@ -204,6 +207,10 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 statements.add(new NativeStatement.Require(keyword(statement.predicate), statement.rejection.getText()));
             } else if (statement.result != null) {
                 statements.add(new NativeStatement.Return(keyword(statement.result)));
+            } else if (statement.condition != null) {
+                statements.add(new NativeStatement.Branch(toLocation(statement), keyword(statement.condition),
+                        nativeStatements(statement.onTrue.nativeBehaviorStatement()),
+                        statement.onFalse == null ? List.of() : nativeStatements(statement.onFalse.nativeBehaviorStatement())));
             } else if (statement.send != null) {
                 statements.add(new NativeStatement.Send(keyword(statement.send)));
             } else {

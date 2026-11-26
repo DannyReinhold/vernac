@@ -14,6 +14,8 @@ import org.apache.maven.project.MavenProject;
 import org.vernac.compiler.pipeline.VernacProjectCompilationResult;
 import org.vernac.compiler.analyzer.SemanticValidationException;
 import org.vernac.compiler.pipeline.VernacCompiler;
+import org.vernac.compiler.pipeline.NativeBehaviorSourceMaps;
+import org.vernac.runtime.NativeBehaviorSources;
 
 import java.io.File;
 import java.io.IOException;
@@ -214,6 +216,14 @@ public class VernacCompileMojo extends AbstractMojo {
                     resource.setDirectory(views.toString());
                     project.addResource(resource);
                 }
+                Path nativeResources = build.resolve("generated-resources/vernac-native");
+                clearOwnedResources(nativeResources, NativeBehaviorSources.PREFIX);
+                if (resolved != null) NativeBehaviorSourceMaps.write(resolved, nativeResources);
+                if (Files.isDirectory(nativeResources.resolve(NativeBehaviorSources.PREFIX))) {
+                    Resource resource = new Resource();
+                    resource.setDirectory(nativeResources.toString());
+                    project.addResource(resource);
+                }
             }
             getLog().info("Successfully generated " + result.generatedFiles().size() + " Java source file(s).");
         } catch (IllegalArgumentException e) {
@@ -237,9 +247,18 @@ public class VernacCompileMojo extends AbstractMojo {
     }
 
     private void writeWebTemplates(Path resources, java.util.Map<String, String> templates) throws IOException {
-        Path generated = resources.resolve("templates/vernac-generated");
+        clearOwnedResources(resources, "templates/vernac-generated");
+        for (var template : templates.entrySet()) {
+            Path target = resources.resolve("templates").resolve(template.getKey());
+            Files.createDirectories(target.getParent());
+            Files.writeString(target, template.getValue());
+        }
+    }
+
+    private void clearOwnedResources(Path resources, String prefix) throws IOException {
+        Path generated = resources.resolve(prefix);
         String output = project.getBuild().getOutputDirectory();
-        Path packaged = output == null ? null : Path.of(output).resolve("templates/vernac-generated");
+        Path packaged = output == null ? null : Path.of(output).resolve(prefix);
         if (Files.isDirectory(generated)) {
             try (var files = Files.walk(generated)) {
                 for (Path entry : files.sorted(java.util.Comparator.reverseOrder()).toList()) {
@@ -248,11 +267,6 @@ public class VernacCompileMojo extends AbstractMojo {
                     Files.delete(entry);
                 }
             }
-        }
-        for (var template : templates.entrySet()) {
-            Path target = resources.resolve("templates").resolve(template.getKey());
-            Files.createDirectories(target.getParent());
-            Files.writeString(target, template.getValue());
         }
     }
 

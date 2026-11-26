@@ -38,7 +38,8 @@ public final class BehaviorGenerator {
         if (nothing) wrapper.addStatement("$L", call);
         else if (result.isPrimitive()) wrapper.addStatement("return $L", call);
         else wrapper.addStatement("return $T.requireResult($L, $S)", BehaviorContractException.class, call,
-                owner.canonicalName() + "." + method.name() + " (" + sourceLocation(method, project) + ")");
+                owner.canonicalName() + "." + method.name()
+                        + (method.nativeBody().isEmpty() ? " (" + sourceLocation(method, project) + ")" : ""));
         return wrapper.build();
     }
 
@@ -53,8 +54,10 @@ public final class BehaviorGenerator {
         int nativeIndex = 0;
         for (var method : methods) {
             MethodSpec.Builder implementation = MethodSpec.methodBuilder(method.name()).returns(returnType(method, project))
-                    .addModifiers(Modifier.STATIC)
-                    .addJavadoc("Vernac source: $L\n", sourceLocation(method, project).replace("*/", "* /"));
+                    .addModifiers(Modifier.STATIC);
+            if (method.nativeBody().isEmpty()) {
+                implementation.addJavadoc("Vernac source: $L\n", sourceLocation(method, project).replace("*/", "* /"));
+            }
             if (method.accessModifier().equals("private")) implementation.addModifiers(Modifier.PRIVATE);
             else implementation.addParameter(receiver(owner, method), "self");
             addParameters(implementation, method, project);
@@ -75,7 +78,9 @@ public final class BehaviorGenerator {
             type.addMethod(implementation.build());
         }
         var file=JavaFile.builder(owner.packageName(),type.build()).indent("    ").skipJavaLangImports(true).build();
-        addDebugFingerprint(type, file, unit, project);
+        if (methods.stream().anyMatch(method -> method.nativeBody().isEmpty())) {
+            addDebugFingerprint(type, file, unit, project);
+        }
         file=JavaFile.builder(owner.packageName(),type.build()).indent("    ").skipJavaLangImports(true).build();
         return Optional.of(file);
     }
