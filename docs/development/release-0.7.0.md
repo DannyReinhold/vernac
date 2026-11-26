@@ -318,6 +318,25 @@ selected/executed counts, cache-hit counts, memory and recreated processes. Publ
 first-use dependency downloads separately. Compare matched work with the 0.6 baseline. Repetitions served
 entirely from cache do not establish changed-input latency.
 
+The repository benchmark exercises the daemon's `runSaved` request on Document Workspace.
+It copies the example and its prebuilt fixtures into a temporary workspace for each JVM session.
+It measures from writing a changed source file through reading the JSON reply, and verifies the
+selected cases and their outcomes. Every fifth edit intentionally fails the editor scenario while
+the restricted reader scenario still passes. The two workloads change either the MVC assertion
+or the native `DeleteDocument` body. Run the Maven preparation and each measurement on the same JDK.
+
+```sh
+mvn -pl examples/document-workspace-scenarios -am \
+  -Dtest=ScenarioDaemonTest,VernacScenariosTest -Dsurefire.failIfNoSpecifiedTests=false test
+python3 tools/benchmark-saved-scenarios.py --max-p95-ms 500 > saved-mvc-assertion.json
+python3 tools/benchmark-saved-scenarios.py --workload delete-behavior --max-p95-ms 500 > saved-delete-behavior.json
+```
+
+The JSON includes cold start and first run, raw samples, selected cases, outcomes and per-session
+percentiles. A threshold miss returns status 1 and still writes the report. The benchmark requires
+prebuilt Java fixtures and Maven resources. Template edits, development builds and type diagnostics
+have their own acceptance workloads.
+
 ## Release evidence and migration
 
 1. Freeze the syntax decision and publish the behavior, test, effect and failure contracts. Check stack
