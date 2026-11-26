@@ -33,7 +33,8 @@ public final class AffectedScenarioSelector {
     }
 
     public enum Reason {
-        NO_BASELINE, OPAQUE_CHANGE, NEW_OR_CHANGED_CASE, JAVA_FIXTURE, CHANGED_DEPENDENCY, INCOMPLETE_GRAPH
+        NO_BASELINE, OPAQUE_CHANGE, NEW_OR_CHANGED_CASE, JAVA_FIXTURE, CHANGED_DEPENDENCY, INCOMPLETE_GRAPH,
+        EXPLICIT_SELECTION
     }
 
     public record Selection(String id, Reason reason) { }

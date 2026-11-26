@@ -57,10 +57,43 @@ public final class ScenarioPlanningSession {
         }
     }
 
+    public record Diagnostics(long revision, List<CompilerDiagnostic> diagnostics) {
+        public Diagnostics { diagnostics = List.copyOf(diagnostics); }
+
+        public boolean valid() {
+            return diagnostics.stream().noneMatch(diagnostic -> diagnostic.severity() == CompilerDiagnostic.Severity.ERROR);
+        }
+    }
+
+    private record Analysis(Inputs inputs, Diagnostics result, ResolvedProject project,
+                            VernacScenarioCompiler.Catalog catalog) { }
+
     private final WorkspaceCheckSession checks;
+    private Analysis lastAnalysis;
 
     public ScenarioPlanningSession(Path root, Map<Path, String> configuration, List<ModuleDescriptor> modules) {
         checks = new WorkspaceCheckSession(root, configuration, modules);
+    }
+
+    public Diagnostics check(Inputs inputs) throws IOException {
+        return analyze(inputs).result();
+    }
+
+    private synchronized Analysis analyze(Inputs inputs) throws IOException {
+        if (lastAnalysis != null && lastAnalysis.inputs().equals(inputs)) return lastAnalysis;
+        var check = checks.check(inputs.main());
+        var diagnostics = new java.util.ArrayList<>(check.diagnostics());
+        var project = check.project().orElse(null);
+        VernacScenarioCompiler.Catalog catalog = null;
+        if (project != null && diagnostics.stream().noneMatch(d -> d.severity() == CompilerDiagnostic.Severity.ERROR)) {
+            try {
+                catalog = new VernacScenarioCompiler().catalog(inputs.tests(), project);
+            } catch (SemanticValidationException failure) {
+                diagnostics.addAll(failure.diagnostics());
+            }
+        }
+        lastAnalysis = new Analysis(inputs, new Diagnostics(check.revision(), diagnostics), project, catalog);
+        return lastAnalysis;
     }
 
     /**
@@ -68,11 +101,10 @@ public final class ScenarioPlanningSession {
      * Signal opaque changes such as Java, classpath or resource edits outside the two source snapshots.
      */
     public Plan plan(Optional<Prepared> baseline, Inputs target, boolean opaqueChange, String profile) throws IOException {
-        var check = checks.check(target.main());
-        if (check.diagnostics().stream().anyMatch(d -> d.severity() == CompilerDiagnostic.Severity.ERROR))
-            throw new SemanticValidationException(check.diagnostics());
-        var resolved = check.project().orElseThrow();
-        var catalog = new VernacScenarioCompiler().catalog(target.tests(), resolved);
+        var analysis = analyze(target);
+        if (!analysis.result().valid()) throw new SemanticValidationException(analysis.result().diagnostics());
+        var resolved = Objects.requireNonNull(analysis.project());
+        var catalog = Objects.requireNonNull(analysis.catalog());
         var dependencies = ScenarioDependencyGraph.derive(resolved, target.tests().keySet(), catalog.references());
         var prepared = new Prepared(this, target, profile, dependencies, catalog, resolved);
 

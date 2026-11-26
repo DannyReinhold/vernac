@@ -26,6 +26,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,6 +37,26 @@ public final class InProcessScenarioExecutor implements ScenarioRunSession.Execu
     private final VernacCompiler vernac = new VernacCompiler();
     private final JavaCompiler javac;
     private final List<Path> classpath;
+    private Compilation application;
+    private Compilation tests;
+    private long applicationCompilations;
+    private long compilations;
+
+    private record Compilation(Map<String, String> sources, Map<Path, byte[]> classes) { }
+
+    @Override
+    public synchronized void invalidate() {
+        application = null;
+        tests = null;
+    }
+
+    public synchronized long compilationCount() {
+        return compilations;
+    }
+
+    public synchronized long applicationCompilationCount() {
+        return applicationCompilations;
+    }
 
     public InProcessScenarioExecutor(List<Path> classpath) {
         this.classpath = classpath.stream().map(path -> path.toAbsolutePath().normalize()).toList();
@@ -47,17 +68,41 @@ public final class InProcessScenarioExecutor implements ScenarioRunSession.Execu
     public synchronized Map<String, Outcome> execute(ScenarioRunSession.Execution request) throws IOException {
         var workspace = Files.createTempDirectory("vernac-scenarios-");
         try {
-            var sources = Files.createDirectory(workspace.resolve("src"));
-            var classes = Files.createDirectory(workspace.resolve("classes"));
-            var files = new ArrayList<>(vernac.generate(request.project(), SchemaModel.empty(), Map.of()).generatedFiles());
-            files.add(request.bridge());
-            compile(files, sources, classes);
-            var names = files.stream().map(InProcessScenarioExecutor::className).collect(Collectors.toUnmodifiableSet());
+            var applicationClasses = Files.createDirectory(workspace.resolve("application"));
+            var testClasses = Files.createDirectory(workspace.resolve("tests"));
+            var sources = new LinkedHashMap<String, String>();
+            for (var file : vernac.generate(request.project(), SchemaModel.empty(), Map.of()).generatedFiles())
+                sources.put(className(file), file.toString());
+
+            String bridge = className(request.bridge());
+            if (sources.containsKey(bridge))
+                throw new IOException("Generated application and scenario bridge declare the same class: " + bridge);
+            if (application != null && application.sources().equals(sources)) {
+                restore(application, applicationClasses);
+            } else {
+                tests = null;
+                application = build(sources, workspace.resolve("app-sources"), applicationClasses, classpath);
+                if (!sources.isEmpty()) applicationCompilations++;
+            }
+
+            var testSources = Map.of(bridge, request.bridge().toString());
+            if (tests != null && tests.sources().equals(testSources)) {
+                restore(tests, testClasses);
+            } else {
+                var testClasspath = new ArrayList<Path>();
+                testClasspath.add(applicationClasses);
+                testClasspath.addAll(classpath);
+                tests = build(testSources, workspace.resolve("test-sources"), testClasses, testClasspath);
+            }
+
+            var names = new java.util.HashSet<>(sources.keySet());
+            names.add(bridge);
             var urls = new ArrayList<java.net.URL>();
-            urls.add(classes.toUri().toURL());
+            urls.add(applicationClasses.toUri().toURL());
+            urls.add(testClasses.toUri().toURL());
             for (var dependency : classpath) urls.add(dependency.toUri().toURL());
             try (var loader = new GeneratedClassLoader(urls.toArray(java.net.URL[]::new), names)) {
-                return run(loader, className(request.bridge()));
+                return run(loader, bridge);
             }
         } finally {
             try (var paths = Files.walk(workspace)) {
@@ -66,11 +111,33 @@ public final class InProcessScenarioExecutor implements ScenarioRunSession.Execu
         }
     }
 
-    private void compile(List<JavaFile> files, Path sources, Path classes) throws IOException {
+    private Compilation build(Map<String, String> sources, Path sourceDirectory, Path classes,
+                              List<Path> dependencies) throws IOException {
+        if (sources.isEmpty()) return new Compilation(Map.of(), Map.of());
+        compile(sources, Files.createDirectory(sourceDirectory), classes, dependencies);
+        var bytecode = new LinkedHashMap<Path, byte[]>();
+        try (var paths = Files.walk(classes)) {
+            for (var path : paths.filter(Files::isRegularFile).toList())
+                bytecode.put(classes.relativize(path), Files.readAllBytes(path));
+        }
+        compilations++;
+        return new Compilation(Map.copyOf(sources), Map.copyOf(bytecode));
+    }
+
+    private static void restore(Compilation compilation, Path classes) throws IOException {
+        for (var entry : compilation.classes().entrySet()) {
+            var output = classes.resolve(entry.getKey());
+            Files.createDirectories(output.getParent());
+            Files.write(output, entry.getValue());
+        }
+    }
+
+    private void compile(Map<String, String> files, Path sources, Path classes, List<Path> classpath) throws IOException {
         var javaPaths = new ArrayList<Path>();
-        for (var file : files) {
-            file.writeTo(sources);
-            javaPaths.add(sources.resolve(className(file).replace('.', '/') + ".java"));
+        for (var entry : files.entrySet()) {
+            var path = sources.resolve(entry.getKey().replace('.', '/') + ".java");
+            Files.createDirectories(path.getParent());
+            javaPaths.add(Files.writeString(path, entry.getValue()));
         }
         var diagnostics = new DiagnosticCollector<JavaFileObject>();
         try (var manager = javac.getStandardFileManager(diagnostics, null, StandardCharsets.UTF_8)) {

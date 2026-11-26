@@ -23,6 +23,8 @@ public final class ScenarioRunSession {
     @FunctionalInterface
     public interface Executor {
         Map<String, Outcome> execute(Execution request) throws IOException;
+
+        default void invalidate() { }
     }
 
     public record Run(long revision, List<AffectedScenarioSelector.Selection> selected,
@@ -46,8 +48,30 @@ public final class ScenarioRunSession {
 
     public synchronized Run run(ScenarioPlanningSession.Inputs inputs, boolean opaqueChange) throws IOException {
         var previous = Optional.ofNullable(baseline);
-        if (opaqueChange) baseline = null;
+        if (opaqueChange) {
+            baseline = null;
+            executor.invalidate();
+        }
         var plan = planning.plan(previous, inputs, opaqueChange, profile);
+        var run = execute(plan);
+        if (run.outcomes().values().stream().allMatch(outcome -> outcome == Outcome.PASSED)) {
+            baseline = plan.target();
+        }
+        return run;
+    }
+
+    public synchronized Run runScenario(ScenarioPlanningSession.Inputs inputs, String id) throws IOException {
+        var plan = planning.plan(Optional.empty(), inputs, false, profile);
+        if (plan.selected().stream().noneMatch(selection -> selection.id().equals(id))) {
+            throw new IllegalArgumentException("Unknown scenario in the selected profile: " + id);
+        }
+        var run = execute(new ScenarioPlanningSession.Plan(plan.target(), List.of(
+                new AffectedScenarioSelector.Selection(id, AffectedScenarioSelector.Reason.EXPLICIT_SELECTION))));
+        if (run.outcomes().get(id) != Outcome.PASSED) baseline = null;
+        return run;
+    }
+
+    private Run execute(ScenarioPlanningSession.Plan plan) throws IOException {
         long revision = plan.target().revision();
         var ids = plan.selected().stream().map(AffectedScenarioSelector.Selection::id)
                 .collect(Collectors.toUnmodifiableSet());
@@ -60,9 +84,6 @@ public final class ScenarioRunSession {
                 baseline = null;
                 throw new IllegalStateException("Scenario execution results do not match the selected cases");
             }
-        }
-        if (outcomes.values().stream().allMatch(outcome -> outcome == Outcome.PASSED)) {
-            baseline = plan.target();
         }
         return new Run(revision, plan.selected(), outcomes);
     }

@@ -36,11 +36,29 @@ class InProcessScenarioExecutorTest {
         var originalLoader = Thread.currentThread().getContextClassLoader();
         assertEquals(Map.of("app.Checks.counter", ScenarioRunSession.Outcome.PASSED), runner.run(initial, false).outcomes());
 
+        assertEquals(2, executor.compilationCount());
+        assertEquals(1, executor.applicationCompilationCount());
+
+        var editedTests = Map.of("checks.vernac", tests.get("checks.vernac").replace("equals 1", "equals 2"));
+        var testOnly = runner.run(new ScenarioPlanningSession.Inputs(initial.main(), editedTests), false);
+        assertEquals(Map.of("app.Checks.counter", ScenarioRunSession.Outcome.FAILED), testOnly.outcomes());
+        assertEquals(3, executor.compilationCount());
+        assertEquals(1, executor.applicationCompilationCount());
+
         var rejected = sources.apply(0, List.of(new VersionedSources.Put(path,
                 "namespace app; value Counter(int) validates { require self intValue > 1 else TooSmall. };")));
         var result = runner.run(new ScenarioPlanningSession.Inputs(rejected, tests), false);
         assertEquals(1, result.revision());
         assertEquals(Map.of("app.Checks.counter", ScenarioRunSession.Outcome.FAILED), result.outcomes());
+        assertEquals(5, executor.compilationCount());
+        assertEquals(2, executor.applicationCompilationCount());
+
+        var changed = new ScenarioPlanningSession.Inputs(rejected, tests);
+        assertEquals(result.outcomes(), runner.run(changed, false).outcomes());
+        assertEquals(5, executor.compilationCount());
+        assertEquals(result.outcomes(), runner.run(changed, true).outcomes());
+        assertEquals(7, executor.compilationCount());
+        assertEquals(3, executor.applicationCompilationCount());
         assertSame(originalLoader, Thread.currentThread().getContextClassLoader());
     }
 }

@@ -144,8 +144,11 @@ Opaque input changes invalidate the old baseline even if the attempted run fails
 test backend exercises this contract. An optional in-process JUnit executor now compiles generated
 Java with the Java 21 target, runs the selected Jupiter scenarios in the same process and isolates
 each generated revision in a dedicated classloader. Its caller supplies the dependency classpath
-and the Jupiter engine. It rebuilds generated classes for each nonempty run. Host source builds,
-warm class reuse, and integration-profile acceptance remain open.
+and the Jupiter engine. The executor caches application and scenario bytecode separately. A test-only
+edit can reuse the last application compilation. An application change also invalidates the test cache.
+Every run still loads the classes in a fresh loader. The caller signals opaque input changes such as
+replacement classpath entries to invalidate both caches. Host source builds, finer-grained reuse
+within application builds, and integration-profile acceptance remain open.
 
 ## Daemon, editor and agent protocol
 
@@ -174,6 +177,22 @@ The compiler now has an in-memory source revision store for atomic create, repla
 delete batches. A stale base reports the current revision. A retained snapshot can be parsed
 independently of later changes on disk or in the client. Daemon transport, retention limits
 and request replay are separate milestones.
+
+The in-process scenario workspace now uses one revision for production and test sources.
+A client can update both sets in one atomic batch. A run captures the requested revision before
+it enters the executor, so concurrent edits do not change its inputs. New requests against
+a stale revision receive the current revision. This entry point uses the conventional Maven
+Vernac source roots and keeps captured inputs in memory. A client overlay opens on a specific
+shared revision and starts its own revision sequence, parser session and test baseline. Later
+edits to the shared or a sibling workspace do not change it. An embeddable local transport now
+accepts one JSON request per line and returns a correlated response. It serves shared revision
+queries and opening, editing, checking, running and closing overlays. The transport handles requests
+sequentially and reports stale revisions and validation diagnostics. A fresh JVM can start
+`org.vernac.compiler.pipeline.ScenarioDaemonLauncher <workspace> [domain|mvc|postgres]`
+with the compiler, Jupiter engine and project dependencies on its Java classpath. It captures the
+saved Vernac sources, module descriptors and build-generated module index at startup, and uses UTF-8
+stdin/stdout for the protocol. Test output goes to stderr. A restart captures the saved tree again.
+Overlay persistence, saved-tree synchronization during a run and cancellation remain open.
 
 ### Structured model operations for agents
 
@@ -217,6 +236,15 @@ section titles and links. Use the published documentation as the source for both
 index. Keep help separate from workspace inspection so asking about syntax does not trigger compilation.
 
 ## Standalone build tool
+
+A one-shot Java entry point, `org.vernac.compiler.pipeline.ScenarioCli <check|test> <workspace>`
+with an optional profile, uses the same saved-workspace capture as the daemon. It writes one JSON
+result to stdout. Status 0 indicates success, 1 a source error or a non-passing test outcome, and
+2 an invalid invocation or execution error. `test --scenario <id>` selects one fully qualified
+scenario ID in the chosen profile. The daemon exposes the same operation as `runScenario` with a
+`scenario` field and an overlay revision. A successful explicit run does not advance the baseline
+used for affected tests. Each CLI invocation opens a fresh workspace. An installed command and a
+connection to an existing daemon remain open.
 
 | Proposed command | Contract to implement and test |
 | --- | --- |

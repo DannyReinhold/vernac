@@ -52,6 +52,11 @@ public final class VersionedSources {
         return current;
     }
 
+    public synchronized Snapshot snapshot(long revision) {
+        if (revision != current.revision()) throw new Conflict(current.revision());
+        return current;
+    }
+
     public synchronized Snapshot apply(long baseRevision, List<Edit> edits) {
         if (baseRevision != current.revision()) throw new Conflict(current.revision());
         var next = new HashMap<>(current.sources());
