@@ -22,6 +22,8 @@ final class VernacProjectDiagnostics {
     private record Document(String uri, String text, int version) { }
     private final Map<Path, Document> open = new LinkedHashMap<>();
     private final Set<Path> folders = new LinkedHashSet<>();
+    private final VernacProjectLoader loader = new VernacProjectLoader();
+    private final Map<Path, VernacProjectLoader.ParseSession> parseSessions = new HashMap<>();
     private final Set<String> published = new LinkedHashSet<>();
     private final Map<Path, VernacProjectSymbols> symbolSnapshots = new HashMap<>();
     private final Map<Path, ResolvedProject> scenarioModels = new HashMap<>();
@@ -34,6 +36,7 @@ final class VernacProjectDiagnostics {
     synchronized void connect(LanguageClient client) { this.client = client; }
 
     synchronized void initialize(InitializeParams params) {
+        parseSessions.clear();
         symbolSnapshots.clear();
         scenarioReferences.clear();
         scenarioModels.clear();
@@ -240,6 +243,7 @@ final class VernacProjectDiagnostics {
                             : "Place this file below a workspace src/main/vernac or src/test/vernac directory."));
             } else roots.add(root);
         }
+        parseSessions.keySet().retainAll(roots);
         for (Path root : roots) analyze(root, diagnostics);
         Set<String> targets = new LinkedHashSet<>(published);
         targets.addAll(diagnostics.keySet());
@@ -258,7 +262,7 @@ final class VernacProjectDiagnostics {
         });
         List<CompilerDiagnostic> problems = new ArrayList<>();
         try {
-            var project = new VernacProjectLoader().loadForAnalysis(root, snapshots, problems);
+            var project = parseSessions.computeIfAbsent(root, loader::openSession).loadForAnalysis(snapshots, problems);
             project=org.vernac.compiler.modules.ModuleArtifacts.merge(project,org.vernac.compiler.modules.ModuleArtifacts.editorModules(root),problems);
             Map<Path,String> configurationSnapshots=new LinkedHashMap<>();
             open.forEach((path, document) -> {

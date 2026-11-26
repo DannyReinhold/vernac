@@ -25,7 +25,7 @@ compiler during B1 and finish its warm path after B4. Both paths meet at B6.
 | ID | Depends on | Deliverable | Proof at the milestone |
 | --- | --- | --- | --- |
 | B0 | 0.6.0 corpus and baseline | Pin the task board, document fixture, toolchains, real edit scripts and timing harness. Capture cold and warm Maven timings and independent expected results. | A second checkout reproduces the same fixture outcomes and reports input sizes, phase times and selected profiles. |
-| B1 | B0, 0.6.0 expression contract | Compare the behavior syntax candidates and record the language decision. Implement the chosen opt-in form, type/effect checks, source locations and versioned executable representation. | Positive and invalid specimens cover a transition, port call, event, optional value and nested invariant. The original 0.6 test sources still parse and mean the same thing. [Behavior language decision](behavior-language-decision.md) |
+| B1 | B0, 0.6.0 expression contract | Complete the specification for keyword messages and shared expressions. Implement the opt-in form, type/effect checks, source locations and versioned executable representation. | Positive and invalid specimens cover a transition, port call, event, optional value and nested invariant. The original 0.6 test sources still parse and mean the same thing. [Behavior language decision](behavior-language-decision.md) |
 | B2 | B1 | Implement the interpreter and JVM bridge. Run one scenario end to end, then port the task lifecycle and the document fixture's business rules. Use the same interpreter in tests and in the packaged application. | Fixed inputs yield the expected state, rejection, events and port calls through both development and Spring entry points. Read the same retained aggregate and child references after a rejected interpreted modification. |
 | B3 | B2 for end-to-end proofs | Add an incremental query/dependency graph and conservative test selection. Validate edits against a clean compiler and full test oracle. | View-only, body-only, signature, role, module, schema and deletion edits produce correct results. Counts demonstrate reuse for local changes and widening for opaque inputs. |
 | B4 | B3 | Host the compiler, interpreter and test runner in a per-workspace daemon. Implement atomic revisions, private client overlays, cancellation and restart. Connect CLI, LSP and a local MCP adapter. | Two independent clients edit and check concurrently. Each result names the requested revision. A stale edit, cancelled run, repeated batch and daemon restart all have reproducible outcomes. |
@@ -103,6 +103,53 @@ kind, a new dependency edge that cannot be bounded, or an unreadable cache as a 
 enclosing unit and its consumers. Track such fallbacks by cause so the next optimization targets an
 observed cost.
 
+### Implemented parse reuse
+
+The loader has an explicit parse session per source root and client. It reuses a file's parsed
+unit and syntax diagnostics when its normalized path and effective text match the previous request.
+Editor recovery and strict parsing keep separate entries. Each request rediscovers source membership,
+rebuilds the symbol index, and resolves the project again. Removed files are dropped, and a renamed
+file is parsed at its new path so diagnostics get the correct source coordinates.
+
+The Language Server uses one session per active source root and drops it when the root is no longer
+being analyzed. The clean loader remains available for comparison. Regression tests replay a changed
+overlay, a syntax error, deletion and repair and compare the resulting diagnostics and generated
+sources against the clean path. Parse counts show reuse at this stage. The warm 500 ms p95 release
+gate covers the full patch-to-test result and remains to be measured.
+
+### Scenario selection
+
+The compiler exposes scenario IDs, profiles, Java fixture usage and resolved direct references.
+The selector can use source dependency graphs for the previous and current revisions. It follows
+both graphs so that removal of an old edge cannot hide a dependency. Missing dependency information
+and Java fixtures widen selection. An opaque change or the absence of a baseline selects the full
+requested profile. Results include the reason for each selected case.
+
+Graph construction now certifies plain ID and value declarations and follows resolved value field
+types to their source files. Files with behavior, validation, collections or other opaque declarations
+remain uncertified and trigger a conservative fallback when reached. The compiler test combines
+two checked workspace revisions with the derived graph and verifies that an unrelated scenario is
+excluded. A planning session now compares exact production and test source snapshots and returns
+case IDs and reasons for the target revision. The caller supplies a verified baseline from the
+same session and profile. A foreign or mismatched baseline selects the full profile. Broader
+dependency extraction and the connection to the warm runner remain open. A plan can now
+materialize its selected JUnit methods from the same checked scenario texts without parsing
+the tests again. The regression suite compiles and executes both the affected and full lists
+after a validation edit and checks that both expose the same failing scenario.
+
+The execution session now passes the checked production model and selected JUnit bridge to one
+executor call. It advances its comparison baseline only after the backend reports a pass for every
+selected case. An incomplete report, a skipped test or a failed run cannot establish a new baseline.
+Opaque input changes invalidate the old baseline even if the attempted run fails. The in-process
+test backend exercises this contract. An optional in-process JUnit executor now compiles generated
+Java with the Java 21 target, runs the selected Jupiter scenarios in the same process and isolates
+each generated revision in a dedicated classloader. Its caller supplies the dependency classpath
+and the Jupiter engine. The executor caches application and scenario bytecode separately. A test-only
+edit can reuse the last application compilation. An application change also invalidates the test cache.
+Every run still loads the classes in a fresh loader. The caller signals opaque input changes such as
+replacement classpath entries to invalidate both caches. Host source builds, finer-grained reuse
+within application builds, and integration-profile acceptance remain open.
+
 ## Daemon, editor and agent protocol
 
 Use a local daemon per isolated workspace/worktree and compatible toolchain. Reuse the existing LSP
@@ -126,7 +173,120 @@ checks should provide a run ID so a CPU runner can finish them between model cal
 compares equivalent CLI, IDE and MCP requests and disconnects an agent mid-run before retrieving its
 result.
 
+The compiler now has an in-memory source revision store for atomic create, replace, move and
+delete batches. A stale base reports the current revision. A retained snapshot can be parsed
+independently of later changes on disk or in the client. Daemon transport, retention limits
+and request replay are separate milestones.
+
+The in-process scenario workspace now uses one revision for production and test sources.
+A client can update both sets in one atomic batch. A run captures the requested revision before
+it enters the executor, so concurrent edits do not change its inputs. New requests against
+a stale revision receive the current revision. This entry point uses the conventional Maven
+Vernac source roots and keeps captured inputs in memory. A client overlay opens on a specific
+shared revision and starts its own revision sequence, parser session and test baseline. Later
+edits to the shared or a sibling workspace do not change it. An embeddable local transport now
+accepts one JSON request per line and returns a correlated response. It serves shared revision
+queries and opening, editing, checking, running and closing overlays. The transport handles requests
+sequentially and reports stale revisions and validation diagnostics. A fresh JVM can start
+`org.vernac.compiler.pipeline.ScenarioDaemonLauncher <workspace> [domain|mvc|postgres]`
+with the compiler, Jupiter engine and project dependencies on its Java classpath. It captures the
+saved Vernac sources, module descriptors and build-generated module index at startup, and uses UTF-8
+stdin/stdout for the protocol. Test output goes to stderr. A restart captures the saved tree again.
+The distribution exposes the same session as `vernac daemon [workspace [domain|mvc|postgres]]`.
+A client keeps the process open, sends one UTF-8 JSON object per line and reads each correlated
+reply from stdout. `{"id":1,"op":"hello"}` returns `protocolVersion` and the current saved
+`revision` in the reply's `result`. Closing stdin ends the session.
+The launcher includes the project's Maven `target/test-classes` and `target/classes` outputs.
+Handwritten fixtures and application classes there share a classloader with the new generated classes,
+so Spring and the scenario bridge use the same type identities. Compile Java fixtures and prepare
+their resources before running the daemon.
+Scenario runs load generated HTML from the requested Vernac revision. Project build outputs
+cannot shadow those templates or supply an old local template after its declaration is removed.
+Ordinary resources and templates from dependencies keep their normal lookup behavior.
+The `refresh` request takes the expected shared `revision` and scans both saved Vernac source roots.
+It publishes additions, changes and deletions in one shared revision. If the sources are unchanged,
+it returns the same revision. Open overlays retain their snapshots and new overlays can open on
+the refreshed revision. Changed configuration or module index data requires a daemon restart.
+`checkSaved` takes the expected shared `revision`, refreshes the saved sources and returns
+revisioned type and scenario diagnostics. It uses the same analysis as overlay `check` and does
+not execute tests.
+`runSaved` takes the expected shared `revision` and combines that refresh with an affected test run
+in the same request. The shared workspace retains its compilation cache and its last passing baseline
+across requests. An optional `opaqueChange: true` requests conservative execution after changes outside
+Vernac source files. When source validation fails, `sharedRevision` reports the revision already
+captured from disk, so the client can retry after repairing the sources.
+Automatic file watching, overlay persistence and cancellation remain open.
+
+### Structured model operations for agents
+
+Use the compiler's resolved model for `describe_type`. Address declarations by qualified Vernac
+identity and return fields, declared methods, access mode, parameter and return types, and source
+locations. A read should use an existing resolved snapshot. It should identify that snapshot and
+surface unresolved types when the snapshot is partial. It needs no file reload or compile by itself.
+
+Start with `describe_type`, `preview_add_value_field`, and `preview_create_aggregate`.
+The aggregate operation proposes a declaration and, when requested, its ID declaration. It takes
+the namespace and target source explicitly. The field operation proposes one insertion and preserves
+surrounding text. The compiler now provides the type description, field insertion preview and
+new aggregate source primitives. The field preview rejects stale source content and both preview
+outputs can be checked through an ordinary parse session. MCP transport, revision assignment
+and checked application of the batch are still pending.
+
+Structured changes should produce the same versioned source edit batch as direct editor changes.
+Return the preview with the base revision, reject conflicts, and apply related edits atomically.
+Run the same diagnostics, invalidation and affected-test selection regardless of which operation
+created the patch. Keep ordinary text patches available for operations that span multiple constructs.
+A field insertion changes the value type's signature and may affect constructors, validations,
+serialized forms, schemas and consumers. Selection must widen to those dependents where applicable.
+Batch several intended changes before checking to avoid repeated semantic work.
+
+Cover arbitrary source constructs through a small shared interface: inspect or navigate by
+semantic identity where one exists, locate syntax by revision and range otherwise, and submit
+versioned source edits. Add typed refactorings where the compiler can maintain references or
+enforce a useful contract. Common operations can use convenience tools. Avoid one transport
+tool per grammar production: some constructs have no stable semantic ID, and an internal AST
+should be free to evolve independently of the tool contract.
+
+Measure model-read round trips separately from preview and from patch-to-test latency. A quick
+symbol lookup or a cheap edit preview does not establish the 500 ms p95 target for the full workflow.
+
+### Versioned language help
+
+Expose the bundled [AI Language Reference](../ai-language-reference.md) and selected [FAQs](../faq/index.md)
+through read-only MCP resources. Give each section a stable key and identify its Vernac version in the
+response. Offer a small search operation for clients that discover help through tools, returning matching
+section titles and links. Use the published documentation as the source for both the bundle and search
+index. Keep help separate from workspace inspection so asking about syntax does not trigger compilation.
+
 ## Standalone build tool
+
+Build the CLI ZIP from the repository with JDK 21.
+
+```sh
+mvn -pl vernac-compiler -am -Pcli-distribution package
+```
+
+Extract `vernac-compiler/target/vernac-<version>-cli.zip` and add its `bin` directory to `PATH`.
+The ZIP includes `vernac` for POSIX shells, `vernac.cmd` for Windows and the base runtime
+dependencies. The launchers use `JAVA_HOME` or `java` from `PATH`. Running the extracted CLI
+requires a JDK and can work without Maven installed. The current directory is the default workspace.
+
+```sh
+vernac check
+vernac test --scenario app.Checks.counter
+vernac test /path/to/project mvc
+vernac daemon /path/to/project mvc
+```
+
+The CLI reads saved sources and writes one JSON result to stdout. Status 0 indicates success, 1 a
+source error or a non-passing test outcome, and 2 an invalid invocation or execution error.
+`--scenario` selects one fully qualified scenario ID in the chosen profile. For scenarios using
+external libraries, supply their Java classpath via `VERNAC_PROJECT_CLASSPATH` using the platform's
+classpath separator. The runner picks up precompiled project fixtures from `target/test-classes`
+and `target/classes`. The daemon's `runScenario` offers equivalent selection on an overlay
+revision without advancing its affected-test baseline. The one-shot commands open a fresh workspace.
+Clients can retain warm state by keeping `vernac daemon` open. Connecting a one-shot command to a
+separately running daemon and resolving project dependencies remain open.
 
 | Proposed command | Contract to implement and test |
 | --- | --- |
@@ -186,6 +346,31 @@ expected outcomes. Compute the nearest-rank p95 per workload and session. Retain
 selected/executed counts, cache-hit counts, memory and recreated processes. Publish cold starts and
 first-use dependency downloads separately. Compare matched work with the 0.6 baseline. Repetitions served
 entirely from cache do not establish changed-input latency.
+
+The repository benchmark exercises the daemon's `runSaved` request on Document Workspace.
+It copies the example and its prebuilt fixtures into a temporary workspace for each JVM session.
+It measures from writing a changed source file through reading the JSON reply, and verifies the
+selected cases and their outcomes. Every fifth edit intentionally fails the editor scenario while
+the restricted reader scenario still passes. These workloads change the MVC assertion, the native
+`DeleteDocument` body, or the generated post-delete HTML checked by the editor scenario. The
+`view-diagnostics` workload edits a view heading and makes
+every fifth edit an invalid typed form binding. It verifies the diagnostic message and location
+or the repaired source's successful check. Run Maven preparation and measurement on the same JDK.
+
+```sh
+mvn -pl examples/document-workspace-scenarios -am \
+  -Dtest=ScenarioDaemonTest,VernacScenariosTest -Dsurefire.failIfNoSpecifiedTests=false test
+python3 tools/benchmark-saved-scenarios.py --max-p95-ms 500 > saved-mvc-assertion.json
+python3 tools/benchmark-saved-scenarios.py --workload delete-behavior --max-p95-ms 500 > saved-delete-behavior.json
+python3 tools/benchmark-saved-scenarios.py --workload view-diagnostics --max-p95-ms 100 > saved-view-diagnostics.json
+python3 tools/benchmark-saved-scenarios.py --workload view-render --max-p95-ms 500 > saved-view-render.json
+```
+
+The JSON includes cold start and first run, raw samples, selected cases, outcomes and per-session
+percentiles. The diagnostic workload records validation results and compiler messages instead of
+case selection. A threshold miss returns status 1 and still writes the report. The benchmark
+requires prebuilt Java fixtures and Maven resources. Template activation and development builds
+have their own acceptance workloads.
 
 ## Release evidence and migration
 

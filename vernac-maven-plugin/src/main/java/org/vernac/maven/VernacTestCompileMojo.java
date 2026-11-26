@@ -21,6 +21,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 /** Generates test-scoped JUnit tests from Vernac scenarios. */
 @Mojo(name = "test-compile", defaultPhase = LifecyclePhase.GENERATE_TEST_SOURCES,
@@ -44,6 +46,9 @@ public final class VernacTestCompileMojo extends AbstractMojo {
     @Parameter(property = "vernac.testProfile")
     private String profile;
 
+    @Parameter(property = "vernac.testCases")
+    private String testCases;
+
     @Parameter(property = "maven.test.skip", defaultValue = "false")
     private boolean skipTestCompilation;
 
@@ -59,7 +64,9 @@ public final class VernacTestCompileMojo extends AbstractMojo {
                     ? new ResolvedProject(new VernacProject(sourceDirectory.toPath(), List.of(),
                             new ProjectSymbolIndex(List.of())), Map.of(), Map.of(), List.of(), List.of())
                     : new VernacCompiler().analyzeProject(sourceDirectory.toPath(), ModuleClasspath.read(project));
-            int count = compiler.generate(root, sources, main, output, profile);
+            var selected = testCases == null ? null : Arrays.stream(testCases.split(",", -1)).map(String::strip)
+                    .collect(Collectors.toUnmodifiableSet());
+            int count = compiler.generateSelected(root, sources, main, output, profile, selected);
             project.addTestCompileSourceRoot(output.toString());
             getLog().info("Selected " + count + " Vernac scenario(s) for " + (profile == null ? "the default profiles" : profile) + ".");
         } catch (SemanticValidationException e) {

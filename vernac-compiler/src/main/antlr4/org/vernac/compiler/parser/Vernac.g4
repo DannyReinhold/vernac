@@ -39,6 +39,7 @@ testStep
     | 'when' 'request' endpoint=qualifiedName '(' (testBinding (',' testBinding)*)? ')' (csrf='csrf')? ';'
     | 'when' (result=variableName '=')? 'invoke' operation=qualifiedName '(' testArguments? ')'
         ('is' authorizationFailure=qualifiedNameSegment)? ';'
+    | 'when' (result=variableName '=')? '(' keywordAction=keywordExpression ')' ('rejects' expectedRejection=typeName)? ';'
     | 'when' (result=variableName '=')? receiver=variableName '.' action=methodName '(' testArguments? ')' ';'
     ;
 
@@ -47,7 +48,8 @@ testBinding
     ;
 
 testAssertion
-    : 'expect' 'status' responseStatus=INT_LITERAL ';'
+    : 'expect' '(' predicate=keywordExpression ')' ';'
+    | 'expect' 'status' responseStatus=INT_LITERAL ';'
     | 'expect' 'body' 'contains' responseText=STRING_LITERAL ';'
     | 'expect' 'action' actionEndpoint=qualifiedName '(' (testBinding (',' testBinding)*)? ')' 'is' actionPresence=('present' | 'absent') ';'
     | 'expect' 'emitted' eventType=qualifiedName ('with' eventField=variableName 'equals' eventValue=testExpression)? 'count' eventCount=INT_LITERAL ';'
@@ -137,7 +139,17 @@ javaImports
 
 behaviorMethod
     : (visibility=('public' | 'private') | effect=('read' | 'modify')) returnType=type name=methodName '(' parameterList? ')'
-      ( '{' rawJavaBlock '}' | 'implemented' 'by' implementation=qualifiedName ';' )
+      ( '{' rawJavaBlock '}' | 'implemented' 'by' implementation=qualifiedName ';' | nativeBehaviorBody )
+    ;
+
+nativeBehaviorBody : 'vernac' '{' nativeBehaviorStatement+ '}' ;
+
+nativeBehaviorStatement
+    : 'let' local=variableName '=' initializer=keywordExpression '.'
+    | 'require' predicate=keywordExpression 'else' rejection=typeName '.'
+    | 'return' result=keywordExpression '.'
+    | receiver=variableName target=variableName '=' assigned=keywordExpression '.'
+    | send=keywordExpression '.'
     ;
 
 validationBlock
@@ -146,6 +158,7 @@ validationBlock
 
 validationStatement
     : 'require' '(' condition=expression (',' message=STRING_LITERAL)? ')' ';'
+    | 'require' predicate=keywordExpression 'else' rejection=typeName ('.' | ';')
     ;
 
 // ==========================================
@@ -381,7 +394,7 @@ usecaseDefinition
       'behavior' '{' javaImports? usecaseBehaviorMember* '}' ';'?
     ;
 usecaseBehaviorMember
-    : 'execute' ('{' rawJavaBlock '}' | 'implemented' 'by' implementation=qualifiedName ';')
+    : 'execute' ('{' rawJavaBlock '}' | 'implemented' 'by' implementation=qualifiedName ';' | nativeBehaviorBody)
     | behaviorMethod
     ;
 
@@ -438,7 +451,7 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
+    : 'let' | 'vernac' | 'rejects' | 'match' | 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
     | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
     | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant'
@@ -523,6 +536,36 @@ expression
     | primaryExpression
     ;
 
+// Shared expression grammar for opt-in interpreted Vernac.
+keywordExpressionInput : keywordExpression EOF ;
+
+keywordExpression
+    : keywordDisjunction (keywordSelectorPart ':' keywordDisjunction)*
+    ;
+
+keywordDisjunction : keywordConjunction ('||' keywordConjunction)* ;
+keywordConjunction : keywordEquality ('&&' keywordEquality)* ;
+keywordEquality : keywordComparison (('==' | '!=') keywordComparison)* ;
+keywordComparison : keywordSum (('<' | '<=' | '>' | '>=') keywordSum)* ;
+keywordSum : keywordProduct (('+' | '-') keywordProduct)* ;
+keywordProduct : keywordPrefix (('*' | '/' | '%') keywordPrefix)* ;
+keywordPrefix : ('!' | '-') keywordPrefix | unaryMessage ;
+unaryMessage : keywordPrimary keywordSelectorPart* ;
+keywordSelectorPart : methodName | 'emit' | 'from' ;
+keywordPrimary
+    : 'match' subject=keywordExpression '{'
+      'present' binding=variableName '=>' onPresent=keywordExpression ','?
+      'absent' '=>' onAbsent=keywordExpression '}'
+    | variableName
+    | STRING_LITERAL
+    | INT_LITERAL
+    | DECIMAL_LITERAL
+    | BOOLEAN_LITERAL
+    | 'true'
+    | 'false'
+    | '(' keywordExpression ')'
+    ;
+
 primaryExpression
     : variableName ( '(' argumentList? ')' )?
     | STRING_LITERAL
@@ -541,11 +584,11 @@ argumentList
 // Spezifische Namens-Kategorien
 // ==========================================
 typeName
-    : IDENTIFIER | 'unique' | 'references'
+    : 'let' | 'vernac' | 'rejects' | 'match' | IDENTIFIER | 'unique' | 'references'
     ;
 
 methodName
-    : 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
+    : 'let' | 'vernac' | 'rejects' | 'match' | 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
     | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
     | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant'
@@ -559,7 +602,7 @@ methodName
     ;
 
 variableName
-    : 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
+    : 'let' | 'vernac' | 'rejects' | 'match' | 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
     | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
     | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant' | 'read' | 'modify'

@@ -47,6 +47,38 @@ class EventContextTest {
             public DomainEvent load(EventId id){throw new UnsupportedOperationException();}
         };
     }
+    @Test void emitsModifyIntentsOnlyAfterCandidatePublication() {
+        var owner = new Object();
+        var committed = new int[] {1};
+        var ping = new Ping();
+        var observed = new ArrayList<DomainEvent>();
+        new TransactionTemplate(new Manager()).executeWithoutResult(tx -> {
+            try (var context = EventContext.open(() -> List.of(handler("observer", event -> {
+                assertEquals(3, committed[0]);
+                observed.add(event);
+            })))) {
+                assertThrows(DomainValidationException.class, () -> BehaviorModification.run(owner,
+                        () -> { throw new DomainValidationException("rejected"); },
+                        () -> {
+                            BehaviorModification.stage(owner, "value", 2, value -> committed[0] = value);
+                            BehaviorModification.emit(ping);
+                        }));
+                assertEquals(1, committed[0]);
+                assertTrue(observed.isEmpty());
+
+                BehaviorModification.run(owner, () -> {
+                    assertEquals(3, BehaviorModification.read(owner, "value", committed[0]));
+                    assertEquals(1, committed[0]);
+                    assertTrue(observed.isEmpty());
+                }, () -> {
+                    BehaviorModification.stage(owner, "value", 3, value -> committed[0] = value);
+                    BehaviorModification.emit(ping);
+                });
+            }
+        });
+        assertEquals(List.of(ping), observed);
+    }
+
     private EventHandler handler(String name, java.util.function.Consumer<DomainEvent> body) {
         return new EventHandler() {
             public String listenerId() { return name; }

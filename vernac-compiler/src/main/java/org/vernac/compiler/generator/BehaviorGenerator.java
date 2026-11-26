@@ -50,6 +50,7 @@ public final class BehaviorGenerator {
                 .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
         addBodyImports(type, owner, imports, unit, project,
                 methods.stream().map(MethodNode::bodyCode).reduce("", (a, b) -> a + "\n" + b));
+        int nativeIndex = 0;
         for (var method : methods) {
             MethodSpec.Builder implementation = MethodSpec.methodBuilder(method.name()).returns(returnType(method, project))
                     .addModifiers(Modifier.STATIC)
@@ -57,7 +58,16 @@ public final class BehaviorGenerator {
             if (method.accessModifier().equals("private")) implementation.addModifiers(Modifier.PRIVATE);
             else implementation.addParameter(receiver(owner, method), "self");
             addParameters(implementation, method, project);
-            if (method.implementation().isPresent()) {
+            if (!method.nativeBody().isEmpty()) {
+                var declaration = unit.definitions().stream().filter(node -> switch (node) {
+                    case AggregateNode aggregate -> aggregate.methods().contains(method);
+                    case EntityNode entity -> entity.methods().contains(method);
+                    default -> false;
+                }).findFirst().orElseThrow(() -> new org.vernac.compiler.analyzer.SemanticValidationException(List.of(
+                        org.vernac.compiler.analyzer.CompilerDiagnostic.error(method.location(),
+                                "Native behavior currently requires an entity or aggregate"))));
+                NativeValidationCompiler.emitBody(implementation, type, owner, declaration, method, nativeIndex++, project);
+            } else if (method.implementation().isPresent()) {
                 // Use a literal qualified target to keep Java imports out of delegation resolution.
                 String invocation = org.vernac.compiler.util.JavaImplementations.resolve(method.implementation().get(), imports, owner.packageName()) + "." + method.name() + "(" + arguments(method, "self") + ")";
                 implementation.addStatement(method.returnType().name().equals("void") ? "$L" : "return $L", invocation);

@@ -83,7 +83,7 @@ class EntityGeneratorTest {
         // Prüft die internen Mutatoren (Setter) für mut-Felder
         assertThat(code)
                 .contains("public void explicitQuantity(Quantity explicitQuantity)")
-                .contains("OrderItem.this.explicitQuantity = explicitQuantity;");
+                .contains("OrderItem.this.explicitQuantity = __vernacValue");
 
         // Prüft die öffentlichen Getter
         assertThat(code)

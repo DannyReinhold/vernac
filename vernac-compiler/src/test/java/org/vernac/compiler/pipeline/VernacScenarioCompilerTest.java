@@ -32,6 +32,41 @@ class VernacScenarioCompilerTest {
             """;
 
     @Test
+    void reportsDirectReferencesPerScenarioWithoutMixingCases() throws IOException {
+        var text = SCENARIO.replace("scenario completes {",
+                "scenario independent { expect true equals true; } scenario completes {");
+        var main = mainModel();
+        var inventory = compiler.inspect(java.util.Map.of("tasks.vernac", text), main);
+        assertEquals(java.util.List.of("example.tests.Tasks.independent", "example.tests.Tasks.completes"),
+                inventory.stream().map(VernacScenarioCompiler.ScenarioReferences::id).toList());
+        assertTrue(inventory.getFirst().directReferences().isEmpty());
+        var task = inventory.getLast();
+        assertEquals("domain", task.profile());
+        assertEquals("tasks.vernac", task.location().sourceName());
+        assertTrue(task.directReferences().stream()
+                .anyMatch(reference -> reference.declaration().sourceName().endsWith("tasks.vernac")));
+    }
+
+    @Test
+    void emitsOnlyRequestedScenariosAndRejectsUnknownIds() throws IOException {
+        var main = mainModel();
+        var root = Files.createDirectories(project.resolve("src/test/vernac"));
+        var source = Files.writeString(root.resolve("tasks.vernac"),
+                SCENARIO.replace("scenario completes {", "scenario other { expect true equals true; } scenario completes {"));
+        var output = project.resolve("target/generated-test-sources/vernac");
+        var bridge = output.resolve("org/vernac/generated/VernacScenariosTest.java");
+        var ids = java.util.Set.of("example.tests.Tasks.completes");
+        assertEquals(2, compiler.generate(root, java.util.List.of(source), main, output));
+        assertEquals(1, compiler.generateSelected(root, java.util.List.of(source), main, output, null, ids));
+        assertFalse(Files.readString(bridge).contains("Tasks.other"));
+        assertThrows(SemanticValidationException.class,
+                () -> compiler.generateSelected(root, java.util.List.of(source), main, output, "mvc", ids));
+        assertThrows(SemanticValidationException.class,
+                () -> compiler.generateSelected(root, java.util.List.of(source), main, output, null,
+                        java.util.Set.of("example.tests.Tasks.missing")));
+    }
+
+    @Test
     void generatesNamedTestsAgainstMainDeclarationsAndRetiresDeletedCases() throws IOException {
         var main = mainModel();
         var tests = Files.createDirectories(project.resolve("src/test/vernac/example/tests"));
@@ -49,6 +84,75 @@ class VernacScenarioCompilerTest {
         Files.delete(source);
         assertEquals(0, compiler.generate(root, compiler.discover(root), main, output));
         assertFalse(Files.readString(bridge).contains("completes"));
+    }
+
+    @Test
+    void compilesTypedExpressionAssertionsAlongsideExistingAssertions() throws IOException {
+        var main = mainModel();
+        var root = Files.createDirectories(project.resolve("src/test/vernac"));
+        var source = root.resolve("tasks.vernac");
+        var output = project.resolve("target/generated-test-sources/vernac");
+        var scenario = SCENARIO.replace("expect task.status equals Status.DONE;",
+                "expect (task status == Status DONE && 2 * 3 + 1 >= 7);");
+        Files.writeString(source, scenario);
+
+        assertEquals(1, compiler.generate(root, compiler.discover(root), main, output));
+        var java = Files.readString(output.resolve("org/vernac/generated/VernacScenariosTest.java"));
+        assertTrue(java.contains("Objects.equals(fixture$task.status(), example.domain.domain.Status.DONE)"), java);
+        assertTrue(java.contains("((2 * 3) + 1) >= 7"), java);
+
+        Files.writeString(source, scenario.replace("Status DONE", "\"DONE\""));
+        assertDiagnostic(root, output, main, "tasks.vernac:9:", "Expected example.domain.Status, got java.lang.String");
+        Files.writeString(source, scenario.replace("task status == Status DONE && 2 * 3 + 1 >= 7", "task status"));
+        assertDiagnostic(root, output, main, "tasks.vernac:9:", "Expected boolean, got example.domain.Status");
+    }
+
+    @Test
+    void matchesOptionalValuesAndChecksBothBranchTypes() throws IOException {
+        var main = mainModel();
+        var root = Files.createDirectories(project.resolve("src/test/vernac"));
+        var source = root.resolve("tasks.vernac");
+        var output = project.resolve("target/generated-test-sources/vernac");
+        var scenario = SCENARIO.replace("expect task.status equals Status.DONE;", """
+                when result = task.maybeTitle();
+                expect (match result {
+                    present title => title string == "Try Vernac"
+                    absent => false
+                });
+                """);
+        Files.writeString(source, scenario);
+
+        assertEquals(1, compiler.generate(root, compiler.discover(root), main, output));
+        var java = Files.readString(output.resolve("org/vernac/generated/VernacScenariosTest.java"));
+        assertTrue(java.contains("fixture$result.map(fixture$title ->"), java);
+        assertTrue(java.contains(".orElseGet(() -> false)"), java);
+
+        Files.writeString(source, scenario.replace("absent => false", "absent => 0"));
+        assertDiagnostic(root, output, main, "tasks.vernac:12:", "Expected boolean, got int");
+        Files.writeString(source, scenario.replace("match result", "match task"));
+        assertDiagnostic(root, output, main, "tasks.vernac:10:", "Match requires an optional value");
+    }
+
+    @Test
+    void linksKeywordSelectorsAndRestrictsModificationToWhen() throws IOException {
+        var main = mainModel();
+        var root = Files.createDirectories(project.resolve("src/test/vernac"));
+        var source = root.resolve("tasks.vernac");
+        var output = project.resolve("target/generated-test-sources/vernac");
+        var scenario = SCENARIO.replace("when task.complete();", "when (task changeFrom: Status OPEN to: Status DONE);");
+        Files.writeString(source, scenario);
+
+        assertEquals(1, compiler.generate(root, compiler.discover(root), main, output));
+        var java = Files.readString(output.resolve("org/vernac/generated/VernacScenariosTest.java"));
+        assertTrue(java.contains("fixture$task.changeFrom(example.domain.domain.Status.OPEN, example.domain.domain.Status.DONE)"), java);
+        Files.writeString(source, scenario.replace("when (task changeFrom", "expect (task changeFrom"));
+        assertDiagnostic(root, output, main, "tasks.vernac:7:", "accessible behavior for selector 'changeFrom:to:'");
+        Files.writeString(source, scenario.replace("Status DONE);", "Status DONE) rejects InvalidChange;"));
+        assertEquals(1, compiler.generate(root, compiler.discover(root), main, output));
+        assertTrue(Files.readString(output.resolve("org/vernac/generated/VernacScenariosTest.java"))
+                .contains("assertEquals(\"InvalidChange\", Assertions.assertThrows(NativeValidation.Rejection.class"));
+        Files.writeString(source, scenario.replace("to:", "destination:"));
+        assertDiagnostic(root, output, main, "tasks.vernac:7:", "accessible behavior for selector 'changeFrom:destination:'");
     }
 
     @Test
@@ -165,7 +269,11 @@ class VernacScenarioCompilerTest {
                 usecase CurrentStatus() returns Status behavior { execute { return Status.OPEN; } }
                 aggregate Task[TaskId](Title title, mut Status) behavior {
                     modify void complete() { self.status(Status.DONE); }
+                    modify void changeFrom(Status previous, Status to) {
+                        if (self.status() == previous) self.status(to);
+                    }
                     read Status currentStatus() { return self.status(); }
+                    read Title? maybeTitle() { return Optional.of(self.title()); }
                 };
                 """);
         return new VernacCompiler().analyzeProject(root);

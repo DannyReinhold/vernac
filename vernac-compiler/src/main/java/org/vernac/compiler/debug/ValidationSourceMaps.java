@@ -102,13 +102,14 @@ final class ValidationSourceMaps {
         StringBuilder expected = new StringBuilder("class Expected {");
         for (var method : methods) {
             expected.append("void ").append(method.name()).append("() {");
-            for (var rule : method.rules())
-                expected.append("if (")
-                        .append(
-                                method.domain()
-                                        ? ValidationConditions.failure(rule.condition())
-                                        : ConditionUtils.negate(rule.condition()))
-                        .append(") {}\n");
+            int nativeIndex = 0;
+            for (var rule : method.rules()) {
+                String condition = rule.nativeRule().isPresent()
+                        ? "!(boolean) nativeRule" + nativeIndex++ + ".evaluate(self)"
+                        : method.domain() ? ValidationConditions.failure(rule.condition())
+                        : ConditionUtils.negate(rule.condition());
+                expected.append("if (").append(condition).append(") {}\n");
+            }
             expected.append("}\n");
         }
         expected.append("}");

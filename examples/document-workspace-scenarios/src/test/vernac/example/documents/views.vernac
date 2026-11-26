@@ -10,7 +10,7 @@ suite EditorView profile mvc using example.documents.DocumentWebFixtures.Editor 
         expect status 200;
         expect body contains "Document removed";
         when remaining = invoke HasDocument(document);
-        expect remaining equals DocumentPresence.ABSENT;
+        expect (remaining == DocumentPresence ABSENT);
         expect emitted DocumentDeleted count 1;
         expect calls to DocumentStore.delete count 1;
     }

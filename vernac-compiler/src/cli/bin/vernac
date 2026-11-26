@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+
+bin_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+classpath="$bin_dir/../lib/*"
+if [ -n "${VERNAC_PROJECT_CLASSPATH:-}" ]; then
+    classpath="$classpath:$VERNAC_PROJECT_CLASSPATH"
+fi
+
+if [ -n "${JAVA_HOME:-}" ]; then
+    java="$JAVA_HOME/bin/java"
+else
+    java=java
+fi
+exec "$java" -cp "$classpath" org.vernac.compiler.pipeline.ScenarioCli "$@"

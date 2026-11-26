@@ -3,7 +3,13 @@ namespace example.documents;
 id DocumentId;
 value DocumentTitle(String);
 value DocumentPresence = PRESENT | ABSENT;
-aggregate Document[DocumentId](DocumentTitle);
+aggregate Document[DocumentId](mut DocumentTitle) validates {
+    require self documentTitle string != "" else EmptyDocumentTitle.
+} behavior {
+    modify void renameTo(DocumentTitle title) vernac {
+        self documentTitle = title.
+    }
+};
 
 permission DocumentPermissions { DELETE; }
 recorded event DocumentDeleted(DocumentId);
@@ -24,14 +30,16 @@ usecase AddDocument(DocumentTitle) returns DocumentId uses DocumentStore behavio
 }
 
 usecase HasDocument(DocumentId) returns DocumentPresence uses DocumentStore behavior {
-    execute { return self.documentStore().contains(documentId); }
+    execute vernac {
+        return documentStore contains: documentId.
+    }
 }
 
 usecase DeleteDocument(DocumentId) requires permission DocumentPermissions.DELETE on documentId
         uses DocumentStore behavior {
-    execute {
-        self.documentStore().delete(documentId);
-        self.emit(DocumentDeleted.create(documentId));
+    execute vernac {
+        documentStore delete: documentId.
+        events emit: (DocumentDeleted documentId: documentId).
     }
 }
 

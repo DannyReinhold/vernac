@@ -14,24 +14,29 @@ import java.util.stream.Collectors;
 /** Resolves imports and VO field references without recursively following declarations. */
 public final class ProjectTypeResolver {
     public ResolvedProject resolve(VernacProject project) {
-        return resolve(project, true, Map.of());
+        return resolve(project, true, Map.of(), true);
     }
 
     /** Read-only partial type information for editor APIs; never a generation entrypoint. */
     public ResolvedProject resolveForAnalysis(VernacProject project) {
-        return resolve(project, false, Map.of());
+        return resolve(project, false, Map.of(), true);
     }
 
     public ResolvedProject resolve(VernacProject project, Map<Path, String> configurationSnapshots) {
-        return resolve(project, true, configurationSnapshots);
+        return resolve(project, true, configurationSnapshots, true);
     }
 
-    private ResolvedProject resolve(VernacProject project, boolean strict, Map<Path, String> configurationSnapshots) {
+    ResolvedProject resolveSnapshot(VernacProject project, Map<Path, String> configuration) {
+        return resolve(project, false, configuration, false);
+    }
+
+    private ResolvedProject resolve(VernacProject project, boolean strict, Map<Path, String> configurationSnapshots,
+                                    boolean includeDisk) {
         Set<String> namespaces = project.sources().stream().map(source -> source.unit().namespace())
                 .collect(Collectors.toCollection(TreeSet::new));
         Map<Path, FileTypeScope> scopes = new LinkedHashMap<>();
         List<CompilerDiagnostic> diagnostics = new ArrayList<>();
-        var modules = new org.vernac.compiler.modules.SourceModules(project, configurationSnapshots, diagnostics);
+        var modules = new org.vernac.compiler.modules.SourceModules(project, configurationSnapshots, diagnostics, includeDisk);
         for (var source : project.sources()) {
             var scope = new FileTypeScope(source.unit(), modules.visibleFrom(source.unit().namespace()), namespaces);
             scopes.put(source.path(), scope);
@@ -156,7 +161,7 @@ public final class ProjectTypeResolver {
                 diagnostics.addAll(BehaviorImports.validateLowered(source.unit().namespace(), value.name(), value.methods(), fieldTypes));
             }
         }
-        diagnostics.addAll(org.vernac.compiler.tenancy.TenancyContracts.validate(project, scopes, configurationSnapshots));
+        diagnostics.addAll(org.vernac.compiler.tenancy.TenancyContracts.validate(project, scopes, configurationSnapshots, includeDisk));
         diagnostics.addAll(new ContainmentValidator().validate(project, fieldTypes));
         diagnostics.addAll(new UniqueFields().validate(project, fieldTypes));
         diagnostics.addAll(new GlobalIdReferences().validate(project,scopes,fieldTypes));
@@ -190,6 +195,8 @@ public final class ProjectTypeResolver {
                 }).toList();
         var partial = new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries,
                 schemas, mappings, restOperations, inboundAdapters, Map.of());
+        if (diagnostics.stream().noneMatch(diagnostic -> diagnostic.severity() == CompilerDiagnostic.Severity.ERROR))
+            diagnostics.addAll(org.vernac.compiler.generator.NativeValidationCompiler.diagnostics(partial));
         var webTemplates = new WebViews(partial, diagnostics).compile();
         if (strict) failOnErrors(diagnostics);
         return new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries, schemas,

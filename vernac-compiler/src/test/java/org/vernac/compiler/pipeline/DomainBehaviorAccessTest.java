@@ -72,8 +72,8 @@ class DomainBehaviorAccessTest {
                     () -> type.getMethod("move", int.class, int.class).invoke(instance, 70, 60));
             assertInstanceOf(DomainValidationException.class, failure.getCause());
             // Deliberately naive: failed validation retains mutations.
-            assertEquals(point(output, 70), type.getMethod("start").invoke(instance));
-            assertEquals(point(output, 60), type.getMethod("end").invoke(instance));
+            assertEquals(point(output, 30), type.getMethod("start").invoke(instance));
+            assertEquals(point(output, 40), type.getMethod("end").invoke(instance));
             Object fresh = type.getMethod("create", label, point, point).invoke(null, text, point(output, 1), point(output, 2));
             type.getMethod("move", int.class, int.class).invoke(fresh, 3, 4); // no leaked context
             assertEquals(Optional.empty(), type.getMethod("note").invoke(fresh));
@@ -149,7 +149,7 @@ class DomainBehaviorAccessTest {
                     if (tour.stops().size() != 1) throw new AssertionError();
                     try { tour.change(stop.id(), 90, 80); throw new AssertionError(); }
                     catch (org.vernac.runtime.DomainValidationException expected) { }
-                    if (stop.units().intValue() != 90 || tour.capacity().intValue() != 80) throw new AssertionError();
+                    if (stop.units().intValue() != 50 || tour.capacity().intValue() != 60) throw new AssertionError();
                 }
             }
             """);
@@ -189,7 +189,7 @@ class DomainBehaviorAccessTest {
         assertEquals(Optional.of(text), type.getMethod("note").invoke(instance));
         assertNotNull(type.getMethod("reconstitute", key, title, title));
     }
-    @Test void reconstitutionChecksStateAndBodyExceptionsRetainChanges() throws Exception {
+    @Test void reconstitutionChecksStateAndBodyExceptionsDiscardChanges() throws Exception {
         var output = compile(generate(model("entity", "modify void fail() { self.start(Position.of(99)); throw new IllegalStateException(\"body\"); }")));
         var point = output.loadClass("test.domain.Position");
         var type = output.loadClass("test.domain.Range"); var label = output.loadClass("test.domain.Label"); var id = output.loadClass("test.domain.RangeId");
@@ -200,7 +200,7 @@ class DomainBehaviorAccessTest {
         Object instance = type.getMethod("create", label, point, point).invoke(null,text,point(output,1),point(output,2));
         var failure = assertThrows(InvocationTargetException.class, () -> type.getMethod("fail").invoke(instance));
         assertEquals("body", failure.getCause().getMessage());
-        assertEquals(point(output, 99), type.getMethod("start").invoke(instance));
+        assertEquals(point(output, 1), type.getMethod("start").invoke(instance));
         type.getMethod("move", int.class, int.class).invoke(instance,3,4);
     }
 }

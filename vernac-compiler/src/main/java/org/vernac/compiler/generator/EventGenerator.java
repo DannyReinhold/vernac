@@ -59,7 +59,7 @@ public final class EventGenerator {
         if(!event.validations().isEmpty()) {
             ctor.addStatement("$T.validate(new __ReadView())",ValidationGenerator.companion(owner));type.addType(view.build());
             files.add(JavaFile.builder(readName.packageName(),read.build()).build());
-            new ValidationGenerator().generate(owner,event.validations(),List.of(),unit,project).ifPresent(files::add);
+            new ValidationGenerator().generate(owner,event,event.validations(),List.of(),unit,project).ifPresent(files::add);
         }
         type.addMethod(ctor.build()).addMethod(create.build()).addMethod(restore.build());
         type.addMethod(MethodSpec.methodBuilder("equals").addModifiers(Modifier.PUBLIC).addAnnotation(Override.class).returns(boolean.class)

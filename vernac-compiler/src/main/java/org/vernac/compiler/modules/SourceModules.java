@@ -16,12 +16,17 @@ public final class SourceModules {
     private final ProjectSymbolIndex index;
 
     public SourceModules(VernacProject project, Map<Path, String> snapshots, List<CompilerDiagnostic> diagnostics) {
+        this(project, snapshots, diagnostics, true);
+    }
+
+    public SourceModules(VernacProject project, Map<Path, String> snapshots, List<CompilerDiagnostic> diagnostics,
+                         boolean includeDisk) {
         index = project.symbols();
         var namespaces = new TreeSet<String>();
         for (var source : project.sources()) if (!source.external()) namespaces.add(source.unit().namespace());
         for (String namespace : namespaces) {
             Path path = project.sourceRoot().resolve(namespace.replace('.', '/')).resolve(ModuleDefinition.FILE);
-            if (!snapshots.containsKey(path) && !Files.isRegularFile(path)) continue;
+            if (!snapshots.containsKey(path) && (!includeDisk || !Files.isRegularFile(path))) continue;
             var location = new SourceLocation(path.toString(), 1, 1);
             try {
                 String text = snapshots.containsKey(path) ? snapshots.get(path) : Files.readString(path);

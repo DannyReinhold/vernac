@@ -4,14 +4,103 @@ title: Choosing a surface syntax for interpreted Vernac behaviors
 
 # Choosing a surface syntax for interpreted behaviors
 
-**The syntax decision is open.** The proposed starting point is typed receiver calls with dot notation,
-named arguments where they clarify domain intent, and the existing Vernac vocabulary for operations and
-effects. Smalltalk-style keyword messages are a second prototype worth trying with real domain sentences.
-Both candidates also support a Smalltalk-like editing experience in the daemon. Change an operation, send
-it to a fixture object and immediately inspect the outcome. The implementation target in both cases is a
-Vernac interpreter with an explicit JVM boundary. [Milestone B1](release-0.7.0.md#implementation-sequence)
+**Selected direction.** Vernac uses Smalltalk-style keyword messages for domain calls and conventional
+operators for arithmetic, comparisons and short-circuit Boolean expressions. Behaviors, validations and
+scenarios share the expression grammar. `require`, `match`, `when` and `expect` express control flow and
+test intent explicitly. The precise declaration syntax remains part of B1.
 
-## Compare the same operation
+A keyword selector comprises all its parts. `document moveFrom: inbox to: archive` names
+`moveFrom:to:`. Unary messages associate left to right, so `document owner email` first reads the owner.
+Unary sends bind before prefix operators, then multiplication, addition, comparisons, equality, logical
+AND and logical OR. Keyword sends bind last. Parentheses delimit nested keyword sends and allow their
+results to be operands of other expressions.
+
+The first implementation parses these expressions and exposes read-only scenario predicates:
+
+```vernac
+expect (task status == Status DONE && task title string != "");
+```
+
+Scenario predicates currently support fixture paths, enum members, scalar literals, integer arithmetic
+and comparisons, value equality, Boolean operators and optional matching:
+
+```vernac
+expect (match result {
+    present title => title string == "Try Vernac"
+    absent => false
+});
+```
+
+The match subject is evaluated once. Only the selected branch runs, the payload binding is available
+only in the present branch, and both branches must agree on result type and optionality.
+A scenario can also call a declared behavior with `when (document moveFrom: inbox to: archive);`.
+For existing JVM-backed behaviors, the first keyword matches the method name and subsequent
+keywords match parameter names in order. `expect` can call declared read behaviors, while
+`when` also allows modify behaviors. The surrounding suite and fixture syntax stays compatible
+with 0.6.
+
+Values, entities, aggregates and events can declare a native state rule:
+
+```vernac
+validates {
+    require self start intValue <= self finish intValue else InvertedDates.
+}
+```
+
+The compiler checks that state reads use the read interface and that the predicate yields a
+Boolean. The runtime evaluates the compiled predicate against the candidate state. A false
+predicate raises a domain validation exception with code `InvertedDates`. A scenario can
+assert that code with `when (booking moveFrom: start to: finish) rejects InvertedDates;`.
+Native state rules currently support field paths, integer arithmetic, equality and Boolean
+operators.
+
+Entity and aggregate methods can opt into native execution with a `vernac` body:
+
+```vernac
+modify void renameTo(DocumentTitle title) vernac {
+    self documentTitle = title.
+}
+```
+
+Native bodies currently support `require … else …`, assignments to mutable `self` fields and a
+final value return. They use the same expression evaluator as state rules. The existing JVM
+method signatures and modification boundary still apply. Native bodies and state rules can match
+optional field values and call declared read methods on `self` using keyword messages. The
+present branch can read fields from a bound value object. A native modification can send
+a keyword message to another modify method on `self` as a statement. It joins the enclosing
+modification and validates at the outer boundary.
+
+A use case can use the same native syntax for an operation with declared ports and event effects:
+
+```vernac
+execute vernac {
+    documentStore delete: documentId.
+    events emit: (DocumentDeleted documentId: documentId).
+}
+```
+
+Port selectors are resolved against the declared dependency. An event constructor names its fields
+in declaration order. The existing generated Use Case entry point still establishes authorization,
+the transaction and event delivery. Use `let` to evaluate an expression once and keep its
+typed result for later statements. A declared repository supports `byId:`, `save:` and
+`delete:`; a loaded aggregate can receive its declared read and modify messages.
+
+```vernac
+execute vernac {
+    let booking = bookings byId: bookingId.
+    let oldStart = booking start.
+    booking moveFrom: previous to: destination.
+    bookings save: booking.
+    return Result oldStart: oldStart newStart: booking start.
+}
+```
+
+A compound result uses the generated `Result` contract. Its keyword parts must name the
+declared fields in order. Native execute currently requires non-optional inputs and accepts
+void, a non-optional single result, or a compound result with supplied field values.
+Custom repository queries are outside the initial native repository interface.
+
+## Alternatives considered
 
 A document moves between folders. Both arguments have type `FolderId`, so seeing which is the source
 matters. The three **syntax specimens** illustrate proposals for B1. Give every candidate the same
@@ -71,27 +160,16 @@ This probes readability and recovery for nested calls.
 | JVM contracts | Map each resolved operation unambiguously to the existing JVM-facing member conventions. Verify overloads after erasure, optional/null handling and stable public names. Compile a handwritten Java caller and a delegated provider against the bridges. Document the effect of renaming a public argument label or selector. |
 | Compatibility and tools | Require an explicit marker for new bodies. Existing inline Java and `implemented by` continue through their declared paths. Preserve the 0.6 assertion grammar and its meaning. Resolve before interpretation and track member and source spans for diagnostics, LSP, formatter and debugging. |
 
-## B1 decision procedure
+## B1 conformance work
 
-1. Freeze a small common corpus with independent expected values from 0.6. Cover the document move, task
-   completion/reopen, document access and deletion, a read projection, nested invariant rejection and one
-   failed port operation. Annotate the expected writes, effects and source locations. Include one illegal
-   use of each capability. Implement a bounded parser/lowering prototype for each leading spelling against
-   the same small evaluator.
-2. Have reviewers read equivalent diffs and describe the intended domain action, order of effects and
-   failure outcome. Try a parameter rename, a swapped folder argument and an incomplete call in IntelliJ.
-   Have an agent repair the same incorrect call using only the diagnostic and its source. Capture
-   examples, diagnostic ranges, completion results and changes to the 0.6 corpus. A positional call with
-   swapped same-typed arguments is a useful review probe even when it type-checks.
-3. Compare domain readability, learnability from existing Vernac, parser ambiguity/precedence, error
-   recovery, JVM bridge stability, compatibility and impact on tooling. Verify both leading candidates
-   lower equivalent programs to the same typed operations. Measure parse/check latency on the same edits.
-   Revisit bytecode generation only in the performance workstream if a measured execution bottleneck
-   warrants it.
-4. Record the chosen spelling, opt-in and migration rules, worked use-case and test examples, precedence
-   rules and rejected alternatives in the language decision record. Prefer the dot/named form if both read
-   equally well and its tooling/interop costs are lower. A demonstrated readability advantage with
-   predictable tooling is a reason to select keyword messages. Only the selected grammar advances to B2.
+1. Cover document move, task completion/reopening, document access and deletion, a read projection,
+   nested invariant rejection and a failed port operation. Record expected writes, effects and source
+   locations, including one illegal use of each capability.
+2. Verify incomplete selector completion, whole-selector rename and diagnostics for a swapped folder
+   argument. Keep JVM names stable through the explicit bridge and check call sites in generated and
+   handwritten code.
+3. Measure parse/check latency on the same edits as the baseline. Record the final opt-in and migration
+   rules and link runnable examples to the conformance cases.
 
 The 0.6.0 release can settle fixture, assertion and observation semantics while this spelling decision
 stays open. The 0.7.0 specification should link the final choice to conformance cases shared by the CLI,

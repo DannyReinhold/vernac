@@ -69,12 +69,11 @@ class EntityAggregateContractTest {
                     Instant successful = tour.updatedAt();
                     try { tour.change(stop.id(), Units.of(101)); throw new AssertionError(); }
                     catch (org.vernac.runtime.DomainValidationException expected) { }
-                    check(stop.units().intValue() == 101); check(tour.updatedAt().equals(successful));
-                    // Explicitly repair only for this test. Applications should discard the failed graph.
+                    check(stop.units().intValue() == 2); check(tour.updatedAt().equals(successful));
                     tour.change(stop.id(), Units.of(3)); successful = tour.updatedAt();
                     try { tour.fail(stop.id()); throw new AssertionError(); }
                     catch (IllegalStateException expected) { }
-                    check(stop.units().intValue() == 99); check(tour.updatedAt().equals(successful));
+                    check(stop.units().intValue() == 3); check(tour.updatedAt().equals(successful));
                     // No owner tracking: a direct child call cannot touch the parent timestamp.
                     stop.change(Units.of(4)); check(tour.updatedAt().equals(successful));
                     Stop replacement = Stop.reconstitute(stop.id(), label, Units.of(5), null);

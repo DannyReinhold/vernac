@@ -1,0 +1,259 @@
+// Copyright 2026 Danny Reinhold
+// SPDX-License-Identifier: Apache-2.0
+package org.vernac.compiler.pipeline;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import org.vernac.compiler.ast.SourceLocation;
+import org.vernac.compiler.pipeline.AffectedScenarioSelector.Graph;
+import org.vernac.compiler.pipeline.AffectedScenarioSelector.Revision;
+import org.vernac.compiler.pipeline.AffectedScenarioSelector.Selection;
+import org.vernac.compiler.pipeline.VernacScenarioCompiler.Reference;
+import org.vernac.compiler.pipeline.VernacScenarioCompiler.ScenarioReferences;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.vernac.compiler.pipeline.AffectedScenarioSelector.Reason.*;
+
+class AffectedScenarioSelectorTest {
+    @TempDir Path root;
+
+    @Test
+    void executionSessionRetriesFailuresAndOnlyAdvancesAfterCompleteSuccess() throws Exception {
+        var counter = Path.of("app/counter.vernac");
+        var sources = new VersionedSources(root, Map.of(counter, "namespace app; value Counter(int);"));
+        var tests = Map.of("checks.vernac", """
+                namespace app;
+                suite Checks {
+                    scenario counter { given counter = Counter(1); expect counter.intValue equals 1; }
+                }
+                """);
+        var calls = new java.util.concurrent.atomic.AtomicInteger();
+        var runner = new ScenarioRunSession(new ScenarioPlanningSession(root, Map.of(), List.of()), request -> {
+            calls.incrementAndGet();
+            Map<String, Boolean> results;
+            try {
+                results = run(request.project(), request.bridge());
+            } catch (Exception failure) {
+                throw new java.io.IOException("Could not execute generated tests", failure);
+            }
+            return Map.of("app.Checks.counter", results.get("app$dChecks$dcounter")
+                    ? ScenarioRunSession.Outcome.PASSED : ScenarioRunSession.Outcome.FAILED);
+        }, null);
+
+        var original = new ScenarioPlanningSession.Inputs(sources.snapshot(), tests);
+        assertEquals(ScenarioRunSession.Outcome.PASSED, runner.run(original, false).outcomes().get("app.Checks.counter"));
+        assertEquals(List.of(), runner.run(original, false).selected());
+        var rejected = sources.apply(0, List.of(new VersionedSources.Put(counter,
+                "namespace app; value Counter(int) validates { require self intValue > 1 else TooSmall. };")));
+        var bad = new ScenarioPlanningSession.Inputs(rejected, tests);
+        for (int retry = 0; retry < 2; retry++) {
+            var run = runner.run(bad, false);
+            assertEquals(rejected.revision(), run.revision());
+            assertEquals(ScenarioRunSession.Outcome.FAILED, run.outcomes().get("app.Checks.counter"));
+        }
+        assertEquals(List.of(), runner.run(original, false).selected());
+        assertEquals(3, calls.get());
+    }
+
+    @Test
+    void aPartialRunCannotBecomeABaseline() throws Exception {
+        var counter = Path.of("app/counter.vernac");
+        var sources = new VersionedSources(root, Map.of(counter, "namespace app; value Counter(int);"));
+        var inputs = new ScenarioPlanningSession.Inputs(sources.snapshot(), Map.of("checks.vernac", """
+                namespace app;
+                suite Checks { scenario counter { expect true equals true; } }
+                """));
+        var status = new java.util.concurrent.atomic.AtomicInteger();
+        var runner = new ScenarioRunSession(new ScenarioPlanningSession(root, Map.of(), List.of()), request ->
+                switch (status.getAndIncrement()) {
+                    case 0, 3 -> Map.of("app.Checks.counter", ScenarioRunSession.Outcome.PASSED);
+                    case 1 -> Map.of();
+                    default -> Map.of("app.Checks.counter", ScenarioRunSession.Outcome.SKIPPED);
+                }, null);
+        runner.run(inputs, false);
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> runner.run(inputs, true));
+        assertEquals(ScenarioRunSession.Outcome.SKIPPED, runner.run(inputs, false).outcomes().get("app.Checks.counter"));
+        assertEquals(ScenarioRunSession.Outcome.PASSED, runner.run(inputs, false).outcomes().get("app.Checks.counter"));
+        assertEquals(List.of(), runner.run(inputs, false).selected());
+    }
+
+    @Test
+    void generatedAffectedTestsFindTheSameFailureAsTheFullSuite() throws Exception {
+        var counter = Path.of("app/counter.vernac");
+        var sources = new VersionedSources(root, Map.of(counter, "namespace app; value Counter(int);",
+                Path.of("app/label.vernac"), "namespace app; value Label(String);"));
+        var tests = Map.of("checks.vernac", """
+                namespace app;
+                suite Checks {
+                    scenario counter { given counter = Counter(1); expect counter.intValue equals 1; }
+                    scenario label { given label = Label("ok"); expect label.string equals "ok"; }
+                }
+                """);
+        var initial = sources.snapshot();
+        var session = new ScenarioPlanningSession(root, Map.of(), List.of());
+        var baseline = session.plan(Optional.empty(), new ScenarioPlanningSession.Inputs(initial, tests), false, null);
+        assertEquals(Map.of("app$dChecks$dcounter", true, "app$dChecks$dlabel", true), run(baseline, initial));
+
+        var changed = sources.apply(0, List.of(new VersionedSources.Put(counter,
+                "namespace app; value Counter(int) validates { require self intValue > 1 else TooSmall. };")));
+        var inputs = new ScenarioPlanningSession.Inputs(changed, tests);
+        var affected = session.plan(Optional.of(baseline.target()), inputs, false, null);
+        var all = session.plan(Optional.empty(), inputs, false, null);
+        assertEquals(List.of(new Selection("app.Checks.counter", CHANGED_DEPENDENCY)), affected.selected());
+        assertEquals(Map.of("app$dChecks$dcounter", false), run(affected, changed));
+        assertEquals(Map.of("app$dChecks$dcounter", false, "app$dChecks$dlabel", true), run(all, changed));
+    }
+
+    private Map<String, Boolean> run(ScenarioPlanningSession.Plan plan, VersionedSources.Snapshot sources)
+            throws Exception {
+        var project = new ProjectTypeResolver().resolve(new VernacProjectLoader().openSession(root)
+                .loadSnapshot(sources.sources()));
+        return run(project, plan.testBridge());
+    }
+
+    private Map<String, Boolean> run(ResolvedProject project, com.palantir.javapoet.JavaFile bridge) throws Exception {
+        var files = new java.util.ArrayList<>(new VernacCompiler()
+                .generate(project, org.vernac.compiler.persistence.SchemaModel.empty(), Map.of()).generatedFiles());
+        files.add(bridge);
+        var compilation = org.vernac.compiler.testutil.InMemoryJavaCompiler.compile(files);
+        org.junit.jupiter.api.Assertions.assertTrue(compilation.success(), compilation.diagnostics().toString());
+        var generated = compilation.loadClass(bridge.packageName() + "." + bridge.typeSpec().name());
+        var constructor = generated.getDeclaredConstructor();
+        constructor.setAccessible(true);
+        var outcomes = new java.util.HashMap<String, Boolean>();
+        for (var method : generated.getDeclaredMethods()) {
+            if (!method.isAnnotationPresent(Test.class)) continue;
+            method.setAccessible(true);
+            try {
+                method.invoke(constructor.newInstance());
+                outcomes.put(method.getName(), true);
+            } catch (java.lang.reflect.InvocationTargetException failure) {
+                outcomes.put(method.getName(), false);
+            }
+        }
+        return outcomes;
+    }
+
+    @Test
+    void plansFromCapturedSourceChangesAndKeepsTheVerifiedBaselineExplicit() throws Exception {
+        var path = Path.of("app/counter.vernac");
+        var sources = new VersionedSources(root, Map.of(path, "namespace app; value Counter(int);"));
+        var testPath = "checks.vernac";
+        var tests = Map.of(testPath, """
+                namespace app;
+                suite Checks {
+                    scenario counter { given counter = Counter(1); expect counter.intValue equals 1; }
+                }
+                """);
+        var session = new ScenarioPlanningSession(root, Map.of(), List.of());
+        var initial = new ScenarioPlanningSession.Inputs(sources.snapshot(), tests);
+        var plan = session.plan(Optional.empty(), initial, false, null);
+        assertEquals(List.of(new Selection("app.Checks.counter", NO_BASELINE)), plan.selected());
+        var baseline = Optional.of(plan.target());
+
+        var change = sources.apply(0, List.of(new VersionedSources.Put(path,
+                "namespace app; value Counter(int) validates { require self intValue > 0 else Negative. };")));
+        var edited = new ScenarioPlanningSession.Inputs(change, tests);
+        assertEquals(List.of(new Selection("app.Checks.counter", CHANGED_DEPENDENCY)),
+                session.plan(baseline, edited, false, null).selected());
+        assertEquals(List.of(new Selection("app.Checks.counter", CHANGED_DEPENDENCY)),
+                session.plan(baseline, edited, false, null).selected());
+        assertEquals(List.of(new Selection("app.Checks.counter", NEW_OR_CHANGED_CASE)),
+                session.plan(baseline, new ScenarioPlanningSession.Inputs(initial.main(),
+                        Map.of(testPath, tests.get(testPath).replace("equals 1", "equals 2"))), false, null).selected());
+        assertEquals(List.of(), session.plan(baseline, initial, false, null).selected());
+
+        assertEquals(List.of(new Selection("app.Checks.counter", NO_BASELINE)),
+                session.plan(baseline, initial, false, "domain").selected());
+        var otherSession = new ScenarioPlanningSession(root, Map.of(), List.of());
+        assertEquals(List.of(new Selection("app.Checks.counter", NO_BASELINE)),
+                otherSession.plan(baseline, initial, false, null).selected());
+    }
+
+    @Test
+    void derivesFieldEdgesFromRealCompilerOutput() throws Exception {
+        var namespace = Files.createDirectories(root.resolve("app"));
+        var title = Files.writeString(namespace.resolve("title.vernac"), "namespace app; value Title(String);");
+        Files.writeString(namespace.resolve("summary.vernac"), "namespace app; value Summary(Title title);");
+        Files.writeString(namespace.resolve("counter.vernac"), "namespace app; value Counter(int);");
+        var tests = Map.of("src/test/vernac/app/checks.vernac", """
+                namespace app;
+                suite Checks {
+                    scenario summary {
+                        given title = Title("hello");
+                        given summary = Summary(title);
+                        expect summary.title equals title;
+                    }
+                    scenario counter {
+                        given counter = Counter(1);
+                        expect counter.intValue equals 1;
+                    }
+                }
+                """);
+        var session = new WorkspaceCheckSession(root, Map.of(), List.of());
+        var inputs = new VersionedSources(root, Map.of(title, Files.readString(title),
+                namespace.resolve("summary.vernac"), "namespace app; value Summary(Title title);",
+                namespace.resolve("counter.vernac"), "namespace app; value Counter(int);"));
+        var before = ScenarioDependencyGraph.inspect(session.check(inputs.snapshot()).project().orElseThrow(), tests);
+        var changed = inputs.apply(0, List.of(new VersionedSources.Put(title,
+                "namespace app; value Title(String) validates { require self string != \"\" else BlankTitle. };")));
+        var after = ScenarioDependencyGraph.inspect(session.check(changed).project().orElseThrow(), tests);
+        assertEquals(Set.of(title.toString()), before.graph().dependencies().get(namespace.resolve("summary.vernac").toString()));
+        assertEquals(List.of(new Selection("app.Checks.summary", CHANGED_DEPENDENCY)),
+                AffectedScenarioSelector.select(Optional.of(before), after, Set.of(title.toString()), false, null));
+    }
+
+    @Test
+    void followsBothGraphsAndTerminatesOnCycles() {
+        var cases = List.of(scenario("dependent", "domain", false, "entry"),
+                scenario("unrelated", "domain", false, "other"));
+        var before = new Revision(cases, new Graph(Map.of(
+                "dependent", Set.of(), "unrelated", Set.of(), "entry", Set.of("bridge"),
+                "bridge", Set.of("entry", "deleted"), "deleted", Set.of(), "other", Set.of())));
+        var after = new Revision(cases, new Graph(Map.of(
+                "dependent", Set.of(), "unrelated", Set.of(), "entry", Set.of("added"),
+                "added", Set.of(), "other", Set.of())));
+        for (String changed : List.of("deleted", "added")) {
+            assertEquals(List.of(new Selection("dependent", CHANGED_DEPENDENCY)),
+                    AffectedScenarioSelector.select(Optional.of(before), after, Set.of(changed), false, null));
+        }
+    }
+
+    @Test
+    void widensSelectionWithMissingEdgesOrOpaqueInputsAndRespectsProfile() {
+        var cases = List.of(scenario("domain", "domain", false, "unknown"),
+                scenario("mvc", "mvc", true, "view"),
+                scenario("postgres", "postgres", true, "store"));
+        var revision = new Revision(cases, new Graph(Map.of("domain", Set.of())));
+        assertEquals(List.of(new Selection("domain", INCOMPLETE_GRAPH), new Selection("mvc", JAVA_FIXTURE)),
+                AffectedScenarioSelector.select(Optional.of(revision), revision, Set.of("edited"), false, null));
+        assertEquals(List.of(new Selection("postgres", OPAQUE_CHANGE)),
+                AffectedScenarioSelector.select(Optional.of(revision), revision, Set.of(), true, "postgres"));
+        assertEquals(List.of(new Selection("domain", NO_BASELINE), new Selection("mvc", NO_BASELINE)),
+                AffectedScenarioSelector.select(Optional.empty(), revision, Set.of(), false, null));
+        assertEquals(List.of(),
+                AffectedScenarioSelector.select(Optional.of(revision), revision, Set.of(), false, null));
+    }
+
+    @Test
+    void selectsAddedCasesAndDoesNotRunDeletedCases() {
+        var graph = new Graph(Map.of());
+        var before = new Revision(List.of(scenario("old", "domain", false, "model")), graph);
+        var after = new Revision(List.of(scenario("new", "domain", false, "model")), graph);
+        assertEquals(List.of(new Selection("new", NEW_OR_CHANGED_CASE)),
+                AffectedScenarioSelector.select(Optional.of(before), after, Set.of(), false, null));
+    }
+
+    private static ScenarioReferences scenario(String id, String profile, boolean fixture, String dependency) {
+        var at = new SourceLocation(id, 1, 1);
+        return new ScenarioReferences(id, profile, at, fixture,
+                List.of(new Reference(at, 1, new SourceLocation(dependency, 1, 1))));
+    }
+}

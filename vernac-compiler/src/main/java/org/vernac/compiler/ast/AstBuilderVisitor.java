@@ -23,6 +23,23 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
     }
 
 
+    private ValidationRuleNode stateValidation(VernacParser.ValidationStatementContext rule) {
+        if (rule.predicate == null) return javaValidation(rule);
+        var predicate = org.vernac.compiler.pipeline.KeywordExpressionParser.build(sourceName, rule.predicate);
+        return new ValidationRuleNode(toLocation(rule), extractRawSource(rule.predicate), "",
+                Optional.of(new ValidationRuleNode.NativeRule(predicate, rule.rejection.getText())));
+    }
+
+    private ValidationRuleNode javaValidation(VernacParser.ValidationStatementContext rule) {
+        if (rule.condition == null) {
+            throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(
+                    org.vernac.compiler.analyzer.CompilerDiagnostic.error(toLocation(rule),
+                            "Native validation requires a value, entity, aggregate or event declaration")));
+        }
+        return new ValidationRuleNode(toLocation(rule), extractRawSource(rule.condition),
+                rule.message == null ? "" : unquote(rule.message.getText()));
+    }
+
     @Override
     public CompilationUnitNode visitCompilationUnit(VernacParser.CompilationUnitContext ctx) {
         String namespace = ctx.namespaceDeclaration().qualifiedName().getText();
@@ -132,9 +149,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         List<ValidationRuleNode> validations = new ArrayList<>();
         if (ctx.validationBlock() != null) {
             for (VernacParser.ValidationStatementContext valCtx : ctx.validationBlock().validationStatement()) {
-                String condition = extractRawSource(valCtx.condition);
-                String message = valCtx.message != null ? unquote(valCtx.message.getText()) : "";
-                validations.add(new ValidationRuleNode(toLocation(valCtx), condition, message));
+                validations.add(stateValidation(valCtx));
             }
         }
 
@@ -146,8 +161,8 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 toLocation(ctx),
                 name,
                 fields,
-                enumConstants,
-                validations,
+                List.copyOf(enumConstants),
+                List.copyOf(validations),
                 voMethods,
                 collections,
                 behaviorImports(ctx.behaviorBlock())
@@ -167,7 +182,45 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                 method.parameterList() == null ? List.of() : extractParameters(method.parameterList()),
                 method.rawJavaBlock() == null ? "" : extractRawSource(method.rawJavaBlock()),
                 Optional.ofNullable(method.implementation).map(ParserRuleContext::getText),
-                method.effect == null ? MethodNode.Mode.DEFAULT : MethodNode.Mode.valueOf(method.effect.getText().toUpperCase(java.util.Locale.ROOT)))).toList();
+                method.effect == null ? MethodNode.Mode.DEFAULT : MethodNode.Mode.valueOf(method.effect.getText().toUpperCase(java.util.Locale.ROOT)),
+                nativeBody(method.nativeBehaviorBody()))).toList();
+    }
+
+    private void rejectNativeHelper(VernacParser.BehaviorMethodContext method) {
+        if (method.nativeBehaviorBody() != null)
+            throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(
+                    org.vernac.compiler.analyzer.CompilerDiagnostic.error(toLocation(method),
+                            "Native behavior currently requires an entity or aggregate")));
+    }
+
+    private List<NativeStatement> nativeBody(VernacParser.NativeBehaviorBodyContext body) {
+        if (body == null) return List.of();
+        var statements = new ArrayList<NativeStatement>();
+        for (var statement : body.nativeBehaviorStatement()) {
+            if (statement.local != null) {
+                var name = new KeywordExpression.Name(toLocation(statement.local), statement.local.getText());
+                statements.add(new NativeStatement.Let(name, keyword(statement.initializer)));
+            } else if (statement.predicate != null) {
+                statements.add(new NativeStatement.Require(keyword(statement.predicate), statement.rejection.getText()));
+            } else if (statement.result != null) {
+                statements.add(new NativeStatement.Return(keyword(statement.result)));
+            } else if (statement.send != null) {
+                statements.add(new NativeStatement.Send(keyword(statement.send)));
+            } else {
+                if (!statement.receiver.getText().equals("self")) {
+                    throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(
+                            org.vernac.compiler.analyzer.CompilerDiagnostic.error(toLocation(statement.receiver),
+                                    "Native assignments must target a mutable self field")));
+                }
+                statements.add(new NativeStatement.Assign(toLocation(statement.target), statement.target.getText(),
+                        keyword(statement.assigned)));
+            }
+        }
+        return List.copyOf(statements);
+    }
+
+    private KeywordExpression keyword(VernacParser.KeywordExpressionContext expression) {
+        return org.vernac.compiler.pipeline.KeywordExpressionParser.build(sourceName, expression);
     }
 
     private List<CollectionDefinitionNode> collections(List<VernacParser.CollectionDefinitionContext> contexts) {
@@ -192,13 +245,11 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         List<ValidationRuleNode> validations = new ArrayList<>();
         if (ctx.validationBlock() != null) {
             for (VernacParser.ValidationStatementContext valCtx : ctx.validationBlock().validationStatement()) {
-                String condition = extractRawSource(valCtx.condition);
-                String message = valCtx.message != null ? unquote(valCtx.message.getText()) : "";
-                validations.add(new ValidationRuleNode(toLocation(valCtx), condition, message));
+                validations.add(stateValidation(valCtx));
             }
         }
 
-        return new AggregateNode(toLocation(ctx), name, idDef, fields, validations,
+        return new AggregateNode(toLocation(ctx), name, idDef, fields, List.copyOf(validations),
                 behaviorMethods(ctx.behaviorBlock()), collections(ctx.collectionDefinition()), behaviorImports(ctx.behaviorBlock()), ctx.classification == null ? AggregateNode.Classification.UNSPECIFIED : ctx.classification.getText().equals("tenant") ? AggregateNode.Classification.TENANT : AggregateNode.Classification.GLOBAL);
     }
 
@@ -217,13 +268,11 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         List<ValidationRuleNode> validations = new ArrayList<>();
         if (ctx.validationBlock() != null) {
             for (VernacParser.ValidationStatementContext valCtx : ctx.validationBlock().validationStatement()) {
-                String condition = extractRawSource(valCtx.condition);
-                String message = valCtx.message != null ? unquote(valCtx.message.getText()) : "";
-                validations.add(new ValidationRuleNode(toLocation(valCtx), condition, message));
+                validations.add(stateValidation(valCtx));
             }
         }
 
-        return new EntityNode(toLocation(ctx), name, idDef, fields, validations,
+        return new EntityNode(toLocation(ctx), name, idDef, fields, List.copyOf(validations),
                 behaviorMethods(ctx.behaviorBlock()), collections(ctx.collectionDefinition()), behaviorImports(ctx.behaviorBlock()));
     }
 
@@ -241,13 +290,13 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             methods.add(new RepositoryMethodNode(
                     toLocation(findCtx), toTypeNode(findCtx.returnType), findCtx.name.getText(),
                     findCtx.parameterList() == null ? List.of() : extractParameters(findCtx.parameterList()),
-                    predicates, findCtx.repositoryOrder().stream().map(o -> new RepositoryMethodNode.Order(
+                    List.copyOf(predicates), findCtx.repositoryOrder().stream().map(o -> new RepositoryMethodNode.Order(
                             toLocation(o), o.field.getText(), o.direction != null && o.direction.getText().equals("desc"))).toList(),
                     condition, findCtx.pagination == null ? RepositoryMethodNode.Pagination.NONE
                             : RepositoryMethodNode.Pagination.valueOf(findCtx.pagination.getText().toUpperCase(java.util.Locale.ROOT)),
                     findCtx.counting != null));
         }
-        return new RepositoryNode(toLocation(ctx), name, aggregateName, methods);
+        return new RepositoryNode(toLocation(ctx), name, aggregateName, List.copyOf(methods));
     }
 
     @Override
@@ -255,7 +304,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         return new EventNode(toLocation(ctx), ctx.name.getText(), ctx.recorded != null,
                 ctx.parameterList() == null ? List.of() : extractParameters(ctx.parameterList()),
                 ctx.validationBlock() == null ? List.of() : ctx.validationBlock().validationStatement().stream()
-                    .map(v -> new ValidationRuleNode(toLocation(v), extractRawSource(v.condition), v.message == null ? "" : unquote(v.message.getText()))).toList());
+                    .map(this::stateValidation).toList());
     }
 
     @Override
@@ -377,8 +426,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                     m.rawJavaBlock() == null ? "" : extractRawSource(m.rawJavaBlock()),
                     Optional.ofNullable(m.implementation).map(ParserRuleContext::getText)),
                 m.validationBlock() == null ? List.of() : m.validationBlock().validationStatement().stream()
-                    .map(v -> new ValidationRuleNode(toLocation(v), extractRawSource(v.condition),
-                        v.message == null ? "" : unquote(v.message.getText()))).toList())).toList();
+                    .map(this::javaValidation).toList())).toList();
         var configuration = ctx.configurationBlock() == null ? List.<AdapterConfigurationNode>of() :
             ctx.configurationBlock().configurationEntry().stream().map(c -> new AdapterConfigurationNode(
                 toLocation(c), c.configType.getText(), c.name.getText(), unquote(c.property.getText()))).toList();
@@ -392,7 +440,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             methods = http.operations().stream().map(o -> new ServiceMethodNode(o.method(), List.of())).toList();
         }
         return new OutboundAdapterNode(toLocation(ctx),ctx.name.getText(),toTypeNode(ctx.portType),
-                dependencies,technical,imports,methods,ctx.schemaDefinition().stream().map(this::visitSchemaDefinition).toList(),
+                dependencies,List.copyOf(technical),imports,methods,ctx.schemaDefinition().stream().map(this::visitSchemaDefinition).toList(),
                 ctx.mappingDefinition().stream().map(this::visitMappingDefinition).toList(), rest, configuration);
     }
     private RestAdapterNode rest(VernacParser.RestBlockContext ctx) {
@@ -618,21 +666,25 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
             return new FieldNode(toLocation(p),t,name,p.isMut != null,p.name!=null, unique(p), reference(p));
         }).toList();
         List<ValidationRuleNode> rules=ctx.validationBlock()==null?List.of():ctx.validationBlock().validationStatement().stream()
-                .map(v -> new ValidationRuleNode(toLocation(v),extractRawSource(v.condition),v.message==null?"":unquote(v.message.getText()))).toList();
+                .map(this::javaValidation).toList();
         List<JavaImportNode> imports=ctx.javaImports()==null?List.of():ctx.javaImports().qualifiedName().stream()
                 .map(n -> new JavaImportNode(toLocation(n),n.getText())).toList();
         List<MethodNode> helpers=new ArrayList<>(); String body=""; Optional<String> implementation=Optional.empty(); int count=0;
+        List<NativeStatement> nativeBody = List.of();
         for(var member:ctx.usecaseBehaviorMember()) {
             if(member.behaviorMethod()!=null) {
                 var m=member.behaviorMethod();
+                rejectNativeHelper(m);
                 helpers.add(new MethodNode(toLocation(m),m.visibility==null?"public":m.visibility.getText(),toTypeNode(m.returnType),
                         m.name.getText(),m.parameterList()==null?List.of():extractParameters(m.parameterList()),
                         m.rawJavaBlock()==null?"":extractRawSource(m.rawJavaBlock()),Optional.ofNullable(m.implementation).map(ParserRuleContext::getText)));
             } else { count++; body=member.rawJavaBlock()==null?"":extractRawSource(member.rawJavaBlock());
-                implementation=Optional.ofNullable(member.implementation).map(ParserRuleContext::getText); }
+                implementation=Optional.ofNullable(member.implementation).map(ParserRuleContext::getText);
+                nativeBody = nativeBody(member.nativeBehaviorBody());
+            }
         }
         return new UseCaseNode(toLocation(ctx),ctx.name.getText(),inputs,rules,dependencies,
-                Optional.ofNullable(ctx.resultType).map(this::toTypeNode),results,imports,helpers,body,implementation,count,Optional.ofNullable(ctx.requiresClause()).map(c -> authorization(c.authorizationRequirement())));
+                Optional.ofNullable(ctx.resultType).map(this::toTypeNode),results,imports,List.copyOf(helpers),body,implementation,count,Optional.ofNullable(ctx.requiresClause()).map(c -> authorization(c.authorizationRequirement())), nativeBody);
     }
 
     @Override public RoleNode visitRoleDefinition(VernacParser.RoleDefinitionContext ctx) {
@@ -674,8 +726,7 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
                         m.rawJavaBlock() == null ? "" : extractRawSource(m.rawJavaBlock()),
                         Optional.ofNullable(m.implementation).map(ParserRuleContext::getText)),
                 m.validationBlock() == null ? List.of() : m.validationBlock().validationStatement().stream()
-                        .map(v -> new ValidationRuleNode(toLocation(v), extractRawSource(v.condition),
-                                v.message == null ? "" : unquote(v.message.getText()))).toList())).toList();
+                        .map(this::javaValidation).toList())).toList();
         return new DomainServiceNode(toLocation(ctx), ctx.name.getText(), dependencies, imports, methods);
     }
 
@@ -690,12 +741,18 @@ public class AstBuilderVisitor extends VernacBaseVisitor<AstNode> {
         for (var member : ctx.usecaseBehaviorMember()) {
             if (member.behaviorMethod() != null) {
                 var m = member.behaviorMethod();
+                rejectNativeHelper(m);
                 helpers.add(new MethodNode(toLocation(m), m.visibility == null ? "public" : m.visibility.getText(), toTypeNode(m.returnType), m.name.getText(),
                     m.parameterList() == null ? List.of() : extractParameters(m.parameterList()), m.rawJavaBlock() == null ? "" : extractRawSource(m.rawJavaBlock()), Optional.ofNullable(m.implementation).map(ParserRuleContext::getText)));
-            } else { count++; body = member.rawJavaBlock() == null ? "" : extractRawSource(member.rawJavaBlock()); implementation = Optional.ofNullable(member.implementation).map(ParserRuleContext::getText); }
+            } else {
+                if (member.nativeBehaviorBody() != null)
+                    throw new org.vernac.compiler.analyzer.SemanticValidationException(List.of(
+                            org.vernac.compiler.analyzer.CompilerDiagnostic.error(toLocation(member),
+                                    "Native execute currently requires a use case")));
+                count++; body = member.rawJavaBlock() == null ? "" : extractRawSource(member.rawJavaBlock()); implementation = Optional.ofNullable(member.implementation).map(ParserRuleContext::getText); }
         }
         var operation = new UseCaseNode(toLocation(ctx), ctx.name.getText(), List.of(new FieldNode(toLocation(ctx), eventType, "event")), List.of(), dependencies,
-                Optional.empty(), List.of(), imports, helpers, body, implementation, count);
+                Optional.empty(), List.of(), imports, List.copyOf(helpers), body, implementation, count);
         return new ListenerNode(toLocation(ctx), ctx.name.getText(), ctx.deliveryMode.getText().equals("deferred"), eventType, operation);
     }
     private RepositoryMethodNode.Expression queryExpression(VernacParser.RepositoryExpressionContext ctx,

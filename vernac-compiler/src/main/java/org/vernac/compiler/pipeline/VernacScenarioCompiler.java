@@ -22,6 +22,7 @@ import org.vernac.compiler.ast.FieldNode;
 import org.vernac.compiler.ast.ImportNode;
 import org.vernac.compiler.ast.MethodNode;
 import org.vernac.compiler.ast.SourceLocation;
+import org.vernac.compiler.ast.KeywordExpression;
 import org.vernac.compiler.ast.TopLevelDefinition;
 import org.vernac.compiler.ast.TypeNode;
 import org.vernac.compiler.ast.ValueObjectNode;
@@ -76,17 +77,23 @@ public final class VernacScenarioCompiler {
     }
 
     public int generate(Path root, List<Path> sources, ResolvedProject main, Path output, String profile) throws IOException {
+        return generateSelected(root, sources, main, output, profile, null);
+    }
+
+    /** Emits only the requested case IDs in the selected profile. A null selection keeps the full profile. */
+    public int generateSelected(Path root, List<Path> sources, ResolvedProject main, Path output,
+                                String profile, Set<String> caseIds) throws IOException {
         // Retain the bridge after the last case is removed so an incremental build overwrites
         // the existing test class instead of allowing Surefire to run a stale case.
-        if (sources.isEmpty() && profile == null && !Files.exists(output.resolve(GeneratedSourceWriter.MANIFEST))) return 0;
+        if (sources.isEmpty() && profile == null && caseIds == null && !Files.exists(output.resolve(GeneratedSourceWriter.MANIFEST))) return 0;
 
         Map<String, String> texts = new LinkedHashMap<>();
         for (Path path : sources) {
             String source = "src/test/vernac/" + root.relativize(path).toString().replace('\\', '/');
             texts.put(source, Files.readString(path));
         }
-        var compiled = compile(texts, main, profile, false);
-        if (profile != null && compiled.caseCount() == 0)
+        var compiled = compile(texts, main, profile, false, caseIds, null);
+        if (caseIds == null && profile != null && compiled.caseCount() == 0)
             throw error(new SourceLocation(root.toString(), 0, 0), "No Vernac scenarios match profile '" + profile + "'");
         GeneratedSourceWriter.write(List.of(compiled.bridge()), output);
         return compiled.caseCount();
@@ -94,7 +101,43 @@ public final class VernacScenarioCompiler {
 
     /** Checks the same source snapshots used for generation without writing generated files. */
     public List<Reference> validate(Map<String, String> sources, ResolvedProject main) {
-        return compile(sources, main, null, true).references();
+        return compile(sources, main, null, true, null, null).references();
+    }
+
+    /** Models the direct references reported by scenario validation, including other profiles.
+     * Callers must account for transitive effects, Java fixtures and other opaque inputs.
+     */
+    public List<ScenarioReferences> inspect(Map<String, String> sources, ResolvedProject main) {
+        return catalog(sources, main).references();
+    }
+
+    Catalog catalog(Map<String, String> sources, ResolvedProject main) {
+        var inventory = new ArrayList<ScenarioReferences>();
+        var compiled = compile(new java.util.TreeMap<>(sources), main, null, true, null, inventory);
+        // The bridge and inventory share the compiler's scenario order.
+        var methods = new LinkedHashMap<String, MethodSpec>();
+        for (int index = 0; index < inventory.size(); index++)
+            methods.put(inventory.get(index).id(), compiled.bridge().typeSpec().methodSpecs().get(index));
+        return new Catalog(List.copyOf(inventory), Map.copyOf(methods));
+    }
+
+    record Catalog(List<ScenarioReferences> references, Map<String, MethodSpec> methods) {
+        JavaFile bridge(Set<String> ids, String profile) {
+            var bridge = TypeSpec.classBuilder(BRIDGE);
+            var missing = new java.util.TreeSet<>(ids);
+            for (var test : references) {
+                if (includesProfile(profile, test.profile()) && missing.remove(test.id()))
+                    bridge.addMethod(methods.get(test.id()));
+            }
+            if (!missing.isEmpty())
+                throw error(SourceLocation.UNKNOWN, "Vernac scenarios not found in the selected profiles: " + missing);
+            return JavaFile.builder(PACKAGE, bridge.build()).indent("    ").build();
+        }
+    }
+
+    public record ScenarioReferences(String id, String profile, SourceLocation location, boolean usesJavaFixture,
+                                     List<Reference> directReferences) {
+        public ScenarioReferences { directReferences = List.copyOf(directReferences); }
     }
 
     /** A source reference and its resolved model declaration, with a code-point width. */
@@ -102,11 +145,12 @@ public final class VernacScenarioCompiler {
 
     private record Compilation(JavaFile bridge, int caseCount, List<Reference> references) { }
 
-    private Compilation compile(Map<String, String> sources, ResolvedProject main, String selectedProfile, boolean allProfiles) {
+    private Compilation compile(Map<String, String> sources, ResolvedProject main, String selectedProfile, boolean allProfiles, Set<String> caseIds, List<ScenarioReferences> inventory) {
         var bridge = TypeSpec.classBuilder(BRIDGE);
         List<Reference> references = new ArrayList<>();
         Set<String> suites = new HashSet<>();
         Set<String> cases = new HashSet<>();
+        var remaining = caseIds == null ? null : new java.util.TreeSet<>(caseIds);
         int executed = 0;
         var model = model(main);
         for (var entry : sources.entrySet()) {
@@ -133,23 +177,34 @@ public final class VernacScenarioCompiler {
                     throw error(location(source, suite.profileName), "Unknown scenario profile '" + profile + "'");
                 if (!profile.equals("domain") && configuration == null)
                     throw error(location(source, suite), "Profile '" + profile + "' requires a suite test configuration");
-                boolean selected = allProfiles || (selectedProfile == null ? !profile.equals("postgres") : selectedProfile.equals(profile));
+                boolean selected = allProfiles || includesProfile(selectedProfile, profile);
                 for (var scenario : suite.testScenario()) {
                     String scenarioName = scenario.name.getText();
                     if (!VernacNames.isIdentifier(scenarioName))
                         throw error(location(source, scenario.name), VernacNames.invalidNameMessage(scenarioName));
                     String id = suiteId + "." + scenarioName;
                     if (!cases.add(id)) throw error(location(source, scenario), "Duplicate scenario '" + id + "'");
+                    int firstReference = references.size();
                     var test = new Scenario(source, id, scope, main, model.definitions(), references, configuration, profile).compile(scenario);
-                    if (selected) {
+                    if (inventory != null) {
+                        inventory.add(new ScenarioReferences(id, profile, location(source, scenario), configuration != null,
+                                references.subList(firstReference, references.size())));
+                    }
+                    if (selected && (remaining == null || remaining.remove(id))) {
                         bridge.addMethod(test);
                         executed++;
                     }
                 }
             }
         }
+        if (remaining != null && !remaining.isEmpty())
+            throw error(SourceLocation.UNKNOWN, "Vernac scenarios not found in the selected profiles: " + remaining);
         return new Compilation(JavaFile.builder(PACKAGE, bridge.build()).indent("    ").build(),
                 executed, List.copyOf(references));
+    }
+
+    static boolean includesProfile(String selectedProfile, String scenarioProfile) {
+        return selectedProfile == null ? !scenarioProfile.equals("postgres") : selectedProfile.equals(scenarioProfile);
     }
 
     private record Model(Map<String, TopLevelDefinition> definitions, Set<String> namespaces) { }
@@ -281,6 +336,8 @@ public final class VernacScenarioCompiler {
                     request(method, fixtures, step, ++response);
                 } else if (statement instanceof TestStepContext step && step.operation != null) {
                     invoke(method, fixtures, step);
+                } else if (statement instanceof TestStepContext step && step.keywordAction != null) {
+                    keywordAction(method, fixtures, step);
                 } else if (statement instanceof TestStepContext step) {
                     behavior(method, fixtures, step);
                 } else if (statement instanceof TestAssertionContext assertion) {
@@ -300,6 +357,13 @@ public final class VernacScenarioCompiler {
                                 ? CodeBlock.of("$L.get()", portCalls.get(assertion.portMethod.getText()).counter())
                                 : eventCount(assertion, observations.get(assertion.eventType.getText()), fixtures);
                         method.addStatement("$T.assertEquals((long) $L, (long) $L, statement)", ASSERTIONS, count, observedCount);
+                        continue;
+                    }
+                    if (assertion.predicate != null) {
+                        var predicate = KeywordExpressionParser.build(source, assertion.predicate);
+                        var result = predicateExpression(predicate, fixtures);
+                        requireScalar(predicate, result, boolean.class);
+                        method.addStatement("$T.assertTrue($L, statement)", ASSERTIONS, result.code());
                         continue;
                     }
                     var actual = expression(assertion.actual, fixtures);
@@ -388,6 +452,7 @@ public final class VernacScenarioCompiler {
             for (var step : current.testStep()) {
                 if (step.fixture != null) bind(scratch, fixtures, step.fixture, expression(step.value, fixtures));
                 else if (step.operation != null) invoke(scratch, fixtures, step);
+                else if (step.keywordAction != null) keywordAction(scratch, fixtures, step);
                 else if (step.receiver != null) behavior(scratch, fixtures, step);
             }
 
@@ -675,6 +740,170 @@ public final class VernacScenarioCompiler {
             CodeBlock name = CodeBlock.of("$L", fixtureName(fixture));
             method.addStatement("var $L = $L", name, value.code());
             fixtures.put(fixture, new Expression(name, value.type(), value.optional()));
+        }
+
+        private Expression predicateExpression(KeywordExpression expression, Map<String, Expression> fixtures) {
+            return switch (expression) {
+                case KeywordExpression.Name name -> {
+                    var fixture = fixtures.get(name.name());
+                    if (fixture == null) throw error(name.location(), "Unknown fixture '" + name.name() + "'");
+                    yield fixture;
+                }
+                case KeywordExpression.Literal literal -> predicateLiteral(literal);
+                case KeywordExpression.UnaryMessage message -> predicateRead(message, fixtures);
+                case KeywordExpression.Prefix prefix -> {
+                    var operand = predicateExpression(prefix.operand(), fixtures);
+                    requireScalar(prefix.operand(), operand, prefix.operator().equals("!") ? boolean.class : int.class);
+                    yield new Expression(CodeBlock.of("($L($L))", prefix.operator(), operand.code()), operand.type());
+                }
+                case KeywordExpression.Binary binary -> predicateBinary(binary, fixtures);
+                case KeywordExpression.Match match -> predicateMatch(match, fixtures);
+                case KeywordExpression.Message message -> keywordCall(message, fixtures, MethodNode.Mode.READ);
+            };
+        }
+
+        private void keywordAction(MethodSpec.Builder method, Map<String, Expression> fixtures,
+                                   TestStepContext step) {
+            var action = KeywordExpressionParser.build(source, step.keywordAction);
+            if (!(action instanceof KeywordExpression.Message message))
+                throw error(action.location(), "Expected a keyword message in the action");
+            var invocation = keywordCall(message, fixtures, MethodNode.Mode.MODIFY);
+            if (step.expectedRejection != null) {
+                if (step.result != null)
+                    throw error(location(source, step.result), "A rejected action cannot bind a result");
+                method.addStatement("$T.assertEquals($S, $T.assertThrows($T.class, () -> $L, statement).code(), statement)",
+                        ASSERTIONS, step.expectedRejection.getText(), ASSERTIONS,
+                        org.vernac.runtime.NativeValidation.Rejection.class, invocation.code());
+            } else if (step.result == null) {
+                method.addStatement("$L", invocation.code());
+            } else {
+                if (invocation.type() instanceof ResolvedType.VoidReturn)
+                    throw error(location(source, step.result), "The action does not return a value");
+                bind(method, fixtures, step.result, invocation);
+            }
+        }
+
+        private Expression keywordCall(KeywordExpression.Message message, Map<String, Expression> fixtures,
+                                       MethodNode.Mode allowedMode) {
+            var receiver = predicateExpression(message.receiver(), fixtures);
+            String name = message.parts().getFirst().name();
+            var candidates = receiver.optional() ? List.<MethodNode>of() : methods(definition(receiver.type()));
+            var matches = candidates.stream()
+                    .filter(candidate -> candidate.accessModifier().equals("public") && candidate.name().equals(name))
+                    .filter(candidate -> candidate.mode() == MethodNode.Mode.READ || candidate.mode() == allowedMode)
+                    .filter(candidate -> candidate.parameters().size() == message.parts().size())
+                    .filter(candidate -> java.util.stream.IntStream.range(1, message.parts().size()).allMatch(
+                            index -> message.parts().get(index).name().equals(candidate.parameters().get(index).name())))
+                    .toList();
+            if (matches.size() != 1)
+                throw error(message.location(), "Expected one accessible behavior for selector '" + message.selector() + "'");
+            var target = matches.getFirst();
+            var arguments = new ArrayList<CodeBlock>();
+            for (int index = 0; index < message.parts().size(); index++) {
+                var part = message.parts().get(index);
+                var parameter = target.parameters().get(index);
+                var argument = predicateExpression(part.argument(), fixtures);
+                var expected = main.typeOf(parameter.type());
+                if (!argument.type().equals(expected) || argument.optional())
+                    throw error(part.argument().location(), "Expected " + describe(expected, false)
+                            + ", got " + describe(argument.type(), argument.optional()));
+                references.add(new Reference(part.location(), part.name().codePointCount(0, part.name().length()),
+                        index == 0 ? target.location() : parameter.location()));
+                arguments.add(argument.code());
+            }
+            var type = main.typeOf(target.returnType());
+            if (type instanceof ResolvedType.VoidReturn && allowedMode == MethodNode.Mode.READ)
+                throw error(message.location(), "A predicate message must return a value");
+            return new Expression(CodeBlock.of("$L.$L($L)", receiver.code(), name, CodeBlock.join(arguments, ", ")),
+                    type, target.returnType().isOptional());
+        }
+
+        private Expression predicateMatch(KeywordExpression.Match match, Map<String, Expression> fixtures) {
+            var subject = predicateExpression(match.subject(), fixtures);
+            if (!subject.optional()) throw error(match.subject().location(), "Match requires an optional value");
+            String binding = match.binding().name();
+            if (!VernacNames.isIdentifier(binding) || fixtures.containsKey(binding))
+                throw error(match.binding().location(), "Invalid or duplicate match binding '" + binding + "'");
+
+            var branchFixtures = new HashMap<>(fixtures);
+            String parameter = fixtureName(binding);
+            branchFixtures.put(binding, new Expression(CodeBlock.of("$L", parameter), subject.type()));
+            var present = predicateExpression(match.onPresent(), branchFixtures);
+            var absent = predicateExpression(match.onAbsent(), fixtures);
+            if (!present.type().equals(absent.type()) || present.optional() != absent.optional())
+                throw error(match.onAbsent().location(), "Expected " + describe(present.type(), present.optional())
+                        + ", got " + describe(absent.type(), absent.optional()));
+            return new Expression(CodeBlock.of("$L.map($L -> $L).orElseGet(() -> $L)",
+                    subject.code(), parameter, present.code(), absent.code()), present.type(), present.optional());
+        }
+
+        private Expression predicateRead(KeywordExpression.UnaryMessage message, Map<String, Expression> fixtures) {
+            String member = message.selector();
+            if (message.receiver() instanceof KeywordExpression.Name name && !fixtures.containsKey(name.name())) {
+                var lookup = scope.resolve(name.name(), name.location());
+                if (lookup.type().orElse(null) instanceof ResolvedType.Declared type
+                        && definition(type) instanceof ValueObjectNode enumeration && enumeration.isEnum()) {
+                    var constant = enumeration.enumConstants().stream()
+                            .filter(candidate -> candidate.name().equals(member)).findFirst()
+                            .orElseThrow(() -> error(message.location(), "Unknown enum member '" + member + "'"));
+                    references.add(new Reference(message.location(), member.codePointCount(0, member.length()),
+                            constant.location()));
+                    return new Expression(CodeBlock.of("$L.$L", JavaTypeNames.canonicalName(type), member), type);
+                }
+            }
+            var receiver = predicateExpression(message.receiver(), fixtures);
+            var field = receiver.optional() ? null : fieldType(definition(receiver.type()), member);
+            if (field == null) throw error(message.location(), "Unknown readable field '" + member + "'");
+            references.add(new Reference(message.location(), member.codePointCount(0, member.length()), field.location()));
+            return new Expression(CodeBlock.of("$L.$L()", receiver.code(), member),
+                    main.typeOf(field), field.isOptional());
+        }
+
+        private Expression predicateBinary(KeywordExpression.Binary binary, Map<String, Expression> fixtures) {
+            var left = predicateExpression(binary.left(), fixtures);
+            var right = predicateExpression(binary.right(), fixtures);
+            String operator = binary.operator();
+            var bool = new ResolvedType.Builtin(boolean.class);
+            if (operator.equals("==") || operator.equals("!=")) {
+                if (!left.type().equals(right.type()) || left.optional() != right.optional())
+                    throw error(binary.right().location(), "Expected " + describe(left.type(), left.optional())
+                            + ", got " + describe(right.type(), right.optional()));
+                return new Expression(CodeBlock.of("($L$T.equals($L, $L))", operator.equals("!=") ? "!" : "",
+                        java.util.Objects.class, left.code(), right.code()), bool);
+            }
+            if (operator.equals("&&") || operator.equals("||")) {
+                requireScalar(binary.left(), left, boolean.class);
+                requireScalar(binary.right(), right, boolean.class);
+                return new Expression(CodeBlock.of("($L $L $L)", left.code(), operator, right.code()), bool);
+            }
+            requireScalar(binary.left(), left, int.class);
+            requireScalar(binary.right(), right, int.class);
+            var resultType = Set.of("<", "<=", ">", ">=").contains(operator) ? bool : left.type();
+            return new Expression(CodeBlock.of("($L $L $L)", left.code(), operator, right.code()), resultType);
+        }
+
+        private Expression predicateLiteral(KeywordExpression.Literal literal) {
+            String spelling = literal.spelling();
+            try {
+                return switch (literal.kind()) {
+                    case STRING -> new Expression(CodeBlock.of("$S",
+                            spelling.substring(1, spelling.length() - 1).translateEscapes()),
+                            new ResolvedType.Builtin(String.class));
+                    case INTEGER -> new Expression(CodeBlock.of("$L", Integer.parseInt(spelling)),
+                            new ResolvedType.Builtin(int.class));
+                    case BOOLEAN -> new Expression(CodeBlock.of("$L", spelling), new ResolvedType.Builtin(boolean.class));
+                    case DECIMAL -> throw error(literal.location(), "Decimal literals are not supported in scenario predicates yet");
+                };
+            } catch (IllegalArgumentException failure) {
+                throw error(literal.location(), "Invalid test literal '" + spelling + "'");
+            }
+        }
+
+        private void requireScalar(KeywordExpression at, Expression actual, Class<?> javaType) {
+            var expected = new ResolvedType.Builtin(javaType);
+            if (!actual.type().equals(expected) || actual.optional())
+                throw error(at.location(), "Expected " + describe(expected, false)
+                        + ", got " + describe(actual.type(), actual.optional()));
         }
 
         private Expression expression(TestExpressionContext value, Map<String, Expression> fixtures) {
