@@ -70,6 +70,11 @@ public final class ScenarioDaemon {
         return switch (requiredText(request, "op")) {
             case "sharedRevision" -> Map.of("revision", shared.revision());
             case "refresh" -> Map.of("revision", shared.refreshSavedSources(revision(request)));
+            case "runSaved" -> {
+                boolean opaqueChange = optionalBoolean(request, "opaqueChange");
+                long savedRevision = shared.refreshSavedSources(revision(request));
+                yield shared.run(savedRevision, opaqueChange);
+            }
             case "open" -> {
                 var overlay = shared.openOverlay(revision(request), executors.get());
                 String client = Long.toString(Math.incrementExact(lastClient));

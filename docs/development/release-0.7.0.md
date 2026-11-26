@@ -196,6 +196,11 @@ The `refresh` request takes the expected shared `revision` and scans both saved 
 It publishes additions, changes and deletions in one shared revision. If the sources are unchanged,
 it returns the same revision. Open overlays retain their snapshots and new overlays can open on
 the refreshed revision. Changed configuration or module index data requires a daemon restart.
+`runSaved` takes the expected shared `revision` and combines that refresh with an affected test run
+in the same request. The shared workspace retains its compilation cache and its last passing baseline
+across requests. An optional `opaqueChange: true` requests conservative execution after changes outside
+Vernac source files. When source validation fails, `sharedRevision` reports the revision already
+captured from disk, so the client can retry after repairing the sources.
 Automatic file watching, overlay persistence and cancellation remain open.
 
 ### Structured model operations for agents

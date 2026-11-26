@@ -23,6 +23,51 @@ class ScenarioDaemonTest {
     @TempDir Path root;
 
     @Test
+    void runsOnlyAffectedSavedScenariosAgainstTheLastPassingRevision() throws Exception {
+        var main = Files.createDirectories(root.resolve("src/main/vernac/app"));
+        Files.writeString(main.resolve("counter.vernac"), "namespace app; value Counter(int);");
+        var tests = Files.createDirectories(root.resolve("src/test/vernac/app"));
+        String passing = "namespace app; suite Edited { scenario counter { given n = Counter(1); expect n.intValue equals 1; } }";
+        var edited = Files.writeString(tests.resolve("edited.vernac"), passing);
+        Files.writeString(tests.resolve("other.vernac"),
+                "namespace app; suite Other { scenario counter { given n = Counter(2); expect n.intValue equals 2; } }");
+        var classpath = ScenarioDaemonLauncher.classpath();
+        var daemon = new ScenarioDaemon(ScenarioWorkspace.openSaved(root, new InProcessScenarioExecutor(classpath), "domain"),
+                () -> fail("saved runs must use the shared executor"));
+        var output = new StringWriter();
+        daemon.serve(new StringReader("""
+                {"id":1,"op":"runSaved","revision":0}
+                """), output);
+        Files.writeString(edited, passing.replace("equals 1", "equals 3"));
+        daemon.serve(new StringReader("""
+                {"id":2,"op":"runSaved","revision":0}
+                {"id":3,"op":"runSaved","revision":0}
+                {"id":4,"op":"runSaved","revision":1}
+                """), output);
+        Files.writeString(edited, passing.replace("Counter(1)", "Counter(3)").replace("equals 1", "equals 3"));
+        daemon.serve(new StringReader("""
+                {"id":5,"op":"runSaved","revision":1}
+                {"id":6,"op":"runSaved","revision":2}
+                """), output);
+
+        var json = JsonMapper.builder().build();
+        var replies = output.toString().lines().map(json::readTree).toList();
+        assertEquals(6, replies.size());
+        var initial = replies.get(0).at("/result/outcomes");
+        assertEquals("PASSED", initial.path("app.Edited.counter").asText());
+        assertEquals("PASSED", initial.path("app.Other.counter").asText());
+        assertEquals(1, replies.get(1).at("/result/revision").intValue());
+        assertEquals(1, replies.get(1).at("/result/outcomes").size());
+        assertEquals("FAILED", replies.get(1).at("/result/outcomes/app.Edited.counter").asText());
+        assertEquals("stale_revision", replies.get(2).at("/error/code").asText());
+        assertEquals("FAILED", replies.get(3).at("/result/outcomes/app.Edited.counter").asText());
+        assertEquals(2, replies.get(4).at("/result/revision").intValue());
+        assertEquals(1, replies.get(4).at("/result/outcomes").size());
+        assertEquals("PASSED", replies.get(4).at("/result/outcomes/app.Edited.counter").asText());
+        assertTrue(replies.get(5).at("/result/outcomes").isEmpty());
+    }
+
+    @Test
     void publishesSavedChangesAsOneRevisionWithoutRebasingOpenOverlays() throws Exception {
         var main = Files.createDirectories(root.resolve("src/main/vernac/app"));
         var tests = Files.createDirectories(root.resolve("src/test/vernac/app"));
