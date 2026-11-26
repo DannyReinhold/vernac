@@ -126,11 +126,8 @@ chooses synchronous participation or durable deferred handling.
 
 ## Designed for AI‑assisted development
 
-Vernac’s language reference is deterministic and self‑contained.  
-It avoids hidden defaults, ambiguous semantics and framework‑specific magic.
-
-See the **AI‑specific language reference**:  
-[ai-language-reference.md](ai-language-reference.md)
+Give an agent the affected model file and the task page for its change. For an empty project,
+start with the small, executable task model. [AI language reference](ai-language-reference.md)
 
 ---
 

@@ -58,6 +58,19 @@ when the corresponding checks are reported.
 
 ## Checks
 
+The [AI reference](../ai-language-reference.md) is a short, version-aware index. Each linked task
+under `docs/ai/` states its starting files or template, its change and how to verify the outcome.
+Use a full-file `diff` block for a small edit (space for context, `+` for an addition, `-` for
+a removal). Use `vernac-test` for runnable suites. The tests compile the before and after models in
+separate projects. They also execute the aggregate scenario and the rendered action scenario with
+its declared Spring Boot starter fixture. Each worked-example heading in the detailed reference gets
+its own compilation with its associated Java inputs.
+
+For a single-file prompt, `python3 tools/bundle-ai-reference.py` emits UTF-8 Markdown on stdout. It
+includes the index, its task pages, the detailed reference and the build commands from this checkout.
+For agent evaluation compare both an empty project and a subsequent local edit with the same model,
+ticket and acceptance tests. Record the documentation tokens read and time to a passing acceptance test.
+
 DocumentationExamplesTest extracts the complete entry-point models from Markdown,
 compiles their generated Java and exercises domain behavior. Existing mapping/REST
 tutorial execution tests remain. Complete tutorial models, including the DDD beginner chapters, are also checked
