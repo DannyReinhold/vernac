@@ -10,6 +10,7 @@ import tools.jackson.databind.json.JsonMapper;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -36,17 +37,19 @@ class ScenarioDaemonLauncherTest {
                 """;
         Files.writeString(cases, scenario);
 
-        var first = runProcess();
+        var first = runProcess(ScenarioDaemonLauncher.class.getName(), root.toString(), "domain");
         assertEquals("EXPLICIT_SELECTION", first.get(1).at("/result/selected/0/reason").asText());
         assertEquals("PASSED", first.get(2).at("/result/outcomes/app.Checks.counter").asText());
         assertEquals("NO_BASELINE", first.get(2).at("/result/selected/0/reason").asText());
         assertTrue(Files.readString(root.resolve("daemon-stderr.log")).contains("scenario fixture output"));
 
         Files.writeString(cases, scenario.replace("equals 1", "equals 2"));
-        var restarted = runProcess();
+        var restarted = runProcess(ScenarioCli.class.getName(), "daemon");
         assertEquals(0, restarted.getFirst().at("/result/baseRevision").asInt());
         assertEquals("FAILED", restarted.get(1).at("/result/outcomes/app.Checks.counter").asText());
         assertEquals("FAILED", restarted.get(2).at("/result/outcomes/app.Checks.counter").asText());
+        assertEquals(1, restarted.get(3).at("/result/protocolVersion").intValue());
+        assertEquals(0, restarted.get(3).at("/result/revision").intValue());
     }
 
     @Test
@@ -83,7 +86,7 @@ class ScenarioDaemonLauncherTest {
     private JsonNode runCli(String command, int expectedExit, String... options) throws Exception {
         var stderr = root.resolve("cli-stderr.log");
         var stdout = root.resolve("cli-stdout.log");
-        var arguments = new java.util.ArrayList<>(List.of(javaExecutable().toString(), "-cp", System.getProperty("java.class.path"),
+        var arguments = new ArrayList<>(List.of(javaExecutable().toString(), "-cp", System.getProperty("java.class.path"),
                 ScenarioCli.class.getName(), command, root.toString(), "domain"));
         arguments.addAll(List.of(options));
         var process = new ProcessBuilder(arguments)
@@ -102,11 +105,12 @@ class ScenarioDaemonLauncherTest {
         return Files.isRegularFile(executable) ? executable : executable.resolveSibling("java.exe");
     }
 
-    private List<JsonNode> runProcess() throws Exception {
+    private List<JsonNode> runProcess(String... invocation) throws Exception {
         var stderr = root.resolve("daemon-stderr.log");
         var stdout = root.resolve("daemon-stdout.log");
-        var process = new ProcessBuilder(javaExecutable().toString(), "-cp", System.getProperty("java.class.path"),
-                ScenarioDaemonLauncher.class.getName(), root.toString(), "domain")
+        var arguments = new ArrayList<>(List.of(javaExecutable().toString(), "-cp", System.getProperty("java.class.path")));
+        arguments.addAll(List.of(invocation));
+        var process = new ProcessBuilder(arguments).directory(root.toFile())
                 .redirectError(stderr.toFile()).redirectOutput(stdout.toFile()).start();
         try {
             try (var input = process.getOutputStream()) {
@@ -114,13 +118,14 @@ class ScenarioDaemonLauncherTest {
                         {"id":1,"op":"open","revision":0}
                         {"id":2,"op":"runScenario","client":"1","revision":0,"scenario":"app.Checks.counter"}
                         {"id":3,"op":"run","client":"1","revision":0}
+                        {"id":4,"op":"hello"}
                         """.getBytes(StandardCharsets.UTF_8));
             }
             assertTrue(process.waitFor(30, TimeUnit.SECONDS), "Daemon did not exit after EOF");
             assertEquals(0, process.exitValue(), Files.readString(stderr));
             var json = JsonMapper.builder().build();
             var responses = Files.readAllLines(stdout).stream().map(json::readTree).toList();
-            assertEquals(3, responses.size(), Files.readString(stdout));
+            assertEquals(4, responses.size(), Files.readString(stdout));
             return responses;
         } finally {
             if (process.isAlive()) process.destroyForcibly();

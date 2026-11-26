@@ -6,16 +6,17 @@ import org.vernac.compiler.analyzer.SemanticValidationException;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Set;
 
-/** One-shot CLI for a saved workspace check or test run. */
+/** CLI for a saved workspace check, test run or local daemon session. */
 public final class ScenarioCli {
     private static final JsonMapper JSON = JsonMapper.builder().build();
-    private static final Set<String> PROFILES = Set.of("domain", "mvc", "postgres");
 
     private ScenarioCli() { }
 
@@ -27,19 +28,24 @@ public final class ScenarioCli {
 
     private static int execute(String[] args, PrintStream output) {
         try {
-            if (args.length < 1 || !Set.of("check", "test").contains(args[0])) return usage(output);
+            if (args.length < 1 || !Set.of("check", "test", "daemon").contains(args[0])) return usage(output);
             boolean test = args[0].equals("test");
             int next = 1;
             Path root = Path.of(".");
             if (next < args.length && !args[next].startsWith("--")) root = Path.of(args[next++]);
             String profile = null;
-            if (next < args.length && PROFILES.contains(args[next])) profile = args[next++];
+            if (next < args.length && ScenarioDaemonLauncher.PROFILES.contains(args[next])) profile = args[next++];
             String scenario = null;
             if (next < args.length) {
                 if (!test || args.length - next != 2 || !args[next].equals("--scenario") || args[next + 1].isBlank()) {
                     return usage(output);
                 }
                 scenario = args[next + 1];
+            }
+            if (args[0].equals("daemon")) {
+                ScenarioDaemonLauncher.serve(root, profile, new InputStreamReader(System.in, StandardCharsets.UTF_8),
+                        new OutputStreamWriter(output, StandardCharsets.UTF_8));
+                return 0;
             }
             var workspace = ScenarioDaemonLauncher.openWorkspace(root, profile, ScenarioDaemonLauncher.classpath());
             long revision = workspace.revision();
@@ -62,7 +68,7 @@ public final class ScenarioCli {
 
     private static int usage(PrintStream output) {
         write(output, Map.of("error", "usage", "message",
-                "Usage: vernac <check|test> [workspace [domain|mvc|postgres]] [--scenario <id> (test only)]"));
+                "Usage: vernac <check|test|daemon> [workspace [domain|mvc|postgres]] [--scenario <id> (test only)]"));
         return 2;
     }
 

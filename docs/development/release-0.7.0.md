@@ -192,6 +192,10 @@ sequentially and reports stale revisions and validation diagnostics. A fresh JVM
 with the compiler, Jupiter engine and project dependencies on its Java classpath. It captures the
 saved Vernac sources, module descriptors and build-generated module index at startup, and uses UTF-8
 stdin/stdout for the protocol. Test output goes to stderr. A restart captures the saved tree again.
+The distribution exposes the same session as `vernac daemon [workspace [domain|mvc|postgres]]`.
+A client keeps the process open, sends one UTF-8 JSON object per line and reads each correlated
+reply from stdout. `{"id":1,"op":"hello"}` returns `protocolVersion` and the current saved
+`revision` in the reply's `result`. Closing stdin ends the session.
 The launcher includes the project's Maven `target/test-classes` and `target/classes` outputs.
 Handwritten fixtures and application classes there share a classloader with the new generated classes,
 so Spring and the scenario bridge use the same type identities. Compile Java fixtures and prepare
@@ -271,6 +275,7 @@ requires a JDK and can work without Maven installed. The current directory is th
 vernac check
 vernac test --scenario app.Checks.counter
 vernac test /path/to/project mvc
+vernac daemon /path/to/project mvc
 ```
 
 The CLI reads saved sources and writes one JSON result to stdout. Status 0 indicates success, 1 a
@@ -279,8 +284,9 @@ source error or a non-passing test outcome, and 2 an invalid invocation or execu
 external libraries, supply their Java classpath via `VERNAC_PROJECT_CLASSPATH` using the platform's
 classpath separator. The runner picks up precompiled project fixtures from `target/test-classes`
 and `target/classes`. The daemon's `runScenario` offers equivalent selection on an overlay
-revision without advancing its affected-test baseline. Each CLI invocation opens a fresh workspace.
-Reusing an existing daemon from this launcher and resolving project dependencies remain open.
+revision without advancing its affected-test baseline. The one-shot commands open a fresh workspace.
+Clients can retain warm state by keeping `vernac daemon` open. Connecting a one-shot command to a
+separately running daemon and resolving project dependencies remain open.
 
 | Proposed command | Contract to implement and test |
 | --- | --- |

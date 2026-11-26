@@ -6,6 +6,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.io.Reader;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -15,25 +17,31 @@ import java.util.regex.Pattern;
 
 /** Launches the local JSON protocol using a workspace captured at startup. */
 public final class ScenarioDaemonLauncher {
+    static final Set<String> PROFILES = Set.of("domain", "mvc", "postgres");
+
     private ScenarioDaemonLauncher() { }
 
     public static void main(String[] args) throws IOException {
         if (args.length < 1 || args.length > 2
-                || args.length == 2 && !Set.of("domain", "mvc", "postgres").contains(args[1])) {
+                || args.length == 2 && !PROFILES.contains(args[1])) {
             System.err.println("Usage: ScenarioDaemonLauncher <workspace> [domain|mvc|postgres]");
             System.exit(2);
             return;
         }
-        var workspaceRoot = Path.of(args[0]).toRealPath();
         String profile = args.length == 2 ? args[1] : null;
-        var classpath = classpath();
         var protocol = System.out;
         // Application and fixture output must not be interleaved with replies.
         System.setOut(System.err);
-        new ScenarioDaemon(openWorkspace(workspaceRoot, profile, classpath),
-                () -> executor(workspaceRoot, classpath)).serve(
+        serve(Path.of(args[0]), profile,
                 new InputStreamReader(System.in, StandardCharsets.UTF_8),
                 new OutputStreamWriter(protocol, StandardCharsets.UTF_8));
+    }
+
+    static void serve(Path workspaceRoot, String profile, Reader input, Writer output) throws IOException {
+        var root = workspaceRoot.toRealPath();
+        var classpath = classpath();
+        new ScenarioDaemon(openWorkspace(root, profile, classpath),
+                () -> executor(root, classpath)).serve(input, output);
     }
 
     static List<Path> classpath() {

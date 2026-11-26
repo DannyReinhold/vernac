@@ -68,6 +68,7 @@ public final class ScenarioDaemon {
 
     private Object dispatch(JsonNode request) throws IOException {
         return switch (requiredText(request, "op")) {
+            case "hello" -> Map.of("protocolVersion", 1, "revision", shared.revision());
             case "sharedRevision" -> Map.of("revision", shared.revision());
             case "refresh" -> Map.of("revision", shared.refreshSavedSources(revision(request)));
             case "checkSaved" -> checkReply(shared.check(shared.refreshSavedSources(revision(request))));
