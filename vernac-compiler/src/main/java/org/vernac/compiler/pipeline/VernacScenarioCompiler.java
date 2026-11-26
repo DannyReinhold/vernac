@@ -753,12 +753,17 @@ public final class VernacScenarioCompiler {
                 case KeywordExpression.UnaryMessage message -> predicateRead(message, fixtures);
                 case KeywordExpression.Prefix prefix -> {
                     var operand = predicateExpression(prefix.operand(), fixtures);
+                    if (prefix.operator().equals("-") && isDecimal(operand)) {
+                        requireScalar(prefix.operand(), operand, java.math.BigDecimal.class);
+                        yield new Expression(CodeBlock.of("($L).negate()", operand.code()), operand.type());
+                    }
                     requireScalar(prefix.operand(), operand, prefix.operator().equals("!") ? boolean.class : int.class);
                     yield new Expression(CodeBlock.of("($L($L))", prefix.operator(), operand.code()), operand.type());
                 }
                 case KeywordExpression.Binary binary -> predicateBinary(binary, fixtures);
                 case KeywordExpression.Match match -> predicateMatch(match, fixtures);
-                case KeywordExpression.Message message -> keywordCall(message, fixtures, MethodNode.Mode.READ);
+                case KeywordExpression.Block block -> throw error(block.location(), "A block requires a collection message");
+                case KeywordExpression.Message message -> predicateMessage(message, fixtures);
             };
         }
 
@@ -767,7 +772,7 @@ public final class VernacScenarioCompiler {
             var action = KeywordExpressionParser.build(source, step.keywordAction);
             if (!(action instanceof KeywordExpression.Message message))
                 throw error(action.location(), "Expected a keyword message in the action");
-            var invocation = keywordCall(message, fixtures, MethodNode.Mode.MODIFY);
+            var invocation = keywordCall(message, predicateExpression(message.receiver(), fixtures), fixtures, MethodNode.Mode.MODIFY);
             if (step.expectedRejection != null) {
                 if (step.result != null)
                     throw error(location(source, step.result), "A rejected action cannot bind a result");
@@ -783,9 +788,110 @@ public final class VernacScenarioCompiler {
             }
         }
 
-        private Expression keywordCall(KeywordExpression.Message message, Map<String, Expression> fixtures,
-                                       MethodNode.Mode allowedMode) {
+        private Expression predicateMessage(KeywordExpression.Message message, Map<String, Expression> fixtures) {
+            String selector = message.selector();
+            if (message.receiver() instanceof KeywordExpression.Name name && !fixtures.containsKey(name.name())) {
+                var factory = NativeKeywordMessages.temporalFactory(name.name(), selector);
+                if (factory != null) return temporalMessage(message, factory, null, fixtures);
+            }
             var receiver = predicateExpression(message.receiver(), fixtures);
+            if (NativeKeywordMessages.isCollectionSelector(selector)) {
+                var element = NativeKeywordMessages.collectionElement(main, receiver.type());
+                if (element != null) return collectionMessage(message, receiver, fixtures, element);
+            }
+            if (receiver.type() instanceof ResolvedType.Builtin builtin) {
+                var operation = NativeKeywordMessages.temporalInstance(builtin.javaType(), selector);
+                if (operation != null) return temporalMessage(message, operation, receiver, fixtures);
+            }
+            var parts = message.parts();
+            if (selector.equals(NativeKeywordMessages.CONDITIONAL)
+                    && receiver.type().equals(new ResolvedType.Builtin(boolean.class))) {
+                requireScalar(message.receiver(), receiver, boolean.class);
+                var onTrue = predicateExpression(parts.getFirst().argument(), fixtures);
+                var alternative = parts.get(1).argument();
+                var onFalse = predicateExpression(alternative, fixtures);
+                if (!onTrue.type().equals(onFalse.type()) || onTrue.optional() != onFalse.optional()) {
+                    throw error(alternative.location(), "Conditional alternatives must have the same type and optionality");
+                }
+                return new Expression(CodeBlock.of("($L ? $L : $L)", receiver.code(), onTrue.code(), onFalse.code()),
+                        onTrue.type(), onTrue.optional());
+            }
+            boolean round = selector.equals(NativeKeywordMessages.ROUNDED);
+            if (isDecimal(receiver) && (round || selector.equals(NativeKeywordMessages.DIVIDED))) {
+                requireScalar(message.receiver(), receiver, java.math.BigDecimal.class);
+                var scaleNode = parts.get(round ? 0 : 1).argument();
+                var scale = predicateExpression(scaleNode, fixtures);
+                requireScalar(scaleNode, scale, int.class);
+                var mode = NativeKeywordMessages.roundingMode(parts.getLast().argument());
+                var roundingMode = CodeBlock.of("$T.$L", java.math.RoundingMode.class, mode.name());
+                if (round) {
+                    return new Expression(CodeBlock.of("($L).setScale($L, $L)", receiver.code(), scale.code(), roundingMode),
+                            receiver.type());
+                }
+                var divisorNode = parts.getFirst().argument();
+                var divisor = predicateExpression(divisorNode, fixtures);
+                requireScalar(divisorNode, divisor, java.math.BigDecimal.class);
+                return new Expression(CodeBlock.of("($L).divide($L, $L, $L)", receiver.code(), divisor.code(),
+                        scale.code(), roundingMode), receiver.type());
+            }
+            return keywordCall(message, receiver, fixtures, MethodNode.Mode.READ);
+        }
+
+        private Expression collectionMessage(KeywordExpression.Message message, Expression receiver,
+                                             Map<String, Expression> fixtures, ResolvedType.Declared element) {
+            if (receiver.optional()) throw error(message.receiver().location(), "Match an optional collection before querying it");
+            var block = NativeKeywordMessages.requireBlock(message.parts().getFirst().argument());
+            String name = block.binding().name();
+            if (!VernacNames.isIdentifier(name) || fixtures.containsKey(name)) {
+                throw error(block.binding().location(), "Invalid or duplicate collection binding '" + name + "'");
+            }
+            String parameter = fixtureName(name);
+            var nested = new HashMap<>(fixtures);
+            nested.put(name, new Expression(CodeBlock.of("$L", parameter), element));
+            var projection = predicateExpression(block.body(), nested);
+            if (message.selector().equals(NativeKeywordMessages.COLLECT)) {
+                var target = message.parts().getLast().argument();
+                var output = NativeKeywordMessages.collectionTarget(target, scope);
+                var outputElement = NativeKeywordMessages.collectionElement(main, output);
+                if (projection.optional() || !projection.type().equals(outputElement)) {
+                    throw error(block.body().location(), "Collection block must return a non-optional "
+                            + outputElement.symbol().identity().qualifiedName());
+                }
+                String typeName = ((KeywordExpression.Name) target).name();
+                references.add(new Reference(target.location(), typeName.codePointCount(0, typeName.length()),
+                        output.symbol().location()));
+                return new Expression(CodeBlock.of("$L.of($T.collect($L, $L -> $L))", JavaTypeNames.canonicalName(output),
+                        org.vernac.runtime.NativeValidation.class, receiver.code(), parameter, projection.code()), output);
+            }
+            boolean sum = message.selector().equals(NativeKeywordMessages.SUM);
+            boolean decimal = isDecimal(projection);
+            Class<?> result = sum ? decimal ? java.math.BigDecimal.class : int.class : boolean.class;
+            requireScalar(block.body(), projection, result);
+            if (message.selector().equals(NativeKeywordMessages.SELECT)) {
+                return new Expression(CodeBlock.of("($L).filter($L -> $L)", receiver.code(), parameter, projection.code()), receiver.type());
+            }
+            var operation = !sum ? org.vernac.runtime.NativeValidation.CollectionOperator.ANY
+                    : decimal ? org.vernac.runtime.NativeValidation.CollectionOperator.SUM_DECIMAL
+                    : org.vernac.runtime.NativeValidation.CollectionOperator.SUM_INTEGER;
+            return new Expression(CodeBlock.of("(($T) $T.collectionQuery($L, $L -> $L, $T.$L))", result,
+                    org.vernac.runtime.NativeValidation.class, receiver.code(), parameter, projection.code(),
+                    org.vernac.runtime.NativeValidation.CollectionOperator.class, operation.name()), new ResolvedType.Builtin(result));
+        }
+
+        private Expression temporalMessage(KeywordExpression.Message message, NativeKeywordMessages.TemporalMessage operation,
+                                           Expression receiver, Map<String, Expression> fixtures) {
+            if (receiver != null) requireScalar(message.receiver(), receiver, operation.owner());
+            var argumentNode = message.parts().getFirst().argument();
+            var argument = predicateExpression(argumentNode, fixtures);
+            requireScalar(argumentNode, argument, operation.argument());
+            var code = CodeBlock.of("(($T) $T.$L.apply($L, $L))", operation.result(),
+                    org.vernac.runtime.NativeValidation.TemporalOperator.class, operation.operator().name(),
+                    receiver == null ? argument.code() : receiver.code(), receiver == null ? CodeBlock.of("null") : argument.code());
+            return new Expression(code, new ResolvedType.Builtin(operation.result()));
+        }
+
+        private Expression keywordCall(KeywordExpression.Message message, Expression receiver,
+                                       Map<String, Expression> fixtures, MethodNode.Mode allowedMode) {
             String name = message.parts().getFirst().name();
             var candidates = receiver.optional() ? List.<MethodNode>of() : methods(definition(receiver.type()));
             var matches = candidates.stream()
@@ -852,6 +958,12 @@ public final class VernacScenarioCompiler {
                 }
             }
             var receiver = predicateExpression(message.receiver(), fixtures);
+            if (member.equals(NativeKeywordMessages.AS_DECIMAL)
+                    && receiver.type().equals(new ResolvedType.Builtin(int.class))) {
+                requireScalar(message.receiver(), receiver, int.class);
+                return new Expression(CodeBlock.of("$T.valueOf($L)", java.math.BigDecimal.class, receiver.code()),
+                        new ResolvedType.Builtin(java.math.BigDecimal.class));
+            }
             var field = receiver.optional() ? null : fieldType(definition(receiver.type()), member);
             if (field == null) throw error(message.location(), "Unknown readable field '" + member + "'");
             references.add(new Reference(message.location(), member.codePointCount(0, member.length()), field.location()));
@@ -868,6 +980,10 @@ public final class VernacScenarioCompiler {
                 if (!left.type().equals(right.type()) || left.optional() != right.optional())
                     throw error(binary.right().location(), "Expected " + describe(left.type(), left.optional())
                             + ", got " + describe(right.type(), right.optional()));
+                if (isDecimal(left)) {
+                    return new Expression(CodeBlock.of("($L$T.decimalEquals($L, $L))", operator.equals("!=") ? "!" : "",
+                            org.vernac.runtime.NativeValidation.class, left.code(), right.code()), bool);
+                }
                 return new Expression(CodeBlock.of("($L$T.equals($L, $L))", operator.equals("!=") ? "!" : "",
                         java.util.Objects.class, left.code(), right.code()), bool);
             }
@@ -876,10 +992,20 @@ public final class VernacScenarioCompiler {
                 requireScalar(binary.right(), right, boolean.class);
                 return new Expression(CodeBlock.of("($L $L $L)", left.code(), operator, right.code()), bool);
             }
-            requireScalar(binary.left(), left, int.class);
-            requireScalar(binary.right(), right, int.class);
+            var number = isDecimal(left) ? java.math.BigDecimal.class : int.class;
+            requireScalar(binary.left(), left, number);
+            requireScalar(binary.right(), right, number);
             var resultType = Set.of("<", "<=", ">", ">=").contains(operator) ? bool : left.type();
+            if (isDecimal(left)) {
+                var resultClass = resultType.equals(bool) ? boolean.class : java.math.BigDecimal.class;
+                return new Expression(CodeBlock.of("(($T) $T.decimalOperation($S, $L, $L))", resultClass,
+                        org.vernac.runtime.NativeValidation.class, operator, left.code(), right.code()), resultType);
+            }
             return new Expression(CodeBlock.of("($L $L $L)", left.code(), operator, right.code()), resultType);
+        }
+
+        private static boolean isDecimal(Expression expression) {
+            return expression.type().equals(new ResolvedType.Builtin(java.math.BigDecimal.class));
         }
 
         private Expression predicateLiteral(KeywordExpression.Literal literal) {
@@ -892,11 +1018,16 @@ public final class VernacScenarioCompiler {
                     case INTEGER -> new Expression(CodeBlock.of("$L", Integer.parseInt(spelling)),
                             new ResolvedType.Builtin(int.class));
                     case BOOLEAN -> new Expression(CodeBlock.of("$L", spelling), new ResolvedType.Builtin(boolean.class));
-                    case DECIMAL -> throw error(literal.location(), "Decimal literals are not supported in scenario predicates yet");
+                    case DECIMAL -> decimalLiteral(spelling);
                 };
             } catch (IllegalArgumentException failure) {
                 throw error(literal.location(), "Invalid test literal '" + spelling + "'");
             }
+        }
+
+        private Expression decimalLiteral(String spelling) {
+            return new Expression(CodeBlock.of("new $T($S)", java.math.BigDecimal.class, spelling),
+                    new ResolvedType.Builtin(java.math.BigDecimal.class));
         }
 
         private void requireScalar(KeywordExpression at, Expression actual, Class<?> javaType) {
@@ -911,6 +1042,18 @@ public final class VernacScenarioCompiler {
             if (value.factory != null) {
                 var type = resolve(value.factory.getText(), value.factory);
                 reference(value.factory, type.symbol().location());
+                var element = NativeKeywordMessages.collectionElement(main, type);
+                if (element != null) {
+                    var values = new ArrayList<CodeBlock>();
+                    if (value.testArguments() != null) {
+                        for (var argument : value.testArguments().testExpression()) {
+                            var entry = expression(argument, fixtures);
+                            requireType(argument, entry, element, false);
+                            values.add(entry.code());
+                        }
+                    }
+                    return new Expression(CodeBlock.of("$L.of($L)", JavaTypeNames.canonicalName(type), CodeBlock.join(values, ", ")), type);
+                }
                 var definition = definition(type);
                 var factory = switch (definition) {
                     case AggregateNode ignored -> "create";
@@ -968,6 +1111,7 @@ public final class VernacScenarioCompiler {
                             new ResolvedType.Builtin(String.class));
                     case VernacParser.INT_LITERAL -> new Expression(CodeBlock.of("$L", Integer.parseInt(literal)),
                             new ResolvedType.Builtin(int.class));
+                    case VernacParser.DECIMAL_LITERAL -> decimalLiteral(literal);
                     default -> new Expression(CodeBlock.of("$L", literal), new ResolvedType.Builtin(boolean.class));
                 };
             } catch (IllegalArgumentException e) {

@@ -8,17 +8,22 @@ import org.vernac.compiler.analyzer.CompilerDiagnostic;
 import org.vernac.compiler.analyzer.SemanticValidationException;
 import org.vernac.compiler.ast.*;
 import org.vernac.compiler.pipeline.ResolvedProject;
+import org.vernac.compiler.pipeline.NativeKeywordMessages;
 import org.vernac.compiler.symbols.ResolvedType;
 import org.vernac.compiler.symbols.TypeSymbol;
+import org.vernac.runtime.NativeBehavior;
 import org.vernac.runtime.NativeValidation;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Set;
 
 /** Resolves state reads and emits an executable predicate against the domain read interface. */
 public final class NativeValidationCompiler {
+    private static final int BEHAVIOR_FORMAT_VERSION = 1;
     private static final ResolvedType.Builtin BOOL = new ResolvedType.Builtin(boolean.class);
     private static final ResolvedType.Builtin INT = new ResolvedType.Builtin(int.class);
+    private static final ResolvedType.Builtin DECIMAL = new ResolvedType.Builtin(BigDecimal.class);
 
     private final TopLevelDefinition owner;
     private final ResolvedProject project;
@@ -95,7 +100,8 @@ public final class NativeValidationCompiler {
         checkNativeMethod(owner, method);
         emit(implementation, companion, BehaviorGenerator.receiver(ownerType, method), owner,
                 method.parameters(), method.nativeBody(), method.mode() == MethodNode.Mode.MODIFY,
-                project.typeOf(method.returnType()), null, method.location(), index, project);
+                project.typeOf(method.returnType()), null, method.location(), index, project,
+                BehaviorGenerator.companion(ownerType));
     }
 
     static void emitUseCase(MethodSpec.Builder implementation, TypeSpec.Builder companion, ClassName receiver,
@@ -105,50 +111,70 @@ public final class NativeValidationCompiler {
             throw error(useCase.location(), "Native execute currently requires non-optional inputs and result");
         }
         var result = useCase.resultType().map(project::typeOf).orElseGet(ResolvedType.VoidReturn::new);
-        var compoundResult = useCase.resultFields().isEmpty() ? null
-                : ClassName.get(receiver.packageName().substring(0, receiver.packageName().lastIndexOf('.')),
-                        useCase.name(), "Result");
+        var owner = ClassName.get(receiver.packageName().substring(0, receiver.packageName().lastIndexOf('.')), useCase.name());
+        var compoundResult = useCase.resultFields().isEmpty() ? null : owner.nestedClass("Result");
         emit(implementation, companion, receiver, useCase, useCase.parameters(), useCase.nativeBody(),
-                true, result, compoundResult, useCase.location(), 0, project);
+                true, result, compoundResult, useCase.location(), 0, project, BehaviorGenerator.companion(owner));
     }
 
     private static void emit(MethodSpec.Builder implementation, TypeSpec.Builder companion, ClassName receiver,
                              TopLevelDefinition owner, List<FieldNode> parameters, List<NativeStatement> body,
                              boolean canModify, ResolvedType returns, ClassName compoundResult, SourceLocation location, int index,
-                             ResolvedProject project) {
+                             ResolvedProject project, ClassName implementationClass) {
         if (parameters.stream().anyMatch(p -> p.name().equals("__vernacInvocation")))
             throw error(location, "Reserved native parameter '__vernacInvocation'");
         var locals = new java.util.ArrayList<LocalSlot>();
         var compiler = new NativeValidationCompiler(owner, project, parameters, List.of(), locals, true);
-        var invocation = ParameterizedTypeName.get(ClassName.get(NativeValidation.Invocation.class), receiver);
-        var expressionType = ParameterizedTypeName.get(ClassName.get(NativeValidation.Expression.class), invocation);
+        var bodyProgram = compiler.compileBlock(body, canModify, returns, compoundResult);
+        boolean returnsValue = compoundResult != null || !(returns instanceof ResolvedType.VoidReturn);
+        if (!bodyProgram.returns() && returnsValue) throw error(location, "Native behavior must return a value");
+
+        String name = "nativeBehavior" + index;
+        var programType = ParameterizedTypeName.get(ClassName.get(NativeBehavior.Program.class), receiver);
+        companion.addField(FieldSpec.builder(programType, name, Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
+                .initializer("new $T<>($L, $L, $T.of($L))", NativeBehavior.Program.class,
+                        BEHAVIOR_FORMAT_VERSION, bodyProgram.localCount(), List.class,
+                        CodeBlock.join(bodyProgram.instructions(), ",\n"))
+                .build());
         var arguments = parameters.stream().map(FieldNode::name).collect(java.util.stream.Collectors.joining(", "));
-        long localCount = body.stream().filter(NativeStatement.Let.class::isInstance).count();
-        implementation.addStatement("var __vernacInvocation = new $T(self, $T.of($L), $L)",
-                invocation, List.class, arguments, localCount);
-        int step = 0;
+        var execute = CodeBlock.of("$N.execute(self, $T.of($L), $T.class, $L)", name, List.class, arguments,
+                implementationClass, index);
+        if (returnsValue) {
+            TypeName resultType = compoundResult != null ? compoundResult : ResolvedJavaTypes.javaType(returns);
+            implementation.addStatement("return ($T) $L", resultType, execute);
+        } else {
+            implementation.addStatement("$L", execute);
+        }
+    }
+
+    private record CompiledBlock(List<CodeBlock> instructions, boolean returns, int localCount) { }
+
+    private CompiledBlock compileBranch(List<NativeStatement> steps, boolean canModify, ResolvedType returns,
+                                        ClassName compoundResult) {
+        return new NativeValidationCompiler(owner, project, parameters, bindings, new java.util.ArrayList<>(locals), invocation)
+                .compileBlock(steps, canModify, returns, compoundResult);
+    }
+
+    private CompiledBlock compileBlock(List<NativeStatement> body, boolean canModify, ResolvedType returns,
+                                       ClassName compoundResult) {
+        var instructions = new java.util.ArrayList<CodeBlock>();
         boolean returned = false;
+        int localCount = locals.size();
         for (var statement : body) {
-            var at = statementLocation(statement);
+            var at = statement.location();
             if (returned) throw error(at, "Native statement after return");
-            String name = "nativeBehavior" + index + "Step" + step++;
-            switch (statement) {
+            instructions.add(switch (statement) {
                 case NativeStatement.Let let -> {
-                    compiler.checkBindingName(let.name());
-                    var value = compiler.resolve(let.value());
+                    checkBindingName(let.name());
+                    var value = resolve(let.value());
                     if (value.type() instanceof ResolvedType.VoidReturn)
                         throw error(let.value(), "A local binding requires a value");
-                    addProgram(companion, expressionType, name, value.program());
-                    implementation.addStatement("__vernacInvocation.bind($L, $N.evaluate(__vernacInvocation))",
-                            locals.size(), name);
+                    int slot = locals.size();
                     locals.add(new LocalSlot(let.name().name(), value.type(), value.optional()));
+                    yield CodeBlock.of("new $T<>($L, $L)", NativeBehavior.Bind.class, slot, value.program());
                 }
-                case NativeStatement.Require rule -> {
-                    addProgram(companion, expressionType, name, compiler.compile(rule.predicate()));
-                    implementation.beginControlFlow("if (!(boolean) $N.evaluate(__vernacInvocation))", name)
-                            .addStatement("throw new $T($S)", NativeValidation.Rejection.class, rule.rejection())
-                            .endControlFlow();
-                }
+                case NativeStatement.Require rule -> CodeBlock.of("new $T<>($L, $S)", NativeBehavior.Require.class,
+                        compile(rule.predicate()), rule.rejection());
                 case NativeStatement.Assign assignment -> {
                     if (!canModify || owner instanceof UseCaseNode)
                         throw error(at, "Only modify behaviors may assign state");
@@ -156,46 +182,43 @@ public final class NativeValidationCompiler {
                             .findFirst().orElseThrow(() -> error(at, "Unknown mutable field '" + assignment.field() + "'"));
                     var type = project.typeOf(field.type());
                     if (field.type().isOptional()) throw error(at, "Native assignments require a non-optional field");
-                    addProgram(companion, expressionType, name, compiler.compileValue(assignment.value(), type));
-                    implementation.addStatement("self.$N(($T) $N.evaluate(__vernacInvocation))",
-                            field.name(), ResolvedJavaTypes.javaType(type), name);
+                    yield CodeBlock.of("new $T<>($L, (target, value) -> target.$N(($T) value))",
+                            NativeBehavior.Assign.class, compileValue(assignment.value(), type),
+                            field.name(), ResolvedJavaTypes.javaType(type));
                 }
                 case NativeStatement.Send send -> {
                     if (!canModify)
                         throw error(at, "Only modify behaviors may send modification messages");
                     if (!(send.expression() instanceof KeywordExpression.Message message))
                         throw error(at, "Expected a keyword message");
-                    addProgram(companion, expressionType, name, compiler.call(message, MethodNode.Mode.MODIFY).program());
-                    implementation.addStatement("$N.evaluate(__vernacInvocation)", name);
+                    yield CodeBlock.of("new $T<>($L)", NativeBehavior.Send.class,
+                            call(message, MethodNode.Mode.MODIFY).program());
+                }
+                case NativeStatement.Branch branch -> {
+                    var condition = compile(branch.condition());
+                    var onTrue = compileBranch(branch.onTrue(), canModify, returns, compoundResult);
+                    var onFalse = compileBranch(branch.onFalse(), canModify, returns, compoundResult);
+                    localCount = Math.max(localCount, Math.max(onTrue.localCount(), onFalse.localCount()));
+                    returned = onTrue.returns() && onFalse.returns();
+                    yield CodeBlock.of("new $T<>($L, $T.of($L), $T.of($L))", NativeBehavior.Branch.class, condition,
+                            List.class, CodeBlock.join(onTrue.instructions(), ",\n"),
+                            List.class, CodeBlock.join(onFalse.instructions(), ",\n"));
                 }
                 case NativeStatement.Return result -> {
+                    returned = true;
+                    CodeBlock value;
                     if (compoundResult != null) {
-                        var program = compiler.compileResult(result.value(), (UseCaseNode) owner, compoundResult);
-                        addProgram(companion, expressionType, name, program);
-                        implementation.addStatement("return ($T) $N.evaluate(__vernacInvocation)", compoundResult, name);
+                        value = compileResult(result.value(), (UseCaseNode) owner, compoundResult);
                     } else {
                         if (returns instanceof ResolvedType.VoidReturn)
                             throw error(at, "Void native behavior cannot return a value");
-                        addProgram(companion, expressionType, name, compiler.compileValue(result.value(), returns));
-                        implementation.addStatement("return ($T) $N.evaluate(__vernacInvocation)",
-                                ResolvedJavaTypes.javaType(returns), name);
+                        value = compileValue(result.value(), returns);
                     }
-                    returned = true;
+                    yield CodeBlock.of("new $T<>($L)", NativeBehavior.Return.class, value);
                 }
-            }
+            });
         }
-        if (!returned && (compoundResult != null || !(returns instanceof ResolvedType.VoidReturn)))
-            throw error(location, "Native behavior must return a value");
-    }
-
-    private static SourceLocation statementLocation(NativeStatement statement) {
-        return switch (statement) {
-            case NativeStatement.Let let -> let.name().location();
-            case NativeStatement.Require rule -> rule.predicate().location();
-            case NativeStatement.Assign assignment -> assignment.location();
-            case NativeStatement.Send send -> send.expression().location();
-            case NativeStatement.Return result -> result.value().location();
-        };
+        return new CompiledBlock(instructions, returned, Math.max(localCount, locals.size()));
     }
 
     private static void checkNativeMethod(TopLevelDefinition owner, MethodNode method) {
@@ -203,11 +226,6 @@ public final class NativeValidationCompiler {
             throw error(method.location(), "Native behavior currently requires an entity or aggregate read or modify method");
         if (method.returnType().isOptional() || method.parameters().stream().anyMatch(p -> p.type().isOptional()))
             throw error(method.location(), "Native behavior currently requires non-optional parameters and result");
-    }
-
-    private static void addProgram(TypeSpec.Builder companion, TypeName type, String name, CodeBlock code) {
-        companion.addField(FieldSpec.builder(type, name, Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
-                .initializer(code).build());
     }
 
     private CodeBlock compileResult(KeywordExpression result, UseCaseNode useCase, ClassName resultType) {
@@ -248,21 +266,142 @@ public final class NativeValidationCompiler {
                         binding.type(), binding.optional());
             }
             case KeywordExpression.Match match -> match(match);
-            case KeywordExpression.Message message -> call(message, MethodNode.Mode.READ);
+            case KeywordExpression.Block block -> throw error(block, "A block requires a collection message");
+            case KeywordExpression.Message message -> readMessage(message);
             case KeywordExpression.UnaryMessage message -> {
+                var constant = enumConstant(message);
+                if (constant != null) yield constant;
+                if (message.selector().equals(NativeKeywordMessages.AS_DECIMAL)) {
+                    var operand = scalarReceiver(message.receiver());
+                    if (operand != null && operand.type().equals(INT)) {
+                        require(message.receiver(), operand, INT);
+                        yield new Typed(CodeBlock.of("new $T<>($L)", NativeValidation.ToDecimal.class, operand.program()),
+                                DECIMAL, false);
+                    }
+                }
                 var read = read(message);
                 yield new Typed(CodeBlock.of("$T.access(context -> $L)", NativeValidation.class, read.code()),
                         project.typeOf(read.field().type()), read.field().type().isOptional());
             }
             case KeywordExpression.Prefix prefix -> {
                 var result = resolve(prefix.operand());
-                var expected = prefix.operator().equals("!") ? BOOL : INT;
+                var expected = prefix.operator().equals("!") ? BOOL : numericType(result.type());
                 require(prefix.operand(), result, expected);
                 yield new Typed(CodeBlock.of("$T.prefix($S, $L)", NativeValidation.class,
                         prefix.operator(), result.program()), expected, false);
             }
             case KeywordExpression.Binary binary -> binary(binary);
         };
+    }
+
+    private Typed enumConstant(KeywordExpression.UnaryMessage message) {
+        if (!(message.receiver() instanceof KeywordExpression.Name receiver)
+                || receiver.name().equals("self") || hasBinding(receiver.name())) return null;
+        var candidate = scopeFor(owner).resolve(receiver.name(), receiver.location()).type().orElse(null);
+        if (!(candidate instanceof ResolvedType.Declared type) || type.symbol().kind() != TypeSymbol.Kind.ENUM) return null;
+        var enumeration = (ValueObjectNode) readValueType(message, type);
+        if (enumeration.enumConstants().stream().noneMatch(member -> member.name().equals(message.selector()))) {
+            throw error(message, "Unknown enum member '" + message.selector() + "'");
+        }
+        return new Typed(CodeBlock.of("$T.literal($T.$L)", NativeValidation.class,
+                ResolvedJavaTypes.javaType(type), message.selector()), type, false);
+    }
+
+    private Typed scalarReceiver(KeywordExpression receiver) {
+        if (receiver instanceof KeywordExpression.Name name && !hasBinding(name.name())) return null;
+        return resolve(receiver);
+    }
+
+    private Typed readMessage(KeywordExpression.Message message) {
+        String selector = message.selector();
+        if (message.receiver() instanceof KeywordExpression.Name name && !hasBinding(name.name())) {
+            var factory = NativeKeywordMessages.temporalFactory(name.name(), selector);
+            if (factory != null) return temporalMessage(message, factory, null);
+        }
+        boolean conditional = selector.equals(NativeKeywordMessages.CONDITIONAL);
+        boolean round = selector.equals(NativeKeywordMessages.ROUNDED);
+        boolean divide = selector.equals(NativeKeywordMessages.DIVIDED);
+        if (conditional || round || divide || NativeKeywordMessages.isTemporalSelector(selector)
+                || NativeKeywordMessages.isCollectionSelector(selector)) {
+            var receiver = scalarReceiver(message.receiver());
+            if (receiver != null && NativeKeywordMessages.isCollectionSelector(selector)) {
+                var element = NativeKeywordMessages.collectionElement(project, receiver.type());
+                if (element != null) return collectionMessage(message, receiver, element);
+            }
+            if (receiver != null && receiver.type() instanceof ResolvedType.Builtin builtin) {
+                var operation = NativeKeywordMessages.temporalInstance(builtin.javaType(), selector);
+                if (operation != null) return temporalMessage(message, operation, receiver);
+            }
+            if (receiver != null && conditional && receiver.type().equals(BOOL)) {
+                require(message.receiver(), receiver, BOOL);
+                var onTrue = resolve(message.parts().getFirst().argument());
+                var alternative = message.parts().get(1).argument();
+                var onFalse = resolve(alternative);
+                if (!onTrue.type().equals(onFalse.type()) || onTrue.optional() != onFalse.optional()) {
+                    throw error(alternative, "Conditional alternatives must have the same type and optionality");
+                }
+                return new Typed(CodeBlock.of("new $T<>($L, $L, $L)", NativeValidation.Conditional.class,
+                        receiver.program(), onTrue.program(), onFalse.program()), onTrue.type(), onTrue.optional());
+            }
+            if (receiver != null && (round || divide) && receiver.type().equals(DECIMAL)) {
+                require(message.receiver(), receiver, DECIMAL);
+                var parts = message.parts();
+                var scale = compileValue(parts.get(round ? 0 : 1).argument(), INT);
+                var mode = NativeKeywordMessages.roundingMode(parts.getLast().argument());
+                var roundingMode = CodeBlock.of("$T.$L", java.math.RoundingMode.class, mode.name());
+                var code = round ? CodeBlock.of("new $T<>($L, $L, $L)", NativeValidation.RoundDecimal.class,
+                        receiver.program(), scale, roundingMode)
+                        : CodeBlock.of("new $T<>($L, $L, $L, $L)", NativeValidation.DivideDecimal.class,
+                                receiver.program(), compileValue(parts.getFirst().argument(), DECIMAL), scale, roundingMode);
+                return new Typed(code, DECIMAL, false);
+            }
+        }
+        return call(message, MethodNode.Mode.READ);
+    }
+
+    private Typed collectionMessage(KeywordExpression.Message message, Typed receiver, ResolvedType.Declared element) {
+        if (receiver.optional()) throw error(message.receiver(), "Match an optional collection before querying it");
+        var block = NativeKeywordMessages.requireBlock(message.parts().getFirst().argument());
+        checkBindingName(block.binding());
+        var nested = new java.util.ArrayList<>(bindings);
+        nested.add(new Binding(block.binding().name(), element));
+        var projection = new NativeValidationCompiler(owner, project, parameters, nested, locals, invocation).resolve(block.body());
+        if (message.selector().equals(NativeKeywordMessages.COLLECT)) {
+            var output = NativeKeywordMessages.collectionTarget(message.parts().getLast().argument(), scopeFor(owner));
+            var outputElement = NativeKeywordMessages.collectionElement(project, output);
+            if (projection.optional() || !projection.type().equals(outputElement)) {
+                throw error(block.body(), "Collection block must return a non-optional " + outputElement.symbol().identity().qualifiedName());
+            }
+            return collectionQuery(NativeValidation.CollectionOperator.COLLECT, receiver, projection, output, outputElement);
+        }
+        boolean sum = message.selector().equals(NativeKeywordMessages.SUM);
+        boolean select = message.selector().equals(NativeKeywordMessages.SELECT);
+        if (sum) require(block.body(), projection, numericType(projection.type()));
+        else require(block.body(), projection, BOOL);
+        var operation = select ? NativeValidation.CollectionOperator.SELECT : !sum ? NativeValidation.CollectionOperator.ANY
+                : projection.type().equals(DECIMAL) ? NativeValidation.CollectionOperator.SUM_DECIMAL
+                : NativeValidation.CollectionOperator.SUM_INTEGER;
+        return collectionQuery(operation, receiver, projection, select ? receiver.type() : projection.type(), select ? element : null);
+    }
+
+    private Typed collectionQuery(NativeValidation.CollectionOperator operation, Typed receiver, Typed projection,
+                                  ResolvedType output, ResolvedType.Declared outputElement) {
+        var rebuild = outputElement == null ? CodeBlock.of("null")
+                : CodeBlock.of("items -> $T.of(items.stream().map($T.class::cast).toList())",
+                        ResolvedJavaTypes.javaType(output), ResolvedJavaTypes.javaType(outputElement));
+        return new Typed(CodeBlock.of("new $T<>($T.$L, $L, $L, $L)", NativeValidation.CollectionQuery.class,
+                NativeValidation.CollectionOperator.class, operation.name(), receiver.program(), projection.program(), rebuild),
+                output, false);
+    }
+
+    private Typed temporalMessage(KeywordExpression.Message message, NativeKeywordMessages.TemporalMessage operation,
+                                  Typed receiver) {
+        if (receiver != null) require(message.receiver(), receiver, new ResolvedType.Builtin(operation.owner()));
+        var argument = compileValue(message.parts().getFirst().argument(), new ResolvedType.Builtin(operation.argument()));
+        var code = CodeBlock.of("new $T<>($T.$L, $L, $L)", NativeValidation.Temporal.class,
+                NativeValidation.TemporalOperator.class, operation.operator().name(),
+                receiver == null ? argument : receiver.program(), receiver == null ? CodeBlock.of("null") : argument);
+        return new Typed(code, new ResolvedType.Builtin(operation.result()), false);
     }
 
     private record Binding(String name, ResolvedType type) { }
@@ -508,13 +647,18 @@ public final class NativeValidationCompiler {
                 resultType = BOOL;
             }
             default -> {
-                require(expression.left(), left, INT);
-                require(expression.right(), right, INT);
-                resultType = Set.of("<", ">", "<=", ">=").contains(op) ? BOOL : INT;
+                var number = numericType(left.type());
+                require(expression.left(), left, number);
+                require(expression.right(), right, number);
+                resultType = Set.of("<", ">", "<=", ">=").contains(op) ? BOOL : number;
             }
         }
         return new Typed(CodeBlock.of("$T.binary($S, $L, $L)", NativeValidation.class,
                 op, left.program(), right.program()), resultType, false);
+    }
+
+    private static ResolvedType.Builtin numericType(ResolvedType type) {
+        return type.equals(DECIMAL) ? DECIMAL : INT;
     }
 
     private Read read(KeywordExpression.UnaryMessage expression) {
@@ -581,7 +725,8 @@ public final class NativeValidationCompiler {
                 case STRING -> new Typed(CodeBlock.of("$T.literal($S)", NativeValidation.class,
                         spelling.substring(1, spelling.length() - 1).translateEscapes()),
                         new ResolvedType.Builtin(String.class), false);
-                case DECIMAL -> throw error(literal, "Decimal literals are not supported in native validation yet");
+                case DECIMAL -> new Typed(CodeBlock.of("$T.literal(new $T($S))", NativeValidation.class,
+                        BigDecimal.class, spelling), DECIMAL, false);
             };
         } catch (IllegalArgumentException failure) {
             throw error(literal, "Invalid literal '" + spelling + "'");

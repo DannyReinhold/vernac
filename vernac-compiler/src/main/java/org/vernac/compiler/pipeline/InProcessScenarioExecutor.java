@@ -13,6 +13,7 @@ import org.junit.platform.launcher.core.LauncherFactory;
 import org.vernac.compiler.ast.WebViewNode;
 import org.vernac.compiler.persistence.SchemaModel;
 import org.vernac.compiler.pipeline.ScenarioRunSession.Outcome;
+import org.vernac.runtime.NativeBehaviorSources;
 
 import javax.tools.DiagnosticCollector;
 import javax.tools.JavaCompiler;
@@ -108,6 +109,7 @@ public final class InProcessScenarioExecutor implements ScenarioRunSession.Execu
                 tests = build(testSources, workspace.resolve("test-sources"), testClasses, testClasspath);
             }
 
+            NativeBehaviorSourceMaps.write(request.project(), applicationClasses);
             for (var template : request.project().webTemplates().entrySet()) {
                 var resource = applicationClasses.resolve("templates").resolve(template.getKey());
                 Files.createDirectories(resource.getParent());
@@ -227,7 +229,7 @@ public final class InProcessScenarioExecutor implements ScenarioRunSession.Execu
 
         @Override
         public URL getResource(String name) {
-            if (!name.startsWith(GENERATED_TEMPLATES)) return super.getResource(name);
+            if (!isOwnedResource(name)) return super.getResource(name);
             try {
                 var resources = getResources(name);
                 return resources.hasMoreElements() ? resources.nextElement() : null;
@@ -239,7 +241,7 @@ public final class InProcessScenarioExecutor implements ScenarioRunSession.Execu
         @Override
         public Enumeration<URL> getResources(String name) throws IOException {
             var inherited = super.getResources(name);
-            if (!name.startsWith(GENERATED_TEMPLATES)) return inherited;
+            if (!isOwnedResource(name)) return inherited;
             var current = new LinkedHashSet<URL>();
             var dependencies = new LinkedHashSet<URL>();
             while (inherited.hasMoreElements()) {
@@ -250,6 +252,10 @@ public final class InProcessScenarioExecutor implements ScenarioRunSession.Execu
             }
             current.addAll(dependencies);
             return Collections.enumeration(current);
+        }
+
+        private static boolean isOwnedResource(String name) {
+            return name.startsWith(GENERATED_TEMPLATES) || name.startsWith(NativeBehaviorSources.PREFIX);
         }
 
         @Override

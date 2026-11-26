@@ -47,6 +47,21 @@ the existing authorization, transaction and provider wiring. Store the IR with i
 artifact. Check runtime/format compatibility before executing an operation. Errors and stack locations
 must name the original Vernac declaration and source span.
 
+Native behavior statements now lower to a versioned in-memory program executed by the runtime.
+The generated method calls this interpreter for local bindings, requirements, assignments, sends,
+statement branches and returns, within the existing JVM behavior boundary. The runtime rejects
+an incompatible program version before execution. Expressions have explicit runtime nodes for literals,
+operators, optional matches, accesses and calls. The generated JVM bridge still constructs those
+nodes and supplies the host accessors and call targets. Boolean branches, integer-to-decimal
+conversion, rounding, division with rounding, date and duration operations, and typed collection
+queries, including projection into a declared collection, also have dedicated runtime nodes.
+The scenario runner and Maven build write versioned statement positions under
+`META-INF/vernac/native-sources/`. A runtime exception raised inside a native statement retains its
+original type and carries the declaration, source-relative path, line and column as a suppressed
+`SourceTrace`. Moving source lines in a native-only behavior refreshes that resource without
+changing the generated Java. Copied Java continues to use the existing debug map. Persisting and
+loading the executable program separately and linking its host bindings remain open.
+
 For interpreted aggregate modifications, stage writes, validate at the outermost boundary, then publish
 validated state to the existing object identities. Nested modifications and invariant reads see the
 candidate. A rejected outer modification discards all staged changes, including child changes, timestamps

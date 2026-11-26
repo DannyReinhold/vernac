@@ -63,7 +63,7 @@ testArguments
 
 testExpression
     : factory=qualifiedName '(' testArguments? ')'
-    | literal=(STRING_LITERAL | INT_LITERAL | BOOLEAN_LITERAL | 'true' | 'false')
+    | literal=(STRING_LITERAL | INT_LITERAL | DECIMAL_LITERAL | BOOLEAN_LITERAL | 'true' | 'false')
     | reference=qualifiedName
     ;
 
@@ -144,10 +144,13 @@ behaviorMethod
 
 nativeBehaviorBody : 'vernac' '{' nativeBehaviorStatement+ '}' ;
 
+nativeStatementBlock : '{' nativeBehaviorStatement* '}' ;
+
 nativeBehaviorStatement
     : 'let' local=variableName '=' initializer=keywordExpression '.'
     | 'require' predicate=keywordExpression 'else' rejection=typeName '.'
     | 'return' result=keywordExpression '.'
+    | 'if' condition=keywordExpression onTrue=nativeStatementBlock ('else' onFalse=nativeStatementBlock)?
     | receiver=variableName target=variableName '=' assigned=keywordExpression '.'
     | send=keywordExpression '.'
     ;
@@ -556,6 +559,7 @@ keywordPrimary
     : 'match' subject=keywordExpression '{'
       'present' binding=variableName '=>' onPresent=keywordExpression ','?
       'absent' '=>' onAbsent=keywordExpression '}'
+    | '[' blockBinding=variableName '|' blockBody=keywordExpression ']'
     | variableName
     | STRING_LITERAL
     | INT_LITERAL

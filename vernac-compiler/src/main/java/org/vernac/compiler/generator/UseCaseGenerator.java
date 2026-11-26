@@ -150,7 +150,9 @@ public final class UseCaseGenerator {
         files.add(file(owner.packageName(),bean));
         var companionFile=JavaFile.builder(owner.packageName(),implementation.build()).indent("    ").skipJavaLangImports(true);
         if(!u.resultFields().isEmpty()) companionFile.addStaticImport(owner,"Result");
-        BehaviorGenerator.addDebugFingerprint(implementation, companionFile.build(), unit, project);
+        if (u.nativeBody().isEmpty() || !u.methods().isEmpty()) {
+            BehaviorGenerator.addDebugFingerprint(implementation, companionFile.build(), unit, project);
+        }
         // Rebuild after adding the private fingerprint, preserving Result static imports.
         var finalCompanion=JavaFile.builder(owner.packageName(),implementation.build()).indent("    ").skipJavaLangImports(true);
         if(!u.resultFields().isEmpty()) finalCompanion.addStaticImport(owner,"Result");
