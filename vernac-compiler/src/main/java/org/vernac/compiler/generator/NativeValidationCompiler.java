@@ -132,9 +132,9 @@ public final class NativeValidationCompiler {
         String name = "nativeBehavior" + index;
         var programType = ParameterizedTypeName.get(ClassName.get(NativeBehavior.Program.class), receiver);
         companion.addField(FieldSpec.builder(programType, name, Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
-                .initializer("new $T<>($L, $L, $T.of($L))", NativeBehavior.Program.class,
+                .initializer("new $T<>($L, $L, $T.of($L), $T.class, $L)", NativeBehavior.Program.class,
                         BEHAVIOR_FORMAT_VERSION, bodyProgram.localCount(), List.class,
-                        CodeBlock.join(bodyProgram.instructions(), ",\n"))
+                        CodeBlock.join(bodyProgram.instructions(), ",\n"), implementationClass, index)
                 .build());
         var arguments = parameters.stream().map(FieldNode::name).collect(java.util.stream.Collectors.joining(", "));
         var execute = CodeBlock.of("$N.execute(self, $T.of($L), $T.class, $L)", name, List.class, arguments,

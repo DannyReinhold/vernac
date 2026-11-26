@@ -36,6 +36,10 @@ public final class NativeBehavior {
     }
 
     public record Program<S>(int formatVersion, int localCount, List<Step<S>> steps) {
+        public Program(int formatVersion, int localCount, List<Step<S>> steps, Class<?> implementation, int program) {
+            this(formatVersion, localCount, NativeBehaviorLayout.load(implementation, program, steps));
+        }
+
         public Program {
             if (formatVersion != FORMAT_VERSION) {
                 throw new IllegalArgumentException("Unsupported Vernac behavior format " + formatVersion

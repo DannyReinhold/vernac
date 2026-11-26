@@ -11,6 +11,9 @@ import org.vernac.compiler.ast.NativeStatement;
 import org.vernac.compiler.ast.UseCaseNode;
 import org.vernac.compiler.generator.BehaviorGenerator;
 import org.vernac.runtime.NativeBehaviorSources;
+import org.vernac.runtime.NativeBehaviorLayout;
+import org.vernac.runtime.NativeBehaviorLayout.Instruction;
+import org.vernac.runtime.NativeBehaviorLayout.Kind;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -18,7 +21,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Writes revision-specific statement positions independently of generated Java. */
+/** Writes revision-specific statement positions and control flow alongside generated Java. */
 public final class NativeBehaviorSourceMaps {
     private NativeBehaviorSourceMaps() { }
 
@@ -66,6 +69,23 @@ public final class NativeBehaviorSourceMaps {
         try (var stream = Files.newOutputStream(file)) {
             NativeBehaviorSources.write(stream, declaration, source, positions);
         }
+        var layout = output.resolve(NativeBehaviorLayout.resource(companion.canonicalName(), program));
+        try (var stream = Files.newOutputStream(layout)) {
+            NativeBehaviorLayout.write(stream, statements.stream().map(NativeBehaviorSourceMaps::instruction).toList());
+        }
+    }
+
+    private static Instruction instruction(NativeStatement statement) {
+        return switch (statement) {
+            case NativeStatement.Let ignored -> new Instruction(Kind.BIND);
+            case NativeStatement.Require ignored -> new Instruction(Kind.REQUIRE);
+            case NativeStatement.Assign ignored -> new Instruction(Kind.ASSIGN);
+            case NativeStatement.Send ignored -> new Instruction(Kind.SEND);
+            case NativeStatement.Return ignored -> new Instruction(Kind.RETURN);
+            case NativeStatement.Branch branch -> new Instruction(Kind.BRANCH,
+                    branch.onTrue().stream().map(NativeBehaviorSourceMaps::instruction).toList(),
+                    branch.onFalse().stream().map(NativeBehaviorSourceMaps::instruction).toList());
+        };
     }
 
     private static void collect(List<NativeStatement> statements, String prefix,

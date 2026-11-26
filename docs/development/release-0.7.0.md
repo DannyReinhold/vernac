@@ -59,8 +59,11 @@ The scenario runner and Maven build write versioned statement positions under
 `META-INF/vernac/native-sources/`. A runtime exception raised inside a native statement retains its
 original type and carries the declaration, source-relative path, line and column as a suppressed
 `SourceTrace`. Moving source lines in a native-only behavior refreshes that resource without
-changing the generated Java. Copied Java continues to use the existing debug map. Persisting and
-loading the executable program separately and linking its host bindings remain open.
+changing the generated Java. Copied Java continues to use the existing debug map. The same resource
+directory now carries a versioned statement layout. At class initialization, the runtime loads that
+layout and links each instruction slot to the generated JVM binding, checking the version, opcode
+and slot inventory. The compiler still emits the expression operands and host bindings into Java.
+Loading those separately and replacing a program inside a live application remain open.
 
 For interpreted aggregate modifications, stage writes, validate at the outermost boundary, then publish
 validated state to the existing object identities. Nested modifications and invariant reads see the
