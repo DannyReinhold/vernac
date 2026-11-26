@@ -16,20 +16,25 @@ import org.vernac.runtime.NativeBehavior.Step;
 
 /** Versioned statement layout, linked to generated JVM bindings by slot. */
 public final class NativeBehaviorLayout {
-    private static final int VERSION = 1;
+    private static final int VERSION = 2;
     private static final List<Kind> KINDS = List.of(Kind.values());
 
     private NativeBehaviorLayout() { }
 
     public enum Kind { BIND, REQUIRE, ASSIGN, SEND, RETURN, BRANCH }
 
-    public record Instruction(Kind kind, List<Instruction> onTrue, List<Instruction> onFalse) {
+    public record Instruction(Kind kind, NativeBehaviorExpression expression,
+                              List<Instruction> onTrue, List<Instruction> onFalse) {
         public Instruction {
             onTrue = List.copyOf(onTrue);
             onFalse = List.copyOf(onFalse);
         }
 
-        public Instruction(Kind kind) { this(kind, List.of(), List.of()); }
+        public Instruction(Kind kind) { this(kind, null); }
+
+        public Instruction(Kind kind, NativeBehaviorExpression expression) {
+            this(kind, expression, List.of(), List.of());
+        }
     }
 
     public static String resource(String implementationClass, int program) {
@@ -48,6 +53,7 @@ public final class NativeBehaviorLayout {
         for (var step : steps) {
             data.writeByte(step.kind().ordinal());
             data.writeInt(slot++);
+            NativeBehaviorExpression.write(data, step.expression());
             if (step.kind() == Kind.BRANCH) {
                 slot = writeBlock(data, step.onTrue(), slot);
                 slot = writeBlock(data, step.onFalse(), slot);
@@ -69,11 +75,12 @@ public final class NativeBehaviorLayout {
 
     static <S> List<Step<S>> link(InputStream input, List<Step<S>> bridge) throws IOException {
         var data = new DataInputStream(input);
-        if (data.readInt() != VERSION) throw new IOException("Unsupported layout version");
+        int version = data.readInt();
+        if (version != 1 && version != VERSION) throw new IOException("Unsupported layout version");
         var bindings = new ArrayList<Step<S>>();
         flatten(bridge, bindings);
         var used = new BitSet(bindings.size());
-        var linked = readBlock(data, bindings, used);
+        var linked = readBlock(data, bindings, used, version);
         if (used.cardinality() != bindings.size() || data.read() != -1) {
             throw new IOException("Incomplete layout or trailing data");
         }
@@ -90,7 +97,7 @@ public final class NativeBehaviorLayout {
         }
     }
 
-    private static <S> List<Step<S>> readBlock(DataInputStream data, List<Step<S>> bindings, BitSet used)
+    private static <S> List<Step<S>> readBlock(DataInputStream data, List<Step<S>> bindings, BitSet used, int version)
             throws IOException {
         int count = data.readInt();
         if (count < 0 || count > bindings.size() - used.cardinality()) {
@@ -106,15 +113,26 @@ public final class NativeBehaviorLayout {
             var binding = bindings.get(slot);
             if (KINDS.get(opcode) != kind(binding)) throw new IOException("Incompatible binding at slot " + slot);
             used.set(slot);
+            var expression = version >= 2 ? NativeBehaviorExpression.read(data) : null;
             if (binding instanceof Branch<S> branch) {
-                var onTrue = readBlock(data, bindings, used);
-                var onFalse = readBlock(data, bindings, used);
-                steps.add(new Branch<>(branch.condition(), onTrue, onFalse));
+                var onTrue = readBlock(data, bindings, used, version);
+                var onFalse = readBlock(data, bindings, used, version);
+                steps.add(new Branch<>(expression == null ? branch.condition() : expression.link(), onTrue, onFalse));
             } else {
-                steps.add(binding);
+                steps.add(expression == null ? binding : linkOperand(binding, expression));
             }
         }
         return steps;
+    }
+
+    private static <S> Step<S> linkOperand(Step<S> binding, NativeBehaviorExpression operand) throws IOException {
+        return switch (binding) {
+            case NativeBehavior.Bind<S> bind -> new NativeBehavior.Bind<>(bind.slot(), operand.link());
+            case NativeBehavior.Require<S> require -> new NativeBehavior.Require<>(operand.link(), require.rejection());
+            case NativeBehavior.Assign<S> assign -> new NativeBehavior.Assign<>(operand.link(), assign.setter());
+            case NativeBehavior.Return<S> ignored -> new NativeBehavior.Return<>(operand.link());
+            default -> throw new IOException("Unexpected operand for " + kind(binding));
+        };
     }
 
     private static Kind kind(Step<?> step) {
