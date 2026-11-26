@@ -192,6 +192,10 @@ sequentially and reports stale revisions and validation diagnostics. A fresh JVM
 with the compiler, Jupiter engine and project dependencies on its Java classpath. It captures the
 saved Vernac sources, module descriptors and build-generated module index at startup, and uses UTF-8
 stdin/stdout for the protocol. Test output goes to stderr. A restart captures the saved tree again.
+The launcher includes the project's Maven `target/test-classes` and `target/classes` outputs.
+Handwritten fixtures and application classes there share a classloader with the new generated classes,
+so Spring and the scenario bridge use the same type identities. Compile Java fixtures and prepare
+their resources before running the daemon.
 The `refresh` request takes the expected shared `revision` and scans both saved Vernac source roots.
 It publishes additions, changes and deletions in one shared revision. If the sources are unchanged,
 it returns the same revision. Open overlays retain their snapshots and new overlays can open on

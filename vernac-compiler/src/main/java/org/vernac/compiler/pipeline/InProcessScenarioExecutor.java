@@ -37,6 +37,7 @@ public final class InProcessScenarioExecutor implements ScenarioRunSession.Execu
     private final VernacCompiler vernac = new VernacCompiler();
     private final JavaCompiler javac;
     private final List<Path> classpath;
+    private final List<Path> projectOutputs;
     private Compilation application;
     private Compilation tests;
     private long applicationCompilations;
@@ -59,7 +60,13 @@ public final class InProcessScenarioExecutor implements ScenarioRunSession.Execu
     }
 
     public InProcessScenarioExecutor(List<Path> classpath) {
-        this.classpath = classpath.stream().map(path -> path.toAbsolutePath().normalize()).toList();
+        this(classpath, List.of());
+    }
+
+    InProcessScenarioExecutor(List<Path> classpath, List<Path> projectOutputs) {
+        this.projectOutputs = projectOutputs.stream().map(path -> path.toAbsolutePath().normalize()).toList();
+        this.classpath = java.util.stream.Stream.concat(this.projectOutputs.stream(),
+                classpath.stream().map(path -> path.toAbsolutePath().normalize())).distinct().toList();
         javac = ToolProvider.getSystemJavaCompiler();
         if (javac == null) throw new IllegalStateException("Scenario execution requires a JDK");
     }
@@ -101,7 +108,7 @@ public final class InProcessScenarioExecutor implements ScenarioRunSession.Execu
             urls.add(applicationClasses.toUri().toURL());
             urls.add(testClasses.toUri().toURL());
             for (var dependency : classpath) urls.add(dependency.toUri().toURL());
-            try (var loader = new GeneratedClassLoader(urls.toArray(java.net.URL[]::new), names)) {
+            try (var loader = new GeneratedClassLoader(urls.toArray(java.net.URL[]::new), names, projectOutputs)) {
                 return run(loader, bridge);
             }
         } finally {
@@ -189,10 +196,12 @@ public final class InProcessScenarioExecutor implements ScenarioRunSession.Execu
 
     private static final class GeneratedClassLoader extends URLClassLoader {
         private final Set<String> generated;
+        private final List<Path> projectOutputs;
 
-        private GeneratedClassLoader(java.net.URL[] urls, Set<String> generated) {
+        private GeneratedClassLoader(java.net.URL[] urls, Set<String> generated, List<Path> projectOutputs) {
             super(urls, InProcessScenarioExecutor.class.getClassLoader());
             this.generated = generated;
+            this.projectOutputs = projectOutputs;
         }
 
         @Override
@@ -209,7 +218,9 @@ public final class InProcessScenarioExecutor implements ScenarioRunSession.Execu
             for (int nested = name.lastIndexOf('$'); nested >= 0; nested = name.lastIndexOf('$', nested - 1)) {
                 if (generated.contains(name.substring(0, nested))) return true;
             }
-            return false;
+            // Fixtures and handwritten application classes must link to the same generated types as the bridge.
+            String classFile = name.replace('.', '/') + ".class";
+            return projectOutputs.stream().anyMatch(directory -> Files.isRegularFile(directory.resolve(classFile)));
         }
     }
 }
