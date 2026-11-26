@@ -9,7 +9,7 @@ practical question; focused examples isolate details when the full system would 
 
 These tutorials describe **Vernac 0.5.0**. Use JDK 25 for the documented builds;
 generated application code targets Java 21. Released consumers use 0.5.0 artifacts
-from Maven Central after publication. Repository examples use 0.5.4-SNAPSHOT by
+from Maven Central after publication. Repository examples use 0.6.0-SNAPSHOT by
 default: install matching local artifacts first, or select the release with
 `-Dvernac.version=0.5.0` after publication.
 Commands below include `mvn`; use the full command in the IntelliJ Maven run configuration used for these examples.
@@ -51,6 +51,8 @@ Already know DDD? Start at the first domain model or use the
 8. [Keep the meaning beside the model](ubiquitous-language.md): a shared glossary, type hover and vocabulary for AI-assisted work.
 
 9. [See the architecture](domain-diagrams.md): a namespace diagram, vocabulary and export for documentation.
+
+[Test a domain behavior in Vernac](domain-scenarios.md) follows the task lifecycle in the 0.6.0 wizard project.
 
 ## Debug the business rule
 

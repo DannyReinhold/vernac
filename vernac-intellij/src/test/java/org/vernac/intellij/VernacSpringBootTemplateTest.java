@@ -59,6 +59,14 @@ class VernacSpringBootTemplateTest {
                 "Small wins & friends", pom.getElementsByTagName("name").item(0).getTextContent());
         String pomText = Files.readString(root.resolve("pom.xml"));
         assertTrue(pomText.contains("spring-boot-starter-thymeleaf"));
+        assertTrue(pomText.contains("<goal>test-compile</goal>"));
+        Path testRoot = root.resolve("src/test/vernac");
+        String scenario = Files.readString(
+                testRoot.resolve(namespace.replace('.', '/') + "/task-lifecycle.vernac"));
+        assertTrue(scenario.contains("namespace " + namespace + ";"));
+        var scenarioCompiler = new org.vernac.compiler.pipeline.VernacScenarioCompiler();
+        assertEquals(4, scenarioCompiler.generate(testRoot, scenarioCompiler.discover(testRoot),
+                resolved, root.resolve("target/generated-test-sources/vernac")));
         assertTrue(
                 pomText.contains(
                         "<vernac.version>"
@@ -115,11 +123,10 @@ class VernacSpringBootTemplateTest {
         assertTrue(compose.contains("127.0.0.1:${LOCAL_DB_PORT:-55439}:5432"));
         assertTrue(compose.contains("healthcheck:"));
         assertFalse(compose.contains("container_name:"));
-        String board = Files.readString(root.resolve("src/main/resources/templates/board.html"));
-        assertTrue(board.contains("th:action="));
-        assertTrue(board.contains("th:text=\"${task.taskTitle().string()}\""));
-        assertFalse(board.contains("th:utext"));
-        assertFalse(board.contains("https://"));
+        assertFalse(Files.exists(root.resolve("src/main/resources/templates")));
+        String board = Files.readString(root.resolve("src/main/vernac/example/tasks/tasks.vernac"));
+        assertTrue(board.contains("render TaskOverview model tasks"));
+        assertTrue(board.contains("error view TaskProblem"));
         assertTrue(
                 Files.readString(
                                 root.resolve(

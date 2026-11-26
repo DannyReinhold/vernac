@@ -10,7 +10,8 @@ Vernac: `@VERNAC_VERSION@` · Generated Java: 21
 
 If this Vernac version ends in `-SNAPSHOT`, first install matching Vernac artifacts
 from its source repository with `mvn clean install`. Published versions come from
-Maven Central. The Maven Wrapper is included; use JDK 25 for the supplied build.
+Maven Central. The Maven Wrapper is included. Use JDK 21 or newer for this project
+and JDK 25 to build Vernac itself.
 Docker with Compose v2 must be running for local PostgreSQL.
 
 ## Start locally
@@ -77,7 +78,7 @@ flowchart TD
 | --- | --- |
 | `src/main/vernac/org/example/tasks/tasks.vernac` | Terms, values, aggregate, repository queries, usecases and MVC endpoints |
 | `adapter TaskWeb inbound mvc` inside `tasks.vernac` | Request bindings, typed usecase calls, views, redirects and safe redisplay |
-| `src/main/resources/templates/board.html` | Server-rendered UI, escaped task titles and POST forms |
+| `TaskOverview` and `TaskProblem` in `tasks.vernac` | Generated board, task actions, pagination and error page |
 | `src/main/resources/static/app.css` | Responsive layout using local assets and system fonts |
 | `src/main/java/org/example/tasks/adapter/inbound/web/WebSecurity.java` | Public routes, CSRF protection and response headers |
 | `src/main/resources/db/migration/` | Flyway SQL; applied at startup |
@@ -103,10 +104,18 @@ transaction boundaries remain in Vernac, not the controller.
 ```
 
 On Windows use `.\mvnw.cmd clean test` (or `clean test` in IntelliJ's Maven window).
-`TaskTest` verifies the domain. `TaskWebTest` renders the actual Thymeleaf templates
+The scenario under `src/test/vernac` checks the task's status and ID across the
+complete and reopen behaviors. Change one `expect` statement and rerun the build
+to see the Vernac source line for the failure.
+`TaskTest` verifies the domain in Java. `TaskWebTest` renders the actual Thymeleaf templates
 and exercises real generated usecases with a **test-only in-memory repository**:
 create, complete, reopen, invalid input, escaping, CSRF and pagination. It does not
 claim to verify JDBC or transactions. No Docker is needed for these tests.
+
+`task-views.vernac` exercises the generated board, verifies actions for individual
+rows, and checks CSRF and validation feedback through Spring MVC. Run
+`./mvnw -Dvernac.testProfile=mvc -Dtest=VernacScenariosTest test` to run just those
+Vernac view scenarios.
 
 ## Check real persistence
 

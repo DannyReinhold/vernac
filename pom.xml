@@ -52,6 +52,7 @@
         <module>vernac-compiler</module>
         <module>vernac-maven-plugin</module>
         <module>examples/namespace-values</module>
+        <module>examples/document-workspace-scenarios</module>
         <module>vernac-lsp</module>
         <module>vernac-intellij</module>
         <module>vernac-runtime-jdbc</module>
@@ -59,7 +60,7 @@
     </modules>
 
     <properties>
-        <revision>0.5.4-SNAPSHOT</revision>
+        <revision>0.6.0-SNAPSHOT</revision>
         <java.version>21</java.version>
         <maven.compiler.release>21</maven.compiler.release>
         <maven.compiler.source>21</maven.compiler.source>

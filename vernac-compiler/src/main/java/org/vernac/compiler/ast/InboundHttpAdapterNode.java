@@ -52,7 +52,8 @@ public record InboundHttpAdapterNode(
             Optional<String> notice,
             Optional<String> absentView,
             Optional<String> attachment,
-            Optional<String> contentField) {}
+            Optional<String> contentField,
+            boolean generated) {}
 
     public record ErrorView(Optional<String> template, Optional<String> reload) {}
 

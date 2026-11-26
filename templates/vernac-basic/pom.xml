@@ -20,7 +20,7 @@
 
     <properties>
         <java.version>21</java.version>
-        <vernac.version>0.5.4-SNAPSHOT</vernac.version>
+        <vernac.version>0.6.0-SNAPSHOT</vernac.version>
     </properties>
 
     <dependencies>
@@ -102,6 +102,12 @@
                         <phase>generate-sources</phase>
                         <goals>
                             <goal>compile</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>vernac-scenarios</id>
+                        <goals>
+                            <goal>test-compile</goal>
                         </goals>
                     </execution>
                 </executions>

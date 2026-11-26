@@ -94,7 +94,7 @@ public final class VernacProjectLoader {
                 continue;
             }
             for (var definition : source.unit().definitions()) {
-                if (definition instanceof RoleNode) continue;
+                if (definition instanceof RoleNode || definition instanceof WebViewNode) continue;
                 var declaration = describe(definition);
                 addSymbol(source, declaration.name(), declaration.kind(), definition.location(), symbols, diagnostics);
                 CollectionDeclaration.of(definition).forEach(collection ->
@@ -160,6 +160,7 @@ public final class VernacProjectLoader {
             case InboundHttpAdapterNode node -> new Declaration(node.name(), TypeSymbol.Kind.INBOUND_HTTP_ADAPTER);
             case OutboundAdapterNode node -> new Declaration(node.name(), TypeSymbol.Kind.OUTBOUND_ADAPTER);
             case PortNode node -> new Declaration(node.name(), TypeSymbol.Kind.PORT);
+            case WebViewNode node -> throw new IllegalArgumentException("Views are not domain types");
             case RoleNode node -> throw new IllegalArgumentException("Roles are not domain types");
             case PermissionNode node -> new Declaration(node.name(), TypeSymbol.Kind.PERMISSION);
             case UseCaseNode node -> new Declaration(node.name(), TypeSymbol.Kind.USE_CASE);

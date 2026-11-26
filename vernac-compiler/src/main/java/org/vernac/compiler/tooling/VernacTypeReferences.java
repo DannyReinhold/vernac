@@ -38,6 +38,7 @@ public final class VernacTypeReferences {
         if (terms.size() == source.get().unit().terms().size())
             for (int i = 0; i < terms.size(); i++)
                 termNames.put(terms.get(i), source.get().unit().terms().get(i).name());
+        webReferences(project, source.get(), texts, analysis, result);
         walkAccepted(
                 analysis,
                 node -> {
@@ -113,6 +114,67 @@ public final class VernacTypeReferences {
                 .distinct()
                 .sorted(Comparator.comparingInt(Reference::start))
                 .toList();
+    }
+
+    private void webReferences(VernacProject project, VernacSourceFile source, Map<Path, String> texts,
+                               EditorSourceParser.Analysis analysis, List<Reference> result) {
+        if (analysis.declarations().stream().noneMatch(top -> top.webViewDefinition() != null
+                || top.inboundHttpAdapterDefinition() != null)) return;
+        String namespace = source.unit().namespace();
+        Map<String, List<VernacTypeNavigation.Target>> declarations = new HashMap<>();
+        var parser = new EditorSourceParser();
+        for (var file : project.sources()) {
+            var text = texts.get(file.path());
+            if (file.external() || text == null || !file.unit().namespace().equals(namespace)) continue;
+            var parsed = file.path().equals(source.path()) ? Optional.of(analysis)
+                    : parser.analyze(file.path().toString(), text, new ArrayList<>());
+            if (parsed.isEmpty()) continue;
+            for (var top : parsed.get().declarations()) {
+                var view = top.webViewDefinition();
+                if (view != null) {
+                    addWebTarget(declarations, view.component == null ? "view:" : "component:", view.name, file.path(), text);
+                }
+                var adapter = top.inboundHttpAdapterDefinition();
+                if (adapter == null || !adapter.transport.getText().equals("mvc")) continue;
+                addWebTarget(declarations, "mvc:", adapter.name, file.path(), text);
+                for (var endpoint : adapter.inboundEndpoint()) {
+                    addWebTarget(declarations, endpoint.verb.getText() + ":" + adapter.name.getText() + ".",
+                            endpoint.name, file.path(), text);
+                }
+            }
+        }
+        var text = texts.get(source.path());
+        walkAccepted(analysis, node -> {
+            if (node instanceof VernacParser.InboundEndpointContext endpoint) {
+                addWebReference(result, declarations, namespace, text, "view:", endpoint.generatedView);
+                if (endpoint.getParent() instanceof VernacParser.InboundHttpAdapterDefinitionContext adapter)
+                    addWebReference(result, declarations, namespace, text, "GET:" + adapter.name.getText() + ".",
+                            endpoint.redirectEndpoint);
+            } else if (node instanceof VernacParser.WebViewElementContext element) {
+                addWebReference(result, declarations, namespace, text, "component:", element.componentName);
+                addWebReference(result, declarations, namespace, text, "mvc:", element.adapter);
+                if (element.adapter != null)
+                    addWebReference(result, declarations, namespace, text, "POST:" + element.adapter.getText() + ".",
+                            element.endpoint);
+            }
+        });
+    }
+
+    private static void addWebTarget(Map<String, List<VernacTypeNavigation.Target>> declarations, String prefix,
+                                     ParserRuleContext name, Path path, String text) {
+        if (name == null || name.getStart() == null || name.getStop() == null || name.getStart().getStartIndex() < 0) return;
+        String spelling = name.getText();
+        declarations.computeIfAbsent(prefix + spelling, ignored -> new ArrayList<>()).add(new VernacTypeNavigation.Target(
+                path, spelling, text.offsetByCodePoints(0, name.getStart().getStartIndex()),
+                text.offsetByCodePoints(0, name.getStop().getStopIndex() + 1)));
+    }
+
+    private static void addWebReference(List<Reference> result, Map<String, List<VernacTypeNavigation.Target>> declarations,
+                                        String namespace, String text, String prefix, ParserRuleContext name) {
+        if (name == null || name.getStart() == null || name.getStop() == null || name.getStart().getStartIndex() < 0) return;
+        String key = prefix + name.getText();
+        var matches = declarations.getOrDefault(key, List.of());
+        if (matches.size() == 1) addReference(result, text, name, namespace + "#web:" + key, matches.getFirst());
     }
 
     // Member/input identities cannot collide with exported type identities or their source-attachment map.

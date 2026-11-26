@@ -1,0 +1,20 @@
+namespace org.example.tasks;
+
+suite TaskLifecycle {
+    scenario followsStatusTransitions {
+        given task = Task(TaskTitle("Try Vernac"), TaskStatus.OPEN);
+        given originalId = task.id;
+        expect originalId is present;
+        expect task.taskStatus equals TaskStatus.OPEN;
+        when task.complete();
+        expect task.id equals originalId;
+        expect task.taskStatus equals TaskStatus.DONE;
+        when task.reopen();
+        expect task.id equals originalId;
+        expect task.taskStatus equals TaskStatus.OPEN;
+    }
+
+    scenario rejectsBlankTitle {
+        expect TaskTitle(" ") is invalid;
+    }
+}

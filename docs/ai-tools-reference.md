@@ -1,8 +1,8 @@
 # Vernac build and migration tools for AI agents
 
-Baseline: implemented tooling in the 0.5.0 release line. Use this guide with
-the [AI language reference](ai-language-reference.md), the existing POM and the
-application's requirements. It is a workflow reference, not additional syntax.
+Use the application's POM to select the matching tool version. Read the section for the build,
+schema or migration step you are performing. For a model edit, start at the
+[AI task index](ai-language-reference.md).
 
 <details class="on-this-page" markdown="1">
 <summary>On this page</summary>
@@ -18,7 +18,7 @@ running a plain Java test does not verify a framework-independent application pa
 Do not replace Spring Boot with another framework based on the separation of Maven
 artifacts. See the [compiler architecture](development/compiler-architecture.md).
 
-For 0.5.4 source builds, follow the [Boot 4 migration requirements](development/spring-boot-4-baseline.md),
+For the Boot 4 baseline used in 0.6.0, follow the [Boot 4 migration requirements](development/spring-boot-4-baseline.md),
 including Jackson 3 generated DTO codecs and converters. Do not mix Security 7 with
 a Boot 3 application or select a Jackson 2 converter for these codecs.
 

@@ -238,6 +238,14 @@ final class VernacProjectSymbols {
         int cursor = offset(file.text(), position);
         if(cursor<0)return List.of();
         int pointInCodePoints = file.text().codePointCount(0, cursor);
+        var viewReference = webReference(file, pointInCodePoints, true);
+        if (viewReference != null) {
+            return webChoices(path, file, viewReference).keySet().stream().sorted().map(name -> {
+                var item = new CompletionItem(name);
+                item.setKind(CompletionItemKind.Reference);
+                return item;
+            }).toList();
+        }
         for (var top : file.tree().topLevelDeclaration()) {
             var adapter = top.inboundHttpAdapterDefinition();
             if (adapter == null || !"mvc".equals(adapter.transport.getText())) continue;
@@ -573,6 +581,11 @@ final class VernacProjectSymbols {
             }
         }
         int point = file.text().codePointCount(0, offset);
+        var viewReference = webReference(file, point, false);
+        if (viewReference != null) {
+            var target = webChoices(path, file, viewReference).get(viewReference.name().getText());
+            return target == null ? List.of() : List.of(target);
+        }
         var authorization=authorizationReference(file.tree(),point);
         if(authorization!=null) {
             String key=authorization.name().getText();
@@ -1038,6 +1051,68 @@ final class VernacProjectSymbols {
     private static boolean contains(ParserRuleContext node,int point) {
         return node!=null && node.getStop()!=null && node.getStart().getStartIndex()<=point && point<=node.getStop().getStopIndex();
     }
+    private record WebReference(ParserRuleContext name, ParserRuleContext owner) {}
+
+    private WebReference webReference(Parsed file, int point, boolean completion) {
+        var references = new ArrayList<WebReference>();
+        walk(file.tree(), node -> {
+            if (node instanceof VernacParser.InboundEndpointContext endpoint) {
+                if (webContains(endpoint.generatedView, point, completion))
+                    references.add(new WebReference(endpoint.generatedView, endpoint));
+                if (webContains(endpoint.redirectEndpoint, point, completion))
+                    references.add(new WebReference(endpoint.redirectEndpoint, endpoint));
+            } else if (node instanceof VernacParser.WebViewElementContext element) {
+                for (var name : Arrays.asList(element.componentName, element.adapter, element.endpoint)) {
+                    if (webContains(name, point, completion)) references.add(new WebReference(name, element));
+                }
+            }
+        });
+        return references.isEmpty() ? null : references.getFirst();
+    }
+
+    private static boolean webContains(ParserRuleContext name, int point, boolean completion) {
+        return contains(name, point) || completion && name != null && name.getStop() != null
+                && point == name.getStop().getStopIndex() + 1;
+    }
+
+    private Map<String, Location> webChoices(Path path, Parsed file, WebReference reference) {
+        Map<String, Location> choices = new LinkedHashMap<>();
+        if (reference.owner() instanceof VernacParser.InboundEndpointContext endpoint
+                && reference.name() == endpoint.redirectEndpoint) {
+            var adapter = inboundAncestor(endpoint);
+            if (adapter != null) for (var route : adapter.inboundEndpoint()) {
+                if (route.name != null && route.verb != null && route.verb.getText().equals("GET"))
+                    choices.put(route.name.getText(), queryLocation(path, file, route.name));
+            }
+            return choices;
+        }
+        var element = reference.owner() instanceof VernacParser.WebViewElementContext view ? view : null;
+        for (var entry : files.entrySet()) {
+            var candidate = entry.getValue();
+            if (!candidate.unit().namespace().equals(file.unit().namespace())) continue;
+            for (var top : candidate.tree().topLevelDeclaration()) {
+                var view = top.webViewDefinition();
+                if (view != null && view.name != null
+                        && (element == null && view.component == null
+                            || element != null && reference.name() == element.componentName && view.component != null)) {
+                    choices.put(view.name.getText(), queryLocation(entry.getKey(), candidate, view.name));
+                }
+                var adapter = top.inboundHttpAdapterDefinition();
+                if (element == null || element.adapter == null || adapter == null || adapter.name == null
+                        || adapter.transport == null || !adapter.transport.getText().equals("mvc")) continue;
+                if (reference.name() == element.adapter) {
+                    choices.put(adapter.name.getText(), queryLocation(entry.getKey(), candidate, adapter.name));
+                } else if (adapter.name.getText().equals(element.adapter.getText())) {
+                    for (var route : adapter.inboundEndpoint()) {
+                        if (route.name != null && route.verb != null && route.verb.getText().equals("POST"))
+                            choices.put(route.name.getText(), queryLocation(entry.getKey(), candidate, route.name));
+                    }
+                }
+            }
+        }
+        return choices;
+    }
+
     private Location queryLocation(Path path,Parsed file,ParserRuleContext node) {
         int start=utf16(file.text(),node.getStart().getStartIndex());
         int end=utf16(file.text(),node.getStop().getStopIndex()+1);

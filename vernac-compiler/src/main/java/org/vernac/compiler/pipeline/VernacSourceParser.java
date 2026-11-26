@@ -17,6 +17,12 @@ import org.vernac.language.VernacNames;
 /** Parses one named source without resolving imports or references. */
 public final class VernacSourceParser {
     public CompilationUnitNode parse(String sourceName, String source) {
+        var tree = parser(sourceName, source).compilationUnit();
+        validateNames(sourceName, tree);
+        return new AstBuilderVisitor(sourceName).visitCompilationUnit(tree);
+    }
+
+    VernacParser parser(String sourceName, String source) {
         var errors = new BaseErrorListener() {
             @Override
             public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol,
@@ -35,9 +41,7 @@ public final class VernacSourceParser {
         var parser = new VernacParser(new CommonTokenStream(lexer));
         parser.removeErrorListeners();
         parser.addErrorListener(errors);
-        var tree = parser.compilationUnit();
-        validateNames(sourceName, tree);
-        return new AstBuilderVisitor(sourceName).visitCompilationUnit(tree);
+        return parser;
     }
 
     void validateNames(String sourceName, ParseTree tree) {

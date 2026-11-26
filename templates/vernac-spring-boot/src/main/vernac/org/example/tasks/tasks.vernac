@@ -53,19 +53,19 @@ usecase ReadTasks(PageNumber) returns counted offset TaskCards uses TaskReposito
 
 adapter TaskWeb inbound mvc uses ReadTasks, CreateTask, CompleteTask, ReopenTask {
     base "/";
-    error view "problem";
+    error view TaskProblem;
 
     board {
         GET "/";
         query int page default "1";
         execute readTasks { pageNumber <- query.page; }
-        render "board" model tasks;
+        render TaskOverview model tasks;
     }
     create {
         POST "/tasks";
         form String title;
         execute createTask { taskTitle <- form.title; }
-        redirect "/" message "One small step, ready to go.";
+        redirect board message "One small step, ready to go.";
         errors {
             when invalid request then redisplay board status 400
                 "INVALID_TASK_FORM" "Supply one task title and try again.";
@@ -77,18 +77,60 @@ adapter TaskWeb inbound mvc uses ReadTasks, CreateTask, CompleteTask, ReopenTask
         POST "/tasks/{id}/complete";
         path UUID id;
         execute completeTask { taskId <- path.id; }
-        redirect "/" message "A small win. Nicely done.";
+        redirect board message "A small win. Nicely done.";
     }
     reopen {
         POST "/tasks/{id}/reopen";
         path UUID id;
         execute reopenTask { taskId <- path.id; }
-        redirect "/" message "Ready for another look.";
+        redirect board message "Ready for another look.";
     }
     errors {
-        when not found then render "problem" status 404
+        when not found then render TaskProblem status 404
             "TASK_NOT_FOUND" "That task is no longer here. Return to the board for the latest tasks.";
-        when optimistic conflict then render "problem" status 409
+        when optimistic conflict then render TaskProblem status 409
             "TASK_CHANGED" "Someone else updated this task. Refresh the board before trying again.";
+    }
+}
+
+
+component TaskRow(TaskCard task) {
+    text task.taskTitle;
+    when task.taskStatus is OPEN {
+        text "Ready when you are";
+        form submit TaskWeb.complete {
+            path id <- task.taskId.value;
+            button "Complete" variant primary;
+        }
+    }
+    when task.taskStatus is DONE {
+        text "Completed";
+        form submit TaskWeb.reopen {
+            path id <- task.taskId.value;
+            button "Reopen" variant primary;
+        }
+    }
+}
+
+view TaskOverview(counted offset TaskCards tasks) {
+    page "Small wins" layout declarativeWorkspace theme "/app.css" {
+        heading "Small wins";
+        form submit TaskWeb.create {
+            textField title label "New task";
+            button "Add task" variant primary;
+        }
+        list tasks as task {
+            include TaskRow(task);
+        } empty {
+            text "A fresh page.";
+        }
+        pagination tasks at "/";
+    }
+}
+
+view TaskProblem() {
+    page "A moment · Small wins" layout problem theme "/app.css" {
+        heading "Something needs a second look.";
+        link "Back to the board" to "/";
     }
 }

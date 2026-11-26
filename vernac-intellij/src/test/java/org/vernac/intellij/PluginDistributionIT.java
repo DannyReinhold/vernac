@@ -162,6 +162,7 @@ class PluginDistributionIT {
                     ".gitignore",
                     ".gitattributes",
                     "src/main/vernac/org/example/tasks/tasks.vernac",
+                    "src/test/vernac/org/example/tasks/task-lifecycle.vernac",
                     "src/test/java/org/example/tasks/TaskTest.java"
             )) {
                 requireContent(
@@ -172,10 +173,13 @@ class PluginDistributionIT {
 
             for (String templateFile : List.of("pom.xml", "README.md", "compose.yaml", "Dockerfile", ".gitignore", ".dockerignore",
                     "src/main/vernac/org/example/tasks/tasks.vernac",
+                    "src/test/vernac/org/example/tasks/task-lifecycle.vernac",
                     "src/main/java/org/example/tasks/TasksApplication.java",
                     "src/main/java/org/example/tasks/adapter/inbound/web/WebSecurity.java",
-                    "src/main/resources/templates/board.html", "src/main/resources/static/app.css",
+                    "src/main/resources/static/app.css",
                     "src/main/resources/application.yaml", "src/main/resources/application-local.yaml",
+                    "src/test/vernac/org/example/tasks/task-views.vernac",
+                    "src/test/java/org/example/tasks/TaskScenarioFixtures.java",
                     "src/test/java/org/example/tasks/TaskWebTest.java", "src/test/java/org/example/tasks/TaskPersistenceIT.java")) {
                 requireContent(plugin, "projectTemplates/vernac-spring-boot/" + templateFile);
             }

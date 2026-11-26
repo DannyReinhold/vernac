@@ -20,6 +20,14 @@ and Spring infrastructure without hidden framework magic.
 
 ---
 
+## Why the name Vernac?
+
+Vernac takes its name from *vernacular language*, the everyday language
+people use in a particular place or community. In Domain-Driven Design, that
+idea shows up as the *ubiquitous language*: the vocabulary domain experts
+and developers build together. Vernac brings that vocabulary into the code,
+so the terms people use to discuss the work also appear in the software model.
+
 ## Small project. Clear domain. Less boilerplate.
 
 You do not need a large team or microservices to benefit from Domain-Driven Design.
@@ -118,11 +126,8 @@ chooses synchronous participation or durable deferred handling.
 
 ## Designed for AI‑assisted development
 
-Vernac’s language reference is deterministic and self‑contained.  
-It avoids hidden defaults, ambiguous semantics and framework‑specific magic.
-
-See the **AI‑specific language reference**:  
-[ai-language-reference.md](ai-language-reference.md)
+Give an agent the affected model file and the task page for its change. For an empty project,
+start with the small, executable task model. [AI language reference](ai-language-reference.md)
 
 ---
 
@@ -145,7 +150,7 @@ See the **AI‑specific language reference**:
 ## Version and prerequisites
 
 These pages describe the **Vernac 0.5.4 language and API**.
-Source checkouts default to **0.5.4-SNAPSHOT**. Released consumers select matching
+Source checkouts default to **0.6.0-SNAPSHOT**. Released consumers select matching
 **0.5.4** artifacts after publication; older versions do not support all features below.
 Use JDK 25 to build the repository; generated applications target Java 21.  
 Persistence examples use PostgreSQL 17.
@@ -210,7 +215,7 @@ expressions and use conditional breakpoints.
 The [debugging walkthrough](tutorials/debugging.md) takes you through a
 small runnable example, including private helpers, handwritten Java transitions
 and logpoints. It explains the current coverage and limits. Use matching 0.5.4 release artifacts, or matching
-0.5.4-SNAPSHOT artifacts when building this source checkout.
+0.6.0-SNAPSHOT artifacts when building this source checkout.
 
 ### Server-rendered applications
 

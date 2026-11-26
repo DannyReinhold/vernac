@@ -60,7 +60,8 @@ final class MvcContracts {
         for (var endpoint : adapter.endpoints()) {
             if (!Set.of("GET", "POST").contains(endpoint.verb()))
                 error(endpoint.location(), "MVC endpoints currently support GET and POST.");
-            if (endpoint.bodyType().isPresent() || endpoint.responseType().isPresent())
+            if (endpoint.bodyType().isPresent() || endpoint.responseType().isPresent()
+                    && endpoint.view().filter(InboundHttpAdapterNode.View::generated).isEmpty())
                 error(
                         endpoint.location(),
                         "MVC endpoints use scalar bindings and views, not JSON body/respond DTO"

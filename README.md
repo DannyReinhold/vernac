@@ -13,6 +13,14 @@ handwritten class. Read the generated code, test it with ordinary Java tools, an
 use it alongside an existing application. No ORM, reflective domain model or separate
 runtime language is required.
 
+## Why the name Vernac?
+
+Vernac takes its name from *vernacular language*, the everyday language
+people use in a particular place or community. In Domain-Driven Design, that
+idea shows up as the *ubiquitous language*: the vocabulary domain experts
+and developers build together. Vernac brings that vocabulary into the code,
+so the terms people use to discuss the work also appear in the software model.
+
 ## Clean architecture is useful before a project becomes large
 
 Vernac makes Domain-Driven Design approachable for a solo developer, an internal
@@ -87,7 +95,7 @@ framework convention.
 This documentation describes the **Vernac 0.5.3 language and API**. Use matching
 compiler, runtime and IntelliJ plugin versions; earlier releases do not support all
 constructs documented here. For a source checkout, the commands below build and install
-the version configured in its root POM (currently `0.5.4-SNAPSHOT`).
+the version configured in its root POM (currently `0.6.0-SNAPSHOT`).
 
 Use JDK 25 and Maven 3.9.x (release automation pins 3.9.16). Generated application code targets Java 21.
 From this repository, install the compiler and runtime, then try the minimal template:
@@ -185,7 +193,7 @@ expressions and use conditional breakpoints.
 The [debugging walkthrough](docs/tutorials/debugging.md) takes you through a
 small runnable example, including private helpers, handwritten Java transitions
 and logpoints. It explains the current coverage and limits. Use matching 0.5.3 release artifacts, or matching
-0.5.4-SNAPSHOT artifacts when building this source checkout.
+0.6.0-SNAPSHOT artifacts when building this source checkout.
 
 ## Contributing and reporting problems
 

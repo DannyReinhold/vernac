@@ -242,3 +242,6 @@ repeated collection fields, dynamic redirects, template fragments and automatic
 field-level validation metadata remain explicit future work.
 
 [All tutorials](index.md) · [Formal MVC contract](../contracts/inbound-mvc.md)
+
+The 0.6.0 development branch also supports [declarative views](declarative-views.md)
+with typed models and generated templates.

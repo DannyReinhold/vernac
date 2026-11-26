@@ -4,7 +4,7 @@ title: Vernac language reference
 # Vernac language reference
 
 This reference describes the **Vernac 0.5.4 language and generated API**. Use matching
-compiler and runtime versions. Source checkouts default to 0.5.4-SNAPSHOT;
+compiler and runtime versions. Source checkouts default to 0.6.0-SNAPSHOT;
 released consumers select matching 0.5.4 artifacts after publication. Obsolete experimental syntax is not supported.
 The [specification index](specification/index.md) identifies the normative document
 for each rule. A discrepancy between implementation and contract is a defect to
@@ -21,6 +21,9 @@ contains a complete model. For an introduction, follow the [tutorials](tutorials
 {:toc}
 
 </details>
+
+In the 0.6.0 development line, `src/test/vernac` contains executable
+[suites and scenarios](tutorials/domain-scenarios.md) with the domain, MVC and PostgreSQL profiles.
 
 ## Files, namespaces and imports
 
@@ -885,3 +888,5 @@ DomainValidationException; null implementation results remain technical contract
 failures. Overload checks use erased Java parameter types, so nullability and
 return types cannot distinguish overloads. Read/modify and transaction semantics
 are unchanged. See the [shared contract](contracts/implementation-contracts.md).
+
+The 0.6.0 development branch adds [declarative web views](tutorials/declarative-views.md).

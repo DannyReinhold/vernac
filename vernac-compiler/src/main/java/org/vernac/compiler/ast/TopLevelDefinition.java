@@ -17,5 +17,6 @@ public sealed interface TopLevelDefinition extends AstNode permits
         PermissionNode,
         RoleNode,
         DomainServiceNode,
-        ListenerNode {
+        ListenerNode,
+        WebViewNode {
 }

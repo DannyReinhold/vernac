@@ -50,4 +50,22 @@ class InboundMvcSymbolsTest {
                 symbols.complete(path, new Position(0, text.indexOf("title <-") + 2)).stream()
                         .anyMatch(c -> c.getLabel().equals("title")));
     }
+
+    @Test
+    void declarativeViewReferencesCompleteAtTheEndOfTheTypedName() {
+        Path root = Path.of("mvc-workspace").toAbsolutePath();
+        Path view = root.resolve("demo/view.vernac");
+        Path routes = root.resolve("demo/routes.vernac");
+        String viewText = "namespace demo; view Rooms() { page \"Rooms\" { heading \"Rooms\"; } }";
+        String routeText = "namespace demo; adapter Web inbound mvc { index { GET \"/\"; render Roo; } }";
+        var symbols = new VernacProjectSymbols(root, Map.of(view, viewText, routes, routeText));
+        int reference = routeText.indexOf("Roo");
+        assertTrue(symbols.complete(routes, new Position(0, reference + 3)).stream()
+                .anyMatch(item -> item.getLabel().equals("Rooms")));
+
+        var exact = new VernacProjectSymbols(root, Map.of(view, viewText, routes, routeText.replace("Roo;", "Rooms;")));
+        var target = exact.definition(routes, new Position(0, reference)).getFirst();
+        assertEquals(view.toUri().toString(), target.getUri());
+        assertEquals(viewText.indexOf("Rooms()"), target.getRange().getStart().getCharacter());
+    }
 }

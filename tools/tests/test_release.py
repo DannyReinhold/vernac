@@ -133,6 +133,22 @@ class ReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "skipped"):
             release.audit_tests()
 
+    def test_workspace_audit_requires_all_named_cases_and_profiles(self):
+        for profile, names in release.WORKSPACE_CASES.items():
+            folder = self.root / profile
+            folder.mkdir()
+            suite = ET.Element("testsuite", tests=str(len(names)))
+            for name in names:
+                ET.SubElement(suite, "testcase", name=("example.documents." + name).replace(".", "$d"))
+            ET.ElementTree(suite).write(folder / "TEST-org.vernac.generated.VernacScenariosTest.xml")
+        release.audit_workspace_scenarios(self.root)
+        report = self.root / "postgres/TEST-org.vernac.generated.VernacScenariosTest.xml"
+        suite = ET.parse(report)
+        ET.SubElement(suite.getroot().find("testcase"), "skipped")
+        suite.write(report)
+        with self.assertRaisesRegex(ValueError, "Missing successful workspace cases for postgres"):
+            release.audit_workspace_scenarios(self.root)
+
     def test_upload_is_one_multipart_post_and_never_prints_token_or_response(self):
         path = self.make_candidate()
         response = Mock(status=201)

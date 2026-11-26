@@ -313,6 +313,10 @@ public final class InboundMvcGenerator {
                                 source.absentStatus().orElseThrow())
                         .endControlFlow();
         }
+        CodeBlock model = endpoint.result() == null ? CodeBlock.of("null")
+                : optional ? CodeBlock.of("__result.orElseThrow()") : CodeBlock.of("__result");
+        if (endpoint.response() != null)
+            model = CodeBlock.of("$T.$N($L)", mappings, endpoint.response().source().name(), model);
         if (view.attachment().isPresent())
             method.addStatement("return $T.attachment($S, $L.$N())", RESPONSES, view.attachment().get(),
                     optional ? "__result.orElseThrow()" : "__result", view.contentField().orElseThrow());
@@ -330,11 +334,7 @@ public final class InboundMvcGenerator {
                     view.template(),
                     source.status(),
                     view.modelName().map(s -> CodeBlock.of("$S", s)).orElse(CodeBlock.of("null")),
-                    endpoint.result() == null
-                            ? CodeBlock.of("null")
-                            : optional
-                                    ? CodeBlock.of("__result.orElseThrow()")
-                                    : CodeBlock.of("__result"));
+                    model);
         return method.build();
     }
 

@@ -183,13 +183,17 @@ public final class ProjectTypeResolver {
                 inboundAdapters.put(adapter,new org.vernac.compiler.inbound.InboundResolver(project,fieldTypes,diagnostics,inboundRoutes)
                         .resolve(adapter,source.unit().namespace(),scopes.get(source.path())));
         new RoleDeclarations().validate(project, scopes, diagnostics);
-        if (strict) failOnErrors(diagnostics);
         List<TypeSymbol> deferred = namespaces.stream().flatMap(namespace -> project.symbols().inNamespace(namespace).stream())
                 .filter(symbol -> switch (symbol.kind()) {
                     case PERMISSION, ID, VALUE_OBJECT, ENUM, COLLECTION, ENTITY, AGGREGATE, REPOSITORY, USE_CASE, DOMAIN_SERVICE, EVENT, LISTENER, PORT, OUTBOUND_ADAPTER, INBOUND_HTTP_ADAPTER -> false;
                     default -> true;
                 }).toList();
-        return new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries, schemas, mappings, restOperations, inboundAdapters);
+        var partial = new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries,
+                schemas, mappings, restOperations, inboundAdapters, Map.of());
+        var webTemplates = new WebViews(partial, diagnostics).compile();
+        if (strict) failOnErrors(diagnostics);
+        return new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries, schemas,
+                mappings, restOperations, inboundAdapters, webTemplates);
     }
 
     private void resolveField(FieldNode field, FileTypeScope scope, Map<TypeNode, ResolvedType> resolved,

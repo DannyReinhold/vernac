@@ -3,19 +3,14 @@
 package org.vernac.maven;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder;
-import org.junit.platform.launcher.core.LauncherFactory;
-import org.junit.platform.launcher.listeners.SummaryGeneratingListener;
 import org.vernac.compiler.pipeline.VernacCompiler;
 
 import java.net.URLClassLoader;
 import java.nio.file.*;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import javax.tools.ToolProvider;
 
@@ -26,9 +21,16 @@ class SpringBootStarterExecutionTest {
     @Test
     void actualStarterSourcesCompileAndItsDomainAndHtmlTestsExecute() throws Exception {
         Path template = Path.of("../templates/vernac-spring-boot");
-        var generated = new VernacCompiler().compileProject(template.resolve("src/main/vernac"));
+        var compiler = new VernacCompiler();
+        var project = compiler.analyzeProject(template.resolve("src/main/vernac"));
+        var generated = compiler.generate(project, org.vernac.compiler.persistence.SchemaModel.empty(), Map.of());
         Path java = temporary.resolve("java"), classes = temporary.resolve("classes");
         Files.createDirectories(classes);
+        for (var entry : project.webTemplates().entrySet()) {
+            Path resource = classes.resolve("templates").resolve(entry.getKey());
+            Files.createDirectories(resource.getParent());
+            Files.writeString(resource, entry.getValue());
+        }
         List<String> sources = new ArrayList<>();
         for (var file : generated.generatedFiles()) {
             Path source =
@@ -47,6 +49,8 @@ class SpringBootStarterExecutionTest {
                         .forEach(p -> sources.add(p.toString()));
             }
         }
+        String viewAction = Files.readString(Path.of("../docs/ai/test-view-action.md"));
+        sources.add(AiReferenceExamplesTest.scenarioBridge(temporary, viewAction, project, "mvc").toString());
         List<String> arguments =
                 new ArrayList<>(
                         List.of(
@@ -72,32 +76,9 @@ class SpringBootStarterExecutionTest {
                             template.resolve("src/main/resources").toUri().toURL()
                         },
                         previous)) {
-            Thread.currentThread().setContextClassLoader(loader);
-            var request =
-                    LauncherDiscoveryRequestBuilder.request()
-                            .selectors(
-                                    selectClass(loader.loadClass("org.example.tasks.TaskTest")),
-                                    selectClass(loader.loadClass("org.example.tasks.TaskWebTest")),
-                                    selectClass(loader.loadClass("org.example.tasks.TaskConfigurationTest")))
-                            .build();
-            var listener = new SummaryGeneratingListener();
-            LauncherFactory.create().execute(request, listener);
-            var summary = listener.getSummary();
-            assertEquals(7, summary.getTestsFoundCount());
-            assertEquals(
-                    7,
-                    summary.getTestsSucceededCount(),
-                    () ->
-                            summary.getFailures().stream()
-                                    .map(
-                                            f ->
-                                                    f.getTestIdentifier().getDisplayName()
-                                                            + ": "
-                                                            + f.getException())
-                                    .collect(Collectors.joining("\n")));
-            assertEquals(0, summary.getTestsSkippedCount());
-        } finally {
-            Thread.currentThread().setContextClassLoader(previous);
+            AiReferenceExamplesTest.assertTestsPass(loader, 1, "org.vernac.generated.VernacScenariosTest");
+            AiReferenceExamplesTest.assertTestsPass(loader, 7, "org.example.tasks.TaskTest",
+                    "org.example.tasks.TaskWebTest", "org.example.tasks.TaskConfigurationTest");
         }
     }
 }

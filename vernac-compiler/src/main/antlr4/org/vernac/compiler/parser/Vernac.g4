@@ -22,6 +22,49 @@ compilationUnit
     : namespaceDeclaration importDeclaration* topLevelDeclaration* EOF
     ;
 
+testCompilationUnit
+    : namespaceDeclaration importDeclaration* testSuite+ EOF
+    ;
+
+testSuite
+    : 'suite' name=typeName ('profile' profileName=qualifiedNameSegment)? ('using' configuration=qualifiedName)? '{' testScenario+ '}'
+    ;
+
+testScenario
+    : 'scenario' name=methodName '{' testStep* testAssertion (testStep | testAssertion)* '}'
+    ;
+
+testStep
+    : 'given' fixture=variableName '=' value=testExpression ';'
+    | 'when' 'request' endpoint=qualifiedName '(' (testBinding (',' testBinding)*)? ')' (csrf='csrf')? ';'
+    | 'when' (result=variableName '=')? 'invoke' operation=qualifiedName '(' testArguments? ')'
+        ('is' authorizationFailure=qualifiedNameSegment)? ';'
+    | 'when' (result=variableName '=')? receiver=variableName '.' action=methodName '(' testArguments? ')' ';'
+    ;
+
+testBinding
+    : name=variableName '=' value=testExpression
+    ;
+
+testAssertion
+    : 'expect' 'status' responseStatus=INT_LITERAL ';'
+    | 'expect' 'body' 'contains' responseText=STRING_LITERAL ';'
+    | 'expect' 'action' actionEndpoint=qualifiedName '(' (testBinding (',' testBinding)*)? ')' 'is' actionPresence=('present' | 'absent') ';'
+    | 'expect' 'emitted' eventType=qualifiedName ('with' eventField=variableName 'equals' eventValue=testExpression)? 'count' eventCount=INT_LITERAL ';'
+    | 'expect' 'calls' 'to' portMethod=qualifiedName 'count' portCount=INT_LITERAL ';'
+    | 'expect' actual=testExpression ('equals' expected=testExpression | 'is' outcome=('present' | 'absent' | 'invalid')) ';'
+    ;
+
+testArguments
+    : testExpression (',' testExpression)*
+    ;
+
+testExpression
+    : factory=qualifiedName '(' testArguments? ')'
+    | literal=(STRING_LITERAL | INT_LITERAL | BOOLEAN_LITERAL | 'true' | 'false')
+    | reference=qualifiedName
+    ;
+
 namespaceDeclaration
     : 'namespace' qualifiedName ';'
     ;
@@ -35,6 +78,7 @@ termEntry : kind=('description' | 'example' | 'note') text=STRING_LITERAL ';' ;
 
 topLevelDeclaration
     : termDefinition
+    | webViewDefinition
     | idDeclaration
     | valueDefinition
     | eventDefinition
@@ -155,18 +199,40 @@ inboundHttpAdapterDefinition
       ('uses' dependencies+=parameter (',' dependencies+=parameter)*)?
       '{' ('base' base=STRING_LITERAL ';' ('access' accessMode=('public' | 'authenticated') ';')?
           | 'access' accessMode=('public' | 'authenticated') ';' ('base' base=STRING_LITERAL ';')?)?
-      ('error' 'view' errorView=STRING_LITERAL ';')?
+      ('error' 'view' (errorView=STRING_LITERAL | generatedError=typeName) ';')?
       (inboundEndpoint | schemaDefinition | mappingDefinition)*
       inboundErrorPolicy? '}' ';'?
     ;
+webViewDefinition
+    : 'view' name=typeName '(' webViewParameter? ')' '{' 'page' title=STRING_LITERAL ('layout' layout=variableName)? ('theme' theme=STRING_LITERAL)? '{' webViewElement* '}' '}'
+    | component='component' name=typeName '(' webViewParameter ')' webViewGroup
+    ;
+webViewParameter : modelType=pageType name=variableName ;
+webViewElement
+    : 'include' componentName=typeName '(' path=qualifiedName ')' ';'
+    | 'heading' literal=STRING_LITERAL ';'
+    | 'text' (literal=STRING_LITERAL | path=qualifiedName) ';'
+    | 'list' path=qualifiedName 'as' item=variableName webViewGroup ('empty' webViewGroup)?
+    | conditional='when' path=qualifiedName 'is' constant=typeName webViewGroup
+    | pagination='pagination' path=qualifiedName 'at' route=STRING_LITERAL ';'
+    | link='link' literal=STRING_LITERAL 'to' route=STRING_LITERAL ';'
+    | 'form' 'submit' adapter=typeName '.' endpoint=methodName '{' webPathBinding* webFormElement* '}'
+    ;
+webPathBinding : 'path' field=variableName '<-' value=qualifiedName ';' ;
+webViewGroup : '{' webViewElement* '}' ;
+webFormElement
+    : 'textField' field=variableName 'label' literal=STRING_LITERAL ';'
+    | 'button' literal=STRING_LITERAL ('variant' variant=variableName)? ';'
+    ;
+
 inboundEndpoint
     : name=methodName '{' verb=('GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE') route=STRING_LITERAL ';'
       inboundBinding* ('body' bodyType=type ';')?
       ('execute' dependency=variableName '{' mappingAssignment* '}')?
       ('respond' status=INT_LITERAL (responseType=type 'using' responseMapping=methodName)? ';'
        | 'export' attachment=STRING_LITERAL 'from' contentField=variableName ';'
-       | 'render' view=STRING_LITERAL ('model' modelName=variableName)? ('status' renderStatus=INT_LITERAL)? ';'
-       | 'redirect' redirect=STRING_LITERAL ('message' notice=STRING_LITERAL)? ';')
+       | 'render' (view=STRING_LITERAL | generatedView=typeName) ('model' modelName=variableName ('as' viewModelType=type 'using' viewModelMapping=methodName)?)? ('status' renderStatus=INT_LITERAL)? ';'
+       | 'redirect' (redirect=STRING_LITERAL | redirectEndpoint=methodName) ('message' notice=STRING_LITERAL)? ';')
       ('on' 'absent' ('respond' absentStatus=INT_LITERAL
        | 'render' absentView=STRING_LITERAL 'status' absentStatus=INT_LITERAL) ';')? inboundErrorPolicy? '}'
     ;
@@ -176,7 +242,7 @@ inboundErrorPolicy
     ;
 inboundErrorRule
     : 'when' inboundErrorSelector 'then'
-      ('respond' status=INT_LITERAL | 'render' view=STRING_LITERAL 'status' status=INT_LITERAL
+      ('respond' status=INT_LITERAL | 'render' (view=STRING_LITERAL | generatedView=typeName) 'status' status=INT_LITERAL
        | 'redisplay' reload=methodName 'status' status=INT_LITERAL)
       (code=STRING_LITERAL message=STRING_LITERAL)? ';'
     ;
@@ -372,9 +438,10 @@ qualifiedName
     ;
 
 qualifiedNameSegment
-    : 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
+    : 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
+    | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
-    | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
+    | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | IDENTIFIER
     | BOOLEAN_LITERAL
@@ -478,9 +545,10 @@ typeName
     ;
 
 methodName
-    : 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
+    : 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
+    | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
-    | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive'
+    | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'read' | 'modify' | 'load' | 'save'
@@ -491,9 +559,10 @@ methodName
     ;
 
 variableName
-    : 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
+    : 'suite' | 'scenario' | 'given' | 'expect' | 'equals' | 'invoke' | 'emitted' | 'count' | 'calls' | 'profile' | 'csrf' | 'action'
+    | 'role' | 'authorization' | 'permission' | 'requires' | 'authenticated' | 'all' | 'any'
     | 'tenant' | 'global' | 'tenancy' | 'explicit' | 'unique' | 'references'
-    | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'read' | 'modify'
+    | 'access' | 'mvc' | 'render' | 'redirect' | 'redisplay' | 'model' | 'form' | 'error' | 'view' | 'message' | 'sensitive' | 'page' | 'layout' | 'theme' | 'text' | 'pagination' | 'at' | 'link' | 'component' | 'include' | 'heading' | 'empty' | 'submit' | 'textField' | 'label' | 'button' | 'variant' | 'read' | 'modify'
     | 'term' | 'description' | 'example' | 'note' | 'application' | 'activate' | 'bind' | 'to' | 'module' | 'export' | 'rejection' | 'integration' | 'invalid' | 'request' | 'validation' | 'found' | 'optimistic' | 'conflict' | 'domain' | 'counted' | 'cursor' | 'offset' | 'counting' | 'inbound' | 'http' | 'respond' | 'find' | 'when' | 'then' | 'otherwise' | 'default' | 'reject' | 'fail' | 'local' | 'remote' | 'unknown' | 'status' | 'client' | 'base' | 'body' | 'response' | 'errors' | 'path' | 'query' | 'header'
     | 'configuration' | 'using' | 'naming' | 'named' | 'patch'
     | 'where' | 'and' | 'order' | 'asc' | 'desc' | 'is' | 'absent' | 'present' | 'like' | 'contains' | 'starts' | 'ends' | 'with'
