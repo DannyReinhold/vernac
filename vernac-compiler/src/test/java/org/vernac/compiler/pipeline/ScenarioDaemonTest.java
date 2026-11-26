@@ -4,11 +4,13 @@ package org.vernac.compiler.pipeline;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.vernac.compiler.application.ApplicationDefinition;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.File;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
@@ -19,6 +21,51 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ScenarioDaemonTest {
     @TempDir Path root;
+
+    @Test
+    void publishesSavedChangesAsOneRevisionWithoutRebasingOpenOverlays() throws Exception {
+        var main = Files.createDirectories(root.resolve("src/main/vernac/app"));
+        var tests = Files.createDirectories(root.resolve("src/test/vernac/app"));
+        var source = Files.writeString(main.resolve("counter.vernac"), "namespace app; value Counter(int);");
+        var scenario = Files.writeString(tests.resolve("checks.vernac"),
+                "namespace app; suite Checks { scenario counter { expect true equals true; } }");
+        ScenarioRunSession.Executor unused = request -> fail("check must not execute tests");
+        var daemon = new ScenarioDaemon(ScenarioWorkspace.openSaved(root, unused, null), () -> unused);
+        var json = JsonMapper.builder().build();
+        var output = new StringWriter();
+        daemon.serve(new StringReader("""
+                {"id":1,"op":"open","revision":0}
+                """), output);
+
+        Files.move(source, main.resolve("renamed.vernac"));
+        Files.writeString(scenario, "namespace app; suite");
+        daemon.serve(new StringReader("""
+                {"id":2,"op":"refresh","revision":0}
+                {"id":3,"op":"refresh","revision":0}
+                {"id":4,"op":"refresh","revision":1}
+                {"id":5,"op":"open","revision":1}
+                {"id":6,"op":"check","client":"1","revision":0}
+                {"id":7,"op":"check","client":"2","revision":0}
+                """), output);
+
+        Files.writeString(root.resolve(ApplicationDefinition.FILE), "");
+        daemon.serve(new StringReader("""
+                {"id":8,"op":"refresh","revision":1}
+                {"id":9,"op":"sharedRevision"}
+                """), output);
+        var replies = output.toString().lines().map(json::readTree).toList();
+        assertEquals(9, replies.size());
+        assertEquals(1, replies.get(1).at("/result/revision").intValue());
+        assertEquals("stale_revision", replies.get(2).at("/error/code").asText());
+        assertEquals(1, replies.get(3).at("/result/revision").intValue());
+        assertTrue(replies.get(5).at("/result/valid").booleanValue());
+        var diagnostics = replies.get(6).at("/result/diagnostics");
+        assertFalse(replies.get(6).at("/result/valid").booleanValue());
+        assertEquals(1, diagnostics.size());
+        assertEquals("src/test/vernac/app/checks.vernac", diagnostics.get(0).at("/location/sourceName").asText());
+        assertEquals("execution_error", replies.get(7).at("/error/code").asText());
+        assertEquals(1, replies.get(8).at("/result/revision").intValue());
+    }
 
     @Test
     void checksProductionAndScenarioDiagnosticsWithoutExecutingTests() throws Exception {

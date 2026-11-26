@@ -192,7 +192,11 @@ sequentially and reports stale revisions and validation diagnostics. A fresh JVM
 with the compiler, Jupiter engine and project dependencies on its Java classpath. It captures the
 saved Vernac sources, module descriptors and build-generated module index at startup, and uses UTF-8
 stdin/stdout for the protocol. Test output goes to stderr. A restart captures the saved tree again.
-Overlay persistence, saved-tree synchronization during a run and cancellation remain open.
+The `refresh` request takes the expected shared `revision` and scans both saved Vernac source roots.
+It publishes additions, changes and deletions in one shared revision. If the sources are unchanged,
+it returns the same revision. Open overlays retain their snapshots and new overlays can open on
+the refreshed revision. Changed configuration or module index data requires a daemon restart.
+Automatic file watching, overlay persistence and cancellation remain open.
 
 ### Structured model operations for agents
 
