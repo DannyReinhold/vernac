@@ -253,14 +253,31 @@ index. Keep help separate from workspace inspection so asking about syntax does 
 
 ## Standalone build tool
 
-A one-shot Java entry point, `org.vernac.compiler.pipeline.ScenarioCli <check|test> <workspace>`
-with an optional profile, uses the same saved-workspace capture as the daemon. It writes one JSON
-result to stdout. Status 0 indicates success, 1 a source error or a non-passing test outcome, and
-2 an invalid invocation or execution error. `test --scenario <id>` selects one fully qualified
-scenario ID in the chosen profile. The daemon exposes the same operation as `runScenario` with a
-`scenario` field and an overlay revision. A successful explicit run does not advance the baseline
-used for affected tests. Each CLI invocation opens a fresh workspace. An installed command and a
-connection to an existing daemon remain open.
+Build the CLI ZIP from the repository with JDK 21.
+
+```sh
+mvn -pl vernac-compiler -am -Pcli-distribution package
+```
+
+Extract `vernac-compiler/target/vernac-<version>-cli.zip` and add its `bin` directory to `PATH`.
+The ZIP includes `vernac` for POSIX shells, `vernac.cmd` for Windows and the base runtime
+dependencies. The launchers use `JAVA_HOME` or `java` from `PATH`. Running the extracted CLI
+requires a JDK and can work without Maven installed. The current directory is the default workspace.
+
+```sh
+vernac check
+vernac test --scenario app.Checks.counter
+vernac test /path/to/project mvc
+```
+
+The CLI reads saved sources and writes one JSON result to stdout. Status 0 indicates success, 1 a
+source error or a non-passing test outcome, and 2 an invalid invocation or execution error.
+`--scenario` selects one fully qualified scenario ID in the chosen profile. For scenarios using
+external libraries, supply their Java classpath via `VERNAC_PROJECT_CLASSPATH` using the platform's
+classpath separator. The runner picks up precompiled project fixtures from `target/test-classes`
+and `target/classes`. The daemon's `runScenario` offers equivalent selection on an overlay
+revision without advancing its affected-test baseline. Each CLI invocation opens a fresh workspace.
+Reusing an existing daemon from this launcher and resolving project dependencies remain open.
 
 | Proposed command | Contract to implement and test |
 | --- | --- |

@@ -27,9 +27,11 @@ public final class ScenarioCli {
 
     private static int execute(String[] args, PrintStream output) {
         try {
-            if (args.length < 2 || !Set.of("check", "test").contains(args[0])) return usage(output);
+            if (args.length < 1 || !Set.of("check", "test").contains(args[0])) return usage(output);
             boolean test = args[0].equals("test");
-            int next = 2;
+            int next = 1;
+            Path root = Path.of(".");
+            if (next < args.length && !args[next].startsWith("--")) root = Path.of(args[next++]);
             String profile = null;
             if (next < args.length && PROFILES.contains(args[next])) profile = args[next++];
             String scenario = null;
@@ -39,7 +41,7 @@ public final class ScenarioCli {
                 }
                 scenario = args[next + 1];
             }
-            var workspace = ScenarioDaemonLauncher.openWorkspace(Path.of(args[1]), profile, ScenarioDaemonLauncher.classpath());
+            var workspace = ScenarioDaemonLauncher.openWorkspace(root, profile, ScenarioDaemonLauncher.classpath());
             long revision = workspace.revision();
             if (!test) {
                 var check = workspace.check(revision);
@@ -60,7 +62,7 @@ public final class ScenarioCli {
 
     private static int usage(PrintStream output) {
         write(output, Map.of("error", "usage", "message",
-                "Usage: ScenarioCli <check|test> <workspace> [domain|mvc|postgres] [--scenario <id> (test only)]"));
+                "Usage: vernac <check|test> [workspace [domain|mvc|postgres]] [--scenario <id> (test only)]"));
         return 2;
     }
 
