@@ -25,7 +25,7 @@ NS = {"m": "http://maven.apache.org/POM/4.0.0"}
 REQUIRED_TESTS = ("AdapterBindingsTest","PortModuleTest", "PortModuleSymbolsTest", "TypeModuleTest", "TypeModuleExecutionTest", "ApplicationDefinitionTest", "ApplicationDefinitionSymbolsTest", "ModuleDefinitionSymbolsTest", "InboundErrorPolicyExecutionTest", "InboundErrorPolicyContractTest", "InboundErrorPolicySymbolsTest", "EntitySchemaPostgresTest", "EventStoragePostgresTest", "EventWorkerPostgresTest",
                   "RepositoryQueryPostgresTest", "ScalarQueryPostgresTest", "ScalarStoragePostgresTest",
                   "RequiredFieldBackfillTest", "SchemaMojoTest", "PluginDistributionIT",
-    "DocumentationExamplesTest", "InboundHttpContractTest", "InboundHttpExecutionTest",
+    "DocumentationExamplesTest", "AiReferenceExamplesTest", "InboundHttpContractTest", "InboundHttpExecutionTest",
     "InboundHttpRuntimeTest", "InboundHttpSymbolsTest", "PaginationTest", "JdbcCursorCodecTest", "PaginationHttpExecutionTest", "JsonPagesTest", "PaginationResultContractTest")
 
 # 0.4.0 acceptance: module contracts/lifecycle, pagination, vocabulary and diagrams.
