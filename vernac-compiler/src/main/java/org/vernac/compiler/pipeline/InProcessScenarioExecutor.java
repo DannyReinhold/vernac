@@ -10,6 +10,7 @@ import org.junit.platform.launcher.TestExecutionListener;
 import org.junit.platform.launcher.TestIdentifier;
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder;
 import org.junit.platform.launcher.core.LauncherFactory;
+import org.vernac.compiler.ast.WebViewNode;
 import org.vernac.compiler.persistence.SchemaModel;
 import org.vernac.compiler.pipeline.ScenarioRunSession.Outcome;
 
@@ -19,12 +20,16 @@ import javax.tools.JavaFileObject;
 import javax.tools.ToolProvider;
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.Enumeration;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -34,6 +39,7 @@ import java.util.stream.Collectors;
 
 /** Executes generated Java 21 scenarios in the current JVM, with an isolated classloader for each build. */
 public final class InProcessScenarioExecutor implements ScenarioRunSession.Executor {
+    private static final String GENERATED_TEMPLATES = "templates/" + WebViewNode.TEMPLATE_PREFIX;
     private final VernacCompiler vernac = new VernacCompiler();
     private final JavaCompiler javac;
     private final List<Path> classpath;
@@ -102,13 +108,19 @@ public final class InProcessScenarioExecutor implements ScenarioRunSession.Execu
                 tests = build(testSources, workspace.resolve("test-sources"), testClasses, testClasspath);
             }
 
+            for (var template : request.project().webTemplates().entrySet()) {
+                var resource = applicationClasses.resolve("templates").resolve(template.getKey());
+                Files.createDirectories(resource.getParent());
+                Files.writeString(resource, template.getValue());
+            }
+
             var names = new java.util.HashSet<>(sources.keySet());
             names.add(bridge);
             var urls = new ArrayList<java.net.URL>();
             urls.add(applicationClasses.toUri().toURL());
             urls.add(testClasses.toUri().toURL());
             for (var dependency : classpath) urls.add(dependency.toUri().toURL());
-            try (var loader = new GeneratedClassLoader(urls.toArray(java.net.URL[]::new), names, projectOutputs)) {
+            try (var loader = new GeneratedClassLoader(urls.toArray(URL[]::new), names, projectOutputs)) {
                 return run(loader, bridge);
             }
         } finally {
@@ -197,11 +209,47 @@ public final class InProcessScenarioExecutor implements ScenarioRunSession.Execu
     private static final class GeneratedClassLoader extends URLClassLoader {
         private final Set<String> generated;
         private final List<Path> projectOutputs;
+        private final String generatedOutput;
+        private final List<String> previousOutputs;
 
-        private GeneratedClassLoader(java.net.URL[] urls, Set<String> generated, List<Path> projectOutputs) {
+        private GeneratedClassLoader(URL[] urls, Set<String> generated, List<Path> projectOutputs) throws IOException {
             super(urls, InProcessScenarioExecutor.class.getClassLoader());
             this.generated = generated;
             this.projectOutputs = projectOutputs;
+            generatedOutput = urls[0].toExternalForm();
+            var previous = new ArrayList<String>();
+            for (var output : projectOutputs) {
+                String prefix = output.toUri().toURL().toExternalForm();
+                previous.add(prefix.endsWith("/") ? prefix : prefix + "/");
+            }
+            previousOutputs = List.copyOf(previous);
+        }
+
+        @Override
+        public URL getResource(String name) {
+            if (!name.startsWith(GENERATED_TEMPLATES)) return super.getResource(name);
+            try {
+                var resources = getResources(name);
+                return resources.hasMoreElements() ? resources.nextElement() : null;
+            } catch (IOException failure) {
+                return null;
+            }
+        }
+
+        @Override
+        public Enumeration<URL> getResources(String name) throws IOException {
+            var inherited = super.getResources(name);
+            if (!name.startsWith(GENERATED_TEMPLATES)) return inherited;
+            var current = new LinkedHashSet<URL>();
+            var dependencies = new LinkedHashSet<URL>();
+            while (inherited.hasMoreElements()) {
+                var url = inherited.nextElement();
+                String path = url.toExternalForm();
+                if (path.startsWith(generatedOutput)) current.add(url);
+                else if (previousOutputs.stream().noneMatch(path::startsWith)) dependencies.add(url);
+            }
+            current.addAll(dependencies);
+            return Collections.enumeration(current);
         }
 
         @Override

@@ -24,8 +24,9 @@ READER = "example.documents.ReaderView.hiddenActionAndDirectPostAreDenied"
 ASSERTION = "expect (remaining == DocumentPresence ABSENT);"
 DELETE = "documentStore delete: documentId."
 VIEW_BINDING = "path id <- document.documentId.value;"
+REMOVED_PAGE = 'page "Document removed"'
 WORKLOADS = {"mvc-assertion": (SCENARIOS, ASSERTION), "delete-behavior": (DOCUMENTS, DELETE),
-             "view-diagnostics": (DOCUMENTS, VIEW_BINDING)}
+             "view-diagnostics": (DOCUMENTS, VIEW_BINDING), "view-render": (DOCUMENTS, REMOVED_PAGE)}
 REPORTS = (
     ROOT / "vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.pipeline.ScenarioDaemonTest.xml",
     EXAMPLE / "target/surefire-reports/TEST-org.vernac.generated.VernacScenariosTest.xml",
@@ -72,6 +73,9 @@ def measure_response(daemon, workload, edit, start):
 
 
 def edit_source(workload, original, original_text, edit):
+    if workload == "view-render":
+        message = "Archived document" if edit % 5 == 0 else "Document removed"
+        return original.replace('"Document removed"', f'"{message} {edit}"')
     if workload == "view-diagnostics":
         updated = original.replace('heading "Document workspace";', f'heading "Document workspace {edit}";')
         if edit % 5 == 0:

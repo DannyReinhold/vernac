@@ -196,6 +196,9 @@ The launcher includes the project's Maven `target/test-classes` and `target/clas
 Handwritten fixtures and application classes there share a classloader with the new generated classes,
 so Spring and the scenario bridge use the same type identities. Compile Java fixtures and prepare
 their resources before running the daemon.
+Scenario runs load generated HTML from the requested Vernac revision. Project build outputs
+cannot shadow those templates or supply an old local template after its declaration is removed.
+Ordinary resources and templates from dependencies keep their normal lookup behavior.
 The `refresh` request takes the expected shared `revision` and scans both saved Vernac source roots.
 It publishes additions, changes and deletions in one shared revision. If the sources are unchanged,
 it returns the same revision. Open overlays retain their snapshots and new overlays can open on
@@ -342,8 +345,9 @@ The repository benchmark exercises the daemon's `runSaved` request on Document W
 It copies the example and its prebuilt fixtures into a temporary workspace for each JVM session.
 It measures from writing a changed source file through reading the JSON reply, and verifies the
 selected cases and their outcomes. Every fifth edit intentionally fails the editor scenario while
-the restricted reader scenario still passes. The two workloads change either the MVC assertion
-or the native `DeleteDocument` body. The `view-diagnostics` workload edits a view heading and makes
+the restricted reader scenario still passes. These workloads change the MVC assertion, the native
+`DeleteDocument` body, or the generated post-delete HTML checked by the editor scenario. The
+`view-diagnostics` workload edits a view heading and makes
 every fifth edit an invalid typed form binding. It verifies the diagnostic message and location
 or the repaired source's successful check. Run Maven preparation and measurement on the same JDK.
 
@@ -353,6 +357,7 @@ mvn -pl examples/document-workspace-scenarios -am \
 python3 tools/benchmark-saved-scenarios.py --max-p95-ms 500 > saved-mvc-assertion.json
 python3 tools/benchmark-saved-scenarios.py --workload delete-behavior --max-p95-ms 500 > saved-delete-behavior.json
 python3 tools/benchmark-saved-scenarios.py --workload view-diagnostics --max-p95-ms 100 > saved-view-diagnostics.json
+python3 tools/benchmark-saved-scenarios.py --workload view-render --max-p95-ms 500 > saved-view-render.json
 ```
 
 The JSON includes cold start and first run, raw samples, selected cases, outcomes and per-session
