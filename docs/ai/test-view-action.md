@@ -1,7 +1,7 @@
 # Test an action on a rendered row
 
-Start with a project generated from the **Spring Boot task-board template** on the 0.6 development
-line or a later compatible build. It supplies `TaskWeb`, `CreateTask` and the test-scoped
+Start with a project generated from the **Vernac 0.6.0 Spring Boot task-board template** or a
+compatible later build. It supplies `TaskWeb`, `CreateTask` and the test-scoped
 `TaskScenarioFixtures` with a memory repository, MockMvc, security and real Thymeleaf templates.
 Add this suite to the generated project. If the wizard used a custom namespace, substitute it for
 `org.example.tasks` in the file path, namespace and fixture name.

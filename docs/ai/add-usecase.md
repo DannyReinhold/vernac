@@ -1,6 +1,6 @@
 # Add a use case that changes stored state
 
-The aggregate already owns the completion rule. In this 0.5.4 core example, the new use case
+The aggregate already owns the completion rule. The new use case
 loads the task through the declared repository, calls the aggregate and saves it. The repository
 alias `tasks` gives the behavior its `self.tasks()` accessor.
 

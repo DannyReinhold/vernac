@@ -1,7 +1,7 @@
 # Vernac language details and worked examples
 
-The core examples use **Vernac 0.5.4**. The version in the project's POM determines which
-development features are available.
+The task guides target **Vernac 0.6.0**, including executable tests and typed views.
+Historical version labels below identify when particular language features were introduced.
 
 For MVC routes that only select a template, use `GET "/about"; render "about";`
 inside an endpoint without an `execute` clause. In both HTTP and MVC adapters,
@@ -13,7 +13,7 @@ language rule or a worked example. Multiple attached collections require 0.5.0 o
 inbound adapters require 0.3.0 or later. Match the documentation to the project's compiler/runtime.
 For build commands, migrations and verification, use the [build reference](ai-tools-reference.md).
 
-In the 0.6.0 development line, `src/test/vernac` contains executable
+In 0.6.0, `src/test/vernac` contains executable
 [suites and scenarios](tutorials/domain-scenarios.md) with the domain, MVC and PostgreSQL profiles.
 
 ### Language changes in 0.5.4

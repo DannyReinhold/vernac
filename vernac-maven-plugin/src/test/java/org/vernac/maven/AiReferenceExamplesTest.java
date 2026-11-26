@@ -54,10 +54,11 @@ class AiReferenceExamplesTest {
         compile(temporary, blocks(section, "vernac"), blocks(section, "java"), null);
     }
 
-    @Test void standaloneStarterCompiles() throws Exception {
-        var model = blocks(Files.readString(DOCS.resolve("ai/start-model.md")), "vernac");
+    @Test void standaloneStarterRunsItsDomainScenario() throws Exception {
+        String page = Files.readString(DOCS.resolve("ai/start-model.md"));
+        var model = blocks(page, "vernac");
         assertEquals(1, model.size());
-        compile(temporary, model, List.of(), null);
+        compile(temporary, model, List.of(), page);
     }
 
     @ParameterizedTest

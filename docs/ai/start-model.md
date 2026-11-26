@@ -1,6 +1,6 @@
 # Start a model in an empty application
 
-In an existing Maven application, keep its POM. For an empty directory, use the 0.5.4 POM at the
+In an existing Maven application, keep its POM. For an empty directory, use the 0.6.0 POM at the
 end of this page. Put this model at `src/main/vernac/ai/tasks/tasks.vernac`.
 
 ```vernac
@@ -54,15 +54,30 @@ synchronous listener ObserveCompletion on TaskCompleted behavior {
 and explicitly saves it. Calling it again after completion emits no further event. The listener logs
 the occurrence. For an existing model, reuse its namespace, repository and operation names.
 
-Run `mvn compile` (or `./mvnw compile` with the project's wrapper). Generated sources appear under
-`target/generated-sources/vernac/`. To exercise persistence, apply the reviewed migration to a
+Save this domain test as `src/test/vernac/ai/tasks/completion.vernac`.
+
+```vernac-test
+namespace ai.tasks;
+suite Completion {
+    scenario completesAnOpenTask {
+        given task = Task(Title("First task"), TaskState.OPEN);
+        when task.complete();
+        expect task.taskState equals TaskState.COMPLETED;
+    }
+}
+```
+
+Run `mvn test` (or `./mvnw test` with the project's wrapper). Maven compiles the model and runs
+`Completion.completesAnOpenTask` in memory. Generated Java appears under
+`target/generated-sources/vernac/`. To verify persistence, apply the reviewed migration to a
 disposable PostgreSQL database and run the application's integration test.
 [Build and migration commands](../ai-tools-reference.md)
 
-## Minimal POM for a 0.5.4 compiler probe
+## Minimal POM for the model and test
 
-Save this as `pom.xml` alongside `src/`. The plugin generates the Java sources and the JDBC starter
-provides the types used by the generated repository. Compilation works without a running database.
+Save this as `pom.xml` alongside `src/`. The plugin and JDBC starter share one version. For a
+development checkout, use its locally installed artifacts, for example
+`mvn -Dvernac.version=0.6.0-SNAPSHOT test` before the 0.6.0 release.
 
 ```xml
 <project xmlns="http://maven.apache.org/POM/4.0.0">
@@ -78,13 +93,18 @@ provides the types used by the generated repository. Compilation works without a
     <version>1.0.0</version>
     <properties>
         <java.version>21</java.version>
-        <vernac.version>0.5.4</vernac.version>
+        <vernac.version>0.6.0</vernac.version>
     </properties>
     <dependencies>
         <dependency>
             <groupId>org.vernac</groupId>
             <artifactId>vernac-jdbc-spring-boot-starter</artifactId>
             <version>${vernac.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
     <build>
@@ -97,6 +117,10 @@ provides the types used by the generated repository. Compilation works without a
                     <execution>
                         <phase>generate-sources</phase>
                         <goals><goal>compile</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>vernac-scenarios</id>
+                        <goals><goal>test-compile</goal></goals>
                     </execution>
                 </executions>
             </plugin>

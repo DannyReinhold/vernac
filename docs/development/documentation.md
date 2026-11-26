@@ -62,8 +62,8 @@ The [AI reference](../ai-language-reference.md) is a short, version-aware index.
 under `docs/ai/` states its starting files or template, its change and how to verify the outcome.
 Use a full-file `diff` block for a small edit (space for context, `+` for an addition, `-` for
 a removal). Use `vernac-test` for runnable suites. The tests compile the before and after models in
-separate projects. They also execute the aggregate scenario and the rendered action scenario with
-its declared Spring Boot starter fixture. Each worked-example heading in the detailed reference gets
+separate projects. They execute the starter and aggregate domain scenarios and run the rendered
+action scenario with its declared Spring Boot fixture. Each worked-example heading in the detailed reference gets
 its own compilation with its associated Java inputs.
 
 For a single-file prompt, `python3 tools/bundle-ai-reference.py` emits UTF-8 Markdown on stdout. It

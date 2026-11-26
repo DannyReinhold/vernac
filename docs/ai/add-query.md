@@ -2,7 +2,7 @@
 
 The repository already loads tasks by ID. Add a search for a state, ordered by title. `Tasks`
 is the collection declared on the aggregate. The parameter `:state` binds the typed method
-argument. The two added lines belong inside the repository declaration (0.5.4 core).
+argument. The two added lines belong inside the repository declaration.
 
 `src/main/vernac/guide/search/tasks.vernac`
 
