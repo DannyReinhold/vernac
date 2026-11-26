@@ -23,6 +23,39 @@ class ScenarioDaemonTest {
     @TempDir Path root;
 
     @Test
+    void checksSavedSourcesAndRepairsOnTheSharedRevision() throws Exception {
+        var main = Files.createDirectories(root.resolve("src/main/vernac/app"));
+        var source = Files.writeString(main.resolve("counter.vernac"), "namespace app; value Counter(int);");
+        ScenarioRunSession.Executor unused = request -> fail("diagnostics must not execute tests");
+        var daemon = new ScenarioDaemon(ScenarioWorkspace.openSaved(root, unused, null), () -> unused);
+        var output = new StringWriter();
+        Files.writeString(source, "namespace app; value Counter(UnknownCounterType);");
+        daemon.serve(new StringReader("""
+                {"id":1,"op":"checkSaved","revision":0}
+                {"id":2,"op":"checkSaved","revision":0}
+                {"id":3,"op":"checkSaved","revision":1}
+                """), output);
+        Files.writeString(source, "namespace app; value Counter(int);");
+        daemon.serve(new StringReader("""
+                {"id":4,"op":"checkSaved","revision":1}
+                """), output);
+
+        var json = JsonMapper.builder().build();
+        var replies = output.toString().lines().map(json::readTree).toList();
+        assertEquals(4, replies.size());
+        var invalid = replies.getFirst().path("result");
+        assertEquals(1, invalid.path("revision").intValue());
+        assertFalse(invalid.path("valid").booleanValue());
+        assertTrue(invalid.at("/diagnostics/0/message").asText().contains("UnknownCounterType"));
+        assertEquals("stale_revision", replies.get(1).at("/error/code").asText());
+        assertEquals(invalid, replies.get(2).path("result"));
+        var repaired = replies.get(3).path("result");
+        assertEquals(2, repaired.path("revision").intValue());
+        assertTrue(repaired.path("valid").booleanValue());
+        assertTrue(repaired.path("diagnostics").isEmpty());
+    }
+
+    @Test
     void runsOnlyAffectedSavedScenariosAgainstTheLastPassingRevision() throws Exception {
         var main = Files.createDirectories(root.resolve("src/main/vernac/app"));
         Files.writeString(main.resolve("counter.vernac"), "namespace app; value Counter(int);");

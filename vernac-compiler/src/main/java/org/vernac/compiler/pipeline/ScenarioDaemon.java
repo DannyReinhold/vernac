@@ -70,6 +70,7 @@ public final class ScenarioDaemon {
         return switch (requiredText(request, "op")) {
             case "sharedRevision" -> Map.of("revision", shared.revision());
             case "refresh" -> Map.of("revision", shared.refreshSavedSources(revision(request)));
+            case "checkSaved" -> checkReply(shared.check(shared.refreshSavedSources(revision(request))));
             case "runSaved" -> {
                 boolean opaqueChange = optionalBoolean(request, "opaqueChange");
                 long savedRevision = shared.refreshSavedSources(revision(request));
@@ -84,10 +85,7 @@ public final class ScenarioDaemon {
                         "revision", overlay.workspace().revision());
             }
             case "apply" -> Map.of("revision", workspace(request).apply(revision(request), edits(request)));
-            case "check" -> {
-                var check = workspace(request).check(revision(request));
-                yield Map.of("revision", check.revision(), "valid", check.valid(), "diagnostics", check.diagnostics());
-            }
+            case "check" -> checkReply(workspace(request).check(revision(request)));
             case "run" -> workspace(request).run(revision(request), optionalBoolean(request, "opaqueChange"));
             case "runScenario" -> workspace(request).runScenario(revision(request), requiredText(request, "scenario"));
             case "close" -> {
@@ -97,6 +95,10 @@ public final class ScenarioDaemon {
             }
             default -> throw new IllegalArgumentException("Unknown workspace operation");
         };
+    }
+
+    private static Map<String, Object> checkReply(ScenarioPlanningSession.Diagnostics check) {
+        return Map.of("revision", check.revision(), "valid", check.valid(), "diagnostics", check.diagnostics());
     }
 
     private ScenarioWorkspace workspace(JsonNode request) {

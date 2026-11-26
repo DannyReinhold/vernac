@@ -23,7 +23,9 @@ EDITOR = "example.documents.EditorView.authorizedActionIsVisible"
 READER = "example.documents.ReaderView.hiddenActionAndDirectPostAreDenied"
 ASSERTION = "expect (remaining == DocumentPresence ABSENT);"
 DELETE = "documentStore delete: documentId."
-WORKLOADS = {"mvc-assertion": (SCENARIOS, ASSERTION), "delete-behavior": (DOCUMENTS, DELETE)}
+VIEW_BINDING = "path id <- document.documentId.value;"
+WORKLOADS = {"mvc-assertion": (SCENARIOS, ASSERTION), "delete-behavior": (DOCUMENTS, DELETE),
+             "view-diagnostics": (DOCUMENTS, VIEW_BINDING)}
 REPORTS = (
     ROOT / "vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.pipeline.ScenarioDaemonTest.xml",
     EXAMPLE / "target/surefire-reports/TEST-org.vernac.generated.VernacScenariosTest.xml",
@@ -40,20 +42,48 @@ def classpath():
     return os.pathsep.join(paths)
 
 
-def run_saved(daemon, edit, start):
-    request = {"id": edit, "op": "runSaved", "revision": max(0, edit - 1)}
+def measure_response(daemon, workload, edit, start):
+    diagnostics = workload == "view-diagnostics"
+    request = {"id": edit, "op": "checkSaved" if diagnostics else "runSaved", "revision": max(0, edit - 1)}
     daemon.stdin.write(json.dumps(request) + "\n")
     daemon.stdin.flush()
     reply = json.loads(daemon.stdout.readline())
     elapsed = (time.perf_counter_ns() - start) / 1_000_000
     result = reply.get("result") or {}
+    if reply.get("id") != edit or reply.get("error") or result.get("revision") != edit:
+        raise ValueError(f"Unexpected response for edit {edit}: {reply}")
+    if diagnostics:
+        errors = [item for item in result["diagnostics"] if item["severity"] == "ERROR"]
+        invalid = edit != 0 and edit % 5 == 0
+        if result["valid"] != (not invalid) or bool(errors) != invalid:
+            raise ValueError(f"Unexpected diagnostics for edit {edit}: {reply}")
+        if invalid and not any(
+                f"document.missingBinding{edit}.value" in item["message"]
+                and item["location"]["sourceName"].replace("\\", "/").endswith(DOCUMENTS.as_posix())
+                and item["location"]["line"] > 0 for item in errors):
+            raise ValueError(f"Missing typed view binding diagnostic for edit {edit}: {reply}")
+        return {"edit": edit, "ms": elapsed, "valid": result["valid"], "diagnostics": result["diagnostics"]}
     expected = {EDITOR: "FAILED" if edit and edit % 5 == 0 else "PASSED", READER: "PASSED"}
     selected = result.get("selected", [])
-    if (reply.get("id") != edit or reply.get("error") or result.get("revision") != edit
-            or result.get("outcomes") != expected
+    if (result.get("outcomes") != expected
             or sorted(item["id"] for item in selected) != sorted(expected)):
         raise ValueError(f"Unexpected response for edit {edit}: {reply}")
     return {"edit": edit, "ms": elapsed, "selected": selected, "outcomes": expected}
+
+
+def edit_source(workload, original, original_text, edit):
+    if workload == "view-diagnostics":
+        updated = original.replace('heading "Document workspace";', f'heading "Document workspace {edit}";')
+        if edit % 5 == 0:
+            return updated.replace(original_text, f"path id <- document.missingBinding{edit}.value;")
+        return updated
+    expected_sum = edit + (2 if edit % 5 == 0 else 1)
+    predicate = f"{edit} + 1 == {expected_sum}"
+    if workload == "mvc-assertion":
+        replacement = f"expect (remaining == DocumentPresence ABSENT && {predicate});"
+    else:
+        replacement = f"require {predicate} else BenchmarkRejected.\n        {DELETE}"
+    return original.replace(original_text, replacement)
 
 
 def measure_session(java, cp, workload, warmups, edits):
@@ -73,19 +103,13 @@ def measure_session(java, cp, workload, warmups, edits):
             with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                   stderr=daemon_log, text=True, encoding="utf-8") as daemon:
                 try:
-                    cold = run_saved(daemon, 0, start)
+                    cold = measure_response(daemon, workload, 0, start)
                     samples = []
                     for edit in range(1, warmups + edits + 1):
-                        expected_sum = edit + (2 if edit % 5 == 0 else 1)
-                        predicate = f"{edit} + 1 == {expected_sum}"
-                        if workload == "mvc-assertion":
-                            replacement = f"expect (remaining == DocumentPresence ABSENT && {predicate});"
-                        else:
-                            replacement = f"require {predicate} else BenchmarkRejected.\n        {DELETE}"
-                        updated = original.replace(original_text, replacement)
+                        updated = edit_source(workload, original, original_text, edit)
                         start = time.perf_counter_ns()
                         source.write_text(updated, encoding="utf-8")
-                        sample = run_saved(daemon, edit, start)
+                        sample = measure_response(daemon, workload, edit, start)
                         if edit > warmups:
                             samples.append(sample)
                     daemon.stdin.close()

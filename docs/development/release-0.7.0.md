@@ -200,6 +200,9 @@ The `refresh` request takes the expected shared `revision` and scans both saved 
 It publishes additions, changes and deletions in one shared revision. If the sources are unchanged,
 it returns the same revision. Open overlays retain their snapshots and new overlays can open on
 the refreshed revision. Changed configuration or module index data requires a daemon restart.
+`checkSaved` takes the expected shared `revision`, refreshes the saved sources and returns
+revisioned type and scenario diagnostics. It uses the same analysis as overlay `check` and does
+not execute tests.
 `runSaved` takes the expected shared `revision` and combines that refresh with an affected test run
 in the same request. The shared workspace retains its compilation cache and its last passing baseline
 across requests. An optional `opaqueChange: true` requests conservative execution after changes outside
@@ -323,18 +326,22 @@ It copies the example and its prebuilt fixtures into a temporary workspace for e
 It measures from writing a changed source file through reading the JSON reply, and verifies the
 selected cases and their outcomes. Every fifth edit intentionally fails the editor scenario while
 the restricted reader scenario still passes. The two workloads change either the MVC assertion
-or the native `DeleteDocument` body. Run the Maven preparation and each measurement on the same JDK.
+or the native `DeleteDocument` body. The `view-diagnostics` workload edits a view heading and makes
+every fifth edit an invalid typed form binding. It verifies the diagnostic message and location
+or the repaired source's successful check. Run Maven preparation and measurement on the same JDK.
 
 ```sh
 mvn -pl examples/document-workspace-scenarios -am \
   -Dtest=ScenarioDaemonTest,VernacScenariosTest -Dsurefire.failIfNoSpecifiedTests=false test
 python3 tools/benchmark-saved-scenarios.py --max-p95-ms 500 > saved-mvc-assertion.json
 python3 tools/benchmark-saved-scenarios.py --workload delete-behavior --max-p95-ms 500 > saved-delete-behavior.json
+python3 tools/benchmark-saved-scenarios.py --workload view-diagnostics --max-p95-ms 100 > saved-view-diagnostics.json
 ```
 
 The JSON includes cold start and first run, raw samples, selected cases, outcomes and per-session
-percentiles. A threshold miss returns status 1 and still writes the report. The benchmark requires
-prebuilt Java fixtures and Maven resources. Template edits, development builds and type diagnostics
+percentiles. The diagnostic workload records validation results and compiler messages instead of
+case selection. A threshold miss returns status 1 and still writes the report. The benchmark
+requires prebuilt Java fixtures and Maven resources. Template activation and development builds
 have their own acceptance workloads.
 
 ## Release evidence and migration
