@@ -30,7 +30,17 @@ public final class ProjectTypeResolver {
 
     public ResolvedProject resolve(VernacProject project, Map<Path, String> configurationSnapshots,
                                    Consumer<NativeValidationCompiler.Reference> references) {
-        return resolve(project, true, configurationSnapshots, true, references);
+        return resolve(project, true, configurationSnapshots, true,
+                new NativeValidationCompiler.Editor(references, null, null));
+    }
+
+    public List<NativeValidationCompiler.Completion> completeNative(VernacProject project,
+                                                                   Map<Path, String> configurationSnapshots,
+                                                                   SourceLocation cursor) {
+        var completions = new LinkedHashSet<NativeValidationCompiler.Completion>();
+        resolve(project, false, configurationSnapshots, true,
+                new NativeValidationCompiler.Editor(null, cursor, completions::add));
+        return List.copyOf(completions);
     }
 
     ResolvedProject resolveSnapshot(VernacProject project, Map<Path, String> configuration) {
@@ -43,7 +53,7 @@ public final class ProjectTypeResolver {
     }
 
     private ResolvedProject resolve(VernacProject project, boolean strict, Map<Path, String> configurationSnapshots,
-                                    boolean includeDisk, Consumer<NativeValidationCompiler.Reference> references) {
+                                    boolean includeDisk, NativeValidationCompiler.Editor editor) {
         Set<String> namespaces = project.sources().stream().map(source -> source.unit().namespace())
                 .collect(Collectors.toCollection(TreeSet::new));
         Map<Path, FileTypeScope> scopes = new LinkedHashMap<>();
@@ -208,7 +218,7 @@ public final class ProjectTypeResolver {
         var partial = new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries,
                 schemas, mappings, restOperations, inboundAdapters, Map.of());
         if (diagnostics.stream().noneMatch(diagnostic -> diagnostic.severity() == CompilerDiagnostic.Severity.ERROR))
-            diagnostics.addAll(NativeValidationCompiler.diagnostics(partial, references));
+            diagnostics.addAll(NativeValidationCompiler.diagnostics(partial, editor));
         var webTemplates = new WebViews(partial, diagnostics).compile();
         if (strict) failOnErrors(diagnostics);
         return new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries, schemas,

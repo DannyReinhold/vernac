@@ -612,6 +612,92 @@ class VernacProjectDiagnosticsTest {
         assertNativeTarget(model, unsaved, "factor: false", "factor:", model, unsaved, "int factor");
     }
 
+    @Test
+    void completesTypedFieldsAndKeywordMessagesFromUnsavedNativeExpressions() throws Exception {
+        file("billing", "tax", "value Tax(int subtotalTax);");
+        Path price = file("billing", "price", "value Price(int amount);");
+        Path model = file("billing", "invoice", """
+                id InvoiceId;
+                aggregate Invoice[InvoiceId](mut Price price) validates {
+                    require (self totalWith: 0 fa: 1) >= 0 else NegativeTotal.
+                } behavior {
+                    read int totalWith(int extra, int factor) vernac {
+                        return (self price amount + extra) * factor.
+                    }
+                    modify void replaceWith(Price next) vernac {
+                        self price = next.
+                    }
+                    read int withBonus(int factor) vernac {
+                        return self totalWith: 1 factor: factor.
+                    }
+                };
+                """);
+        open(model);
+        String text = Files.readString(model);
+        var keywordPart = nativeCompletion(model, text, " fa:", " fa", "factor");
+        assertEquals("factor", keywordPart.getTextEdit().getLeft().getNewText());
+
+        String partial = text.replace("return self totalWith: 1 factor: factor.", "return self tot.");
+        change(model, partial, 2);
+        var selector = nativeCompletion(model, partial, "self tot.", "self tot", "totalWith:factor:");
+        assertEquals("totalWith: ${1:extra} factor: ${2:factor}", selector.getTextEdit().getLeft().getNewText());
+        assertEquals(InsertTextFormat.Snippet, selector.getInsertTextFormat());
+        assertEquals("tot", partial.lines().toList().get(selector.getTextEdit().getLeft().getRange().getStart().getLine())
+                .substring(selector.getTextEdit().getLeft().getRange().getStart().getCharacter(),
+                        selector.getTextEdit().getLeft().getRange().getEnd().getCharacter()));
+
+        String selectorPrefix = partial.replace("self price = next.", "self repl.");
+        change(model, selectorPrefix, 3);
+        nativeCompletion(model, selectorPrefix, "self repl.", "self repl", "replaceWith:");
+
+        String unsavedPrice = Files.readString(price).replace("amount", "subtotal");
+        open(price, unsavedPrice);
+        String fieldPrefix = text.replace("self price amount", "self price sub");
+        change(model, fieldPrefix, 4);
+        var field = nativeCompletion(model, fieldPrefix, "price sub", "price sub", "subtotal");
+        assertEquals(CompletionItemKind.Field, field.getKind());
+        assertEquals("subtotal", field.getTextEdit().getLeft().getNewText());
+
+        String partialKeyword = fieldPrefix.replace("totalWith: 1 factor: factor.", "totalWith: 1 fa.");
+        change(model, partialKeyword, 5);
+        var suffix = nativeCompletion(model, partialKeyword, "1 fa.", "1 fa", "factor:");
+        assertEquals("factor: ${1:factor}", suffix.getTextEdit().getLeft().getNewText());
+
+        String emptyField = fieldPrefix.replace("self price sub", "self price ");
+        change(model, emptyField, 6);
+        nativeCompletion(model, emptyField, "price  +", "price ", "subtotal");
+    }
+
+    @Test
+    void completesNativeUseCasePortSelectorsForTheCurrentEffect() throws Exception {
+        Path model = file("billing", "inventory", """
+                value ItemNumber(int value);
+                port Inventory { ItemNumber lookup(ItemNumber number); void remove(ItemNumber number); }
+                usecase Remove(ItemNumber) returns ItemNumber uses Inventory behavior {
+                    execute vernac {
+                        let current = inventory lo.
+                        inventory re.
+                        return current.
+                    }
+                }
+                """);
+        open(model);
+        String text = Files.readString(model);
+        nativeCompletion(model, text, "inventory lo.", "inventory lo", "lookup:");
+        String statement = text.replace("inventory lo.", "inventory lookup: itemNumber.");
+        change(model, statement, 2);
+        nativeCompletion(model, statement, "inventory re.", "inventory re", "remove:");
+    }
+
+    private CompletionItem nativeCompletion(Path source, String text, String usage, String typed, String label) {
+        var at = positionOf(text, text.indexOf(usage) + typed.length());
+        var items = server.getTextDocumentService()
+                .completion(new CompletionParams(new TextDocumentIdentifier(source.toUri().toString()), at)).join().getLeft();
+        return items.stream().filter(item -> item.getLabel().equals(label)).findFirst()
+                .orElseThrow(() -> new AssertionError("Missing " + label + " in "
+                        + items.stream().map(CompletionItem::getLabel).toList()));
+    }
+
     private void assertNativeTarget(Path source, String sourceText, String usage, String selector,
                                     Path target, String targetText, String declaration) {
         var at = positionOf(sourceText, sourceText.indexOf(usage) + usage.indexOf(selector));

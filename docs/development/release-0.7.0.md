@@ -399,8 +399,10 @@ The IntelliJ plugin's language server highlights keyword message selectors and o
 while a behavior body is still being typed. The shared formatter separates native statements and
 indents branches. Go to Declaration uses lexical scope for native parameters, `let` bindings,
 optional matches and collection block bindings. It also follows typed field paths and declared
-keyword selectors in the current editor snapshots, including unsaved edits. Type-driven completion
-and installed-plugin acceptance of navigation, live diagnostics and formatting remain open.
+keyword selectors in the current editor snapshots, including unsaved edits. The language server
+offers typed field and keyword completions for native behavior and validation expressions. It uses
+the compiler's receiver types and provides argument placeholders for declared keyword messages.
+Acceptance in the installed plugin covers completion, navigation, live diagnostics and formatting.
 
 1. Freeze the syntax decision and publish the behavior, test, effect and failure contracts. Check stack
    locations, completion, formatting, navigation and diagnostics using a packaged IntelliJ plugin. Show
