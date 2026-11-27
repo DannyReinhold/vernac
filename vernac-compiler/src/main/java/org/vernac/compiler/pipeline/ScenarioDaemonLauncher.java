@@ -38,10 +38,13 @@ public final class ScenarioDaemonLauncher {
     }
 
     static void serve(Path workspaceRoot, String profile, Reader input, Writer output) throws IOException {
+        daemon(workspaceRoot, profile).serve(input, output);
+    }
+
+    static ScenarioDaemon daemon(Path workspaceRoot, String profile) throws IOException {
         var root = workspaceRoot.toRealPath();
         var classpath = classpath();
-        new ScenarioDaemon(openWorkspace(root, profile, classpath),
-                () -> executor(root, classpath)).serve(input, output);
+        return new ScenarioDaemon(openWorkspace(root, profile, classpath), () -> executor(root, classpath));
     }
 
     static List<Path> classpath() {

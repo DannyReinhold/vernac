@@ -30,7 +30,7 @@ public final class ScenarioCli {
         try {
             if (args.length < 1) return usage(output);
             if (args[0].equals("build")) return build(args, output);
-            if (!Set.of("check", "test", "daemon").contains(args[0])) return usage(output);
+            if (!Set.of("check", "test", "daemon", "mcp").contains(args[0])) return usage(output);
             boolean test = args[0].equals("test");
             int next = 1;
             Path root = Path.of(".");
@@ -43,6 +43,17 @@ public final class ScenarioCli {
                     return usage(output);
                 }
                 scenario = args[next + 1];
+            }
+            if (args[0].equals("mcp")) {
+                try {
+                    new VernacMcpServer(ScenarioDaemonLauncher.daemon(root, profile)).serve(
+                            new InputStreamReader(System.in, StandardCharsets.UTF_8),
+                            new OutputStreamWriter(output, StandardCharsets.UTF_8));
+                    return 0;
+                } catch (IOException | RuntimeException failure) {
+                    System.err.println("Vernac MCP: " + failure.getMessage());
+                    return 2;
+                }
             }
             if (args[0].equals("daemon")) {
                 ScenarioDaemonLauncher.serve(root, profile, new InputStreamReader(System.in, StandardCharsets.UTF_8),
@@ -99,7 +110,7 @@ public final class ScenarioCli {
 
     private static int usage(PrintStream output) {
         write(output, Map.of("error", "usage", "message",
-                "Usage: vernac <check|test|daemon> [workspace [domain|mvc|postgres]] [--scenario <id> (test only)] or vernac build [--dev] [workspace]"));
+                "Usage: vernac <check|test|daemon|mcp> [workspace [domain|mvc|postgres]] [--scenario <id> (test only)] or vernac build [--dev] [workspace]"));
         return 2;
     }
 

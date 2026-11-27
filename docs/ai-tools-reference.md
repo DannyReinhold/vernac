@@ -35,6 +35,32 @@ Java normally lives in `target/generated-sources/vernac/`. Edit Vernac and
 handwritten Java; do not repair generated Java by hand. Build output is not the
 source of truth for schema history.
 
+## Connect the 0.7 development CLI over MCP
+
+Configure a local stdio MCP client to launch the installed CLI. The second argument is the
+workspace and the optional third argument selects the test profile (`domain`, `mvc` or
+`postgres`). For example, use this server entry in a client that accepts `command` and `args`.
+
+```json
+{"command":"vernac","args":["mcp","/work/project","domain"]}
+```
+
+- Use `workspace_revision`, then `check_saved` or `test_affected_saved` with that revision.
+  The first test request establishes the comparison baseline. Send the returned revision next.
+- For unsaved edits, use `open_overlay`. Send its `client` and `revision` to
+  `check_overlay`, `test_affected_overlay`, or `test_scenario`. Use `close_overlay` when done.
+- Use `describe_type` to inspect fields and methods. The preview tools for aggregate creation
+  and value-object fields return ordinary edit batches. Send those edits, or other source edits,
+  to `apply_checked` to publish a validated overlay revision. Overlay edits stay in memory.
+- Read the bundled task index at `vernac://docs/ai-language-reference.md` or the FAQ at
+  `vernac://docs/faq/index.md`. `search_docs` returns versioned section matches. Read those URIs
+  through the client's resource support.
+
+Read tool data from `structuredContent`. A stale revision returns a tool error containing
+`currentRevision`; inspect and reconcile the current source before retrying an edit. A failed
+scenario is a case outcome in a successful tool response. For Maven-backed JVM fixtures, prepare
+the project and supply its dependency classpath in `VERNAC_PROJECT_CLASSPATH`.
+
 ## Build and inspect
 
 ```text

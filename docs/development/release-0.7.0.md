@@ -66,7 +66,8 @@ and slot inventory. Layout version 3 can supply arithmetic and Boolean operators
 resource operands even when part of the expression uses a JVM access or call. The linker reconnects
 each host operand to the corresponding generated expression and rejects an incompatible shape.
 Layouts from versions 1 and 2 remain readable. The compiler still emits the fallback operands in
-Java. Independent host bindings and replacing a program inside a live application remain open.
+Java. A running application can replace a compatible layout and its matching view together.
+Independent host bindings for a wider range of edits remain open.
 
 For interpreted aggregate modifications, stage writes, validate at the outermost boundary, then publish
 validated state to the existing object identities. Nested modifications and invariant reads see the
@@ -136,7 +137,8 @@ The Language Server uses one session per active source root and drops it when th
 being analyzed. The clean loader remains available for comparison. Regression tests replay a changed
 overlay, a syntax error, deletion and repair and compare the resulting diagnostics and generated
 sources against the clean path. Parse counts show reuse at this stage. The warm 500 ms p95 release
-gate covers the full patch-to-test result and remains to be measured.
+gate covers the full patch-to-test result. The Document Workspace behavior workload has met
+that budget in local measurements. Repeat it on the release candidate and record the runner.
 
 ### Scenario selection
 
@@ -260,7 +262,9 @@ surrounding text. The local daemon exposes the compiler's model operations on pr
 An aggregate field specifies `name`, `type` and optionally `optional` and `mutable`. Preview paths
 refer to production Vernac sources and the previews leave the overlay unchanged. A checked batch
 advances the overlay only if the candidate passes type and scenario validation. A stale revision
-returns a conflict. The MCP adapter remains a separate integration step.
+returns a conflict. The installed `vernac mcp` command exposes these operations using the same
+daemon behind one stdio session. The MCP tool names are listed in the
+[AI Tools Reference](../ai-tools-reference.md#connect-the-07-development-cli-over-mcp).
 
 Structured changes should produce the same versioned source edit batch as direct editor changes.
 Return the preview with the base revision, reject conflicts, and apply related edits atomically.
@@ -282,11 +286,14 @@ symbol lookup or a cheap edit preview does not establish the 500 ms p95 target f
 
 ### Versioned language help
 
-Expose the bundled [AI Language Reference](../ai-language-reference.md) and selected [FAQs](../faq/index.md)
-through read-only MCP resources. Give each section a stable key and identify its Vernac version in the
-response. Offer a small search operation for clients that discover help through tools, returning matching
-section titles and links. Use the published documentation as the source for both the bundle and search
-index. Keep help separate from workspace inspection so asking about syntax does not trigger compilation.
+The CLI bundles the [AI Language Reference](../ai-language-reference.md), task examples, native
+behavior reference and [FAQ](../faq/index.md) as read-only MCP resources. The search tool returns
+section resource URIs and the bundled Vernac version. Search and resource reads do not compile
+the workspace.
+
+The stdio adapter handles one request at a time. Cancellation of an active run, durable results,
+and request replay still need implementation, together with parity across installed MCP, CLI
+and IDE entry points.
 
 ## Standalone build tool
 
