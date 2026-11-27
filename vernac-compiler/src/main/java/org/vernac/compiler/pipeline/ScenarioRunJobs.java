@@ -75,7 +75,7 @@ final class ScenarioRunJobs implements AutoCloseable {
         jobs.put(job.id, job);
         if (jobs.size() > RETAINED_RUNS) jobs.pollFirstEntry();
         active = job;
-        job.worker = Thread.ofVirtual().name("vernac-scenario-run").unstarted(() -> execute(job, work.work()));
+        job.worker = Thread.ofPlatform().daemon().name("vernac-scenario-run").unstarted(() -> execute(job, work.work()));
         job.worker.start();
         return new Start(job.id, job.revision);
     }
