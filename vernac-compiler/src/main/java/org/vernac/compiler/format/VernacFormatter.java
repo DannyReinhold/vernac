@@ -35,11 +35,12 @@ public final class VernacFormatter {
                 switch(text) {
                     case "{" -> {out.space();out.append("{");out.indent++;if(!next(tokens,i).equals("}"))out.line();}
                     case "}" -> {out.indent--;if(!previous.equals("{"))out.line();out.append("}");String next=next(tokens,i);
-                        if(!Set.of(";",",","list","set","bag","map","behavior","validates").contains(next))out.line();}
+                        if(next.equals("else"))out.space();
+                        else if(!Set.of(";",",",".",")","]","list","set","bag","map","behavior","validates").contains(next))out.line();}
                     case ";" -> {out.tight();out.append(";");if(parentheses==0)out.line();else out.space();}
                     case "(" -> {out.tight();out.append("(");parentheses++;}
                     case ")" -> {out.tight();out.append(")");parentheses--;}
-                    case "[" -> {out.tight();out.append("[");}
+                    case "[" -> {if(!previous.equals(":"))out.tight();out.append("[");}
                     case "]","?" -> {out.tight();out.append(text);}
                     case "." -> {out.tight();out.append(".");}
                     case ",",":" -> {out.tight();out.append(text);out.space();}
@@ -59,7 +60,8 @@ public final class VernacFormatter {
         return fingerprint(source).equals(fingerprint(result))?result:source;
     }
     private static void walk(ParseTree tree,List<Token> tokens,Map<Integer,Integer> java,Set<Integer> declarations,Set<Integer> members,Set<Integer> angles) {
-        if(tree instanceof VernacParser.BehaviorMethodContext || tree instanceof VernacParser.ServiceMethodContext || tree instanceof VernacParser.UsecaseBehaviorMemberContext)
+        if(tree instanceof VernacParser.BehaviorMethodContext || tree instanceof VernacParser.ServiceMethodContext
+                || tree instanceof VernacParser.UsecaseBehaviorMemberContext || tree instanceof VernacParser.NativeBehaviorStatementContext)
             members.add(((ParserRuleContext)tree).getStop().getTokenIndex());
         if(tree instanceof VernacParser.TypeContext type)for(int i=type.getStart().getTokenIndex();i<=type.getStop().getTokenIndex();i++)
             if(Set.of("<",">").contains(tokens.get(i).getText()))angles.add(i);

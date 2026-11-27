@@ -480,6 +480,42 @@ class VernacProjectDiagnosticsTest {
         assertFalse(completionsAtEnd(document, adapter + "access public; acc", 6).contains("access"));
     }
 
+    @Test
+    void highlightsNativeSelectorsAndOffersNativeSnippetsInAnUnfinishedBody() throws Exception {
+        String declaration = "id InvoiceId; aggregate Invoice[InvoiceId]() behavior { read BigDecimal tax(int amount) ";
+        String body = declaration + "vernac { let net = amount asDecimal. return net roundedTo: 2 mode: RoundingMode HALF_UP. } };";
+        Path model = file("pages", "invoice", body);
+        open(model);
+        assertTrue(diagnostics(model).isEmpty(), diagnostics(model).toString());
+        var document = new TextDocumentIdentifier(model.toUri().toString());
+        var service = server.getTextDocumentService();
+        var tokens = service.semanticTokensFull(new SemanticTokensParams(document)).join().getData();
+        Map<String, String> categories = new HashMap<>();
+        int line = 0, column = 0;
+        for (int i = 0; i < tokens.size(); i += 5) {
+            int deltaLine = tokens.get(i);
+            line += deltaLine;
+            column = deltaLine == 0 ? column + tokens.get(i + 1) : tokens.get(i + 1);
+            if (line == 1) {
+                categories.put(body.substring(column, column + tokens.get(i + 2)),
+                        VernacLanguageServer.TOKEN_TYPES.get(tokens.get(i + 3)));
+            }
+        }
+        assertEquals(SemanticTokenTypes.Keyword, categories.get("vernac"));
+        assertEquals(SemanticTokenTypes.Keyword, categories.get("let"));
+        assertEquals(SemanticTokenTypes.Function, categories.get("asDecimal"));
+        assertEquals(SemanticTokenTypes.Function, categories.get("roundedTo"));
+        assertEquals(SemanticTokenTypes.Function, categories.get("mode"));
+        assertEquals(SemanticTokenTypes.EnumMember, categories.get("HALF_UP"));
+
+        var nativeItems = completionsAtEnd(document, declaration + "vernac { if amount > 0 { ", 2);
+        assertTrue(nativeItems.containsAll(List.of("let", "require", "return", "if", "match", "collect:into:",
+                "roundedTo:mode:", "ifTrue:ifFalse:")), nativeItems.toString());
+        assertFalse(nativeItems.contains("namespace"));
+        assertFalse(completionsAtEnd(document, declaration + "{ ", 3).contains("collect:into:"));
+        assertFalse(completionsAtEnd(document, body + " ", 4).contains("collect:into:"));
+    }
+
     private List<String> completionsAtEnd(TextDocumentIdentifier document, String line, int version) {
         change(Path.of(java.net.URI.create(document.getUri())), "namespace pages;\n" + line, version);
         return server.getTextDocumentService()

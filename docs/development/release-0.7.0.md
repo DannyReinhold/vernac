@@ -395,6 +395,11 @@ have their own acceptance workloads.
 
 ## Release evidence and migration
 
+The IntelliJ plugin's language server highlights keyword message selectors and offers native snippets
+while a behavior body is still being typed. The shared formatter separates native statements and
+indents branches. Typed completion and navigation for native field paths, declared selectors and
+local bindings still need installed-plugin acceptance alongside live diagnostics and formatting.
+
 1. Freeze the syntax decision and publish the behavior, test, effect and failure contracts. Check stack
    locations, completion, formatting, navigation and diagnostics using a packaged IntelliJ plugin. Show
    how to incrementally convert a Java behavior and how to keep a technical provider in Java. Document the
