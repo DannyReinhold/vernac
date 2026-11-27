@@ -46,7 +46,8 @@ public final class ScenarioDaemonLauncher {
     static ScenarioDaemon daemon(Path workspaceRoot, String profile) throws IOException {
         var root = workspaceRoot.toRealPath();
         var classpath = classpath();
-        return new ScenarioDaemon(openWorkspace(root, profile, classpath), () -> executor(root, classpath));
+        return new ScenarioDaemon(openWorkspace(root, profile, classpath), () -> executor(root, classpath),
+                new ScenarioRunArchive(root));
     }
 
     static List<Path> classpath() {

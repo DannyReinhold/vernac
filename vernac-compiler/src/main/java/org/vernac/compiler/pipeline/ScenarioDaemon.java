@@ -29,7 +29,7 @@ public final class ScenarioDaemon implements AutoCloseable {
     private final ScenarioWorkspace shared;
     private final Supplier<ScenarioRunSession.Executor> executors;
     private final Map<String, ScenarioWorkspace> overlays = new HashMap<>();
-    private final ScenarioRunJobs jobs = new ScenarioRunJobs();
+    private final ScenarioRunJobs jobs;
     private final LinkedHashMap<EditKey, CompletedEdit> editReceipts = new LinkedHashMap<>();
     private long lastClient;
 
@@ -41,8 +41,13 @@ public final class ScenarioDaemon implements AutoCloseable {
     record Problem(String code, String message, Object details) { }
 
     public ScenarioDaemon(ScenarioWorkspace shared, Supplier<ScenarioRunSession.Executor> executors) {
+        this(shared, executors, null);
+    }
+
+    ScenarioDaemon(ScenarioWorkspace shared, Supplier<ScenarioRunSession.Executor> executors, ScenarioRunArchive archive) {
         this.shared = Objects.requireNonNull(shared);
         this.executors = Objects.requireNonNull(executors);
+        this.jobs = new ScenarioRunJobs(archive);
     }
 
     /** Serves one stream until EOF. The caller owns the streams and provides a dedicated protocol writer. */
