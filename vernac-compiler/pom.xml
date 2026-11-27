@@ -76,6 +76,24 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/../docs</directory>
+                <targetPath>org/vernac/mcp/docs</targetPath>
+                <includes>
+                    <include>ai-language-reference.md</include>
+                    <include>ai-language-details.md</include>
+                    <include>ai-tools-reference.md</include>
+                    <include>ai/*.md</include>
+                    <include>development/behavior-language-decision.md</include>
+                    <include>faq/index.md</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
             <!-- ANTLR 4 Plugin: generiert Parser-Klassen aus .g4 Dateien -->
             <plugin>

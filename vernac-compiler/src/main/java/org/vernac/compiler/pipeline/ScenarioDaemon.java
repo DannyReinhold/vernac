@@ -29,8 +29,8 @@ public final class ScenarioDaemon {
     private final Map<String, ScenarioWorkspace> overlays = new HashMap<>();
     private long lastClient;
 
-    private record Reply(JsonNode id, Object result, Problem error) { }
-    private record Problem(String code, String message, Object details) { }
+    record Reply(JsonNode id, Object result, Problem error) { }
+    record Problem(String code, String message, Object details) { }
 
     public ScenarioDaemon(ScenarioWorkspace shared, Supplier<ScenarioRunSession.Executor> executors) {
         this.shared = Objects.requireNonNull(shared);
@@ -48,11 +48,18 @@ public final class ScenarioDaemon {
         }
     }
 
-    private synchronized Reply handle(String line) {
+    private Reply handle(String line) {
+        try {
+            return execute(JSON.readTree(line));
+        } catch (JacksonException failure) {
+            return error(null, "invalid_request", failure.getMessage(), null);
+        }
+    }
+
+    synchronized Reply execute(JsonNode request) {
         JsonNode id = null;
         try {
-            var request = JSON.readTree(line);
-            if (!request.isObject()) throw new IllegalArgumentException("Expected a request object");
+            if (request == null || !request.isObject()) throw new IllegalArgumentException("Expected a request object");
             id = request.get("id");
             if (id == null || !(id.isString() || id.isIntegralNumber()))
                 throw new IllegalArgumentException("Expected a string or integer request ID");
