@@ -478,6 +478,18 @@ python3 tools/benchmark-saved-scenarios.py --workload view-diagnostics --max-p95
 python3 tools/benchmark-saved-scenarios.py --workload view-render --max-p95-ms 500 > saved-view-render.json
 ```
 
+To repeat the workload through the installed CLI, package and extract the CLI ZIP, then supply its
+launcher to the same benchmark. The background transport polls every 10 ms and includes polling
+and result delivery in each sample. The JSON identifies the transport and the extracted compiler
+JAR by SHA-256.
+
+```sh
+python3 tools/benchmark-saved-scenarios.py --workload delete-behavior --transport mcp \
+  --launcher /path/to/bin/vernac --max-p95-ms 500 > mcp-sync.json
+python3 tools/benchmark-saved-scenarios.py --workload delete-behavior --transport mcp-background \
+  --launcher /path/to/bin/vernac --max-p95-ms 500 > mcp-background.json
+```
+
 The JSON includes cold start and first run, raw samples, selected cases, outcomes and per-session
 percentiles. The diagnostic workload records validation results and compiler messages instead of
 case selection. A threshold miss returns status 1 and still writes the report. The benchmark
