@@ -350,8 +350,18 @@ The runtime can publish a complete set of layout, source-map and template overri
 every layout to its running JVM bridge. An invalid layout or stale base revision leaves the active
 bundle unchanged. Spring Boot applications can import `DevelopmentWebConfiguration` for a
 request-scoped revision and an uncached resolver for Vernac-generated Thymeleaf views. This
-integration targets synchronous MVC requests. The CLI still needs to compile and deliver a
-compatible bundle, and the compiler must detect edits that require replacing the JVM bridge.
+integration targets synchronous MVC requests.
+
+`DevelopmentBundleCompiler` checks a candidate against the saved source snapshot used to build
+the running application. It emits the complete set of template, layout and source-map overrides
+relative to that packaged baseline, in memory. The first compatible edit set covers body changes
+in existing views and components and same-type literal changes supplied by native layout operands.
+It preserves the rest of the source when checking bridge compatibility, including Java blocks,
+field accesses and method signatures. Invalid candidates return diagnostics. Edits outside this
+set require rebuilding, even when a wider future compatibility check could accept them. Callers
+must also rebuild the baseline after changes to host sources, external resources, configuration
+or dependencies. The CLI still needs to manage the packaged baseline and deliver updates to the
+running application.
 
 In B5 define one resolved project model for roots, versions, dependencies, profiles, JVM release and main
 class. The wizard can import its existing POM. Prefer a small declarative YAML descriptor for standalone

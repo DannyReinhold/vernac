@@ -18,6 +18,7 @@ import org.vernac.runtime.NativeBehaviorLayout;
 import org.vernac.runtime.NativeBehaviorLayout.Instruction;
 import org.vernac.runtime.NativeBehaviorLayout.Kind;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -26,109 +27,150 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /** Writes revision-specific statement positions and control flow alongside generated Java. */
 public final class NativeBehaviorSourceMaps {
     private NativeBehaviorSourceMaps() { }
 
+    record ProgramKey(String implementation, int index) {
+        String sourceResource() { return NativeBehaviorSources.resource(implementation, index); }
+        String layoutResource() { return NativeBehaviorLayout.resource(implementation, index); }
+    }
+
+    record Program(byte[] layout, byte[] sourceMap) { }
+
+    @FunctionalInterface
+    private interface Output {
+        void write(ProgramKey key, String declaration, String source, List<NativeBehaviorSources.Position> positions,
+                   List<Instruction> instructions) throws IOException;
+    }
+
     public static void write(ResolvedProject project, Path output) throws IOException {
+        generate(project, ignored -> { }, (key, declaration, source, positions, instructions) -> {
+            var file = output.resolve(key.sourceResource());
+            Files.createDirectories(file.getParent());
+            try (var stream = Files.newOutputStream(file)) {
+                NativeBehaviorSources.write(stream, declaration, source, positions);
+            }
+            try (var stream = Files.newOutputStream(output.resolve(key.layoutResource()))) {
+                NativeBehaviorLayout.write(stream, instructions);
+            }
+        });
+    }
+
+    static Map<ProgramKey, Program> collect(ResolvedProject project, Consumer<KeywordExpression.Literal> literals)
+            throws IOException {
+        var programs = new HashMap<ProgramKey, Program>();
+        generate(project, literals, (key, declaration, source, positions, instructions) -> {
+            var map = new ByteArrayOutputStream();
+            NativeBehaviorSources.write(map, declaration, source, positions);
+            var layout = new ByteArrayOutputStream();
+            NativeBehaviorLayout.write(layout, instructions);
+            programs.put(key, new Program(layout.toByteArray(), map.toByteArray()));
+        });
+        return Map.copyOf(programs);
+    }
+
+    private static void generate(ResolvedProject project, Consumer<KeywordExpression.Literal> literals, Output output)
+            throws IOException {
         for (var source : project.project().sources()) {
             if (source.external()) continue;
             String relative = project.project().sourceRoot().relativize(source.path()).toString().replace('\\', '/');
             String namespace = source.unit().namespace();
             for (var definition : source.unit().definitions()) {
                 switch (definition) {
-                    case EntityNode entity -> writeMethods(output, namespace, entity.name(), relative, entity.methods());
-                    case AggregateNode aggregate -> writeMethods(output, namespace, aggregate.name(), relative, aggregate.methods());
-                    case UseCaseNode useCase -> writeOperation(output, namespace, ".usecase", relative, useCase);
-                    case ListenerNode listener -> writeOperation(output, namespace, ".adapter.inbound.event", relative, listener.operation());
+                    case EntityNode entity -> writeMethods(output, literals, namespace, entity.name(), relative, entity.methods());
+                    case AggregateNode aggregate -> writeMethods(output, literals, namespace, aggregate.name(), relative, aggregate.methods());
+                    case UseCaseNode useCase -> writeOperation(output, literals, namespace, ".usecase", relative, useCase);
+                    case ListenerNode listener -> writeOperation(output, literals, namespace, ".adapter.inbound.event", relative, listener.operation());
                     default -> { }
                 }
             }
         }
     }
 
-    private static void writeMethods(Path output, String namespace, String owner, String source, List<MethodNode> methods)
-            throws IOException {
+    private static void writeMethods(Output output, Consumer<KeywordExpression.Literal> literals, String namespace,
+                                     String owner, String source, List<MethodNode> methods) throws IOException {
         var companion = BehaviorGenerator.companion(ClassName.get(namespace + ".domain", owner));
         int program = 0;
         for (var method : methods) {
             if (method.nativeBody().isEmpty()) continue;
-            writeProgram(output, companion, program++, namespace + "." + owner + "." + method.name(),
+            writeProgram(output, literals, companion, program++, namespace + "." + owner + "." + method.name(),
                     source, method.parameters(), method.nativeBody());
         }
     }
 
-    private static void writeOperation(Path output, String namespace, String subpackage, String source, UseCaseNode operation)
-            throws IOException {
+    private static void writeOperation(Output output, Consumer<KeywordExpression.Literal> literals, String namespace,
+                                       String subpackage, String source, UseCaseNode operation) throws IOException {
         if (operation.nativeBody().isEmpty()) return;
         var companion = BehaviorGenerator.companion(ClassName.get(namespace + subpackage, operation.name()));
-        writeProgram(output, companion, 0, namespace + "." + operation.name() + ".execute",
+        writeProgram(output, literals, companion, 0, namespace + "." + operation.name() + ".execute",
                 source, operation.parameters(), operation.nativeBody());
     }
 
-    private static void writeProgram(Path output, ClassName companion, int program, String declaration, String source,
+    private static void writeProgram(Output output, Consumer<KeywordExpression.Literal> literals, ClassName companion,
+                                     int program, String declaration, String source,
                                      List<FieldNode> parameters, List<NativeStatement> statements) throws IOException {
         var positions = new ArrayList<NativeBehaviorSources.Position>();
         collect(statements, "", positions);
-        var file = output.resolve(NativeBehaviorSources.resource(companion.canonicalName(), program));
-        Files.createDirectories(file.getParent());
-        try (var stream = Files.newOutputStream(file)) {
-            NativeBehaviorSources.write(stream, declaration, source, positions);
-        }
-        var layout = output.resolve(NativeBehaviorLayout.resource(companion.canonicalName(), program));
         var arguments = new HashMap<String, NativeBehaviorExpression>();
         for (int slot = 0; slot < parameters.size(); slot++) {
             arguments.put(parameters.get(slot).name(), new NativeBehaviorExpression.Argument(slot));
         }
-        try (var stream = Files.newOutputStream(layout)) {
-            NativeBehaviorLayout.write(stream, instructions(statements, arguments, 0));
-        }
+        output.write(new ProgramKey(companion.canonicalName(), program), declaration, source, positions,
+                instructions(statements, arguments, 0, literals));
     }
 
     private static List<Instruction> instructions(List<NativeStatement> statements,
-                                                   Map<String, NativeBehaviorExpression> enclosing, int nextLocal) {
+                                                   Map<String, NativeBehaviorExpression> enclosing, int nextLocal,
+                                                   Consumer<KeywordExpression.Literal> literals) {
         var bindings = new HashMap<>(enclosing);
         var steps = new ArrayList<Instruction>(statements.size());
         for (var statement : statements) {
             switch (statement) {
                 case NativeStatement.Let let -> {
-                    steps.add(new Instruction(Kind.BIND, operand(let.value(), bindings)));
+                    steps.add(new Instruction(Kind.BIND, operand(let.value(), bindings, literals)));
                     bindings.put(let.name().name(), new NativeBehaviorExpression.Local(nextLocal++));
                 }
-                case NativeStatement.Require require -> steps.add(new Instruction(Kind.REQUIRE, operand(require.predicate(), bindings)));
-                case NativeStatement.Assign assign -> steps.add(new Instruction(Kind.ASSIGN, operand(assign.value(), bindings)));
+                case NativeStatement.Require require -> steps.add(new Instruction(Kind.REQUIRE, operand(require.predicate(), bindings, literals)));
+                case NativeStatement.Assign assign -> steps.add(new Instruction(Kind.ASSIGN, operand(assign.value(), bindings, literals)));
                 case NativeStatement.Send ignored -> steps.add(new Instruction(Kind.SEND));
-                case NativeStatement.Return result -> steps.add(new Instruction(Kind.RETURN, operand(result.value(), bindings)));
+                case NativeStatement.Return result -> steps.add(new Instruction(Kind.RETURN, operand(result.value(), bindings, literals)));
                 case NativeStatement.Branch branch -> steps.add(new Instruction(Kind.BRANCH,
-                        operand(branch.condition(), bindings), instructions(branch.onTrue(), bindings, nextLocal),
-                        instructions(branch.onFalse(), bindings, nextLocal)));
+                        operand(branch.condition(), bindings, literals), instructions(branch.onTrue(), bindings, nextLocal, literals),
+                        instructions(branch.onFalse(), bindings, nextLocal, literals)));
             }
         }
         return steps;
     }
 
     private static NativeBehaviorExpression operand(KeywordExpression expression,
-                                                    Map<String, NativeBehaviorExpression> bindings) {
+                                                    Map<String, NativeBehaviorExpression> bindings,
+                                                    Consumer<KeywordExpression.Literal> literals) {
         return switch (expression) {
             case KeywordExpression.Name name -> bindings.get(name.name());
-            case KeywordExpression.Literal literal -> new NativeBehaviorExpression.Literal(switch (literal.kind()) {
-                case BOOLEAN -> Boolean.parseBoolean(literal.spelling());
-                case INTEGER -> Integer.parseInt(literal.spelling());
-                case DECIMAL -> new BigDecimal(literal.spelling());
-                case STRING -> literal.spelling().substring(1, literal.spelling().length() - 1).translateEscapes();
-            });
+            case KeywordExpression.Literal literal -> {
+                literals.accept(literal);
+                yield new NativeBehaviorExpression.Literal(switch (literal.kind()) {
+                    case BOOLEAN -> Boolean.parseBoolean(literal.spelling());
+                    case INTEGER -> Integer.parseInt(literal.spelling());
+                    case DECIMAL -> new BigDecimal(literal.spelling());
+                    case STRING -> literal.spelling().substring(1, literal.spelling().length() - 1).translateEscapes();
+                });
+            }
             case KeywordExpression.Prefix prefix -> new NativeBehaviorExpression.Prefix(prefix.operator(),
-                    childOperand(prefix.operand(), bindings));
+                    childOperand(prefix.operand(), bindings, literals));
             case KeywordExpression.Binary binary -> new NativeBehaviorExpression.Binary(binary.operator(),
-                    childOperand(binary.left(), bindings), childOperand(binary.right(), bindings));
+                    childOperand(binary.left(), bindings, literals), childOperand(binary.right(), bindings, literals));
             default -> null;
         };
     }
 
     private static NativeBehaviorExpression childOperand(KeywordExpression expression,
-                                                         Map<String, NativeBehaviorExpression> bindings) {
-        var child = operand(expression, bindings);
+                                                         Map<String, NativeBehaviorExpression> bindings,
+                                                         Consumer<KeywordExpression.Literal> literals) {
+        var child = operand(expression, bindings, literals);
         return child == null ? new NativeBehaviorExpression.Host() : child;
     }
 
