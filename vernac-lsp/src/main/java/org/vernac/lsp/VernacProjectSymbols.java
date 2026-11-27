@@ -231,6 +231,41 @@ final class VernacProjectSymbols {
         }
     }
 
+    record NativeProbe(String text, SourceLocation cursor, Range replace, String prefix) { }
+
+    NativeProbe nativeProbe(Path path, Position position, boolean insertKeyword) {
+        var file = files.get(path);
+        if (file == null) return null;
+        int cursor = offset(file.text(), position);
+        if (cursor < 0 || excluded(file, cursor)) return null;
+        int start = cursor, end = cursor;
+        while (start > 0 && VernacNames.isPart(file.text().codePointBefore(start)))
+            start -= Character.charCount(file.text().codePointBefore(start));
+        while (end < file.text().length() && VernacNames.isPart(file.text().codePointAt(end)))
+            end += Character.charCount(file.text().codePointAt(end));
+        // A selector follows a receiver or an argument, separated by whitespace.
+        if (start == 0 || !Character.isWhitespace(file.text().codePointBefore(start))) return null;
+        int point = file.text().codePointCount(0, start);
+        int lineStart = file.text().lastIndexOf('\n', start - 1) + 1;
+        var cursorLocation = new SourceLocation(path.toString(), position.getLine() + 1,
+                file.text().codePointCount(lineStart, start) + 1);
+        String tail = file.text().substring(end);
+        String rest = tail.stripLeading();
+        if (insertKeyword && rest.startsWith(":")) return null;
+        String marker = CURSOR;
+        if (insertKeyword) marker += ": 0";
+        if (rest.startsWith("}")) marker += ".";
+        String proposed = file.text().substring(0, start) + marker + tail;
+        boolean[] selector = {false};
+        walk(parse(proposed), node -> {
+            if (node instanceof VernacParser.KeywordSelectorPartContext part
+                    && part.getStart().getStartIndex() == point && part.getText().equals(CURSOR)) selector[0] = true;
+        });
+        if (!selector[0]) return null;
+        return new NativeProbe(proposed, cursorLocation, new Range(position(file.text(), start), position(file.text(), end)),
+                file.text().substring(start, cursor));
+    }
+
     /** Null means this is not a type or import context; retain other editor snippets. */
     List<CompletionItem> complete(Path path, Position position) {
         Parsed file = files.get(path);

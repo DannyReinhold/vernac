@@ -10,6 +10,9 @@ import org.vernac.compiler.ast.SourceLocation;
 import org.vernac.compiler.generator.NativeValidationCompiler;
 import org.vernac.compiler.pipeline.ProjectTypeResolver;
 import org.vernac.compiler.pipeline.ResolvedProject;
+import org.vernac.compiler.pipeline.VernacProject;
+import org.vernac.compiler.pipeline.VernacSourceFile;
+import org.vernac.compiler.pipeline.VernacSourceParser;
 import org.vernac.compiler.pipeline.VernacProjectLoader;
 import org.vernac.compiler.pipeline.VernacScenarioCompiler;
 
@@ -27,6 +30,8 @@ final class VernacProjectDiagnostics {
     private final Map<Path, VernacProjectLoader.ParseSession> parseSessions = new HashMap<>();
     private final Set<String> published = new LinkedHashSet<>();
     private final Map<Path, VernacProjectSymbols> symbolSnapshots = new HashMap<>();
+    private record AnalysisInputs(VernacProject project, Map<Path, String> configurations) { }
+    private final Map<Path, AnalysisInputs> analysisInputs = new HashMap<>();
     private final Map<Path, List<NativeValidationCompiler.Reference>> nativeReferences = new HashMap<>();
     private final Map<Path, ResolvedProject> scenarioModels = new HashMap<>();
     private final Map<Path, List<VernacScenarioCompiler.Reference>> scenarioReferences = new HashMap<>();
@@ -40,6 +45,7 @@ final class VernacProjectDiagnostics {
     synchronized void initialize(InitializeParams params) {
         parseSessions.clear();
         symbolSnapshots.clear();
+        analysisInputs.clear();
         nativeReferences.clear();
         scenarioReferences.clear();
         scenarioModels.clear();
@@ -87,6 +93,10 @@ final class VernacProjectDiagnostics {
         if (model != null && open.containsKey(document)) return scenarioCompletions(open.get(document), model, position);
         var symbols = symbols(uri);
         if(uri.endsWith(".vapplication"))return symbols==null?List.of():applicationComplete(uri,position,symbols);
+        if (symbols != null && open.containsKey(document) && document.toString().endsWith(".vernac")) {
+            var typed = nativeCompletions(document, position, symbols);
+            if (!typed.isEmpty()) return typed;
+        }
         return symbols == null ? List.of() : uri.endsWith(".vmodule") ? symbols.moduleComplete(text(uri),position) : symbols.complete(path(uri), position);
     }
 
@@ -230,6 +240,7 @@ final class VernacProjectDiagnostics {
     /** Save/watch notifications reread disk while preserving all open editor snapshots. */
     synchronized void refresh() {
         symbolSnapshots.clear();
+        analysisInputs.clear();
         nativeReferences.clear();
         scenarioReferences.clear();
         scenarioModels.clear();
@@ -275,6 +286,7 @@ final class VernacProjectDiagnostics {
                 if(root.equals(rootFor(path)) && (path.toString().endsWith(".vapplication") || path.toString().endsWith(".vmodule")))
                     configurationSnapshots.put(path,document.text());
             });
+            analysisInputs.put(root, new AnalysisInputs(project, Map.copyOf(configurationSnapshots)));
             var resolved = new ProjectTypeResolver().resolve(project, configurationSnapshots, reference -> {
                 Path source = Path.of(reference.source().sourceName());
                 nativeReferences.computeIfAbsent(source, ignored -> new ArrayList<>()).add(reference);
@@ -374,6 +386,61 @@ final class VernacProjectDiagnostics {
             item.setTextEdit(org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft(new TextEdit(range, candidate)));
             return item;
         }).toList();
+    }
+
+    private List<CompletionItem> nativeCompletions(Path file, Position position, VernacProjectSymbols symbols) {
+        var inputs = analysisInputs.get(rootFor(file));
+        if (inputs == null) return List.of();
+        var probe = symbols.nativeProbe(file, position, false);
+        if (probe == null) return List.of();
+        var items = nativeCompletions(file, inputs, probe, false);
+        if (!items.isEmpty()) return items;
+        var keyword = symbols.nativeProbe(file, position, true);
+        return keyword == null ? List.of() : nativeCompletions(file, inputs, keyword, true);
+    }
+
+    private List<CompletionItem> nativeCompletions(Path file, AnalysisInputs inputs,
+                                                   VernacProjectSymbols.NativeProbe probe, boolean insertKeyword) {
+        try {
+            var unit = new VernacSourceParser().parse(file.toString(), probe.text());
+            var sources = new ArrayList<>(inputs.project().sources());
+            sources.removeIf(source -> source.path().equals(file));
+            sources.add(new VernacSourceFile(file, unit));
+            var project = loader.index(inputs.project().sourceRoot(), sources);
+            return new ProjectTypeResolver().completeNative(project, inputs.configurations(), probe.cursor()).stream()
+                    .filter(candidate -> candidate.name().startsWith(probe.prefix()))
+                    .sorted(Comparator.comparing(NativeValidationCompiler.Completion::name))
+                    .map(candidate -> nativeItem(candidate, probe.replace(), insertKeyword))
+                    .toList();
+        } catch (SemanticValidationException ignored) {
+            // A different unfinished statement can prevent a typed completion probe.
+            return List.of();
+        }
+    }
+
+    private static CompletionItem nativeItem(NativeValidationCompiler.Completion candidate, Range replace,
+                                             boolean insertKeyword) {
+        String label = candidate.name();
+        String insertion = candidate.name();
+        var arguments = insertKeyword && candidate.keyword() && candidate.arguments().isEmpty()
+                ? List.of(candidate.name()) : candidate.arguments();
+        if (!arguments.isEmpty()) {
+            var selector = new StringBuilder();
+            var snippet = new StringJoiner(" ");
+            for (int index = 0; index < arguments.size(); index++) {
+                String argument = arguments.get(index);
+                String part = index == 0 ? candidate.name() : argument;
+                selector.append(part).append(':');
+                snippet.add(part + ": ${" + (index + 1) + ":" + argument.replace("$", "\\$") + "}");
+            }
+            label = selector.toString();
+            insertion = snippet.toString();
+        }
+        var item = new CompletionItem(label);
+        item.setKind(candidate.keyword() ? CompletionItemKind.Method : CompletionItemKind.Field);
+        if (!arguments.isEmpty()) item.setInsertTextFormat(InsertTextFormat.Snippet);
+        item.setTextEdit(org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft(new TextEdit(replace, insertion)));
+        return item;
     }
 
     private List<Location> nativeDefinition(Path file, Position position) {
