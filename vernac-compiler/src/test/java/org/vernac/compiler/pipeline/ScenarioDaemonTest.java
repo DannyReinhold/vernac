@@ -23,6 +23,53 @@ class ScenarioDaemonTest {
     @TempDir Path root;
 
     @Test
+    void inspectsAndAppliesModelPreviewsAgainstOnePrivateRevision() throws Exception {
+        var source = Path.of("src/main/vernac/app/amount.vernac");
+        var amount = "namespace app; value Amount(int units);";
+        ScenarioRunSession.Executor unused = request -> fail("model operations must not execute tests");
+        var workspace = new ScenarioWorkspace(root, Map.of(source, amount), Map.of(), List.of(), unused, null);
+        var daemon = new ScenarioDaemon(workspace, () -> unused);
+        var json = JsonMapper.builder().build();
+        var output = new StringWriter();
+        daemon.serve(new StringReader("""
+                {"id":1,"op":"open","revision":0}
+                {"id":2,"op":"open","revision":0}
+                {"id":3,"op":"describeType","client":"1","revision":0,"type":"app.Amount"}
+                {"id":4,"op":"previewAddValueField","client":"1","revision":0,"path":"src/main/vernac/app/amount.vernac","type":"app.Amount","name":"reserved","fieldType":"int"}
+                {"id":5,"op":"previewCreateAggregate","client":"1","revision":0,"path":"src/main/vernac/app/stock.vernac","namespace":"app","name":"Stock","idType":"StockId","declareId":true,"fields":[{"name":"amount","type":"Amount"}]}
+                {"id":6,"op":"applyChecked","client":"1","revision":0,"edits":[{"kind":"put","path":"src/main/vernac/app/amount.vernac","text":"namespace app; value Amount(Missing amount);"}]}
+                """), output);
+        var replies = output.toString().lines().map(json::readTree).toList();
+        assertEquals("units", replies.get(2).at("/result/type/fields/0/name").asText());
+        assertEquals(0, replies.get(3).at("/result/revision").intValue());
+        assertEquals("namespace app; value Amount(int units, int reserved);",
+                replies.get(3).at("/result/edits/0/text").asText());
+        assertTrue(replies.get(4).at("/result/edits/0/text").asText().contains("aggregate Stock[StockId](Amount amount)"));
+        assertEquals(0, replies.get(5).at("/result/revision").intValue());
+        assertFalse(replies.get(5).at("/result/applied").asBoolean());
+        assertTrue(replies.get(5).at("/result/diagnostics/0/message").asText().contains("Missing"));
+
+        String publish = json.writeValueAsString(Map.of("id", 7, "op", "applyChecked",
+                "revision", 0, "client", "1", "edits",
+                List.of(replies.get(3).at("/result/edits/0"), replies.get(4).at("/result/edits/0"))));
+        output = new StringWriter();
+        daemon.serve(new StringReader(publish + "\n" + """
+                {"id":8,"op":"describeType","client":"1","revision":1,"type":"app.Amount"}
+                {"id":9,"op":"describeType","client":"1","revision":1,"type":"app.Stock"}
+                {"id":10,"op":"describeType","client":"2","revision":0,"type":"app.Amount"}
+                {"id":11,"op":"previewAddValueField","client":"1","revision":0,"path":"src/main/vernac/app/amount.vernac","type":"app.Amount","name":"another","fieldType":"int"}
+                """), output);
+        replies = output.toString().lines().map(json::readTree).toList();
+        assertTrue(replies.getFirst().at("/result/applied").asBoolean());
+        assertEquals(1, replies.getFirst().at("/result/revision").intValue());
+        assertEquals("reserved", replies.get(1).at("/result/type/fields/1/name").asText());
+        assertEquals("amount", replies.get(2).at("/result/type/fields/0/name").asText());
+        assertEquals(1, replies.get(3).at("/result/type/fields").size());
+        assertEquals("stale_revision", replies.get(4).at("/error/code").asText());
+        assertEquals(0, workspace.revision());
+    }
+
+    @Test
     void checksSavedSourcesAndRepairsOnTheSharedRevision() throws Exception {
         var main = Files.createDirectories(root.resolve("src/main/vernac/app"));
         var source = Files.writeString(main.resolve("counter.vernac"), "namespace app; value Counter(int);");

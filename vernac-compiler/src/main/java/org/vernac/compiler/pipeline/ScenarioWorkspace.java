@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.vernac.compiler.pipeline;
 
+import org.vernac.compiler.analyzer.CompilerDiagnostic;
 import org.vernac.compiler.application.ApplicationDefinition;
 import org.vernac.compiler.modules.ModuleArtifacts;
 import org.vernac.compiler.modules.ModuleDefinition;
 import org.vernac.compiler.modules.ModuleDescriptor;
+import org.vernac.compiler.tooling.VernacModelEdits;
+import org.vernac.compiler.tooling.VernacModelQueries;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -20,6 +23,10 @@ import java.util.Map;
 /** Workspace service for revisioned production and scenario source edits, with one verified runner baseline. */
 public final class ScenarioWorkspace {
     public record Overlay(long baseRevision, ScenarioWorkspace workspace) { }
+
+    record QueriedType(long revision, VernacModelQueries.Description type) { }
+
+    record CheckedEdit(long revision, boolean applied, List<CompilerDiagnostic> diagnostics) { }
 
     private record SavedFiles(Map<Path, String> sources, Map<Path, String> configuration) { }
 
@@ -113,8 +120,58 @@ public final class ScenarioWorkspace {
     }
 
     public long apply(long baseRevision, List<VersionedSources.Edit> edits) {
-        var batch = List.copyOf(edits);
+        var batch = validatedBatch(baseRevision, edits);
+        return sources.apply(baseRevision, batch).revision();
+    }
+
+    CheckedEdit applyChecked(long baseRevision, List<VersionedSources.Edit> edits) throws IOException {
+        var batch = validatedBatch(baseRevision, edits);
+        var candidate = sources.preview(baseRevision, batch);
+        var result = planning.check(inputs(candidate));
+        if (!result.valid()) {
+            sources.snapshot(baseRevision);
+            return new CheckedEdit(baseRevision, false, result.diagnostics());
+        }
+        return new CheckedEdit(sources.apply(baseRevision, batch).revision(), true, result.diagnostics());
+    }
+
+    QueriedType describeType(long revision, String identity) throws IOException {
+        var model = planning.model(inputs(revision));
+        var type = new VernacModelQueries(model).describeType(identity)
+                .orElseThrow(() -> new IllegalArgumentException("Unknown or unsupported model type: " + identity));
+        return new QueriedType(revision, type);
+    }
+
+    VersionedSources.Put previewAddValueField(long revision, Path path, String identity, String name,
+                                              String type, boolean optional) {
+        var snapshot = sources.snapshot(revision);
+        Path target = modelSourcePath(path);
+        String text = snapshot.sources().get(target);
+        if (text == null) throw new IllegalArgumentException("Source does not exist: " + path);
+        var insertion = VernacModelEdits.addValueField(target, text, identity, name, type, optional);
+        return new VersionedSources.Put(root.relativize(target), insertion.applyTo(text));
+    }
+
+    VersionedSources.Put previewCreateAggregate(long revision, Path path, String namespace, String name,
+                                                 String idType, boolean declareId,
+                                                 List<VernacModelEdits.AggregateField> fields) {
+        var snapshot = sources.snapshot(revision);
+        Path target = modelSourcePath(path);
+        if (snapshot.sources().containsKey(target)) throw new IllegalArgumentException("Source already exists: " + path);
+        String source = VernacModelEdits.aggregateSource(namespace, name, idType, declareId, fields);
+        return new VersionedSources.Put(root.relativize(target), source);
+    }
+
+    private Path modelSourcePath(Path path) {
+        var target = root.resolve(path).normalize();
+        if (!target.startsWith(main) || !target.getFileName().toString().endsWith(".vernac"))
+            throw new IllegalArgumentException("Expected a production Vernac source: " + path);
+        return target;
+    }
+
+    private List<VersionedSources.Edit> validatedBatch(long baseRevision, List<VersionedSources.Edit> edits) {
         sources.snapshot(baseRevision);
+        var batch = List.copyOf(edits);
         for (var edit : batch) {
             switch (edit) {
                 case VersionedSources.Put put -> requireSourcePath(put.path());
@@ -125,7 +182,7 @@ public final class ScenarioWorkspace {
                 }
             }
         }
-        return sources.apply(baseRevision, batch).revision();
+        return batch;
     }
 
     public ScenarioPlanningSession.Diagnostics check(long revision) throws IOException {
@@ -142,7 +199,10 @@ public final class ScenarioWorkspace {
     }
 
     private ScenarioPlanningSession.Inputs inputs(long revision) {
-        var snapshot = sources.snapshot(revision);
+        return inputs(sources.snapshot(revision));
+    }
+
+    private ScenarioPlanningSession.Inputs inputs(VersionedSources.Snapshot snapshot) {
         var modelSources = new LinkedHashMap<Path, String>();
         var testSources = new LinkedHashMap<String, String>();
         snapshot.sources().forEach((path, text) -> {

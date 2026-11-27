@@ -79,6 +79,11 @@ public final class ScenarioPlanningSession {
         return analyze(inputs).result();
     }
 
+    ResolvedProject model(Inputs inputs) throws IOException {
+        var check = checks.check(inputs.main());
+        return check.project().orElseThrow(() -> new SemanticValidationException(check.diagnostics()));
+    }
+
     private synchronized Analysis analyze(Inputs inputs) throws IOException {
         if (lastAnalysis != null && lastAnalysis.inputs().equals(inputs)) return lastAnalysis;
         var check = checks.check(inputs.main());

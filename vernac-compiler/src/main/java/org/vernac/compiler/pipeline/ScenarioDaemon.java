@@ -3,6 +3,7 @@
 package org.vernac.compiler.pipeline;
 
 import org.vernac.compiler.analyzer.SemanticValidationException;
+import org.vernac.compiler.tooling.VernacModelEdits;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -14,6 +15,7 @@ import java.io.Writer;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -86,6 +88,17 @@ public final class ScenarioDaemon {
                         "revision", overlay.workspace().revision());
             }
             case "apply" -> Map.of("revision", workspace(request).apply(revision(request), edits(request)));
+            case "applyChecked" -> workspace(request).applyChecked(revision(request), edits(request));
+            case "describeType" -> workspace(request).describeType(revision(request), requiredText(request, "type"));
+            case "previewAddValueField" -> preview(revision(request), workspace(request)
+                    .previewAddValueField(revision(request), Path.of(requiredText(request, "path")),
+                            requiredText(request, "type"), requiredText(request, "name"),
+                            requiredText(request, "fieldType"), optionalBoolean(request, "optional")));
+            case "previewCreateAggregate" -> preview(revision(request), workspace(request)
+                    .previewCreateAggregate(revision(request), Path.of(requiredText(request, "path")),
+                            requiredText(request, "namespace"), requiredText(request, "name"),
+                            requiredText(request, "idType"), optionalBoolean(request, "declareId"),
+                            aggregateFields(request)));
             case "check" -> checkReply(workspace(request).check(revision(request)));
             case "run" -> workspace(request).run(revision(request), optionalBoolean(request, "opaqueChange"));
             case "runScenario" -> workspace(request).runScenario(revision(request), requiredText(request, "scenario"));
@@ -96,6 +109,23 @@ public final class ScenarioDaemon {
             }
             default -> throw new IllegalArgumentException("Unknown workspace operation");
         };
+    }
+
+    private static Map<String, Object> preview(long revision, VersionedSources.Put edit) {
+        return Map.of("revision", revision, "edits", List.of(Map.of("kind", "put",
+                "path", edit.path().toString().replace('\\', '/'), "text", edit.text())));
+    }
+
+    private static List<VernacModelEdits.AggregateField> aggregateFields(JsonNode request) {
+        var fields = request.path("fields");
+        if (fields.isMissingNode()) return List.of();
+        if (!fields.isArray()) throw new IllegalArgumentException("Expected a fields array");
+        var result = new ArrayList<VernacModelEdits.AggregateField>();
+        for (var field : fields) {
+            result.add(new VernacModelEdits.AggregateField(requiredText(field, "name"),
+                    requiredText(field, "type"), optionalBoolean(field, "optional"), optionalBoolean(field, "mutable")));
+        }
+        return result;
     }
 
     private static Map<String, Object> checkReply(ScenarioPlanningSession.Diagnostics check) {

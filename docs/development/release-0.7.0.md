@@ -248,10 +248,19 @@ surface unresolved types when the snapshot is partial. It needs no file reload o
 Start with `describe_type`, `preview_add_value_field`, and `preview_create_aggregate`.
 The aggregate operation proposes a declaration and, when requested, its ID declaration. It takes
 the namespace and target source explicitly. The field operation proposes one insertion and preserves
-surrounding text. The compiler now provides the type description, field insertion preview and
-new aggregate source primitives. The field preview rejects stale source content and both preview
-outputs can be checked through an ordinary parse session. MCP transport, revision assignment
-and checked application of the batch are still pending.
+surrounding text. The local daemon exposes the compiler's model operations on private overlays:
+
+| Operation | Parameters in addition to `client` and `revision` | Result |
+| --- | --- | --- |
+| `describeType` | `type` with the qualified Vernac name | Revision and type description |
+| `previewAddValueField` | `path`, `type`, `name`, `fieldType`, optional `optional` | Revision and standard edit batch |
+| `previewCreateAggregate` | `path`, `namespace`, `name`, `idType`, optional `declareId` and `fields` | Revision and standard edit batch |
+| `applyChecked` | `edits` from one or more previews or ordinary text edits | Current revision, `applied` flag and diagnostics |
+
+An aggregate field specifies `name`, `type` and optionally `optional` and `mutable`. Preview paths
+refer to production Vernac sources and the previews leave the overlay unchanged. A checked batch
+advances the overlay only if the candidate passes type and scenario validation. A stale revision
+returns a conflict. The MCP adapter remains a separate integration step.
 
 Structured changes should produce the same versioned source edit batch as direct editor changes.
 Return the preview with the base revision, reject conflicts, and apply related edits atomically.

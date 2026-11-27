@@ -58,8 +58,14 @@ public final class VersionedSources {
     }
 
     public synchronized Snapshot apply(long baseRevision, List<Edit> edits) {
-        if (baseRevision != current.revision()) throw new Conflict(current.revision());
-        var next = new HashMap<>(current.sources());
+        current = preview(baseRevision, edits);
+        return current;
+    }
+
+    /** Computes the same batch result without publishing it. */
+    synchronized Snapshot preview(long baseRevision, List<Edit> edits) {
+        var base = snapshot(baseRevision);
+        var next = new HashMap<>(base.sources());
         for (var edit : List.copyOf(edits)) {
             switch (edit) {
                 case Put put -> next.put(normalize(put.path()), put.text());
@@ -72,8 +78,7 @@ public final class VersionedSources {
                 }
             }
         }
-        if (!next.equals(current.sources())) current = new Snapshot(Math.incrementExact(baseRevision), next);
-        return current;
+        return next.equals(base.sources()) ? base : new Snapshot(Math.incrementExact(baseRevision), next);
     }
 
     private Path normalize(Path path) {
