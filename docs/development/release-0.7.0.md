@@ -331,7 +331,7 @@ launcher errors exit with status 2. This is the cold path for Maven-backed appli
 | `vernac check` | Strict type and effect analysis for the requested revision. Supports structured diagnostics and a nonzero exit on errors. |
 | `vernac test --affected` | Compile the required inputs, run or explicitly reuse eligible scenario results, and explain selection. Default to the complete selected profile when there is no valid comparison revision. |
 | `vernac test --all` | Run every case in the selected profiles and report required versus unselected integration checks. Support machine-readable output plus JUnit XML for CI. |
-| `vernac build --dev` | Produce or activate a runnable update in the warm workspace. A successful result identifies the revision served. On a failed patch the previous valid revision can still serve requests and the failed target revision is explicit. |
+| `vernac build --dev` | Check saved sources and activate an eligible update in the running development application. The JSON result identifies both the requested revision and the revision currently served. |
 | `vernac build` | The Maven-backed path runs the project's existing clean package lifecycle. Standalone project configuration, Vernac-owned task ordering and build parity remain open. |
 
 Vernac owns task ordering, invalidation and artifact assembly decisions for supported application inputs.
@@ -360,8 +360,47 @@ It preserves the rest of the source when checking bridge compatibility, includin
 field accesses and method signatures. Invalid candidates return diagnostics. Edits outside this
 set require rebuilding, even when a wider future compatibility check could accept them. Callers
 must also rebuild the baseline after changes to host sources, external resources, configuration
-or dependencies. The CLI still needs to manage the packaged baseline and deliver updates to the
-running application.
+or dependencies.
+
+### Run a Maven application with live updates
+
+The initial CLI path supports a single-module Maven application with conventional source roots and
+no Vernac module dependencies. For the development build, add `org.vernac:vernac-compiler` at the
+same Vernac version and import `DevelopmentWebConfiguration`. Register the following bean in a
+Spring configuration class in the application. A Maven profile with its own development source
+directory can keep this compiler dependency and bean out of production packaging.
+
+```java
+@Bean(destroyMethod = "close")
+@Profile("vernac-dev")
+DevelopmentBuildServer vernacDevelopmentBuildServer(DevelopmentRevisions revisions) throws IOException {
+    return DevelopmentBuildServer.open(Path.of(System.getProperty("vernac.dev.workspace", ".")),
+            revisions, getClass().getClassLoader());
+}
+```
+
+`DevelopmentBuildServer` is in `org.vernac.compiler.pipeline`, `DevelopmentRevisions` is in
+`org.vernac.runtime` and `DevelopmentWebConfiguration` is in
+`org.vernac.runtime.http.development`.
+
+```sh
+mvn -Dvernac.development=true clean package
+java -Dvernac.dev.workspace=. -jar target/application.jar --spring.profiles.active=vernac-dev
+# In a second terminal after saving a Vernac edit:
+vernac build --dev .
+```
+
+Use the application's actual JAR name and include any required application profile in the launch.
+The opt-in Maven build writes the baseline into the packaged application. Start it against the
+matching saved workspace before editing. The compiler stays warm in the application JVM. The CLI
+sends a build request over an authenticated loopback connection using the workspace's
+`.vernac-dev` directory. Exclude this local directory from version control.
+
+`activated` exits with status 0. `invalid` and `rebuild_required` exit with status 1 and keep the
+last valid revision live. Transport or execution errors exit with status 2. Changes to Java,
+resources, the POM, Maven configuration or Vernac application configuration require a new
+package and restart. The warm path only tracks conventional project inputs. Rebuild explicitly
+after changing externally configured inputs, dependency installations or build profiles.
 
 In B5 define one resolved project model for roots, versions, dependencies, profiles, JVM release and main
 class. The wizard can import its existing POM. Prefer a small declarative YAML descriptor for standalone

@@ -14,6 +14,8 @@ import org.apache.maven.project.MavenProject;
 import org.vernac.compiler.pipeline.VernacProjectCompilationResult;
 import org.vernac.compiler.analyzer.SemanticValidationException;
 import org.vernac.compiler.pipeline.VernacCompiler;
+import org.vernac.compiler.pipeline.DevelopmentWorkspace;
+import org.vernac.compiler.pipeline.WorkspaceCheckSession;
 import org.vernac.compiler.pipeline.NativeBehaviorSourceMaps;
 import org.vernac.runtime.NativeBehaviorSources;
 
@@ -55,6 +57,9 @@ public class VernacCompileMojo extends AbstractMojo {
     @Parameter(property = "vernac.skip", defaultValue = "false")
     private boolean skip;
 
+    @Parameter(property = "vernac.development", defaultValue = "false")
+    private boolean development;
+
     @Parameter(property="vernac.schemaHistory", defaultValue="${project.basedir}/src/main/vernac-schema/history")
     private File historyDirectory;
     @Parameter(property="vernac.migrations")
@@ -86,8 +91,18 @@ public class VernacCompileMojo extends AbstractMojo {
         try {
             // Resolve the entire source tree before writing any generated Java.
             var dependencies=ModuleClasspath.read(project);
-            var resolved=sourceDirectory.exists()?compiler.analyzeProject(sourceDirectory.toPath(),dependencies):null;
             Path base=project!=null&&project.getBasedir()!=null?project.getBasedir().toPath():ModuleArtifacts.projectDirectory(sourceDirectory.toPath());
+            var dev = development ? DevelopmentWorkspace.capture(base) : null;
+            if (dev != null && (project == null || !sourceDirectory.toPath().toRealPath().equals(dev.sourceRoot())
+                    || !dependencies.isEmpty() || Files.exists(base.resolve(ModuleDefinition.FILE))
+                    || !project.getModules().isEmpty())) {
+                throw new IOException("Development mode requires a single Maven application with conventional Vernac sources and no Vernac module dependencies");
+            }
+            var devCheck = dev == null ? null : new WorkspaceCheckSession(dev.sourceRoot(), dev.configuration(), dependencies)
+                    .check(dev.snapshot(0));
+            var resolved = devCheck == null
+                    ? sourceDirectory.exists() ? compiler.analyzeProject(sourceDirectory.toPath(), dependencies) : null
+                    : devCheck.project().orElseThrow(() -> new SemanticValidationException(devCheck.diagnostics()));
             Path manifest=base.resolve(ModuleDefinition.FILE);
             org.vernac.compiler.application.ApplicationDefinition applicationDefinition=null;
             Path application=base.resolve(org.vernac.compiler.application.ApplicationDefinition.FILE);
@@ -219,7 +234,21 @@ public class VernacCompileMojo extends AbstractMojo {
                 Path nativeResources = build.resolve("generated-resources/vernac-native");
                 clearOwnedResources(nativeResources, NativeBehaviorSources.PREFIX);
                 if (resolved != null) NativeBehaviorSourceMaps.write(resolved, nativeResources);
-                if (Files.isDirectory(nativeResources.resolve(NativeBehaviorSources.PREFIX))) {
+                var baseline = nativeResources.resolve(DevelopmentWorkspace.BASELINE_RESOURCE);
+                if (dev != null) {
+                    if (!dev.fingerprint().equals(DevelopmentWorkspace.capture(base).fingerprint())) {
+                        throw new IOException("Project inputs changed during development baseline generation");
+                    }
+                    Files.createDirectories(baseline.getParent());
+                    Files.writeString(baseline, dev.fingerprint() + "\n");
+                } else {
+                    Files.deleteIfExists(baseline);
+                    if (project.getBuild().getOutputDirectory() != null) {
+                        Files.deleteIfExists(Path.of(project.getBuild().getOutputDirectory())
+                                .resolve(DevelopmentWorkspace.BASELINE_RESOURCE));
+                    }
+                }
+                if (Files.isDirectory(nativeResources.resolve(NativeBehaviorSources.PREFIX)) || dev != null) {
                     Resource resource = new Resource();
                     resource.setDirectory(nativeResources.toString());
                     project.addResource(resource);

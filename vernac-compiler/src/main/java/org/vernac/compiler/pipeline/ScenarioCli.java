@@ -69,12 +69,24 @@ public final class ScenarioCli {
     }
 
     private static int build(String[] args, PrintStream output) throws IOException {
-        if (args.length == 2 && args[1].equals("--dev") || args.length == 3 && args[2].equals("--dev")
-                && !args[1].startsWith("--")) {
-            throw new IllegalArgumentException("Warm application builds (--dev) are not yet available");
+        boolean development = false;
+        Path workspace = null;
+        for (int index = 1; index < args.length; index++) {
+            String argument = args[index];
+            if (argument.equals("--dev") && !development) development = true;
+            else if (!argument.startsWith("--") && workspace == null) workspace = Path.of(argument);
+            else return usage(output);
         }
-        if (args.length > 2 || args.length == 2 && args[1].startsWith("--")) return usage(output);
-        Path root = (args.length == 2 ? Path.of(args[1]) : Path.of(".")).toRealPath();
+        Path root = (workspace == null ? Path.of(".") : workspace).toRealPath();
+        if (development) {
+            var reply = JSON.readTree(DevelopmentBuildServer.build(root));
+            write(output, reply);
+            return switch (reply.path("status").asText()) {
+                case "activated" -> 0;
+                case "invalid", "rebuild_required" -> 1;
+                default -> 2;
+            };
+        }
         int status = MavenProjectBuild.packageProject(root);
         if (status == 0) {
             write(output, Map.of("built", true, "backend", "maven", "workspace", root.toString()));
@@ -87,7 +99,7 @@ public final class ScenarioCli {
 
     private static int usage(PrintStream output) {
         write(output, Map.of("error", "usage", "message",
-                "Usage: vernac <check|test|daemon> [workspace [domain|mvc|postgres]] [--scenario <id> (test only)] or vernac build [workspace]"));
+                "Usage: vernac <check|test|daemon> [workspace [domain|mvc|postgres]] [--scenario <id> (test only)] or vernac build [--dev] [workspace]"));
         return 2;
     }
 
