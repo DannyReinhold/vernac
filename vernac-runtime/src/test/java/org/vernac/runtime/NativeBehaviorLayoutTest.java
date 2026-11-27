@@ -11,12 +11,14 @@ import org.vernac.runtime.NativeBehaviorLayout.Instruction;
 import org.vernac.runtime.NativeBehaviorLayout.Kind;
 import org.vernac.runtime.NativeBehaviorExpression.Argument;
 import org.vernac.runtime.NativeBehaviorExpression.Binary;
+import org.vernac.runtime.NativeBehaviorExpression.Host;
 import org.vernac.runtime.NativeBehaviorExpression.Literal;
 import org.vernac.runtime.NativeBehaviorExpression.Local;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.List;
 
@@ -30,6 +32,7 @@ class NativeBehaviorLayoutTest {
     @Test
     void takesTheBranchStructureFromTheLayoutAndTheValuesFromJvmBindings() throws IOException {
         var bytes = layout();
+        ByteBuffer.wrap(bytes).putInt(2);
         var linked = NativeBehaviorLayout.link(new ByteArrayInputStream(bytes), BRIDGE);
         var program = new NativeBehavior.Program<>(1, 0, linked);
         assertEquals(3, program.execute(true, List.of()));
@@ -65,6 +68,36 @@ class NativeBehaviorLayoutTest {
         List<Step<Boolean>> bridge = List.of(new Return<>(input -> 7));
         var linked = NativeBehaviorLayout.link(new ByteArrayInputStream(bytes), bridge);
         assertEquals(7, new NativeBehavior.Program<>(1, 0, linked).execute(true, List.of()));
+    }
+
+    @Test
+    void replacesAScalarOperandAndRetainsTheBoundFieldAccess() throws IOException {
+        List<Step<BigDecimal>> bridge = List.of(new Return<>(NativeValidation.binary("*",
+                NativeValidation.access(NativeValidation.Invocation::self), NativeValidation.literal(new BigDecimal("99")))));
+        var stream = new ByteArrayOutputStream();
+        NativeBehaviorLayout.write(stream, List.of(new Instruction(Kind.RETURN,
+                new Binary("*", new Host(), new Literal(new BigDecimal("1.19"))))));
+        var linked = new NativeBehavior.Program<>(1, 0,
+                NativeBehaviorLayout.link(new ByteArrayInputStream(stream.toByteArray()), bridge));
+        assertEquals(new BigDecimal("11.90"), linked.execute(BigDecimal.TEN, List.of()));
+
+        List<Step<BigDecimal>> incompatible = List.of(new Return<>(NativeValidation.literal(BigDecimal.ONE)));
+        assertThrows(IOException.class,
+                () -> NativeBehaviorLayout.link(new ByteArrayInputStream(stream.toByteArray()), incompatible));
+        var versionTwo = ByteBuffer.wrap(stream.toByteArray()).putInt(2).array();
+        assertThrows(IOException.class, () -> NativeBehaviorLayout.link(new ByteArrayInputStream(versionTwo), bridge));
+    }
+
+    @Test
+    void shortCircuitsAcrossAHostOperandWithoutInvokingIt() throws IOException {
+        List<Step<Boolean>> bridge = List.of(new Return<>(NativeValidation.binary("&&", NativeValidation.literal(true),
+                NativeValidation.access(input -> { throw new AssertionError("Host operand was evaluated"); }))));
+        var stream = new ByteArrayOutputStream();
+        NativeBehaviorLayout.write(stream, List.of(new Instruction(Kind.RETURN,
+                new Binary("&&", new Literal(false), new Host()))));
+        var linked = new NativeBehavior.Program<>(1, 0,
+                NativeBehaviorLayout.link(new ByteArrayInputStream(stream.toByteArray()), bridge));
+        assertEquals(false, linked.execute(true, List.of()));
     }
 
     @Test

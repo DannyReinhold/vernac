@@ -118,17 +118,18 @@ public final class NativeBehaviorSourceMaps {
                 case DECIMAL -> new BigDecimal(literal.spelling());
                 case STRING -> literal.spelling().substring(1, literal.spelling().length() - 1).translateEscapes();
             });
-            case KeywordExpression.Prefix prefix -> {
-                var value = operand(prefix.operand(), bindings);
-                yield value == null ? null : new NativeBehaviorExpression.Prefix(prefix.operator(), value);
-            }
-            case KeywordExpression.Binary binary -> {
-                var left = operand(binary.left(), bindings);
-                var right = operand(binary.right(), bindings);
-                yield left == null || right == null ? null : new NativeBehaviorExpression.Binary(binary.operator(), left, right);
-            }
+            case KeywordExpression.Prefix prefix -> new NativeBehaviorExpression.Prefix(prefix.operator(),
+                    childOperand(prefix.operand(), bindings));
+            case KeywordExpression.Binary binary -> new NativeBehaviorExpression.Binary(binary.operator(),
+                    childOperand(binary.left(), bindings), childOperand(binary.right(), bindings));
             default -> null;
         };
+    }
+
+    private static NativeBehaviorExpression childOperand(KeywordExpression expression,
+                                                         Map<String, NativeBehaviorExpression> bindings) {
+        var child = operand(expression, bindings);
+        return child == null ? new NativeBehaviorExpression.Host() : child;
     }
 
     private static void collect(List<NativeStatement> statements, String prefix,

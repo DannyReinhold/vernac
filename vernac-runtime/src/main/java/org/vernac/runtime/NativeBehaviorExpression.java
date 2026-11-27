@@ -11,40 +11,50 @@ import java.util.Set;
 import org.vernac.runtime.NativeValidation.Expression;
 import org.vernac.runtime.NativeValidation.Invocation;
 
-/** Expressions that can be linked using only a native behavior's invocation frame. */
+/** Resource expressions with explicit references to any remaining JVM operands. */
 public sealed interface NativeBehaviorExpression {
     Set<String> BINARY_OPERATORS = Set.of("&&", "||", "==", "!=", "+", "-", "*", "/", "%", "<", "<=", ">", ">=");
 
-    <S> Expression<Invocation<S>> link();
+    <S> Expression<Invocation<S>> link(Expression<Invocation<S>> bridge) throws IOException;
 
     record Literal(Object value) implements NativeBehaviorExpression {
-        @Override public <S> Expression<Invocation<S>> link() {
+        @Override public <S> Expression<Invocation<S>> link(Expression<Invocation<S>> bridge) {
             return NativeValidation.literal(value);
         }
     }
 
     record Argument(int slot) implements NativeBehaviorExpression {
-        @Override public <S> Expression<Invocation<S>> link() {
+        @Override public <S> Expression<Invocation<S>> link(Expression<Invocation<S>> bridge) {
             return invocation -> invocation.arguments().get(slot);
         }
     }
 
     record Local(int slot) implements NativeBehaviorExpression {
-        @Override public <S> Expression<Invocation<S>> link() {
+        @Override public <S> Expression<Invocation<S>> link(Expression<Invocation<S>> bridge) {
             return invocation -> invocation.local(slot);
         }
     }
 
+    record Host() implements NativeBehaviorExpression {
+        @Override public <S> Expression<Invocation<S>> link(Expression<Invocation<S>> bridge) throws IOException {
+            if (bridge == null) throw new IOException("Missing JVM operand for native behavior expression");
+            return bridge;
+        }
+    }
+
     record Prefix(String operator, NativeBehaviorExpression operand) implements NativeBehaviorExpression {
-        @Override public <S> Expression<Invocation<S>> link() {
-            return NativeValidation.prefix(operator, operand.link());
+        @Override public <S> Expression<Invocation<S>> link(Expression<Invocation<S>> bridge) throws IOException {
+            var compiled = bridge instanceof NativeValidation.Prefix<Invocation<S>> prefix ? prefix.operand() : null;
+            return NativeValidation.prefix(operator, operand.link(compiled));
         }
     }
 
     record Binary(String operator, NativeBehaviorExpression left, NativeBehaviorExpression right)
             implements NativeBehaviorExpression {
-        @Override public <S> Expression<Invocation<S>> link() {
-            return NativeValidation.binary(operator, left.link(), right.link());
+        @Override public <S> Expression<Invocation<S>> link(Expression<Invocation<S>> bridge) throws IOException {
+            var compiled = bridge instanceof NativeValidation.Binary<Invocation<S>> binary ? binary : null;
+            return NativeValidation.binary(operator, left.link(compiled == null ? null : compiled.left()),
+                    right.link(compiled == null ? null : compiled.right()));
         }
     }
 
@@ -73,10 +83,11 @@ public sealed interface NativeBehaviorExpression {
                 write(output, binary.left());
                 write(output, binary.right());
             }
+            case Host ignored -> output.writeByte(9);
         }
     }
 
-    static NativeBehaviorExpression read(DataInputStream input) throws IOException {
+    static NativeBehaviorExpression read(DataInputStream input, int version) throws IOException {
         return switch (input.readUnsignedByte()) {
             case 0 -> null;
             case 1 -> new Literal(input.readBoolean());
@@ -94,12 +105,16 @@ public sealed interface NativeBehaviorExpression {
             case 7 -> {
                 String operator = input.readUTF();
                 if (!operator.equals("!") && !operator.equals("-")) throw new IOException("Invalid prefix operator");
-                yield new Prefix(operator, required(input));
+                yield new Prefix(operator, required(input, version));
             }
             case 8 -> {
                 String operator = input.readUTF();
                 if (!BINARY_OPERATORS.contains(operator)) throw new IOException("Invalid binary operator");
-                yield new Binary(operator, required(input), required(input));
+                yield new Binary(operator, required(input, version), required(input, version));
+            }
+            case 9 -> {
+                if (version < 3) throw new IOException("JVM operands require behavior layout version 3");
+                yield new Host();
             }
             default -> throw new IOException("Unsupported behavior expression opcode");
         };
@@ -111,8 +126,8 @@ public sealed interface NativeBehaviorExpression {
         return slot;
     }
 
-    private static NativeBehaviorExpression required(DataInputStream input) throws IOException {
-        var expression = read(input);
+    private static NativeBehaviorExpression required(DataInputStream input, int version) throws IOException {
+        var expression = read(input, version);
         if (expression == null) throw new IOException("Missing behavior operand");
         return expression;
     }

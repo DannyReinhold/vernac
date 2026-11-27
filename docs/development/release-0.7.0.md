@@ -62,10 +62,11 @@ original type and carries the declaration, source-relative path, line and column
 changing the generated Java. Copied Java continues to use the existing debug map. The same resource
 directory now carries a versioned statement layout. At class initialization, the runtime loads that
 layout and links each instruction slot to the generated JVM binding, checking the version, opcode
-and slot inventory. Layout version 2 can also supply scalar expressions made from literals, method
-arguments, locals, and prefix or binary operators. It still reads version 1 with its Java operands.
-For expressions that need a host access or call, the compiler still provides the JVM operand.
-Separating those bindings and replacing a program inside a live application remain open.
+and slot inventory. Layout version 3 can supply arithmetic and Boolean operators and their
+resource operands even when part of the expression uses a JVM access or call. The linker reconnects
+each host operand to the corresponding generated expression and rejects an incompatible shape.
+Layouts from versions 1 and 2 remain readable. The compiler still emits the fallback operands in
+Java. Independent host bindings and replacing a program inside a live application remain open.
 
 For interpreted aggregate modifications, stage writes, validate at the outermost boundary, then publish
 validated state to the existing object identities. Nested modifications and invariant reads see the
