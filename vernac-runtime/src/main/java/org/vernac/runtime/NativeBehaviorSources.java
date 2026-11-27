@@ -38,7 +38,7 @@ public final class NativeBehaviorSources {
 
     static void attach(RuntimeException failure, Class<?> implementation, int program, String instruction) {
         if (implementation == null) return;
-        try (var input = implementation.getResourceAsStream("/" + resource(implementation.getName(), program))) {
+        try (var input = DevelopmentRevisions.sourceMap(implementation, program)) {
             if (input == null) return;
             var data = new DataInputStream(input);
             if (data.readInt() != VERSION) return;

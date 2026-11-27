@@ -346,6 +346,13 @@ behavior while one request is still running. Each response must match one comple
 signature or provider change can require rebuilding classes or restarting the application. Expose that
 wider operation and its timing to the caller.
 
+The runtime can publish a complete set of layout, source-map and template overrides after linking
+every layout to its running JVM bridge. An invalid layout or stale base revision leaves the active
+bundle unchanged. Spring Boot applications can import `DevelopmentWebConfiguration` for a
+request-scoped revision and an uncached resolver for Vernac-generated Thymeleaf views. This
+integration targets synchronous MVC requests. The CLI still needs to compile and deliver a
+compatible bundle, and the compiler must detect edits that require replacing the JVM bridge.
+
 In B5 define one resolved project model for roots, versions, dependencies, profiles, JVM release and main
 class. The wizard can import its existing POM. Prefer a small declarative YAML descriptor for standalone
 projects that need one. Select one authoritative input per project and diagnose ambiguity. Specify

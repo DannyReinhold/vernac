@@ -38,6 +38,7 @@ public final class NativeBehavior {
     public record Program<S>(int formatVersion, int localCount, List<Step<S>> steps) {
         public Program(int formatVersion, int localCount, List<Step<S>> steps, Class<?> implementation, int program) {
             this(formatVersion, localCount, NativeBehaviorLayout.load(implementation, program, steps));
+            DevelopmentRevisions.register(implementation, program, this, steps);
         }
 
         public Program {
@@ -54,7 +55,9 @@ public final class NativeBehavior {
         }
 
         public Object execute(S self, List<Object> arguments, Class<?> implementation, int program) {
-            var result = executeSteps(steps, new Invocation<>(self, arguments, localCount), implementation, program, "");
+            var selected = DevelopmentRevisions.select(this);
+            var result = executeSteps(selected.steps(), new Invocation<>(self, arguments, selected.localCount()),
+                    implementation, program, "");
             return result == CONTINUE ? null : result;
         }
     }
