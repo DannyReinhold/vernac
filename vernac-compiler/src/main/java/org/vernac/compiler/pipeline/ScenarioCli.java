@@ -45,8 +45,8 @@ public final class ScenarioCli {
                 scenario = args[next + 1];
             }
             if (args[0].equals("mcp")) {
-                try {
-                    new VernacMcpServer(ScenarioDaemonLauncher.daemon(root, profile)).serve(
+                try (var daemon = ScenarioDaemonLauncher.daemon(root, profile)) {
+                    new VernacMcpServer(daemon).serve(
                             new InputStreamReader(System.in, StandardCharsets.UTF_8),
                             new OutputStreamWriter(output, StandardCharsets.UTF_8));
                     return 0;

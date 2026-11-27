@@ -3,8 +3,10 @@
 package org.vernac.compiler.pipeline;
 
 import com.palantir.javapoet.JavaFile;
+import org.junit.platform.engine.CancellationToken;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -16,8 +18,13 @@ public final class ScenarioRunSession {
     public enum Outcome { PASSED, FAILED, SKIPPED }
 
     public record Execution(long revision, ResolvedProject project, JavaFile bridge,
-                            List<AffectedScenarioSelector.Selection> selected) {
+                            List<AffectedScenarioSelector.Selection> selected, CancellationToken cancellation) {
         public Execution { selected = List.copyOf(selected); }
+
+        public Execution(long revision, ResolvedProject project, JavaFile bridge,
+                         List<AffectedScenarioSelector.Selection> selected) {
+            this(revision, project, bridge, selected, CancellationToken.disabled());
+        }
     }
 
     @FunctionalInterface
@@ -35,6 +42,14 @@ public final class ScenarioRunSession {
         }
     }
 
+    @FunctionalInterface
+    interface Completion {
+        // A background job can decline to publish after cancellation, including the baseline update.
+        void publish(Run run, Runnable commitBaseline);
+
+        default CancellationToken cancellation() { return CancellationToken.disabled(); }
+    }
+
     private final ScenarioPlanningSession planning;
     private final Executor executor;
     private final String profile;
@@ -47,16 +62,23 @@ public final class ScenarioRunSession {
     }
 
     public synchronized Run run(ScenarioPlanningSession.Inputs inputs, boolean opaqueChange) throws IOException {
+        return run(inputs, opaqueChange, (result, commit) -> commit.run());
+    }
+
+    synchronized Run run(ScenarioPlanningSession.Inputs inputs, boolean opaqueChange, Completion completion)
+            throws IOException {
         var previous = Optional.ofNullable(baseline);
         if (opaqueChange) {
             baseline = null;
             executor.invalidate();
         }
         var plan = planning.plan(previous, inputs, opaqueChange, profile);
-        var run = execute(plan);
-        if (run.outcomes().values().stream().allMatch(outcome -> outcome == Outcome.PASSED)) {
-            baseline = plan.target();
-        }
+        var run = execute(plan, completion.cancellation());
+        completion.publish(run, () -> {
+            if (run.outcomes().values().stream().allMatch(outcome -> outcome == Outcome.PASSED)) {
+                baseline = plan.target();
+            }
+        });
         return run;
     }
 
@@ -66,12 +88,13 @@ public final class ScenarioRunSession {
             throw new IllegalArgumentException("Unknown scenario in the selected profile: " + id);
         }
         var run = execute(new ScenarioPlanningSession.Plan(plan.target(), List.of(
-                new AffectedScenarioSelector.Selection(id, AffectedScenarioSelector.Reason.EXPLICIT_SELECTION))));
+                new AffectedScenarioSelector.Selection(id, AffectedScenarioSelector.Reason.EXPLICIT_SELECTION))), CancellationToken.disabled());
         if (run.outcomes().get(id) != Outcome.PASSED) baseline = null;
         return run;
     }
 
-    private Run execute(ScenarioPlanningSession.Plan plan) throws IOException {
+    private Run execute(ScenarioPlanningSession.Plan plan, CancellationToken cancellation) throws IOException {
+        if (cancellation.isCancellationRequested()) throw new InterruptedIOException("Scenario run cancelled");
         long revision = plan.target().revision();
         var ids = plan.selected().stream().map(AffectedScenarioSelector.Selection::id)
                 .collect(Collectors.toUnmodifiableSet());
@@ -79,7 +102,8 @@ public final class ScenarioRunSession {
 
         if (!ids.isEmpty()) {
             outcomes = Map.copyOf(executor.execute(
-                    new Execution(revision, plan.target().project(), plan.testBridge(), plan.selected())));
+                    new Execution(revision, plan.target().project(), plan.testBridge(), plan.selected(), cancellation)));
+            if (cancellation.isCancellationRequested()) throw new InterruptedIOException("Scenario run cancelled");
             if (!outcomes.keySet().equals(ids)) {
                 baseline = null;
                 throw new IllegalStateException("Scenario execution results do not match the selected cases");

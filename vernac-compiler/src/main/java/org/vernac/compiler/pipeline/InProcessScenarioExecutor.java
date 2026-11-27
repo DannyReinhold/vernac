@@ -3,12 +3,14 @@
 package org.vernac.compiler.pipeline;
 
 import com.palantir.javapoet.JavaFile;
+import org.junit.platform.engine.CancellationToken;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.discovery.DiscoverySelectors;
 import org.junit.platform.launcher.EngineFilter;
 import org.junit.platform.launcher.TestExecutionListener;
 import org.junit.platform.launcher.TestIdentifier;
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder;
+import org.junit.platform.launcher.core.LauncherExecutionRequestBuilder;
 import org.junit.platform.launcher.core.LauncherFactory;
 import org.vernac.compiler.ast.WebViewNode;
 import org.vernac.compiler.persistence.SchemaModel;
@@ -123,7 +125,7 @@ public final class InProcessScenarioExecutor implements ScenarioRunSession.Execu
             urls.add(testClasses.toUri().toURL());
             for (var dependency : classpath) urls.add(dependency.toUri().toURL());
             try (var loader = new GeneratedClassLoader(urls.toArray(URL[]::new), names, projectOutputs)) {
-                return run(loader, bridge);
+                return run(loader, bridge, request.cancellation());
             }
         } finally {
             try (var paths = Files.walk(workspace)) {
@@ -170,7 +172,8 @@ public final class InProcessScenarioExecutor implements ScenarioRunSession.Execu
         }
     }
 
-    private static Map<String, Outcome> run(ClassLoader loader, String bridge) throws IOException {
+    private static Map<String, Outcome> run(ClassLoader loader, String bridge, CancellationToken cancellation)
+            throws IOException {
         var thread = Thread.currentThread();
         var original = thread.getContextClassLoader();
         thread.setContextClassLoader(loader);
@@ -180,7 +183,7 @@ public final class InProcessScenarioExecutor implements ScenarioRunSession.Execu
             var request = LauncherDiscoveryRequestBuilder.request()
                     .selectors(DiscoverySelectors.selectClass(tests))
                     .filters(EngineFilter.includeEngines("junit-jupiter")).build();
-            LauncherFactory.create().execute(request, new TestExecutionListener() {
+            var listener = new TestExecutionListener() {
                 @Override
                 public void executionFinished(TestIdentifier test, TestExecutionResult result) {
                     if (!test.isTest()) return;
@@ -195,7 +198,9 @@ public final class InProcessScenarioExecutor implements ScenarioRunSession.Execu
                 public void executionSkipped(TestIdentifier test, String reason) {
                     if (test.isTest()) outcomes.put(test.getDisplayName(), Outcome.SKIPPED);
                 }
-            });
+            };
+            LauncherFactory.create().execute(LauncherExecutionRequestBuilder.executionRequest(request)
+                    .cancellationToken(cancellation).listeners(listener).build());
             return Map.copyOf(outcomes);
         } catch (ClassNotFoundException e) {
             throw new IOException("Generated scenario bridge could not be loaded", e);

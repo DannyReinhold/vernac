@@ -194,6 +194,11 @@ public final class ScenarioWorkspace {
         return runner.run(inputs(revision), opaqueChange);
     }
 
+    ScenarioRunJobs.Work captureRun(long revision, boolean opaqueChange) {
+        var captured = inputs(revision);
+        return completion -> runner.run(captured, opaqueChange, completion);
+    }
+
     public ScenarioRunSession.Run runScenario(long revision, String id) throws IOException {
         return runner.runScenario(inputs(revision), id);
     }
