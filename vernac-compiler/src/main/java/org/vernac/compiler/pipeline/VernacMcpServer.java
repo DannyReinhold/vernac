@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 final class VernacMcpServer {
     private static final JsonMapper JSON = JsonMapper.builder().build();
     private static final String PROTOCOL = "2025-11-25";
-    private static final Set<String> PROTOCOLS = Set.of(PROTOCOL, "2025-06-18", "2025-03-26");
+    private static final Set<String> PROTOCOLS = Set.of(PROTOCOL, "2025-06-18");
     private static final Map<String, String> TEXT = Map.of("type", "string");
     private static final Map<String, Object> REVISION = Map.of("type", "integer", "minimum", 0);
     private static final Map<String, String> BOOLEAN = Map.of("type", "boolean");

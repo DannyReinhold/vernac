@@ -64,7 +64,7 @@ class VernacMcpServerTest {
         var server = new VernacMcpServer(ScenarioDaemonLauncher.daemon(root, "domain"));
 
         var replies = exchange(server, """
-                {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25"}}
+                {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26"}}
                 {"jsonrpc":"2.0","method":"notifications/initialized"}
                 {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"test_affected_saved","arguments":{"revision":0}}}
                 {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"test_affected_saved","arguments":{"revision":0}}}
@@ -76,6 +76,7 @@ class VernacMcpServerTest {
                 {"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"workspace_revision"}}
                 """);
 
+        assertEquals("2025-11-25", replies.getFirst().at("/result/protocolVersion").asText());
         assertEquals("PASSED", replies.get(1).at("/result/structuredContent/outcomes/proof.Checks.count").asText());
         assertTrue(replies.get(2).at("/result/structuredContent/outcomes").isEmpty());
         assertEquals("1", replies.get(3).at("/result/structuredContent/client").asText());
