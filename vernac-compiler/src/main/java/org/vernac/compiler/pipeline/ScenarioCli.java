@@ -14,7 +14,7 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Set;
 
-/** CLI for a saved workspace check, test run or local daemon session. */
+/** CLI for a saved workspace check, test run, application build or local daemon session. */
 public final class ScenarioCli {
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
@@ -28,7 +28,9 @@ public final class ScenarioCli {
 
     private static int execute(String[] args, PrintStream output) {
         try {
-            if (args.length < 1 || !Set.of("check", "test", "daemon").contains(args[0])) return usage(output);
+            if (args.length < 1) return usage(output);
+            if (args[0].equals("build")) return build(args, output);
+            if (!Set.of("check", "test", "daemon").contains(args[0])) return usage(output);
             boolean test = args[0].equals("test");
             int next = 1;
             Path root = Path.of(".");
@@ -66,9 +68,26 @@ public final class ScenarioCli {
         }
     }
 
+    private static int build(String[] args, PrintStream output) throws IOException {
+        if (args.length == 2 && args[1].equals("--dev") || args.length == 3 && args[2].equals("--dev")
+                && !args[1].startsWith("--")) {
+            throw new IllegalArgumentException("Warm application builds (--dev) are not yet available");
+        }
+        if (args.length > 2 || args.length == 2 && args[1].startsWith("--")) return usage(output);
+        Path root = (args.length == 2 ? Path.of(args[1]) : Path.of(".")).toRealPath();
+        int status = MavenProjectBuild.packageProject(root);
+        if (status == 0) {
+            write(output, Map.of("built", true, "backend", "maven", "workspace", root.toString()));
+            return 0;
+        }
+        write(output, Map.of("built", false, "backend", "maven", "workspace", root.toString(),
+                "error", "build_failed", "mavenExitCode", status));
+        return 1;
+    }
+
     private static int usage(PrintStream output) {
         write(output, Map.of("error", "usage", "message",
-                "Usage: vernac <check|test|daemon> [workspace [domain|mvc|postgres]] [--scenario <id> (test only)]"));
+                "Usage: vernac <check|test|daemon> [workspace [domain|mvc|postgres]] [--scenario <id> (test only)] or vernac build [workspace]"));
         return 2;
     }
 

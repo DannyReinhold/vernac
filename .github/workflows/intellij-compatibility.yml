@@ -31,7 +31,7 @@ jobs:
       - name: Build and test compiled renderer and actual plugin ZIP
         run: >-
           mvn -B -ntp -pl vernac-intellij -am
-          -Dtest=SourceModuleVisibilityTest,InboundMvcContractTest,VernacFormatterTest,VernacFormattingServiceTest,VernacDebuggerApiTest,VernacViewInspectorTest,VernacSpringBootTemplateTest,VernacProjectTemplateTest
+          -Dtest=SourceModuleVisibilityTest,InboundMvcContractTest,VernacFormatterTest,VernacFormattingServiceTest,VernacDebuggerApiTest,VernacViewInspectorTest,VernacSpringBootTemplateTest,VernacProjectTemplateTest,ScenarioDaemonLauncherTest
           -Dsurefire.failIfNoSpecifiedTests=false
           -Dit.test=PluginDistributionIT -Dfailsafe.failIfNoSpecifiedTests=false
           clean verify
@@ -66,6 +66,9 @@ jobs:
           formatter = ET.parse('vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.format.VernacFormatterTest.xml').getroot()
           assert int(formatter.attrib['tests']) >= 5
           assert all(int(formatter.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
+          cli = ET.parse('vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.pipeline.ScenarioDaemonLauncherTest.xml').getroot()
+          assert 'buildsTheRequestedProjectWithItsWrapperAndKeepsLogsOffProtocolOutput' in {case.attrib['name'] for case in cli.findall('testcase')}
+          assert all(int(cli.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
           print('Known internal-API regression and packaged distribution proofs passed; none skipped.')
           PY
 
