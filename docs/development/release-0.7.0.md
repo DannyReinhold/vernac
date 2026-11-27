@@ -238,7 +238,17 @@ in the same request. The shared workspace retains its compilation cache and its 
 across requests. An optional `opaqueChange: true` requests conservative execution after changes outside
 Vernac source files. When source validation fails, `sharedRevision` reports the revision already
 captured from disk, so the client can retry after repairing the sources.
-Automatic file watching, overlay persistence and cancellation remain open.
+The daemon also accepts `startRunSaved` and `startRun` for background runs. Each captures
+one revision and returns a run ID. `runStatus` returns the revision, state and the final result
+or diagnostics when available. `cancelRun` interrupts the worker and tells JUnit to stop
+starting further tests. Cancellation is cooperative. The runner waits for a fixture that is
+still executing before accepting the next run. A cancelled result cannot become a passing
+baseline. The optional `requestKey` makes retries of background-run submissions idempotent
+for the 32 most recent runs in that server process.
+The edit operations `apply` and `applyChecked` also accept a request key scoped to the overlay.
+The server keeps the latest 32 keyed edit responses and rejects reuse of a key for a different edit.
+
+Automatic file watching and persistence across daemon restarts remain open.
 
 ### Structured model operations for agents
 
@@ -291,9 +301,10 @@ behavior reference and [FAQ](../faq/index.md) as read-only MCP resources. The se
 section resource URIs and the bundled Vernac version. Search and resource reads do not compile
 the workspace.
 
-The stdio adapter handles one request at a time. Cancellation of an active run, durable results,
-and request replay still need implementation, together with parity across installed MCP, CLI
-and IDE entry points.
+The stdio adapter exposes background-run submission, status and cancellation in addition to
+the existing synchronous operations. The server keeps at most one active scenario run.
+Durable results after process exit and parity across installed MCP, CLI and IDE entry points
+remain open.
 
 ## Standalone build tool
 

@@ -15,19 +15,27 @@ import java.io.Writer;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
 
 /** Line-delimited JSON transport for a local scenario workspace. */
-public final class ScenarioDaemon {
+public final class ScenarioDaemon implements AutoCloseable {
     private static final JsonMapper JSON = JsonMapper.builder().build();
+    private static final int RETAINED_EDITS = 32;
 
     private final ScenarioWorkspace shared;
     private final Supplier<ScenarioRunSession.Executor> executors;
     private final Map<String, ScenarioWorkspace> overlays = new HashMap<>();
+    private final ScenarioRunJobs jobs = new ScenarioRunJobs();
+    private final LinkedHashMap<EditKey, CompletedEdit> editReceipts = new LinkedHashMap<>();
     private long lastClient;
+
+    private record EditKey(String client, String key) { }
+    private record EditRequest(long revision, boolean checked, List<VersionedSources.Edit> edits) { }
+    private record CompletedEdit(EditRequest request, Object result) { }
 
     record Reply(JsonNode id, Object result, Problem error) { }
     record Problem(String code, String message, Object details) { }
@@ -82,6 +90,7 @@ public final class ScenarioDaemon {
             case "refresh" -> Map.of("revision", shared.refreshSavedSources(revision(request)));
             case "checkSaved" -> checkReply(shared.check(shared.refreshSavedSources(revision(request))));
             case "runSaved" -> {
+                jobs.requireIdle();
                 boolean opaqueChange = optionalBoolean(request, "opaqueChange");
                 long savedRevision = shared.refreshSavedSources(revision(request));
                 yield shared.run(savedRevision, opaqueChange);
@@ -94,8 +103,8 @@ public final class ScenarioDaemon {
                 yield Map.of("client", client, "baseRevision", overlay.baseRevision(),
                         "revision", overlay.workspace().revision());
             }
-            case "apply" -> Map.of("revision", workspace(request).apply(revision(request), edits(request)));
-            case "applyChecked" -> workspace(request).applyChecked(revision(request), edits(request));
+            case "apply" -> edit(request, false);
+            case "applyChecked" -> edit(request, true);
             case "describeType" -> workspace(request).describeType(revision(request), requiredText(request, "type"));
             case "previewAddValueField" -> preview(revision(request), workspace(request)
                     .previewAddValueField(revision(request), Path.of(requiredText(request, "path")),
@@ -107,15 +116,72 @@ public final class ScenarioDaemon {
                             requiredText(request, "idType"), optionalBoolean(request, "declareId"),
                             aggregateFields(request)));
             case "check" -> checkReply(workspace(request).check(revision(request)));
-            case "run" -> workspace(request).run(revision(request), optionalBoolean(request, "opaqueChange"));
-            case "runScenario" -> workspace(request).runScenario(revision(request), requiredText(request, "scenario"));
+            case "run" -> {
+                jobs.requireIdle();
+                yield workspace(request).run(revision(request), optionalBoolean(request, "opaqueChange"));
+            }
+            case "runScenario" -> {
+                jobs.requireIdle();
+                yield workspace(request).runScenario(revision(request), requiredText(request, "scenario"));
+            }
+            case "startRunSaved" -> startRun(request, true);
+            case "startRun" -> startRun(request, false);
+            case "runStatus" -> jobs.status(requiredText(request, "runId"));
+            case "cancelRun" -> jobs.cancel(requiredText(request, "runId"));
             case "close" -> {
                 String client = requiredText(request, "client");
                 if (overlays.remove(client) == null) throw new IllegalArgumentException("Unknown overlay: " + client);
+                editReceipts.keySet().removeIf(key -> key.client().equals(client));
                 yield Map.of("closed", true);
             }
             default -> throw new IllegalArgumentException("Unknown workspace operation");
         };
+    }
+
+    private Object edit(JsonNode input, boolean checked) throws IOException {
+        var workspace = workspace(input);
+        var request = new EditRequest(revision(input), checked, List.copyOf(edits(input)));
+        String key = requestKey(input);
+        var receipt = key == null ? null : new EditKey(requiredText(input, "client"), key);
+        var previous = receipt == null ? null : editReceipts.get(receipt);
+        if (previous != null) {
+            if (!previous.request().equals(request)) {
+                throw new IllegalArgumentException("Edit request key was already used for different inputs");
+            }
+            return previous.result();
+        }
+        var result = checked ? workspace.applyChecked(request.revision(), request.edits())
+                : Map.of("revision", workspace.apply(request.revision(), request.edits()));
+        if (receipt != null) {
+            editReceipts.put(receipt, new CompletedEdit(request, result));
+            if (editReceipts.size() > RETAINED_EDITS) editReceipts.pollFirstEntry();
+        }
+        return result;
+    }
+
+    private static String requestKey(JsonNode request) {
+        String key = request.has("requestKey") ? requiredText(request, "requestKey") : null;
+        if (key != null && (key.isBlank() || key.length() > 128)) {
+            throw new IllegalArgumentException("Request key must contain 1–128 characters");
+        }
+        return key;
+    }
+
+    private ScenarioRunJobs.Start startRun(JsonNode request, boolean saved) throws IOException {
+        String client = saved ? null : requiredText(request, "client");
+        String key = requestKey(request);
+        long expected = revision(request);
+        boolean opaque = optionalBoolean(request, "opaqueChange");
+        return jobs.start(new ScenarioRunJobs.Request(key, client, expected, opaque), () -> {
+            var workspace = saved ? shared : workspace(request);
+            long captured = saved ? shared.refreshSavedSources(expected) : expected;
+            return new ScenarioRunJobs.Captured(captured, workspace.captureRun(captured, opaque));
+        });
+    }
+
+    @Override
+    public void close() {
+        jobs.close();
     }
 
     private static Map<String, Object> preview(long revision, VersionedSources.Put edit) {

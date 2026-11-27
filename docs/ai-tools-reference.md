@@ -49,9 +49,20 @@ workspace and the optional third argument selects the test profile (`domain`, `m
   The first test request establishes the comparison baseline. Send the returned revision next.
 - For unsaved edits, use `open_overlay`. Send its `client` and `revision` to
   `check_overlay`, `test_affected_overlay`, or `test_scenario`. Use `close_overlay` when done.
+- To run affected tests in the background, use `start_affected_saved` or
+  `start_affected_overlay`. Keep the returned `runId` and poll `run_status`. Use
+  `cancel_run` to request cancellation. `CANCELLING` means the current test may still be
+  finishing. A cancelled run leaves the previous passing test baseline in place unless the
+  request explicitly invalidated it with `opaqueChange`.
+- Supply an optional unique `requestKey` when starting a background run. A retry with the same
+  key and parameters returns the original run ID while it is retained. Runs are kept in memory
+  in the same server process, up to the latest 32. A new stdio process starts a new session.
 - Use `describe_type` to inspect fields and methods. The preview tools for aggregate creation
   and value-object fields return ordinary edit batches. Send those edits, or other source edits,
   to `apply_checked` to publish a validated overlay revision. Overlay edits stay in memory.
+  Supply a unique `requestKey` to `apply_checked` or `apply_edits` to retrieve the original
+  response on a retry with the same arguments. The server retains the latest 32 keyed edit
+  responses and drops an overlay's responses when it closes.
 - Read the bundled task index at `vernac://docs/ai-language-reference.md` or the FAQ at
   `vernac://docs/faq/index.md`. `search_docs` returns versioned section matches. Read those URIs
   through the client's resource support.

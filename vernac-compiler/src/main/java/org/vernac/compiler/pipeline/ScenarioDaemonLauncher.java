@@ -38,7 +38,9 @@ public final class ScenarioDaemonLauncher {
     }
 
     static void serve(Path workspaceRoot, String profile, Reader input, Writer output) throws IOException {
-        daemon(workspaceRoot, profile).serve(input, output);
+        try (var daemon = daemon(workspaceRoot, profile)) {
+            daemon.serve(input, output);
+        }
     }
 
     static ScenarioDaemon daemon(Path workspaceRoot, String profile) throws IOException {

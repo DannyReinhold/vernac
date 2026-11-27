@@ -33,6 +33,52 @@ class InProcessScenarioExecutorTest {
     @TempDir Path root;
 
     @Test
+    void junitDoesNotStartFurtherScenariosAfterCancellation() throws Exception {
+        var sources = new VersionedSources(root, Map.of());
+        var planning = new ScenarioPlanningSession(root, Map.of(), List.of());
+        var plan = planning.plan(Optional.empty(),
+                new ScenarioPlanningSession.Inputs(sources.snapshot(), Map.of()), false, null);
+        var signal = root.resolve("cancelled");
+        var resume = root.resolve("resume");
+        var first = MethodSpec.methodBuilder("a")
+                .addAnnotation(Test.class).addException(Exception.class)
+                .addStatement("$T.createFile($T.of($S))", Files.class, Path.class, signal.toString())
+                .addStatement("long deadline = System.nanoTime() + 5_000_000_000L")
+                .beginControlFlow("while ($T.notExists($T.of($S)) && System.nanoTime() < deadline)",
+                        Files.class, Path.class, resume.toString())
+                .addStatement("Thread.sleep(10)").endControlFlow()
+                .addStatement("$T.assertTrue($T.exists($T.of($S)))", Assertions.class, Files.class, Path.class,
+                        resume.toString()).build();
+        var second = MethodSpec.methodBuilder("b").addAnnotation(Test.class)
+                .addStatement("$T.fail($S)", Assertions.class, "Cancelled test should not start").build();
+        var suite = TypeSpec.classBuilder("CancellationCheck")
+                .addAnnotation(AnnotationSpec.builder(org.junit.jupiter.api.TestMethodOrder.class)
+                        .addMember("value", "$T.class", org.junit.jupiter.api.MethodOrderer.MethodName.class).build())
+                .addMethod(first).addMethod(second).build();
+        var cancellation = org.junit.platform.engine.CancellationToken.create();
+        var execution = new ScenarioRunSession.Execution(0, plan.target().project(),
+                JavaFile.builder("proof", suite).build(), List.of(), cancellation);
+
+        var executor = new InProcessScenarioExecutor(ScenarioDaemonLauncher.classpath());
+        Map<String, ScenarioRunSession.Outcome> outcomes;
+        try (var worker = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            var running = worker.submit(() -> executor.execute(execution));
+            try {
+                long deadline = System.nanoTime() + 10_000_000_000L;
+                while (Files.notExists(signal) && !running.isDone() && System.nanoTime() < deadline) Thread.sleep(10);
+                assertTrue(Files.exists(signal));
+                cancellation.cancel();
+            } finally {
+                Files.createFile(resume);
+            }
+            outcomes = running.get(5, java.util.concurrent.TimeUnit.SECONDS);
+        }
+        assertEquals(ScenarioRunSession.Outcome.PASSED, outcomes.get("a()"), outcomes.toString());
+        assertTrue(outcomes.get("b()") == null || outcomes.get("b()") == ScenarioRunSession.Outcome.SKIPPED,
+                outcomes.toString());
+    }
+
+    @Test
     void reportsTheCurrentNativeStatementWithoutRecompilingAfterACommentLine() throws Exception {
         var source = Files.createDirectories(root.resolve("booking")).resolve("booking.vernac");
         var model = """
