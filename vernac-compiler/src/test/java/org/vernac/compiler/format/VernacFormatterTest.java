@@ -37,6 +37,21 @@ class VernacFormatterTest {
         String module="module library.demo{export app.Thing;}";
         assertEquals("module library.demo {\n    export app.Thing;\n}\n",VernacFormatter.format(module,VernacFormatter.Kind.MODULE));
     }
+    @Test void formatsNativeBranchesAndCollectionBlocksWithoutChangingTokens() {
+        String source = """
+                namespace invoice;
+                id InvoiceId;
+                value Line(int amount) list Lines;
+                aggregate Invoice[InvoiceId](Lines lines) behavior {
+                read int total(boolean approved) vernac {if approved {let total=self lines sumBy:[item|item amount].return total.}else{return 0.}}
+                };
+                """;
+        String formatted = VernacFormatter.format(source);
+        assertTrue(formatted.contains("sumBy: [item | item amount].\n            return total."), formatted);
+        assertTrue(formatted.contains("} else {\n            return 0."), formatted);
+        assertEquals(tokens(source), tokens(formatted));
+        assertEquals(formatted, VernacFormatter.format(formatted));
+    }
     @Test void everyDispatchModelFormatsIdempotentlyWithoutChangingAToken() throws Exception {
         Path source=Path.of("../examples/dispatch/src/main/vernac");
         try(var files=Files.walk(source)) {

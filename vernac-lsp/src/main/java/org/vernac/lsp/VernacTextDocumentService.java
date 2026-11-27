@@ -37,7 +37,8 @@ public class VernacTextDocumentService implements TextDocumentService {
             "port", "adapter", "rest", "on", "throw", "throws",
             "component", "include", "page", "heading", "text", "layout", "theme",
             "empty", "submit", "textField", "label", "button", "variant", "pagination", "link", "at",
-            "usecase", "use", "uses", "returns", "execute", "listener"
+            "usecase", "use", "uses", "returns", "execute", "listener",
+            "vernac", "let", "match", "suite", "scenario", "profile", "given", "expect", "rejects"
     );
 
     private static final Set<String> JAVA_KEYWORDS = Set.of(
@@ -65,7 +66,8 @@ public class VernacTextDocumentService implements TextDocumentService {
         this.projects = projects;
     }
 
-    private static void collectTypeOffsets(ParseTree tree, Set<Integer> offsets, Set<Integer> enumOffsets) {
+    private static void collectSemanticOffsets(ParseTree tree, Set<Integer> offsets, Set<Integer> enumOffsets,
+                                               Set<Integer> selectors) {
         if (tree instanceof VernacParser.EnumConstantContext constant && constant.name != null)
             enumOffsets.add(constant.name.getStart().getStartIndex());
         if (tree instanceof VernacParser.ConfigurationEntryContext entry && entry.configType != null)
@@ -73,7 +75,18 @@ public class VernacTextDocumentService implements TextDocumentService {
         if (tree instanceof VernacParser.TypeNameContext name) offsets.add(name.getStart().getStartIndex());
         if (tree instanceof VernacParser.TypeContext type && type.rawType != null)
             offsets.add(type.rawType.getStop().getStartIndex());
-        for (int i = 0; i < tree.getChildCount(); i++) collectTypeOffsets(tree.getChild(i), offsets, enumOffsets);
+        if (tree instanceof VernacParser.KeywordSelectorPartContext selector) {
+            int offset = selector.getStart().getStartIndex();
+            if (selector.getParent() instanceof VernacParser.UnaryMessageContext unary
+                    && unary.keywordPrimary().getText().equals("RoundingMode")) {
+                enumOffsets.add(offset);
+            } else {
+                selectors.add(offset);
+            }
+        }
+        for (int i = 0; i < tree.getChildCount(); i++) {
+            collectSemanticOffsets(tree.getChild(i), offsets, enumOffsets, selectors);
+        }
     }
 
     public void setClient(LanguageClient client) {
@@ -110,7 +123,8 @@ public class VernacTextDocumentService implements TextDocumentService {
 
     @Override
     public CompletableFuture<SemanticTokens> semanticTokensFull(SemanticTokensParams params) {
-        String content = projects.text(params.getTextDocument().getUri());
+        String uri = params.getTextDocument().getUri();
+        String content = projects.text(uri);
         if (content == null || content.isEmpty()) {
             return CompletableFuture.completedFuture(new SemanticTokens(List.of()));
         }
@@ -126,7 +140,9 @@ public class VernacTextDocumentService implements TextDocumentService {
         Set<Integer> enumOffsets = new HashSet<>();
         var parser = new VernacParser(new CommonTokenStream(new VernacLexer(CharStreams.fromString(content))));
         parser.removeErrorListeners();
-        collectTypeOffsets(parser.compilationUnit(), typeOffsets, enumOffsets);
+        Set<Integer> selectors = new HashSet<>();
+        var tree = uri.contains("/src/test/vernac/") ? parser.testCompilationUnit() : parser.compilationUnit();
+        collectSemanticOffsets(tree, typeOffsets, enumOffsets, selectors);
         for (Token token = lexer.nextToken(); token.getType() != Token.EOF; token = lexer.nextToken()) {
             String text = token.getText();
             int line = token.getLine() - 1;
@@ -136,6 +152,8 @@ public class VernacTextDocumentService implements TextDocumentService {
                 type = 7; // Enum member, even if its spelling resembles a type or keyword.
             } else if (typeOffsets.contains(token.getStartIndex())) {
                 type = 1;
+            } else if (selectors.contains(token.getStartIndex())) {
+                type = 6;
             } else {
                 type = classifyToken(text);
             }
@@ -225,12 +243,17 @@ public class VernacTextDocumentService implements TextDocumentService {
         }
 
         var symbols = projects.complete(uri, position.getPosition());
-        if (symbols != null) return CompletableFuture.completedFuture(Either.forLeft(symbols));
+        if (symbols != null && !symbols.isEmpty()) return CompletableFuture.completedFuture(Either.forLeft(symbols));
 
         Position pos = position.getPosition();
         String prefix = getPrefixUpToCursor(content, pos.getLine(), pos.getCharacter());
 
         List<CompletionItem> items = new ArrayList<>();
+
+        if (uri.endsWith(".vernac") && addNativeBodyCompletions(items, prefix)) {
+            return CompletableFuture.completedFuture(Either.forLeft(items));
+        }
+        if (symbols != null) return CompletableFuture.completedFuture(Either.forLeft(symbols));
 
         // Context A: After "for" in repositories -> Only aggregates
         if (addInboundAccessCompletions(items, prefix)) {
@@ -251,6 +274,7 @@ public class VernacTextDocumentService implements TextDocumentService {
         // Context C1: Inside a usecase { ... } block
         if (isInsideUseCaseBlock(prefix)) {
             addKeywordCompletion(items, "execute", "execute {\n    $0\n}");
+            addKeywordCompletion(items, "execute vernac", "execute vernac {\n    $0\n}");
             addKeywordCompletion(items, "return", "return ${1:result};");
             return CompletableFuture.completedFuture(Either.forLeft(items));
         }
@@ -266,6 +290,48 @@ public class VernacTextDocumentService implements TextDocumentService {
         addTopLevelCompletions(items);
 
         return CompletableFuture.completedFuture(Either.forLeft(items));
+    }
+
+    private boolean addNativeBodyCompletions(List<CompletionItem> items, String prefix) {
+        var lexer = new VernacLexer(CharStreams.fromString(prefix));
+        lexer.removeErrorListeners();
+        var blocks = new ArrayDeque<Boolean>();
+        String previous = "";
+        boolean insideComment = false;
+        for (Token token = lexer.nextToken(); token.getType() != Token.EOF; token = lexer.nextToken()) {
+            String word = token.getText();
+            if (token.getChannel() != Token.DEFAULT_CHANNEL) {
+                insideComment = token.getType() == VernacLexer.LINE_COMMENT
+                        && token.getStopIndex() + 1 == lexer.getInputStream().size();
+                continue;
+            }
+            insideComment = false;
+            if (word.equals("{")) {
+                blocks.push(previous.equals("vernac") || Boolean.TRUE.equals(blocks.peek()));
+            } else if (word.equals("}") && !blocks.isEmpty()) {
+                blocks.pop();
+            }
+            previous = word;
+        }
+        if (insideComment || !Boolean.TRUE.equals(blocks.peek())) return false;
+        addKeywordCompletion(items, "let", "let ${1:name} = ${0:expression}.");
+        addKeywordCompletion(items, "require", "require ${1:condition} else ${0:Rejection}.");
+        addKeywordCompletion(items, "return", "return ${0:result}.");
+        addKeywordCompletion(items, "if", "if ${1:condition} {\n    $0\n}");
+        addKeywordCompletion(items, "match", "match ${1:optional} {\n    present ${2:value} => ${3:expression}\n    absent => ${0:alternative}\n}");
+        addKeywordCompletion(items, "ifTrue:ifFalse:", "ifTrue: ${1:onTrue} ifFalse: ${0:onFalse}");
+        addKeywordCompletion(items, "asDecimal", "asDecimal");
+        addKeywordCompletion(items, "roundedTo:mode:", "roundedTo: ${1:2} mode: RoundingMode ${0:HALF_UP}");
+        addKeywordCompletion(items, "dividedBy:scale:mode:", "dividedBy: ${1:divisor} scale: ${2:2} mode: RoundingMode ${0:HALF_UP}");
+        addKeywordCompletion(items, "select:", "select: [${1:item} | ${0:predicate}]");
+        addKeywordCompletion(items, "sumBy:", "sumBy: [${1:item} | ${0:amount}]");
+        addKeywordCompletion(items, "anySatisfy:", "anySatisfy: [${1:item} | ${0:predicate}]");
+        addKeywordCompletion(items, "collect:into:", "collect: [${1:item} | ${2:projection}] into: ${0:CollectionType}");
+        addKeywordCompletion(items, "LocalDate fromIso:", "LocalDate fromIso: \"${0:2024-02-29}\"");
+        addKeywordCompletion(items, "plusDays:", "plusDays: ${0:days}");
+        addKeywordCompletion(items, "daysUntil:", "daysUntil: ${0:date}");
+        addKeywordCompletion(items, "Duration ofDays:", "Duration ofDays: ${0:days}");
+        return true;
     }
 
     private boolean addInboundAccessCompletions(List<CompletionItem> items, String prefix) {
