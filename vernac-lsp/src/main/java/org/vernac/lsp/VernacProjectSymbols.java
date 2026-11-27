@@ -581,6 +581,12 @@ final class VernacProjectSymbols {
             }
         }
         int point = file.text().codePointCount(0, offset);
+        var binding = NativeBindingNavigation.declarationAt(file.tree(), point);
+        if (binding != null) {
+            var start = position(file.text(), utf16(file.text(), binding.getStart().getStartIndex()));
+            var end = position(file.text(), utf16(file.text(), binding.getStop().getStopIndex() + 1));
+            return List.of(new Location(path.toUri().toString(), new Range(start, end)));
+        }
         var viewReference = webReference(file, point, false);
         if (viewReference != null) {
             var target = webChoices(path, file, viewReference).get(viewReference.name().getText());

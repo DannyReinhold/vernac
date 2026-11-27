@@ -17,6 +17,7 @@ import org.vernac.runtime.NativeValidation;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /** Resolves state reads and emits an executable predicate against the domain read interface. */
 public final class NativeValidationCompiler {
@@ -31,23 +32,31 @@ public final class NativeValidationCompiler {
     private final List<Binding> bindings;
     private final List<LocalSlot> locals;
     private final boolean invocation;
+    private final Consumer<Reference> references;
+
+    public record Reference(SourceLocation source, int width, SourceLocation declaration) { }
 
     NativeValidationCompiler(TopLevelDefinition owner, ResolvedProject project) {
-        this(owner, project, List.of(), List.of(), List.of(), false);
+        this(owner, project, List.of(), List.of(), List.of(), false, null);
     }
 
     private NativeValidationCompiler(TopLevelDefinition owner, ResolvedProject project,
                                      List<FieldNode> parameters, List<Binding> bindings, List<LocalSlot> locals,
-                                     boolean invocation) {
+                                     boolean invocation, Consumer<Reference> references) {
         this.owner = owner;
         this.project = project;
         this.parameters = parameters;
         this.bindings = bindings;
         this.locals = locals;
         this.invocation = invocation;
+        this.references = references;
     }
 
     public static List<CompilerDiagnostic> diagnostics(ResolvedProject project) {
+        return diagnostics(project, null);
+    }
+
+    public static List<CompilerDiagnostic> diagnostics(ResolvedProject project, Consumer<Reference> references) {
         var diagnostics = new java.util.ArrayList<CompilerDiagnostic>();
         for (var source : project.project().sources()) {
             if (source.external()) continue;
@@ -63,12 +72,11 @@ public final class NativeValidationCompiler {
                 for (var method : methods) {
                     if (method.nativeBody().isEmpty()) continue;
                     try {
-                        checkNativeMethod(definition, method);
                         String name = definition instanceof EntityNode entity ? entity.name()
                                 : ((AggregateNode) definition).name();
                         var owner = ClassName.get(source.unit().namespace() + ".domain", name);
                         emitBody(MethodSpec.methodBuilder(method.name()), TypeSpec.classBuilder("Check"),
-                                owner, definition, method, 0, project);
+                                owner, definition, method, 0, project, references);
                     } catch (SemanticValidationException failure) {
                         diagnostics.addAll(failure.diagnostics());
                     }
@@ -76,12 +84,12 @@ public final class NativeValidationCompiler {
                 if (definition instanceof UseCaseNode useCase && !useCase.nativeBody().isEmpty()) {
                     try {
                         var access = ClassName.get(source.unit().namespace() + ".usecase.access", useCase.name() + "Access");
-                        emitUseCase(MethodSpec.methodBuilder("execute"), TypeSpec.classBuilder("Check"), access, useCase, project);
+                        emitUseCase(MethodSpec.methodBuilder("execute"), TypeSpec.classBuilder("Check"), access, useCase, project, references);
                     } catch (SemanticValidationException failure) {
                         diagnostics.addAll(failure.diagnostics());
                     }
                 }
-                var compiler = new NativeValidationCompiler(definition, project);
+                var compiler = new NativeValidationCompiler(definition, project, List.of(), List.of(), List.of(), false, references);
                 for (var rule : rules) {
                     if (rule.nativeRule().isEmpty()) continue;
                     try {
@@ -97,15 +105,26 @@ public final class NativeValidationCompiler {
 
     static void emitBody(MethodSpec.Builder implementation, TypeSpec.Builder companion, ClassName ownerType,
                          TopLevelDefinition owner, MethodNode method, int index, ResolvedProject project) {
+        emitBody(implementation, companion, ownerType, owner, method, index, project, null);
+    }
+
+    private static void emitBody(MethodSpec.Builder implementation, TypeSpec.Builder companion, ClassName ownerType,
+                                 TopLevelDefinition owner, MethodNode method, int index, ResolvedProject project,
+                                 Consumer<Reference> references) {
         checkNativeMethod(owner, method);
         emit(implementation, companion, BehaviorGenerator.receiver(ownerType, method), owner,
                 method.parameters(), method.nativeBody(), method.mode() == MethodNode.Mode.MODIFY,
                 project.typeOf(method.returnType()), null, method.location(), index, project,
-                BehaviorGenerator.companion(ownerType));
+                BehaviorGenerator.companion(ownerType), references);
     }
 
     static void emitUseCase(MethodSpec.Builder implementation, TypeSpec.Builder companion, ClassName receiver,
                             UseCaseNode useCase, ResolvedProject project) {
+        emitUseCase(implementation, companion, receiver, useCase, project, null);
+    }
+
+    private static void emitUseCase(MethodSpec.Builder implementation, TypeSpec.Builder companion, ClassName receiver,
+                                    UseCaseNode useCase, ResolvedProject project, Consumer<Reference> references) {
         if (useCase.resultType().map(TypeNode::isOptional).orElse(false)
                 || useCase.parameters().stream().anyMatch(parameter -> parameter.type().isOptional())) {
             throw error(useCase.location(), "Native execute currently requires non-optional inputs and result");
@@ -114,17 +133,17 @@ public final class NativeValidationCompiler {
         var owner = ClassName.get(receiver.packageName().substring(0, receiver.packageName().lastIndexOf('.')), useCase.name());
         var compoundResult = useCase.resultFields().isEmpty() ? null : owner.nestedClass("Result");
         emit(implementation, companion, receiver, useCase, useCase.parameters(), useCase.nativeBody(),
-                true, result, compoundResult, useCase.location(), 0, project, BehaviorGenerator.companion(owner));
+                true, result, compoundResult, useCase.location(), 0, project, BehaviorGenerator.companion(owner), references);
     }
 
     private static void emit(MethodSpec.Builder implementation, TypeSpec.Builder companion, ClassName receiver,
                              TopLevelDefinition owner, List<FieldNode> parameters, List<NativeStatement> body,
                              boolean canModify, ResolvedType returns, ClassName compoundResult, SourceLocation location, int index,
-                             ResolvedProject project, ClassName implementationClass) {
+                             ResolvedProject project, ClassName implementationClass, Consumer<Reference> references) {
         if (parameters.stream().anyMatch(p -> p.name().equals("__vernacInvocation")))
             throw error(location, "Reserved native parameter '__vernacInvocation'");
         var locals = new java.util.ArrayList<LocalSlot>();
-        var compiler = new NativeValidationCompiler(owner, project, parameters, List.of(), locals, true);
+        var compiler = new NativeValidationCompiler(owner, project, parameters, List.of(), locals, true, references);
         var bodyProgram = compiler.compileBlock(body, canModify, returns, compoundResult);
         boolean returnsValue = compoundResult != null || !(returns instanceof ResolvedType.VoidReturn);
         if (!bodyProgram.returns() && returnsValue) throw error(location, "Native behavior must return a value");
@@ -151,7 +170,7 @@ public final class NativeValidationCompiler {
 
     private CompiledBlock compileBranch(List<NativeStatement> steps, boolean canModify, ResolvedType returns,
                                         ClassName compoundResult) {
-        return new NativeValidationCompiler(owner, project, parameters, bindings, new java.util.ArrayList<>(locals), invocation)
+        return new NativeValidationCompiler(owner, project, parameters, bindings, new java.util.ArrayList<>(locals), invocation, references)
                 .compileBlock(steps, canModify, returns, compoundResult);
     }
 
@@ -180,6 +199,7 @@ public final class NativeValidationCompiler {
                         throw error(at, "Only modify behaviors may assign state");
                     var field = fields(owner).stream().filter(f -> f.name().equals(assignment.field()) && f.isMutable())
                             .findFirst().orElseThrow(() -> error(at, "Unknown mutable field '" + assignment.field() + "'"));
+                    reference(at, assignment.field(), field.location());
                     var type = project.typeOf(field.type());
                     if (field.type().isOptional()) throw error(at, "Native assignments require a non-optional field");
                     yield CodeBlock.of("new $T<>($L, (target, value) -> target.$N(($T) value))",
@@ -235,6 +255,7 @@ public final class NativeValidationCompiler {
         if (!useCase.resultFields().stream().map(FieldNode::name).toList()
                 .equals(message.parts().stream().map(KeywordExpression.KeywordPart::name).toList()))
             throw error(result, "Result selector must name each declared field in order");
+        referenceFields(message, useCase.resultFields());
         var arguments = arguments(message, useCase.resultFields());
         return CodeBlock.of("$T.call($T.of($L), (context, values) -> $T.of($L))",
                 NativeValidation.class, List.class, CodeBlock.join(arguments.programs(), ", "),
@@ -300,9 +321,9 @@ public final class NativeValidationCompiler {
         var candidate = scopeFor(owner).resolve(receiver.name(), receiver.location()).type().orElse(null);
         if (!(candidate instanceof ResolvedType.Declared type) || type.symbol().kind() != TypeSymbol.Kind.ENUM) return null;
         var enumeration = (ValueObjectNode) readValueType(message, type);
-        if (enumeration.enumConstants().stream().noneMatch(member -> member.name().equals(message.selector()))) {
-            throw error(message, "Unknown enum member '" + message.selector() + "'");
-        }
+        var member = enumeration.enumConstants().stream().filter(constant -> constant.name().equals(message.selector()))
+                .findFirst().orElseThrow(() -> error(message, "Unknown enum member '" + message.selector() + "'"));
+        reference(message.location(), message.selector(), member.location());
         return new Typed(CodeBlock.of("$T.literal($T.$L)", NativeValidation.class,
                 ResolvedJavaTypes.javaType(type), message.selector()), type, false);
     }
@@ -365,7 +386,7 @@ public final class NativeValidationCompiler {
         checkBindingName(block.binding());
         var nested = new java.util.ArrayList<>(bindings);
         nested.add(new Binding(block.binding().name(), element));
-        var projection = new NativeValidationCompiler(owner, project, parameters, nested, locals, invocation).resolve(block.body());
+        var projection = new NativeValidationCompiler(owner, project, parameters, nested, locals, invocation, references).resolve(block.body());
         if (message.selector().equals(NativeKeywordMessages.COLLECT)) {
             var output = NativeKeywordMessages.collectionTarget(message.parts().getLast().argument(), scopeFor(owner));
             var outputElement = NativeKeywordMessages.collectionElement(project, output);
@@ -460,7 +481,7 @@ public final class NativeValidationCompiler {
         checkBindingName(expression.binding());
         var nested = new java.util.ArrayList<>(bindings);
         nested.add(new Binding(expression.binding().name(), optional.type()));
-        var present = new NativeValidationCompiler(owner, project, parameters, nested, locals, invocation)
+        var present = new NativeValidationCompiler(owner, project, parameters, nested, locals, invocation, references)
                 .resolve(expression.onPresent());
         var absent = resolve(expression.onAbsent());
         if (!present.type().equals(absent.type()) || present.optional() != absent.optional())
@@ -490,6 +511,7 @@ public final class NativeValidationCompiler {
         boolean nothing = result instanceof ResolvedType.VoidReturn;
         if (nothing && effect == MethodNode.Mode.READ)
             throw error(message, "Native keyword read must return a value");
+        referenceSelector(message, method.location(), method.parameters());
         var args = arguments(message, method.parameters());
         var invocation = CodeBlock.of("$L.$N($L)", target, method.name(), args.values());
         var lambdaBody = nothing ? CodeBlock.of("{ $L; return true; }", invocation) : invocation;
@@ -520,7 +542,9 @@ public final class NativeValidationCompiler {
             return callProgram(List.of(data.program()), send, new ResolvedType.VoidReturn(), false);
         }
         if (injected.isPresent()) {
-            var type = project.typeOf(injected.orElseThrow().type());
+            var field = injected.orElseThrow();
+            reference(name.location(), name.name(), field.location());
+            var type = project.typeOf(field.type());
             if (!(type instanceof ResolvedType.Declared declared))
                 throw error(message, "Native execute requires a declared port or repository dependency");
             var dependency = definition(declared);
@@ -535,6 +559,7 @@ public final class NativeValidationCompiler {
             var result = project.typeOf(selected.returnType());
             boolean nothing = result instanceof ResolvedType.VoidReturn;
             if (nothing && effect == MethodNode.Mode.READ) throw error(message, "Void port calls must be statements");
+            referenceSelector(message, selected.location(), selected.parameters());
             var args = arguments(message, selected.parameters());
             var send = CodeBlock.of("$L.$N().$N($L)", self(), name.name(), selected.name(), args.values());
             if (nothing) send = CodeBlock.of("{ $L; return true; }", send);
@@ -547,6 +572,8 @@ public final class NativeValidationCompiler {
             if (!event.fields().stream().map(FieldNode::name).toList()
                     .equals(message.parts().stream().map(KeywordExpression.KeywordPart::name).toList()))
                 throw error(message, "Event selector must name each declared field in order");
+            reference(name.location(), name.name(), event.location());
+            referenceFields(message, event.fields());
             var args = arguments(message, event.fields());
             return callProgram(args.programs(), CodeBlock.of("$T.create($L)",
                     ResolvedJavaTypes.javaType(declared), args.values()), declared, false);
@@ -567,6 +594,7 @@ public final class NativeValidationCompiler {
         boolean delete = selector.equals("delete:");
         if (delete && effect == MethodNode.Mode.READ)
             throw error(message, "Repository deletion must be a statement");
+        referencePart(message.parts().getFirst(), repository.location());
         var expected = selector.equals("byId:") ? project.typeOf(aggregate.idDefinition().type()) : aggregateType;
         var parameter = compileValue(message.parts().getFirst().argument(), expected);
         var send = CodeBlock.of("$L.$N().$N(($T) values.get(0))", self(), name.name(),
@@ -597,6 +625,32 @@ public final class NativeValidationCompiler {
         return name.equals(message.parts().getFirst().name()) && parameters.size() == message.parts().size()
                 && java.util.stream.IntStream.range(1, parameters.size()).allMatch(
                         index -> parameters.get(index).name().equals(message.parts().get(index).name()));
+    }
+
+    private void referenceSelector(KeywordExpression.Message message, SourceLocation declaration,
+                                   List<FieldNode> parameters) {
+        if (references == null) return;
+        referencePart(message.parts().getFirst(), declaration);
+        for (int index = 1; index < parameters.size(); index++) {
+            referencePart(message.parts().get(index), parameters.get(index).location());
+        }
+    }
+
+    private void referenceFields(KeywordExpression.Message message, List<FieldNode> fields) {
+        if (references == null) return;
+        for (int index = 0; index < fields.size(); index++) {
+            referencePart(message.parts().get(index), fields.get(index).location());
+        }
+    }
+
+    private void referencePart(KeywordExpression.KeywordPart part, SourceLocation declaration) {
+        reference(part.location(), part.name() + ":", declaration);
+    }
+
+    private void reference(SourceLocation source, String name, SourceLocation declaration) {
+        if (references != null) {
+            references.accept(new Reference(source, name.codePointCount(0, name.length()), declaration));
+        }
     }
 
     private record Arguments(List<CodeBlock> programs, CodeBlock values) { }
@@ -690,6 +744,7 @@ public final class NativeValidationCompiler {
         }
         var field = fields(definition).stream().filter(f -> f.name().equals(expression.selector()))
                 .findFirst().orElseThrow(() -> error(expression, "Unknown readable field '" + expression.selector() + "'"));
+        reference(expression.location(), expression.selector(), field.location());
         return new Read(CodeBlock.of("$L.$N()", target, field.name()), field);
     }
 

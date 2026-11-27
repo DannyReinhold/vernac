@@ -5,10 +5,12 @@ package org.vernac.compiler.pipeline;
 import org.vernac.compiler.analyzer.CompilerDiagnostic;
 import org.vernac.compiler.analyzer.SemanticValidationException;
 import org.vernac.compiler.ast.*;
+import org.vernac.compiler.generator.NativeValidationCompiler;
 import org.vernac.compiler.symbols.*;
 import org.vernac.compiler.util.TypeUtils;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /** Resolves imports and VO field references without recursively following declarations. */
@@ -26,12 +28,22 @@ public final class ProjectTypeResolver {
         return resolve(project, true, configurationSnapshots, true);
     }
 
+    public ResolvedProject resolve(VernacProject project, Map<Path, String> configurationSnapshots,
+                                   Consumer<NativeValidationCompiler.Reference> references) {
+        return resolve(project, true, configurationSnapshots, true, references);
+    }
+
     ResolvedProject resolveSnapshot(VernacProject project, Map<Path, String> configuration) {
         return resolve(project, false, configuration, false);
     }
 
     private ResolvedProject resolve(VernacProject project, boolean strict, Map<Path, String> configurationSnapshots,
                                     boolean includeDisk) {
+        return resolve(project, strict, configurationSnapshots, includeDisk, null);
+    }
+
+    private ResolvedProject resolve(VernacProject project, boolean strict, Map<Path, String> configurationSnapshots,
+                                    boolean includeDisk, Consumer<NativeValidationCompiler.Reference> references) {
         Set<String> namespaces = project.sources().stream().map(source -> source.unit().namespace())
                 .collect(Collectors.toCollection(TreeSet::new));
         Map<Path, FileTypeScope> scopes = new LinkedHashMap<>();
@@ -196,7 +208,7 @@ public final class ProjectTypeResolver {
         var partial = new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries,
                 schemas, mappings, restOperations, inboundAdapters, Map.of());
         if (diagnostics.stream().noneMatch(diagnostic -> diagnostic.severity() == CompilerDiagnostic.Severity.ERROR))
-            diagnostics.addAll(org.vernac.compiler.generator.NativeValidationCompiler.diagnostics(partial));
+            diagnostics.addAll(NativeValidationCompiler.diagnostics(partial, references));
         var webTemplates = new WebViews(partial, diagnostics).compile();
         if (strict) failOnErrors(diagnostics);
         return new ResolvedProject(project, scopes, fieldTypes, diagnostics, deferred, queries, schemas,

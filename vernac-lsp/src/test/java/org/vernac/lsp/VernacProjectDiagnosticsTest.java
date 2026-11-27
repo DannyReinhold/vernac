@@ -516,6 +516,124 @@ class VernacProjectDiagnosticsTest {
         assertFalse(completionsAtEnd(document, body + " ", 4).contains("collect:into:"));
     }
 
+    @Test
+    void navigatesNativeBindingsInTheUnsavedBufferWithLexicalScope() throws Exception {
+        Path model = file("billing", "invoice", """
+                id InvoiceId;
+                value Item(int amount) list Items;
+                aggregate Invoice[InvoiceId](Items items) behavior {
+                    read int total(int bonus) vernac {
+                        let net = self items sumBy: [item | item amount + bonus].
+                        if net > 0 {
+                            let branch = net + 1.
+                            return branch.
+                        }
+                        return net.
+                    }
+                };
+                """);
+        open(model);
+        assertTrue(diagnostics(model).isEmpty(), diagnostics(model).toString());
+        String text = Files.readString(model);
+        assertBinding(model, text, "return branch", "branch", "let branch");
+        assertBinding(model, text, "return net", "net", "let net");
+        assertBinding(model, text, "item amount", "item", "[item");
+        assertBinding(model, text, "+ bonus", "bonus", "int bonus");
+
+        String unsaved = text.replace("let net", "/* 🧭 */ let net").replace("return net.", "return branch.");
+        change(model, unsaved, 2);
+        assertBinding(model, unsaved, "let branch = net", "net", "let net");
+        int escaped = unsaved.lastIndexOf("return branch") + "return ".length();
+        Position cursor = positionOf(unsaved, escaped);
+        assertEquals(List.of(), definition(model, cursor.getLine(), cursor.getCharacter()));
+    }
+
+    @Test
+    void navigatesMatchBindingsAndUseCaseInputs() throws Exception {
+        Path model = file("billing", "quote", """
+                value Rate(int amount);
+                value Quote(Rate? rate);
+                usecase Estimate(Quote) returns Quote behavior {
+                    execute vernac {
+                        require match quote rate {
+                            present found => found amount >= 0
+                            absent => true
+                        } else NegativeRate.
+                        return quote.
+                    }
+                }
+                """);
+        open(model);
+        String text = Files.readString(model);
+        assertTrue(diagnostics(model).isEmpty(), diagnostics(model).toString());
+        assertBinding(model, text, "found amount", "found", "present found");
+        int input = text.indexOf("Estimate(Quote)") + "Estimate(".length();
+        var source = positionOf(text, text.indexOf("quote rate"));
+        assertEquals(List.of(new Location(model.toUri().toString(),
+                        new Range(positionOf(text, input), positionOf(text, input + "Quote".length())))),
+                definition(model, source.getLine(), source.getCharacter()));
+    }
+
+    @Test
+    void navigatesTypedFieldPathsAndKeywordPartsInNativeBehaviorsAndRules() throws Exception {
+        file("billing", "unrelated", "value Tax(int amount);");
+        Path price = file("billing", "price", "value Price(int amount);");
+        Path model = file("billing", "invoice", """
+                id InvoiceId;
+                aggregate Invoice[InvoiceId](Price price) validates {
+                    require (self totalWith: 0 factor: 1) >= 0 else NegativeTotal.
+                } behavior {
+                    read int totalWith(int extra, int factor) vernac {
+                        return (self price amount + extra) * factor.
+                    }
+                    read int withBonus(int factor) vernac {
+                        return self totalWith: 1 factor: factor.
+                    }
+                };
+                """);
+        open(price);
+        open(model);
+        assertTrue(diagnostics(model).isEmpty(), diagnostics(model).toString());
+        String text = Files.readString(model);
+        String priceText = Files.readString(price);
+        assertNativeTarget(model, text, "price amount", "price", model, text, "Price price");
+        assertNativeTarget(model, text, "price amount", "amount", price, priceText, "int amount");
+        assertNativeTarget(model, text, "totalWith: 0", "totalWith:", model, text, "read int totalWith");
+        assertNativeTarget(model, text, "factor: 1", "factor:", model, text, "int factor");
+        assertNativeTarget(model, text, "totalWith: 1", "totalWith:", model, text, "read int totalWith");
+
+        String unsavedPrice = priceText.replace("value Price", "\nvalue Price");
+        change(price, unsavedPrice, 2);
+        String unsaved = text.replace("return (self price", "/* 🧭 */ return (self price")
+                .replace("factor: factor.", "factor: false.");
+        change(model, unsaved, 2);
+        assertFalse(diagnostics(model).isEmpty());
+        assertNativeTarget(model, unsaved, "price amount", "amount", price, unsavedPrice, "int amount");
+        assertNativeTarget(model, unsaved, "factor: false", "factor:", model, unsaved, "int factor");
+    }
+
+    private void assertNativeTarget(Path source, String sourceText, String usage, String selector,
+                                    Path target, String targetText, String declaration) {
+        var at = positionOf(sourceText, sourceText.indexOf(usage) + usage.indexOf(selector));
+        var targetPosition = positionOf(targetText, targetText.indexOf(declaration));
+        assertEquals(List.of(new Location(target.toUri().toString(), new Range(targetPosition, targetPosition))),
+                definition(source, at.getLine(), at.getCharacter()));
+    }
+
+    private void assertBinding(Path file, String text, String usage, String name, String declaration) {
+        int reference = text.indexOf(usage) + usage.lastIndexOf(name);
+        int target = text.indexOf(declaration) + declaration.lastIndexOf(name);
+        var at = positionOf(text, reference);
+        var locations = definition(file, at.getLine(), at.getCharacter());
+        assertEquals(List.of(new Location(file.toUri().toString(),
+                new Range(positionOf(text, target), positionOf(text, target + name.length())))), locations);
+    }
+
+    private static Position positionOf(String text, int offset) {
+        String prefix = text.substring(0, offset);
+        return new Position((int) prefix.chars().filter(c -> c == '\n').count(), offset - prefix.lastIndexOf('\n') - 1);
+    }
+
     private List<String> completionsAtEnd(TextDocumentIdentifier document, String line, int version) {
         change(Path.of(java.net.URI.create(document.getUri())), "namespace pages;\n" + line, version);
         return server.getTextDocumentService()
