@@ -32,7 +32,7 @@ jobs:
       - name: Build and test compiled renderer and actual plugin ZIP
         run: >-
           mvn -B -ntp -pl vernac-intellij,vernac-runtime-http -am
-          -Dtest=SourceModuleVisibilityTest,InboundMvcContractTest,VernacFormatterTest,VernacFormattingServiceTest,VernacDebuggerApiTest,VernacViewInspectorTest,VernacSpringBootTemplateTest,VernacProjectTemplateTest,ScenarioDaemonLauncherTest,DevelopmentWebConfigurationTest
+          -Dtest=SourceModuleVisibilityTest,InboundMvcContractTest,VernacFormatterTest,VernacFormattingServiceTest,VernacDebuggerApiTest,VernacViewInspectorTest,VernacSpringBootTemplateTest,VernacProjectTemplateTest,ScenarioDaemonLauncherTest,DevelopmentWebConfigurationTest,DevelopmentBundleCompilerTest
           -Dsurefire.failIfNoSpecifiedTests=false
           -Dit.test=PluginDistributionIT -Dfailsafe.failIfNoSpecifiedTests=false
           clean verify
@@ -73,6 +73,9 @@ jobs:
           revisions = ET.parse('vernac-runtime-http/target/surefire-reports/TEST-org.vernac.runtime.http.development.DevelopmentWebConfigurationTest.xml').getroot()
           assert int(revisions.attrib['tests']) >= 3
           assert all(int(revisions.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
+          bundles = ET.parse('vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.pipeline.DevelopmentBundleCompilerTest.xml').getroot()
+          assert int(bundles.attrib['tests']) == 2
+          assert all(int(bundles.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
           print('Known internal-API regression and packaged distribution proofs passed; none skipped.')
           PY
 
