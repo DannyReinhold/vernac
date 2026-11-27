@@ -55,8 +55,11 @@ workspace and the optional third argument selects the test profile (`domain`, `m
   finishing. A cancelled run leaves the previous passing test baseline in place unless the
   request explicitly invalidated it with `opaqueChange`.
 - Supply an optional unique `requestKey` when starting a background run. A retry with the same
-  key and parameters returns the original run ID while it is retained. Runs are kept in memory
-  in the same server process, up to the latest 32. A new stdio process starts a new session.
+  key and parameters returns the original run ID while it is retained in that server process.
+- Saved-source background runs can be looked up by `runId` from a new MCP session for the same
+  workspace. If the previous process exited mid-run, the result is `INTERRUPTED`. The most recent
+  32 saved reports are retained under `target/vernac-scenario-runs-v1`, which a clean build can
+  remove. Private overlays, replay keys, and the passing test baseline start fresh on restart.
 - Use `describe_type` to inspect fields and methods. The preview tools for aggregate creation
   and value-object fields return ordinary edit batches. Send those edits, or other source edits,
   to `apply_checked` to publish a validated overlay revision. Overlay edits stay in memory.

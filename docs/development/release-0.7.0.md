@@ -248,7 +248,12 @@ for the 32 most recent runs in that server process.
 The edit operations `apply` and `applyChecked` also accept a request key scoped to the overlay.
 The server keeps the latest 32 keyed edit responses and rejects reuse of a key for a different edit.
 
-Automatic file watching and persistence across daemon restarts remain open.
+The CLI daemon archives saved-source background reports under `target/vernac-scenario-runs-v1`.
+A new session can retrieve the original result and historical revision by run ID. If a daemon
+exited before publishing a result, lookup reports `INTERRUPTED` once no worker owns the run.
+The archive keeps the latest 32 terminal reports and can be removed with the build output.
+Private overlays, request replay keys and the passing test baseline stay in memory.
+Automatic file watching remains open.
 
 ### Structured model operations for agents
 
@@ -303,8 +308,8 @@ the workspace.
 
 The stdio adapter exposes background-run submission, status and cancellation in addition to
 the existing synchronous operations. The server keeps at most one active scenario run.
-Durable results after process exit and parity across installed MCP, CLI and IDE entry points
-remain open.
+Saved-source background reports survive process exit. Parity across installed MCP, CLI and IDE
+entry points remains open.
 
 ## Standalone build tool
 

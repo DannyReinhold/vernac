@@ -45,7 +45,7 @@ public final class ScenarioRunSession {
     @FunctionalInterface
     interface Completion {
         // A background job can decline to publish after cancellation, including the baseline update.
-        void publish(Run run, Runnable commitBaseline);
+        void publish(Run run, Runnable commitBaseline) throws IOException;
 
         default CancellationToken cancellation() { return CancellationToken.disabled(); }
     }

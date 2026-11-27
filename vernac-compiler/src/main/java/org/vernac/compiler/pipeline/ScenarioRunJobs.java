@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.UUID;
 
-/** Bounded, process-local background runs with cooperative cancellation. */
+/** Bounded background runs with cooperative cancellation. */
 final class ScenarioRunJobs implements AutoCloseable {
     private static final int RETAINED_RUNS = 32;
 
@@ -25,7 +25,7 @@ final class ScenarioRunJobs implements AutoCloseable {
 
     record Captured(long revision, Work work) { }
 
-    enum State { RUNNING, CANCELLING, CANCELLED, COMPLETED, ERROR }
+    enum State { RUNNING, CANCELLING, CANCELLED, COMPLETED, ERROR, INTERRUPTED }
 
     record Request(String requestKey, String client, long revision, boolean opaqueChange) { }
 
@@ -41,6 +41,7 @@ final class ScenarioRunJobs implements AutoCloseable {
         private final CancellationToken cancellation = CancellationToken.create();
         private State state = State.RUNNING;
         private Thread worker;
+        private ScenarioRunArchive.Lease lease;
         private ScenarioRunSession.Run result;
         private ScenarioDaemon.Problem error;
 
@@ -54,9 +55,14 @@ final class ScenarioRunJobs implements AutoCloseable {
         }
     }
 
+    private final ScenarioRunArchive archive;
     private final LinkedHashMap<String, Job> jobs = new LinkedHashMap<>();
     private Job active;
     private boolean closed;
+
+    ScenarioRunJobs(ScenarioRunArchive archive) {
+        this.archive = archive;
+    }
 
     synchronized Start start(Request request, Capture capture) throws IOException {
         if (closed) throw new IllegalStateException("Scenario run service is closed");
@@ -72,6 +78,7 @@ final class ScenarioRunJobs implements AutoCloseable {
         requireIdle();
         var work = capture.capture();
         var job = new Job(request, work.revision());
+        if (archive != null && request.client() == null) job.lease = archive.begin(job.status());
         jobs.put(job.id, job);
         if (jobs.size() > RETAINED_RUNS) jobs.pollFirstEntry();
         active = job;
@@ -84,24 +91,33 @@ final class ScenarioRunJobs implements AutoCloseable {
         if (active != null) throw new IllegalStateException("A background scenario run is still active: " + active.id);
     }
 
-    synchronized Status status(String id) {
-        return find(id).status();
+    synchronized Status status(String id) throws IOException {
+        var job = jobs.get(id);
+        if (job != null) return job.status();
+        var archived = archive == null ? null : archive.lookup(id);
+        if (archived != null) return archived;
+        throw new IllegalArgumentException("Unknown or expired scenario run: " + id);
     }
 
-    synchronized Status cancel(String id) {
-        var job = find(id);
+    synchronized Status cancel(String id) throws IOException {
+        var job = jobs.get(id);
+        if (job == null) {
+            var archived = status(id);
+            if (archived.state() == State.RUNNING) {
+                throw new IllegalStateException("Run cancellation requires the original daemon session");
+            }
+            return archived;
+        }
+        interrupt(job);
+        return job.status();
+    }
+
+    private static void interrupt(Job job) {
         if (job.state == State.RUNNING) {
             job.state = State.CANCELLING;
             job.cancellation.cancel();
             job.worker.interrupt();
         }
-        return job.status();
-    }
-
-    private Job find(String id) {
-        var job = jobs.get(id);
-        if (job == null) throw new IllegalArgumentException("Unknown or expired scenario run: " + id);
-        return job;
     }
 
     private void execute(Job job, Work work) {
@@ -110,7 +126,7 @@ final class ScenarioRunJobs implements AutoCloseable {
             if (!Thread.currentThread().isInterrupted()) {
                 work.execute(new ScenarioRunSession.Completion() {
                     @Override
-                    public void publish(ScenarioRunSession.Run run, Runnable commitBaseline) {
+                    public void publish(ScenarioRunSession.Run run, Runnable commitBaseline) throws IOException {
                         ScenarioRunJobs.this.publish(job, run, commitBaseline);
                     }
 
@@ -126,11 +142,13 @@ final class ScenarioRunJobs implements AutoCloseable {
             error = new ScenarioDaemon.Problem("execution_error", failure.toString(), null);
         } finally {
             finish(job, error);
+            if (job.lease != null) archive.prune();
         }
     }
 
-    private synchronized void publish(Job job, ScenarioRunSession.Run result, Runnable commit) {
+    private synchronized void publish(Job job, ScenarioRunSession.Run result, Runnable commit) throws IOException {
         if (job.state != State.RUNNING) return;
+        if (job.lease != null) archive.write(new Status(job.id, job.revision, State.COMPLETED, result, null));
         commit.run();
         job.result = result;
         job.state = State.COMPLETED;
@@ -145,6 +163,18 @@ final class ScenarioRunJobs implements AutoCloseable {
                     ? new ScenarioDaemon.Problem("execution_error", "Scenario run ended without a result", null) : error;
             job.state = State.ERROR;
         }
+        if (job.lease != null) {
+            // A cancelled worker can still have its interrupt flag set. NIO would abort the final write.
+            boolean interrupted = Thread.interrupted();
+            try (var lease = job.lease) {
+                if (job.state != State.COMPLETED) archive.write(job.status());
+            } catch (IOException failure) {
+                job.error = new ScenarioDaemon.Problem("archive_error", failure.toString(), job.error);
+                if (job.state != State.COMPLETED) job.state = State.ERROR;
+            } finally {
+                if (interrupted) Thread.currentThread().interrupt();
+            }
+        }
         if (active == job) active = null;
         job.worker = null;
     }
@@ -152,6 +182,6 @@ final class ScenarioRunJobs implements AutoCloseable {
     @Override
     public synchronized void close() {
         closed = true;
-        if (active != null) cancel(active.id);
+        if (active != null) interrupt(active);
     }
 }
