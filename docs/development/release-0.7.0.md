@@ -397,8 +397,10 @@ have their own acceptance workloads.
 
 The IntelliJ plugin's language server highlights keyword message selectors and offers native snippets
 while a behavior body is still being typed. The shared formatter separates native statements and
-indents branches. Typed completion and navigation for native field paths, declared selectors and
-local bindings still need installed-plugin acceptance alongside live diagnostics and formatting.
+indents branches. Go to Declaration uses lexical scope for native parameters, `let` bindings,
+optional matches and collection block bindings. It also follows typed field paths and declared
+keyword selectors in the current editor snapshots, including unsaved edits. Type-driven completion
+and installed-plugin acceptance of navigation, live diagnostics and formatting remain open.
 
 1. Freeze the syntax decision and publish the behavior, test, effect and failure contracts. Check stack
    locations, completion, formatting, navigation and diagnostics using a packaged IntelliJ plugin. Show
