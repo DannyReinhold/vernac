@@ -298,14 +298,15 @@ mvn -pl vernac-compiler -am -Pcli-distribution package
 
 Extract `vernac-compiler/target/vernac-<version>-cli.zip` and add its `bin` directory to `PATH`.
 The ZIP includes `vernac` for POSIX shells, `vernac.cmd` for Windows and the base runtime
-dependencies. The launchers use `JAVA_HOME` or `java` from `PATH`. Running the extracted CLI
-requires a JDK and can work without Maven installed. The current directory is the default workspace.
+dependencies. The launchers use `JAVA_HOME` or `java` from `PATH`. The check, test and daemon
+commands require a JDK. The current directory is the default workspace.
 
 ```sh
 vernac check
 vernac test --scenario app.Checks.counter
 vernac test /path/to/project mvc
 vernac daemon /path/to/project mvc
+vernac build /path/to/project
 ```
 
 The CLI reads saved sources and writes one JSON result to stdout. Status 0 indicates success, 1 a
@@ -318,13 +319,20 @@ revision without advancing its affected-test baseline. The one-shot commands ope
 Clients can retain warm state by keeping `vernac daemon` open. Connecting a one-shot command to a
 separately running daemon and resolving project dependencies remain open.
 
+For an existing Maven project, `vernac build [workspace]` runs `clean package` using the project's
+Maven Wrapper or Maven from `PATH`. Maven owns dependency resolution, plugin execution and output
+paths. A project with Spring Boot repackaging configured produces its executable JAR through that
+same lifecycle. Build logs go to stderr. The JSON on stdout reports the workspace, build backend
+and outcome. A Maven failure exits with status 1 and includes `mavenExitCode`. Configuration and
+launcher errors exit with status 2. This is the cold path for Maven-backed applications.
+
 | Proposed command | Contract to implement and test |
 | --- | --- |
 | `vernac check` | Strict type and effect analysis for the requested revision. Supports structured diagnostics and a nonzero exit on errors. |
 | `vernac test --affected` | Compile the required inputs, run or explicitly reuse eligible scenario results, and explain selection. Default to the complete selected profile when there is no valid comparison revision. |
 | `vernac test --all` | Run every case in the selected profiles and report required versus unselected integration checks. Support machine-readable output plus JUnit XML for CI. |
 | `vernac build --dev` | Produce or activate a runnable update in the warm workspace. A successful result identifies the revision served. On a failed patch the previous valid revision can still serve requests and the failed target revision is explicit. |
-| `vernac build` | Resolve inputs, compile Vernac/host sources, assemble production resources, IR and JVM classes and produce a startable Boot artifact in a clean workspace. Inspect the artifact, launch it, render a page and execute a real use case. |
+| `vernac build` | The Maven-backed path runs the project's existing clean package lifecycle. Standalone project configuration, Vernac-owned task ordering and build parity remain open. |
 
 Vernac owns task ordering, invalidation and artifact assembly decisions for supported application inputs.
 Reuse dependency resolution and Boot packaging libraries/tools as appropriate. A small edit to a

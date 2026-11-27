@@ -83,12 +83,53 @@ class ScenarioDaemonLauncherTest {
         assertEquals("usage", runCli("unsupported", 2).path("error").asText());
     }
 
+    @Test
+    void buildsTheRequestedProjectWithItsWrapperAndKeepsLogsOffProtocolOutput() throws Exception {
+        var project = Files.createDirectory(root.resolve("application with spaces"));
+        var arguments = List.of("build", project.toString());
+        var missing = runCli(arguments, 2);
+        assertEquals("execution_error", missing.path("error").asText());
+        assertTrue(missing.path("message").asText().contains("pom.xml"));
+
+        Files.writeString(project.resolve("pom.xml"), "<project/>");
+        boolean windows = System.getProperty("os.name").startsWith("Windows");
+        var wrapper = project.resolve(windows ? "mvnw.cmd" : "mvnw");
+        Files.writeString(wrapper, windows ? """
+                @echo off
+                echo %* > invocation.txt
+                echo wrapper build log
+                exit /b 0
+                """ : """
+                #!/bin/sh
+                printf '%s' "$*" > invocation.txt
+                echo 'wrapper build log'
+                """);
+        var success = runCli(arguments, 0);
+        assertTrue(success.path("built").asBoolean());
+        assertEquals(project.toRealPath().toString(), success.path("workspace").asText());
+        assertEquals("maven", success.path("backend").asText());
+        assertEquals("-B -ntp clean package", Files.readString(project.resolve("invocation.txt")).strip());
+        assertTrue(Files.readString(root.resolve("cli-stderr.log")).contains("wrapper build log"));
+
+        Files.writeString(wrapper, windows ? "@exit /b 7\r\n" : "exit 7\n");
+        var failure = runCli(arguments, 1);
+        assertFalse(failure.path("built").asBoolean());
+        assertEquals("build_failed", failure.path("error").asText());
+        assertEquals(7, failure.path("mavenExitCode").asInt());
+    }
+
     private JsonNode runCli(String command, int expectedExit, String... options) throws Exception {
+        var invocation = new ArrayList<>(List.of(command, root.toString(), "domain"));
+        invocation.addAll(List.of(options));
+        return runCli(invocation, expectedExit);
+    }
+
+    private JsonNode runCli(List<String> invocation, int expectedExit) throws Exception {
         var stderr = root.resolve("cli-stderr.log");
         var stdout = root.resolve("cli-stdout.log");
         var arguments = new ArrayList<>(List.of(javaExecutable().toString(), "-cp", System.getProperty("java.class.path"),
-                ScenarioCli.class.getName(), command, root.toString(), "domain"));
-        arguments.addAll(List.of(options));
+                ScenarioCli.class.getName()));
+        arguments.addAll(invocation);
         var process = new ProcessBuilder(arguments)
                 .redirectError(stderr.toFile()).redirectOutput(stdout.toFile()).start();
         try {
