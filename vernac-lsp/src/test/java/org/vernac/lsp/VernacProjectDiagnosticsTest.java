@@ -7,10 +7,14 @@ import org.eclipse.lsp4j.services.LanguageClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.vernac.compiler.pipeline.ScenarioCli;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -54,6 +58,97 @@ class VernacProjectDiagnosticsTest {
                 new TextDocumentIdentifier(path.toUri().toString())));
     }
     List<Diagnostic> diagnostics(Path path) { return client.latest.get(path.toUri().toString()).getDiagnostics(); }
+
+    @Test
+    void cliMcpAndEditorAgreeOnNativeModelChangesThatBreakAScenario() throws Exception {
+        Path model = file("billing", "invoice", """
+                value Status = OPEN | PAID;
+                value Price(int amount);
+                id InvoiceId;
+                aggregate Invoice[InvoiceId](Price price) validates {
+                    require (self totalWith: 0 factor: 1) >= 0 else NegativeTotal.
+                } behavior {
+                    read int totalWith(int extra, int factor) vernac {
+                        return (self price amount + extra) * factor.
+                    }
+                };
+                """);
+        Path scenario = directory.resolve("src/test/vernac/billing/scenarios.vernac");
+        Files.createDirectories(scenario.getParent());
+        Files.writeString(scenario, """
+                namespace billing;
+                suite InvoiceLifecycle {
+                    scenario opens {
+                        given status = Status.OPEN;
+                        expect status equals Status.OPEN;
+                    }
+                }
+                """);
+        String valid = Files.readString(model);
+        String changed = valid.replace("OPEN | PAID", "DRAFT | PAID");
+        open(model);
+        open(scenario);
+        assertTrue(diagnostics(scenario).isEmpty(), () -> diagnostics(scenario).toString());
+        assertTrue(diagnostics(model).isEmpty(), () -> diagnostics(model).toString());
+
+        change(model, changed, 2);
+        List<Diagnostic> editor = diagnostics(scenario);
+        assertFalse(editor.isEmpty());
+        assertEquals(valid, Files.readString(model));
+        var json = JsonMapper.builder().build();
+        assertTrue(json.readTree(runCli("check", "", 0).getFirst()).get("valid").asBoolean());
+
+        Files.writeString(model, changed);
+        JsonNode check = json.readTree(runCli("check", "", 1).getFirst());
+        assertFalse(check.get("valid").asBoolean());
+        List<String> replies = runCli("mcp", """
+                {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25"}}
+                {"jsonrpc":"2.0","method":"notifications/initialized"}
+                {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"check_saved","arguments":{"revision":0}}}
+                """, 0);
+        assertEquals(2, replies.size());
+        JsonNode mcp = json.readTree(replies.getLast()).get("result");
+        assertFalse(mcp.get("isError").asBoolean());
+        assertEquals(check, mcp.get("structuredContent"));
+
+        JsonNode problems = check.get("diagnostics");
+        assertEquals(editor.size(), problems.size());
+        for (JsonNode problem : problems) {
+            JsonNode location = problem.get("location");
+            assertEquals(directory.relativize(scenario), Path.of(location.get("sourceName").asText()));
+            assertEquals("ERROR", problem.get("severity").asText());
+            assertTrue(editor.stream().anyMatch(diagnostic ->
+                    diagnostic.getMessage().equals(problem.get("message").asText())
+                            && diagnostic.getSeverity() == DiagnosticSeverity.Error
+                            && diagnostic.getRange().getStart().equals(new Position(
+                                    location.get("line").asInt() - 1, location.get("column").asInt() - 1))),
+                    problem.toString());
+        }
+
+        change(model, valid, 3);
+        assertTrue(diagnostics(scenario).isEmpty());
+        close(model);
+        assertEquals(editor, diagnostics(scenario));
+    }
+
+    private List<String> runCli(String command, String requests, int exitCode) throws Exception {
+        Path input = Files.createTempFile(directory, "cli-input-", ".jsonl");
+        Path output = Files.createTempFile(directory, "cli-output-", ".jsonl");
+        Path errors = Files.createTempFile(directory, "cli-errors-", ".log");
+        Files.writeString(input, requests);
+        Path java = Path.of(System.getProperty("java.home"), "bin", "java");
+        var process = new ProcessBuilder(java.toString(), "-cp", System.getProperty("java.class.path"),
+                ScenarioCli.class.getName(), command, directory.toString(), "domain")
+                .redirectInput(input.toFile()).redirectOutput(output.toFile()).redirectError(errors.toFile())
+                .start();
+        try {
+            assertTrue(process.waitFor(30, TimeUnit.SECONDS), "Timed out waiting for vernac " + command);
+            assertEquals(exitCode, process.exitValue(), Files.readString(output) + Files.readString(errors));
+            return Files.readAllLines(output);
+        } finally {
+            if (process.isAlive()) process.destroyForcibly();
+        }
+    }
 
     @Test
     void scenarioDiagnosticsFollowUnsavedTestAndModelEdits() throws Exception {

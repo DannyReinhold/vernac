@@ -32,7 +32,7 @@ jobs:
       - name: Build and test compiled renderer and actual plugin ZIP
         run: >-
           mvn -B -ntp -pl vernac-intellij,vernac-runtime-http -am
-          -Dtest=SourceModuleVisibilityTest,InboundMvcContractTest,VernacFormatterTest,VernacFormattingServiceTest,VernacDebuggerApiTest,VernacViewInspectorTest,VernacSpringBootTemplateTest,VernacProjectTemplateTest,ScenarioDaemonLauncherTest,DevelopmentWebConfigurationTest,DevelopmentBundleCompilerTest,DevelopmentBuildServerTest,VernacMcpServerTest,ScenarioRunJobsTest,InProcessScenarioExecutorTest,ScenarioRunArchiveTest
+          -Dtest=SourceModuleVisibilityTest,InboundMvcContractTest,VernacFormatterTest,VernacFormattingServiceTest,VernacDebuggerApiTest,VernacViewInspectorTest,VernacSpringBootTemplateTest,VernacProjectTemplateTest,ScenarioDaemonLauncherTest,DevelopmentWebConfigurationTest,DevelopmentBundleCompilerTest,DevelopmentBuildServerTest,VernacMcpServerTest,ScenarioRunJobsTest,InProcessScenarioExecutorTest,ScenarioRunArchiveTest,VernacProjectDiagnosticsTest
           -Dsurefire.failIfNoSpecifiedTests=false
           -Dit.test=PluginDistributionIT -Dfailsafe.failIfNoSpecifiedTests=false
           clean verify
@@ -70,6 +70,9 @@ jobs:
           cli = ET.parse('vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.pipeline.ScenarioDaemonLauncherTest.xml').getroot()
           assert 'buildsTheRequestedProjectWithItsWrapperAndKeepsLogsOffProtocolOutput' in {case.attrib['name'] for case in cli.findall('testcase')}
           assert all(int(cli.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
+          editor = ET.parse('vernac-lsp/target/surefire-reports/TEST-org.vernac.lsp.VernacProjectDiagnosticsTest.xml').getroot()
+          assert 'cliMcpAndEditorAgreeOnNativeModelChangesThatBreakAScenario' in {case.attrib['name'] for case in editor.findall('testcase')}
+          assert all(int(editor.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
           revisions = ET.parse('vernac-runtime-http/target/surefire-reports/TEST-org.vernac.runtime.http.development.DevelopmentWebConfigurationTest.xml').getroot()
           assert int(revisions.attrib['tests']) >= 3
           assert all(int(revisions.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
