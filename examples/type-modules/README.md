@@ -31,6 +31,19 @@ flattened in Account's table, including the external Amount value. The type libr
 owns no database tables and needs no activation. No database is required for this
 example. Review any generated SQL before applying it.
 
+With the Vernac CLI installed, you can also build the application outside the example
+reactor. Install just the producer artifacts first. The CLI build resolves them
+from Maven and packages an executable Spring Boot JAR.
+
+```sh
+mvn -f examples/type-modules/pom.xml -pl providers -am clean install
+vernac build examples/type-modules/application
+java -jar examples/type-modules/application/target/vernac-example-module-application-*.jar
+```
+
+The default `dev` profile logs that it selected `NoopPaymentProvider` through
+the library's `PaymentProvider` contract.
+
 Open `library/vernac-module.vmodule` to edit exports. New → Vernac Module Definition
 creates this project-level file beside a POM; it is not a namespace source file.
 Build the consumer to refresh its resolved dependency index. External type navigation
