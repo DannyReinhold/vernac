@@ -68,7 +68,10 @@ jobs:
           assert int(formatter.attrib['tests']) >= 5
           assert all(int(formatter.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
           cli = ET.parse('vernac-compiler/target/surefire-reports/TEST-org.vernac.compiler.pipeline.ScenarioDaemonLauncherTest.xml').getroot()
-          assert 'buildsTheRequestedProjectWithItsWrapperAndKeepsLogsOffProtocolOutput' in {case.attrib['name'] for case in cli.findall('testcase')}
+          assert {
+              'buildsTheRequestedProjectWithItsWrapperAndKeepsLogsOffProtocolOutput',
+              'warmChecksStartReuseAndRecoverTheWorkspaceProcess',
+          } <= {case.attrib['name'] for case in cli.findall('testcase')}
           assert all(int(cli.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
           editor = ET.parse('vernac-lsp/target/surefire-reports/TEST-org.vernac.lsp.VernacProjectDiagnosticsTest.xml').getroot()
           assert 'cliMcpAndEditorAgreeOnNativeModelChangesThatBreakAScenario' in {case.attrib['name'] for case in editor.findall('testcase')}

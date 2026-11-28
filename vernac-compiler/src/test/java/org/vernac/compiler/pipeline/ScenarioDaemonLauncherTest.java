@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalLong;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -84,6 +85,61 @@ class ScenarioDaemonLauncherTest {
     }
 
     @Test
+    void warmChecksStartReuseAndRecoverTheWorkspaceProcess() throws Exception {
+        Path model = Files.createDirectories(root.resolve("workspace/src/main/vernac/app")).resolve("counter.vernac");
+        Path workspace = root.resolve("workspace");
+        List<String> check = List.of("check", "--warm", workspace.toString(), "domain");
+        Files.writeString(model, "namespace app; value Counter(int);");
+        try {
+            assertTrue(runCli(check, 0).get("valid").asBoolean());
+            long initialPid = warmProcessId();
+            Files.writeString(model, "namespace app; value Counter(Missing);");
+            var invalid = runCli(check, 1);
+            assertFalse(invalid.get("valid").asBoolean());
+            assertEquals(1, invalid.get("revision").asLong());
+            assertEquals(initialPid, warmProcessId());
+            assertEquals(invalid, runCli(check, 1));
+
+            Files.writeString(model, "namespace app; value Counter(int);");
+            Files.writeString(workspace.resolve("vernac-module.vmodule"), "module app.checks { export app.Counter; }");
+            var configured = runCli(check, 0);
+            assertTrue(configured.get("valid").asBoolean());
+            assertEquals(2, configured.get("revision").asLong());
+            assertEquals(initialPid, warmProcessId());
+
+            stopProcess(initialPid);
+            var restarted = runCli(check, 0);
+            assertTrue(restarted.get("valid").asBoolean());
+            assertEquals(0, restarted.get("revision").asLong());
+            assertNotEquals(initialPid, warmProcessId());
+        } finally {
+            var pid = warmProcessIdIfStarted();
+            if (pid.isPresent()) stopProcess(pid.getAsLong());
+        }
+    }
+
+    private long warmProcessId() throws Exception {
+        return warmProcessIdIfStarted().orElseThrow();
+    }
+
+    private OptionalLong warmProcessIdIfStarted() throws Exception {
+        if (!Files.isDirectory(root.resolve(".vernac-workspaces"))) return OptionalLong.empty();
+        try (var files = Files.walk(root.resolve(".vernac-workspaces"))) {
+            var endpoint = files.filter(path -> path.getFileName().toString().equals("endpoint")).findFirst();
+            if (endpoint.isEmpty()) return OptionalLong.empty();
+            long pid = JsonMapper.builder().build().readTree(Files.readString(endpoint.orElseThrow())).get("pid").asLong();
+            return OptionalLong.of(pid);
+        }
+    }
+
+    private static void stopProcess(long pid) throws Exception {
+        var process = ProcessHandle.of(pid).orElse(null);
+        if (process == null || !process.isAlive()) return;
+        process.destroyForcibly();
+        process.onExit().get(10, TimeUnit.SECONDS);
+    }
+
+    @Test
     void buildsTheRequestedProjectWithItsWrapperAndKeepsLogsOffProtocolOutput() throws Exception {
         var project = Files.createDirectory(root.resolve("application with spaces"));
         var arguments = List.of("build", project.toString());
@@ -127,15 +183,17 @@ class ScenarioDaemonLauncherTest {
     private JsonNode runCli(List<String> invocation, int expectedExit) throws Exception {
         var stderr = root.resolve("cli-stderr.log");
         var stdout = root.resolve("cli-stdout.log");
-        var arguments = new ArrayList<>(List.of(javaExecutable().toString(), "-cp", System.getProperty("java.class.path"),
+        var arguments = new ArrayList<>(List.of(javaExecutable().toString(), "-Duser.home=" + root,
+                "-cp", System.getProperty("java.class.path"),
                 ScenarioCli.class.getName()));
         arguments.addAll(invocation);
         var process = new ProcessBuilder(arguments)
                 .redirectError(stderr.toFile()).redirectOutput(stdout.toFile()).start();
         try {
             assertTrue(process.waitFor(30, TimeUnit.SECONDS), "CLI did not exit");
-            assertEquals(expectedExit, process.exitValue(), Files.readString(stderr));
-            return JsonMapper.builder().build().readTree(Files.readString(stdout));
+            String reply = Files.readString(stdout);
+            assertEquals(expectedExit, process.exitValue(), Files.readString(stderr) + reply);
+            return JsonMapper.builder().build().readTree(reply);
         } finally {
             if (process.isAlive()) process.destroyForcibly();
         }

@@ -27,6 +27,12 @@ public final class ScenarioWorkspace {
 
     record CheckedEdit(long revision, boolean applied, List<CompilerDiagnostic> diagnostics) { }
 
+    static final class ConfigurationChanged extends IllegalStateException {
+        ConfigurationChanged() {
+            super("Workspace configuration changed; restart the daemon to reload it");
+        }
+    }
+
     private record SavedFiles(Map<Path, String> sources, Map<Path, String> configuration) { }
 
     private final Path root;
@@ -78,7 +84,7 @@ public final class ScenarioWorkspace {
         sources.snapshot(revision);
         var saved = readSavedFiles(root);
         if (!configuration.equals(saved.configuration()) || !modules.equals(ModuleArtifacts.editorModules(main))) {
-            throw new IllegalStateException("Workspace configuration changed; restart the daemon to reload it");
+            throw new ConfigurationChanged();
         }
         return sources.reconcile(revision, saved.sources()).revision();
     }

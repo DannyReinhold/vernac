@@ -337,6 +337,7 @@ commands require a JDK. The current directory is the default workspace.
 
 ```sh
 vernac check
+vernac check --warm
 vernac test --scenario app.Checks.counter
 vernac test /path/to/project mvc
 vernac daemon /path/to/project mvc
@@ -349,9 +350,17 @@ source error or a non-passing test outcome, and 2 an invalid invocation or execu
 external libraries, supply their Java classpath via `VERNAC_PROJECT_CLASSPATH` using the platform's
 classpath separator. The runner picks up precompiled project fixtures from `target/test-classes`
 and `target/classes`. The daemon's `runScenario` offers equivalent selection on an overlay
-revision without advancing its affected-test baseline. The one-shot commands open a fresh workspace.
-Clients can retain warm state by keeping `vernac daemon` open. Connecting a one-shot command to a
-separately running daemon and resolving project dependencies remain open.
+revision without advancing its affected-test baseline. The one-shot commands open a fresh workspace
+by default. `vernac check --warm [workspace [domain|mvc|postgres]]` starts a local background process
+on demand and reuses it for later checks with the same workspace, profile and toolchain. It reads
+saved sources, retains its parser cache between calls and exits after five minutes without a request.
+The next check starts a fresh process after a crash or idle exit. Discovery files live in
+`~/.vernac-workspaces`. The process accepts authenticated requests over loopback.
+
+`vernac daemon` and `vernac mcp` still provide client-owned stdio sessions. Sharing the
+automatically started process with IntelliJ and MCP, and resolving project dependencies, remain open.
+Running the packaged application does not require the workspace daemon. The opt-in
+`vernac build --dev` path talks to the running development application.
 
 For an existing Maven project, `vernac build [workspace]` runs `clean package` using the project's
 Maven Wrapper or Maven from `PATH`. Maven owns dependency resolution, plugin execution and output
