@@ -317,9 +317,9 @@ final class VernacProjectDiagnostics {
                 }catch(SemanticValidationException e){problems.addAll(e.diagnostics());}
             }
             Path manifest=org.vernac.compiler.modules.ModuleArtifacts.projectDirectory(root).resolve(org.vernac.compiler.modules.ModuleDefinition.FILE);
-            var snapshot=open.get(manifest);
-            if(snapshot!=null||Files.isRegularFile(manifest)) {
-                var definition=org.vernac.compiler.modules.ModuleDefinition.parse(manifest,snapshot==null?Files.readString(manifest):snapshot.text());
+            var moduleBuffer=open.get(manifest);
+            if(moduleBuffer!=null||Files.isRegularFile(manifest)) {
+                var definition=org.vernac.compiler.modules.ModuleDefinition.parse(manifest,moduleBuffer==null?Files.readString(manifest):moduleBuffer.text());
                 org.vernac.compiler.modules.ModuleContracts.validateExports(definition,resolved);
             }
         } catch (SemanticValidationException e) {
