@@ -23,7 +23,7 @@ class VernacMcpServerTest {
     void negotiatesStdioAndServesBundledLanguageHelpWithoutCheckingTheWorkspace() throws Exception {
         var main = Files.createDirectories(root.resolve("src/main/vernac/proof"));
         Files.writeString(main.resolve("invalid.vernac"), "This file has no namespace");
-        var server = new VernacMcpServer(ScenarioDaemonLauncher.daemon(root, "domain"));
+        var server = new VernacMcpServer(ScenarioDaemonLauncher.daemon(root, "domain"), root, "domain");
 
         var replies = exchange(server, """
                 {"jsonrpc":"2.0","id":"early","method":"resources/list"}
@@ -61,7 +61,7 @@ class VernacMcpServerTest {
         Files.writeString(main.resolve("model.vernac"), "namespace proof; value Counter(int); value Points(int amount);");
         Files.writeString(tests.resolve("counter.vernac"),
                 "namespace proof; suite Checks { scenario count { given n = Counter(1); expect n.intValue equals 1; } }");
-        var server = new VernacMcpServer(ScenarioDaemonLauncher.daemon(root, "domain"));
+        var server = new VernacMcpServer(ScenarioDaemonLauncher.daemon(root, "domain"), root, "domain");
 
         var replies = exchange(server, """
                 {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26"}}

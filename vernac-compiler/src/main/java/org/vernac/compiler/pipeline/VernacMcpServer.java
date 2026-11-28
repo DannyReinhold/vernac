@@ -12,6 +12,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -48,6 +49,9 @@ final class VernacMcpServer {
             tool("workspace_revision", "sharedRevision", "Read the current saved workspace revision.", Map.of()),
             tool("check_saved", "checkSaved", "Refresh saved sources and check them against the expected revision.",
                     Map.of("revision", REVISION), "revision"),
+            tool("check_shared_saved", "checkSharedSaved",
+                    "Check saved files through the warm process used by vernac check --warm. Returns that process's revision.",
+                    Map.of()),
             tool("test_affected_saved", "runSaved", "Refresh saved sources and run the affected scenarios.",
                     Map.of("revision", REVISION, "opaqueChange", BOOLEAN), "revision"),
             tool("open_overlay", "open", "Open a private editor overlay from the saved workspace revision.",
@@ -83,12 +87,16 @@ final class VernacMcpServer {
             .stream().collect(Collectors.toUnmodifiableMap(Tool::name, Function.identity()));
 
     private final ScenarioDaemon daemon;
+    private final Path workspace;
+    private final String profile;
     private final VernacMcpDocumentation docs;
     private boolean negotiated;
     private boolean initialized;
 
-    VernacMcpServer(ScenarioDaemon daemon) throws IOException {
+    VernacMcpServer(ScenarioDaemon daemon, Path workspace, String profile) throws IOException {
         this.daemon = daemon;
+        this.workspace = workspace;
+        this.profile = profile;
         docs = new VernacMcpDocumentation();
     }
 
@@ -179,6 +187,13 @@ final class VernacMcpServer {
                 return toolResult(docs.search(requiredText(input, "query")), false);
             } catch (IllegalArgumentException failure) {
                 return toolResult(Map.of("code", "invalid_request", "message", failure.getMessage()), true);
+            }
+        }
+        if (tool.operation().equals("checkSharedSaved")) {
+            try {
+                return toolResult(WarmWorkspaceCheck.check(workspace, profile), false);
+            } catch (IOException failure) {
+                return toolResult(new ScenarioDaemon.Problem("execution_error", failure.getMessage(), null), true);
             }
         }
         request.set("id", id);
