@@ -511,6 +511,12 @@ have their own acceptance workloads.
 
 ## Release evidence and migration
 
+The release workflow packages the CLI ZIP from the same source commit and Maven revision as the
+IntelliJ plugin. It checks both launcher files and the versioned Vernac libraries, then runs
+`vernac check` and one targeted scenario from the extracted POSIX launcher. The workflow archives
+the ZIP and a `release.json` with its SHA-256 checksum, source commit, run ID and attempt.
+The `vernac-cli-<version>-<attempt>` artifact is available for release dry runs as well.
+
 The IntelliJ plugin's language server highlights keyword message selectors and offers native snippets
 while a behavior body is still being typed. The shared formatter separates native statements and
 indents branches. Go to Declaration uses lexical scope for native parameters, `let` bindings,
