@@ -339,6 +339,7 @@ commands require a JDK. The current directory is the default workspace.
 vernac check
 vernac check --warm
 vernac test --scenario app.Checks.counter
+vernac test --warm /path/to/project domain --scenario app.Checks.counter
 vernac test /path/to/project mvc
 vernac daemon /path/to/project mvc
 vernac build /path/to/project
@@ -357,9 +358,12 @@ saved sources, retains its parser cache between calls and exits after five minut
 The next check starts a fresh process after a crash or idle exit. Discovery files live in
 `~/.vernac-workspaces`. The process accepts authenticated requests over loopback.
 
-`vernac daemon` and `vernac mcp` provide client-owned stdio sessions. MCP's
-`check_shared_saved` uses the same automatically started process as the warm CLI check.
-IntelliJ integration with that process, shared test runs and project dependency resolution remain open.
+`vernac daemon` and `vernac mcp` provide client-owned stdio sessions. The MCP tools
+`check_shared_saved` and `test_shared_scenario` use the same automatically started process
+as the warm CLI check and test. Warm tests require one scenario ID. They reuse generated
+bytecode when possible and invalidate the cache when precompiled project outputs change.
+Prepare Java fixtures and resources in the same way as for other CLI tests.
+IntelliJ integration, shared affected-test runs and project dependency resolution remain open.
 Running the packaged application does not require the workspace daemon. The opt-in
 `vernac build --dev` path talks to the running development application.
 

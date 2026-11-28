@@ -60,7 +60,7 @@ public final class ScenarioDaemonLauncher {
         return ScenarioWorkspace.openSaved(root, executor(root, classpath), profile);
     }
 
-    private static InProcessScenarioExecutor executor(Path root, List<Path> classpath) {
+    static InProcessScenarioExecutor executor(Path root, List<Path> classpath) {
         return new InProcessScenarioExecutor(classpath,
                 List.of(root.resolve("target/test-classes"), root.resolve("target/classes")));
     }

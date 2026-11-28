@@ -54,6 +54,9 @@ final class VernacMcpServer {
                     Map.of()),
             tool("test_affected_saved", "runSaved", "Refresh saved sources and run the affected scenarios.",
                     Map.of("revision", REVISION, "opaqueChange", BOOLEAN), "revision"),
+            tool("test_shared_scenario", "testSharedScenario",
+                    "Run one named scenario from saved files through the same warm process as vernac test --warm.",
+                    Map.of("scenario", TEXT), "scenario"),
             tool("open_overlay", "open", "Open a private editor overlay from the saved workspace revision.",
                     Map.of("revision", REVISION), "revision"),
             tool("close_overlay", "close", "Release a private overlay.", Map.of("client", TEXT), "client"),
@@ -189,9 +192,17 @@ final class VernacMcpServer {
                 return toolResult(Map.of("code", "invalid_request", "message", failure.getMessage()), true);
             }
         }
-        if (tool.operation().equals("checkSharedSaved")) {
+        if (tool.operation().equals("checkSharedSaved") || tool.operation().equals("testSharedScenario")) {
             try {
-                return toolResult(WarmWorkspaceCheck.check(workspace, profile), false);
+                var reply = tool.operation().equals("testSharedScenario")
+                        ? WarmWorkspace.testScenario(workspace, profile, requiredText(input, "scenario"))
+                        : WarmWorkspace.check(workspace, profile);
+                if (!reply.has("error")) return toolResult(reply, false);
+                String code = reply.path("error").asText();
+                String message = reply.path("message").asText("Workspace check failed");
+                return toolResult(new ScenarioDaemon.Problem(code, message, reply.get("diagnostics")), true);
+            } catch (IllegalArgumentException failure) {
+                return toolResult(new ScenarioDaemon.Problem("invalid_request", failure.getMessage(), null), true);
             } catch (IOException failure) {
                 return toolResult(new ScenarioDaemon.Problem("execution_error", failure.getMessage(), null), true);
             }

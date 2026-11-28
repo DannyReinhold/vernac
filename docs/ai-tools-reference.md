@@ -51,6 +51,10 @@ workspace and the optional third argument selects the test profile (`domain`, `m
   background process as `vernac check --warm`. The first call starts the process if needed.
   Its returned revision belongs to that process. For session tests and overlays, get the
   session's revision with `workspace_revision`.
+- Use `test_shared_scenario` with `{"scenario":"app.Checks.counter"}` to run one scenario
+  from saved files through that process. It returns the shared revision, the explicit
+  selection and the outcome. Assertion failures appear in `outcomes`. Invalid sources
+  return a tool error with compiler diagnostics.
 - For unsaved edits, use `open_overlay`. Send its `client` and `revision` to
   `check_overlay`, `test_affected_overlay`, or `test_scenario`. Use `close_overlay` when done.
 - To run affected tests in the background, use `start_affected_saved` or
