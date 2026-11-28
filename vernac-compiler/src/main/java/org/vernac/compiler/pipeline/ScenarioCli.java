@@ -33,8 +33,8 @@ public final class ScenarioCli {
             if (!Set.of("check", "test", "daemon", "mcp").contains(args[0])) return usage(output);
             boolean test = args[0].equals("test");
             int next = 1;
-            boolean warmCheck = args[0].equals("check") && next < args.length && args[next].equals("--warm");
-            if (warmCheck) next++;
+            boolean warm = (test || args[0].equals("check")) && next < args.length && args[next].equals("--warm");
+            if (warm) next++;
             Path root = Path.of(".");
             if (next < args.length && !args[next].startsWith("--")) root = Path.of(args[next++]);
             String profile = null;
@@ -62,10 +62,13 @@ public final class ScenarioCli {
                         new OutputStreamWriter(output, StandardCharsets.UTF_8));
                 return 0;
             }
-            if (warmCheck) {
-                var check = WarmWorkspaceCheck.check(root, profile);
-                write(output, check);
-                return check.path("valid").asBoolean() ? 0 : 1;
+            if (warm) {
+                if (test && scenario == null) return usage(output);
+                var reply = test ? WarmWorkspace.testScenario(root, profile, scenario) : WarmWorkspace.check(root, profile);
+                write(output, reply);
+                if (reply.has("error")) return reply.path("error").asText().equals("diagnostics") ? 1 : 2;
+                if (test) return reply.path("outcomes").path(scenario).asText().equals("PASSED") ? 0 : 1;
+                return reply.path("valid").asBoolean() ? 0 : 1;
             }
             var workspace = ScenarioDaemonLauncher.openWorkspace(root, profile, ScenarioDaemonLauncher.classpath());
             long revision = workspace.revision();
@@ -117,7 +120,8 @@ public final class ScenarioCli {
 
     private static int usage(PrintStream output) {
         write(output, Map.of("error", "usage", "message",
-                "Usage: vernac <check [--warm]|test|daemon|mcp> [workspace [domain|mvc|postgres]] [--scenario <id> (test only)] or vernac build [--dev] [workspace]"));
+                "Usage: vernac <check [--warm]|test [--warm]|daemon|mcp> [workspace [domain|mvc|postgres]]"
+                        + " [--scenario <id> (test only, required for warm tests)] or vernac build [--dev] [workspace]"));
         return 2;
     }
 

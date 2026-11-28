@@ -160,6 +160,60 @@ class ScenarioDaemonLauncherTest {
         }
     }
 
+    @Test
+    void cliAndMcpRunOneSavedScenarioInTheSameWarmWorkspace() throws Exception {
+        Path workspace = root.resolve("workspace");
+        Path model = Files.createDirectories(workspace.resolve("src/main/vernac/app")).resolve("model.vernac");
+        Files.writeString(model, "namespace app; value Counter(int);");
+        Path tests = Files.createDirectories(workspace.resolve("src/test/vernac/app")).resolve("checks.vernac");
+        String source = """
+                namespace app;
+                suite Checks {
+                    scenario chosen { given n = Counter(1); expect n.intValue equals 1; }
+                    scenario other { given n = Counter(2); expect n.intValue equals 3; }
+                }
+                """;
+        Files.writeString(tests, source);
+        String scenario = "app.Checks.chosen";
+        List<String> check = List.of("check", "--warm", workspace.toString(), "domain");
+        List<String> test = List.of("test", "--warm", workspace.toString(), "domain", "--scenario", scenario);
+        List<String> mcp = List.of("mcp", workspace.toString(), "domain");
+        String request = """
+                {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25"}}
+                {"jsonrpc":"2.0","method":"notifications/initialized"}
+                {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"test_shared_scenario","arguments":{"scenario":"app.Checks.chosen"}}}
+                """;
+        var json = JsonMapper.builder().build();
+        try {
+            assertTrue(runCli(check, 0).get("valid").asBoolean());
+            long initialPid = warmProcessId();
+            var passing = runCli(test, 0);
+            assertEquals("PASSED", passing.path("outcomes").path(scenario).asText());
+            assertEquals(1, passing.path("outcomes").size());
+            assertEquals("EXPLICIT_SELECTION", passing.at("/selected/0/reason").asText());
+
+            Files.writeString(tests, source.replace("equals 1", "equals 9"));
+            var failed = runCliOutput(mcp, 0, request).lines().map(json::readTree).toList().getLast().get("result");
+            assertFalse(failed.get("isError").asBoolean());
+            var report = failed.get("structuredContent");
+            assertEquals("FAILED", report.path("outcomes").path(scenario).asText());
+            assertEquals(1, report.path("revision").asLong());
+            assertEquals(report, runCli(test, 1));
+
+            Files.writeString(model, "namespace app; value Counter(Missing);");
+            var invalid = runCli(test, 1);
+            assertEquals("diagnostics", invalid.path("error").asText());
+            assertFalse(invalid.path("diagnostics").isEmpty());
+            var rejected = runCliOutput(mcp, 0, request).lines().map(json::readTree).toList().getLast().get("result");
+            assertTrue(rejected.get("isError").asBoolean());
+            assertEquals(invalid.get("diagnostics"), rejected.at("/structuredContent/details"));
+            assertEquals(initialPid, warmProcessId());
+        } finally {
+            var pid = warmProcessIdIfStarted();
+            if (pid.isPresent()) stopProcess(pid.getAsLong());
+        }
+    }
+
     private long warmProcessId() throws Exception {
         return warmProcessIdIfStarted().orElseThrow();
     }
