@@ -1,0 +1,52 @@
+name: CLI module consumer
+
+on:
+  pull_request:
+    paths:
+      - 'examples/type-modules/**'
+      - 'vernac-compiler/**'
+      - 'vernac-maven-plugin/**'
+      - 'vernac-runtime*/**'
+      - 'shared/**'
+      - 'pom.xml'
+      - '.github/workflows/cli-module-consumer.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  module-consumer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Build the CLI distribution and the Maven plugin
+        run: >-
+          mvn -B -ntp -pl vernac-compiler,vernac-maven-plugin,vernac-runtime-jdbc -am
+          -Pcli-distribution -DskipTests install
+      - name: Install only the producer modules
+        run: mvn -B -ntp -f examples/type-modules/pom.xml -pl providers -am clean install
+      - name: Package and start the separate consumer through the installed CLI
+        shell: bash
+        run: |
+          cli_dir=$(mktemp -d)
+          unzip -q vernac-compiler/target/vernac-*-cli.zip -d "$cli_dir"
+          cli=$(find "$cli_dir" -path '*/bin/vernac' -print -quit)
+          workspace=examples/type-modules/application
+          "$cli" build "$workspace"
+          jars=("$workspace"/target/vernac-example-module-application-*.jar)
+          [[ ${#jars[@]} -eq 1 && -f ${jars[0]} ]]
+          dev=$(java -jar "${jars[0]}")
+          printf '%s\n' "$dev"
+          [[ "$dev" == *'Selected NoopPaymentProvider through the shared PaymentProvider contract'* ]]
+          prod=$(java -jar "${jars[0]}" --spring.profiles.active=prod --payment-fixture.api-key=local-fixture-only)
+          printf '%s\n' "$prod"
+          [[ "$prod" == *'Selected ConfiguredTestPaymentProvider through the shared PaymentProvider contract'* ]]
