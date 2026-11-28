@@ -33,6 +33,8 @@ public final class ScenarioCli {
             if (!Set.of("check", "test", "daemon", "mcp").contains(args[0])) return usage(output);
             boolean test = args[0].equals("test");
             int next = 1;
+            boolean warmCheck = args[0].equals("check") && next < args.length && args[next].equals("--warm");
+            if (warmCheck) next++;
             Path root = Path.of(".");
             if (next < args.length && !args[next].startsWith("--")) root = Path.of(args[next++]);
             String profile = null;
@@ -59,6 +61,11 @@ public final class ScenarioCli {
                 ScenarioDaemonLauncher.serve(root, profile, new InputStreamReader(System.in, StandardCharsets.UTF_8),
                         new OutputStreamWriter(output, StandardCharsets.UTF_8));
                 return 0;
+            }
+            if (warmCheck) {
+                var check = WarmWorkspaceCheck.check(root, profile);
+                write(output, check);
+                return check.path("valid").asBoolean() ? 0 : 1;
             }
             var workspace = ScenarioDaemonLauncher.openWorkspace(root, profile, ScenarioDaemonLauncher.classpath());
             long revision = workspace.revision();
@@ -110,7 +117,7 @@ public final class ScenarioCli {
 
     private static int usage(PrintStream output) {
         write(output, Map.of("error", "usage", "message",
-                "Usage: vernac <check|test|daemon|mcp> [workspace [domain|mvc|postgres]] [--scenario <id> (test only)] or vernac build [--dev] [workspace]"));
+                "Usage: vernac <check [--warm]|test|daemon|mcp> [workspace [domain|mvc|postgres]] [--scenario <id> (test only)] or vernac build [--dev] [workspace]"));
         return 2;
     }
 
