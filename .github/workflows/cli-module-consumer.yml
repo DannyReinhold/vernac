@@ -8,6 +8,8 @@ on:
       - 'vernac-maven-plugin/**'
       - 'vernac-runtime*/**'
       - 'shared/**'
+      - 'tools/release.py'
+      - 'tools/tests/test_release.py'
       - 'pom.xml'
       - '.github/workflows/cli-module-consumer.yml'
   workflow_dispatch:
@@ -19,6 +21,9 @@ jobs:
   module-consumer:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      RELEASE_VERSION: '0.7.0'
+      DRY_RUN: 'true'
     steps:
       - uses: actions/checkout@v7
         with:
@@ -30,16 +35,22 @@ jobs:
           cache: maven
       - name: Build the CLI distribution and the Maven plugin
         run: >-
-          mvn -B -ntp -pl vernac-compiler,vernac-maven-plugin,vernac-runtime-jdbc -am
+          mvn -B -ntp -Drevision="$RELEASE_VERSION" -pl vernac-compiler,vernac-maven-plugin,vernac-runtime-jdbc -am
           -Pcli-distribution -DskipTests install
+      - name: Verify the versioned CLI candidate and release tooling
+        run: |
+          python3 -m unittest discover -s tools/tests -v -b
+          python3 tools/release.py cli-candidate --directory "$RUNNER_TEMP/cli-release-candidate"
       - name: Install only the producer modules
-        run: mvn -B -ntp -f examples/type-modules/pom.xml -pl providers -am clean install
+        run: mvn -B -ntp -Drevision="$RELEASE_VERSION" -f examples/type-modules/pom.xml -pl providers -am clean install
       - name: Package and start the separate consumer through the installed CLI
         shell: bash
+        env:
+          MAVEN_ARGS: -Drevision=${{ env.RELEASE_VERSION }}
         run: |
           cli_dir=$(mktemp -d)
-          unzip -q vernac-compiler/target/vernac-*-cli.zip -d "$cli_dir"
-          cli=$(find "$cli_dir" -path '*/bin/vernac' -print -quit)
+          unzip -q "$RUNNER_TEMP/cli-release-candidate/vernac-$RELEASE_VERSION-cli.zip" -d "$cli_dir"
+          cli="$cli_dir/vernac-$RELEASE_VERSION/bin/vernac"
           workspace=examples/type-modules/application
           "$cli" build "$workspace"
           jars=("$workspace"/target/vernac-example-module-application-*.jar)

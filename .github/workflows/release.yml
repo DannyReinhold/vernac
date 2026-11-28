@@ -129,6 +129,21 @@ jobs:
           path: ${{ runner.temp }}/vernac-scenario-reports/
           if-no-files-found: error
 
+      - name: Build and verify the installed CLI candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mvn -B -ntp -Drevision="$RELEASE_VERSION" -pl vernac-compiler -am -Pcli-distribution -DskipTests package
+          python3 tools/release.py cli-candidate --directory cli-release-candidate
+
+      - name: Archive CLI candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: vernac-cli-${{ inputs.version }}-${{ github.run_attempt }}
+          path: cli-release-candidate/
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Prepare plugin candidate
         id: candidate
         shell: bash
@@ -164,7 +179,7 @@ jobs:
         shell: bash
         run: |
           if [[ "$DRY_RUN" == "true" ]]; then
-            echo "Build/signing passed. Nothing uploaded. Plugin ZIP is available as a workflow artifact." >> "$GITHUB_STEP_SUMMARY"
+            echo "Build/signing passed. CLI and plugin ZIPs are available as workflow artifacts. Central and Marketplace were not updated." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "Central validation passed. Publish the EXISTING deployment in the Central Portal now. The plugin job waits up to 30 minutes for repository availability." >> "$GITHUB_STEP_SUMMARY"
             echo "If publication takes longer, run Publish IntelliJ Plugin with this run ID and candidate attempt; do not rerun Maven deployment." >> "$GITHUB_STEP_SUMMARY"

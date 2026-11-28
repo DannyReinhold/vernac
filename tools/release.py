@@ -8,7 +8,9 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
+import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -121,6 +123,61 @@ def candidate(release, output):
     summary(f"### Plugin candidate {release}\nCommit: `{manifest['commit']}`\n\nSHA-256: `{manifest['sha256']}`\n\n"
             f"Source run: `{manifest['run_id']}`, attempt `{manifest['attempt']}`.\n"
             "Destination: JetBrains Marketplace, org.vernac, Stable (after Central availability).")
+
+
+def cli_candidate(release, output):
+    release = version(release)
+    source = Path(f"vernac-compiler/target/vernac-{release}-cli.zip")
+    root = f"vernac-{release}"
+    with tempfile.TemporaryDirectory() as temporary:
+        install = Path(temporary)
+        with zipfile.ZipFile(source) as archive:
+            names = archive.namelist()
+            require(len(names) == len(set(names)), "Duplicate CLI ZIP entries.")
+            require(all(name.startswith(root + "/") and ".." not in PurePosixPath(name).parts
+                        and "\\" not in name for name in names), "Unexpected path in CLI ZIP.")
+            required = {f"{root}/bin/vernac", f"{root}/bin/vernac.cmd", f"{root}/LICENSE",
+                        f"{root}/lib/vernac-compiler-{release}.jar", f"{root}/lib/vernac-runtime-{release}.jar"}
+            require(required <= set(names), "CLI ZIP is missing a launcher, license or matching Vernac JAR.")
+            require(archive.getinfo(f"{root}/bin/vernac").external_attr >> 16 & 0o111,
+                    "POSIX CLI launcher is not executable in the ZIP.")
+            archive.extractall(install)
+        launcher = install / root / "bin/vernac"
+        launcher.chmod(0o755)
+        workspace = install / "workspace with spaces"
+        model = workspace / "src/main/vernac/app/counter.vernac"
+        model.parent.mkdir(parents=True)
+        model.write_text("namespace app; value Counter(int);\n", encoding="utf-8")
+        cases = workspace / "src/test/vernac/app/checks.vernac"
+        cases.parent.mkdir(parents=True)
+        cases.write_text("""namespace app;
+suite Checks {
+    scenario counter { given n = Counter(1); expect n.intValue equals 1; }
+}
+""", encoding="utf-8")
+        environment = dict(os.environ)
+        environment.pop("VERNAC_PROJECT_CLASSPATH", None)
+        check = subprocess.run([launcher, "check"], cwd=workspace, env=environment,
+                               capture_output=True, encoding="utf-8", timeout=60)
+        require(check.returncode == 0 and json.loads(check.stdout).get("valid") is True,
+                f"Installed CLI check failed (exit {check.returncode}).")
+        scenario = "app.Checks.counter"
+        test = subprocess.run([launcher, "test", "--scenario", scenario], cwd=workspace, env=environment,
+                              capture_output=True, encoding="utf-8", timeout=60)
+        require(test.returncode == 0 and json.loads(test.stdout).get("outcomes") == {scenario: "PASSED"},
+                f"Installed CLI targeted test failed (exit {test.returncode}).")
+
+    output.mkdir(parents=True, exist_ok=False)
+    target = output / source.name
+    shutil.copyfile(source, target)
+    manifest = {"version": release, "file": target.name, "sha256": digest(target),
+                "commit": os.environ["GITHUB_SHA"], "repository": os.environ["GITHUB_REPOSITORY"],
+                "run_id": os.environ["GITHUB_RUN_ID"], "attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+                "dry_run": os.environ["DRY_RUN"] == "true", "scenario": scenario}
+    (output / "release.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    summary(f"### CLI candidate {release}\nCommit: `{manifest['commit']}`\n\nSHA-256: `{manifest['sha256']}`\n\n"
+            f"Source run: `{manifest['run_id']}`, attempt `{manifest['attempt']}`.\n"
+            f"Installed launcher passed `check` and `test --scenario {scenario}`.")
 
 
 def verify_candidate(directory, release, run_id, attempt):
@@ -295,7 +352,7 @@ def upload(directory, release, run_id, attempt):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("version", "modules", "candidate", "provenance", "central", "unpublished", "tests", "workspace-scenarios", "consumer", "upload"))
+    parser.add_argument("command", choices=("version", "modules", "candidate", "cli-candidate", "provenance", "central", "unpublished", "tests", "workspace-scenarios", "consumer", "upload"))
     parser.add_argument("--version", default=os.environ.get("RELEASE_VERSION", ""))
     parser.add_argument("--directory", type=Path, default=Path("release-candidate"))
     parser.add_argument("--run-id", default=os.environ.get("SOURCE_RUN_ID", ""))
@@ -308,6 +365,7 @@ def main():
     if args.command == "modules": print(",".join(MODULES[1:]))
     elif args.command == "version": print(version(args.version))
     elif args.command == "candidate": candidate(args.version, args.directory)
+    elif args.command == "cli-candidate": cli_candidate(args.version, args.directory)
     elif args.command == "tests": audit_tests()
     elif args.command == "workspace-scenarios": audit_workspace_scenarios(args.directory)
     elif args.command == "central": central(args.version, args.timeout)
@@ -320,7 +378,7 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except (ValueError, RuntimeError, OSError, KeyError, zipfile.BadZipFile, ET.ParseError) as error:
+    except (ValueError, RuntimeError, OSError, KeyError, zipfile.BadZipFile, ET.ParseError, subprocess.TimeoutExpired) as error:
         # Only controlled messages; no environment dump or traceback containing HTTP requests.
         print(f"Release step failed: {error}", file=sys.stderr)
         sys.exit(1)

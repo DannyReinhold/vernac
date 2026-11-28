@@ -5,6 +5,7 @@ import io
 import json
 import os
 from pathlib import Path
+from subprocess import CompletedProcess
 import tempfile
 import unittest
 from unittest.mock import patch, Mock
@@ -68,6 +69,44 @@ class ReleaseTests(unittest.TestCase):
             self.make_candidate(plugin_id="org.vernac.intellij")
         with self.assertRaisesRegex(ValueError, "dependency version"):
             self.make_candidate(dependency_version="0.1.0")
+
+    def cli_zip(self, runtime_version="0.7.0"):
+        path = self.root / "vernac-compiler/target/vernac-0.7.0-cli.zip"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(path, "w") as archive:
+            launcher = zipfile.ZipInfo("vernac-0.7.0/bin/vernac")
+            launcher.external_attr = 0o755 << 16
+            archive.writestr(launcher, "fixture")
+            for file in ("bin/vernac.cmd", "LICENSE", "lib/vernac-compiler-0.7.0.jar",
+                         f"lib/vernac-runtime-{runtime_version}.jar"):
+                archive.writestr(f"vernac-0.7.0/{file}", "fixture")
+        return path
+
+    def test_cli_candidate_records_checksum_and_requires_a_selected_pass(self):
+        source = self.cli_zip()
+        check = CompletedProcess([], 0, '{"valid":true}')
+        failed = CompletedProcess([], 0, '{"outcomes":{"app.Checks.counter":"SKIPPED"}}')
+        with patch.object(release.subprocess, "run", side_effect=[check, failed]):
+            with self.assertRaisesRegex(ValueError, "targeted test failed"):
+                release.cli_candidate("0.7.0", self.directory)
+        self.assertFalse(self.directory.exists())
+
+        selected = CompletedProcess([], 0, '{"outcomes":{"app.Checks.counter":"PASSED"}}')
+        with patch.object(release.subprocess, "run", side_effect=[check, selected]) as run:
+            release.cli_candidate("0.7.0", self.directory)
+        self.assertEqual(["test", "--scenario", "app.Checks.counter"], run.call_args.args[0][1:])
+        manifest = json.loads((self.directory / "release.json").read_text())
+        self.assertEqual("0.7.0", manifest["version"])
+        self.assertEqual("a" * 40, manifest["commit"])
+        self.assertEqual(release.digest(source), manifest["sha256"])
+        self.assertEqual(source.read_bytes(), (self.directory / manifest["file"]).read_bytes())
+
+    def test_cli_candidate_rejects_a_mismatched_runtime_version(self):
+        self.cli_zip(runtime_version="0.6.0")
+        with patch.object(release.subprocess, "run") as run:
+            with self.assertRaisesRegex(ValueError, "matching Vernac JAR"):
+                release.cli_candidate("0.7.0", self.directory)
+            run.assert_not_called()
 
     def test_checksum_and_run_identity_are_verified(self):
         path = self.make_candidate()
