@@ -127,6 +127,8 @@ class VernacProjectDiagnosticsTest {
 
         change(model, valid, 3);
         assertTrue(diagnostics(scenario).isEmpty());
+        change(model, changed, 2);
+        assertTrue(diagnostics(scenario).isEmpty());
         close(model);
         assertEquals(editor, diagnostics(scenario));
     }

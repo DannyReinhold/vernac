@@ -15,7 +15,6 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,18 +75,12 @@ public final class ScenarioWorkspace {
 
     /** Publishes a complete saved-source scan against the expected shared revision. */
     long refreshSavedSources(long revision) throws IOException {
-        var previous = sources.snapshot(revision).sources();
+        sources.snapshot(revision);
         var saved = readSavedFiles(root);
         if (!configuration.equals(saved.configuration()) || !modules.equals(ModuleArtifacts.editorModules(main))) {
             throw new IllegalStateException("Workspace configuration changed; restart the daemon to reload it");
         }
-        var edits = new ArrayList<VersionedSources.Edit>();
-        previous.keySet().stream().filter(path -> !saved.sources().containsKey(path))
-                .forEach(path -> edits.add(new VersionedSources.Delete(path)));
-        saved.sources().forEach((path, text) -> {
-            if (!text.equals(previous.get(path))) edits.add(new VersionedSources.Put(path, text));
-        });
-        return apply(revision, edits);
+        return sources.reconcile(revision, saved.sources()).revision();
     }
 
     private static SavedFiles readSavedFiles(Path root) throws IOException {

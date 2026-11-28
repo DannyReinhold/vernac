@@ -10,6 +10,7 @@ import org.vernac.compiler.ast.SourceLocation;
 import org.vernac.compiler.generator.NativeValidationCompiler;
 import org.vernac.compiler.pipeline.ProjectTypeResolver;
 import org.vernac.compiler.pipeline.ResolvedProject;
+import org.vernac.compiler.pipeline.VersionedSources;
 import org.vernac.compiler.pipeline.VernacProject;
 import org.vernac.compiler.pipeline.VernacSourceFile;
 import org.vernac.compiler.pipeline.VernacSourceParser;
@@ -28,6 +29,7 @@ final class VernacProjectDiagnostics {
     private final Set<Path> folders = new LinkedHashSet<>();
     private final VernacProjectLoader loader = new VernacProjectLoader();
     private final Map<Path, VernacProjectLoader.ParseSession> parseSessions = new HashMap<>();
+    private final Map<Path, VersionedSources> sourceSessions = new HashMap<>();
     private final Set<String> published = new LinkedHashSet<>();
     private final Map<Path, VernacProjectSymbols> symbolSnapshots = new HashMap<>();
     private record AnalysisInputs(VernacProject project, Map<Path, String> configurations) { }
@@ -44,6 +46,7 @@ final class VernacProjectDiagnostics {
 
     synchronized void initialize(InitializeParams params) {
         parseSessions.clear();
+        sourceSessions.clear();
         symbolSnapshots.clear();
         analysisInputs.clear();
         nativeReferences.clear();
@@ -135,18 +138,11 @@ final class VernacProjectDiagnostics {
         if(symbolSnapshots.containsKey(root))return symbolSnapshots.get(root);
         Map<Path, String> texts = new TreeMap<>();
         try {
-            if (Files.isDirectory(root)) {
-                try (var paths = Files.walk(root)) {
-                    for (Path source : paths.filter(p -> Files.isRegularFile(p, LinkOption.NOFOLLOW_LINKS)
-                            && p.toString().endsWith(".vernac") && !p.toString().contains(".module-contracts")).toList()) {
-                        Document document = open.get(source);
-                        texts.put(source, document == null ? Files.readString(source) : document.text());
-                    }
-                }
-            }
-            open.forEach((source, document) -> {
-                if (root.equals(rootFor(source)) && source.startsWith(root) && source.toString().endsWith(".vernac"))
-                    texts.put(source, document.text());
+            var session = sourceSessions.get(root);
+            var sources = session == null ? VersionedSources.capture(root, Map.of()) : session.snapshot().sources();
+            sources.forEach((source, content) -> {
+                if (source.startsWith(root) && (open.containsKey(source) || !source.toString().contains(".module-contracts")))
+                    texts.put(source, content);
             });
             Set<Path> external=new HashSet<>();
             Map<String,Location> moduleTargets=new HashMap<>();
@@ -261,6 +257,7 @@ final class VernacProjectDiagnostics {
             } else roots.add(root);
         }
         parseSessions.keySet().retainAll(roots);
+        sourceSessions.keySet().retainAll(roots);
         for (Path root : roots) analyze(root, diagnostics);
         Set<String> targets = new LinkedHashSet<>(published);
         targets.addAll(diagnostics.keySet());
@@ -273,13 +270,29 @@ final class VernacProjectDiagnostics {
     }
 
     private void analyze(Path root, Map<String, List<Diagnostic>> diagnostics) {
-        Map<Path, String> snapshots = new LinkedHashMap<>();
+        Path workspace = root.getParent().getParent().getParent();
+        Path testRoot = workspace.resolve("src/test/vernac");
+        Map<Path, String> modelBuffers = new LinkedHashMap<>();
+        Map<Path, String> testBuffers = new LinkedHashMap<>();
         open.forEach((path, document) -> {
-            if (root.equals(rootFor(path)) && path.startsWith(root) && path.toString().endsWith(".vernac")) snapshots.put(path, document.text());
+            if (!root.equals(rootFor(path)) || !path.toString().endsWith(".vernac")) return;
+            if (path.startsWith(root)) modelBuffers.put(path, document.text());
+            else if (path.startsWith(testRoot)) testBuffers.put(path, document.text());
         });
         List<CompilerDiagnostic> problems = new ArrayList<>();
+        VersionedSources.Snapshot snapshot;
         try {
-            var project = parseSessions.computeIfAbsent(root, loader::openSession).loadForAnalysis(snapshots, problems);
+            var captured = VersionedSources.capture(root, modelBuffers);
+            captured.putAll(VersionedSources.capture(testRoot, testBuffers));
+            var sources = sourceSessions.computeIfAbsent(root, ignored -> new VersionedSources(workspace, Map.of()));
+            snapshot = sources.reconcile(sources.snapshot().revision(), captured);
+            Map<Path, String> model = new LinkedHashMap<>();
+            Map<String, String> tests = new TreeMap<>();
+            snapshot.sources().forEach((path, text) -> {
+                if (path.startsWith(root)) model.put(path, text);
+                else tests.put(path.toString(), text);
+            });
+            var project = parseSessions.computeIfAbsent(root, loader::openSession).loadSnapshotForAnalysis(model, problems);
             project=org.vernac.compiler.modules.ModuleArtifacts.merge(project,org.vernac.compiler.modules.ModuleArtifacts.editorModules(root),problems);
             Map<Path,String> configurationSnapshots=new LinkedHashMap<>();
             open.forEach((path, document) -> {
@@ -293,7 +306,7 @@ final class VernacProjectDiagnostics {
             });
             problems.addAll(resolved.diagnostics());
             if (problems.stream().noneMatch(diagnostic -> diagnostic.severity() == CompilerDiagnostic.Severity.ERROR))
-                analyzeScenarios(root, resolved, problems);
+                analyzeScenarios(tests, resolved, problems);
             Path application=org.vernac.compiler.modules.ModuleArtifacts.projectDirectory(root).resolve(org.vernac.compiler.application.ApplicationDefinition.FILE);
             var appSnapshot=open.get(application);
             if(appSnapshot!=null||Files.isRegularFile(application)) {
@@ -328,7 +341,8 @@ final class VernacProjectDiagnostics {
             int column = Math.max(0, diagnostic.location().column() - 1);
             // ANTLR counts code points; LSP's default position encoding is UTF-16.
             try {
-                String text = open.containsKey(file) ? open.get(file).text() : snapshots.containsKey(file) ? snapshots.get(file) : Files.readString(file);
+                String text = snapshot.sources().get(file);
+                if (text == null) text = open.containsKey(file) ? open.get(file).text() : Files.readString(file);
                 String[] lines = text.split("\n", -1);
                 line = Math.min(line, lines.length - 1);
                 String current = lines[line];
@@ -342,19 +356,8 @@ final class VernacProjectDiagnostics {
         }
     }
 
-    private void analyzeScenarios(Path mainRoot, ResolvedProject main, List<CompilerDiagnostic> problems)
-            throws IOException {
-        Path testRoot = mainRoot.getParent().getParent().resolve("test/vernac");
+    private void analyzeScenarios(Map<String, String> tests, ResolvedProject main, List<CompilerDiagnostic> problems) {
         var compiler = new VernacScenarioCompiler();
-        Map<String, String> tests = new TreeMap<>();
-        for (Path file : compiler.discover(testRoot)) {
-            var document = open.get(file);
-            tests.put(file.toString(), document == null ? Files.readString(file) : document.text());
-        }
-        open.forEach((file, document) -> {
-            if (file.startsWith(testRoot) && mainRoot.equals(rootFor(file)) && file.toString().endsWith(".vernac"))
-                tests.put(file.toString(), document.text());
-        });
         tests.keySet().forEach(file -> scenarioModels.put(Path.of(file), main));
         try {
             for (var reference : compiler.validate(tests, main)) {

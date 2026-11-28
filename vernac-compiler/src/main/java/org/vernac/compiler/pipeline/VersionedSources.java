@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.vernac.compiler.pipeline;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
@@ -40,12 +44,16 @@ public final class VersionedSources {
 
     public VersionedSources(Path root, Map<Path, String> sources) {
         this.root = root.toAbsolutePath().normalize();
+        current = new Snapshot(0, normalize(sources));
+    }
+
+    private Map<Path, String> normalize(Map<Path, String> sources) {
         Map<Path, String> normalized = new HashMap<>();
         sources.forEach((path, text) -> {
             if (normalized.putIfAbsent(normalize(path), Objects.requireNonNull(text)) != null)
                 throw new IllegalArgumentException("Duplicate source path: " + path);
         });
-        current = new Snapshot(0, normalized);
+        return normalized;
     }
 
     public synchronized Snapshot snapshot() {
@@ -60,6 +68,32 @@ public final class VersionedSources {
     public synchronized Snapshot apply(long baseRevision, List<Edit> edits) {
         current = preview(baseRevision, edits);
         return current;
+    }
+
+    /** Reconciles a complete capture against one expected revision. */
+    public synchronized Snapshot reconcile(long baseRevision, Map<Path, String> captured) {
+        var previous = snapshot(baseRevision);
+        var proposed = normalize(captured);
+        if (!previous.sources().equals(proposed))
+            current = new Snapshot(Math.incrementExact(baseRevision), proposed);
+        return current;
+    }
+
+    /** Captures a source directory with private editor buffers taking precedence over disk. */
+    public static Map<Path, String> capture(Path directory, Map<Path, String> buffers) throws IOException {
+        var sources = new HashMap<>(buffers);
+        if (Files.notExists(directory, LinkOption.NOFOLLOW_LINKS)) return sources;
+        if (!Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS))
+            throw new IOException("Expected a Vernac source directory: " + directory);
+        try (var paths = Files.walk(directory)) {
+            for (var path : paths.filter(file -> file.getFileName().toString().endsWith(".vernac"))
+                    .filter(file -> Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)).toList()) {
+                if (!sources.containsKey(path)) sources.put(path, Files.readString(path));
+            }
+        } catch (UncheckedIOException failure) {
+            throw failure.getCause();
+        }
+        return sources;
     }
 
     /** Computes the same batch result without publishing it. */
