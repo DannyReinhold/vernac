@@ -280,15 +280,15 @@ final class VernacProjectDiagnostics {
             else if (path.startsWith(testRoot)) testBuffers.put(path, document.text());
         });
         List<CompilerDiagnostic> problems = new ArrayList<>();
-        VersionedSources.Snapshot snapshot;
+        Map<Path, String> sourceTexts = Map.of();
         try {
             var captured = VersionedSources.capture(root, modelBuffers);
             captured.putAll(VersionedSources.capture(testRoot, testBuffers));
             var sources = sourceSessions.computeIfAbsent(root, ignored -> new VersionedSources(workspace, Map.of()));
-            snapshot = sources.reconcile(sources.snapshot().revision(), captured);
+            sourceTexts = sources.reconcile(sources.snapshot().revision(), captured).sources();
             Map<Path, String> model = new LinkedHashMap<>();
             Map<String, String> tests = new TreeMap<>();
-            snapshot.sources().forEach((path, text) -> {
+            sourceTexts.forEach((path, text) -> {
                 if (path.startsWith(root)) model.put(path, text);
                 else tests.put(path.toString(), text);
             });
@@ -341,7 +341,7 @@ final class VernacProjectDiagnostics {
             int column = Math.max(0, diagnostic.location().column() - 1);
             // ANTLR counts code points; LSP's default position encoding is UTF-16.
             try {
-                String text = snapshot.sources().get(file);
+                String text = sourceTexts.get(file);
                 if (text == null) text = open.containsKey(file) ? open.get(file).text() : Files.readString(file);
                 String[] lines = text.split("\n", -1);
                 line = Math.min(line, lines.length - 1);
