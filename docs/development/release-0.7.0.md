@@ -255,6 +255,14 @@ The archive keeps the latest 32 terminal reports and can be removed with the bui
 Private overlays, request replay keys and the passing test baseline stay in memory.
 Automatic file watching remains open.
 
+The IntelliJ compatibility workflow checks a model edit that invalidates a dependent scenario.
+The language server reports the error from the unsaved editor buffer while `vernac check`
+still sees the saved version. After saving, `vernac check` and MCP `check_saved` agree with
+the editor on the source, severity, message and starting position. The test also repairs the
+editor buffer and closes it to verify that diagnostics follow the saved sources again.
+The language server currently analyzes its own editor snapshots. A shared daemon connection
+for editor operations is still open.
+
 ### Structured model operations for agents
 
 Use the compiler's resolved model for `describe_type`. Address declarations by qualified Vernac
