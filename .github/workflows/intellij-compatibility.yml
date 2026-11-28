@@ -71,6 +71,7 @@ jobs:
           assert {
               'buildsTheRequestedProjectWithItsWrapperAndKeepsLogsOffProtocolOutput',
               'warmChecksStartReuseAndRecoverTheWorkspaceProcess',
+              'mcpSharesWarmSavedChecksWithCliAndKeepsItsOwnSessionRevision',
           } <= {case.attrib['name'] for case in cli.findall('testcase')}
           assert all(int(cli.attrib.get(k, '0')) == 0 for k in ('failures', 'errors', 'skipped'))
           editor = ET.parse('vernac-lsp/target/surefire-reports/TEST-org.vernac.lsp.VernacProjectDiagnosticsTest.xml').getroot()

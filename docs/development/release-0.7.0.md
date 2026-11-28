@@ -357,8 +357,9 @@ saved sources, retains its parser cache between calls and exits after five minut
 The next check starts a fresh process after a crash or idle exit. Discovery files live in
 `~/.vernac-workspaces`. The process accepts authenticated requests over loopback.
 
-`vernac daemon` and `vernac mcp` still provide client-owned stdio sessions. Sharing the
-automatically started process with IntelliJ and MCP, and resolving project dependencies, remain open.
+`vernac daemon` and `vernac mcp` provide client-owned stdio sessions. MCP's
+`check_shared_saved` uses the same automatically started process as the warm CLI check.
+IntelliJ integration with that process, shared test runs and project dependency resolution remain open.
 Running the packaged application does not require the workspace daemon. The opt-in
 `vernac build --dev` path talks to the running development application.
 

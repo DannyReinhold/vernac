@@ -118,6 +118,48 @@ class ScenarioDaemonLauncherTest {
         }
     }
 
+    @Test
+    void mcpSharesWarmSavedChecksWithCliAndKeepsItsOwnSessionRevision() throws Exception {
+        Path workspace = root.resolve("workspace");
+        Path model = Files.createDirectories(workspace.resolve("src/main/vernac/app")).resolve("counter.vernac");
+        Files.writeString(model, "namespace app; value Counter(int);");
+        List<String> check = List.of("check", "--warm", workspace.toString(), "domain");
+        List<String> mcp = List.of("mcp", workspace.toString(), "domain");
+        String initialize = """
+                {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25"}}
+                {"jsonrpc":"2.0","method":"notifications/initialized"}
+                """;
+        String sharedCheck = """
+                {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"check_shared_saved"}}
+                """;
+        var json = JsonMapper.builder().build();
+        try {
+            runCliOutput(mcp, 0, initialize);
+            assertTrue(warmProcessIdIfStarted().isEmpty());
+            var first = runCliOutput(mcp, 0, initialize + sharedCheck).lines().map(json::readTree).toList();
+            assertFalse(first.get(1).at("/result/isError").asBoolean());
+            assertEquals(runCli(check, 0), first.get(1).at("/result/structuredContent"));
+            long pid = warmProcessId();
+
+            Files.writeString(model, "namespace app; value Counter(Missing);");
+            String revision = """
+                    {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"workspace_revision"}}
+                    """;
+            var replies = runCliOutput(mcp, 0, initialize + sharedCheck + revision).lines()
+                    .map(json::readTree).toList();
+            var checked = replies.get(1).at("/result/structuredContent");
+            assertFalse(replies.get(1).at("/result/isError").asBoolean());
+            assertFalse(checked.get("valid").asBoolean());
+            assertEquals(1, checked.get("revision").asLong());
+            assertEquals(checked, runCli(check, 1));
+            assertEquals(0, replies.get(2).at("/result/structuredContent/revision").asLong());
+            assertEquals(pid, warmProcessId());
+        } finally {
+            var pid = warmProcessIdIfStarted();
+            if (pid.isPresent()) stopProcess(pid.getAsLong());
+        }
+    }
+
     private long warmProcessId() throws Exception {
         return warmProcessIdIfStarted().orElseThrow();
     }
@@ -181,19 +223,25 @@ class ScenarioDaemonLauncherTest {
     }
 
     private JsonNode runCli(List<String> invocation, int expectedExit) throws Exception {
+        return JsonMapper.builder().build().readTree(runCliOutput(invocation, expectedExit, ""));
+    }
+
+    private String runCliOutput(List<String> invocation, int expectedExit, String input) throws Exception {
         var stderr = root.resolve("cli-stderr.log");
         var stdout = root.resolve("cli-stdout.log");
+        var stdin = root.resolve("cli-stdin.jsonl");
+        Files.writeString(stdin, input);
         var arguments = new ArrayList<>(List.of(javaExecutable().toString(), "-Duser.home=" + root,
                 "-cp", System.getProperty("java.class.path"),
                 ScenarioCli.class.getName()));
         arguments.addAll(invocation);
         var process = new ProcessBuilder(arguments)
-                .redirectError(stderr.toFile()).redirectOutput(stdout.toFile()).start();
+                .redirectInput(stdin.toFile()).redirectError(stderr.toFile()).redirectOutput(stdout.toFile()).start();
         try {
             assertTrue(process.waitFor(30, TimeUnit.SECONDS), "CLI did not exit");
             String reply = Files.readString(stdout);
             assertEquals(expectedExit, process.exitValue(), Files.readString(stderr) + reply);
-            return JsonMapper.builder().build().readTree(reply);
+            return reply;
         } finally {
             if (process.isAlive()) process.destroyForcibly();
         }

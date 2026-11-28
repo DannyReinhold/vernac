@@ -47,6 +47,10 @@ workspace and the optional third argument selects the test profile (`domain`, `m
 
 - Use `workspace_revision`, then `check_saved` or `test_affected_saved` with that revision.
   The first test request establishes the comparison baseline. Send the returned revision next.
+- Use `check_shared_saved` with no arguments to check the latest saved files through the same
+  background process as `vernac check --warm`. The first call starts the process if needed.
+  Its returned revision belongs to that process. For session tests and overlays, get the
+  session's revision with `workspace_revision`.
 - For unsaved edits, use `open_overlay`. Send its `client` and `revision` to
   `check_overlay`, `test_affected_overlay`, or `test_scenario`. Use `close_overlay` when done.
 - To run affected tests in the background, use `start_affected_saved` or
