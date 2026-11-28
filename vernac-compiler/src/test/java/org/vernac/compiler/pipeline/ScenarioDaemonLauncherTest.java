@@ -101,7 +101,7 @@ class ScenarioDaemonLauncherTest {
             assertEquals(invalid, runCli(check, 1));
 
             Files.writeString(model, "namespace app; value Counter(int);");
-            Files.writeString(workspace.resolve("vernac-module.vmodule"), "module app { export app.Counter; }");
+            Files.writeString(workspace.resolve("vernac-module.vmodule"), "module app.checks { export app.Counter; }");
             var configured = runCli(check, 0);
             assertTrue(configured.get("valid").asBoolean());
             assertEquals(2, configured.get("revision").asLong());
@@ -191,8 +191,9 @@ class ScenarioDaemonLauncherTest {
                 .redirectError(stderr.toFile()).redirectOutput(stdout.toFile()).start();
         try {
             assertTrue(process.waitFor(30, TimeUnit.SECONDS), "CLI did not exit");
-            assertEquals(expectedExit, process.exitValue(), Files.readString(stderr));
-            return JsonMapper.builder().build().readTree(Files.readString(stdout));
+            String reply = Files.readString(stdout);
+            assertEquals(expectedExit, process.exitValue(), Files.readString(stderr) + reply);
+            return JsonMapper.builder().build().readTree(reply);
         } finally {
             if (process.isAlive()) process.destroyForcibly();
         }
