@@ -73,6 +73,25 @@ class VersionedSourcesTest {
         assertEquals(0L, session.check(initial).revision());
     }
 
+    @Test
+    void reconcilesCompleteCapturesWithoutPublishingAnInvalidOrStaleRevision() {
+        var model = Path.of("src/main/vernac/app/model.vernac");
+        var scenario = Path.of("src/test/vernac/app/checks.vernac");
+        var sources = new VersionedSources(root, Map.of(model, "old", scenario, "test"));
+        var initial = sources.snapshot();
+        assertSame(initial, sources.reconcile(0, Map.of(model, "old", scenario, "test")));
+        assertThrows(IllegalArgumentException.class,
+                () -> sources.reconcile(0, Map.of(model, "new", Path.of("../outside.vernac"), "out")));
+        assertSame(initial, sources.snapshot());
+
+        var updated = sources.reconcile(0, Map.of(model, "new"));
+        assertEquals(1, updated.revision());
+        assertEquals(Map.of(root.resolve(model), "new"), updated.sources());
+        assertEquals("test", initial.sources().get(root.resolve(scenario)));
+        assertThrows(VersionedSources.Conflict.class, () -> sources.reconcile(0, Map.of()));
+        assertSame(updated, sources.snapshot());
+    }
+
 
     @Test
     void usesCapturedModuleConfigurationInsteadOfReadingDisk() throws Exception {

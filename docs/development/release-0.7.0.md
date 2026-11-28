@@ -260,8 +260,11 @@ The language server reports the error from the unsaved editor buffer while `vern
 still sees the saved version. After saving, `vernac check` and MCP `check_saved` agree with
 the editor on the source, severity, message and starting position. The test also repairs the
 editor buffer and closes it to verify that diagnostics follow the saved sources again.
-The language server currently analyzes its own editor snapshots. A shared daemon connection
-for editor operations is still open.
+The language server now uses the daemon's revision store to capture production and scenario
+sources together for each workspace. Open buffers take precedence over disk, and obsolete LSP
+document versions cannot replace them. Parsing, scenario diagnostics and source positions use
+that capture. The language server hosts its own private store in process and keeps editor error
+recovery and typed references. Connecting editor clients to the same daemon process remains open.
 
 ### Structured model operations for agents
 

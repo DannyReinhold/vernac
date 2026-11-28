@@ -69,7 +69,18 @@ public final class VernacProjectLoader {
 
         public synchronized VernacProject loadForAnalysis(Map<Path, String> snapshots,
                                                             List<CompilerDiagnostic> diagnostics) throws IOException {
-            var revision = loadSources(sourceRoot, snapshots, diagnostics, true, editor, true);
+            return loadEditor(snapshots, diagnostics, true);
+        }
+
+        /** Runs editor recovery on a complete revision without reading later disk changes. */
+        public synchronized VernacProject loadSnapshotForAnalysis(Map<Path, String> sources,
+                                                                    List<CompilerDiagnostic> diagnostics) throws IOException {
+            return loadEditor(sources, diagnostics, false);
+        }
+
+        private VernacProject loadEditor(Map<Path, String> snapshots, List<CompilerDiagnostic> diagnostics,
+                                         boolean includeDisk) throws IOException {
+            var revision = loadSources(sourceRoot, snapshots, diagnostics, true, editor, includeDisk);
             editor = revision.entries();
             statistics = revision.statistics();
             return revision.project();

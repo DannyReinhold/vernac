@@ -32,7 +32,7 @@ jobs:
       - name: Build and test compiled renderer and actual plugin ZIP
         run: >-
           mvn -B -ntp -pl vernac-intellij,vernac-runtime-http -am
-          -Dtest=SourceModuleVisibilityTest,InboundMvcContractTest,VernacFormatterTest,VernacFormattingServiceTest,VernacDebuggerApiTest,VernacViewInspectorTest,VernacSpringBootTemplateTest,VernacProjectTemplateTest,ScenarioDaemonLauncherTest,DevelopmentWebConfigurationTest,DevelopmentBundleCompilerTest,DevelopmentBuildServerTest,VernacMcpServerTest,ScenarioRunJobsTest,InProcessScenarioExecutorTest,ScenarioRunArchiveTest,VernacProjectDiagnosticsTest
+          -Dtest=SourceModuleVisibilityTest,InboundMvcContractTest,VernacFormatterTest,VernacFormattingServiceTest,VernacDebuggerApiTest,VernacViewInspectorTest,VernacSpringBootTemplateTest,VernacProjectTemplateTest,ScenarioDaemonLauncherTest,DevelopmentWebConfigurationTest,DevelopmentBundleCompilerTest,DevelopmentBuildServerTest,VernacMcpServerTest,ScenarioRunJobsTest,InProcessScenarioExecutorTest,ScenarioRunArchiveTest,VersionedSourcesTest,VernacProjectDiagnosticsTest
           -Dsurefire.failIfNoSpecifiedTests=false
           -Dit.test=PluginDistributionIT -Dfailsafe.failIfNoSpecifiedTests=false
           clean verify
